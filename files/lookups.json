@@ -1,0 +1,1813 @@
+{   
+  "featurefile": "automedina.fea",
+  "lookups": {
+    "dalhwawcursive": {
+      "name": "dalhwawcursive",
+      "feature": "curs",
+      "type": "cursive",
+      "flags": [ false, false, false, true ],
+      "anchors": {
+        "dal.fina": {
+          "exit": [ 0, 0 ]
+        },
+        "waw.isol": {
+          "entry": [ 0, 0 ]
+        },
+        "heh.init.beforemeem": {
+          "entry": [ 0, 0 ]
+        }
+      }
+    },
+    "hamzaabovebelowjson": {
+      "name": "hamzaabovebelowjson",
+      "feature": "mkmk",
+      "type": "chainingpos",
+      "flags": [ false, false, false, false ],
+      "lookups": {
+        "l1": {
+          "type": "mark2base",
+          "base": "^behshape.medi",
+          "classes": {
+            "hamzaabove": {
+              "mark": "hamzaabove",
+              "basefunction": "defaultbaseanchorforlow",
+              "markfunction": "defaullowmarkanchor"
+            }
+          }
+        },
+        "l2": {
+          "type": "mark2mark",
+          "base": "hamzaabove",
+          "classes": {
+            "hamzaabove": {
+              "mark": [ "kasra", "kasratan", "kasratanidgham" ],
+              "basefunction": "defaultbaseanchorforlow",
+              "markfunction": "defaullowmarkanchor"
+            }
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "^behshape.medi" ],
+            [ "hamzaabove" ],
+            [ "kasra", "kasratan", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 1,
+              "lookup": "l1"
+            },
+            {
+              "position": 2,
+              "lookup": "l2"
+            }
+          ]
+        }
+      ]
+    },
+    "defaultmarkposition": {
+      "name": "defaultmarkposition",
+      "feature": "mark",
+      "type": "mark2base",
+      "base": "bases",
+      "classes": {
+        "top": {
+          "mark": "topmarks",
+          "basefunction": "defaulbaseanchorfortop",
+          "markfunction": "defaultopmarkanchor",
+          "parameters": {
+            "fatha": [ 0, 0 ]
+          }
+        },
+        "bottom": {
+          "mark": "lowmarks",
+          "basefunction": "defaulbaseanchorforlow",
+          "markfunction": "defaullowmarkanchor"
+        }
+      }
+    },
+    "defaultmkmkold": {
+      "name": "defaultmkmkold",
+      "feature": "mkmk",
+      "type": "mark2mark",
+      "base": [
+        "hamzaabove",
+        "shadda",
+        "smallalef",
+        "smallalef.replacement",
+        "hamzabelow",
+        "hamzaabove.lamalef"
+      ],
+      "classes": {
+        "top": {
+          "mark": "topmarks",
+          "basefunction": "defaultmarkabovemark",
+          "markfunction": "defaultopmarkanchor",
+          "parameters": {
+            "fatha": [ 0, 0 ]
+          }
+        },
+        "bottom": {
+          "mark": "lowmarks",
+          "basefunction": "defaultmarkbelowmark",
+          "markfunction": "defaullowmarkanchor"
+        }
+      }
+    },
+    "defaultwaqfmarkabovemark": {
+      "name": "defaultwaqfmarkabovemark",
+      "feature": "mkmk",
+      "type": "mark2mark",
+      "base": "topmarks",
+      "classes": {
+        "top": {
+          "mark": "waqfmarks",
+          "basefunction": "defaultwaqfmarkabovemark",
+          "markfunction": "defaultopmarkanchor"
+        }
+      }
+    },
+    "alefadjustment": {
+      "name": "alefadjustment",
+      "feature": "kern",
+      "type": "chainingpos",
+      "flags": [ false, false, false, false ],
+      "markSet": [ "hamzabelow", "hamzaabove", "wasla" ],
+      "lookups": {
+        "l1": {
+          "type": "singleadj",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "alef.isol.ii": [ 30, 300, 100, 0 ],
+            "alef.isol": [ 30, 150, 200, 0 ],
+            "reh|waw": [ 300, 0, 300, 0 ]
+          }
+        },
+        "l2": {
+          "type": "singleadj",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "alef.isol": [ 100, 0, 100, 0 ]
+          }
+        },
+        "lwasla": {
+          "type": "singleadj",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "alef.isol": [ 50, 0, 50, 0 ]
+          }
+        }
+      },
+      "subtables": [
+        {
+          "backtrack": [
+            [ "waw.isol" ]
+          ],
+          "input": [
+            [ "alef.isol.ii" ]
+          ],
+          "lookahead": [
+            [ "hamzabelow" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        },
+        {
+          "backtrack": [
+            [ "meem.fina.afterheh", "meem.fina.afterkaf" ],
+            [ "space" ]
+          ],
+          "input": [
+            [ "alef.isol" ]
+          ],
+          "lookahead": [
+            [ "hamzabelow" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        },
+        {
+          "input": [
+            [ "alef.isol" ]
+          ],
+          "lookahead": [
+            [ "hamzaabove" ],
+            [ "^lam[.]init" ]
+          ],
+          "lookuprecords": [ "l2" ]
+        },
+        {
+          "input": [
+            [ "alef.isol" ]
+          ],
+          "lookahead": [
+            [ "wasla" ],
+            [ "^lam[.]init" ],
+            [ "topmarks" ]
+          ],
+          "lookuprecords": [ "lwasla" ]
+        },
+        {
+          "input": [
+            [ "reh|waw" ]
+          ],
+          "lookahead": [
+            [ "space" ],
+            [ "alef" ],
+            [ "hamzabelow" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        }
+      ]
+    },
+    "joinedsmalllettersjson": {
+      "name": "joinedsmalllettersjson",
+      "feature": "mark",
+      "type": "chainingpos",
+      "flags": [ false, false, false, false ],
+      "markSet": [ "hamzaabove.joined", "smallalef.joined", "maddahabove" ],
+      "lookups": {
+        "l1": {
+          "type": "singleadj",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "hamzaabove.joined": [ 50, 0, 0, 0 ],
+            "smallalef.joined": [ 150, 0, 0, 0 ]
+          }
+        },
+        "l2": {
+          "type": "singleadj",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "smallalef.joined": [ 20, -0, 0, 0 ]
+          }
+        },
+        "l3": {
+          "type": "singleadj",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "smallalef.joined": [ 150, 0, 150, 0 ]
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "hamzaabove.joined" ]
+          ],
+          "lookahead": [
+            [ "smallalef.joined" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        },
+        {
+          "input": [
+            [ "smallalef.joined" ]
+          ],
+          "lookahead": [
+            [ "maddahabove" ],
+            [ "hamzaabove.joined" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        },
+        {
+          "input": [
+            [ "smallalef.joined" ]
+          ],
+          "lookahead": [
+            [ "maddahabove" ]
+          ],
+          "lookuprecords": [ "l2" ]
+        },
+        {
+          "input": [
+            [ "smallalef.joined" ]
+          ],
+          "lookahead": [
+            [ "^heh.medi" ]
+          ],
+          "lookuprecords": [ "l3" ]
+        }
+      ]
+    },
+    "wawmaddaalef": {
+      "name": "wawmaddaalef",
+      "feature": "kern",
+      "type": "chainingpos",
+      "flags": [ false, false, false, false ],
+      "lookups": {
+        "l1": {
+          "type": "singleadj",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "alef.isol": [ 0, 0, 50, 0 ]
+          }
+        }
+      },
+      "subtables": [
+        {
+          "backtrack": [
+            [ "waw.fina" ],
+            [ "maddahabove" ]
+          ],
+          "input": [
+            [ "alef.isol" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        }
+      ]
+    },
+    "alefalef": {
+      "name": "alefalef",
+      "feature": "kern",
+      "type": "chainingpos",
+      "flags": [ false, false, false, true ],
+      "lookups": {
+        "l1": {
+          "type": "singleadj",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "alef.isol": [ 70, 0, 70, 0 ]
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "alef.isol" ]
+          ],
+          "lookahead": [
+            [ "alef.isol" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        },
+        {
+          "input": [
+            [ "alef.isol" ],
+            [ "space" ]
+          ],
+          "lookahead": [
+            [ "alef.isol" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        }
+      ]
+    },
+    "kafinityehfinesmallalefmaddah": {
+      "name": "kafinityehfinesmallalefmaddah",
+      "feature": "mkmk",
+      "type": "chainingpos",
+      "flags": [ false, false, false, false ],
+      "markSet": [ "smallalef.replacement", "maddahabove" ],
+      "lookups": {
+        "l1": {
+          "type": "singleadj",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "smallalef.replacement": [ 0, -150, 0, 0 ]
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "kaf.init.beforeyeh" ],
+            [ "yehshape.fina.ii" ],
+            [ "smallalef.replacement" ],
+            [ "maddahabove" ]
+          ],
+          "lookuprecords": [ [ 2, "l1" ] ]
+        }
+      ]
+    },
+    "thalkafinit": {
+      "name": "thalkafinit",
+      "feature": "kern",
+      "type": "chainingpos",
+      "flags": [ false, false, false, false ],
+      "markSet": [ "onedotup", "shadda" ],
+      "lookups": {
+        "l1": {
+          "type": "singleadj",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "kaf.init": [ 0, 0, 50, 0 ]
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "dal[.]fina" ],
+            [ "onedotup" ],
+            [ "shadda" ],
+            [ "kaf[.]init" ]
+          ],
+          "lookuprecords": [ [ 3, "l1" ] ]
+        }
+      ]
+    },
+    "variouskern": {
+      "name": "variouskern",
+      "feature": "kern",
+      "type": "chainingpos",
+      "flags": [ false, false, false, false ],
+      "lookups": {
+        "l1": {
+          "type": "singleadj",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "hamza.isol": [ 0, -50, 0, 0 ],
+            "alef.isol": [ 0, 0, 50, 0 ],
+            "dal.isol": [ -100, 0, -100, 0 ],
+            "shadda": [ -80, -50, 0, 0 ],
+            "smallwaw": [ 0, 0, 50, 0 ]
+          }
+        },
+        "l2": {
+          "type": "mark2base",
+          "base": "hamza.isol",
+          "classes": {
+            "dammatan": {
+              "mark": "dammatan",
+              "baseanchors": { "hamza.isol": [ 0, 0 ] },
+              "markfunction": "defaultopmarkanchor"
+            }
+          }
+        }
+      },
+      "subtables": [
+        {
+          "backtrack": [
+            [ "alef.isol" ],
+            [ "maddahabove" ]
+          ],
+          "input": [
+            [ "hamza.isol" ],
+            [ "dammatan" ]
+          ],
+          "lookuprecords": [ "l1", "l2" ]
+        },
+        {
+          "backtrack": [
+            [ "fathatanidgham" ]
+          ],
+          "input": [
+            [ "alef.isol" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        },
+        {
+          "backtrack": [
+            [ "kasra" ]
+          ],
+          "input": [
+            [ "lam.medi.allah" ],
+            [ "shadda" ]
+          ],
+          "lookuprecords": [ [ 1, "l1" ] ]
+        },
+        {
+          "input": [
+            [ "dal.isol" ],
+            [ "fatha" ],
+            [ "kaf.init.beforelam" ]
+          ],
+          "lookuprecords": [ [ 0, "l1" ] ]
+        },
+        {
+          "input": [
+            [ "smallwaw" ]
+          ],
+          "lookahead": [
+            [ "maddahabove" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        }
+      ]
+    },
+    "lowmarkafterwawandrehold": {
+      "name": "lowmarkafterwawfina",
+      "feature": "mark",
+      "type": "chainingpos",
+      "markSet": [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ],
+      "lookups": {
+        "displac": {
+          "type": "singleadj",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "waw.isol": [ 0, -100, 0, 0 ]
+          }
+        },
+        "beforehah": {
+          "type": "mark2base",
+          "base": "reh|waw",
+          "classes": {
+            "lowmark": {
+              "mark": [ "kasra" ],
+              "basefunction": "defaultbaseanchorforlow",
+              "markfunction": "defaullowmarkanchor"
+            }
+          }
+        },
+        "lwawfina1": {
+          "type": "mark2base",
+          "base": "[.]init|[.]isol",
+          "classes": {
+            "lowmark": {
+              "mark": [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ],
+              "basefunction": "defaultbaseanchorforlow",
+              "markfunction": "defaullowmarkanchor"
+            }
+          }
+        },
+        "lwawfina2": {
+          "type": "mark2mark",
+          "base": [ "onedotdown", "twodotsdown" ],
+          "classes": {
+            "lowmark": {
+              "mark": [ "kasra", "kasratan", "kasratanidgham" ],
+              "basefunction": "defaultbaseanchorforlow",
+              "markfunction": "defaullowmarkanchor"
+            }
+          }
+        },
+        "lrehfina1": {
+          "type": "mark2base",
+          "base": "[.]init|[.]isol",
+          "classes": {
+            "lowmark": {
+              "mark": [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ],
+              "basefunction": "defaultbaseanchorforlow",
+              "markfunction": "defaullowmarkanchor"
+            }
+          }
+        },
+        "lrehfina2": {
+          "type": "mark2mark",
+          "base": [ "onedotdown", "twodotsdown" ],
+          "classes": {
+            "lowmark": {
+              "mark": [ "kasra", "kasratan", "kasratanidgham" ],
+              "basefunction": "defaultbaseanchorforlow",
+              "markfunction": "defaullowmarkanchor"
+            }
+          }
+        },
+        "lwaw1": {
+          "type": "mark2base",
+          "base": "[.]init|[.]isol",
+          "classes": {
+            "lowmark": {
+              "mark": [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ],
+              "basefunction": "defaultbaseanchorforlow",
+              "markfunction": "defaullowmarkanchor"
+            }
+          }
+        },
+        "lwaw2": {
+          "type": "mark2mark",
+          "base": [ "onedotdown", "twodotsdown" ],
+          "classes": {
+            "lowmark": {
+              "mark": [ "kasra", "kasratan", "kasratanidgham" ],
+              "basefunction": "defaultbaseanchorforlow",
+              "markfunction": "defaullowmarkanchor"
+            }
+          }
+        },
+        "lreh1": {
+          "type": "mark2base",
+          "base": "[.]init|[.]isol",
+          "classes": {
+            "lowmark": {
+              "mark": [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ],
+              "basefunction": "defaultbaseanchorforlow",
+              "markfunction": "defaullowmarkanchor"
+            }
+          }
+        },
+        "lreh2": {
+          "type": "mark2mark",
+          "base": [ "onedotdown", "twodotsdown" ],
+          "classes": {
+            "lowmark": {
+              "mark": [ "kasra", "kasratan", "kasratanidgham" ],
+              "basefunction": "defaultbaseanchorforlow",
+              "markfunction": "defaullowmarkanchor"
+            }
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "waw.fina" ],
+            [ "kasra", "kasratan", "kasratanidgham" ],
+            [ "[.]init|[.]isol" ],
+            [ "onedotdown", "twodotsdown" ],
+            [ "kasra", "kasratan", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 3,
+              "lookup": "lwawfina1"
+            },
+            {
+              "position": 4,
+              "lookup": "lwawfina2"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "waw.fina" ],
+            [ "[.]init|[.]isol" ],
+            [ "onedotdown", "twodotsdown" ],
+            [ "kasra", "kasratan", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 2,
+              "lookup": "lwawfina1"
+            },
+            {
+              "position": 3,
+              "lookup": "lwawfina2"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "waw.fina" ],
+            [ "kasra", "kasratan", "kasratanidgham" ],
+            [ "[.]init|[.]isol" ],
+            [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 3,
+              "lookup": "lwawfina1"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "waw.fina" ],
+            [ "[.]init|[.]isol" ],
+            [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 2,
+              "lookup": "lwawfina1"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "^reh.fina" ],
+            [ "kasra", "kasratan", "kasratanidgham" ],
+            [ "[.]init|[.]isol" ],
+            [ "onedotdown", "twodotsdown" ],
+            [ "kasra", "kasratan", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 3,
+              "lookup": "lrehfina1"
+            },
+            {
+              "position": 4,
+              "lookup": "lrehfina2"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "^reh.fina" ],
+            [ "[.]init|[.]isol" ],
+            [ "onedotdown", "twodotsdown" ],
+            [ "kasra", "kasratan", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 2,
+              "lookup": "lrehfina1"
+            },
+            {
+              "position": 3,
+              "lookup": "lrehfina2"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "^reh.fina" ],
+            [ "kasra", "kasratan", "kasratanidgham" ],
+            [ "hah[.]isol" ],
+            [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 1,
+              "lookup": "beforehah"
+            },
+            {
+              "position": 3,
+              "lookup": "lrehfina1"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "^reh.fina" ],
+            [ "kasra", "kasratan", "kasratanidgham" ],
+            [ "[.]init|[.]isol" ],
+            [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 3,
+              "lookup": "lrehfina1"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "^reh.fina" ],
+            [ "[.]init|[.]isol" ],
+            [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 2,
+              "lookup": "lrehfina1"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "waw.isol" ],
+            [ "kasra", "kasratan", "kasratanidgham" ],
+            [ "[.]init|[.]isol" ],
+            [ "onedotdown", "twodotsdown" ],
+            [ "kasra", "kasratan", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 3,
+              "lookup": "lwaw1"
+            },
+            {
+              "position": 4,
+              "lookup": "lwaw2"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "waw.isol" ],
+            [ "[.]init|[.]isol" ],
+            [ "onedotdown", "twodotsdown" ],
+            [ "kasra", "kasratan", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 2,
+              "lookup": "lwaw1"
+            },
+            {
+              "position": 3,
+              "lookup": "lwaw2"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "waw.isol" ],
+            [ "kasra", "kasratan", "kasratanidgham" ],
+            [ "[.]init|[.]isol" ],
+            [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 3,
+              "lookup": "lwaw1"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "waw.isol" ],
+            [ "[.]init|[.]isol" ],
+            [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 2,
+              "lookup": "lwaw1"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "reh.isol" ],
+            [ "kasra", "kasratan", "kasratanidgham" ],
+            [ "[.]init|[.]isol" ],
+            [ "onedotdown", "twodotsdown" ],
+            [ "kasra", "kasratan", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 3,
+              "lookup": "lreh1"
+            },
+            {
+              "position": 4,
+              "lookup": "lreh2"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "reh.isol" ],
+            [ "[.]init|[.]isol" ],
+            [ "onedotdown", "twodotsdown" ],
+            [ "kasra", "kasratan", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 2,
+              "lookup": "lreh1"
+            },
+            {
+              "position": 3,
+              "lookup": "lreh2"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "reh.isol" ],
+            [ "kasra", "kasratan", "kasratanidgham" ],
+            [ "[.]init|[.]isol" ],
+            [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 3,
+              "lookup": "lreh1"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "reh.isol" ],
+            [ "[.]init|[.]isol" ],
+            [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 2,
+              "lookup": "lreh1"
+            }
+          ]
+        }
+      ]
+    },
+    "correction": {
+      "name": "correction",
+      "feature": "ccmp",
+      "type": "multiple",
+      "data": {
+        "0657": [ "fathatanidgham" ],
+        "065E": [ "dammatanidgham" ],
+        "0656": [ "kasratanidgham" ]
+      }
+    },
+    "convertsmallaleftochar": {
+      "name": "convertsmallaleftochar",
+      "feature": "calt",
+      "type": "single",
+      "data": {
+        "smallalef": "smallalef.isol"
+      }
+    },
+    "smalllalefreplacement": {
+      "name": "smalllalefreplacement",
+      "feature": "rlig",
+      "type": "chainingsub",
+      "flags": [ false, false, false, false ],
+      "lookups": {
+        "l1": {
+          "type": "single",
+          "data": {
+            "smallalef": "smallalef.replacement"
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "smallalef" ]
+          ],
+          "backtrack": [
+            [ "waw|yeh|alefmaksura|behshape" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "l1"
+            }
+          ]
+        }
+      ]
+    },
+    "miscellaneoussubst": {
+      "name": "miscellaneoussubst",
+      "feature": "ccmp",
+      "type": "chainingsub",
+      "flags": [ false, false, false, false ],
+      "lookups": {
+        "l1": {
+          "type": "ligature",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "hamzaabove": [ "034F", "hamzaabove" ]
+          }
+        },
+        "l2": {
+          "type": "single",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "smallhighseen": "smalllowseen"
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "smallalef" ],
+            [ "034F" ],
+            [ "hamzaabove" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 1,
+              "lookup": "l1"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "smallhighseen" ]
+          ],
+          "lookahead": [
+            [ "fatha" ]
+          ],
+          "lookuprecords": [ "l2" ]
+        }
+      ]
+    },
+    "lamhamzaalef": {
+      "name": "lamhamzaalef",
+      "feature": "ccmp",
+      "type": "chainingsub",
+      "flags": [ false, false, false, false ],
+      "lookups": {
+        "l1": {
+          "type": "ligature",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "hamzaabove.lamalef": [ "alef.isol", "hamzaabove" ]
+          }
+        },
+        "l2": {
+          "type": "multiple",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "maddahabove": [ "fatha", "alef.fina" ]
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "alef.isol" ],
+            [ "hamzaabove" ],
+            [ "maddahabove" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "l1"
+            },
+            {
+              "position": 1,
+              "lookup": "l2"
+            }
+          ]
+        }
+      ]
+    },
+    "meemfina": {
+      "name": "meemfina",
+      "feature": "rlig",
+      "type": "chainingsub",
+      "flags": [ false, false, false, false ],
+      "markSet": [ "downdotmarks", "hamzabelow" ],
+      "lookups": {
+        "l1": {
+          "type": "single",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "meem.fina": "meem.fina.ii",
+            "meem.isol": "meem.isol.ii"
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "meem.fina", "meem.isol" ],
+            [ "space" ],
+            [ "^behshape.init" ],
+            [ "downdotmarks" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "l1"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "meem.fina", "meem.isol" ],
+            [ "space" ],
+            [ "^alef.isol" ],
+            [ "hamzabelow" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "l1"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "waw.fina" ],
+            [ "meem.isol" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 1,
+              "lookup": "l1"
+            }
+          ]
+        }
+      ]
+    },
+    "behshapeseen": {
+      "name": "behshapeseen",
+      "feature": "rlig",
+      "type": "chainingsub",
+      "flags": [ false, false, false, false ],
+      "markSet": [ "smallalef", "hamzaabove.joined" ],
+      "lookups": {
+        "l1": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "behshape.init": "behshape.init.beforeseen",
+            "behshape.medi": "behshape.medi.beforeseen"
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "behshape.init", "behshape.medi" ]
+          ],
+          "lookahead": [
+            [ "^seen.medi", "^seen.fina" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        }
+      ]
+    },
+    "multiplebehshape": {
+      "name": "multiplebehshape",
+      "feature": "calt",
+      "type": "chainingsub",
+      "flags": [ false, false, false, true ],
+      "lookups": {
+        "l1": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "behshape.init": "behshape.init.beforeseen",
+            "behshape.medi": "behshape.medi.beforeseen"
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "^behshape.init", "^behshape.medi", "^seen.medi", "^seen.init", "^sad.medi", "^sad.init" ],
+            [ "^behshape.medi" ]
+          ],
+          "lookahead": [
+            [ "behshape.medi(?![.]beforeseen|[.]beforenoon|[.]beforereh)", "^behshape.fina" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 1,
+              "lookup": "l1"
+            }
+          ]
+        }
+      ]
+    },
+    "ainfinjani": {
+      "name": "ainfinjani",
+      "feature": "calt",
+      "type": "chainingsub",
+      "flags": [ false, false, false, false ],
+      "markSet": [ "smallalef" ],
+      "lookups": {
+        "l1": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "ain.init": "ain.init.finjani"
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "ain.init" ],
+            [ "^lam.medi", "^dal.fina", "behshape.medi.beforeseen.*", "^alef" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        }
+      ]
+    },
+    "kaflamalef": {
+      "name": "kaflamalef",
+      "feature": "calt",
+      "type": "chainingsub",
+      "flags": [ false, false, false, false ],
+      "markSet": [ "smallalef" ],
+      "lookups": {
+        "l1": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "kaf.init": "kaf.init.beforelam",
+            "kaf.medi": "kaf.medi.beforelam",
+            "alef.fina": "alef.fina.afterkaf",
+            "lam.fina": "lam.fina.afterkaf",
+            "lam.medi.laf": "lam.medi.laf.afterkaf",
+            "lam.medi": "lam.medi.afterkaf"
+          }
+        },
+        "l2": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "kaf.init": "kaf.init.beforelamfina",
+            "kaf.medi": "kaf.medi.beforelamfina"
+          }
+        },
+        "l3": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "kaf.init": "kaf.init.beforelamalef",
+            "kaf.medi": "kaf.medi.beforelamalef"
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "kaf.init", "kaf.medi" ],
+            [ "lam.fina" ]
+          ],
+          "lookuprecords": [ "l2", "l1" ]
+        },
+        {
+          "input": [
+            [ "kaf.init", "kaf.medi" ],
+            [ "lam.medi.laf" ]
+          ],
+          "lookuprecords": [ "l3", "l1" ]
+        },
+        {
+          "input": [
+            [ "kaf.init", "kaf.medi" ],
+            [ "alef.fina", "lam.medi" ]
+          ],
+          "lookuprecords": [ "l1", "l1" ]
+        }
+      ]
+    },
+    "otherliga": {
+      "name": "otherliga",
+      "feature": "rlig",
+      "type": "chainingsub",
+      "flags": [ false, false, false, false ],
+      "markSet": [ "smallalef" ],
+      "lookups": {
+        "l1": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "reh.fina": "reh.fina.afterseen",
+            "hah.init": "hah.init.beforemeem",
+            "meem.medi": "meem.medi.afterhah",
+            "seen.init": "seen.init.beforereh",
+            "seen.medi": "seen.medi.beforereh",
+            "sad.init": "sad.init.beforereh",
+            "sad.medi": "sad.medi.beforereh"
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "hah.init" ],
+            [ "meem.medi" ]
+          ],
+          "lookuprecords": [ "l1", "l1" ]
+        },
+        {
+          "input": [
+            [ "seen.init", "sad.init", "seen.medi", "sad.medi" ],
+            [ "reh.fina" ]
+          ],
+          "lookuprecords": [ "l1", "l1" ]
+        }
+      ]
+    },
+    "requiredligature": {
+      "name": "requiredligature",
+      "feature": "rlig",
+      "type": "chainingsub",
+      "flags": [ false, false, false, false ],
+      "markSet": [ "smallalef" ],
+      "lookups": {
+        "l1": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "lam.init": "lam.init.allah",
+            "lam.medi": "lam.medi.allah",
+            "heh.fina": "heh.fina.allah"
+          }
+        },
+        "l2": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "lam.init": "lam.init.lamalef",
+            "alef.fina": "alef.fina.lamalef"
+          }
+        },
+        "substyehshapefinaii": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "fehshape.init": "fehshape.init.beforeyeh",
+            "behshape.init": "behshape.init.beforeyeh",
+            "lam.init": "lam.init.beforeyeh",
+            "lam.medi": "lam.medi.beforeyeh",
+            "meem.init": "meem.init.beforeyeh",
+            "meem.medi": "meem.medi.beforeyeh",
+            "hah.init": "hah.init.beforeyeh",
+            "hah.medi": "hah.medi.beforeyeh",
+            "yehshape.fina": "yehshape.fina.ii",
+            "fehshape.medi": "fehshape.medi.beforeyeh",
+            "heh.init": "heh.init.beforeyeh",
+            "heh.medi": "heh.medi.beforeyeh",
+            "ain.init": "ain.init.beforeyeh",
+            "ain.medi": "ain.medi.beforeyeh",
+            "tah.init": "tah.init.beforeyeh",
+            "tah.medi": "tah.medi.beforeyeh",
+            "kaf.medi": "kaf.medi.beforeyeh",
+            "kaf.init": "kaf.init.beforeyeh"
+          }
+        },
+        "substyehshapefinaii.2": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "behshape.init": "behshape.init.beforehahyeh",
+            "hah.medi": "hah.medi.afterbeh.beforeyeh",
+            "yehshape.fina": "yehshape.fina.ii"
+          }
+        },
+        "substyehshapefinaii.3": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "lam.init": "lam.init.beforehahyeh",
+            "hah.medi": "hah.medi.afterlam.beforeyeh",
+            "yehshape.fina": "yehshape.fina.ii"
+          }
+        },
+        "l4": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "ain.init": "ain.init.finjani",
+            "lam.medi": "lam.medi.beforeyeh",
+            "yehshape.fina": "yehshape.fina.ii"
+          }
+        },
+        "l5": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "behshape.init": "behshape.init.beforehah",
+            "hah.medi": "hah.medi.afterbeh"
+          }
+        },
+        "lmeemhah": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "meem.init": "meem.init.beforehah",
+            "hah.medi": "hah.medi.beforemeem"
+          }
+        },
+        "l6": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "lam.medi": "lam.medi.laf",
+            "alef.fina": "alef.fina.laf"
+          }
+        },
+        "l7": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "lam.init": "lam.init.lam_hah",
+            "hah.medi": "hah.medi.lam_hah"
+          }
+        },
+        "l9": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "behshape.init": "behshape.init.beforenoon",
+            "behshape.medi": "behshape.medi.beforenoon",
+            "noon.fina": "noon.fina.afterbeh"
+          }
+        },
+        "l10": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "lam.init": "lam.init.beforedal",
+            "dal.fina": "dal.fina.afterlam",
+            "lam.medi": "lam.medi.beforeheh",
+            "heh.fina": "heh.fina.afterlam",
+            "kaf.fina": "kaf.fina.afterlam"
+          }
+        },
+        "l11": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "heh.init": "heh.init.beforemeem",
+            "meem.fina": "meem.fina.afterheh"
+          }
+        },
+        "l13": {
+          "type": "single",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "behshape.medi": "behshape.medi.beforereh",
+            "reh.fina": "reh.fina.afterbehshape"
+          }
+        },
+        "substyehshapefinaafterbeh": {
+          "type": "single",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "yehshape.fina": "yehshape.fina.afterbeh",
+            "behshape.medi": "behshape.medi.beforeyeh",
+            "seen.init": "seen.init.beforeyeh",
+            "seen.medi": "seen.medi.beforeyeh",
+            "sad.init": "sad.init.beforeyeh",
+            "sad.medi": "sad.medi.beforeyeh"
+
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "lam.init" ],
+            [ "lam.medi" ],
+            [ "heh.fina" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "l1"
+            },
+            {
+              "position": 1,
+              "lookup": "l1"
+            },
+            {
+              "position": 2,
+              "lookup": "l1"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "lam.init" ],
+            [ "alef.fina" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "l2"
+            },
+            {
+              "position": 1,
+              "lookup": "l2"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "behshape.init" ],
+            [ "hah.medi" ],
+            [ "yehshape.fina" ]
+          ],
+          "lookuprecords": [ "substyehshapefinaii.2", "substyehshapefinaii.2", "substyehshapefinaii.2" ]
+        },
+        {
+          "input": [
+            [ "lam.init" ],
+            [ "hah.medi" ],
+            [ "yehshape.fina" ]
+          ],
+          "lookuprecords": [ "substyehshapefinaii.3", "substyehshapefinaii.3", "substyehshapefinaii.3" ]
+        },
+        {
+          "input": [
+            [ "fehshape.init", "fehshape.medi", "behshape.init", "lam.init", "lam.medi", "meem.init", "meem.medi", "hah.init", "hah.medi", "heh.init", "heh.medi", "ain.init", "ain.medi", "tah.init", "tah.medi", "kaf.init", "kaf.medi" ],
+            [ "yehshape.fina" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "substyehshapefinaii"
+            },
+            {
+              "position": 1,
+              "lookup": "substyehshapefinaii"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "ain.init" ],
+            [ "lam.medi" ],
+            [ "yehshape.fina" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "l4"
+            },
+            {
+              "position": 1,
+              "lookup": "l4"
+            },
+            {
+              "position": 2,
+              "lookup": "l4"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "behshape.init" ],
+            [ "hah.medi" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "l5"
+            },
+            {
+              "position": 1,
+              "lookup": "l5"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "meem.init" ],
+            [ "hah.medi" ]
+          ],
+          "lookuprecords": [ "lmeemhah", "lmeemhah" ]
+        },
+        {
+          "input": [
+            [ "lam.medi" ],
+            [ "alef.fina" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "l6"
+            },
+            {
+              "position": 1,
+              "lookup": "l6"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "lam.init" ],
+            [ "hah.medi" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "l7"
+            },
+            {
+              "position": 1,
+              "lookup": "l7"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "behshape.init", "behshape.medi" ],
+            [ "noon.fina" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "l9"
+            },
+            {
+              "position": 1,
+              "lookup": "l9"
+            }
+          ]
+        },
+        {
+          "input": [
+            [ "lam.init", "lam.medi" ],
+            [ "dal.fina", "heh.fina", "kaf.fina" ]
+          ],
+          "lookuprecords": [ "l10", "l10" ]
+        },
+        {
+          "input": [
+            [ "heh.init" ],
+            [ "meem.fina" ]
+          ],
+          "lookuprecords": [ "l11", "l11" ]
+        },
+        {
+          "input": [
+            [ "behshape.medi" ],
+            [ "reh.fina" ]
+          ],
+          "lookuprecords": [ "l13", "l13" ]
+        },
+        {
+          "input": [
+            [ "behshape.medi", "seen.init", "seen.medi", "sad.init", "sad.medi" ],
+            [ "yehshape.fina" ]
+          ],
+          "lookuprecords": [ "substyehshapefinaafterbeh", "substyehshapefinaafterbeh" ]
+        }
+      ]
+    },
+    "alefadjustmentgsub": {
+      "name": "alefadjustmentgsub",
+      "feature": "rlig",
+      "type": "chainingsub",
+      "flags": [ false, false, false, false ],
+      "markSet": [ "hamzabelow" ],
+      "lookups": {
+        "l1": {
+          "type": "single",
+          "flags": [ false, false, false, true ],
+          "data": {
+            "alef.isol": "alef.isol.ii"
+          }
+        }
+      },
+      "subtables": [
+        {
+          "backtrack": [
+            [ "waw.isol" ]
+          ],
+          "input": [
+            [ "alef.isol" ]
+          ],
+          "lookahead": [
+            [ "hamzabelow" ]
+          ],
+          "lookuprecords": [
+            {
+              "position": 0,
+              "lookup": "l1"
+            }
+          ]
+        }
+      ]
+    },
+    "setdecomp": {
+      "name": "setdecomp",
+      "feature": "ccmp",
+      "type": "multiple",
+      "data": {
+        "0622": [ "alef.isol", "maddahabove" ],
+        "0623": [ "alef.isol", "hamzaabove" ],
+        "0624": [ "waw.isol", "hamzaabove" ],
+        "0625": [ "alef.isol", "hamzabelow" ],
+        "0626": [ "alefmaksura.isol", "hamzaabove" ],
+        "0628": [ "behshape.isol", "onedotdown" ],
+        "0629": [ "heh.isol", "twodotsup" ],
+        "062A": [ "behshape.isol", "twodotsup" ],
+        "062B": [ "behshape.isol", "three_dots" ],
+        "062C": [ "hah.isol", "onedotdown" ],
+        "062E": [ "hah.isol", "onedotup" ],
+        "0630": [ "dal.isol", "onedotup" ],
+        "0632": [ "reh.isol", "onedotup" ],
+        "0634": [ "seen.isol", "three_dots" ],
+        "0636": [ "sad.isol", "onedotup" ],
+        "0638": [ "tah.isol", "onedotup" ],
+        "063A": [ "ain.isol", "onedotup" ],
+        "0671": [ "alef.isol", "wasla" ]
+      }
+    },
+    "init": {
+      "name": "init",
+      "feature": "init",
+      "type": "multiple",
+      "data": {
+        "behshape.isol": [ "behshape.init" ],
+        "hah.isol": [ "hah.init" ],
+        "seen.isol": [ "seen.init" ],
+        "sad.isol": [ "sad.init" ],
+        "tah.isol": [ "tah.init" ],
+        "ain.isol": [ "ain.init" ],
+        "feh.isol": [ "fehshape.init", "onedotup" ],
+        "qaf.isol": [ "fehshape.init", "twodotsup" ],
+        "kaf.isol": [ "kaf.init" ],
+        "lam.isol": [ "lam.init" ],
+        "meem.isol": [ "meem.init" ],
+        "noon.isol": [ "behshape.init", "onedotup" ],
+        "heh.isol": [ "heh.init" ],
+        "yehshape.isol": [ "behshape.init", "twodotsdown" ],
+        "alefmaksura.isol": [ "behshape.init" ]
+      }
+    },
+    "medi": {
+      "name": "medi",
+      "feature": "medi",
+      "type": "multiple",
+      "data": {
+        "behshape.isol": [ "behshape.medi" ],
+        "hah.isol": [ "hah.medi" ],
+        "seen.isol": [ "seen.medi" ],
+        "sad.isol": [ "sad.medi" ],
+        "tah.isol": [ "tah.medi" ],
+        "ain.isol": [ "ain.medi" ],
+        "feh.isol": [ "fehshape.medi", "onedotup" ],
+        "qaf.isol": [ "fehshape.medi", "twodotsup" ],
+        "kaf.isol": [ "kaf.medi" ],
+        "lam.isol": [ "lam.medi" ],
+        "meem.isol": [ "meem.medi" ],
+        "noon.isol": [ "behshape.medi", "onedotup" ],
+        "heh.isol": [ "heh.medi" ],
+        "yehshape.isol": [ "behshape.medi", "twodotsdown" ],
+        "alefmaksura.isol": [ "behshape.medi" ]
+      }
+    },
+    "fina": {
+      "name": "fina",
+      "feature": "fina",
+      "type": "multiple",
+      "data": {
+        "alef.isol": [ "alef.fina" ],
+        "behshape.isol": [ "behshape.fina" ],
+        "hah.isol": [ "hah.fina" ],
+        "dal.isol": [ "dal.fina" ],
+        "reh.isol": [ "reh.fina" ],
+        "seen.isol": [ "seen.fina" ],
+        "sad.isol": [ "sad.fina" ],
+        "tah.isol": [ "tah.fina" ],
+        "ain.isol": [ "ain.fina" ],
+        "feh.isol": [ "feh.fina" ],
+        "qaf.isol": [ "qaf.fina" ],
+        "kaf.isol": [ "kaf.fina" ],
+        "lam.isol": [ "lam.fina" ],
+        "meem.isol": [ "meem.fina" ],
+        "noon.isol": [ "noon.fina" ],
+        "heh.isol": [ "heh.fina" ],
+        "waw.isol": [ "waw.fina" ],
+        "yehshape.isol": [ "yehshape.fina" ],
+        "alefmaksura.isol": [ "yehshape.fina" ]
+      }
+    },
+    "kafsubst": {
+      "name": "kafsubst",
+      "feature": "rlig",
+      "type": "chainingsub",
+      "flags": [ false, false, false, false ],
+      "markSet": [ "topmarks" ],
+      "lookups": {
+        "l1": {
+          "type": "single",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "kaf.init": "kaf.init.ii",
+            "kaf.medi": "kaf.medi.ii"
+          }
+        }
+      },
+      "subtables": [
+        {
+          "backtrack": [
+            [ "alef.isol.*", "alef.fina.*" ],
+            [ "fatha" ],
+            [ "space" ]
+          ],
+          "input": [
+            [ "kaf.init" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        },
+        {
+          "backtrack": [
+            [ "alef.isol.*", "alef.fina.*" ],
+            [ "topmarks" ]
+          ],
+          "input": [
+            [ "kaf.init" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        },
+        {
+          "backtrack": [
+            [ "alef.isol.*", "alef.fina.*" ],
+            [ "topmarks" ],
+            [ "topmarks" ]
+          ],
+          "input": [
+            [ "kaf.init" ]
+          ],
+          "lookuprecords": [ "l1" ]
+        }
+      ]
+    },
+    "kafmeemliga": {
+      "name": "kafmeemliga",
+      "feature": "calt",
+      "type": "chainingsub",
+      "flags": [ false, false, false, true ],
+      "lookups": {
+        "l1": {
+          "type": "single",
+          "flags": [ false, false, false, false ],
+          "data": {
+            "kaf.medi": "kaf.medi.beforemeem",
+            "meem.fina": "meem.fina.afterkaf"
+          }
+        }
+      },
+      "subtables": [
+        {
+          "input": [
+            [ "kaf.medi" ],
+            [ "meem.fina" ]
+          ],
+          "lookuprecords": [ "l1", "l1" ]
+        }
+      ]
+    }
+  }
+}

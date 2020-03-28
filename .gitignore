@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+
+# output files
+files/quran_medina_inputtext.txt
