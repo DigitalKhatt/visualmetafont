@@ -1733,57 +1733,6 @@
         "alefmaksura.isol": [ "yehshape.fina" ]
       }
     },
-    "kafsubst": {
-      "name": "kafsubst",
-      "feature": "rlig",
-      "type": "chainingsub",
-      "flags": [ false, false, false, false ],
-      "markSet": [ "topmarks" ],
-      "lookups": {
-        "l1": {
-          "type": "single",
-          "flags": [ false, false, false, false ],
-          "data": {
-            "kaf.init": "kaf.init.ii",
-            "kaf.medi": "kaf.medi.ii"
-          }
-        }
-      },
-      "subtables": [
-        {
-          "backtrack": [
-            [ "alef.isol.*", "alef.fina.*" ],
-            [ "fatha" ],
-            [ "space" ]
-          ],
-          "input": [
-            [ "kaf.init" ]
-          ],
-          "lookuprecords": [ "l1" ]
-        },
-        {
-          "backtrack": [
-            [ "alef.isol.*", "alef.fina.*" ],
-            [ "topmarks" ]
-          ],
-          "input": [
-            [ "kaf.init" ]
-          ],
-          "lookuprecords": [ "l1" ]
-        },
-        {
-          "backtrack": [
-            [ "alef.isol.*", "alef.fina.*" ],
-            [ "topmarks" ],
-            [ "topmarks" ]
-          ],
-          "input": [
-            [ "kaf.init" ]
-          ],
-          "lookuprecords": [ "l1" ]
-        }
-      ]
-    },
     "kafmeemliga": {
       "name": "kafmeemliga",
       "feature": "calt",

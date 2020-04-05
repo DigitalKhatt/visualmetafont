@@ -65,7 +65,7 @@ lookup defaultkasrameemiqlab{
 	feature mkmk;
 
 	lookup defaultkasrameemiqlab.l1 {			
-		pos mark  kasra <anchor 700 550> markClass meemiqlab <anchor 0 0> @meemiqlab ;	
+		pos mark  kasra <anchor 0 0> markClass [meemiqlab smalllowmeem] <anchor 0 0> @smalllowmeem ;	
 	} defaultkasrameemiqlab.l1;
 
 	lookup defaultkasrameemiqlab.l2 {			
@@ -74,22 +74,22 @@ lookup defaultkasrameemiqlab{
 	} defaultkasrameemiqlab.l2;
 
 	lookup defaultkasrameemiqlab.l3 {			
-		pos mark  kasra <anchor  0 0> markClass meemiqlab <anchor 0 0> @meemiqlab ;	
+		pos mark  kasra <anchor  0 0> markClass [meemiqlab smalllowmeem] <anchor 0 0> @smalllowmeem ;	
 	} defaultkasrameemiqlab.l3;
 
 	lookup defaultkasrameemiqlab.l4 {			
-		pos mark  kasra <anchor  0 0> markClass meemiqlab <anchor 0 0> @meemiqlab ;	
+		pos mark  kasra <anchor  0 0> markClass [meemiqlab smalllowmeem] <anchor 0 0> @smalllowmeem ;	
 	} defaultkasrameemiqlab.l4;
 
-	pos /^hah.fina/ kasra' meemiqlab'lookup defaultkasrameemiqlab.l1;
+	pos /^hah.fina/ kasra' [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l1;
 
-	pos alef.isol meem.isol.ii kasra'<50 -50 0 0>  meemiqlab'lookup defaultkasrameemiqlab.l1;
+	pos alef.isol meem.isol.ii kasra'<50 -50 0 0>  [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l1;
 
-	pos reh.isol fatha heh.isol twodotsup kasra'lookup defaultkasrameemiqlab.l2 meemiqlab'lookup defaultkasrameemiqlab.l3; 
+	pos reh.isol fatha heh.isol twodotsup kasra'lookup defaultkasrameemiqlab.l2 [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l3; 
 
-	pos waw.isol sukun hah.isol onedotdown kasra'lookup defaultkasrameemiqlab.l2 meemiqlab'lookup defaultkasrameemiqlab.l4; 
+	pos waw.isol sukun hah.isol onedotdown kasra'lookup defaultkasrameemiqlab.l2 [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l4; 
 
-	pos kasra'<0 -150 0 0> meemiqlab'lookup defaultkasrameemiqlab.l1;
+	pos kasra'<0 -150 0 0> [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l1;
 
 	
 } defaultkasrameemiqlab;
@@ -132,7 +132,7 @@ lookup otherkern {
 		
 			lookupflag IgnoreMarks;
 
-			pos [/^behshape/ /^yeh/ /^alef/] space /^kaf.init/'<0 0 -200 0>;
+			pos [/^behshape/ /^yeh/ /^alef/] space /^kaf.init/'<0 0 -100 0>;
 
 			pos [/^lam.fina/ ] space /^hah.init/'<0 0 -300 0>;
 
@@ -159,22 +159,21 @@ lookup adjustseenhigh {
 
 } adjustseenhigh;
 
-lookup kafsubst2 {
+lookup kafsubst {
 
 	feature rlig;
 
-	# lookupflag IgnoreMarks; # UseMarkFilteringSet @topmarks;	
+	lookupflag UseMarkFilteringSet [hamzaabove smallhighroundedzero];	
 
-	lookupflag UseMarkFilteringSet [hamzaabove];	
-
-	lookup kafsubst2.l1 {
+	lookup kafsubst.l1 {
 		sub kaf.init by kaf.init.ii;	
 		sub kaf.medi by kaf.medi.ii;
-	} kafsubst2.l1;
+	} kafsubst.l1;
 
-	sub /^alef.isol/ hamzaabove kaf.init'lookup kafsubst2.l1 ;
+	sub [/^alef[.]isol/ /^alef[.]fina/] [hamzaabove smallhighroundedzero] (space | NULL)  kaf.init'lookup kafsubst.l1 ;
 
-} kafsubst2;
+
+} kafsubst;
 
 lookup alefkern {
 
@@ -566,7 +565,7 @@ lookup tajweedcolor {
 
 	# tanween
     pos /^noon/'lookup lgray meemiqlab'lookup green;
-	pos /^behshape/'lookup lgray onedotup'lookup lgray meemiqlab'lookup green;
+	pos /^behshape/'lookup lgray onedotup'lookup lgray [meemiqlab smalllowmeem]'lookup green;
 	pos /^meem|^noon/'lookup green shadda'lookup green @marks'lookup green;
 	pos /^behshape/'lookup green onedotup'lookup green shadda'lookup green @marks'lookup green;
 
@@ -1189,6 +1188,7 @@ feature rlig {
 	# lookup forsmalllalef;	
 	# lookup forwaw;	
 	lookup ayanumbers;
+	lookup kafsubst;
 } rlig;
 
 feature calt {

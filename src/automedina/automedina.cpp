@@ -97,6 +97,7 @@ Automedina::Automedina(OtLayout* layout, MP mp) :glyphs{ layout->glyphs }, m_lay
 		"smallalef.replacement",
 		"smallalef.joined",
 		"meemiqlab",
+		"smalllowmeem",
 		"smallhighyeh",
 		"smallhighwaw",
 		"wasla",

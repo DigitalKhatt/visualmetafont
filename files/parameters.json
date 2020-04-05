@@ -449,11 +449,11 @@
     },
     "defaultkasrameemiqlab.l1": {
         "subtable1": {
-            "meemiqlab": {
+            "smalllowmeem": {
                 "baseparameters": {
                     "kasra": [
-                        -752,
-                        -682
+                        -61,
+                        -153
                     ]
                 }
             }
@@ -483,7 +483,7 @@
     },
     "defaultkasrameemiqlab.l3": {
         "subtable1": {
-            "meemiqlab": {
+            "smalllowmeem": {
                 "baseparameters": {
                     "kasra": [
                         -125,
@@ -495,13 +495,25 @@
     },
     "defaultkasrameemiqlab.l4": {
         "subtable1": {
-            "meemiqlab": {
+            "smalllowmeem": {
                 "baseparameters": {
                     "kasra": [
                         -133,
                         -200
                     ]
                 }
+            }
+        }
+    },
+    "defaultkasrameemiqlab_auto2": {
+        "subtable1": {
+            "parameters": {
+                "kasra": [
+                    -12,
+                    19,
+                    0,
+                    0
+                ]
             }
         }
     },
@@ -636,8 +648,8 @@
                         -152
                     ],
                     "hah.fina": [
-                        116,
-                        500
+                        96,
+                        620
                     ],
                     "hah.isol": [
                         126,
@@ -664,8 +676,8 @@
                         -16
                     ],
                     "kaf.init": [
-                        132,
-                        66
+                        -1,
+                        0
                     ],
                     "kaf.medi.beforeyeh": [
                         9,
@@ -1133,6 +1145,10 @@
                         36,
                         -62
                     ],
+                    "reh.fina.afterseen": [
+                        100,
+                        -40
+                    ],
                     "reh.isol": [
                         45,
                         0
@@ -1340,8 +1356,8 @@
                         -108
                     ],
                     "smallwaw": [
-                        120,
-                        -202
+                        99,
+                        -271
                     ],
                     "smallyeh": [
                         54,
@@ -1434,8 +1450,8 @@
                         -45
                     ],
                     "lam.init.allah": [
-                        -40,
-                        0
+                        -32,
+                        -13
                     ],
                     "lam.init.beforedal": [
                         -85,
@@ -1464,6 +1480,10 @@
                     "lam.medi": [
                         -52,
                         -39
+                    ],
+                    "lam.medi.allah": [
+                        -28,
+                        -78
                     ],
                     "lam.medi.beforeheh": [
                         -138,
@@ -1566,6 +1586,10 @@
                     "yehshape.fina.ii": [
                         113,
                         -326
+                    ],
+                    "yehshape.fina.ii.expa": [
+                        100,
+                        -180
                     ]
                 }
             }
@@ -1950,6 +1974,10 @@
                     -388,
                     -13
                 ],
+                "waw.fina": [
+                    48,
+                    0
+                ],
                 "waw.isol": [
                     92,
                     340
@@ -2041,6 +2069,10 @@
                         111,
                         13
                     ],
+                    "behshape.isol.expa": [
+                        100,
+                        16
+                    ],
                     "fehshape.init": [
                         138,
                         83
@@ -2072,6 +2104,10 @@
                     "behshape.isol": [
                         56,
                         -180
+                    ],
+                    "behshape.isol.expa": [
+                        0,
+                        -133
                     ]
                 }
             }
@@ -2098,8 +2134,8 @@
                         97
                     ],
                     "heh.isol": [
-                        -94,
-                        58
+                        -113,
+                        74
                     ],
                     "lam.isol": [
                         -10,
@@ -2118,8 +2154,8 @@
                         22
                     ],
                     "reh.isol": [
-                        -55,
-                        -27
+                        -228,
+                        -11
                     ]
                 }
             },
@@ -2132,6 +2168,10 @@
                     "behshape.init": [
                         75,
                         45
+                    ],
+                    "behshape.init.beforehah": [
+                        82,
+                        138
                     ],
                     "behshape.init.beforenoon": [
                         90,
@@ -2232,6 +2272,10 @@
                     "behshape.init": [
                         62,
                         -223
+                    ],
+                    "behshape.init.beforehah": [
+                        96,
+                        27
                     ],
                     "behshape.init.beforenoon": [
                         106,
@@ -2660,6 +2704,10 @@
                     -25,
                     50
                 ],
+                "alefmaksura.isol.expa": [
+                    24,
+                    144
+                ],
                 "behshape.init.beforeseen": [
                     54,
                     13
@@ -2677,8 +2725,8 @@
                     9
                 ],
                 "heh.isol": [
-                    -86,
-                    49
+                    -1,
+                    77
                 ],
                 "lam.isol": [
                     0,

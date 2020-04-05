@@ -116,6 +116,13 @@ getNominalGlyph(hb_font_t* font,
 	hb_codepoint_t* glyph,
 	void* user_data)
 {
+	/*
+	OtLayout* layoutg = reinterpret_cast<OtLayout*>(font_data);
+
+	if (!layoutg->glyphNamePerCode.contains(unicode)) {
+		std::cout << "Glyph " << unicode << " not found" << std::endl;
+	}*/
+
 
 	*glyph = unicode;
 
@@ -158,7 +165,10 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
 {
 	OtLayout* layout = reinterpret_cast<OtLayout*>(fontData);
 
-	if (!layout->glyphNamePerCode.contains(glyph)) return 0;
+	if (!layout->glyphNamePerCode.contains(glyph)) {
+		//std::cout << "Glyph " << glyph << " not found" << std::endl;
+		return 0;
+	}
 
 	if (layout->glyphGlobalClasses[glyph] == OtLayout::MarkGlyph) {
 		return 0;
