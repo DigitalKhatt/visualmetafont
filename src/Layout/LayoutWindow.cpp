@@ -354,7 +354,7 @@ bool LayoutWindow::exportpdf() {
 	quranWriter.setResolution(4800 << OtLayout::SCALEBY);
 
 	quranWriter.generateQuranPages(pages, -cropBox.llx + ((int)(margin / 2) << OtLayout::SCALEBY), originalPages, scale, 0);
-	
+
 #endif
 
 	return true;
@@ -573,6 +573,12 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
 				for (int lineIndex = 0; lineIndex < page.length(); lineIndex++) {
 					if (result.pages[pagenum][lineIndex].type == LineType::Line) {
 						result.pages[pagenum][lineIndex] = page[lineIndex];
+					}
+					else {
+						auto temp = m_otlayout->justifyPage(scale, 0, lineWidth, QStringList{ result.originalPages[pagenum][lineIndex] }, LineJustification::Center, false, true);
+						//temp[0].type = result.pages[pagenum][lineIndex].type;
+						//temp[0].ystartposition = result.pages[pagenum][lineIndex].ystartposition;
+						result.pages[pagenum][lineIndex].glyphs = temp[0].glyphs;
 					}
 				}
 			}
@@ -1075,9 +1081,9 @@ void LayoutWindow::testKasheda() {
 			}
 
 
-			
+
 		}
-	}	
+	}
 
 	output = output + "\n" + smallseenWords;
 
@@ -1373,7 +1379,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 					else {
 						std::cout << "Problem glyphs > elements" << '\n';
 					}
-					
+
 				}
 
 				if (glyphItem) {

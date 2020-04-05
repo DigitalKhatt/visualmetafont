@@ -53,6 +53,7 @@ extern "C"
 
 #include "QuranText/quran.h"
 #include <limits>
+#include <QtCore\qmath.h>
 
 
 
@@ -2410,30 +2411,56 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 	// First & second pages : Al fatiha &  Al Bakara
 
 
-	for (int pagenum = 1; pagenum >= 0; pagenum--) {
+	for (int pageNumber = 1; pageNumber >= 0; pageNumber--) {
 
-		QString textt = QString::fromUtf8(qurantext[pagenum] + 1);
+		QString textt = QString::fromUtf8(qurantext[pageNumber] + 1);
 
 		auto lines = textt.split(10, QString::SkipEmptyParts);
 
-		auto page = this->justifyPage(emScale, lineWidth, lineWidth,lines, LineJustification::Center, false, true);
-
 		int beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
-		for (int i = 0; i < page.size(); ++i) {
-			if (i == 0) {
-				page[i].type = LineType::Sura;
-				page[i].ystartposition = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1)) << OtLayout::SCALEBY;
+
+		int pageWidth = lineWidth;
+		int newLineWidth = 0;
+
+		QList<LineLayoutInfo> page;
+
+		for (int lineIndex = 0; lineIndex < lines.length(); lineIndex++) {
+			
+			if (lineIndex > 0) {
+				double diameter = pageWidth * 1; // 0.9;
+				if (pageNumber == 0) {
+					diameter = pageWidth * 1; // 0.9;
+				}
+
+				int index = lineIndex - 1;
+				//index = index % 4;
+				// 22.5 = 180 / 8
+				double degree = lineIndex * 22.5 * M_PI / 180;
+				newLineWidth = diameter * std::sin(degree);
+				//std::cout << "lineIndex=" << lineIndex << ", lineWidth=" << lineWidth << std::endl;
 			}
 			else {
-				page[i].ystartposition = beginsura;
+				newLineWidth = 0;
+			}
+
+			auto lineResult = this->justifyPage(emScale, newLineWidth, pageWidth, QStringList{ lines[lineIndex] }, LineJustification::Center, false, true)[0];
+			
+
+			if (lineIndex == 0) {
+				lineResult.type = LineType::Sura;
+				lineResult.ystartposition = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1)) << OtLayout::SCALEBY;
+			}
+			else {
+				lineResult.ystartposition = beginsura;
 				beginsura += OtLayout::InterLineSpacing << OtLayout::SCALEBY;
 			}
-		}
 
+			page.append(lineResult);
+		}
 		pages.prepend(page);
 		originalPages.prepend(lines);
 
-		if (pagenum == 1) {
+		if (pageNumber == 1) {
 			suraNamebyPage.prepend(currentSuraName);
 		}
 		else {
