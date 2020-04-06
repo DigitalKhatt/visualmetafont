@@ -87,8 +87,8 @@
                     0
                 ],
                 "dammatanidgham": [
-                    111,
-                    -13,
+                    135,
+                    11,
                     0,
                     0
                 ]
@@ -101,6 +101,18 @@
                 "damma": [
                     124,
                     41,
+                    0,
+                    0
+                ],
+                "dammatanidgham": [
+                    72,
+                    48,
+                    0,
+                    0
+                ],
+                "fathatanidgham": [
+                    80,
+                    40,
                     0,
                     0
                 ]
@@ -382,6 +394,10 @@
                     "behshape.medi.beforeseen": [
                         122,
                         85
+                    ],
+                    "behshape.medi.beforeyeh": [
+                        20,
+                        -40
                     ]
                 },
                 "markparameters": {
@@ -893,6 +909,10 @@
                         -19,
                         -59
                     ],
+                    "behshape.init.beforenoon": [
+                        -50,
+                        0
+                    ],
                     "behshape.init.beforeseen": [
                         -55,
                         0
@@ -928,6 +948,10 @@
                     "feh.isol.expa": [
                         -103,
                         -138
+                    ],
+                    "hah.init": [
+                        34,
+                        0
                     ],
                     "hah.medi": [
                         -86,
@@ -1583,6 +1607,10 @@
                         32,
                         -261
                     ],
+                    "yehshape.fina.afterbeh.expa": [
+                        57,
+                        -201
+                    ],
                     "yehshape.fina.ii": [
                         113,
                         -326
@@ -2046,7 +2074,7 @@
             "kasratan": {
                 "baseparameters": {
                     "heh.isol": [
-                        -84,
+                        -144,
                         28
                     ]
                 }
@@ -2121,6 +2149,10 @@
                         132,
                         718
                     ],
+                    "alefmaksura.isol": [
+                        -120,
+                        0
+                    ],
                     "dal.isol": [
                         -65,
                         0
@@ -2134,8 +2166,8 @@
                         97
                     ],
                     "heh.isol": [
-                        -113,
-                        74
+                        -163,
+                        41
                     ],
                     "lam.isol": [
                         -10,
@@ -2692,10 +2724,6 @@
         },
         "rehwawfina": {
             "entryParameters": {
-                "": [
-                    0,
-                    -9
-                ],
                 "alef.isol": [
                     68,
                     11
@@ -2707,6 +2735,10 @@
                 "alefmaksura.isol.expa": [
                     24,
                     144
+                ],
+                "alternatechar": [
+                    0,
+                    -9
                 ],
                 "behshape.init.beforeseen": [
                     54,

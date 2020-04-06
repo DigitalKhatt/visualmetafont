@@ -2957,7 +2957,7 @@ leftbearing := - x2 + x1;
 
 setCursiveAnchor(behmediyehfina,z2, ExitAnchor);
 
-
+tr_ := tr_ shifted (0,-164);
 
 enddefchar;
 defchar(behshape.medi.beforereh,-1,-1,-1,-1);
@@ -3557,7 +3557,7 @@ setCursiveAnchor(yehcursive1,z1,ExitAnchor);
 
 enddefchar;
 defchar(lam.init.lam_hah,-1,-1,-1,-1);
-%%backgroundimage:images/lam_hah.jpg,-2386.89,-1032.26,1,0,0,1
+%%backgroundimage:images/lam_hah.jpg,-2532.89,-1323.26,1,0,0,1
 %%beginparams
 lefttatweel := 1.14; % numeric
 z1 = (113,295);

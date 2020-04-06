@@ -105,8 +105,6 @@ lookup otherkern {
 	pos /^waw.fina/ /^alef.isol/'<0 0 -100 0> smallhighroundedzero;
 
 	pos /^reh.fina/ kasra /^meem.init/'<0 0 -200 0>;
-	
-	pos /^alef.isol/ wasla lam.init.lam_hah'<0 0 -200 0>;
 
 	pos meem.fina sukun space kaf.init'<0 0 -200 0>;
 
@@ -117,6 +115,16 @@ lookup otherkern {
 		pos /^alef.fina/ /^waw.isol/'<0 0 -100 0> kasra;
 
 	} otherkern.o1;
+
+	lookup otherkern.o2 {
+
+		feature kern;	
+		
+		lookupflag IgnoreMarks;
+
+		pos /^alef.isol/'<-100 0 -100 0> lam.init.lam_hah;
+
+	} otherkern.o2;
 	
 	lookup shrink1 {
 
@@ -134,7 +142,7 @@ lookup otherkern {
 
 			pos [/^behshape/ /^yeh/ /^alef/] space /^kaf.init/'<0 0 -100 0>;
 
-			pos [/^lam.fina/ ] space /^hah.init/'<0 0 -300 0>;
+			pos [/^lam.fina/ ] space /^hah.init/'<0 0 -200 0>;
 
 		} tighten.o1;
 
@@ -247,6 +255,7 @@ lookup adjustmarks {
 
 	lookup adjustmarks.l3 {		
 		pos [ dammatanidgham] <0 0 0 0>;	
+		pos [ fathatanidgham] <0 0 0 0>;	
 		pos [ damma] <0 0 0 0>;	
 	} adjustmarks.l3;
 
@@ -301,7 +310,7 @@ lookup adjustmarks {
 	pos /^alef.isol/ maddahabove'lookup adjustmarks.l1 /^lam.isol/;
 
 	pos /^tah.isol/ onedotup [dammatanidgham]'lookup adjustmarks.l22;
-	pos /^tah.fina/ onedotup [dammatanidgham]'lookup adjustmarks.l3;
+	pos [/^tah.fina/ /^tah.medi/] onedotup [dammatanidgham fathatanidgham]'lookup adjustmarks.l3;
 	pos /^tah.fina/ onedotup [damma]'lookup adjustmarks.l3 meemiqlab;
 
 
