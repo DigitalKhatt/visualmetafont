@@ -507,7 +507,7 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth) {
 
 bool LayoutWindow::generateAllQuranTexMedina() {
 
-	int scale = (1 << OtLayout::SCALEBY) * 0.75;
+	int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 	int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
 	auto result = shapeMedina(scale, lineWidth);
@@ -537,9 +537,10 @@ bool LayoutWindow::generateAllQuranTexMedina() {
 
 	quranWriter.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
 
+	/*
 	ExportToHTML extohtml{ m_otlayout };
 
-	extohtml.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
+	extohtml.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);*/
 
 #endif
 	return true;
@@ -600,10 +601,10 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
 	quranWriter.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
 
 
-
+	/*
 	ExportToHTML extohtml{ m_otlayout };
 
-	extohtml.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
+	extohtml.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);*/
 
 #endif
 	return true;
