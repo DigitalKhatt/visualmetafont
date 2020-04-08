@@ -41,7 +41,7 @@ extern "C"
 
 
 
-AnchorCalc* Automedina::getanchorCalcFunctions(QString functionName, Subtable * subtable) {
+AnchorCalc* Automedina::getanchorCalcFunctions(QString functionName, Subtable* subtable) {
 	if (functionName == "defaultmarkabovemark") {
 		return new Defaultmarkabovemark(*this, *(MarkBaseSubtable*)(subtable));
 	}
@@ -71,8 +71,8 @@ AnchorCalc* Automedina::getanchorCalcFunctions(QString functionName, Subtable * 
 	return nullptr;
 }
 
-Automedina::Automedina(OtLayout* layout, MP mp) :glyphs{ layout->glyphs }, m_layout{ layout }, mp{mp}{
-	
+Automedina::Automedina(OtLayout* layout, MP mp) :glyphs{ layout->glyphs }, m_layout{ layout }, mp{ mp }{
+
 	//m_metafont = layout->m_font;
 	classes["marks"] = {
 		"onedotup",
@@ -290,7 +290,7 @@ Automedina::Automedina(OtLayout* layout, MP mp) :glyphs{ layout->glyphs }, m_lay
 void Automedina::generateGlyphs() {
 
 	mp_run_data* _mp_results = mp_rundata(mp);
-	mp_edge_object * edges = _mp_results->edges;
+	mp_edge_object* edges = _mp_results->edges;
 
 	glyphs.clear();
 
@@ -372,7 +372,7 @@ void Automedina::generateGlyphs() {
 
 	m_layout->glyphs = glyphs;
 
-	
+
 }
 
 Lookup* Automedina::getLookup(QString lookupName) {
@@ -440,8 +440,8 @@ Lookup* Automedina::getLookup(QString lookupName) {
 	return NULL;
 }
 
-Lookup * Automedina::rehwawcursive() {
-	Lookup * lookup = new Lookup(m_layout);
+Lookup* Automedina::rehwawcursive() {
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "rehwawcursive";
 	lookup->feature = "curs";
 	lookup->type = Lookup::cursive;
@@ -523,8 +523,8 @@ Lookup * Automedina::rehwawcursive() {
 	return lookup;
 
 }
-Lookup * Automedina::leftrightcursive() {
-	Lookup * lookup = new Lookup(m_layout);
+Lookup* Automedina::leftrightcursive() {
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "leftrightcursive";
 	lookup->feature = "curs";
 	lookup->type = Lookup::cursive;
@@ -612,8 +612,8 @@ Lookup * Automedina::leftrightcursive() {
 	return lookup;
 
 }
-Lookup * Automedina::ligaturecursive() {
-	Lookup * lookup = new Lookup(m_layout);
+Lookup* Automedina::ligaturecursive() {
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "ligaturecursive";
 	lookup->feature = "curs";
 	lookup->type = Lookup::cursive;
@@ -694,8 +694,8 @@ Lookup * Automedina::ligaturecursive() {
 
 
 }
-Lookup * Automedina::defaultmarkposition() {
-	Lookup * lookup = new Lookup(m_layout);
+Lookup* Automedina::defaultmarkposition() {
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "defaultmarkposition";
 	lookup->feature = "mark";
 	lookup->type = Lookup::mark2base;
@@ -908,8 +908,8 @@ Lookup * Automedina::defaultmarkposition() {
 
 
 }
-Lookup * Automedina::defaultwaqfmarktobase() {
-	Lookup * lookup = new Lookup(m_layout);
+Lookup* Automedina::defaultwaqfmarktobase() {
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "defaultwaqfmarktobase";
 	lookup->feature = "mark";
 	lookup->type = Lookup::mark2base;
@@ -954,8 +954,8 @@ Lookup * Automedina::defaultwaqfmarktobase() {
 
 	return lookup;
 }
-Lookup * Automedina::defaultdotmarks() {
-	Lookup * lookup = new Lookup(m_layout);
+Lookup* Automedina::defaultdotmarks() {
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "defaultdotmarks";
 	lookup->feature = "mark";
 	lookup->type = Lookup::mark2base;
@@ -1089,7 +1089,7 @@ Lookup * Automedina::defaultdotmarks() {
 }
 Lookup* Automedina::defaultmkmk() {
 
-	Lookup * lookup = new Lookup(m_layout);
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "defaultmkmk";
 	lookup->feature = "mkmk";
 	lookup->type = Lookup::mark2mark;
@@ -1173,7 +1173,7 @@ Lookup* Automedina::defaultmkmk() {
 
 }
 Lookup* Automedina::defaultmarkdotmarks() {
-	Lookup * lookup = new Lookup(m_layout);
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "defaultmarkdotmarkstop";
 	lookup->feature = "mkmk";
 	lookup->type = Lookup::mark2mark;
@@ -1248,8 +1248,8 @@ Lookup* Automedina::defaultmarkdotmarks() {
 	return lookup;
 
 }
-Lookup * Automedina::defaultwaqfmarkabovemarkprecise() {
-	Lookup * lookup = new Lookup(m_layout);
+Lookup* Automedina::defaultwaqfmarkabovemarkprecise() {
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "defaultwaqfmarkabovemarkprecise";
 	lookup->feature = "mark";
 	lookup->type = Lookup::chainingpos;
@@ -1262,7 +1262,7 @@ Lookup * Automedina::defaultwaqfmarkabovemarkprecise() {
 
 		QString sublookupName = topmark;
 
-		Lookup * sublookup = new Lookup(m_layout);
+		Lookup* sublookup = new Lookup(m_layout);
 		sublookup->name = lookup->name + "." + sublookupName;
 		sublookup->feature = "";
 		sublookup->type = Lookup::mark2base;
@@ -1303,9 +1303,9 @@ Lookup * Automedina::defaultwaqfmarkabovemarkprecise() {
 	return lookup;
 
 }
-Lookup * Automedina::lowmarkafterwawandreh() {
+Lookup* Automedina::lowmarkafterwawandreh() {
 
-	Lookup * lookup = new Lookup(m_layout);
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "lowmarkafterwawandreh";
 	lookup->feature = "mkmk";
 	lookup->type = Lookup::chainingpos;
@@ -1316,7 +1316,7 @@ Lookup * Automedina::lowmarkafterwawandreh() {
 	for (QString finaisol : {"fina.afterbehshape", "fina.afterseen", "fina", "isol" }) {
 		for (QString kastradot : { "1", "2", "beforehah" }) {
 
-			Lookup * sublookup = new Lookup(m_layout);
+			Lookup* sublookup = new Lookup(m_layout);
 			sublookup->name = lookup->name + "." + finaisol + kastradot;
 			sublookup->feature = "";
 			sublookup->markGlyphSetIndex = m_layout->addMarkSet({ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" });
@@ -1563,9 +1563,9 @@ Lookup * Automedina::lowmarkafterwawandreh() {
 
 
 }
-Lookup * Automedina::tajweedcolorcpp() {
+Lookup* Automedina::tajweedcolorcpp() {
 
-	Lookup * single = new Lookup(m_layout);
+	Lookup* single = new Lookup(m_layout);
 	single->name = "tajweedcolor.green";
 	single->feature = "";
 	single->type = Lookup::singleadjustment;
@@ -1620,7 +1620,7 @@ Lookup * Automedina::tajweedcolorcpp() {
 	}
 
 
-	Lookup * lookup = new Lookup(m_layout);
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "tajweedcolor";
 	lookup->feature = "mkmk";
 	lookup->type = Lookup::chainingpos;
@@ -1677,9 +1677,9 @@ Lookup * Automedina::tajweedcolorcpp() {
 
 
 }
-Lookup * Automedina::pointmarks() {
+Lookup* Automedina::pointmarks() {
 
-	Lookup * lookup = new Lookup(m_layout);
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "pointmarks";
 	lookup->feature = "mark";
 	lookup->type = Lookup::chainingpos;
@@ -1691,7 +1691,7 @@ Lookup * Automedina::pointmarks() {
 
 		QString sublookupName = pointmark;
 
-		Lookup * sublookup = new Lookup(m_layout);
+		Lookup* sublookup = new Lookup(m_layout);
 		sublookup->name = lookup->name + "." + sublookupName;
 		sublookup->feature = "";
 		sublookup->type = Lookup::mark2base;
@@ -1738,10 +1738,10 @@ Lookup * Automedina::pointmarks() {
 
 }
 
-Lookup * Automedina::ayanumbers() {
+Lookup* Automedina::ayanumbers() {
 
 	// ligature 
-	Lookup * ligature = new Lookup(m_layout);
+	Lookup* ligature = new Lookup(m_layout);
 	ligature->name = "ayanumbers.l1";
 	ligature->feature = "";
 	ligature->type = Lookup::ligature;
@@ -1753,17 +1753,12 @@ Lookup * Automedina::ayanumbers() {
 
 	for (quint16 i = 286; i > 99; i--) {
 		quint16 code = m_layout->glyphCodePerName[QString("aya%1").arg(i)];
-		if (i < 100) {
-			int onesdigit = i % 10;
-			int tensdigit = i / 10;
-			ligaturesubtable->ligatures.append({ code, { (quint16)(1632 + tensdigit),(quint16)(1632 + onesdigit) } });
-		}
-		else {
-			int onesdigit = i % 10;
-			int tensdigit = (i / 10) % 10;
-			int hundredsdigit = i / 100;
-			ligaturesubtable->ligatures.append({ code, { (quint16)(1632 + hundredsdigit),(quint16)(1632 + tensdigit),(quint16)(1632 + onesdigit) } });
-		}
+
+		int onesdigit = i % 10;
+		int tensdigit = (i / 10) % 10;
+		int hundredsdigit = i / 100;
+		ligaturesubtable->ligatures.append({ code, { (quint16)(1632 + hundredsdigit),(quint16)(1632 + tensdigit),(quint16)(1632 + onesdigit) } });
+
 	}
 
 	// ligature 
@@ -1779,21 +1774,13 @@ Lookup * Automedina::ayanumbers() {
 
 	for (quint16 i = 99; i > 9; i--) {
 		quint16 code = m_layout->glyphCodePerName[QString("aya%1").arg(i)];
-		if (i < 100) {
-			int onesdigit = i % 10;
-			int tensdigit = i / 10;
-			ligaturesubtable->ligatures.append({ code,{ (quint16)(1632 + tensdigit),(quint16)(1632 + onesdigit) } });
-		}
-		else {
-			int onesdigit = i % 10;
-			int tensdigit = (i / 10) % 10;
-			int hundredsdigit = i / 100;
-			ligaturesubtable->ligatures.append({ code,{ (quint16)(1632 + hundredsdigit),(quint16)(1632 + tensdigit),(quint16)(1632 + onesdigit) } });
-		}
+		int onesdigit = i % 10;
+		int tensdigit = i / 10;
+		ligaturesubtable->ligatures.append({ code,{ (quint16)(1632 + tensdigit),(quint16)(1632 + onesdigit) } });
 	}
 
 	// Single substitution
-	Lookup * single = new Lookup(m_layout);
+	Lookup* single = new Lookup(m_layout);
 	single->name = "ayanumbers.l3";
 	single->feature = "";
 	single->type = Lookup::single;
@@ -1811,7 +1798,7 @@ Lookup * Automedina::ayanumbers() {
 
 
 
-	Lookup * lookup = new Lookup(m_layout);
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "ayanumbers";
 	lookup->feature = "rlig";
 	lookup->type = Lookup::chainingsub;
@@ -1846,9 +1833,9 @@ Lookup * Automedina::ayanumbers() {
 	return lookup;
 
 }
-Lookup * Automedina::forheh() {
+Lookup* Automedina::forheh() {
 
-	Lookup * single = new Lookup(m_layout);
+	Lookup* single = new Lookup(m_layout);
 	single->name = "forheh.l1";
 	single->feature = "";
 	single->type = Lookup::single;
@@ -1875,7 +1862,7 @@ Lookup * Automedina::forheh() {
 	}
 
 
-	Lookup * lookup = new Lookup(m_layout);
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "forheh";
 	lookup->feature = "rlig";
 	lookup->type = Lookup::chainingsub;
@@ -1899,9 +1886,9 @@ Lookup * Automedina::forheh() {
 	return lookup;
 
 }
-Lookup * Automedina::forhamza() {
+Lookup* Automedina::forhamza() {
 
-	Lookup * single = new Lookup(m_layout);
+	Lookup* single = new Lookup(m_layout);
 	single->name = "forhamza.l1";
 	single->feature = "";
 	single->type = Lookup::single;
@@ -1930,7 +1917,7 @@ Lookup * Automedina::forhamza() {
 	}
 
 	// ligature 
-	Lookup * ligature = new Lookup(m_layout);
+	Lookup* ligature = new Lookup(m_layout);
 	ligature->name = "forhamza.l2";
 	ligature->feature = "";
 	ligature->type = Lookup::ligature;
@@ -1954,7 +1941,7 @@ Lookup * Automedina::forhamza() {
 	ligaturesubtable->ligatures.append({ (quint16)glyphs["smallhighnoon"].charcode,{ (quint16)glyphs["tatweel"].charcode,(quint16)glyphs["smallhighnoon"].charcode } });
 
 
-	Lookup * lookup = new Lookup(m_layout);
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "forhamza";
 	lookup->feature = "rlig";
 	lookup->type = Lookup::chainingsub;
@@ -2015,7 +2002,7 @@ Lookup* Automedina::shrinkstretchlt() {
 	return nullptr;
 
 }
-Lookup * Automedina::shrinkstretchlt(float lt, QString featureName) {
+Lookup* Automedina::shrinkstretchlt(float lt, QString featureName) {
 
 
 
@@ -2030,7 +2017,7 @@ Lookup * Automedina::shrinkstretchlt(float lt, QString featureName) {
 		lookupName = QString("pluslt_%1").arg(lt * -100);
 	}
 
-	Lookup * single = new Lookup(m_layout);
+	Lookup* single = new Lookup(m_layout);
 	single->name = lookupName + ".l1";
 	single->feature = "";
 	single->type = Lookup::single;
@@ -2085,7 +2072,7 @@ Lookup * Automedina::shrinkstretchlt(float lt, QString featureName) {
 	}
 
 
-	Lookup * lookup = new Lookup(m_layout);
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = lookupName;
 	lookup->feature = featureName;
 	lookup->type = Lookup::chainingsub;
@@ -2106,9 +2093,9 @@ Lookup * Automedina::shrinkstretchlt(float lt, QString featureName) {
 	return lookup;
 
 }
-Lookup * Automedina::forsmallhighwaw() {
+Lookup* Automedina::forsmallhighwaw() {
 
-	Lookup * single = new Lookup(m_layout);
+	Lookup* single = new Lookup(m_layout);
 	single->name = "forsmallhighwaw.l1";
 	single->feature = "";
 	single->type = Lookup::single;
@@ -2137,7 +2124,7 @@ Lookup * Automedina::forsmallhighwaw() {
 	}
 
 	// ligature 
-	Lookup * ligature = new Lookup(m_layout);
+	Lookup* ligature = new Lookup(m_layout);
 	ligature->name = "forsmallhighwaw.l2";
 	ligature->feature = "";
 	ligature->type = Lookup::ligature;
@@ -2150,7 +2137,7 @@ Lookup * Automedina::forsmallhighwaw() {
 	ligaturesubtable->ligatures.append({ (quint16)glyphs["smallhighwaw"].charcode,{ 0x034F,(quint16)glyphs["smallhighwaw"].charcode } });
 
 	//main lookup
-	Lookup * lookup = new Lookup(m_layout);
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "forsmallhighwaw";
 	lookup->feature = "rlig";
 	lookup->type = Lookup::chainingsub;
@@ -2179,9 +2166,9 @@ Lookup * Automedina::forsmallhighwaw() {
 	return lookup;
 
 }
-Lookup * Automedina::forsmalllalef() {
+Lookup* Automedina::forsmalllalef() {
 
-	Lookup * single = new Lookup(m_layout);
+	Lookup* single = new Lookup(m_layout);
 	single->name = "forsmallalef.l1";
 	single->feature = "";
 	single->type = Lookup::single;
@@ -2241,7 +2228,7 @@ Lookup * Automedina::forsmalllalef() {
 	}
 
 	//main lookup
-	Lookup * lookup = new Lookup(m_layout);
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "forsmallalef";
 	lookup->feature = "rlig";
 	lookup->type = Lookup::chainingsub;
@@ -2358,9 +2345,9 @@ QSet<quint16> Automedina::classtoUnicode(QString className) {
 	return unicodes;
 }
 
-Lookup * Automedina::forwaw() {
+Lookup* Automedina::forwaw() {
 
-	Lookup * single = new Lookup(m_layout);
+	Lookup* single = new Lookup(m_layout);
 	single->name = "forwaw.l1";
 	single->feature = "";
 	single->type = Lookup::single;
@@ -2389,7 +2376,7 @@ Lookup * Automedina::forwaw() {
 	}
 
 
-	Lookup * lookup = new Lookup(m_layout);
+	Lookup* lookup = new Lookup(m_layout);
 	lookup->name = "forwaw";
 	lookup->feature = "rlig";
 	lookup->type = Lookup::chainingsub;
@@ -2455,7 +2442,7 @@ void Automedina::addchars() {
 			addchar(key, -1, i / 100.0, {}, {}, {}, {}, {}, name, 2);
 		}
 
-		
+
 		// for (float i = 10; i <= 200; i = i + 10) {
 		//	QString name = QStringLiteral("%1.minuslt_%2").arg(key).arg((int)(i * 1));
 		//	addchar(key, -1, -i / 100.0, {}, {}, {}, {}, {}, name, 2);
@@ -2511,18 +2498,18 @@ void Automedina::addchar(QString macroname,
 		metapostcode = metapostcode + QString("interim which_in_baseline := %1 ;").arg(*which_in_baseline);
 	}
 
-	QString tst =  QString("%1").arg(lefttatweel);
+	QString tst = QString("%1").arg(lefttatweel);
 	QString tst2 = QString("%1").arg(righttatweel); // metapostcode + QString("%1").number(0.10764366596638640, 'g', 6);
 
 	metapostcode = metapostcode + QString("%1_(%2,%3);endchar;").arg(macroname).arg(lefttatweel).arg(righttatweel);
 
-	
+
 
 	QByteArray commandBytes = metapostcode.toLatin1();
 
 	int status = mp_execute(mp, commandBytes.data(), commandBytes.size());
 	if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-		mp_run_data * results = mp_rundata(mp);
+		mp_run_data* results = mp_rundata(mp);
 		QString ret(results->term_out.data);
 		ret.trimmed();
 		mp_finish(mp);
