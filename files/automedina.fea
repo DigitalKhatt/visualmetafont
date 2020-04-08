@@ -16,16 +16,119 @@
  # along with DigitalKhatt.  If not, see <https://www.gnu.org/licenses/>.
 ##
 
-lookup testcursive {	
+lookup convertsmallaleftochar {
+	feature calt;
+	sub smallalef by smallalef.isol;
+} convertsmallaleftochar;
+
+lookup dalhwawcursive {	
 	
 	feature curs;
 
 	lookupflag IgnoreMarks;
 
-	pos cursive /^waw/ <anchor NULL> <anchor -500 500> ;
-	pos cursive /^behshape/ <anchor 0 0 > <anchor NULL>;
+	pos cursive dal.fina <anchor NULL> <anchor 0 0> ;
+	pos cursive waw.isol <anchor 0 0 > <anchor NULL>;
+	pos cursive heh.init.beforemeem <anchor 0 0 > <anchor NULL>;
 		
-} testcursive;
+} dalhwawcursive;
+
+lookup alefadjustment {
+
+	lookup alefadjustment.l1 {
+		pos alef.isol.ii <30 300 100 0>;	
+		pos alef.isol <30 150 200 0>;	
+		pos /reh|waw/ <300 0 300 0>;	
+	} alefadjustment.l1;
+
+	lookup alefadjustment.l2 {		
+		pos alef.isol <100 0 100 0>;			
+	} alefadjustment.l2;
+
+	lookup alefadjustment.lwasla {		
+		pos alef.isol <50 0 50 0>;			
+	} alefadjustment.lwasla;
+
+	feature kern;	
+	
+	lookupflag UseMarkFilteringSet [hamzabelow hamzaabove wasla];
+
+	pos waw.isol alef.isol.ii'lookup alefadjustment.l1 hamzabelow;
+	pos [meem.fina.afterheh meem.fina.afterkaf] space alef.isol'lookup alefadjustment.l1 hamzabelow;
+
+	pos alef.isol'lookup alefadjustment.l2 hamzaabove /^lam[.]init/;
+
+	pos alef.isol'lookup alefadjustment.lwasla wasla /^lam[.]init/ @topmarks;
+	pos /reh|waw/'lookup alefadjustment.l1 space /alef/ hamzabelow;
+	
+
+} alefadjustment;
+
+lookup wawmaddaalef {
+
+	feature kern;		
+
+	pos /waw.fina/ maddahabove alef.isol'< 0 0 50 0>;	
+
+} wawmaddaalef;
+
+lookup alefalef {
+
+	feature kern;		
+
+	lookupflag IgnoreMarks;
+
+	pos alef.isol'<70 0 70 0> (space | NULL) alef.isol;		
+
+} alefalef;
+
+lookup thalkafinit {
+
+	feature kern;		
+
+	lookupflag UseMarkFilteringSet [onedotup shadda];
+
+	pos /dal[.]fina/ onedotup shadda /kaf[.]init/'< 0 0 50 0>;
+
+} thalkafinit;
+
+lookup variouskern {
+
+	lookup variouskern.l1 {
+		pos /^hamza.isol/ < 0 -50 0 0 >;
+		pos /^alef.isol/ <0 0 50 0 >;
+		pos /^dal.isol/ < -100 0 -100 0>;
+		pos shadda <-80 -50 0 0>;
+		pos smallwaw <0 0 50 0>;
+	} variouskern.l1;
+
+	lookup variouskern.l2 {					
+		pos base  /^hamza.isol/ <anchor 0 0> markClass dammatan <anchor function defaultopmarkanchor> @dammatan ;
+	} variouskern.l2;
+
+	feature kern;		
+
+	pos /^alef.isol/ maddahabove /^hamza.isol/'lookup variouskern.l1 dammatan'lookup variouskern.l2;
+	pos fathatanidgham /^alef.isol/'lookup variouskern.l1;
+	pos kasra lam.medi.allah shadda'lookup variouskern.l1;
+	pos /^dal.isol/'lookup variouskern.l1 fatha kaf.init.beforelam;
+	pos smallwaw'lookup variouskern.l1 maddahabove;
+
+} variouskern;
+
+lookup kafinityehfinesmallalefmaddah{
+
+	lookup kafinityehfinesmallalefmaddah.l1 {
+		pos smallalef.replacement < 0 -150 0 0>;
+	} kafinityehfinesmallalefmaddah.l1;
+
+	feature mkmk;	
+	
+	lookupflag UseMarkFilteringSet [smallalef.replacement maddahabove];
+
+	pos kaf.init.beforeyeh yehshape.fina.ii smallalef.replacement'lookup kafinityehfinesmallalefmaddah.l1 maddahabove;
+	
+} kafinityehfinesmallalefmaddah;
 
 lookup deletespace {
 
@@ -85,9 +188,11 @@ lookup defaultkasrameemiqlab{
 
 	pos alef.isol meem.isol.ii kasra'<50 -50 0 0>  [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l1;
 
-	pos reh.isol fatha heh.isol twodotsup kasra'lookup defaultkasrameemiqlab.l2 [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l3; 
+	pos [reh.isol reh.fina] (shadda | NULL) fatha heh.isol twodotsup kasra'lookup defaultkasrameemiqlab.l2 [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l3; 
 
 	pos waw.isol sukun hah.isol onedotdown kasra'lookup defaultkasrameemiqlab.l2 [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l4; 
+
+	pos waw.fina sukun meem.isol.ii'<0 0 50 0> kasra'<50 -30 0 0> [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l1; 
 
 	pos kasra'<0 -150 0 0> [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l1;
 
@@ -488,6 +593,8 @@ lookup adjustmarks {
 		pos /^lam.init/ @topmarks /^heh.fina/ @topmarks @waqfmarks'lookup adjustwaqf.l2;
 
 		pos /^qaf.isol/  @topmarks @waqfmarks'lookup adjustwaqf.l3;
+		
+		pos smallalef.joined'<50  0 0 0> maddahabove alef.fina;
 
 		lookup adjustwaqf.beforekaf {
 

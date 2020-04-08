@@ -1,4 +1,23 @@
-beginchar(allah,983084,2000,602,-24);
+%% Copyright © 2015-2020 Amine Anane. http://digitalkhatt/license
+ %
+ % This file is part of DigitalKhatt.
+ %
+ % DigitalKhatt is free software: you can redistribute it and/or modify
+ % it under the terms of the GNU Affero General Public License as published by
+ % the Free Software Foundation, either version 3 of the License, or
+ % (at your option) any later version.
+ %
+ % DigitalKhatt is distributed in the hope that it will be useful,
+ % but WITHOUT ANY WARRANTY; without even the implied warranty of
+ % MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ % GNU Affero General Public License for more details.
+ %
+ % You should have received a copy of the GNU Affero General Public License
+ % along with DigitalKhatt.  If not, see <https://www.gnu.org/licenses/>.
+ %
+%%
+
+beginchar(allah,-1,2000,602,-24);
 %%backgroundimage:images/Allah.jpg,-150,-1325.56,1,0,0,1
 %%beginparams
 z1 = (357.639,59.0278);
@@ -956,9 +975,11 @@ _height := penwidth / 1.8;
 _angle1 := 25;
 _angle2 := _angle1;
 
-lefttatweel := lefttatweel*nuqta + 2.3*nuqta;
+numeric lefttatweel_;
 
-z2 = z1 + (-lefttatweel,0 );
+lefttatweel_ := lefttatweel*nuqta + 2.3*nuqta;
+
+z2 = z1 + (-lefttatweel_,0 );
 z3 = z2 + (0,_height ) rotated -_angle2;
 z4 = z1 + (0,_height ) rotated -_angle2;
 
@@ -1039,29 +1060,31 @@ drawcomp(fathatan,identity);
 
 
 endchar;
-beginchar(fathatanidgham,2288,-1,-1,-1);
+defchar(fathatanidgham,2288,-1,-1,-1);
 %%backgroundimage:images/kastratanidgham.jpg,-2861,-1448,1,0,0,1
 %%beginbody
 
-
+lefttatweel := lefttatweel - 0.5;
 picture _temppic;
 _temppic := image(
-fatha_(-0.5,0);
+fatha_(lefttatweel,righttatweel);
 );
 
 draw _temppic;
 
-draw _temppic shifted (130,150);
+z.s = ulcorner _temppic;
 
-interim leftbearing := 0;
-interim rightbearing := 0;
-endchar;
-beginchar(kasratanidgham,2290,-1,-1,-1);
+draw _temppic shifted (-x.s + x.s*0.3, y.s + 20);
+
+show z.s;
+
+
+enddefchar;
+defchar(kasratanidgham,2290,-1,-1,-1);
 %%beginbody
-drawcomp(fathatanidgham,identity);
-interim leftbearing := 0;
-interim rightbearing := 0;
-endchar;
+fathatanidgham_(lefttatweel,righttatweel);
+
+enddefchar;
 beginchar(damma,1615,-1,-1,-1);
 %%backgroundimage:images/damma.jpg,-181.157,-471.404,1,0,0,1
 
@@ -3278,6 +3301,8 @@ z70 = z2 shifted z60;
 
 
 setCursiveAnchor(behmediyehfina,z70, ExitAnchor);
+
+tr_ := tr_ shifted (0,25);
 
 enddefchar;
 defchar(seen.medi.beforereh,-1,-1,-1,-1);
@@ -6735,7 +6760,7 @@ setCursiveAnchor(behmediyehfina,z70.1, ExitAnchor);
 
 
 
-
+tr_ := tr_ shifted (0,150);
 
 
 enddefchar;
@@ -9618,6 +9643,8 @@ draw pic shifted (points1 - z11 + (10,40));
 currentpicture := currentpicture shifted (0,-100);
 
 rightanchor := rightanchor +  (points1 - z11 + (10,40)) +  (0,-100);
+
+tr_ := tr_ shifted (0,-80);
 
 enddefchar;
 defchar(seen.isol.expa,-1,-1,-1,-1);

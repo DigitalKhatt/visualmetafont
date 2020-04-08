@@ -1,8 +1,8 @@
 {   
   "featurefile": "automedina.fea",
   "lookups": {
-    "dalhwawcursive": {
-      "name": "dalhwawcursive",
+    "dalhwawcursivejson": {
+      "name": "dalhwawcursivejson",
       "feature": "curs",
       "type": "cursive",
       "flags": [ false, false, false, true ],
@@ -67,8 +67,8 @@
         }
       ]
     },
-    "defaultmarkposition": {
-      "name": "defaultmarkposition",
+    "defaultmarkpositionjson": {
+      "name": "defaultmarkpositionjson",
       "feature": "mark",
       "type": "mark2base",
       "base": "bases",
@@ -88,8 +88,8 @@
         }
       }
     },
-    "defaultmkmkold": {
-      "name": "defaultmkmkold",
+    "defaultmkmkjson": {
+      "name": "defaultmkmkjson",
       "feature": "mkmk",
       "type": "mark2mark",
       "base": [
@@ -116,8 +116,8 @@
         }
       }
     },
-    "defaultwaqfmarkabovemark": {
-      "name": "defaultwaqfmarkabovemark",
+    "defaultwaqfmarkabovemarkjson": {
+      "name": "defaultwaqfmarkabovemarkjson",
       "feature": "mkmk",
       "type": "mark2mark",
       "base": "topmarks",
@@ -129,8 +129,8 @@
         }
       }
     },
-    "alefadjustment": {
-      "name": "alefadjustment",
+    "alefadjustmentjson": {
+      "name": "alefadjustmentjson",
       "feature": "kern",
       "type": "chainingpos",
       "flags": [ false, false, false, false ],
@@ -290,8 +290,8 @@
         }
       ]
     },
-    "wawmaddaalef": {
-      "name": "wawmaddaalef",
+    "wawmaddaalefjson": {
+      "name": "wawmaddaalefjson",
       "feature": "kern",
       "type": "chainingpos",
       "flags": [ false, false, false, false ],
@@ -317,8 +317,8 @@
         }
       ]
     },
-    "alefalef": {
-      "name": "alefalef",
+    "alefalefjson": {
+      "name": "alefalefjson",
       "feature": "kern",
       "type": "chainingpos",
       "flags": [ false, false, false, true ],
@@ -353,8 +353,8 @@
         }
       ]
     },
-    "kafinityehfinesmallalefmaddah": {
-      "name": "kafinityehfinesmallalefmaddah",
+    "kafinityehfinesmallalefmaddahjson": {
+      "name": "kafinityehfinesmallalefmaddahjson",
       "feature": "mkmk",
       "type": "chainingpos",
       "flags": [ false, false, false, false ],
@@ -380,8 +380,8 @@
         }
       ]
     },
-    "thalkafinit": {
-      "name": "thalkafinit",
+    "thalkafinitjson": {
+      "name": "thalkafinitjson",
       "feature": "kern",
       "type": "chainingpos",
       "flags": [ false, false, false, false ],
@@ -407,8 +407,8 @@
         }
       ]
     },
-    "variouskern": {
-      "name": "variouskern",
+    "variouskernjson": {
+      "name": "variouskernjson",
       "feature": "kern",
       "type": "chainingpos",
       "flags": [ false, false, false, false ],
@@ -486,8 +486,8 @@
         }
       ]
     },
-    "lowmarkafterwawandrehold": {
-      "name": "lowmarkafterwawfina",
+    "lowmarkafterwawandrehjson": {
+      "name": "lowmarkafterwawandrehjson",
       "feature": "mark",
       "type": "chainingpos",
       "markSet": [ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" ],
@@ -876,8 +876,8 @@
         }
       ]
     },
-    "correction": {
-      "name": "correction",
+    "correctionjson": {
+      "name": "correctionjson",
       "feature": "ccmp",
       "type": "multiple",
       "data": {
@@ -886,8 +886,8 @@
         "0656": [ "kasratanidgham" ]
       }
     },
-    "convertsmallaleftochar": {
-      "name": "convertsmallaleftochar",
+    "convertsmallaleftocharjson": {
+      "name": "convertsmallaleftocharjson",
       "feature": "calt",
       "type": "single",
       "data": {
