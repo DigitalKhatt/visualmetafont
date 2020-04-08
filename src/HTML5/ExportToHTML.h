@@ -23,7 +23,7 @@
 #include "OtLayout.h"
 #include "qtextstream.h"
 
-struct mp_edge_object;
+struct mp_graphic_object;
 typedef struct mp_gr_knot_data*mp_gr_knot;
 
 class ExportToHTML
@@ -32,7 +32,7 @@ public:
 	ExportToHTML(OtLayout* otlayout);	
 	~ExportToHTML();
 	void generateQuranPages(QList<QList<LineLayoutInfo>> pages, int lineWidth, QList<QStringList> originalText, int scale);
-	void edgetoHTML5Path(mp_edge_object* h, QTextStream& out);
+	void edgetoHTML5Path(mp_graphic_object* body, QTextStream& out);
 	void filltoHTML5Path(mp_gr_knot h, QTextStream& out);
 	void generateGlyph(GlyphVis& glyph, QTextStream & out);
 	void getImageStream(GlyphVis& glyph, QTextStream & out);

@@ -34,7 +34,7 @@ extern "C"
 }
 
 
-ExportToHTML::ExportToHTML(OtLayout * otlayout) :m_otlayout(otlayout)
+ExportToHTML::ExportToHTML(OtLayout* otlayout) :m_otlayout(otlayout)
 {
 }
 
@@ -261,35 +261,34 @@ void ExportToHTML::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int li
 	file.close();
 }
 
-void ExportToHTML::edgetoHTML5Path(mp_edge_object * h, QTextStream & out)
+void ExportToHTML::edgetoHTML5Path(mp_graphic_object* body, QTextStream& out)
 {
-	if (h) {
-		mp_graphic_object* body = h->body;
-
-		if (body) {
-
-			out << "\tctx.beginPath();\n";
-			do {
-				switch (body->type)
-				{
-				case mp_fill_code: {
-					filltoHTML5Path(((mp_fill_object *)body)->path_p, out);
 
 
-					break;
-				}
-				default:
-					break;
-				}
+	if (body) {
 
-			} while (body = body->next);
+		out << "\tctx.beginPath();\n";
+		do {
+			switch (body->type)
+			{
+			case mp_fill_code: {
+				filltoHTML5Path(((mp_fill_object*)body)->path_p, out);
 
-			out << "\tctx.fill();\n";
-		}
+
+				break;
+			}
+			default:
+				break;
+			}
+
+		} while (body = body->next);
+
+		out << "\tctx.fill();\n";
 	}
+
 }
 
-void ExportToHTML::filltoHTML5Path(mp_gr_knot h, QTextStream & out)
+void ExportToHTML::filltoHTML5Path(mp_gr_knot h, QTextStream& out)
 {
 	mp_gr_knot p, q;
 
@@ -306,7 +305,7 @@ void ExportToHTML::filltoHTML5Path(mp_gr_knot h, QTextStream & out)
 
 
 }
-void ExportToHTML::generateGlyph(GlyphVis& glyph, QTextStream & out) {
+void ExportToHTML::generateGlyph(GlyphVis& glyph, QTextStream& out) {
 
 	QByteArray steamDataByteArray;
 
@@ -314,7 +313,7 @@ void ExportToHTML::generateGlyph(GlyphVis& glyph, QTextStream & out) {
 	if (glyph.name == "endofaya") { //||  glyph->name == "rubelhizb" glyph->name == "placeofsajdah" ||
 		getImageStream(glyph, out);
 	}
-	else if (glyph.charcode >= Automedina::AyaNumberCode  && glyph.charcode <= Automedina::AyaNumberCode + 286) {
+	else if (glyph.charcode >= Automedina::AyaNumberCode && glyph.charcode <= Automedina::AyaNumberCode + 286) {
 		int ayaNumber = (glyph.charcode - Automedina::AyaNumberCode) + 1;
 
 		int digitheight = 120;
@@ -374,10 +373,10 @@ void ExportToHTML::generateGlyph(GlyphVis& glyph, QTextStream & out) {
 		out << "\tctx.restore();\n";
 	}
 	else {
-		edgetoHTML5Path(glyph.m_edge, out);
+		edgetoHTML5Path(glyph.copiedPath, out);
 	}
 }
-void ExportToHTML::getImageStream(GlyphVis& glyph, QTextStream & out) {
+void ExportToHTML::getImageStream(GlyphVis& glyph, QTextStream& out) {
 
 	if (glyph.m_edge) {
 		mp_graphic_object* body = glyph.m_edge->body;
@@ -386,7 +385,7 @@ void ExportToHTML::getImageStream(GlyphVis& glyph, QTextStream & out) {
 				switch (body->type)
 				{
 				case mp_fill_code: {
-					auto fillobject = (mp_fill_object *)body;
+					auto fillobject = (mp_fill_object*)body;
 					out << "\tctx.beginPath();\n";
 					filltoHTML5Path(fillobject->path_p, out);
 					if (fillobject->color_model == mp_rgb_model) {
