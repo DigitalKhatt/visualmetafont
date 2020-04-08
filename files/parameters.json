@@ -162,8 +162,8 @@
             "onedotdown": {
                 "baseparameters": {
                     "behshape.fina.expa": [
-                        0,
-                        -39
+                        -33,
+                        -6
                     ],
                     "behshape.init": [
                         48,
@@ -416,8 +416,8 @@
                         95
                     ],
                     "behshape.medi.beforereh": [
-                        83,
-                        55
+                        55,
+                        170
                     ],
                     "behshape.medi.beforeseen": [
                         122,
@@ -557,6 +557,12 @@
                         25,
                         31
                     ]
+                },
+                "markparameters": {
+                    "kasratanidgham": [
+                        40,
+                        -37
+                    ]
                 }
             }
         }
@@ -596,7 +602,7 @@
                         48
                     ],
                     "dammatanidgham": [
-                        -1,
+                        -42,
                         -16
                     ]
                 }
@@ -778,6 +784,10 @@
                     "noon.fina": [
                         114,
                         0
+                    ],
+                    "qaf.fina.expa": [
+                        437,
+                        133
                     ],
                     "reh.fina": [
                         -14,
@@ -1005,9 +1015,17 @@
                         -49,
                         -49
                     ],
+                    "heh.fina.allah": [
+                        -24,
+                        -96
+                    ],
                     "heh.init.pluslt_260": [
                         19,
                         9
+                    ],
+                    "heh.isol": [
+                        69,
+                        0
                     ],
                     "heh.medi": [
                         75,
@@ -1119,7 +1137,7 @@
                     ],
                     "lam.init.lamalef": [
                         78,
-                        -20
+                        37
                     ],
                     "lam.init.pluslt_200": [
                         -8,
@@ -1143,7 +1161,7 @@
                     ],
                     "lam.medi.beforeheh": [
                         -125,
-                        10
+                        -62
                     ],
                     "lam.medi.beforeyeh": [
                         -141,
@@ -1268,6 +1286,10 @@
                     "yehshape.fina.ii": [
                         51,
                         -123
+                    ],
+                    "yehshape.isol.expa": [
+                        72,
+                        -144
                     ]
                 },
                 "markparameters": {
@@ -1430,8 +1452,14 @@
             "sukun": {
                 "baseparameters": {
                     "meem.fina.afterkaf": [
-                        -32,
-                        -310
+                        0,
+                        -343
+                    ]
+                },
+                "markparameters": {
+                    "damma": [
+                        57,
+                        115
                     ]
                 }
             }
@@ -1889,13 +1917,21 @@
                         -41,
                         69
                     ],
+                    "dal.fina": [
+                        0,
+                        -72
+                    ],
                     "hamza.isol": [
-                        -158,
-                        -137
+                        -109,
+                        -28
                     ],
                     "heh.fina.afterlam": [
                         -250,
                         -83
+                    ],
+                    "heh.fina.allah": [
+                        0,
+                        -96
                     ],
                     "lam.isol": [
                         -30,
@@ -1906,8 +1942,8 @@
                         -201
                     ],
                     "meem.fina.afterkaf": [
-                        -224,
-                        71
+                        -176,
+                        57
                     ],
                     "noon.fina": [
                         57,
@@ -1924,6 +1960,10 @@
                     "seen.isol": [
                         127,
                         0
+                    ],
+                    "waw.fina": [
+                        -120,
+                        -96
                     ],
                     "yehshape.fina.ii": [
                         -125,
