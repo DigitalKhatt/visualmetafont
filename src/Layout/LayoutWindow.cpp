@@ -1353,7 +1353,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 
 	auto listitems = m_graphicsScene->items();
 
-	QString glyphName = m_otlayout->glyphNamePerCode[57357];
+	//QString glyphName = m_otlayout->glyphNamePerCode[57357];
 
 	for (auto line : page) {
 		int currentxPos = line.xstartposition;
