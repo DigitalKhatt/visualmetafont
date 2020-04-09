@@ -447,6 +447,10 @@
                         11,
                         -92
                     ],
+                    "behshape.init": [
+                        30,
+                        0
+                    ],
                     "behshape.init.beforehah": [
                         16,
                         28
@@ -466,6 +470,10 @@
                     "behshape.isol.expa": [
                         0,
                         -138
+                    ],
+                    "behshape.medi.beforeseen": [
+                        -41,
+                        -20
                     ],
                     "behshape.medi.beforeyeh": [
                         -146,
@@ -692,6 +700,10 @@
                     "hah.isol": [
                         126,
                         595
+                    ],
+                    "hah.medi.beforeyeh": [
+                        60,
+                        -60
                     ],
                     "hamza.isol": [
                         70,
@@ -2058,6 +2070,10 @@
                     873,
                     1289
                 ],
+                "lam.init.beforeyeh": [
+                    420,
+                    30
+                ],
                 "lam.init.lamalef": [
                     473,
                     522
@@ -2386,8 +2402,8 @@
                         -18
                     ],
                     "seen.isol": [
-                        326,
-                        277
+                        356,
+                        367
                     ]
                 }
             }
@@ -2856,6 +2872,14 @@
                     -1,
                     77
                 ],
+                "kaf.init.beforeyeh": [
+                    -125,
+                    0
+                ],
+                "lam.init": [
+                    11,
+                    0
+                ],
                 "lam.isol": [
                     0,
                     94
@@ -2867,6 +2891,10 @@
                 "seen.init.beforeyeh": [
                     -86,
                     0
+                ],
+                "seen.isol": [
+                    -90,
+                    90
                 ],
                 "waw.isol": [
                     24,

@@ -114,6 +114,14 @@ lookup variouskern {
 	pos /^dal.isol/'lookup variouskern.l1 fatha kaf.init.beforelam;
 	pos smallwaw'lookup variouskern.l1 maddahabove;
 
+	pos smallwaw'<-300 0 -300 0> space /^kaf.init/;
+
+	pos waw.fina'<-300 0 -300 0> sukun space /^kaf.init/;
+
+	pos lam.fina'<-100 0 -100 0> space lam.init shadda fatha;
+
+	pos alef.isol'<-100 0 -100 0> hamzabelow kasra /^lam.init/ fatha;
+
 } variouskern;
 
 lookup kafinityehfinesmallalefmaddah{
@@ -274,7 +282,7 @@ lookup adjustseenhigh {
 
 lookup kafsubst {
 
-	feature rlig;
+	feature calt;
 
 	lookupflag UseMarkFilteringSet [hamzaabove smallhighroundedzero];	
 
@@ -521,6 +529,8 @@ lookup adjustmarks {
 			feature mkmk;
 
 			lookupflag UseMarkFilteringSet @waqfmarks;
+
+			# pos behshape.fina';
 
 			pos @bases'<200 0 200 0>  @waqfmarks;					
 
@@ -1306,7 +1316,6 @@ feature rlig {
 	# lookup forsmalllalef;	
 	# lookup forwaw;	
 	lookup ayanumbers;
-	lookup kafsubst;
 } rlig;
 
 feature calt {
@@ -1318,8 +1327,9 @@ feature calt {
 		meem.medi meem.medi.afterhah kaf.init.ii
 	];
 
-	lookup multiplebehshape;	
-	lookup kaflamalef;
+	lookup multiplebehshape;
+	lookup kafsubst;	
+	lookup kaflamalef;			
 	lookup kafmeemliga;
 	lookup hahlig;
 	lookup ainfinjani;
