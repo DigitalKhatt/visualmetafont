@@ -3602,7 +3602,7 @@ z4 .. tension 11.7745 and 3.40192 ..
 %%beginbody
 
 rightbearing :=  313 + rightbearing;
-leftbearing := -150;
+leftbearing := -190;
 
 %leftanchor := z1;
 

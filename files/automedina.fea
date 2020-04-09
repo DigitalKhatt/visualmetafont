@@ -116,7 +116,7 @@ lookup variouskern {
 
 	pos smallwaw'<-300 0 -300 0> space /^kaf.init/;
 
-	pos waw.fina'<-300 0 -300 0> sukun space /^kaf.init/;
+	pos waw.fina'<-200 0 -200 0> sukun space /^kaf.init/;
 
 	pos lam.fina'<-100 0 -100 0> space lam.init shadda fatha;
 
@@ -235,7 +235,7 @@ lookup otherkern {
 		
 		lookupflag IgnoreMarks;
 
-		pos /^alef.isol/'<-100 0 -100 0> lam.init.lam_hah;
+		pos /^alef.isol/ lam.init.lam_hah'<0 0 -100 0>;
 
 	} otherkern.o2;
 	
