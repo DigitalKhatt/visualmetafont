@@ -643,7 +643,7 @@ lookup adjustmarks {
 
 lookup tajweedcolor {
 	
-	feature rclt;	
+	feature tjwd;	
 
 	lookup green {
 		pos [@bases @marks] color <0 166 80 0>; #  <0 200 77 0>;	
@@ -713,7 +713,7 @@ lookup tajweedcolor {
 
 	lookup hamzawasl {
 
-		feature rclt;	
+		feature tjwd;	
 
 		lookupflag UseMarkFilteringSet [wasla];
 		
@@ -737,7 +737,7 @@ lookup tajweedcolor {
 	# Madd
 	lookup maddJawaz {
 	
-		feature rclt;		
+		feature tjwd;		
 
 		pos ([/^alef/ /^waw/ /^smallalef/ smallwaw smallyeh] maddahabove)'lookup red4 @bases  (/dot/ | NULL) shadda;
 
@@ -771,7 +771,7 @@ lookup tajweedcolor {
 	# Tafkhim 
 	lookup Tafkhim {
 
-		feature rclt;	
+		feature tjwd;	
 
 		pos ([ /^tah/ /^qaf/ /^sad/ ] |  /^fehshape/ twodotsup | /^hah/ onedotup |/^ain/ onedotup| /^sad/ onedotup | /^tah/ onedotup   )'lookup tafkim				
 		(shadda | NULL)'lookup tafkim 
@@ -808,7 +808,7 @@ lookup tajweedcolor {
 	;	
 
 	lookup lkalkala1 {
-		feature rclt;	
+		feature tjwd;	
 
 		lookupflag UseMarkFilteringSet [onedotdown twodotsup];		
 
@@ -1389,9 +1389,9 @@ feature mkmk {
 	lookup adjustmarks;        
 } mkmk;
 
-feature rclt {
+feature tjwd {
 	lookup tajweedcolor;
-} rclt;
+} tjwd;
 
 feature sch1 {
 	lookup expa.aleffina;
@@ -1403,6 +1403,56 @@ feature sch1 {
 	lookup expa.joining.prio3;
 	lookup expa.joining;
 } sch1;
+
+feature shr1 {
+	lookup shr1.alefcursive {	
+	
+		# feature curs;
+
+		lookupflag IgnoreMarks;
+
+		pos cursive [alef.fina alef.isol] <anchor 0 0> <anchor 0 0> ;
+		pos cursive [meem.init qaf.isol dal.isol behshape.init.beforehah /lam.init/ /behshape.isol/] <anchor 0 0 > <anchor NULL>;		
+		
+	} shr1.alefcursive;
+
+	lookup shr1.kern {	
+	
+		feature shrr;
+
+		lookupflag IgnoreMarks;
+
+		pos [alef.fina alef.isol]  @bases'<0 0 -100 0>;
+
+		pos /dal.fina/ kaf.init'<0 0 -150 0>;
+		
+		
+	} shr1.kern;
+
+	lookup shr1.dalcursive {	
+	
+		feature shrr;
+
+		lookupflag IgnoreMarks;
+
+		pos cursive /dal.fina/ <anchor NULL> <anchor 0 0> ;
+		pos cursive [/behshape.init/] <anchor 0 0 > <anchor NULL>;		
+		
+	} shr1.dalcursive;
+
+	lookup shr1.kaf {
+		
+		feature shrr;
+
+		lookupflag IgnoreMarks;
+
+		pos [/noon.fina/ feh.fina] space /kaf.init/'<0 0 -150 0>;
+
+	} shr1.kaf;
+
+
+	
+} shr1;
 
 feature shr2 {
 	lookup expa.shrink;

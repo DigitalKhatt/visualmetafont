@@ -1661,7 +1661,7 @@ void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& dif
 							glyph_info[index].lefttatweel += leftTatweel;
 							glyph_info[index].righttatweel += rightTatweel;
 
-							if (meanTatweel > minShrink&& diff < 0) {
+							if (meanTatweel > minShrink && diff < 0) {
 								expa.MinLeftTatweel -= leftTatweel;
 								expa.MinRightTatweel -= rightTatweel;
 								newaffectedIndexes.insert(i.key(), expa);
@@ -1721,7 +1721,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 	savedprops.reserved1 = 0;
 	savedprops.reserved2 = 0;
 
-	hb_feature_t color_fea{ HB_TAG('r', 'c', 'l', 't'),0,0,(uint)-1 };
+	hb_feature_t color_fea{ HB_TAG('t', 'j', 'w', 'd'),0,0,(uint)-1 };
 	if (tajweedColor) {
 		color_fea.value = 1;
 	}
@@ -1734,6 +1734,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 		{HB_TAG('l', 'i', 'g', 'a'),0,0,(uint)-1},
 		{HB_TAG('c', 'a', 'l', 't'),0,0,(uint)-1},
 		{HB_TAG('s', 'c', 'h', 'm'),1,0,(uint)-1},
+		{HB_TAG('s', 'h', 'r', '1'),0,0,(uint)-1},
 		color_fea
 	};
 
@@ -1839,6 +1840,9 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 
 				if (needgpos) {
 					buffer->reverse();
+
+					gpos_features[7].value = schr1applied ? 1 : 0;;
+
 					hb_shape(shapefont, buffer, gpos_features, num_gpos_features);
 					//hb_shape(shapefont, buffer, nullptr, 0);
 				}
@@ -1888,7 +1892,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 					glyphLayout.x_advance = defaultSpace;
 					currentlineWidth += glyphLayout.x_advance;
 				}
-							
+
 			}
 			else {
 				currentlineWidth += glyphLayout.x_advance;
@@ -1913,7 +1917,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 
 		double spaceaverage = 0;
 		if (lineWidth != 0) {
-			
+
 			if (spaces.size() != 0) {
 				spaceaverage = (lineWidth - currentlineWidth) / spaces.size();
 			}
@@ -1929,7 +1933,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 			}
 		}
 
-		
+
 
 
 		if (justification == LineJustification::Distribute) {
@@ -2179,7 +2183,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 					throw "Should not";
 				}
 			}
-			
+
 
 			if (!potcandidates.contains(key) || candidates.at(potcandidates[key]).totalDemerits > totalDemerits) {
 
@@ -2435,7 +2439,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 		QList<LineLayoutInfo> page;
 
 		for (int lineIndex = 0; lineIndex < lines.length(); lineIndex++) {
-			
+
 			if (lineIndex > 0) {
 				double diameter = pageWidth * 1; // 0.9;
 				if (pageNumber == 0) {
@@ -2454,7 +2458,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 			}
 
 			auto lineResult = this->justifyPage(emScale, newLineWidth, pageWidth, QStringList{ lines[lineIndex] }, LineJustification::Center, false, true)[0];
-			
+
 
 			if (lineIndex == 0) {
 				lineResult.type = LineType::Sura;
