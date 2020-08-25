@@ -35,7 +35,7 @@ pair lefttatweel_const, righttatweel_const;
 
 leftbearingnumber := 0;
 
-nextunicode := 57343; %hex"E000"-1;
+nextunicode := 58000; % 57343; %hex"E000"-1; % the first code for aya numbers
 string charmacroname;
 
 def MarkAnchor = 1 enddef;

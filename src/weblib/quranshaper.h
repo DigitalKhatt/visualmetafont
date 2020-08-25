@@ -38,7 +38,7 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 #endif
-#include <QtCore\qmath.h>
+#include <QtCore/qmath.h>
 
 struct PageResult {
 	QList<LineLayoutInfo> page;
@@ -736,7 +736,7 @@ private:
 				auto tempGlyph = &layout->glyphs[hundredsglyph.name]; generateGlyph(*tempGlyph, ctx);
 
 				//out << "\tctx.translate(" << hundredsglyph.width + 40 << "," << 0 << ");\n";
-				ctx.call<void>("translate", tensglyph.width + 40, 0);
+				ctx.call<void>("translate", hundredsglyph.width + 40, 0);
 				//out << "\tglyphs['" << tensglyph.name << "'](ctx);\n";
 				tempGlyph = &layout->glyphs[tensglyph.name]; generateGlyph(*tempGlyph, ctx);
 

@@ -34,7 +34,7 @@
 
 extern "C"
 {
-#include "AddedFiles\newmp.h"
+#include "AddedFiles/newmp.h"
 }
 
 

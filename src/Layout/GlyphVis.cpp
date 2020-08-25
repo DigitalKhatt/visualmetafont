@@ -26,7 +26,7 @@
 #include "qcolor.h"
 #endif
 
-#include "automedina\automedina.h"
+#include "automedina/automedina.h"
 #include <cmath>
 
 extern "C"

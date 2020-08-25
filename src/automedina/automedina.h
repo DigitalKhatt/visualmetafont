@@ -34,7 +34,8 @@ class Automedina {
 	friend class GlyphVis;
 
 public : 
-	static const quint16 AyaNumberCode = 65200;
+	//static const quint16 AyaNumberCode = 65200;
+	static const quint16 AyaNumberCode = 0xE000;
 	const int markheigh = 500;
 	const int markdepth = 80;
 	const int spacemkmk = 100;

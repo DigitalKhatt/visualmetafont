@@ -17,7 +17,7 @@
  * <https: //www.gnu.org/licenses />.
 */
 
-#include "KnotControlledItem.hpp"
+#include "knotcontrolleditem.hpp"
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
 #include <QPainter>

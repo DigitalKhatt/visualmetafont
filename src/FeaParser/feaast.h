@@ -520,8 +520,8 @@ namespace feayy {
 
 	class MarkedGlyphSetRegExp {
 	public:
-		GlyphSetRegExp* regexp;
-		std::string* lookupName;
+		GlyphSetRegExp* regexp = nullptr;
+		std::string* lookupName = nullptr;
 		InlineType inlineType = InlineType::None;
 		LookupStatement* stmt = nullptr;
 
@@ -538,6 +538,7 @@ namespace feayy {
 		~MarkedGlyphSetRegExp() {
 			delete regexp;
 			delete lookupName;
+			//delete stmt;
 		}
 	};
 

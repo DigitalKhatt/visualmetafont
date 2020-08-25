@@ -69,7 +69,10 @@ private:
 		if (glyph.originalglyph == "noon.isol.expa") {
 			width = glyph.width * 0.5;
 		}
-		else if (glyph.originalglyph == "seen.isol.expa" || glyph.originalglyph == "sad.isol.expa" || glyph.originalglyph == "qaf.isol.expa" || glyph.originalglyph == "feh.isol.expa") {
+		else if (glyph.name == "seen.isol.expa" || glyph.originalglyph == "seen.isol.expa" 
+			|| glyph.name == "sad.isol.expa" || glyph.originalglyph == "sad.isol.expa" 
+			|| glyph.name == "qaf.isol.expa" || glyph.originalglyph == "qaf.isol.expa"			
+			|| glyph.name == "feh.isol.expa" || glyph.originalglyph == "feh.isol.expa") {
 			width = glyph.width - 250;
 		}
 		else if (glyph.originalglyph == "qaf.fina.expa" || glyph.originalglyph == "sad.fina.expa" || glyph.originalglyph == "seen.fina.expa" || glyph.originalglyph == "feh.fina.expa") {
@@ -396,7 +399,7 @@ public:
 		else if (originalglyph->name == "sad.fina.expa" || originalglyph->originalglyph == "sad.fina.expa") {
 			width = originalglyph->width - 250;
 		}else if (originalglyph->name == "seen.isol.expa" || originalglyph->originalglyph == "seen.isol.expa") {
-			width = originalglyph->width - 50;
+			width = originalglyph->width - 250;
 		}
 		else if (originalglyph->name == "seen.fina.expa" || originalglyph->originalglyph == "seen.fina.expa") {
 			width = originalglyph->width - 300;

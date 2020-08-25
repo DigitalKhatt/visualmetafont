@@ -26,11 +26,16 @@ if (NOT EMSCRIPTEN)
 
 	find_package(Qt5 COMPONENTS Core OpenGL QML SVG PrintSupport Widgets REQUIRED)
 
+	
+	
+#[[
+
 	get_target_property(
 		linked_libs
 		Qt5::Widgets
 		INTERFACE_LINK_LIBRARIES
 	)
+
 
 	set(debug "${_qt5Widgets_install_prefix}/lib/qtpcre2d.lib;"
 		"${_qt5Widgets_install_prefix}/lib/Qt5ThemeSupportd.lib;"
@@ -50,6 +55,8 @@ if (NOT EMSCRIPTEN)
 	set(gen_expr "${debug_gen_expr};${nondebug_gen_expr}")
 
 	set_target_properties(Qt5::Widgets  PROPERTIES INTERFACE_LINK_LIBRARIES "${gen_expr};${linked_libs}")
+]]
+	
 else()
 	set(Qt5_DIR "${QTBuild}/lib/cmake/Qt5")
 	set(Qt5Widgets_DIR "${QTBuild}/lib/cmake/Qt5Widgets")
@@ -81,10 +88,10 @@ endif()
 
 
 
-#foreach(plugin ${Qt5Svg_PLUGINS})
-#  get_target_property(_loc ${plugin} LOCATION)
-#  message("Plugin ${plugin} is at location ${_loc}")
-#endforeach()
+foreach(plugin ${Qt5_PLUGINS})
+  get_target_property(_loc ${plugin} LOCATION)
+  message("Plugin ${plugin} is at location ${_loc}")
+endforeach()
 
 
 set(Automedina
@@ -279,7 +286,8 @@ add_dependencies(${WEBLIB_NAME} harfbuzz mplib)
 # Link with other targets.
 target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser     
 	Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport Qt5::Widgets 	
-	Qt5::QJpegPlugin Qt5::QSvgPlugin Qt5::QSvgIconPlugin
+	Qt5::QJpegPlugin 
+	#Qt5::QSvgPlugin Qt5::QSvgIconPlugin
 	     
 )
 
@@ -292,12 +300,19 @@ target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib # QtPropertyBrowser
 if (NOT EMSCRIPTEN)
 
 	target_link_libraries(${PROJECT_NAME} PUBLIC ZLIB::ZLIB PNG::PNG Freetype::Freetype   
-	Qt5::QWindowsIntegrationPlugin
-	imm32 version Dwmapi Mincore winmm Wtsapi32)
+	#Qt5::QWindowsIntegrationPlugin
+	#imm32 version Dwmapi Mincore winmm Wtsapi32
+	)
 
 	target_link_libraries(${WEBLIB_NAME} PUBLIC ZLIB::ZLIB PNG::PNG Freetype::Freetype   
-	Qt5::QWindowsIntegrationPlugin
-	imm32 version Dwmapi Mincore winmm Wtsapi32)
+	# Qt5::QWindowsIntegrationPlugin
+        #imm32 version Dwmapi Mincore winmm Wtsapi32
+        )
+
+	if (WIN32)
+                target_link_libraries(${PROJECT_NAME} PUBLIC imm32 version Dwmapi Mincore winmm Wtsapi32 Qt5::QWindowsIntegrationPlugin)
+                target_link_libraries(${WEBLIB_NAME} PUBLIC imm32 version Dwmapi Mincore winmm Wtsapi32 Qt5::QWindowsIntegrationPlugin)
+	endif (WIN32)
 
 else()
 

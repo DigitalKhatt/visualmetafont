@@ -42,17 +42,18 @@ extern "C"
 #ifndef DIGITALKHATT_WEBLIB
 #include <QDebug>
 #endif
-#include "automedina\automedina.h"
+#include "automedina/automedina.h"
 #include "QByteArrayOperator.h"
 #include "GlyphVis.h"
-#include "FeaParser\driver.h"
-#include "FeaParser\feaast.h"
+#include "FeaParser/driver.h"
+#include "FeaParser/feaast.h"
 //#include "hb-ot-layout-gsubgpos.hh"
 
 #include "qregularexpression.h"
 
-#include "QuranText/quran.h"
+#include "qurantext/quran.h"
 #include <limits>
+#include <QtCore/qmath.h>
 
 
 
@@ -115,6 +116,13 @@ getNominalGlyph(hb_font_t* font,
 	hb_codepoint_t* glyph,
 	void* user_data)
 {
+	/*
+	OtLayout* layoutg = reinterpret_cast<OtLayout*>(font_data);
+
+	if (!layoutg->glyphNamePerCode.contains(unicode)) {
+		std::cout << "Glyph " << unicode << " not found" << std::endl;
+	}*/
+
 
 	*glyph = unicode;
 
@@ -157,7 +165,10 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
 {
 	OtLayout* layout = reinterpret_cast<OtLayout*>(fontData);
 
-	if (!layout->glyphNamePerCode.contains(glyph)) return 0;
+	if (!layout->glyphNamePerCode.contains(glyph)) {
+		//std::cout << "Glyph " << glyph << " not found" << std::endl;
+		return 0;
+	}
 
 	if (layout->glyphGlobalClasses[glyph] == OtLayout::MarkGlyph) {
 		return 0;
@@ -1650,7 +1661,7 @@ void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& dif
 							glyph_info[index].lefttatweel += leftTatweel;
 							glyph_info[index].righttatweel += rightTatweel;
 
-							if (meanTatweel > minShrink&& diff < 0) {
+							if (meanTatweel > minShrink && diff < 0) {
 								expa.MinLeftTatweel -= leftTatweel;
 								expa.MinRightTatweel -= rightTatweel;
 								newaffectedIndexes.insert(i.key(), expa);
@@ -1710,7 +1721,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 	savedprops.reserved1 = 0;
 	savedprops.reserved2 = 0;
 
-	hb_feature_t color_fea{ HB_TAG('r', 'c', 'l', 't'),0,0,(uint)-1 };
+	hb_feature_t color_fea{ HB_TAG('t', 'j', 'w', 'd'),0,0,(uint)-1 };
 	if (tajweedColor) {
 		color_fea.value = 1;
 	}
@@ -1723,6 +1734,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 		{HB_TAG('l', 'i', 'g', 'a'),0,0,(uint)-1},
 		{HB_TAG('c', 'a', 'l', 't'),0,0,(uint)-1},
 		{HB_TAG('s', 'c', 'h', 'm'),1,0,(uint)-1},
+		{HB_TAG('s', 'h', 'r', '1'),0,0,(uint)-1},
 		color_fea
 	};
 
@@ -1828,6 +1840,9 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 
 				if (needgpos) {
 					buffer->reverse();
+
+					gpos_features[7].value = schr1applied ? 1 : 0;;
+
 					hb_shape(shapefont, buffer, gpos_features, num_gpos_features);
 					//hb_shape(shapefont, buffer, nullptr, 0);
 				}
@@ -1877,7 +1892,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 					glyphLayout.x_advance = defaultSpace;
 					currentlineWidth += glyphLayout.x_advance;
 				}
-							
+
 			}
 			else {
 				currentlineWidth += glyphLayout.x_advance;
@@ -1902,7 +1917,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 
 		double spaceaverage = 0;
 		if (lineWidth != 0) {
-			
+
 			if (spaces.size() != 0) {
 				spaceaverage = (lineWidth - currentlineWidth) / spaces.size();
 			}
@@ -1918,7 +1933,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 			}
 		}
 
-		
+
 
 
 		if (justification == LineJustification::Distribute) {
@@ -2168,7 +2183,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 					throw "Should not";
 				}
 			}
-			
+
 
 			if (!potcandidates.contains(key) || candidates.at(potcandidates[key]).totalDemerits > totalDemerits) {
 
@@ -2410,30 +2425,56 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 	// First & second pages : Al fatiha &  Al Bakara
 
 
-	for (int pagenum = 1; pagenum >= 0; pagenum--) {
+	for (int pageNumber = 1; pageNumber >= 0; pageNumber--) {
 
-		QString textt = QString::fromUtf8(qurantext[pagenum] + 1);
+		QString textt = QString::fromUtf8(qurantext[pageNumber] + 1);
 
 		auto lines = textt.split(10, QString::SkipEmptyParts);
 
-		auto page = this->justifyPage(emScale, lineWidth, lineWidth,lines, LineJustification::Center, false, true);
-
 		int beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
-		for (int i = 0; i < page.size(); ++i) {
-			if (i == 0) {
-				page[i].type = LineType::Sura;
-				page[i].ystartposition = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1)) << OtLayout::SCALEBY;
+
+		int pageWidth = lineWidth;
+		int newLineWidth = 0;
+
+		QList<LineLayoutInfo> page;
+
+		for (int lineIndex = 0; lineIndex < lines.length(); lineIndex++) {
+
+			if (lineIndex > 0) {
+				double diameter = pageWidth * 1; // 0.9;
+				if (pageNumber == 0) {
+					diameter = pageWidth * 1; // 0.9;
+				}
+
+				int index = lineIndex - 1;
+				//index = index % 4;
+				// 22.5 = 180 / 8
+				double degree = lineIndex * 22.5 * M_PI / 180;
+				newLineWidth = diameter * std::sin(degree);
+				//std::cout << "lineIndex=" << lineIndex << ", lineWidth=" << lineWidth << std::endl;
 			}
 			else {
-				page[i].ystartposition = beginsura;
+				newLineWidth = 0;
+			}
+
+			auto lineResult = this->justifyPage(emScale, newLineWidth, pageWidth, QStringList{ lines[lineIndex] }, LineJustification::Center, false, true)[0];
+
+
+			if (lineIndex == 0) {
+				lineResult.type = LineType::Sura;
+				lineResult.ystartposition = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1)) << OtLayout::SCALEBY;
+			}
+			else {
+				lineResult.ystartposition = beginsura;
 				beginsura += OtLayout::InterLineSpacing << OtLayout::SCALEBY;
 			}
-		}
 
+			page.append(lineResult);
+		}
 		pages.prepend(page);
 		originalPages.prepend(lines);
 
-		if (pagenum == 1) {
+		if (pageNumber == 1) {
 			suraNamebyPage.prepend(currentSuraName);
 		}
 		else {

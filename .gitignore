@@ -33,3 +33,12 @@
 
 # output files
 files/quran_medina_inputtext.txt
+build/
+files/allquran.pdf
+files/allquran_overlapping.pdf
+files/medinafont_unicodes.lua
+files/overflows_with_just.csv
+files/quranMedina.pdf
+.vscode/
+CMakeLists.txt.user
+

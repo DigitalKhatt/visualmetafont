@@ -28,6 +28,7 @@
 #include <QVector>
 #include <optional>
 #include "qmetatype.h"
+#include "qpainterpath.h"
 
 class Font;
 struct mp_edge_object;

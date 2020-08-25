@@ -31,7 +31,7 @@ extern "C"
 #include "font.hpp"
 #include "commands.h"
 
-#include "GlyphParser\glyphdriver.h"
+#include "GlyphParser/glyphdriver.h"
 #include "qcoreevent.h"
 #include  <cmath>
 
