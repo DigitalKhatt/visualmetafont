@@ -18,7 +18,7 @@
 */
 
 #include "ExportToHTML.h"
-#include <Qhash.h>
+#include <qhash.h>
 #include "Layout/GlyphVis.h"
 #include "qfile.h"
 #include "qtextstream.h"

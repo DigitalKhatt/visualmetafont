@@ -24,7 +24,7 @@ set(WEBLIB_NAME VisualMetaFontWasm)
 
 if (NOT EMSCRIPTEN)
 
-	find_package(Qt5 COMPONENTS Core OpenGL QML SVG PrintSupport Widgets REQUIRED)
+        find_package(Qt5 COMPONENTS Core OpenGL Svg PrintSupport Widgets Qml REQUIRED)
 
 	
 	
@@ -70,7 +70,7 @@ else()
 	set(Qt5EventDispatcherSupport_DIR "${QTBuild}/lib/cmake/Qt5EventDispatcherSupport")
 	set(Qt5FontDatabaseSupport_DIR "${QTBuild}/lib/cmake/Qt5FontDatabaseSupport")
 
-	find_package(Qt5 COMPONENTS Core OpenGL SVG PrintSupport Widgets EventDispatcherSupport FontDatabaseSupport REQUIRED)
+        find_package(Qt5 COMPONENTS Core OpenGL Svg PrintSupport Widgets EventDispatcherSupport FontDatabaseSupport REQUIRED)
 
 	get_target_property(
 		linked_libs
@@ -85,14 +85,6 @@ else()
 	set_target_properties(Qt5::Widgets  PROPERTIES INTERFACE_LINK_LIBRARIES "${gen_expr};${linked_libs}")
 
 endif()
-
-
-
-foreach(plugin ${Qt5_PLUGINS})
-  get_target_property(_loc ${plugin} LOCATION)
-  message("Plugin ${plugin} is at location ${_loc}")
-endforeach()
-
 
 set(Automedina
     automedina/automedina.cpp    
@@ -272,8 +264,8 @@ target_compile_definitions(${WEBLIB_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ER
 
 
 if (NOT EMSCRIPTEN)
-	target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_BOOLEAN)
-	target_compile_definitions(${WEBLIB_NAME} PRIVATE HAVE_BOOLEAN)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_BOOLEAN)
+    target_compile_definitions(${WEBLIB_NAME} PRIVATE HAVE_BOOLEAN)
 endif()
 
 IF(DEFINED ENV{ENABLE_PDF_GENERATION})
@@ -287,8 +279,8 @@ add_dependencies(${WEBLIB_NAME} harfbuzz mplib)
 target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser     
 	Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport Qt5::Widgets 	
 	Qt5::QJpegPlugin 
-	#Qt5::QSvgPlugin Qt5::QSvgIconPlugin
-	     
+        Qt5::QSvgPlugin
+        Qt5::QSvgIconPlugin
 )
 
 target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib # QtPropertyBrowser     

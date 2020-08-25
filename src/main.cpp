@@ -74,6 +74,9 @@ int main(int argc, char* argv[])
 #ifdef _WIN32
 		Q_IMPORT_PLUGIN(QSvgIconPlugin)
 		Q_IMPORT_PLUGIN(QSvgPlugin)
+#else
+    Q_IMPORT_PLUGIN(QSvgIconPlugin)
+    Q_IMPORT_PLUGIN(QSvgPlugin)
 #endif
 		Q_IMPORT_PLUGIN(QJpegPlugin)
 		//	Q_IMPORT_PLUGIN(QGl)

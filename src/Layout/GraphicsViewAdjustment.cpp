@@ -18,7 +18,7 @@
 */
 
 #include "GraphicsViewAdjustment.h"
-#include <QtGUI>
+#include <QtGui>
 
 
 GraphicsViewAdjustment::GraphicsViewAdjustment(QWidget *parent)
