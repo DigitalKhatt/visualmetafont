@@ -399,7 +399,7 @@ void MainWindow::createActions()
     connect(saveAct, &QAction::triggered, this, &MainWindow::save);
     fileToolBar->addAction(saveAct);
 
-	const QIcon openlayotIcon = QIcon::fromTheme("document-save", QIcon(":/images/opentype.jpg"));
+    const QIcon openlayotIcon = QIcon::fromTheme("document-save", QIcon(":/images/opentype.jpg"));
 	openlayoutAct = new QAction(openlayotIcon, tr("&Layout"), this);
 	//openlayoutAct->setShortcuts(QKeySequence::Save);
 	openlayoutAct->setStatusTip(tr("Open Layout Window"));
