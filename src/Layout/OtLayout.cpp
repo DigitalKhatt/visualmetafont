@@ -53,6 +53,7 @@ extern "C"
 
 #include "qurantext/quran.h"
 #include <limits>
+
 #include <QtCore/qmath.h>
 
 
