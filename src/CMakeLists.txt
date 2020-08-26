@@ -291,20 +291,26 @@ target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib # QtPropertyBrowser
 
 if (NOT EMSCRIPTEN)
 
-	target_link_libraries(${PROJECT_NAME} PUBLIC ZLIB::ZLIB PNG::PNG Freetype::Freetype   
+	target_link_libraries(${PROJECT_NAME} PUBLIC ZLIB::ZLIB Freetype::Freetype   
 	#Qt5::QWindowsIntegrationPlugin
 	#imm32 version Dwmapi Mincore winmm Wtsapi32
 	)
 
-	target_link_libraries(${WEBLIB_NAME} PUBLIC ZLIB::ZLIB PNG::PNG Freetype::Freetype   
+	target_link_libraries(${WEBLIB_NAME} PUBLIC ZLIB::ZLIB  Freetype::Freetype   
 	# Qt5::QWindowsIntegrationPlugin
         #imm32 version Dwmapi Mincore winmm Wtsapi32
         )
 
 	if (WIN32)
-                target_link_libraries(${PROJECT_NAME} PUBLIC imm32 version Dwmapi Mincore winmm Wtsapi32 Qt5::QWindowsIntegrationPlugin)
-                target_link_libraries(${WEBLIB_NAME} PUBLIC imm32 version Dwmapi Mincore winmm Wtsapi32 Qt5::QWindowsIntegrationPlugin)
+        target_link_libraries(${PROJECT_NAME} PUBLIC imm32 version Dwmapi Mincore winmm Wtsapi32 Qt5::QWindowsIntegrationPlugin)
+        target_link_libraries(${WEBLIB_NAME} PUBLIC imm32 version Dwmapi Mincore winmm Wtsapi32 Qt5::QWindowsIntegrationPlugin)
 	endif (WIN32)
+
+	if (NOT WIN32)
+		target_link_libraries(${PROJECT_NAME} PUBLIC PNG::PNG )
+        target_link_libraries(${WEBLIB_NAME} PUBLIC PNG::PNG )
+	endif()
+
 
 else()
 
