@@ -392,6 +392,8 @@ void MainWindow::createActions()
     fileMenu->addAction(openAct);
     fileToolBar->addAction(openAct);
 
+
+
     const QIcon saveIcon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
     saveAct = new QAction(saveIcon, tr("&Save"), this);
     saveAct->setShortcuts(QKeySequence::Save);
@@ -400,7 +402,7 @@ void MainWindow::createActions()
     fileToolBar->addAction(saveAct);
 
     const QIcon openlayotIcon = QIcon::fromTheme("document-save", QIcon(":/images/opentype.jpg"));
-	openlayoutAct = new QAction(openlayotIcon, tr("&Layout"), this);
+    openlayoutAct = new QAction(QIcon(":/images/opentype.jpg"), tr("&Layout"), this);
 	//openlayoutAct->setShortcuts(QKeySequence::Save);
 	openlayoutAct->setStatusTip(tr("Open Layout Window"));
 	connect(openlayoutAct, &QAction::triggered, this, &MainWindow::openLayout);
@@ -452,6 +454,8 @@ void MainWindow::createActions()
     connect(cutAct, &QAction::triggered, this, &MainWindow::cut);
     editMenu->addAction(cutAct);
     editToolBar->addAction(cutAct);
+
+
 
     const QIcon copyIcon = QIcon::fromTheme("edit-copy", QIcon(":/images/copy.png"));
     copyAct = new QAction(copyIcon, tr("&Copy"), this);

@@ -56,7 +56,7 @@
 #include <vector>
 
 #if defined(ENABLE_PDF_GENERATION)
-#include "pdf\QuranPdfWriter.h"
+#include "Pdf/quranpdfwriter.h"
 #endif
 
 #include "HTML5/ExportToHTML.h"
