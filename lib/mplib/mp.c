@@ -2519,12 +2519,12 @@ MP_options*mp_options(void) {
 // #line 271 "../../../source/texk/web2c/mplibdir/mp.w"
 
 static MP mp_do_new(jmp_buf*buf) {
-	MP mp = malloc(sizeof(MP_instance));
+        MP mp = malloc(sizeof(MP_instance));
 	if (mp == NULL) {
 		xfree(buf);
 		return NULL;
 	}
-	memset(mp, 0, sizeof(MP_instance));
+        memset(mp, 0, sizeof(MP_instance));
 	mp->jump_buf = buf;
 	return mp;
 }

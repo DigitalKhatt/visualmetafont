@@ -293,6 +293,10 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
 
 }
 
+bool GlyphVis::conatinsAnchor(QString name){
+    return anchors.contains(name);
+}
+
 QPoint GlyphVis::getAnchor(QString name) {
 	return anchors.value(name);
 

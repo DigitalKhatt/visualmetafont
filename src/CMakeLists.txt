@@ -102,6 +102,8 @@ ADD_FLEX_BISON_DEPENDENCY(FeaScanner FeaParser)
 
 
 set(FeaParser
+    FeaParser/parser.y
+    FeaParser/scanner.l
     FeaParser/driver.cpp
     FeaParser/driver.h
     FeaParser/feaast.cpp
@@ -119,6 +121,8 @@ set(GlyphParser
     GlyphParser/glyphdriver.cpp
     GlyphParser/glyphdriver.h                
     GlyphParser/glyphscanner.h   
+    GlyphParser/glyphparser.y
+    GlyphParser/glyphscanner.l
 	${BISON_GlyphParser_OUTPUTS}
     ${FLEX_GlyphScanner_OUTPUTS}
 )
@@ -219,6 +223,7 @@ set(Source_Files__MetaFont
     metafont/font.hpp
     metafont/glyph.cpp
     metafont/glyph.hpp
+    metafont/metafont.h
 )
 source_group("Source Files\\MetaFont" FILES ${Source_Files__MetaFont})
 
@@ -264,8 +269,8 @@ target_compile_definitions(${WEBLIB_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ER
 
 
 if (NOT EMSCRIPTEN)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_BOOLEAN)
-    target_compile_definitions(${WEBLIB_NAME} PRIVATE HAVE_BOOLEAN)
+   #target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_BOOLEAN)
+   #target_compile_definitions(${WEBLIB_NAME} PRIVATE HAVE_BOOLEAN)
 endif()
 
 IF(DEFINED ENV{ENABLE_PDF_GENERATION})

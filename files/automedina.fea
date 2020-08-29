@@ -16,6 +16,38 @@
  # along with DigitalKhatt.  If not, see <https://www.gnu.org/licenses/>.
 ##
 
+lookup basmala {
+    feature calt;
+
+    lookupflag IgnoreMarks;
+
+    lookup basmala.l1 {
+        sub seen.medi add 10 0;
+        sub meem.fina add 0 8;
+        sub behshape.medi add 10 0;
+        sub meem.medi.afterhah  add -1 0;
+        sub noon.fina add 10 0;
+    } basmala.l1;
+
+    lookup basmala.l2 {
+        sub meem.fina add 0 8;
+    } basmala.l2;
+
+    lookup basmala.l3 {
+        sub callback noon.fina by noon.fina.expa expfactors 0 10 0 -0.5;
+    } basmala.l3 ;
+
+    lookup basmala.l4 {
+        sub space by space.ii;
+    } basmala.l4;
+
+    sub  behshape.init.beforeseen seen.medi'lookup basmala.l1  meem.fina'lookup basmala.l1
+         space'  alef.isol' lam.init.allah' lam.medi.allah' heh.fina.allah'
+         space' alef.isol' lam.init'  reh.fina'  hah.init.beforemeem' meem.medi.afterhah'lookup basmala.l1 /^noon.fina/'lookup basmala.l3
+         space'lookup basmala.l4 alef.isol' lam.init'  reh.fina'  hah.init'   behshape.medi'lookup basmala.l1  meem.fina'lookup basmala.l2;
+
+} basmala;
+
 lookup convertsmallaleftochar {
 	feature calt;
 	sub smallalef by smallalef.isol;
@@ -32,6 +64,17 @@ lookup dalhwawcursive {
 	pos cursive heh.init.beforemeem <anchor 0 0 > <anchor NULL>;
 		
 } dalhwawcursive;
+
+lookup rehhehbeforemeem {
+
+        feature curs;
+
+        lookupflag IgnoreMarks ;
+
+        pos cursive /reh.fina/  <anchor NULL> <anchor 0 150 > ;
+        pos cursive hah.init.beforemeem <anchor 50 0 >   <anchor NULL>;
+
+} rehhehbeforemeem;
 
 lookup alefadjustment {
 
@@ -120,7 +163,7 @@ lookup variouskern {
 
 	pos lam.fina'<-100 0 -100 0> space lam.init shadda fatha;
 
-	pos alef.isol'<-100 0 -100 0> hamzabelow kasra /^lam.init/ fatha;
+        pos alef.isol'<-100 0 -100 0> hamzabelow kasra /^lam.init/ fatha;
 
 } variouskern;
 
@@ -296,6 +339,8 @@ lookup kafsubst {
 
 } kafsubst;
 
+
+
 lookup alefkern {
 
 	feature kern;	
@@ -426,6 +471,8 @@ lookup adjustmarks {
 	pos smallalef.joined'<50  0 0 0> maddahabove alef.fina;	
 
 	pos maddahabove hamzaabove.joined'<30 100 0 0> fathatanidgham;
+
+        pos reh.fina shadda'<80 120 0 0> @topmarks hah.init.beforemeem ;
 
 	lookup adjustmarks.l4 {
 
@@ -1338,7 +1385,8 @@ feature calt {
 	lookup forhamzafea;
 	lookup forwawheh;
 	lookup forsmalllaleffea;	
-	lookup convertsmallaleftochar;
+        lookup convertsmallaleftochar;
+        lookup basmala;
 } calt;
 
 feature curs {
@@ -1346,6 +1394,7 @@ feature curs {
 	lookup ligaturecursive;
 	lookup rehwawcursive;
 	lookup dalhwawcursive;
+        lookup rehhehbeforemeem;
 } curs;
 
 

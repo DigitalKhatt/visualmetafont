@@ -22,11 +22,10 @@
 
 #include <iostream>
 #include <sstream>
-extern "C"
-{
-#include <mplib.h>
-#include <mplibps.h>
-}
+
+
+#include "metafont.h"
+
 
 #include "quranshaper.h"
 //#include <QtWidgets/QApplication>

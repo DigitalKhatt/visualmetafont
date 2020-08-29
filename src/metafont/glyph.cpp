@@ -19,14 +19,6 @@
 
 #include "qstringbuilder.h"
 
-extern "C"
-{
-# include "mplib.h"
-# include "mplibps.h"
-# include "mplibsvg.h"
-
-}
-
 #include "glyph.hpp"
 #include "font.hpp"
 #include "commands.h"
@@ -35,16 +27,7 @@ extern "C"
 #include "qcoreevent.h"
 #include  <cmath>
 
-extern "C"
-{
-# include "mpmp.h"
-}
-
-/*
-extern "C"
-{
-#include "mpsvgout.h"
-}*/
+#include "metafont.h"
 
 
 
@@ -889,7 +872,7 @@ mp_edge_object* Glyph::getEdge(bool resetExpParams)
 	mp_run_data* _mp_results = mp_rundata(mp);
 	if (status >= mp_error_message_issued) {
 		//QString error = getError();
-		edge = NULL;
+        edge = NULL;
 		return edge;
 	}
 	mp_edge_object * p = _mp_results->edges;

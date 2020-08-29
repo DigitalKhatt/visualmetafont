@@ -2236,6 +2236,7 @@ fill
 %%endpaths
 %%beginbody
 leftbearing := leftbearing + 0;
+setCursiveAnchor(basmala,(0,0), EntryAnchor);
 enddefchar;
 defchar(alef.isol.ii,-1,-1,-1,-1);
 %%backgroundimage:images/alef.isol.ii.jpg,-1944.68,-934.792,1,0,0,1
@@ -3398,7 +3399,7 @@ z1 .. tension 1 and 1.33159 ..
 
 enddefchar;
 defchar(seen.medi,-1,-1,-1,-1);
-%%backgroundimage:images/sheen.medi.jpg,-1461.84,-1113.08,1,0,0,1
+%%backgroundimage:images/sheen.medi.jpg,-1459.84,-1113.08,1,0,0,1
 %%beginparams
 z.mark1 = (-40,263);
 z1 = (567.362,32.9727);
@@ -3411,9 +3412,9 @@ z3 = (67.8872,4.56659);
 
 %charlt := 4; % numeric
 
-if left_verticalextratio = 0 : left_verticalextratio := 12; fi
+if left_verticalextratio = 0 : left_verticalextratio := 10; fi
 if right_verticalextratio = 0 : right_verticalextratio := 10; fi
-%left_tatweeltension := 1 + lefttatweel * 0.315  ;
+left_tatweeltension := 1 + lefttatweel * 0.03  ;
 %if left_tatweeltension < 0.75 : left_tatweeltension := 0.75; fi
 %if left_tatweeltension > 3 : left_tatweeltension := 3; fi
 righttatweel_const := (x11 - x1,y11 - y1);
@@ -3428,7 +3429,8 @@ z4 = z3 + (penwidth,0) rotated 80;
 fill
 (107.378,14.7606) .. tension 0.967623 and 1 ..
 z3 join
-z4 ..
+(112.8,89.823) .. tension 1 and 1.22798 ..
+(186.548,130.623) .. tension 1 and 4.86892 ..
 (217.148,169.023) .. tension 1 and 4.86892 ..
  {right}(232.836,197.215) .. tension 1 and 1 ..
  {down}(239.005,189.236) .. tension 0.75 and 6.33946 ..
@@ -9391,6 +9393,7 @@ draw pic shifted disp;
 
 tr_ := tr_ shifted (0,-ypart disp);
 
+setCursiveAnchor(basmala,z1, ExitAnchor);
 
 enddefchar;
 defchar(yehshape.isol.expa,-1,-1,-1,-1);
@@ -9838,6 +9841,112 @@ draw pic shifted shift;
 rightanchor := rightanchor  + shift;
 
 which_in_baseline := 2;
+
+
+enddefchar;
+defchar(expasinna,-1,1,-1,-1);
+%%backgroundimage:images/basmala_naml.jpeg,-5089.32,-1402.25,1,0,0,1
+%%beginparams
+d1 := 178.44; % numeric
+d2 := -25; % numeric
+t1 := 1.36959; % numeric
+z33 = (-176.443,17.8619);
+z34 = (879.573,76.2418);
+z35 = (972.867,215.364);
+
+%%beginverbatim
+
+lefttatweel := lefttatweel -2;
+
+z33p = z33 rotatepen 105;
+z34p = z34 rotatepen 72;
+
+z101 = (-lefttatweel*nuqta,0 );
+z102 = (-(lefttatweel+2)*nuqta / 1.5, -(lefttatweel +2) *7 );
+
+z10 = dir d1;
+z10p = -z10;
+
+z11 = dir d2;
+z11r = -z11;
+
+
+
+
+
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+((-289.506,128.129)+ z101) .. tension 1.10251 and 0.877686 ..
+((-248.915,134.026)+ z101) .. tension 0.756659 and 1.13521 ..
+((-195.352,99.84)+ z101) {z11} .. tension atleast t1 ..
+z34p ..
+ {curl1}z35 {down} ..
+z34 .. tension atleast t1 ..
+ {z11r}z33 + z101 .. tension 1.84842 and 3.02182 ..
+ {up} cycle
+;
+
+%%endpaths
+%%beginbody
+
+
+
+enddefchar;
+defchar(expasinna.ii,-1,1,-1,-1);
+%%backgroundimage:images/basmala_naml.jpeg,-5088.32,-1403.25,1,0,0,1
+%%beginparams
+d1 := 35; % numeric
+d2 := -29; % numeric
+t1 := 1.34907; % numeric
+z33 = (-200.635,19.5899);
+z34 = (879.573,76.2418);
+z35 = (972.867,215.364);
+
+%%beginverbatim
+
+lefttatweel := lefttatweel -2;
+
+z33p = z33 rotatepen 105;
+z34p = z34 rotatepen 72;
+
+z101 = (-lefttatweel*nuqta,0 );
+z102 = (-(lefttatweel+2)*nuqta / 1.5, -(lefttatweel +2) *7 );
+
+z10 = dir d1;
+z10r = -z10;
+
+z11 = dir d2;
+z11r = -z11;
+
+
+
+
+
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+((-289.506,128.129)+ z101) .. tension 1.10251 and 0.877686 ..
+((-248.915,134.026)+ z101) .. tension 0.756659 and 1.13521 ..
+((-211.185,109.84)+ z101) {z11} .. tension atleast t1 ..
+((382.566,46.6803)+ z102) {right} .. tension atleast 1.28097 ..
+ {z10}z34p ..
+ {curl1}z35 {down} ..
+ {z10r}z34 .. tension atleast t1 ..
+((349.079,-29.718)+ z102) {left} .. tension atleast 1.32141 ..
+ {z11r}z33 + z101 .. tension 1.84842 and 3.02182 ..
+ {up} cycle
+;
+
+%%endpaths
+%%beginbody
+
 
 
 enddefchar;

@@ -26,18 +26,7 @@
 #include <algorithm>
 #include "qregularexpression.h"
 #include "defaultmarkpositions.h"
-
-extern "C"
-{
-#include "AddedFiles/newmp.h"
-}
-
-extern "C"
-{
-# include "mplib.h"
-# include "mplibps.h"
-# include "mplibsvg.h"
-}
+#include "metafont.h"
 
 
 
@@ -629,7 +618,7 @@ Lookup* Automedina::ligaturecursive() {
 
 		CursiveSubtable* newsubtable = new CursiveSubtable(lookup);
 		lookup->subtables.append(newsubtable);
-		newsubtable->name = "ligaturecursive";
+        newsubtable->name = cursiveName;
 
 		for (auto anchor = entries.constBegin(); anchor != entries.constEnd(); ++anchor) {
 			newsubtable->anchors[anchor.key()].entry = anchor.value();

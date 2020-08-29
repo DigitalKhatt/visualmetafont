@@ -17,12 +17,7 @@
  * <https: //www.gnu.org/licenses />.
 */
 
-extern "C"
-{
-# include "mplib.h"
-# include "mpmp.h"
-#include "mplibps.h"
-}
+#include "metafont.h"
 
 #include "hb-ot-layout-gsub-table.hh"
 #undef max
@@ -413,6 +408,28 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
 		}
 
 	}
+    else{
+        auto buffer = context->ot_context->buffer;
+
+        auto& curr_info = buffer->cur();
+
+        auto name = layout->glyphNamePerCode[curr_info.codepoint];
+
+        //JustificationContext::GlyphsToExtend.append(buffer->idx);
+        //JustificationContext::Substitutes.append(context->substitute);
+
+        auto subtable = lookupTable->subtables.at(context->ot_context->subtable_index);
+
+        if (lookupTable->type == Lookup::single) {
+            SingleSubtable* subtableTable = static_cast<SingleSubtable*>(subtable);
+            if (subtableTable->format == 10) {
+                SingleSubtableWithExpansion* tatweelSubtable = static_cast<SingleSubtableWithExpansion*>(subtableTable);
+                auto expa = tatweelSubtable->expansion.value(curr_info.codepoint);JustificationContext::Expansions.insert(buffer->idx, tatweelSubtable->expansion.value(curr_info.codepoint));
+                curr_info.lefttatweel+= expa.MaxLeftTatweel;
+                curr_info.righttatweel+= expa.MaxRightTatweel;
+            }
+        }
+    }
 
 	return true;
 }

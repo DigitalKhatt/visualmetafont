@@ -56,12 +56,6 @@
 #include "contouritem.hpp"
 #include <QGraphicsView>
 
-extern "C"
-{
-# include "mplibps.h"
-# include "mplibsvg.h"
-# include "mplib.h"
-}
 
 
 

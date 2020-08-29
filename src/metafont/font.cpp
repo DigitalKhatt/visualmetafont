@@ -17,19 +17,14 @@
  * <https: //www.gnu.org/licenses />.
 */
 
-extern "C"
-{
-# include "mplib.h"
-# include "mplibps.h"
-# include "mplibsvg.h"
-}
+#include "metafont.h"
 
 #include "qfile.h"
 #include "font.hpp"
 #include "glyph.hpp"
 
 #include "hb.hh"
-#include "mpmp.h"
+
 #include "qtextstream.h"
 #include "qregularexpression.h"
 #include "qapplication.h"
@@ -98,17 +93,17 @@ double Font::lineHeight() {
 
 
 	double lineheight;
-	QString command("show lineheight;");
+    QString command("show lineheight;");
 
 	QByteArray commandBytes = command.toLatin1();
-	mp->history = mp_spotless;
+    mp->history = mp_spotless;
 	int status = mp_execute(mp, (char *)commandBytes.constData(), commandBytes.size());
 	mp_run_data * results = mp_rundata(mp);
 	QString ret(results->term_out.data);
 	ret = ret.trimmed();
 	if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-		mp_finish(mp);
-		throw "Could not get lineHeight !\n" + ret;
+        mp_finish(mp);
+        throw "Could not get lineHeight !\n" + ret;
 	}
 	else {
 		lineheight = ret.mid(3).toDouble();

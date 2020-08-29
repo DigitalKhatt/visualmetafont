@@ -30,7 +30,9 @@ along with this program; if not, see <http://www.gnu.org/licenses/.  */
 
 #define xstrdup _strdup
 
-typedef int boolean;
+#ifndef HAVE_BOOLEAN
+typedef bool boolean;
+#endif
 
 /* How to open a binary file.  */
 // #include <kpathsea/c-fopen.h>

@@ -588,9 +588,12 @@ optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, double lefttatweel,
 
 				GlyphVis* curr = originalglyph->getAlternate(parameters);
 
-				entry = calculateEntry(originalglyph, curr, entry);
-
-			}
+                if(curr->conatinsAnchor(this->name)){
+                    entry = curr->getAnchor(this->name);
+                }else{
+                   entry = calculateEntry(originalglyph, curr, entry);
+                }
+            }
 			ret = entry;
 
 		}

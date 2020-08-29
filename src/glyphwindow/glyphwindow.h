@@ -25,13 +25,6 @@
 # include <QtWidgets>
 
 
-extern "C"
-{
-# include "mplib.h"
-# include "mplibps.h"
-# include "mplibsvg.h"
-}
-
 #include "glyphview.hpp"
 #include "contouritem.hpp"
 #include "pairitem.hpp"

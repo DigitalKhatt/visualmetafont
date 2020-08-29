@@ -97,6 +97,8 @@ public:
 
 	QPoint getAnchor(QString name);
 
+    bool conatinsAnchor(QString name);
+
 private:
 #ifndef DIGITALKHATT_WEBLIB
 	QPainterPath getPath(mp_edge_object* h);
