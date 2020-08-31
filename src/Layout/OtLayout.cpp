@@ -487,7 +487,9 @@ QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, Glyp
 			double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
 
 			adjustoriginal += QPoint(xshift, yshift);
-		}
+        }else if (curr->rightAnchor) {
+
+        }
 		else {
 			originalglyph = curr;
 		}
@@ -1444,26 +1446,26 @@ void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableI
 
 		Lookup* lookup = subtableTable->getLookup();
 
-		if (lookup->flags & Lookup::RightToLeft) {
-			QPoint newvalue = subtableTable->exitParameters[glyphCode] + displacement;
-			subtableTable->exitParameters[glyphCode] = newvalue;
+        //if (lookup->flags & Lookup::RightToLeft) {
+        //	QPoint newvalue = subtableTable->exitParameters[glyphCode] + displacement;
+        //	subtableTable->exitParameters[glyphCode] = newvalue;
 
-			qDebug() << QString("Changing cursive exit anchor %1.%2.%3 :").arg(lookupTable->name, subtable->name, glyphName) << newvalue;
-		}
-		else {
+        //    qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :").arg(lookupTable->name, subtable->name, glyphName) << newvalue;
+        //}
+        //else {
 			if (!shift) {
 				QPoint newvalue = subtableTable->entryParameters[glyphCode] - displacement;
 				subtableTable->entryParameters[glyphCode] = newvalue;
 
-				qDebug() << QString("Changing cursive entry anchor %1.%2.%3 :").arg(lookupTable->name, subtable->name, glyphName) << newvalue;
+                qDebug() << QString("Changing cursive entry anchor %1::%2::%3 :").arg(lookupTable->name, subtable->name, glyphName) << newvalue;
 			}
 			else {
 				QPoint newvalue = subtableTable->exitParameters[baseCode] + displacement;
 				subtableTable->exitParameters[baseCode] = newvalue;
 
-				qDebug() << QString("Changing cursive exit anchor %1.%2.%3 :").arg(lookupTable->name, subtable->name, baseGlyphName) << newvalue;
+                qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :").arg(lookupTable->name, subtable->name, baseGlyphName) << newvalue;
 			}
-		}
+        //}
 
 		subtableTable->isDirty = true;
 

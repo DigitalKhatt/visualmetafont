@@ -124,8 +124,11 @@ namespace feayy {
 
 
 	class AnchorName : public Anchor {
-		std::string* name;
+
 	public:
+
+        std::string* name;
+
 		explicit AnchorName(std::string* _name) :Anchor(AnchorType::Name), name{ _name } {}
 
 		operator std::string* () const { return name; }

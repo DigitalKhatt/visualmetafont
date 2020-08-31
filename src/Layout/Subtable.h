@@ -172,7 +172,11 @@ struct CursiveSubtable : Subtable {
 
 	struct EntryExit {
 		optional<QPoint> entry;
+        AnchorCalc* entryFunction = nullptr;
+        QString entryName;
 		optional<QPoint> exit;
+        AnchorCalc*exitFunction = nullptr;
+        QString exitName;
 	};
 	CursiveSubtable(Lookup* lookup) : Subtable{ lookup } {}
 	QByteArray getOpenTypeTable() override;
@@ -190,27 +194,9 @@ struct CursiveSubtable : Subtable {
 
 	virtual QPoint calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint entry);
 
-	virtual optional<QPoint> getExit(quint16 glyph_id, double lefttatweel, double righttatweel) {
+    virtual optional<QPoint> getExit(quint16 glyph_id, double lefttatweel, double righttatweel);
 
-		optional<QPoint> ret;
 
-		if (anchors.contains(glyph_id)) {
-
-			auto& entryexit = anchors[glyph_id];
-
-			if (entryexit.exit) {
-
-				QPoint exit{ *(entryexit.exit) };
-
-				if (exitParameters.contains(glyph_id)) {
-					exit += exitParameters[glyph_id];
-				}
-				ret = exit;
-			}
-		}
-
-		return ret;
-	}
 
 };
 

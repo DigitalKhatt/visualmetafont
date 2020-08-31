@@ -43,6 +43,7 @@ def EntryAnchor = 2 enddef;
 def ExitAnchor = 3 enddef;
 def EntryAnchorRTL = 4 enddef;
 def ExitAnchorRTL = 5 enddef;
+def Anchor = 6 enddef;
 
 % vardef first.hah.medi.pluslt_[]@#=@ enddef;
 
@@ -216,6 +217,12 @@ def setMarkAnchor(suffix pname)(expr pvalue) =
   anchors[number_of_anchors].anchorname := str pname;  
   anchors[number_of_anchors].pairvalue := pvalue; 
   anchors[number_of_anchors].anctype := MarkAnchor;  
+  number_of_anchors := incr number_of_anchors;
+enddef;
+def setAnchor(suffix pname)(expr pvalue) =
+  anchors[number_of_anchors].anchorname := str pname;
+  anchors[number_of_anchors].pairvalue := pvalue;
+  anchors[number_of_anchors].anctype := Anchor;
   number_of_anchors := incr number_of_anchors;
 enddef;
 

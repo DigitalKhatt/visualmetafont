@@ -200,12 +200,24 @@ namespace feayy {
 		if (cursiveRule.entryAnchor->anchortype() == AnchorType::FormatA) {
 			auto anchor = static_cast<AnchorFormatA*>(cursiveRule.entryAnchor);
 			value.entry = QPoint(anchor->x, anchor->y);
-		}
+        }else if (cursiveRule.entryAnchor->anchortype() == AnchorType::Name) {
+            auto anchor = static_cast<AnchorName*>(cursiveRule.entryAnchor);
+            value.entryName = QString::fromStdString(*anchor->name);
+        }else if (cursiveRule.entryAnchor->anchortype() == AnchorType::Function) {
+            auto functionAnchor = static_cast<AnchorFunction*>(cursiveRule.entryAnchor);
+            value.entryFunction = otlayout->getanchorCalcFunctions(QString::fromStdString(*functionAnchor->name), newsubtable);
+        }
 
 		if (cursiveRule.exitAnchor->anchortype() == AnchorType::FormatA) {
 			auto anchor = static_cast<AnchorFormatA*>(cursiveRule.exitAnchor);
 			value.exit = QPoint(anchor->x, anchor->y);
-		}
+        }else if (cursiveRule.exitAnchor->anchortype() == AnchorType::Name) {
+            auto anchor = static_cast<AnchorName*>(cursiveRule.exitAnchor);
+            value.exitName = QString::fromStdString(*anchor->name);
+        }else if (cursiveRule.exitAnchor->anchortype() == AnchorType::Function) {
+            auto functionAnchor = static_cast<AnchorFunction*>(cursiveRule.exitAnchor);
+            value.exitFunction = otlayout->getanchorCalcFunctions(QString::fromStdString(*functionAnchor->name), newsubtable);
+        }
 
 		auto codes = cursiveRule.glyphset->getCodes(otlayout);
 

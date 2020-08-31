@@ -303,10 +303,10 @@ void Automedina::generateGlyphs() {
 		}
 
 		//uint totalAnchors = getTotalAnchors(mp, glyph.charcode);
-
+        /*
 		if (edges->numAnchors > 10) {
 			throw "error";
-		}
+        }*/
 
 		for (int i = 0; i < edges->numAnchors; i++) {
 			AnchorPoint anchor = edges->anchors[i];

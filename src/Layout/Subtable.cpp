@@ -559,6 +559,52 @@ void MarkBaseSubtable::readJson(const QJsonObject &json)
 
 
 }
+optional<QPoint> CursiveSubtable::getExit(quint16 glyph_id, double lefttatweel, double righttatweel) {
+
+    optional<QPoint> ret;
+
+    if (anchors.contains(glyph_id)) {
+
+        auto& entryexit = anchors[glyph_id];
+
+        if (entryexit.exit || !entryexit.exitName.isEmpty()) {
+
+            QPoint exit;
+
+            if(entryexit.exit){
+               exit  =  *(entryexit.exit);
+            }
+
+
+            if (exitParameters.contains(glyph_id)) {
+                exit += exitParameters[glyph_id];
+            }
+            if (lefttatweel != 0.0 || righttatweel != 0.0) {
+                GlyphParameters parameters{};
+
+                parameters.lefttatweel = lefttatweel;
+                parameters.righttatweel = righttatweel;
+
+                QString glyphName = m_layout->glyphNamePerCode[glyph_id];
+
+                GlyphVis* originalglyph = &m_layout->glyphs[glyphName];
+
+                GlyphVis* curr = originalglyph->getAlternate(parameters);
+
+                if(!entryexit.exitName.isEmpty() && curr->conatinsAnchor(entryexit.exitName)){
+                    exit = curr->getAnchor(entryexit.exitName);
+                }else if(curr->conatinsAnchor(this->name)){
+                    exit = curr->getAnchor(this->name);
+                }else{
+                   //exit = calculateEntry(originalglyph, curr, entry);
+                }
+            }
+            ret = exit;
+        }
+    }
+
+    return ret;
+}
 
 optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, double lefttatweel, double righttatweel) {
 
@@ -724,9 +770,21 @@ QByteArray CursiveSubtable::getOpenTypeTable() {
 
 		auto & entryexit = anchor.value();
 
-		if (entryexit.entry) {
+        auto calcentry = entryexit.entry;
 
-			QPoint entry{ *(entryexit.entry) };
+        if(!calcentry){
+            if(!entryexit.entryName.isEmpty()){
+                 GlyphVis* curr = m_layout->getGlyph(anchor.key());
+                 if(curr->anchors.contains(entryexit.entryName)){
+                     calcentry = curr->anchors.value(entryexit.entryName);
+                 }
+            }
+        }
+
+
+        if (calcentry) {
+
+            QPoint entry{ *(calcentry) };
 
 			if (entryParameters.contains(anchor.key())) {
 				entry += entryParameters[anchor.key()];
@@ -744,9 +802,20 @@ QByteArray CursiveSubtable::getOpenTypeTable() {
 			root << (quint16)0;
 		}
 
-		if (entryexit.exit) {
+        calcentry = entryexit.exit;
 
-			QPoint exit{ *(entryexit.exit) };
+        if(!calcentry){
+            if(!entryexit.exitName.isEmpty()){
+                 GlyphVis* curr = m_layout->getGlyph(anchor.key());
+                 if(curr->anchors.contains(entryexit.exitName)){
+                     calcentry = curr->anchors.value(entryexit.exitName);
+                 }
+            }
+        }
+
+        if (calcentry) {
+
+            QPoint exit{ *(calcentry) };
 
 			if (exitParameters.contains(anchor.key())) {
 				exit += exitParameters[anchor.key()];

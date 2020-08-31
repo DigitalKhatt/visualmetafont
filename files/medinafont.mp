@@ -2236,7 +2236,7 @@ fill
 %%endpaths
 %%beginbody
 leftbearing := leftbearing + 0;
-setCursiveAnchor(basmala,(0,0), EntryAnchor);
+%setCursiveAnchor(basmala,(300,-200), EntryAnchor);
 enddefchar;
 defchar(alef.isol.ii,-1,-1,-1,-1);
 %%backgroundimage:images/alef.isol.ii.jpg,-1944.68,-934.792,1,0,0,1
@@ -9310,6 +9310,8 @@ draw one_dot.pic  shifted z11;
 setCursiveAnchor(behnoon,(15,26.0528)+ z1, EntryAnchorRTL);
 setCursiveAnchor(behmedinoon,(15,26.0528)+ z1, EntryAnchor);
 
+
+
 enddefchar;
 defchar(alefmaksura.isol.expa,-1,-1,-1,-1);
 %%beginbody
@@ -9393,7 +9395,41 @@ draw pic shifted disp;
 
 tr_ := tr_ shifted (0,-ypart disp);
 
-setCursiveAnchor(basmala,z1, ExitAnchor);
+setAnchor(basmala,z1);
+
+labels(1);
+
+enddefchar;
+defchar(noon.fina.basmala,-1,-1,-1,-1);
+%%beginbody
+
+noon.fina.expa_(lefttatweel,righttatweel);
+
+
+picture q;
+q := currentpicture;
+a := 0;
+currentpicture := nullpicture;
+
+
+
+pair p_;
+
+for item within q:
+  if filled item :
+	p := pathpart item;
+  if a = 2 : 
+    p_ = point 0 of p;
+    fill p shifted ((-180,280) + z1 - p_); 
+  else :
+    if filled item : fill p; fi;    
+  fi
+  a := a + 1;
+    
+  fi;
+ 
+endfor
+
 
 enddefchar;
 defchar(yehshape.isol.expa,-1,-1,-1,-1);

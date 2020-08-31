@@ -143,6 +143,36 @@
             }
         }
     },
+    "basmala.curs.l1": {
+        "subtable1": {
+            "entryParameters": {
+                "hah.init": [
+                    0,
+                    -138
+                ]
+            }
+        }
+    },
+    "basmala.curs.l2": {
+        "subtable1": {
+            "entryParameters": {
+                "lam.init": [
+                    -207,
+                    -69
+                ]
+            }
+        }
+    },
+    "basmala.curs.l3": {
+        "subtable1": {
+            "entryParameters": {
+                "alef.isol": [
+                    619,
+                    -105
+                ]
+            }
+        }
+    },
     "dalhwawcursive": {
         "subtable1": {
             "entryParameters": {
@@ -770,7 +800,7 @@
                         -177
                     ],
                     "meem.fina": [
-                        0,
+                        86,
                         120
                     ],
                     "meem.fina.ii": [

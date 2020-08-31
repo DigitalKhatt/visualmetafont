@@ -71,17 +71,13 @@ int main(int argc, char* argv[])
 	Q_IMPORT_PLUGIN(QWasmIntegrationPlugin)
 #endif
 
-#ifdef _WIN32
-		Q_IMPORT_PLUGIN(QSvgIconPlugin)
-		Q_IMPORT_PLUGIN(QSvgPlugin)
-#else
+
     Q_IMPORT_PLUGIN(QSvgIconPlugin)
     Q_IMPORT_PLUGIN(QSvgPlugin)
-#endif
-		Q_IMPORT_PLUGIN(QJpegPlugin)
-		//	Q_IMPORT_PLUGIN(QGl)
+    Q_IMPORT_PLUGIN(QJpegPlugin)
+    //	Q_IMPORT_PLUGIN(QGl)
 
-		QApplication app(argc, argv);
+    QApplication app(argc, argv);
 
 	QTextEdit console;
 
