@@ -157,7 +157,7 @@
         "subtable1": {
             "entryParameters": {
                 "lam.init": [
-                    -207,
+                    -264,
                     -69
                 ]
             }
@@ -167,8 +167,8 @@
         "subtable1": {
             "entryParameters": {
                 "alef.isol": [
-                    619,
-                    -105
+                    560,
+                    -49
                 ]
             }
         }
@@ -438,8 +438,8 @@
                         120
                     ],
                     "behshape.medi": [
-                        104,
-                        113
+                        160,
+                        141
                     ],
                     "behshape.medi.beforenoon": [
                         67,
@@ -827,9 +827,13 @@
                         114,
                         0
                     ],
+                    "noon.fina.basmala": [
+                        0,
+                        57
+                    ],
                     "qaf.fina.expa": [
-                        437,
-                        133
+                        -60,
+                        40
                     ],
                     "reh.fina": [
                         -14,
@@ -862,6 +866,10 @@
                     "seen.isol": [
                         316,
                         250
+                    ],
+                    "seen.isol.expa": [
+                        201,
+                        115
                     ],
                     "tah.medi.beforeyeh": [
                         80,

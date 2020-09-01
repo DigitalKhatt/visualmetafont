@@ -2700,6 +2700,37 @@ z2 .. tension atleast 1 ..
 
 
 enddefchar;
+defchar(behshape.init.basmala,-1,-1,-1,-1);
+%%backgroundimage:images/basmala_naml.jpeg,-6449.72,-1327.48,1,0,0,1
+%%beginparams
+leftanchor = (-50.4815,77.237);
+
+%%beginverbatim
+
+
+
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(109.503,-2.09856) .. tension 1.72829 and 3.96771 ..
+ {dir 96.8275}(-51.1065,58.929) .. tension 0.946159 and 2.03261 ..
+ {dir 50.5996}(-37.9645,105.965) .. tension 10.5096 and 1 ..
+ {right}(104.856,77.8973) ..
+(140.287,119.853) {up} .. tension 1.17371 and 13.5704 ..
+ {left}(65.9082,335.858) .. tension 1 and 1 ..
+ {left}(52.6952,330.482) .. tension 1.07646 and 8.89964 ..
+ {up}(16.1787,387.781) .. tension 0.75 and 2.6421 ..
+ {right}(42.8485,476.482) .. tension 4.34762 and 1.45182 ..
+(148.052,298.997) .. tension 0.75 and 0.955976 ..
+(169.663,153.563) {down} .. tension 0.949257 and 4.78865 ..
+ {left} cycle
+;
+
+%%endpaths
+enddefchar;
 defchar(behshape.init.beforenoon,-1,-1,-1,-1);
 %%backgroundimage:images/behnoon.jpg,-511.096,-1089.58,1,0,0,1
 %%beginparams
@@ -4014,7 +4045,7 @@ z1 ..
 %%endpaths
 endchar;
 beginchar(meem.isol,1605,-1,-1,-1);
-%%backgroundimage:images/meem.isol.jpg,-28.4208,-1032.28,1,0,0,1
+%%backgroundimage:images/meem.isol.jpg,-18.4208,-1031.28,1,0,0,1
 
 %%beginpaths
 
@@ -4377,7 +4408,7 @@ setCursiveAnchor(yehcursive1,z3,ExitAnchor);
 
 enddefchar;
 defchar(meem.fina,-1,-1,-1,-1);
-%%backgroundimage:images/meem.fina.ii.jpg,-223.903,-996.583,1,0,0,1
+%%backgroundimage:images/meem.fina.ii.jpg,-226.903,-985.583,1,0,0,1
 %%beginparams
 z.mark1 = (214,-161);
 z1 = (413.082,-7.80877);
@@ -8917,7 +8948,7 @@ z3 {z10p} .. tension 0.75 and 2.05837 ..
 %%endpaths
 %%beginbody
 
-
+setAnchor(dbal,z1 + (0,-300));
 
 enddefchar;
 defchar(behshape.fina.expa,-1,-1,-1,-1);
@@ -9932,25 +9963,135 @@ z34 .. tension atleast t1 ..
 
 
 enddefchar;
-defchar(expasinna.ii,-1,1,-1,-1);
-%%backgroundimage:images/basmala_naml.jpeg,-5088.32,-1403.25,1,0,0,1
+defchar(meem.fina.basmala,-1,-1,-1,-1);
+%%backgroundimage:images/basmala_naml.jpeg,-358.447,-1267.52,1,0,0,1
 %%beginparams
-d1 := 35; % numeric
-d2 := -29; % numeric
-t1 := 1.34907; % numeric
-z33 = (-200.635,19.5899);
-z34 = (879.573,76.2418);
-z35 = (972.867,215.364);
+rightanchor := (326.587,76.6231);
 
 %%beginverbatim
 
-lefttatweel := lefttatweel -2;
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(178.934,-9.76858) .. tension 4.33398 and 1 ..
+(164.739,1.77083) .. tension 3.08374 and 0.75 ..
+ {up}(154.381,62.4121) .. tension 0.900742 and 4.57115 ..
+ {right}(259.957,201.121) .. tension 2.28798 and 1.12276 ..
+(333.122,134.744) .. tension 1.21552 and 1.45959 ..
+ {dir -144.691}(368.129,-34.2459) .. tension 1.754 and 9.40739 ..
+ {left}(209.879,-22.8471) .. tension 13.5492 and 0.75 ..
+ {dir -145.792}(124.788,-127.884) .. tension 0.996407 and 18.3373 ..
+ {left}(-63.8867,-205.984) .. tension 1 and 1 ..
+ {up}(-80.8253,-197.917) .. tension 5.85207 and 1.05983 ..
+ {dir 35.8307}(82.6583,-98.7654) .. tension 1.73988 and 2.9502 ..
+ {up} cycle
+;
+fill
+(241.756,151.485) .. tension 1.78577 and 1.74187 ..
+ {down}(187.511,94.2341) .. tension 5.43511 and 3.27139 ..
+ {up}(308.026,50.7178) .. tension 3.3855 and 3.01664 ..
+ {left} cycle
+;
+
+%%endpaths
+%%beginbody
+%%beginbody
+leftbearing :=- 50;
+
+setMarkAnchor(buttonmark,z.mark1);
+
+enddefchar;
+defchar(seen.medi.basmala,-1,-1,-1,-1);
+%%backgroundimage:images/basmala_naml.jpeg,-5961.72,-1373.48,1,0,0,1
+
+%%beginverbatim
+
+
+
+%%endverbatim
+%%beginbody
+
+
+
+lefttatweell := lefttatweel;
+
+twoseen_(0,0);
+picture pic;
+
+pic := currentpicture;
+clearit;
+
+expasinna.ii_(lefttatweell,charrt);
+
+draw pic shifted (z.expasinna.1 - z.twoseen.1);
+
+
+
+rightanchor := z.twoseen.2 shifted (z.expasinna.1 - z.twoseen.1);
+
+
+enddefchar;
+defchar(twoseen,-1,-1,-1,-1);
+%%backgroundimage:images/basmala_naml.jpeg,-5961.72,-1373.48,1,0,0,1
+%%beginparams
+z.twoseen.1 = (37.0185,93.9037);
+z.twoseen.2 = (450.019,127.904);
+
+%%beginverbatim
+
+
+
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(153.503,-6.0986) .. tension 0.996186 and 0.868663 ..
+ {dir 135}(39,62) .. tension 1 and 0.980757 ..
+ {dir 51.3402}z.twoseen.1 .. tension 0.988304 and 1.50036 ..
+ {dir -29.7449}(67,101) .. tension 1 and 1.26685 ..
+ {right}(163.333,64.5) .. tension 1 and 0.919731 ..
+ {dir 37.9987}(273,106) .. tension 1 and 6.21871 ..
+ {right}(331,192) .. tension 1 and 1 ..
+ {down}(339,185) .. tension 1 and 1.618 ..
+ {down}(319.376,115.589) .. tension 1.5565 and 3.09958 ..
+ {right}(389,76) .. tension 1.684 and 1.00273 ..
+ {dir 69.8637}(432.589,139) .. tension 1 and 3.92973 ..
+ {right}(467.589,215.035) .. tension 1.57003 and 1 ..
+ {down}(475.071,190.248) .. tension 3.60557 and 1.7612 ..
+ {left}(367,-1) .. tension 0.75 and 4.68197 ..
+ {left}(273,48) .. tension 5.08452 and 0.75 ..
+ {left} cycle
+;
+
+%%endpaths
+%%beginbody
+leftbearing:=0;
+enddefchar;
+defchar(expasinna.ii,-1,-1,-1,-1);
+%%backgroundimage:images/basmala_naml.jpeg,-5088.32,-1403.25,1,0,0,1
+%%beginparams
+d1 := 35; % numeric
+d2 := -26; % numeric
+t1 := 1.41232; % numeric
+z.expasinna.1 = (907.165,130.673);
+z33 = (-221.468,29.5899);
+z34 = (879.573,76.2418);
+z35 = (977.667,217.764);
+
+%%beginverbatim
+
+%lefttatweel := lefttatweel -2;
 
 z33p = z33 rotatepen 105;
 z34p = z34 rotatepen 72;
 
-z101 = (-lefttatweel*nuqta,0 );
-z102 = (-(lefttatweel+2)*nuqta / 1.5, -(lefttatweel +2) *7 );
+z101 = (-(lefttatweel - 2)*nuqta,0 );
+z102 = (-(lefttatweel)*nuqta / 1.5, -(lefttatweel) *7 );
 
 z10 = dir d1;
 z10r = -z10;
@@ -9968,15 +10109,14 @@ z11r = -z11;
 %%beginpaths
 
 fill
-((-289.506,128.129)+ z101) .. tension 1.10251 and 0.877686 ..
-((-248.915,134.026)+ z101) .. tension 0.756659 and 1.13521 ..
-((-211.185,109.84)+ z101) {z11} .. tension atleast t1 ..
-((382.566,46.6803)+ z102) {right} .. tension atleast 1.28097 ..
+((-250.446,85.2003)+ z101) .. tension 2.10634 and 1.81544 ..
+((-240.165,131.297)+ z101) {z11} .. tension atleast 0.935851 ..
+((382.566,46.6803)+ z102) {right} .. tension atleast 1.17628 ..
  {z10}z34p ..
  {curl1}z35 {down} ..
  {z10r}z34 .. tension atleast t1 ..
-((349.079,-29.718)+ z102) {left} .. tension atleast 1.32141 ..
- {z11r}z33 + z101 .. tension 1.84842 and 3.02182 ..
+((349.079,-29.718)+ z102) {left} .. tension atleast 1.0232 ..
+ {z11r}z33 + z101 .. tension 0.791804 and 3.02182 ..
  {up} cycle
 ;
 
@@ -9984,5 +10124,6 @@ fill
 %%beginbody
 
 
+leftanchor := (-250.446,85.2003)+ z101;
 
 enddefchar;

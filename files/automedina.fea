@@ -21,26 +21,34 @@ lookup basmala {
 
     lookupflag IgnoreMarks;
 
+    lookup basmala.l1.new {
+        sub behshape.init.beforeseen by behshape.init.basmala;
+        sub callback seen.medi by seen.medi.basmala expfactors 0 20 0 0;
+        sub meem.fina by meem.fina.basmala;
+        sub behshape.medi add 1 0;
+        sub meem.medi.afterhah  add -1 0;
+    } basmala.l1.new;
+
     lookup basmala.l1 {
-        sub seen.medi add 10 0;
-        sub meem.fina add 0 8;
-        sub behshape.medi add 12 0;
+        sub seen.medi add 2 0;
+        sub meem.fina add 0 2;
+        sub behshape.medi add 1 0;
         sub meem.medi.afterhah  add -1 0;        
     } basmala.l1;
 
     lookup basmala.l2 {
-        sub meem.fina add 0 8;
+        sub meem.fina add 0 1;
     } basmala.l2;
 
     lookup basmala.l3 {
-        sub callback noon.fina by noon.fina.basmala expfactors 0 12 0 -0.5;
+        sub callback noon.fina by noon.fina.basmala expfactors 0 10 0 -0.5;
     } basmala.l3 ;
 
     lookup basmala.l4 {
         sub space by space.ii;
     } basmala.l4;
 
-    sub  behshape.init.beforeseen seen.medi'lookup basmala.l1  meem.fina'lookup basmala.l1
+    sub  behshape.init.beforeseen'lookup basmala.l1 seen.medi'lookup basmala.l1  meem.fina'lookup basmala.l1
          space'  alef.isol' lam.init.allah' lam.medi.allah' heh.fina.allah'
          space' alef.isol' lam.init'  reh.fina'  hah.init.beforemeem' meem.medi.afterhah'lookup basmala.l1 /^noon.fina/'lookup basmala.l3
          space'lookup basmala.l4 alef.isol' lam.init'  reh.fina'  hah.init'   behshape.medi'lookup basmala.l1  meem.fina'lookup basmala.l2;

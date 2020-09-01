@@ -52,8 +52,7 @@ namespace feayy {
 
 	}
 
-	void FeaContext::useLookup(QString lookupName) {
-		Lookup* lookup = nullptr;
+	void FeaContext::useLookup(QString lookupName) {		
 
 		auto liter = lookups.find(lookupName.toStdString());
 
@@ -67,8 +66,8 @@ namespace feayy {
 		lookupDefinition->accept(lookupVisitor);
 	}
 
-	LookupDefinitionVisitor::LookupDefinitionVisitor(OtLayout* otlayout, FeaContext& context) :otlayout{ otlayout },
-		context{ context }, lookup{ nullptr }, refLookups{ nullptr } {
+    LookupDefinitionVisitor::LookupDefinitionVisitor(OtLayout* otlayout, FeaContext& context) :
+        lookup{ nullptr },otlayout{ otlayout }, refLookups{ nullptr },context{ context }{
 	}
 
 	void LookupDefinitionVisitor::accept(LookupFlag& flag) {
@@ -78,7 +77,7 @@ namespace feayy {
 		auto glyphSet = flag.getMarkFilteringSet();
 
 		if (glyphSet != nullptr) {
-			lookup->markGlyphSetIndex = otlayout->addMarkSet(glyphSet->getCodes(otlayout).toList());
+            lookup->markGlyphSetIndex = otlayout->addMarkSet(glyphSet->getCodes(otlayout).values());
 		}
 
 	}
@@ -522,9 +521,7 @@ namespace feayy {
 
 		auto lookupsIndex = otlayout->lookupsIndexByName.value(lookupReference.lookupName, -1);
 
-		if (lookupsIndex == -1) {
-
-			Lookup* lookup = nullptr;
+		if (lookupsIndex == -1) {		
 
 			auto liter = context.lookups.find(lookupReference.lookupName.toStdString());
 

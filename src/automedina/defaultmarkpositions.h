@@ -103,15 +103,22 @@ public:
 			curr = curr->getAlternate(parameters);
 		}
 
-		GlyphVis* originalglyph;
+        if(curr->conatinsAnchor("dbal")){
+            QPoint anchor = curr->getAnchor("dbal") + adjust;
+            return anchor;
+        }else{
+            GlyphVis* originalglyph;
 
-		QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
+            QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
-		int depth = std::max((int)-originalglyph->depth + _y.spacebasetobottommark, _y.markdepth);
+            int depth = std::max((int)-originalglyph->depth + _y.spacebasetobottommark, _y.markdepth);
 
-		QPoint anchor = QPoint{ (int)(originalglyph->width * 0.5),-depth } +adjustoriginal + adjust;
+            QPoint anchor = QPoint{ (int)(originalglyph->width * 0.5),-depth } +adjustoriginal + adjust;
 
-		return anchor;
+            return anchor;
+        }
+
+
 
 		/*
 		GlyphVis& curr = _y.glyphs[glyphName];

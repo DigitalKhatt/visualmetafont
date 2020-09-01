@@ -154,6 +154,10 @@ void ContourItem::generateedge(mp_edge_object *  h, bool newelement) {
 				QVariant val = glyph->property(propname);
 				if (QMetaType::QPointF == val.type()) {
 					QPointF point = val.toPointF();
+					auto edge = glyph->getEdge();
+					if(edge != nullptr){
+					     point = point + QPoint(edge->xpart, edge->ypart);
+					}
 					QGraphicsItem *  pair;
 					if (newelement) {
 						pair = new PairItem(param, glyph, this->parampoints);

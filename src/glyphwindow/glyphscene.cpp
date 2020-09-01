@@ -178,7 +178,13 @@ void GlyphScene::glyphValueChanged(QString name, bool structureChanged) {
 	Glyph::ImageInfo imageInfo = m_glyph->image();
 
 	if (image->path() == imageInfo.path) {
-		image->setPos(imageInfo.pos);
+	    auto pos = imageInfo.pos;
+	    if(m_glyph->getEdge() != nullptr){
+		auto edge = m_glyph->getEdge();
+		pos = pos + QPointF(edge->xpart,-edge->ypart);
+	    }
+
+		image->setPos(pos);
 		image->setTransform(imageInfo.transform);
 	}
 	else if (imageInfo.path.isEmpty()) {
@@ -223,7 +229,13 @@ void GlyphScene::loadImage(Glyph::ImageInfo imageInfo) {
 	image->setPath(imageInfo.path);
 	image->setPixmap(QPixmap::fromImage(newImage));
 
-	image->setPos(imageInfo.pos);
+	auto pos = imageInfo.pos;
+	if(m_glyph->getEdge() != nullptr){
+	    auto edge = m_glyph->getEdge();
+	    pos = pos + QPointF(edge->xpart,-edge->ypart);
+	}
+
+	    image->setPos(pos);
 	image->setTransform(imageInfo.transform);
 
 }
