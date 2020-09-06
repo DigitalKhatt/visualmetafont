@@ -146,18 +146,21 @@ void ContourItem::generateedge(mp_edge_object *  h, bool newelement) {
 
 		int childnb = 0;		
 		QMapIterator<QString, Glyph::Param> i(glyph->params);
+
+		QPointF translate;
+		auto edge = glyph->getEdge();
+		if(edge != nullptr){
+				 translate =  QPointF(edge->xpart, edge->ypart);
+		}
 		while (i.hasNext()) {
 			i.next();		
 			Glyph::Param param = i.value();
+			/*
 			if (param.type == Glyph::point && !param.isInControllePath) {
 				QByteArray propname = param.name.toLatin1();
 				QVariant val = glyph->property(propname);
-				if (QMetaType::QPointF == val.type()) {
-					QPointF point = val.toPointF();
-					auto edge = glyph->getEdge();
-					if(edge != nullptr){
-					     point = point + QPoint(edge->xpart, edge->ypart);
-					}
+				if (QVariant::PointF == val.type()) {
+					QPointF point = val.toPointF() + translate;
 					QGraphicsItem *  pair;
 					if (newelement) {
 						pair = new PairItem(param, glyph, this->parampoints);
@@ -169,6 +172,23 @@ void ContourItem::generateedge(mp_edge_object *  h, bool newelement) {
 					pair->setPos(point.x(), point.y());
 					//pair->ensureVisible(-1, -1, 2, 2, 0, 0);
 				}
+			}
+			else */
+			if (param.type == Glyph::expression && !param.isInControllePath){
+				 auto value =  glyph->expressions.value(param.name);
+				 if(value->type() == QVariant::PointF){
+					 QPointF point = value->value().toPointF() + translate;
+					 QGraphicsItem *  pair;
+					 if (newelement) {
+						 pair = new PairItem(param, glyph, this->parampoints);
+					 }
+					 else {
+						 pair = this->parampoints->childItems()[childnb++];
+					 }
+
+					 pair->setPos(point.x(), point.y());
+				 }
+
 			}
 		}
 		

@@ -29,14 +29,12 @@
 #include <optional>
 #include "qmetatype.h"
 #include "qpainterpath.h"
+#include "exp.hpp"
 
 class Font;
 struct mp_edge_object;
 typedef struct mp_gr_knot_data*mp_gr_knot;
 typedef struct MP_instance*MP;
-
-
-
 
 class Glyph : public QObject {
 	Q_OBJECT
@@ -57,11 +55,10 @@ public:
 	};
 	enum ParameterType {
 		None,
-		point,
 		direction,
 		tension,
 		control,
-		numeric
+		expression
 	};
 	struct Param {
 		QString name;
@@ -184,6 +181,7 @@ public:
 	void parseComponents(QString componentSource);	
 	void setComponent(QString name, double x, double y, double t1, double t2, double t3, double t4);
 	void setParameter(QString name, Glyph::ParameterType type, double x, double y, Glyph::ParameterPosition position, int numsubpath, int numpoint, bool isEquation);
+	void setParameter(QString name, Exp* exp, bool isEquation);
 	void parsePaths(QString pathsSource);
 	QString parameters() const;
 	QString getError();
@@ -197,6 +195,7 @@ public:
 	QHash<QString, Param> ltensions;
 	QHash<QString, Param> rtensions;	
 	QMap<QString, Param> params;
+	QMap<QString, QSharedPointer<Exp>> expressions;
 	QHashGlyphComponentInfo m_components;
 	QMap<int, QMap<int, Knot*> >  controlledPaths;
 	QMap<int, QString >  controlledPathNames;

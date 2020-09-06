@@ -19,13 +19,12 @@
 
 %language "C++"
 /*%no-lines*/
-%glr-parser
+/*%glr-parser*/
 %require "3.0.4"
 %define parse.trace
 %defines
 %define api.namespace {feayy}
 %define api.value.type union
-/*%define parser_class_name {Parser}*/
 %define api.parser.class {Parser}
 %locations
 /*%error-verbose*/
@@ -49,12 +48,9 @@
 }
 %code requires {
 #include "driver.h"
-}
-
-%code requires {
 #include "feaast.h"
-using namespace std;
-using namespace feayy;
+//using namespace std;
+//using namespace feayy;
 }
 
 
@@ -73,17 +69,17 @@ using namespace feayy;
 %type <ClassComponent*> classcomponent
 %type <GlyphClass*> glyphclass
 %type <vector<ClassComponent *>*> classcomponents
-%type <GlyphSet*> glyphset
+%type <GlyphSet*> glyphset glyphsetwithoutglyph
 %type <std::string *> lookupreference explicitlookup featurereference identifier featuretag
 %type <ValueRecord> valuerecord
 %type <LookupFlag*> flag flags lookupflag
-%type <LookupStatement*> feature_statement lookup_statement lookup_definition markclassdefinition gsubrule gposrule singlesub multiplesub alternatesub ligaturesub classdefinition
+%type <LookupStatement*> feature_statement lookup_statement lookup_definition markclassdefinition gsubrule gposrule singlesub multiplesub alternatesub classdefinition contextualligagsub
 %type <LookupStatement*> singleadjustment cursiverule mark2base mark2mark 
 %type <vector<LookupStatement *> *> lookup_statements feature_statements
 %type <MarkedGlyphSetRegExp*> markedglyphsetregexp
 %type <vector<MarkedGlyphSetRegExp *>*> inputseq
-%type <GlyphSetRegExp*> glyphsetregexp 
-%type <ChainingContextualRule*> contextualexplicit contextualgpos contextualgsub
+%type <GlyphSetRegExp*> glyphsetregexp  glyphsetregexpwithoutglyph
+%type <ChainingContextualRule*> contextualexplicit contextualgpos
 %type <Anchor*> anchor anchorformat
 %type <Mark2BaseClass*> mark2baseclass
 %type <vector<Mark2BaseClass *>*> mark2baseclasses
@@ -123,7 +119,8 @@ feature_definition
 	: FEATURE featuretag[bname] '{' feature_statements[lstm] '}' featuretag[lname]
 	{
 		if(*$bname != *$lname){
-			yyparser.error(yylloc, std::string("Feature name '") + *$bname + "' does not match with '" + *$lname + "'");
+			//yyparser.error(yylloc, std::string("Feature name '") + *$bname + "' does not match with '" + *$lname + "'");
+			error(yyla.location, std::string("Feature name '") + *$bname + "' does not match with '" + *$lname + "'");
 			delete $lstm;
 			delete $bname;
 			delete $lname;
@@ -154,7 +151,8 @@ lookup_definition
 	: LOOKUP identifier[bname] '{' lookup_statements[lstm] '}' identifier[lname] 
 		{ 			
 			if(*$bname != *$lname){
-				yyparser.error(yylloc, std::string("Lookup name '") + *$bname + "' does not match with '" + *$lname + "'");
+//				yyparser.error(yylloc, std::string("Lookup name '") + *$bname + "' does not match with '" + *$lname + "'");
+				error(yyla.location, std::string("Lookup name '") + *$bname + "' does not match with '" + *$lname + "'");
 				delete $lstm;
 				delete $bname;
 				delete $lname;
@@ -209,15 +207,15 @@ flag
 gsubrule
 	: singlesub {$$ = $1;}
 	| multiplesub {$$ = $1;}
-	| alternatesub {$$ = $1;}
-	| ligaturesub {$$ = $1;}	 
-	| contextualgsub {$$ = $1;}
+	| alternatesub {$$ = $1;}	
+	| contextualligagsub {$$ = $1;}
 	;
 
 singlesub
 	: SUBSTITUTE glyph BY glyph	{$$ = new SingleSubstituionRule($2,$4,2);}
 	| SUBSTITUTE CALLBACK glyph {$$ = new SingleSubstituionRule($glyph,$glyph,10);}
-	| SUBSTITUTE glyphset ADD doubleorint[lefttatweel] doubleorint[righttatweel]  {$$ = new SingleSubstituionRule($glyphset,$lefttatweel,$righttatweel);}	
+	| SUBSTITUTE glyphclass ADD doubleorint[lefttatweel] doubleorint[righttatweel]  {$$ = new SingleSubstituionRule(new GlyphSet($glyphclass),$lefttatweel,$righttatweel);}
+	| SUBSTITUTE glyph ADD doubleorint[lefttatweel] doubleorint[righttatweel]  {$$ = new SingleSubstituionRule(new GlyphSet($glyph),$lefttatweel,$righttatweel);}
 	| SUBSTITUTE CALLBACK glyph[glyph1] BY glyph[glyph2] {$$ = new SingleSubstituionRule($glyph1,$glyph2,10);}
 	| SUBSTITUTE CALLBACK glyph startendlig expafactor[factor] {$$ = new SingleSubstituionRule($glyph,$glyph,10,$factor,$startendlig);}
 	| SUBSTITUTE CALLBACK glyph[glyph1] BY glyph[glyph2] startendlig expafactor[factor] {$$ = new SingleSubstituionRule($glyph1,$glyph2,10,$factor,$startendlig);}
@@ -236,7 +234,7 @@ startendlig:
 	;
 
 multiplesub
-	: SUBSTITUTE glyph BY glyph glyphseq
+	: SUBSTITUTE glyph BY glyphseq
 	;
 
 alternatesub
@@ -248,19 +246,30 @@ doubleorint
 	;
 
 glyphseq
-	: glyph { $$ = new vector<Glyph *>{$1}; }	
+	: glyph glyph { $$ = new vector<Glyph *>{$1,$2}; }
 	| glyphseq glyph {$$ = $1; $$->push_back($glyph);}
 	;
 
 
-
+/*
 ligaturesub
-	: SUBSTITUTE glyphseq glyph[gly]  BY glyph[ligature] { $glyphseq->push_back($gly); $$ = new LigatureSubstitutionRule($glyphseq,$ligature);}
+	: SUBSTITUTE glyphseq  BY glyph[ligature] { $$ = new LigatureSubstitutionRule($glyphseq,$ligature);}
+	;*/
+
+contextualligagsub
+	: SUBSTITUTE inputseq {auto lookup = new ChainingContextualRule(nullptr,$2,nullptr);lookup->setType(true);$$ = lookup;}
+	| SUBSTITUTE inputseq glyphsetregexp {auto lookup = new ChainingContextualRule(nullptr,$2,$3);lookup->setType(true);$$ = lookup;}
+	| SUBSTITUTE glyphsetregexpwithoutglyph[back] inputseq {auto lookup = new ChainingContextualRule($back,$inputseq,nullptr);lookup->setType(true);$$ = lookup;}
+	| SUBSTITUTE glyphsetregexpwithoutglyph[back] inputseq glyphsetregexp[look] {auto lookup = new ChainingContextualRule($back,$inputseq,$look);lookup->setType(true);$$ = lookup;}
+	| SUBSTITUTE glyphseq[back] inputseq {auto lookup = new ChainingContextualRule(new GlyphSetRegExpGlyphSeq($back),$inputseq,nullptr);lookup->setType(true);$$ = lookup;}
+	| SUBSTITUTE glyphseq[back] inputseq glyphsetregexp[look] {auto lookup = new ChainingContextualRule(new GlyphSetRegExpGlyphSeq($back),$inputseq,$look);lookup->setType(true);$$ = lookup;}
+	| SUBSTITUTE glyphseq  BY glyph[ligature] { $$ = new LigatureSubstitutionRule($glyphseq,$ligature);}
 	;
 
+/*
 contextualgsub	
 	: SUBSTITUTE contextualexplicit {$$ = $2;$$->setType(true);}
-	;
+	;*/
 
 contextualgpos
 	: POSITION contextualexplicit {$$ = $2;$$->setType(false);}	 
@@ -305,15 +314,26 @@ mark2mark
 %precedence GLYPHSET;
 %precedence  '(';
 
-
+glyphsetregexpwithoutglyph
+	: glyphsetwithoutglyph { $$ = new GlyphSetRegExpSingle($1); }
+	| glyph glyphsetwithoutglyph { $$ = new GlyphSetRegExpSeq{new GlyphSetRegExpSingle(new GlyphSet($glyph)),new GlyphSetRegExpSingle($glyphsetwithoutglyph)};}
+	| glyphseq glyphsetwithoutglyph { $$ = new GlyphSetRegExpSingle($glyphsetwithoutglyph); }
+	| glyphsetregexpwithoutglyph[left] glyphset { $$ = new GlyphSetRegExpSeq{$left,$glyphset};}
+	| glyphsetregexpwithoutglyph[left] '|' glyphsetregexp[right]  { $$ = new GlyphSetRegExpOr{$left,$right};}
+	| glyphsetregexpwithoutglyph[left] '(' glyphsetregexp[right] ')' { $$ = new GlyphSetRegExpSeq{$left,$right};}
+	| '(' glyphsetregexp ')' { $$ = $glyphsetregexp;}
+	;
 
 glyphsetregexp
-	: glyphset { $$ = new GlyphSetRegExpSingle($1); } 
-	| glyphsetregexp glyphset { $$ = new GlyphSetRegExpSeq{$1,$glyphset};}	
-	| glyphsetregexp[left] '|' glyphsetregexp[right]  { $$ = new GlyphSetRegExpOr{$left,$right};}	
-	| glyphsetregexp '(' glyphsetregexp ')' { $$ = new GlyphSetRegExpSeq{$1,$3};}	
-	| '(' glyphsetregexp ')' { $$ = $2;}	
+	: glyphset { $$ = new GlyphSetRegExpSingle($1); }
+	| glyphsetregexp glyphset { $$ = new GlyphSetRegExpSeq{$1,$glyphset};}
+	| glyphsetregexp[left] '|' glyphsetregexp[right]  { $$ = new GlyphSetRegExpOr{$left,$right};}
+	| glyphsetregexp '(' glyphsetregexp ')' { $$ = new GlyphSetRegExpSeq{$1,$3};}
+	| '(' glyphsetregexp ')' { $$ = $2;}
 	;
+
+
+
 
 inputseq
 	: markedglyphsetregexp  { $$ = new vector<MarkedGlyphSetRegExp *>();$$->push_back($1); } 		
@@ -377,6 +397,10 @@ glyphset
 	: glyphclass	{$$ = new GlyphSet($1);}   
 	| glyph			{$$ = new GlyphSet($1);} 
 	| T_NULL		{$$ = new GlyphSet();}  
+
+glyphsetwithoutglyph
+	: glyphclass	{$$ = new GlyphSet($1);}
+	| T_NULL		{$$ = new GlyphSet();}
 
 glyphclass
 	: '[' classcomponents ']'	{$$ = new GlyphClass($2);}

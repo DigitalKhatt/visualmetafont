@@ -70,6 +70,7 @@
 %type	<QMap<int, Glyph::Knot*> >			subpath	fillpath controlledpath
 %type	<bool>								affect
 %type <QString> opinsidepoint;
+%type <Exp*>  expression;
 
 
 
@@ -139,12 +140,18 @@ params :
 	| params param
 ;
 
-param : T_EALPHA[name] affect '(' T_NUMBER[x] ',' T_NUMBER[y] ')' ';'	{parsingglyph->setParameter($name, Glyph::point,$x,$y,Glyph::left,0,0,$affect);}
-	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_NUMERIC	{parsingglyph->setParameter($name, Glyph::numeric,$x,0,Glyph::left,0,0,$affect);}
+param : T_EALPHA[name] affect expression ';'	{parsingglyph->setParameter($name, $expression,$affect);}
+	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_NUMERIC	{parsingglyph->setParameter($name, new LitNumber($x),$affect);}
 	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_LTENS '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::tension,$x,0,Glyph::left,$numpath,$numpoint,$affect);}
 	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_RTENS '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::tension,$x,0,Glyph::right,$numpath,$numpoint,$affect);}
 	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_LDIR '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::direction,$x,0,Glyph::left,$numpath,$numpoint,$affect);}
 	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_RDIR '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::direction,$x,0,Glyph::left,$numpath,$numpoint,$affect);}
+;
+
+expression:  '(' T_NUMBER[x] ',' T_NUMBER[y] ')' {$$ =  new LitPoint(QPointF($x,$y));}
+  | T_DIR T_NUMBER[x] {$$ =  new DirNumber($x);}
+  | T_EALPHA[name] '+' '(' T_NUMBER[x] ',' T_NUMBER[y] ')' { $$ = new BinOp(new Id($name),Oper::ADD, new LitPoint(QPointF($x,$y)));}
+  | '(' T_NUMBER[x] ',' T_NUMBER[y] ')' '+'  T_EALPHA[name]  { $$ = new BinOp( new LitPoint(QPointF($x,$y)),Oper::ADD,new Id($name));}
 ;
 
 affect : T_AFFECT {$$ = false;}
@@ -236,7 +243,14 @@ direction :
 
 
 
-link : ".." "controls" controlpoint[c] ".." {$$ = new Glyph::Knot();$$->leftValue = $c; $$->rightValue = $c; $$->rightValue.isControlConstant = false; $$->leftValue.isEqualAfter = true; $$->rightValue.isEqualBefore = true;}
+link : ".." "controls" controlpoint[c] ".." {
+		$$ = new Glyph::Knot();
+		$$->leftValue = $c;
+		$$->rightValue = $c;
+		$$->rightValue.isControlConstant = false;
+		$$->leftValue.isEqualAfter = true;
+		$$->rightValue.isEqualBefore = true;
+	}
 | ".." "controls"  controlpoint[c1] "and" controlpoint[c2] ".." {$$ = new Glyph::Knot(); $$->leftValue = $c1; $$->rightValue = $c2;}
 | ".." "tension" tensionpoint[c] ".." {$$ = new Glyph::Knot();$$->leftValue = $c; $$->rightValue = $c; $$->rightValue.isControlConstant = false; $$->leftValue.isEqualAfter = true; $$->rightValue.isEqualBefore = true;}
 | ".." "tension"  tensionpoint[c1] "and" tensionpoint[c2] ".." {$$ = new Glyph::Knot(); $$->leftValue = $c1; $$->rightValue = $c2;}

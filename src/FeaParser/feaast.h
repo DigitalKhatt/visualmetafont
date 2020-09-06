@@ -292,11 +292,12 @@ namespace feayy {
 
 	class GlyphSet {
 		enum class Tag { glyphclass, glyph, empty };
-		Tag type;
+
 		union {
 			GlyphClass* _glyphClass;
 			Glyph* _glyph;
 		};
+		Tag type;
 	public:
 		struct Bad_entry { }; // used for exceptions
 		explicit GlyphSet(GlyphClass* _glyphClass) :_glyphClass(_glyphClass), type{ Tag::glyphclass } {}
@@ -338,8 +339,9 @@ namespace feayy {
 		QList<quint16> getSortedCodes(OtLayout* otlayout) {
 
 			auto set = getCodes(otlayout);
-			auto list = set.toList();
-			qSort(list);
+			auto list = set.values();
+			std::sort(list.begin(), list.end());
+			//qSort(list);
 			return list;
 		}
 
@@ -401,6 +403,38 @@ namespace feayy {
 
 	};
 
+	class GlyphSetRegExpGlyphSeq : public GlyphSetRegExp {
+	public:
+
+		QVector<GlyphSet*> seq;
+
+		explicit GlyphSetRegExpGlyphSeq(vector<Glyph *>*  glyphSeq){
+			for(auto glyph : *glyphSeq){
+				this->seq.append(new GlyphSet(glyph));
+			}
+			delete glyphSeq;
+		}
+
+		virtual ~GlyphSetRegExpGlyphSeq()
+		{
+			for(auto glyph : seq){
+				delete glyph;
+			}
+		}
+
+		QVector<QVector<GlyphSet*>> getSequences() override {
+			if (seq.isEmpty()) {
+				return { {} };
+			}
+			else {
+				return { seq };
+			}
+		}
+
+	};
+
+
+
 
 	class GlyphSetRegExpSeq : public GlyphSetRegExp {
 	public:
@@ -411,6 +445,7 @@ namespace feayy {
 		explicit GlyphSetRegExpSeq(GlyphSetRegExp* left, GlyphSetRegExp* right) : left{ left }, right{ right } {}
 		explicit GlyphSetRegExpSeq(GlyphSetRegExp* left, GlyphSet* right) :left{ left }, right{ new GlyphSetRegExpSingle(right) } {}
 		explicit GlyphSetRegExpSeq(GlyphSet* left, GlyphSetRegExp* right) :left{ new GlyphSetRegExpSingle(left) }, right{ right } {}
+		explicit GlyphSetRegExpSeq(GlyphSet* left, GlyphSet* right) :left{ new GlyphSetRegExpSingle(left) }, right{ new GlyphSetRegExpSingle(right)  } {}
 
 		virtual ~GlyphSetRegExpSeq()
 		{
@@ -471,9 +506,10 @@ namespace feayy {
 
 	class SingleAdjustmentRule : public LookupStatement {
 	public:
-		bool color;
+
 		GlyphSet* glyphset;
 		ValueRecord valueRecord;
+		bool color;
 
 		explicit SingleAdjustmentRule(GlyphSet* glyphset, ValueRecord valueRecord, bool color = false)
 			:glyphset{ glyphset }, valueRecord{ valueRecord }, color{ color } {}
@@ -611,11 +647,11 @@ namespace feayy {
 			:firstglyph{ firstglyph }, secondglyph{ secondglyph }, format{ format }, expansion{ expansion }, startEndLig{ startEndLig }{}
 
 		explicit SingleSubstituionRule(Glyph* firstglyph, float lefttatweel, float righttatweel)
-			:firstglyph{ firstglyph }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel }, secondglyph{nullptr}, startEndLig{ startEndLig }{}
+			:firstglyph{ firstglyph },secondglyph{nullptr}, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel }, startEndLig{ StartEndLig::StartEnd }{}
 
 		explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, float lefttatweel, float righttatweel)
-			:firstGlyphSet{ firstGlyphSet }, firstType{ FirstType::GLYPHSET }, format{ 11 }, secondglyph{ nullptr },
-			expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel }, startEndLig{ startEndLig }{}
+			:firstGlyphSet{ firstGlyphSet }, firstType{ FirstType::GLYPHSET },secondglyph{ nullptr }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel },
+			startEndLig{ StartEndLig::StartEnd }{}
 
 		void accept(Visitor&) override;
 
@@ -703,13 +739,13 @@ namespace feayy {
 			Reserved = 0x00E0u,
 			MarkAttachmentType = 0xFF00u
 		};
-		explicit LookupFlag(short flag) :flag{ flag }, markFilteringSet{ nullptr } {
+		explicit LookupFlag(short flag) :markFilteringSet{ nullptr },flag{ flag } {
 		}
 
-		explicit LookupFlag() :flag(0), markFilteringSet{ nullptr } {
+		explicit LookupFlag() :markFilteringSet{ nullptr },flag(0) {
 		}
 
-		explicit LookupFlag(GlyphSet* set) :flag(UseMarkFilteringSet), markFilteringSet(set) {
+		explicit LookupFlag(GlyphSet* set) :markFilteringSet(set),flag(UseMarkFilteringSet) {
 		}
 
 		void set_Flag(Flags pflag) {
@@ -851,7 +887,7 @@ namespace feayy {
 
 		FeaRoot* root;
 
-		FeaContext(OtLayout* otlayout, const QJsonObject* json) :otlayout{ otlayout }, json{ json } {
+		FeaContext(OtLayout* otlayout, const QJsonObject* json) :json{ json }, otlayout{ otlayout } {
 			root = nullptr;
 		}
 

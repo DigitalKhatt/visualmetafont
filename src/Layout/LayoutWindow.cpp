@@ -158,6 +158,14 @@ void LayoutWindow::createActions()
 	fileMenu->addAction(saveAct);
 	fileToolBar->addAction(saveAct);
 
+	const QIcon otfIcon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
+	QAction* otfAct = new QAction(otfIcon, tr("&Generate OpenTpe font"), this);
+	saveAct->setShortcuts(QKeySequence::Save);
+	saveAct->setStatusTip(tr("Generate OpenTpe font"));
+	connect(saveAct, &QAction::triggered, this, &LayoutWindow::save);
+	fileMenu->addAction(saveAct);
+	fileToolBar->addAction(saveAct);
+
 
 
 	auto tt = QImageReader::supportedImageFormats();

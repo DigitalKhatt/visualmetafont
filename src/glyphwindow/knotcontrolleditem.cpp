@@ -65,7 +65,10 @@ KnotControlledItem::KnotControlledItem(int numsubpath, int numpoint, mp_gr_knot 
 		leftline->setZValue(-1);
 		left = new KnotItem(KnotItem::LeftControl, this);
 
-		if (m_glyphknot->leftValue.isDirConstant || m_glyphknot->leftValue.isControlConstant || m_glyph->params.contains(m_glyphknot->leftValue.controlValue)) { // || m_glyph->params.contains(m_glyphknot->leftValue.value)) {
+		if (m_glyphknot->leftValue.isDirConstant || m_glyphknot->leftValue.isControlConstant
+				|| m_glyph->params.contains(m_glyphknot->leftValue.controlValue)
+				|| m_glyph->params.contains(m_glyphknot->leftValue.value)
+				) { // || m_glyph->params.contains(m_glyphknot->leftValue.value)) {
 
 			left->setFlags(ItemIsMovable | ItemIsSelectable);
 
@@ -75,7 +78,10 @@ KnotControlledItem::KnotControlledItem(int numsubpath, int numpoint, mp_gr_knot 
 		rightline->setPen(penline);
 		rightline->setZValue(-1);
 		right = new KnotItem(KnotItem::RightControl, this);
-		if (m_glyphknot->rightValue.isDirConstant || m_glyphknot->rightValue.isControlConstant || m_glyph->params.contains(m_glyphknot->rightValue.controlValue)) {// || m_glyph->params.contains(m_glyphknot->rightValue.value)) {
+		if (m_glyphknot->rightValue.isDirConstant || m_glyphknot->rightValue.isControlConstant
+				|| m_glyph->params.contains(m_glyphknot->rightValue.controlValue)
+				|| m_glyph->params.contains(m_glyphknot->rightValue.value)
+				) {// || m_glyph->params.contains(m_glyphknot->rightValue.value)) {
 
 			right->setFlags(ItemIsMovable | ItemIsSelectable);
 
@@ -187,7 +193,7 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
 			}
 			else {
 				QVariant val = m_glyph->property(m_glyphknot->paramName.toLatin1());
-				if (QMetaType::QPointF == val.type()) {
+				if (QVariant::PointF == val.type()) {
 					QPointF point = val.toPointF();
 					point.setX(point.x() + diff.x());
 					point.setY(point.y() + diff.y());
@@ -433,11 +439,17 @@ bool KnotControlledItem::updateControlPoint(bool leftControl, QPointF diff, bool
 			}
 		}
 
-		if (controlValue.isDirConstant && controlValue.type == Glyph::mpgui_given) {
-			if (!shift) {				
-				controlValue.x = -line.angle() + (leftControl ? 180 : 0);
+		if (!shift && controlValue.type == Glyph::mpgui_given) {
+			double newValue = -line.angle() + (leftControl ? 180 : 0);
+			if (controlValue.isDirConstant) {
+					controlValue.x = newValue;
+			}else{
+					m_glyph->setProperty(controlValue.value.toLatin1(), newValue);
 			}
 		}
+
+
+
 
 		if (controlValue.type != Glyph::mpgui_explicit && !ctrl) {
 			QPointF currentpos = incurve->mapFromScene(item->scenePos());

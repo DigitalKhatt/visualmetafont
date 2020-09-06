@@ -177,14 +177,17 @@ void GlyphParameterController::addProperties()
 		Glyph::Param param = i.value();
 		//if (param.type == Glyph::point) {
 		QByteArray propname = param.name.toLatin1();
-		QVariant val = m_glyph->property(propname);
-		//if (QMetaType::QPointF == val.type()) {				
-		QtVariantProperty *subProperty = m_manager->addProperty(val.type(), QLatin1String(propname));
-		subProperty->setValue(val);
-		m_propertyToName[subProperty] = param.name;
-		m_nametoProperty[param.name] = subProperty;
-		m_browser->addProperty(subProperty);
+		//if(param.type !=  Glyph::ParameterType::expression){
+		  QVariant val = m_glyph->property(propname);
+		  //if (QMetaType::QPointF == val.type()) {
+		  QtVariantProperty *subProperty = m_manager->addProperty(val.type(), QLatin1String(propname));
+		  subProperty->setValue(val);
+		  m_propertyToName[subProperty] = param.name;
+		  m_nametoProperty[param.name] = subProperty;
+		  m_browser->addProperty(subProperty);
+		  //}
 		//}
+
 
 	//}
 	}

@@ -90,6 +90,11 @@ void PairItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 
 	QPointF pair = glyph->property(param.name.toLatin1()).toPointF() +  diff;
 
+	if(param.type == Glyph::expression){
+		auto exp = glyph->expressions.value(param.name);
+		exp->setConstantValue(pair);
+	}
+
 	glyph->setProperty(param.name.toLatin1(), pair);
 }
 void PairItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *)

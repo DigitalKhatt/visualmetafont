@@ -98,6 +98,7 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/FeaParser)
 
 
+#BISON_TARGET(FeaParser FeaParser/parser.y ${CMAKE_CURRENT_BINARY_DIR}/FeaParser/parser.cpp VERBOSE COMPILE_FLAGS -Wcounterexamples)
 BISON_TARGET(FeaParser FeaParser/parser.y ${CMAKE_CURRENT_BINARY_DIR}/FeaParser/parser.cpp VERBOSE)
 FLEX_TARGET(FeaScanner FeaParser/scanner.l  ${CMAKE_CURRENT_BINARY_DIR}/FeaParser/scanner.cpp)
 ADD_FLEX_BISON_DEPENDENCY(FeaScanner FeaParser)
@@ -116,7 +117,7 @@ set(FeaParser
 
 source_group("FeaParser" FILES ${FeaParser})
 
-BISON_TARGET(GlyphParser GlyphParser/glyphparser.y ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser/glyphparser.cpp)
+BISON_TARGET(GlyphParser GlyphParser/glyphparser.y ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser/glyphparser.cpp VERBOSE)
 FLEX_TARGET(GlyphScanner GlyphParser/glyphscanner.l  ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser/glyphscanner.cpp)
 ADD_FLEX_BISON_DEPENDENCY(GlyphScanner GlyphParser)
 
@@ -228,6 +229,7 @@ set(MetaFont
   metafont/font.hpp
   metafont/glyph.cpp
   metafont/glyph.hpp
+  metafont/exp.hpp
   metafont/metafont.h
   )
 source_group("MetaFont" FILES ${MetaFont})

@@ -37,3 +37,5 @@ void mp_gr_toss_objects_extended(mp_edge_object* hh);
 //unsigned int getTotalAnchors(MP mp, int charcode);
 //Transform getMatrix(MP mp, int charcode);
 
+void getPointParam(MP mp, int index,double*x, double*y);
+

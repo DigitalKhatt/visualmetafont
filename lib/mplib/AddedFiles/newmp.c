@@ -332,6 +332,39 @@ void setAnchors(MP mp, mp_edge_object* hh) {
 	free_number(arg2);
 
 }
+
+void getPointParam(MP mp, int index,double*x, double*y){
+
+	char* varName = "tmp_pair_params_";
+	mp_sym  varrSymp = mp_id_lookup(mp, varName, strlen(varName), false);
+	mp_node r = mp_get_symbolic_node(mp);
+	set_mp_sym_sym(r, varrSymp);
+	mp_name_type(r) = 0;
+
+	mp_number arg2;
+	new_number(arg2);
+
+	set_number_from_double(arg2, index);
+	mp_node s = mp_new_num_tok(mp, arg2);
+
+	mp_link(r) = s;
+
+	mp_node varnode = mp_find_variable(mp, r);
+	mp_node value = value_node(varnode);
+
+	if (mp_type(value) == mp_pair_node_type) {
+		if (mp_type(x_part(value)) == mp_known && mp_type(y_part(value)) == mp_known) {
+			*x = number_to_double(value_number(x_part(value)));
+			*y = number_to_double(value_number(y_part(value)));
+		}
+
+	}
+
+	mp_flush_token_list(mp, r);
+
+	free_number(arg2);
+
+}
 /*
 AnchorPoint getAnchor(MP mp, int charcode, int anchorIndex) {
 	AnchorPoint anchor = { NULL,0,0,0 };

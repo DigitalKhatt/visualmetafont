@@ -9914,9 +9914,9 @@ enddefchar;
 defchar(expasinna,-1,1,-1,-1);
 %%backgroundimage:images/basmala_naml.jpeg,-5089.32,-1402.25,1,0,0,1
 %%beginparams
-d1 := 178.44; % numeric
-d2 := -25; % numeric
 t1 := 1.36959; % numeric
+z10 = dir 178.44;
+z11 = dir -25;
 z33 = (-176.443,17.8619);
 z34 = (879.573,76.2418);
 z35 = (972.867,215.364);
@@ -9931,16 +9931,9 @@ z34p = z34 rotatepen 72;
 z101 = (-lefttatweel*nuqta,0 );
 z102 = (-(lefttatweel+2)*nuqta / 1.5, -(lefttatweel +2) *7 );
 
-z10 = dir d1;
+
 z10p = -z10;
-
-z11 = dir d2;
 z11r = -z11;
-
-
-
-
-
 
 %%endverbatim
 
@@ -9966,7 +9959,9 @@ enddefchar;
 defchar(meem.fina.basmala,-1,-1,-1,-1);
 %%backgroundimage:images/basmala_naml.jpeg,-358.447,-1267.52,1,0,0,1
 %%beginparams
-rightanchor := (326.587,76.6231);
+rightanchor := (339.59,76.6231);
+z1 = (79.59,104.623) + rightanchor;
+z2 = rightanchor + (162.59,152.623);
 
 %%beginverbatim
 
@@ -10002,36 +9997,6 @@ fill
 leftbearing :=- 50;
 
 setMarkAnchor(buttonmark,z.mark1);
-
-enddefchar;
-defchar(seen.medi.basmala,-1,-1,-1,-1);
-%%backgroundimage:images/basmala_naml.jpeg,-5961.72,-1373.48,1,0,0,1
-
-%%beginverbatim
-
-
-
-%%endverbatim
-%%beginbody
-
-
-
-lefttatweell := lefttatweel;
-
-twoseen_(0,0);
-picture pic;
-
-pic := currentpicture;
-clearit;
-
-expasinna.ii_(lefttatweell,charrt);
-
-draw pic shifted (z.expasinna.1 - z.twoseen.1);
-
-
-
-rightanchor := z.twoseen.2 shifted (z.expasinna.1 - z.twoseen.1);
-
 
 enddefchar;
 defchar(twoseen,-1,-1,-1,-1);
@@ -10075,10 +10040,10 @@ enddefchar;
 defchar(expasinna.ii,-1,-1,-1,-1);
 %%backgroundimage:images/basmala_naml.jpeg,-5088.32,-1403.25,1,0,0,1
 %%beginparams
-d1 := 35; % numeric
-d2 := -26; % numeric
 t1 := 1.41232; % numeric
 z.expasinna.1 = (907.165,130.673);
+z10 = dir 35;
+z11 = dir -26;
 z33 = (-221.468,29.5899);
 z34 = (879.573,76.2418);
 z35 = (977.667,217.764);
@@ -10093,10 +10058,8 @@ z34p = z34 rotatepen 72;
 z101 = (-(lefttatweel - 2)*nuqta,0 );
 z102 = (-(lefttatweel)*nuqta / 1.5, -(lefttatweel) *7 );
 
-z10 = dir d1;
-z10r = -z10;
 
-z11 = dir d2;
+z10r = -z10;
 z11r = -z11;
 
 
@@ -10125,5 +10088,35 @@ fill
 
 
 leftanchor := (-250.446,85.2003)+ z101;
+
+enddefchar;
+defchar(seen.medi.basmala,-1,-1,-1,-1);
+%%backgroundimage:images/basmala_naml.jpeg,-5961.72,-1373.48,1,0,0,1
+
+%%beginverbatim
+
+
+
+%%endverbatim
+%%beginbody
+
+
+
+lefttatweell := lefttatweel;
+
+twoseen_(0,0);
+picture pic;
+
+pic := currentpicture;
+clearit;
+
+expasinna.ii_(lefttatweell,charrt);
+
+draw pic shifted (z.expasinna.1 - z.twoseen.1);
+
+
+
+rightanchor := z.twoseen.2 shifted (z.expasinna.1 - z.twoseen.1);
+
 
 enddefchar;

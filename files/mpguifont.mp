@@ -96,7 +96,7 @@ def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
  lefttatweel_const := righttatweel_const := (0,0);
  charwd:=w_sharp;      charht:=h_sharp;       chardp:=d_sharp;
  w:=charwd; h:=charht; d:=chardp;
- charic:=0; clearxy; clearit; %clearpen; 
+ charic:=0; clearxy; clearit; %clearpen;
  number_of_anchors := 0;
  left_tatweeltension := 0;
  right_tatweeltension := 0;  
@@ -186,6 +186,10 @@ def endchar =
 	shipit;
 	endgroup 
 enddef;
+
+pair tmp_pair_params_[];
+numeric tmp_num_params_[];
+
 
 def drawcomponent(suffix charcode)(expr x,y,xx,xy,yx,yy) =  
 	begingroup
