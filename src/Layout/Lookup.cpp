@@ -46,7 +46,7 @@ void Lookup::setGlyphSet(QVector<QString> list) {
 
 	markGlyphSetIndex = -1;
 	if (set.size() > 0) {
-		auto list = set.toList();
+		auto list = set.values();
 		std::sort(list.begin(), list.end());
 		markGlyphSetIndex = layout->addMarkSet(list);
 		flags = flags | Flags::UseMarkFilteringSet;
@@ -83,7 +83,7 @@ void Lookup::readJson(const QJsonObject &jsonsubtable) {
 
 	markGlyphSetIndex = -1;
 	if (set.size() > 0) {
-		auto list = set.toList();
+		auto list = set.values();
 		std::sort(list.begin(), list.end());
 		markGlyphSetIndex = layout->addMarkSet(list);
 		flags = flags | Flags::UseMarkFilteringSet;

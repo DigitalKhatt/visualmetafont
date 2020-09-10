@@ -69,6 +69,7 @@ private:
 	void createDockWindows();
 	void loadLookupFile(QString fileName);
 	bool save();
+	bool generateOpenType();
 	bool exportpdf();
 	bool generateAllQuranTexBreaking();
 	bool generateAllQuranTexMedina();

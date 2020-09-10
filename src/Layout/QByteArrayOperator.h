@@ -32,6 +32,10 @@ QByteArray &operator<<(QByteArray &l, quint32 r);
 
 QByteArray &operator<<(QByteArray &l, qint32 r);
 
+QByteArray &operator<<(QByteArray &l, qint64 r);
+
+QByteArray &operator<<(QByteArray &l, quint64 r);
+
 template<typename T>
 QByteArray& operator<<(QByteArray& s, const QVector<T>& v)
 {

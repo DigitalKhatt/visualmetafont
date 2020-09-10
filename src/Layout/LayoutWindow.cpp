@@ -66,6 +66,8 @@
 
 #include <math.h> 
 
+#include "to_opentype.h"
+
 
 //#include "hb.hh"
 //#include "hb-ot-shape.hh"
@@ -162,9 +164,9 @@ void LayoutWindow::createActions()
 	QAction* otfAct = new QAction(otfIcon, tr("&Generate OpenTpe font"), this);
 	saveAct->setShortcuts(QKeySequence::Save);
 	saveAct->setStatusTip(tr("Generate OpenTpe font"));
-	connect(saveAct, &QAction::triggered, this, &LayoutWindow::save);
-	fileMenu->addAction(saveAct);
-	fileToolBar->addAction(saveAct);
+	connect(otfAct, &QAction::triggered, this, &LayoutWindow::generateOpenType);
+	fileMenu->addAction(otfAct);
+	fileToolBar->addAction(otfAct);
 
 
 
@@ -249,6 +251,17 @@ void LayoutWindow::createActions()
 	fileToolBar->addWidget(toggleButton);
 
 }
+bool LayoutWindow::generateOpenType() {
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString otfFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + ".otf";
+
+  ToOpenType otf{m_otlayout};
+
+  return otf.GenerateFile(otfFileName);
+
+}
+
 bool LayoutWindow::save() {
 	QApplication::setOverrideCursor(Qt::WaitCursor);
 

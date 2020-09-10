@@ -29,6 +29,7 @@
 #include <optional>
 #include <unordered_map>
 #include <QDataStream>
+#include "to_opentype.h"
 
 
 class Lookup;
@@ -246,6 +247,7 @@ public:
 
 	QMap<QString, quint16> glyphCodePerName;
 	QMap<quint16, QString> glyphNamePerCode;
+	QMap<quint16,quint16> unicodeToGlyphCode;
 
 	QMap<quint16, GDEFClasses> glyphGlobalClasses;
 
@@ -284,10 +286,16 @@ public:
 
 	void parseCppJsonLookup(QString lookupName, const QJsonObject& json);
 
+	QByteArray getCmap();
+
+	ToOpenType toOpenType = ToOpenType{ this };
+
 #ifndef DIGITALKHATT_WEBLIB
 signals:
 	void parameterChanged();
 #endif
+
+	
 
 private:
 	//void evaluateImport();
@@ -305,6 +313,7 @@ private:
 	QByteArray getFeatureList(QMap<QString, QSet<quint16>> allFeatures);
 	QByteArray getScriptList(int featureCount);
 
+
 	double _nuqta = -1;	
 
 	QSet<Lookup*> disabledLookups;
@@ -316,6 +325,8 @@ private:
 	bool JustificationInProgress = false;
 
 	void applyJustLookup(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, int emScale);
+
+	
 
 };
 

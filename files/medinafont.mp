@@ -218,6 +218,46 @@ z3 .. tension 2.3758 and 6.46414 ..
 
 %%endpaths
 enddefchar;
+beginchar(notdef,0,-1,-1,-1);
+%%backgroundimage:images/nodef.png,-752.949,-1178.7,8,0,0,8
+
+%%beginpaths
+
+fill
+(-42.2071,588.054) .. tension 1 and 1 ..
+ {right}(165.312,781.92) .. tension 1 and 1 ..
+ {down}(350.438,636.595) .. tension 1 and 1 ..
+ {left}(279.936,518.4) .. tension 1 and 1 ..
+ {up}(186.624,586.829) .. tension 0.93744 and 1.09623 ..
+ {up}(256.666,697.075) .. tension 1 and 1 ..
+ {left}(184.55,740.275) .. tension 1 and 1 ..
+ {down}(78.7968,659.405) .. tension 1 and 1 ..
+ {down}(201.898,363.101) .. tension 1 and 3.43742 ..
+ {left}(168.269,223.776) .. tension 1.56096 and 1 ..
+ {up}(151.046,269.088) .. tension 1 and 1 ..
+ {up} cycle
+;
+fill
+(73.6776,83.6076) .. tension 1 and 1 ..
+(234.921,86.5935) .. tension 1 and 1 ..
+ cycle
+;
+
+%%endpaths
+%%beginbody
+% glyphname:space
+%%begincomponents
+%%endcomponents
+endchar;
+beginchar(linefeed,10,-1,-1,-1);
+%%beginbody
+charwd := 0;
+endchar;
+beginchar(cgj,847,-1,-1,-1);
+%%beginbody
+%847
+charwd := 0;
+endchar;
 beginchar(space,32,500,0,0);
 %%beginbody
 % glyphname:space
@@ -1449,14 +1489,6 @@ fill
 %%beginbody
 savepicture:=1;
 endchar;
-beginchar(smallhighwaw,-1,-1,-1,-68);
-%%beginbody
-drawcomp(smallwaw,identity);
-leftbearing := 0;
-rightbearing := 0;
-currentpicture := currentpicture shifted (0,-ypart llcorner currentpicture);
-
-endchar;
 beginchar(smallyeh,1766,-1,-1,-1);
 %%backgroundimage:images/smallyeh.jpg,-1037.51,-1348.78,1,0,0,1
 
@@ -1485,12 +1517,20 @@ fill
 %%beginbody
 savepicture:=1;
 endchar;
-beginchar(smallhighyeh,-1,-1,-1,-1);
+beginchar(smallhighyeh,1767,-1,-1,-1);
 %%beginbody
 drawcomp(smallyeh,identity);
 leftbearing := 0;
 rightbearing := 0;
 currentpicture := currentpicture shifted (0,-ypart llcorner currentpicture);
+endchar;
+beginchar(smallhighwaw,2291,-1,-1,-68);
+%%beginbody
+drawcomp(smallwaw,identity);
+leftbearing := 0;
+rightbearing := 0;
+currentpicture := currentpicture shifted (0,-ypart llcorner currentpicture);
+
 endchar;
 beginchar(smallhighroundedzero,1759,-1,-1,-1);
 %%backgroundimage:images/smallhighroundedzero.jpg,-145.991,-381.589,1,0,0,1
@@ -1908,7 +1948,7 @@ leftbearing := 0;
 rightbearing := 0;
 
 endchar;
-beginchar(smallhighseen,-1,-1,-1,-1);
+beginchar(smallhighseen,1756,-1,-1,-1);
 %%backgroundimage:images/smallhighseen.jpg,-1316.42,-567.369,1,0,0,1
 
 %%beginpaths
@@ -1953,7 +1993,7 @@ leftbearing := 0;
 rightbearing := 0;
 
 endchar;
-beginchar(smallhighnoon,-1,-1,-1,-1);
+beginchar(smallhighnoon,1768,-1,-1,-1);
 %%backgroundimage:images/smallhighnoon.jpg,-1227.5,-1039.44,1,0,0,1
 
 %%beginpaths
@@ -8706,7 +8746,7 @@ fill (0.0,0.0)
  .. controls (270.0,0.0) and (270.0,0.0) .. (250.0,0.0)
  .. controls (172.0,0.0) and (78.0,0.0) .. cycle;
 endchar;
-beginchar(tah.isol.ii,983121,1114,941,-105);
+beginchar(tah.isol.ii,-1,1114,941,-105);
 
 %%beginpaths
 
@@ -8741,7 +8781,7 @@ fill
 
 %%endpaths
 endchar;
-beginchar(noon.fina.test,983147,261,321,0);
+beginchar(noon.fina.test,-1,261,321,0);
 %%backgroundimage:D:/projects/Fonts/design/BackgroundImages/noon.fina.tawil.jpg,-246.944,-1367.45,1.18,0,0,1.18
 %%beginparams
 elongation := 1624; % numeric

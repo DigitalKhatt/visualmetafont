@@ -876,16 +876,6 @@
         }
       ]
     },
-    "correctionjson": {
-      "name": "correctionjson",
-      "feature": "ccmp",
-      "type": "multiple",
-      "data": {
-        "0657": [ "fathatanidgham" ],
-        "065E": [ "dammatanidgham" ],
-        "0656": [ "kasratanidgham" ]
-      }
-    },
     "convertsmallaleftocharjson": {
       "name": "convertsmallaleftocharjson",
       "feature": "calt",
@@ -934,7 +924,7 @@
           "type": "ligature",
           "flags": [ false, false, false, false ],
           "data": {
-            "hamzaabove": [ "034F", "hamzaabove" ]
+            "hamzaabove": [ "cgj", "hamzaabove" ]
           }
         },
         "l2": {
@@ -949,7 +939,7 @@
         {
           "input": [
             [ "smallalef" ],
-            [ "034F" ],
+            [ "cgj" ],
             [ "hamzaabove" ]
           ],
           "lookuprecords": [
@@ -1643,24 +1633,24 @@
       "feature": "ccmp",
       "type": "multiple",
       "data": {
-        "0622": [ "alef.isol", "maddahabove" ],
-        "0623": [ "alef.isol", "hamzaabove" ],
-        "0624": [ "waw.isol", "hamzaabove" ],
-        "0625": [ "alef.isol", "hamzabelow" ],
-        "0626": [ "alefmaksura.isol", "hamzaabove" ],
-        "0628": [ "behshape.isol", "onedotdown" ],
-        "0629": [ "heh.isol", "twodotsup" ],
-        "062A": [ "behshape.isol", "twodotsup" ],
-        "062B": [ "behshape.isol", "three_dots" ],
-        "062C": [ "hah.isol", "onedotdown" ],
-        "062E": [ "hah.isol", "onedotup" ],
-        "0630": [ "dal.isol", "onedotup" ],
-        "0632": [ "reh.isol", "onedotup" ],
-        "0634": [ "seen.isol", "three_dots" ],
-        "0636": [ "sad.isol", "onedotup" ],
-        "0638": [ "tah.isol", "onedotup" ],
-        "063A": [ "ain.isol", "onedotup" ],
-        "0671": [ "alef.isol", "wasla" ]
+        "alef.maddahabove.isol": [ "alef.isol", "maddahabove" ],
+        "alef.hamzaabove.isol": [ "alef.isol", "hamzaabove" ],
+        "waw.hamzaabove.isol": [ "waw.isol", "hamzaabove" ],
+        "alef.hamzabelow.isol": [ "alef.isol", "hamzabelow" ],
+        "alefmaksura.hamzaabove.isol": [ "alefmaksura.isol", "hamzaabove" ],
+        "behshape.onedotdown.isol": [ "behshape.isol", "onedotdown" ],
+        "heh.twodotsup.isol": [ "heh.isol", "twodotsup" ],
+        "behshape.twodotsup.isol": [ "behshape.isol", "twodotsup" ],
+        "behshape.three_dots.isol": [ "behshape.isol", "three_dots" ],
+        "hah.onedotdown.isol": [ "hah.isol", "onedotdown" ],
+        "hah.onedotup.isol": [ "hah.isol", "onedotup" ],
+        "dal.onedotup.isol": [ "dal.isol", "onedotup" ],
+        "reh.onedotup.isol": [ "reh.isol", "onedotup" ],
+        "seen.three_dots.isol": [ "seen.isol", "three_dots" ],
+        "sad.onedotup.isol": [ "sad.isol", "onedotup" ],
+        "tah.onedotup.isol": [ "tah.isol", "onedotup" ],
+        "ain.onedotup.isol": [ "ain.isol", "onedotup" ],
+        "alef.wasla.isol": [ "alef.isol", "wasla" ]
       }
     },
     "init": {

@@ -28,6 +28,7 @@
 #include "qjsonobject.h"
 #include "qjsonarray.h"
 #include "hb-ot.h"
+#include "hb-ot-cmap-table.hh"
 #include <qmap.h>
 #include <qset.h>
 //#include <QFile>
@@ -50,6 +51,7 @@
 #include <limits>
 
 #include <QtCore/qmath.h>
+
 
 
 
@@ -83,11 +85,14 @@ QDataStream& operator>>(QDataStream& stream, SuraLocation& location) {
 	return stream >> location.name >> location.pageNumber >> location.x >> location.y;
 }
 
+#include "hb-ot-name-table.hh"
+
 static hb_blob_t* harfbuzzGetTables(hb_face_t* face, hb_tag_t tag, void* userData)
 {
 	OtLayout* layout = reinterpret_cast<OtLayout*>(userData);
 
 	QByteArray data;
+	hb_memory_mode_t mode = HB_MEMORY_MODE_READONLY;
 
 	switch (tag) {
 	case HB_OT_TAG_GSUB:
@@ -99,12 +104,38 @@ static hb_blob_t* harfbuzzGetTables(hb_face_t* face, hb_tag_t tag, void* userDat
 	case HB_OT_TAG_GDEF:
 		data = layout->getGDEF();
 		break;
+	case HB_TAG('c','m','a','p'):
+		data = layout->getCmap();
+		mode = HB_MEMORY_MODE_DUPLICATE;
+		break;
+	case HB_TAG('n', 'a', 'm', 'e'):
+		data = layout->toOpenType.name();
+		mode = HB_MEMORY_MODE_DUPLICATE;
+		break;
 	}
 
-	return hb_blob_create(data.constData(), data.size(), HB_MEMORY_MODE_READONLY, NULL, NULL);
+	return hb_blob_create(data.constData(), data.size(), mode, NULL, NULL);
 
 }
 
+static unsigned int
+getNominalGlyphs (hb_font_t *font HB_UNUSED,
+			  void *font_data,
+			  unsigned int count,
+			  const hb_codepoint_t *first_unicode,
+			  unsigned int unicode_stride,
+			  hb_codepoint_t *first_glyph,
+			  unsigned int glyph_stride,
+			  void *user_data HB_UNUSED)
+{
+  OtLayout* layoutgg = reinterpret_cast<OtLayout*>(font_data);
+
+  auto ot_face = layoutgg->face;  
+
+  return ot_face->table.cmap->get_nominal_glyphs (count,
+                                            first_unicode, unicode_stride,
+                                            first_glyph, glyph_stride);
+}
 static hb_bool_t
 getNominalGlyph(hb_font_t* font,
 	void* font_data,
@@ -115,41 +146,30 @@ getNominalGlyph(hb_font_t* font,
 	/*
 	OtLayout* layoutg = reinterpret_cast<OtLayout*>(font_data);
 
-	if (!layoutg->glyphNamePerCode.contains(unicode)) {
-		std::cout << "Glyph " << unicode << " not found" << std::endl;
-	}*/
+	auto& table = *layoutg->face->table.name;
+
+	auto test = table.get_name(0);
+
+	uint text_size = 1000;
+	char text[1000];
+
+	hb_ot_name_get_utf8(layoutg->face,9, 0, &text_size, text);*/
 
 
-	*glyph = unicode;
+	//auto tt = QString(text);
+ OtLayout* layoutg = reinterpret_cast<OtLayout*>(font_data);
 
-	return true;
+  auto ot_face = layoutg->face;
 
-	OtLayout* layout = reinterpret_cast<OtLayout*>(font_data);
+  return ot_face->table.cmap->get_nominal_glyph (unicode, glyph);
 
-	if (unicode == 2291) {
-		*glyph = layout->glyphCodePerName[QString("smallhighwaw")];
-	}
-	else {
-		*glyph = unicode;
-	}
+  *glyph = unicode;
 
-	return true;
+  return true;
+
+	
 
 
-
-	for (auto& curr : layout->glyphs) {
-		int charcode = curr.charcode;
-		if (charcode == 2291) {
-			*glyph = layout->glyphCodePerName[QString("smallhighwaw")];
-			return true;
-		}
-		else if (charcode >= 0x0600 && charcode <= 0x06FF) {
-			*glyph = unicode;
-			return true;
-		}
-	}
-
-	return false;
 }
 
 static hb_position_t floatToHarfBuzzPosition(double value)
@@ -441,6 +461,7 @@ static hb_font_funcs_t* getFontFunctions()
 	if (!harfbuzzCoreTextFontFuncs) {
 		harfbuzzCoreTextFontFuncs = hb_font_funcs_create();
 		hb_font_funcs_set_nominal_glyph_func(harfbuzzCoreTextFontFuncs, getNominalGlyph, NULL, NULL);
+		//hb_font_funcs_set_nominal_glyphs_func(harfbuzzCoreTextFontFuncs, getNominalGlyphs, NULL, NULL);
 		//hb_font_funcs_set_glyph_h_advance_func(harfbuzzCoreTextFontFuncs, getGlyphHorizontalAdvance, 0, 0);
 		hb_font_funcs_set_glyph_h_advances_func(harfbuzzCoreTextFontFuncs, get_glyph_h_advances, 0, 0);
 		hb_font_funcs_set_cursive_anchor_func(harfbuzzCoreTextFontFuncs, get_cursive_anchor, 0, 0);
@@ -904,6 +925,8 @@ OtLayout::OtLayout(MP mp, QObject * parent) :QObject(parent) {
 	automedina = new Automedina(this, mp);
 
 	nuqta();
+
+	//auto test = getCmap();
 
 	//TEST performance
 	/*
@@ -2583,4 +2606,91 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters) {
 
 
 	return nullptr;
+}
+QByteArray OtLayout::getCmap(){
+
+  struct Segemnt {
+    uint16_t startCode;
+    uint16_t endCode;
+    int16_t idDelta;
+  };
+
+  QVector<Segemnt> segements;
+
+  Segemnt currentSegment{};
+
+  QMap<uint16_t, uint16_t>::const_iterator i = unicodeToGlyphCode.constBegin();
+  while (i != unicodeToGlyphCode.constEnd()) {
+    auto unicode = i.key();
+    auto glyphId = i.value();
+    if(unicode >= 10){
+      if(currentSegment.endCode + 1 == unicode &&  unicode + currentSegment.idDelta == glyphId){
+        currentSegment.endCode = unicode;
+      }else{
+        if(currentSegment.startCode != 0 ){
+          segements.append(currentSegment);
+        }
+        currentSegment = {unicode,unicode,(int16_t)(glyphId - unicode)};
+      }
+    }
+
+    ++i;
+  }
+
+  segements.append({0xFFFF,0xFFFF,1});
+
+  uint16_t segCount  = segements.size();
+
+
+  QByteArray data;
+
+  int nbEncoding = 2;
+
+  data << (uint16_t)0; // version
+  data << (uint16_t)nbEncoding; // numTables
+  // encodingRecords[0]
+  data << (uint16_t)0; // platformID
+  data << (uint16_t)3; // encodingID
+  data << (uint32_t)(2+2+(2+2+4) * nbEncoding); // offset
+  // encodingRecords[1]
+  data << (uint16_t)3; // platformID
+  data << (uint16_t)1; // encodingID
+  data << (uint32_t)(2 + 2 + (2 + 2 + 4) * nbEncoding); // offset
+
+  data << (uint16_t)4; // format
+
+  int lengthPos = data.size();
+
+  data << (uint16_t)0; // length
+  data << (uint16_t)0; // language
+  data << (uint16_t)(segCount*2); // 2 × segCount
+
+  auto range = exp2(floor(log2(segCount)));
+  data << (uint16_t)(2*range); // searchRange
+  data << (uint16_t)log2(range);//entrySelector
+  data << (uint16_t)(2*(segCount - range));//rangeShift
+
+  for(auto& seg : segements){
+    data << seg.endCode;
+  }
+
+  data << (uint16_t)0; // reservedPad
+
+  for(auto& seg : segements){
+    data << seg.startCode;
+  }
+  for(auto& seg : segements){
+    data << seg.idDelta;
+  }
+  //idRangeOffset[segCount]
+  for(auto& seg : segements){
+    data << (uint16_t)0; //idRangeOffset
+  }
+
+  QByteArray length;
+
+  length << (uint16_t)data.size();
+  data.replace(lengthPos,2,length);
+
+  return data;
 }

@@ -50,10 +50,10 @@ class GlyphVis {
 	friend class ExportToHTML;
 public:
 	struct BBox {
-		double llx;
-		double lly;
-		double urx;
-		double ury;
+	  double llx = 0;
+	  double lly = 0;
+	  double urx = 0;
+	  double ury = 0;
 	};
 
 
@@ -70,28 +70,30 @@ public:
 
 	QString name;
 	QString originalglyph;
-	int charcode;
-	double width;
-	double height;
-	double depth;
-	double charlt;
-	double charrt;
+	int charcode = 0;
+	double width = 0;
+	double height = 0;
+	double depth = 0;
+	double charlt = 0;
+	double charrt = 0;
 	BBox bbox;
 	std::optional<QPoint> leftAnchor;
 	std::optional<QPoint> rightAnchor;
+	mp_graphic_object* copiedPath = nullptr;
+
 #ifndef DIGITALKHATT_WEBLIB
 	QPainterPath path;
 	QPicture picture;
 	void refresh(QHash<QString, GlyphVis>& glyphs);
 #endif
 	QMap<QString, QPoint> anchors;
-	Transform matrix;
+	Transform matrix = {};
 
 	mp_edge_object* edge() {
 		return m_edge;
 	}
 
-	mp_graphic_object* copiedPath;
+
 
 	GlyphVis* getAlternate(GlyphParameters parameters);
 
@@ -109,9 +111,9 @@ private:
 	
 	
 	bool isdirty = true;
-	mp_edge_object* m_edge;
-	OtLayout * m_otLayout;	
-	bool isCopiedPath;
+	mp_edge_object* m_edge = nullptr;
+	OtLayout * m_otLayout = nullptr;
+	bool isCopiedPath = false;
 
 	void copyEdgeBody();
 

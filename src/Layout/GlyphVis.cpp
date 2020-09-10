@@ -243,19 +243,18 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
 	depth = m_edge->depth;
 	charlt = m_edge->charlt;
 	charrt = m_edge->charrt;
-	if (charcode != 0x20 && name != "space.ii") {
-		bbox.llx = m_edge->minx;
-		bbox.lly = m_edge->miny;
-		bbox.urx = m_edge->maxx;
-		bbox.ury = m_edge->maxy;
-	}
-	else {
-		bbox.llx = 0;
-		bbox.lly = 0;
-		bbox.urx = 0;
-		bbox.ury = 0;
-	}
 
+	if(edge->body == nullptr ){
+	  bbox.llx = 0;
+	  bbox.lly = 0;
+	  bbox.urx = 0;
+	  bbox.ury = 0;
+	}else{
+	  bbox.llx = m_edge->minx;
+	  bbox.lly = m_edge->miny;
+	  bbox.urx = m_edge->maxx;
+	  bbox.ury = m_edge->maxy;
+	}
 
 	if (!std::isnan(m_edge->xleftanchor)) {
 		leftAnchor = QPoint(m_edge->xleftanchor, m_edge->yleftanchor);

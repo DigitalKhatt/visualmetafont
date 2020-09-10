@@ -156,6 +156,8 @@ set(Layout_WithoutGUI
   Layout/OtLayout.h
   Layout/Subtable.cpp
   Layout/Subtable.h
+  Layout/to_opentype.cpp
+  Layout/to_opentype.h
   )
 
 

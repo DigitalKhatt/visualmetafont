@@ -50,6 +50,7 @@ set(SRC_FILES
     harfbuzz/src/hb-ucd.cc
     harfbuzz/src/hb-ot-metrics.cc
     harfbuzz/src/hb-number.cc
+    harfbuzz/src/hb-ot-name.cc
 )
 
 # Add library to build.

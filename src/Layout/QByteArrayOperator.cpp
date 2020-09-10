@@ -52,4 +52,12 @@ QByteArray &operator<<(QByteArray &l, qint32 r)
 	return l << qint16(r >> 16) << qint16(r);
 }
 
+QByteArray &operator<<(QByteArray &l, qint64 r){
+  return l << qint32(r >> 32) << qint32(r);
+}
+
+QByteArray &operator<<(QByteArray &l, quint64 r){
+  return l << quint32(r >> 32) << quint32(r);
+}
+
 

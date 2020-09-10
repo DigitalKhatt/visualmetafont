@@ -841,7 +841,7 @@ lookup tajweedcolor {
 		pos  (/^behshape/ twodotsdown)'lookup red2 (sukun | NULL)'lookup red2 @bases @marks ( @marks | NULL ) space /^aya/;		
 		pos  [/^alef/ smallalef.joined]'lookup red2 (sukun | NULL)'lookup red2 @bases @marks ( @marks | NULL ) space /^aya/;
 		
-		pos  (/^behshape/ twodotsdown)'lookup red2 /^meem/ kasra \10;
+    pos  (/^behshape/ twodotsdown)'lookup red2 /^meem/ kasra linefeed;
 
 		# Madd harakatain
 
@@ -1262,10 +1262,10 @@ lookup forsmallhighwawfea {
 	lookupflag UseMarkFilteringSet [smallhighwaw];
 
 	lookup smallhighwaw_lig {
-		sub  \0x034F smallhighwaw by smallhighwaw;
+    sub  cgj smallhighwaw by smallhighwaw;
 	} smallhighwaw_lig;
 
-	sub @haslefttatweel'lookup forwawfea.l1 \0x034F'lookup smallhighwaw_lig smallhighwaw;
+  sub @haslefttatweel'lookup forwawfea.l1 cgj'lookup smallhighwaw_lig smallhighwaw;
 	
 } forsmallhighwawfea;
 
@@ -1279,19 +1279,22 @@ lookup forhamzafea {
 	lookupflag UseMarkFilteringSet [hamzaabove smallhighyeh smallhighnoon roundedfilledhigh meemiqlab];
 
 	lookup forhamzafea_lig {		
-		sub  \0x200D hamzaabove by hamzaabove.joined;
+    #sub  \0x200D hamzaabove by hamzaabove.joined;
 		sub  tatweel hamzaabove by hamzaabove.joined;
-		sub  \0x200D smallhighyeh by smallhighyeh;
+    #sub  \0x200D smallhighyeh by smallhighyeh;
 		sub  tatweel smallhighyeh by smallhighyeh;
-		sub  \0x200D smallhighnoon by smallhighnoon;
+    #sub  \0x200D smallhighnoon by smallhighnoon;
 		sub  tatweel smallhighnoon by smallhighnoon;
 	} forhamzafea_lig;
 
 	
 
-	sub behshape.medi'lookup forhamzafea.l1 [tatweel \0x200D]'lookup forhamzafea_lig hamzaabove meemiqlab;
+  #sub behshape.medi'lookup forhamzafea.l1 [tatweel \0x200D]'lookup forhamzafea_lig hamzaabove meemiqlab;
 
-	sub @haslefttatweel'lookup forwawfea.l2 [tatweel \0x200D]'lookup forhamzafea_lig [hamzaabove smallhighyeh smallhighnoon];
+  sub behshape.medi'lookup forhamzafea.l1 [tatweel]'lookup forhamzafea_lig hamzaabove meemiqlab;
+
+  #sub @haslefttatweel'lookup forwawfea.l2 [tatweel \0x200D]'lookup forhamzafea_lig [hamzaabove smallhighyeh smallhighnoon];
+  sub @haslefttatweel'lookup forwawfea.l2 [tatweel]'lookup forhamzafea_lig [hamzaabove smallhighyeh smallhighnoon];
 
 	sub @haslefttatweel'lookup forwawfea.l2 roundedfilledhigh;
 
@@ -1361,17 +1364,17 @@ feature ccmp {
 	# Can be implemented in normalize (keeped here to adhere to the standard in case we want to generate an OpenType font)
 	lookup smallhighseen_lig {
 		feature ccmp;
-		sub  \0x034F \0x06DC by smallhighseen;
+    sub  cgj smallhighseen by smallhighseen;
 	} smallhighseen_lig;
 
-	lookup smallhigh_changecode {
-		feature ccmp;
-		sub \0x08F3 by  smallhighwaw;
-		sub \0x06E7 by  smallhighyeh;
-		sub \0x06DC by  smallhighseen;
-		sub \0x06E8 by  smallhighnoon;
-		
-	} smallhigh_changecode;
+  #lookup smallhigh_changecode {
+  #	feature ccmp;
+  #	sub \0x08F3 by  smallhighwaw;
+  #	sub \0x06E7 by  smallhighyeh;
+  #	sub \0x06DC by  smallhighseen;
+  #	sub \0x06E8 by  smallhighnoon;
+  #
+  #} smallhigh_changecode;
 
 	
 } ccmp;
@@ -1420,7 +1423,7 @@ feature calt {
 	lookup hahlig;
 	lookup ainfinjani;
 	lookup othercalt;
-	lookup forsmallhighwawfea;
+  lookup forsmallhighwawfea;
 	lookup forhamzafea;
 	lookup forwawheh;
 	lookup forsmalllaleffea;	

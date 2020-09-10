@@ -27,6 +27,7 @@
 #include "qregularexpression.h"
 #include "defaultmarkpositions.h"
 #include "metafont.h"
+#include "qdebug.h"
 
 
 
@@ -289,6 +290,7 @@ void Automedina::generateGlyphs() {
 
 		m_layout->glyphNamePerCode[glyph.charcode] = glyph.name;
 		m_layout->glyphCodePerName[glyph.name] = glyph.charcode;
+		m_layout->unicodeToGlyphCode.insert(glyph.charcode,glyph.charcode);
 
 		//if (glyph.name.contains("space")) {
 
@@ -358,6 +360,58 @@ void Automedina::generateGlyphs() {
 		m_layout->glyphGlobalClasses.insert(glyph.charcode, OtLayout::LigatureGlyph);
 
 	}
+
+	/*
+	 "0622": [ "alef.isol", "maddahabove" ],
+	"0623": [ "alef.isol", "hamzaabove" ],
+	"0624": [ "waw.isol", "hamzaabove" ],
+	"0625": [ "alef.isol", "hamzabelow" ],
+	"0626": [ "alefmaksura.isol", "hamzaabove" ],
+	"0628": [ "behshape.isol", "onedotdown" ],
+	"0629": [ "heh.isol", "twodotsup" ],
+	"062A": [ "behshape.isol", "twodotsup" ],
+	"062B": [ "behshape.isol", "three_dots" ],
+	"062C": [ "hah.isol", "onedotdown" ],
+	"062E": [ "hah.isol", "onedotup" ],
+	"0630": [ "dal.isol", "onedotup" ],
+	"0632": [ "reh.isol", "onedotup" ],
+	"0634": [ "seen.isol", "three_dots" ],
+	"0636": [ "sad.isol", "onedotup" ],
+	"0638": [ "tah.isol", "onedotup" ],
+	"063A": [ "ain.isol", "onedotup" ],
+	"0671": [ "alef.isol", "wasla" ]*/
+
+
+	auto addFake = [this](QString glyphName, quint16 unicode,quint16 codechar){
+	  auto code = unicode; //codechar; //layout.glyphNamePerCode.lastKey();
+	  GlyphVis& glyph = *glyphs.insert(glyphName, GlyphVis());
+	  glyph.name = glyphName;
+	  glyph.charcode = code;
+
+	  m_layout->glyphNamePerCode[glyph.charcode] = glyph.name;
+	  m_layout->glyphCodePerName[glyph.name] = glyph.charcode;
+	  m_layout->unicodeToGlyphCode.insert(unicode,glyph.charcode);
+
+
+	};
+	addFake("alef.maddahabove.isol",0x0622,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("alef.hamzaabove.isol",0x0623,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("waw.hamzaabove.isol",0x0624,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("alef.hamzabelow.isol",0x0625,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("alefmaksura.hamzaabove.isol",0x0626,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("behshape.onedotdown.isol",0x0628,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("heh.twodotsup.isol",0x0629,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("behshape.twodotsup.isol",0x062A,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("behshape.three_dots.isol",0x062B,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("hah.onedotdown.isol",0x062C,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("hah.onedotup.isol",0x062E,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("dal.onedotup.isol",0x0630,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("reh.onedotup.isol",0x0632,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("seen.three_dots.isol",0x0634,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("sad.onedotup.isol",0x0636,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("tah.onedotup.isol",0x0638,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("ain.onedotup.isol",0x063A,m_layout->glyphNamePerCode.lastKey() + 1);
+	addFake("alef.wasla.isol",0x0671,m_layout->glyphNamePerCode.lastKey() + 1);
 
 	m_layout->glyphs = glyphs;
 
@@ -2501,8 +2555,9 @@ void Automedina::addchar(QString macroname,
 		mp_run_data* results = mp_rundata(mp);
 		QString ret(results->term_out.data);
 		ret.trimmed();
-		mp_finish(mp);
-		throw "Could not initialize MetaPost library instance!\n" + ret;
+		qDebug() << "Metapost error" << ret;
+		//mp_finish(mp);
+		//throw "Could not initialize MetaPost library instance!\n" + ret;
 	}
 
 
