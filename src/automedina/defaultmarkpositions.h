@@ -31,6 +31,10 @@ public:
 
 		GlyphVis* curr = &_y.glyphs[glyphName];
 
+		if(glyphName.contains("_5")){
+		  int stop = 5;
+		}
+
 		if (lefttatweel != 0.0 || righttatweel != 0.0) {
 			GlyphParameters parameters{};
 
@@ -75,7 +79,10 @@ private:
 			|| glyph.name == "feh.isol.expa" || glyph.originalglyph == "feh.isol.expa") {
 			width = glyph.width - 250;
 		}
-		else if (glyph.originalglyph == "qaf.fina.expa" || glyph.originalglyph == "sad.fina.expa" || glyph.originalglyph == "seen.fina.expa" || glyph.originalglyph == "feh.fina.expa") {
+		else if (glyph.name == "qaf.fina.expa" || glyph.originalglyph == "qaf.fina.expa"
+			 || glyph.name == "sad.fina.expa" || glyph.originalglyph == "sad.fina.expa"
+			 || glyph.name == "seen.fina.expa" || glyph.originalglyph == "seen.fina.expa"
+			 || glyph.name == "feh.fina.expa" || glyph.originalglyph == "feh.fina.expa") {
 			width = glyph.width - 350;
 		}
 		else if (glyph.originalglyph == "alef.fina") {
@@ -301,8 +308,12 @@ public:
 
 		return anchor;*/
 
+if(glyphName.contains("meem.init.added")){
+  int stop = 5;
+}
 
 		GlyphVis* curr = &_y.glyphs[glyphName];
+
 
 		if (lefttatweel != 0.0 || righttatweel != 0.0) {
 			GlyphParameters parameters{};
@@ -318,7 +329,8 @@ public:
 
 		// QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
-		if (curr->name == "alternatechar") {
+		//if (curr->name == "alternatechar" || curr->name.contains(".added_")) {
+		if (curr->expanded) {
 			originalglyph = &_y.glyphs[curr->originalglyph];
 			adjustoriginal = _subtable.classes[className].baseparameters[curr->originalglyph];
 			if (curr->leftAnchor) {
@@ -498,46 +510,47 @@ public:
 			parameters.righttatweel = righttatweel;
 
 			originalglyph = originalglyph->getAlternate(parameters);
-
-			if (className == "jsl") {
-				int width = originalglyph->width * 0.5;
-				int height = 200;
-
-				auto value = QPoint{ width , height };
-
-				return value + adjust;
-			}
-			else if (className == "smallhighwaw") {
-				auto anchor = originalglyph->getAnchor("smallhighwaw");
-
-				auto value = anchor + adjust;
-
-				int diff = value.x() - 300;
-
-				if (diff > 0) {
-					value.setX(value.x() - diff / 2);
-				}
-
-				return value;
-
-			}
-			else if (className == "beforeheh") {
-				int width = 300;
-				int height = 200;
-
-				auto value = QPoint{ width , height };
-
-				return value + adjust;
-			}
-			else if (className == "beforewaw") {
-				int width = 200;
-				int height = 200;
-
-				auto value = QPoint{ width , height };
-
-				return value + adjust;
-			}
 		}
+
+		if (className == "jsl") {
+			int width = originalglyph->width * 0.5;
+			int height = 200;
+
+			auto value = QPoint{ width , height };
+
+			return value + adjust;
+		}
+		else if (className == "smallhighwaw") {
+			auto anchor = originalglyph->getAnchor("smallhighwaw");
+
+			auto value = anchor + adjust;
+
+			int diff = value.x() - 300;
+
+			if (diff > 0) {
+				value.setX(value.x() - diff / 2);
+			}
+
+			return value;
+
+		}
+		else if (className == "beforeheh") {
+			int width = 300;
+			int height = 200;
+
+			auto value = QPoint{ width , height };
+
+			return value + adjust;
+		}
+		else if (className == "beforewaw") {
+			int width = 200;
+			int height = 200;
+
+			auto value = QPoint{ width , height };
+
+			return value + adjust;
+		}
+
 
 		return adjust;
 

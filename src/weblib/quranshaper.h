@@ -55,7 +55,7 @@ public:
 		if (status == 0) {
 			status = executeMetapost("input medinafont.mp;");
 
-			layout = new OtLayout(mp);
+			layout = new OtLayout(mp, true);
 
 			loadLookupFile("lookups.json");
 		}
@@ -112,7 +112,7 @@ public:
 
 
 	void initLayout() {
-		layout = new OtLayout(mp);
+		layout = new OtLayout(mp, true);
 	}
 
 	void initLookup(std::string fileName) {

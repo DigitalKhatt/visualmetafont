@@ -28,6 +28,7 @@
 #include <algorithm>
 #include "GlyphVis.h"
 #include <hb-ot-layout-common.hh>
+#include <iostream>
 
 
 QDataStream& operator<<(QDataStream& s, const QVector<quint16>& v)
@@ -50,10 +51,6 @@ Subtable::Subtable(Lookup* lookup)
 	m_layout = lookup->layout;
 	metafont = m_layout->m_font;
 
-}
-
-Subtable::~Subtable()
-{
 }
 
 quint16 Subtable::getCodeFromName(QString name) {
@@ -80,7 +77,14 @@ QString Subtable::getNameFromCode(quint16 code) {
 SingleSubtable::SingleSubtable(Lookup* lookup, quint16 format) : Subtable(lookup), format{ format } {
 }
 
-void SingleSubtable::readJson(const QJsonObject &json)
+bool SingleSubtable::isExtended() {
+	if (format == 10 || format == 11) {
+		return true;
+	}
+	return false;
+}
+
+void SingleSubtable::readJson(const QJsonObject& json)
 {
 	subst.clear();
 	for (int index = 0; index < json.size(); ++index) {
@@ -98,12 +102,118 @@ void SingleSubtable::readJson(const QJsonObject &json)
 
 	}
 }
+QByteArray SingleSubtableWithExpansion::getConvertedOpenTypeTable() {
+	QByteArray root;
+	QByteArray coverage;
 
-QByteArray SingleSubtable::getOpenTypeTable() {
+
+
+
+	quint16 glyphCount = expansion.size();
+	quint16 coverage_offset = 2 + 2 + 2 + 2 * glyphCount;
+
+
+	root << (quint16)2;
+	root << coverage_offset;
+	root << glyphCount;
+
+
+	coverage << (quint16)1;
+	coverage << (quint16)glyphCount;
+
+	QMapIterator<quint16, GlyphExpansion>i(expansion);
+	QMapIterator<quint16, quint16>substIter(subst);
+
+	while (substIter.hasNext()) {
+		i.next();
+		substIter.next();
+
+		GlyphExpansion expan = i.value();
+
+		quint16 substGlyph = substIter.value();
+
+		if (expan.MaxLeftTatweel != 0 || expan.MaxRightTatweel != 0) {
+			GlyphParameters parameters{};
+
+			parameters.lefttatweel = (double)expan.MaxLeftTatweel;
+			parameters.righttatweel = (double)expan.MaxRightTatweel;
+
+			GlyphVis* glyph = m_layout->getAlternate(substIter.value(), parameters);
+			substGlyph = glyph->charcode;
+		}
+		root << substGlyph;
+		coverage << (quint16)substIter.key();
+
+	}
+
+	root.append(coverage);
+
+	return root;
+}
+
+QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
+	QByteArray root;
+	QByteArray coverage;
+
+
+
+
+	quint16 glyphCount = expansion.size();
+	quint16 coverage_offset = 2 + 2 + 2 + 2 * glyphCount;
+
+
+	root << (quint16)2;
+	root << coverage_offset;
+	root << glyphCount;
+
+
+	coverage << (quint16)1;
+	coverage << (quint16)glyphCount;
+
+	QMapIterator<quint16, GlyphExpansion>i(expansion);
+
+	while (i.hasNext()) {
+		i.next();
+
+		GlyphExpansion expan = i.value();
+
+		quint16 substGlyph = i.key();
+
+		if (expan.MinLeftTatweel != 0 || expan.MinRightTatweel != 0) {
+			GlyphParameters parameters{};
+
+			parameters.lefttatweel = (double)expan.MinLeftTatweel;
+			parameters.righttatweel = (double)expan.MinRightTatweel;
+
+			GlyphVis* glyph = m_layout->getAlternate(i.key(), parameters);
+			substGlyph = glyph->charcode;
+		}
+		root << substGlyph;
+		coverage << (quint16)i.key();
+
+	}
+
+	root.append(coverage);
+
+	return root;
+}
+
+QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
+
+  QByteArray root;
+
+  root << (quint16)1;
+
+  return root;
+}
+
+
+
+QByteArray SingleSubtable::getOpenTypeTable(bool extended) {
 
 	QByteArray root;
 	QByteArray coverage;
-	QByteArray substituteGlyphIDs;
+
 
 
 
@@ -120,6 +230,7 @@ QByteArray SingleSubtable::getOpenTypeTable() {
 	coverage << (quint16)glyphCount;
 
 	QMapIterator<quint16, quint16>i(subst);
+
 
 	while (i.hasNext()) {
 		i.next();
@@ -140,7 +251,7 @@ SingleSubtableWithExpansion::SingleSubtableWithExpansion(Lookup* lookup) : Singl
 
 SingleSubtableWithTatweel::SingleSubtableWithTatweel(Lookup* lookup) : SingleSubtable(lookup, 11) {};
 
-QByteArray SingleSubtableWithTatweel::getOpenTypeTable() {
+QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
 
 	QByteArray root;
 	QByteArray coverage;
@@ -187,7 +298,16 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable() {
 
 SingleAdjustmentSubtable::SingleAdjustmentSubtable(Lookup* lookup, quint16 pformat) : Subtable(lookup), format{ pformat } {}
 
-void SingleAdjustmentSubtable::readJson(const QJsonObject &json) {
+bool SingleAdjustmentSubtable::isExtended() {
+	if (format == 3) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+void SingleAdjustmentSubtable::readJson(const QJsonObject& json) {
 	singlePos.clear();
 	for (int index = 0; index < json.size(); ++index) {
 		QString className = json.keys()[index];
@@ -202,7 +322,7 @@ void SingleAdjustmentSubtable::readJson(const QJsonObject &json) {
 
 	}
 }
-QByteArray SingleAdjustmentSubtable::getOpenTypeTable() {
+QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
 
 	QByteArray root;
 	QByteArray coverage;
@@ -211,7 +331,7 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable() {
 
 
 	quint16 glyphCount = singlePos.size();
-	quint16 coverage_offset = 2 + 2 + 2 + 2 + (2 * 4)* glyphCount;
+	quint16 coverage_offset = 2 + 2 + 2 + 2 + (2 * 4) * glyphCount;
 	quint16 valueFormat = 0xF;
 
 	if (format == 3) {
@@ -248,7 +368,7 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable() {
 
 	return root;
 }
-void SingleAdjustmentSubtable::readParameters(const QJsonObject &json) {
+void SingleAdjustmentSubtable::readParameters(const QJsonObject& json) {
 
 
 	if (json["parameters"].isObject()) {
@@ -262,11 +382,11 @@ void SingleAdjustmentSubtable::readParameters(const QJsonObject &json) {
 	}
 
 }
-void SingleAdjustmentSubtable::saveParameters(QJsonObject &json) const {
+void SingleAdjustmentSubtable::saveParameters(QJsonObject& json) const {
 
 	if (parameters.size() != 0) {
 		QJsonObject parametersObject;
-		for (auto parameter = parameters.constBegin(); parameter != parameters.constEnd(); ++parameter) {					
+		for (auto parameter = parameters.constBegin(); parameter != parameters.constEnd(); ++parameter) {
 			if (!parameter.value().isEmpty()) {
 				QJsonArray pointArray;
 				pointArray.append(parameter.value().xPlacement);
@@ -275,7 +395,7 @@ void SingleAdjustmentSubtable::saveParameters(QJsonObject &json) const {
 				pointArray.append(parameter.value().yAdvance);
 				parametersObject[m_layout->glyphNamePerCode[parameter.key()]] = pointArray;
 			}
-			
+
 		}
 
 		json["parameters"] = parametersObject;
@@ -285,7 +405,7 @@ void SingleAdjustmentSubtable::saveParameters(QJsonObject &json) const {
 MultipleSubtable::MultipleSubtable(Lookup* lookup) : Subtable(lookup) {
 }
 
-QByteArray MultipleSubtable::getOpenTypeTable() {
+QByteArray MultipleSubtable::getOpenTypeTable(bool extended) {
 
 	QByteArray root;
 	QByteArray coverage;
@@ -333,7 +453,7 @@ QByteArray MultipleSubtable::getOpenTypeTable() {
 	return root;
 };
 
-void MultipleSubtable::readJson(const QJsonObject &json)
+void MultipleSubtable::readJson(const QJsonObject& json)
 {
 	subst.clear();
 	for (int index = 0; index < json.size(); ++index) {
@@ -360,7 +480,7 @@ void MultipleSubtable::readJson(const QJsonObject &json)
 LigatureSubtable::LigatureSubtable(Lookup* lookup) : Subtable(lookup) {
 }
 
-QByteArray LigatureSubtable::getOpenTypeTable() {
+QByteArray LigatureSubtable::getOpenTypeTable(bool extended) {
 
 	struct Ligaturetable {
 		quint16 ligatureGlyph;
@@ -439,7 +559,7 @@ QByteArray LigatureSubtable::getOpenTypeTable() {
 	return root;
 };
 
-void LigatureSubtable::readJson(const QJsonObject &json)
+void LigatureSubtable::readJson(const QJsonObject& json)
 {
 	ligatures.clear();
 	for (int index = 0; index < json.size(); ++index) {
@@ -468,19 +588,9 @@ void LigatureSubtable::readJson(const QJsonObject &json)
 }
 
 MarkBaseSubtable::MarkBaseSubtable(Lookup* lookup) : Subtable(lookup) {}
-MarkBaseSubtable::~MarkBaseSubtable() {
-	for (auto classe : classes)
-	{
-		if (classe.basefunction) {
-			delete classe.basefunction;
-		}
-		if (classe.markfunction) {
-			delete classe.markfunction;
-		}
-	}
-}
 
-void MarkBaseSubtable::readJson(const QJsonObject &json)
+
+void MarkBaseSubtable::readJson(const QJsonObject& json)
 {
 	if (json["base"].isString()) {
 		base = { json["base"].toString() };
@@ -561,49 +671,51 @@ void MarkBaseSubtable::readJson(const QJsonObject &json)
 }
 optional<QPoint> CursiveSubtable::getExit(quint16 glyph_id, double lefttatweel, double righttatweel) {
 
-    optional<QPoint> ret;
+	optional<QPoint> ret;
 
-    if (anchors.contains(glyph_id)) {
+	if (anchors.contains(glyph_id)) {
 
-        auto& entryexit = anchors[glyph_id];
+		auto& entryexit = anchors[glyph_id];
 
-        if (entryexit.exit || !entryexit.exitName.isEmpty()) {
+		if (entryexit.exit || !entryexit.exitName.isEmpty()) {
 
-            QPoint exit;
+			QPoint exit;
 
-            if(entryexit.exit){
-               exit  =  *(entryexit.exit);
-            }
+			if (entryexit.exit) {
+				exit = *(entryexit.exit);
+			}
 
 
-            if (exitParameters.contains(glyph_id)) {
-                exit += exitParameters[glyph_id];
-            }
-            if (lefttatweel != 0.0 || righttatweel != 0.0) {
-                GlyphParameters parameters{};
+			if (exitParameters.contains(glyph_id)) {
+				exit += exitParameters[glyph_id];
+			}
+			if (lefttatweel != 0.0 || righttatweel != 0.0) {
+				GlyphParameters parameters{};
 
-                parameters.lefttatweel = lefttatweel;
-                parameters.righttatweel = righttatweel;
+				parameters.lefttatweel = lefttatweel;
+				parameters.righttatweel = righttatweel;
 
-                QString glyphName = m_layout->glyphNamePerCode[glyph_id];
+				QString glyphName = m_layout->glyphNamePerCode[glyph_id];
 
-                GlyphVis* originalglyph = &m_layout->glyphs[glyphName];
+				GlyphVis* originalglyph = &m_layout->glyphs[glyphName];
 
-                GlyphVis* curr = originalglyph->getAlternate(parameters);
+				GlyphVis* curr = originalglyph->getAlternate(parameters);
 
-                if(!entryexit.exitName.isEmpty() && curr->conatinsAnchor(entryexit.exitName)){
-                    exit = curr->getAnchor(entryexit.exitName);
-                }else if(curr->conatinsAnchor(this->name)){
-                    exit = curr->getAnchor(this->name);
-                }else{
-                   //exit = calculateEntry(originalglyph, curr, entry);
-                }
-            }
-            ret = exit;
-        }
-    }
+				if (!entryexit.exitName.isEmpty() && curr->conatinsAnchor(entryexit.exitName)) {
+					exit = curr->getAnchor(entryexit.exitName);
+				}
+				else if (curr->conatinsAnchor(this->name)) {
+					exit = curr->getAnchor(this->name);
+				}
+				else {
+					//exit = calculateEntry(originalglyph, curr, entry);
+				}
+			}
+			ret = exit;
+		}
+	}
 
-    return ret;
+	return ret;
 }
 
 optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, double lefttatweel, double righttatweel) {
@@ -612,7 +724,7 @@ optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, double lefttatweel,
 
 	if (anchors.contains(glyph_id)) {
 
-		auto & entryexit = anchors[glyph_id];
+		auto& entryexit = anchors[glyph_id];
 
 		if (entryexit.entry) {
 
@@ -634,12 +746,13 @@ optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, double lefttatweel,
 
 				GlyphVis* curr = originalglyph->getAlternate(parameters);
 
-                if(curr->conatinsAnchor(this->name)){
-                    entry = curr->getAnchor(this->name);
-                }else{
-                   entry = calculateEntry(originalglyph, curr, entry);
-                }
-            }
+				if (curr->conatinsAnchor(this->name)) {
+					entry = curr->getAnchor(this->name);
+				}
+				else {
+					entry = calculateEntry(originalglyph, curr, entry);
+				}
+			}
 			ret = entry;
 
 		}
@@ -662,7 +775,7 @@ QPoint CursiveSubtable::calculateEntry(GlyphVis* originalglyph, GlyphVis* extend
 	return entry;
 
 }
-void CursiveSubtable::readJson(const QJsonObject &json) {
+void CursiveSubtable::readJson(const QJsonObject& json) {
 
 	if (json["anchors"].isObject()) {
 		auto anchorsObject = json["anchors"].toObject();
@@ -693,7 +806,7 @@ void CursiveSubtable::readJson(const QJsonObject &json) {
 		}
 	}
 }
-void CursiveSubtable::readParameters(const QJsonObject &json) {
+void CursiveSubtable::readParameters(const QJsonObject& json) {
 
 
 	if (json["exitParameters"].isObject()) {
@@ -717,7 +830,7 @@ void CursiveSubtable::readParameters(const QJsonObject &json) {
 	}
 
 }
-void CursiveSubtable::saveParameters(QJsonObject &json) const {
+void CursiveSubtable::saveParameters(QJsonObject& json) const {
 
 	if (exitParameters.size() != 0) {
 		QJsonObject exitParametersObject;
@@ -728,7 +841,7 @@ void CursiveSubtable::saveParameters(QJsonObject &json) const {
 				pointArray.append(exitParameter.value().y());
 				exitParametersObject[m_layout->glyphNamePerCode[exitParameter.key()]] = pointArray;
 			}
-			
+
 		}
 
 		json["exitParameters"] = exitParametersObject;
@@ -743,7 +856,7 @@ void CursiveSubtable::saveParameters(QJsonObject &json) const {
 				pointArray.append(entryParameter.value().y());
 				entryParametersObject[m_layout->glyphNamePerCode[entryParameter.key()]] = pointArray;
 			}
-			
+
 		}
 
 		json["entryParameters"] = entryParametersObject;
@@ -753,7 +866,7 @@ void CursiveSubtable::saveParameters(QJsonObject &json) const {
 
 }
 
-QByteArray CursiveSubtable::getOpenTypeTable() {
+QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
 
 	QByteArray root;
 	QByteArray entryExitRecords;
@@ -768,23 +881,23 @@ QByteArray CursiveSubtable::getOpenTypeTable() {
 
 	for (auto anchor = anchors.constBegin(); anchor != anchors.constEnd(); ++anchor) {
 
-		auto & entryexit = anchor.value();
+		auto& entryexit = anchor.value();
 
-        auto calcentry = entryexit.entry;
+		auto calcentry = entryexit.entry;
 
-        if(!calcentry){
-            if(!entryexit.entryName.isEmpty()){
-                 GlyphVis* curr = m_layout->getGlyph(anchor.key());
-                 if(curr->anchors.contains(entryexit.entryName)){
-                     calcentry = curr->anchors.value(entryexit.entryName);
-                 }
-            }
-        }
+		if (!calcentry) {
+			if (!entryexit.entryName.isEmpty()) {
+				GlyphVis* curr = m_layout->getGlyph(anchor.key());
+				if (curr->anchors.contains(entryexit.entryName)) {
+					calcentry = curr->anchors.value(entryexit.entryName).anchor;
+				}
+			}
+		}
 
 
-        if (calcentry) {
+		if (calcentry) {
 
-            QPoint entry{ *(calcentry) };
+			QPoint entry{ *(calcentry) };
 
 			if (entryParameters.contains(anchor.key())) {
 				entry += entryParameters[anchor.key()];
@@ -802,20 +915,20 @@ QByteArray CursiveSubtable::getOpenTypeTable() {
 			root << (quint16)0;
 		}
 
-        calcentry = entryexit.exit;
+		calcentry = entryexit.exit;
 
-        if(!calcentry){
-            if(!entryexit.exitName.isEmpty()){
-                 GlyphVis* curr = m_layout->getGlyph(anchor.key());
-                 if(curr->anchors.contains(entryexit.exitName)){
-                     calcentry = curr->anchors.value(entryexit.exitName);
-                 }
-            }
-        }
+		if (!calcentry) {
+			if (!entryexit.exitName.isEmpty()) {
+				GlyphVis* curr = m_layout->getGlyph(anchor.key());
+				if (curr->anchors.contains(entryexit.exitName)) {
+					calcentry = curr->anchors.value(entryexit.exitName).anchor;
+				}
+			}
+		}
 
-        if (calcentry) {
+		if (calcentry) {
 
-            QPoint exit{ *(calcentry) };
+			QPoint exit{ *(calcentry) };
 
 			if (exitParameters.contains(anchor.key())) {
 				exit += exitParameters[anchor.key()];
@@ -842,7 +955,7 @@ QByteArray CursiveSubtable::getOpenTypeTable() {
 	return root;
 
 }
-void MarkBaseSubtable::saveParameters(QJsonObject &json) const {
+void MarkBaseSubtable::saveParameters(QJsonObject& json) const {
 	for (auto it = classes.constBegin(); it != classes.constEnd(); ++it) {
 		QJsonObject classObject;
 		QJsonObject baseparametersObject;
@@ -855,7 +968,7 @@ void MarkBaseSubtable::saveParameters(QJsonObject &json) const {
 				pointArray.append(parameter.value().y());
 				baseparametersObject[glyphName] = pointArray;
 			}
-			
+
 		}
 		parameters = it.value().markparameters;
 		QJsonObject markparametersObject;
@@ -866,7 +979,7 @@ void MarkBaseSubtable::saveParameters(QJsonObject &json) const {
 				pointArray.append(parameter.value().x());
 				pointArray.append(parameter.value().y());
 				markparametersObject[glyphName] = pointArray;
-			}			
+			}
 		}
 
 		if (!baseparametersObject.isEmpty()) {
@@ -883,7 +996,7 @@ void MarkBaseSubtable::saveParameters(QJsonObject &json) const {
 
 	}
 }
-void MarkBaseSubtable::readParameters(const QJsonObject &json) {
+void MarkBaseSubtable::readParameters(const QJsonObject& json) {
 
 	for (int index = 0; index < json.size(); ++index) {
 		QString className = json.keys()[index];
@@ -936,8 +1049,8 @@ optional<QPoint> MarkBaseSubtable::getBaseAnchor(quint16 mark_id, quint16 base_i
 	}
 	else {
 
-		if (markClass.basefunction != nullptr) {
-			coordinate = (*markClass.basefunction)(baseGlyphName, className, coordinate, lefttatweel, righttatweel);
+		if (markClass.basefunction) {
+			coordinate = markClass.basefunction(baseGlyphName, className, coordinate, lefttatweel, righttatweel);
 		}
 	}
 
@@ -984,7 +1097,7 @@ optional<QPoint> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_i
 	else {
 
 		if (markClass.markfunction != nullptr) {
-			coordinate = (*markClass.markfunction)(markGlyphName, className, coordinate, lefttatweel, righttatweel);
+			coordinate = markClass.markfunction(markGlyphName, className, coordinate, lefttatweel, righttatweel);
 		}
 	}
 
@@ -992,7 +1105,7 @@ optional<QPoint> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_i
 
 }
 
-QByteArray MarkBaseSubtable::getOpenTypeTable() {
+QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
 	QByteArray root;
 	QByteArray baseCoverage;
@@ -1005,7 +1118,9 @@ QByteArray MarkBaseSubtable::getOpenTypeTable() {
 
 
 
-
+	if (name == "defaultmarkposition") {
+		int stop = 5;
+	}
 
 
 
@@ -1019,7 +1134,7 @@ QByteArray MarkBaseSubtable::getOpenTypeTable() {
 		for (int i = 0; i < base.size(); ++i) {
 			baseCodesSet.unite(m_layout->classtoUnicode(base.at(i)));
 		}
-		sortedBaseCodes = baseCodesSet.toList();
+		sortedBaseCodes = baseCodesSet.values();
 
 		std::sort(sortedBaseCodes.begin(), sortedBaseCodes.end());
 	}
@@ -1083,7 +1198,7 @@ QByteArray MarkBaseSubtable::getOpenTypeTable() {
 			else {
 
 				if (markClass.basefunction != nullptr) {
-					coordinate = (*markClass.basefunction)(baseglyphName, className, coordinate);
+					coordinate = markClass.basefunction(baseglyphName, className, coordinate,0.0,0.0);
 				}
 
 
@@ -1138,8 +1253,8 @@ QByteArray MarkBaseSubtable::getOpenTypeTable() {
 		}
 		else {
 
-			if (markClass.markfunction != nullptr) {
-				coordinate = (*markClass.markfunction)(markglyphName, className, coordinate);
+			if (markClass.markfunction) {
+				coordinate = markClass.markfunction(markglyphName, className, coordinate,0,0);
 			}
 
 		}
@@ -1174,7 +1289,7 @@ QByteArray MarkBaseSubtable::getOpenTypeTable() {
 
 ChainingSubtable::ChainingSubtable(Lookup* lookup) : Subtable(lookup) {}
 
-void ChainingSubtable::readJson(const QJsonObject &ruleObject) {
+void ChainingSubtable::readJson(const QJsonObject& ruleObject) {
 
 	rule = Rule();
 	compiledRule = CompiledRule();
@@ -1261,7 +1376,7 @@ void ChainingSubtable::readJson(const QJsonObject &ruleObject) {
 
 }
 
-QByteArray ChainingSubtable::getOpenTypeTable() {
+QByteArray ChainingSubtable::getOpenTypeTable(bool extended) {
 
 	QByteArray root;
 	QByteArray coverages;
@@ -1280,7 +1395,7 @@ QByteArray ChainingSubtable::getOpenTypeTable() {
 
 	for (int i = backtrackGlyphCount - 1; i >= 0; i--) {
 		auto set = compiledRule.backtrack.at(i);
-		auto coveargeVector = set.toList();
+		auto coveargeVector = set.values();
 		std::sort(coveargeVector.begin(), coveargeVector.end());
 
 		quint16 coverageSize = coveargeVector.size();
@@ -1296,7 +1411,7 @@ QByteArray ChainingSubtable::getOpenTypeTable() {
 
 	for (int i = 0; i < inputGlyphCount; i++) {
 		auto set = compiledRule.input.at(i);
-		auto coveargeVector = set.toList();
+		auto coveargeVector = set.values();
 		std::sort(coveargeVector.begin(), coveargeVector.end());
 
 		quint16 coverageSize = coveargeVector.size();
@@ -1312,7 +1427,7 @@ QByteArray ChainingSubtable::getOpenTypeTable() {
 
 	for (int i = 0; i < lookaheadGlyphCount; i++) {
 		auto set = compiledRule.lookahead.at(i);
-		auto coveargeVector = set.toList();
+		auto coveargeVector = set.values();
 		std::sort(coveargeVector.begin(), coveargeVector.end());
 
 		quint16 coverageSize = coveargeVector.size();
@@ -1358,5 +1473,3 @@ QByteArray ChainingSubtable::getOpenTypeTable() {
 
 	return root;
 }
-
-

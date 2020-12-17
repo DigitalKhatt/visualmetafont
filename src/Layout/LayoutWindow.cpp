@@ -256,7 +256,11 @@ bool LayoutWindow::generateOpenType() {
   QFileInfo fileInfo = QFileInfo(path);
   QString otfFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + ".otf";
 
-  ToOpenType otf{m_otlayout};
+  OtLayout layout = OtLayout(m_otlayout->mp, false);
+
+  layout.loadLookupFile("lookups.json");
+
+  ToOpenType otf{&layout};
 
   return otf.GenerateFile(otfFileName);
 
@@ -804,7 +808,7 @@ void LayoutWindow::createDockWindows()
 	otherMenu->addAction(action);
 
 
-	m_otlayout = new OtLayout(m_font->mp, this);
+	m_otlayout = new OtLayout(m_font->mp,true, this);
 
 	connect(m_otlayout, &OtLayout::parameterChanged, this, &LayoutWindow::layoutParameterChanged);
 
@@ -1385,6 +1389,8 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 
 			if (m_otlayout->glyphs.contains(glyphName)) {
 				GlyphVis& glyph = m_otlayout->glyphs[glyphName];
+
+				//auto tt = m_otlayout->automedina->classes["bases"].contains(glyphName);
 
 				GlyphItem* glyphItem = nullptr;
 				if (refresh) {

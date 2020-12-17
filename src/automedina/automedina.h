@@ -32,6 +32,7 @@ class Automedina {
 	friend class AnchorCalc;
 	friend class LayoutWindow;
 	friend class GlyphVis;
+	friend class ToOpenType;
 
 public : 
 	//static const quint16 AyaNumberCode = 65200;
@@ -45,14 +46,14 @@ public :
 	const int minwaqfhigh = 900;
 
 public:
-	Automedina(OtLayout * layout,MP mp);
+	Automedina(OtLayout * layout,MP mp, bool extended);
 	Lookup* getLookup(QString lookupName);	
 	QSet<quint16> classtoUnicode(QString className);
 	QSet<quint16> regexptoUnicode(QString regexp);
 	QSet<QString> classtoGlyphName(QString className);
 
 	QHash<QString, GlyphVis>& glyphs;
-	AnchorCalc* getanchorCalcFunctions(QString functionName, Subtable * subtable);
+	CalcAnchor  getanchorCalcFunctions(QString functionName, Subtable * subtable);
 
 private:
 	OtLayout * m_layout;
@@ -73,6 +74,7 @@ private:
 	Lookup* defaultmarkdotmarks();
 	Lookup* defaultmkmk();
 	Lookup* ayanumbers();
+	Lookup* ayanumberskern();
 	Lookup * rehwawcursive();
 	Lookup * lowmarkafterwawandreh();
 	Lookup* tajweedcolorcpp();
@@ -107,5 +109,7 @@ private:
 	QMap <QString, QMap<quint16, QPoint>> exitAnchors;
 	QMap <QString, QMap<quint16, QPoint>> entryAnchorsRTL;
 	QMap <QString, QMap<quint16, QPoint>> exitAnchorsRTL;
+
+	 bool extended;
 
 };

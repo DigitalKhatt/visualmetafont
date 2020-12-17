@@ -24,7 +24,7 @@
 %define parse.trace
 %defines
 %define api.namespace {feayy}
-%define api.value.type union
+%define api.value.type variant
 %define api.parser.class {Parser}
 %locations
 /*%error-verbose*/
@@ -56,21 +56,22 @@
 
 %token<int> INT_LITERAL CID
 %token<double> DOUBLE_LITERAL
-%token<std::string *> IDENTIFIANT REGEXP GLYPHNAME
+%token<std::string> IDENTIFIANT REGEXP GLYPHNAME
 
-%token LOOKUP FEATURE POSITION SUBSTITUTE BASE ANCHOR MARK MARKCLASS CURSIVE T_NULL NOTDEF FUNCTION BY FROM COLOR CALLBACK EXPANSION ADD STARTLIG ENDLIG
+%token LOOKUP FEATURE POSITION SUBSTITUTE BASE ANCHOR MARK MARKCLASS CURSIVE T_NULL NOTDEF FUNCTION BY FROM COLOR CALLBACK EXPANSION ADD STARTLIG ENDLIG ENDKASHIDA
 %token LOOKUPFLAG RightToLeft IgnoreBaseGlyphs IgnoreLigatures IgnoreMarks MarkAttachmentType UseMarkFilteringSet
+%token TABLE ENDTABLE PASS ENDPASS ANY
 
 %type <FeaRoot*> root
 %type <vector<Statement *> *> statements
-%type <Statement*> statement
+%type <Statement*> statement 
 %type <Glyph*> glyph
 %type <ClassName*> classname
 %type <ClassComponent*> classcomponent
 %type <GlyphClass*> glyphclass
-%type <vector<ClassComponent *>*> classcomponents
+%type <vector<ClassComponent *>> classcomponents
 %type <GlyphSet*> glyphset glyphsetwithoutglyph
-%type <std::string *> lookupreference explicitlookup featurereference identifier featuretag
+%type <std::string> lookupreference explicitlookup featurereference identifier featuretag
 %type <ValueRecord> valuerecord
 %type <LookupFlag*> flag flags lookupflag
 %type <LookupStatement*> feature_statement lookup_statement lookup_definition markclassdefinition gsubrule gposrule singlesub multiplesub alternatesub classdefinition contextualligagsub
@@ -88,8 +89,12 @@
 %type <FeatureDefenition*> feature_definition;
 %type <vector<Glyph *>*> glyphseq;
 %type <StartEndLig> startendlig;
+%type <PRuleRegExp> rule_regex term factor  base  rule_lhs rule_rhs rule_context ; //factorcaret
+%type <GraphiteRule> rule openttype_regexp;
+%type <Pass>  rules pass_definition;
+%type <TableDefinition*>  table_definition passes;
 
-%destructor { delete $$; } <std::string *>
+//%destructor { delete $$; } <std::string>
 
 %start root
 
@@ -112,22 +117,20 @@ statement
 	: lookup_definition {$$ = $1;}
 	| markclassdefinition {$$ = $1;}
 	| classdefinition {$$ = $1;}
-	| feature_definition {$$ = $1;}
+	| feature_definition {$$ = $1;}	
+	| table_definition {$$ = $1;}	
 	;
 
 feature_definition
 	: FEATURE featuretag[bname] '{' feature_statements[lstm] '}' featuretag[lname]
 	{
-		if(*$bname != *$lname){
-			//yyparser.error(yylloc, std::string("Feature name '") + *$bname + "' does not match with '" + *$lname + "'");
-			error(yyla.location, std::string("Feature name '") + *$bname + "' does not match with '" + *$lname + "'");
-			delete $lstm;
-			delete $bname;
-			delete $lname;
+		if($bname != $lname){
+			//yyparser.error(yylloc, std::string("Feature name '") + $bname + "' does not match with '" + $lname + "'");
+			error(yyla.location, std::string("Feature name '") + $bname + "' does not match with '" + $lname + "'");			
 			YYERROR;
 		}else{
 			$$ = new FeatureDefenition($bname,$lstm);
-			driver.context.features[*$bname] = $$;
+			driver.context.features[$bname] = $$;
 		}
 	}
 	;
@@ -144,23 +147,29 @@ feature_statements
 feature_statement	
 	: lookup_definition {$$ = $1;}
 	| lookupreference { $$ = new LookupReference($1);}
-	| classdefinition {$$ = $1;}
+	| classdefinition {$$ = $1;}		
 	;
 
 lookup_definition
 	: LOOKUP identifier[bname] '{' lookup_statements[lstm] '}' identifier[lname] 
 		{ 			
-			if(*$bname != *$lname){
-//				yyparser.error(yylloc, std::string("Lookup name '") + *$bname + "' does not match with '" + *$lname + "'");
-				error(yyla.location, std::string("Lookup name '") + *$bname + "' does not match with '" + *$lname + "'");
-				delete $lstm;
-				delete $bname;
-				delete $lname;
+			if($bname != $lname){
+//				yyparser.error(yylloc, std::string("Lookup name '") + $bname + "' does not match with '" + $lname + "'");
+				error(yyla.location, std::string("Lookup name '") + $bname + "' does not match with '" + $lname + "'");
+				
 				YYERROR;
 			}else{
-				auto lookup = new LookupDefinition($bname,$lstm); 
-				driver.context.lookups[*$bname] = lookup;
-				$$ = lookup;
+			    if(driver.context.lookups.find($bname) != driver.context.lookups.end()){
+				//yyparser.error(yylloc, std::string("Lookup name '") + $bname + "' does not match with '" + $lname + "'");
+				error(yyla.location, std::string("Lookup name '") + $bname + "' already defined");
+				
+				YYERROR;
+			    }else{
+			      auto lookup = new LookupDefinition($bname,$lstm);
+			      driver.context.lookups[$bname] = lookup;
+			      $$ = lookup;
+			    }
+
 			}
 			
 		}
@@ -182,7 +191,7 @@ lookup_statement
 	| gsubrule {$$ = $1;}
 	| gposrule {$$ = $1;}
 	| lookup_definition {$$ = $1;}
-	| featurereference { $$ = new FeatureReference($1);}
+	| featurereference { $$ = new FeatureReference($1);}		
 	;
 
 
@@ -209,6 +218,7 @@ gsubrule
 	| multiplesub {$$ = $1;}
 	| alternatesub {$$ = $1;}	
 	| contextualligagsub {$$ = $1;}
+	| TABLE '(' SUBSTITUTE ')' passes ENDTABLE { $passes->name = "sub" ;$$ = $passes;}	
 	;
 
 singlesub
@@ -225,12 +235,16 @@ singlesub
 
 expafactor:
 	EXPANSION doubleorint[minleft] doubleorint[maxleft] doubleorint[minright] doubleorint[maxright] {$$ = {(float)$minleft,(float)$maxleft,(float)$minright,(float)$maxright};}
+	| EXPANSION doubleorint[minleft] doubleorint[maxleft] doubleorint[minright] doubleorint[maxright] INT_LITERAL[weight] INT_LITERAL[level] {$$ = {(float)$minleft,(float)$maxleft,(float)$minright,(float)$maxright,$weight,$level};}
+
 	;
 
 startendlig:
 	/* empty */ {$$ = StartEndLig::StartEnd;}
 	| STARTLIG {$$ = StartEndLig::Start;}
 	| ENDLIG {$$ = StartEndLig::End;}
+	| ENDKASHIDA {$$ = StartEndLig::EndKashida;}
+	
 	;
 
 multiplesub
@@ -358,7 +372,7 @@ markedglyphsetregexp
 
 
 explicitlookup
-	: /* empty */	{$$ = nullptr;}
+	: /* empty */	{$$ = std::string{};}
 	| lookupreference {$$ = $1;}	
 	;
 
@@ -379,7 +393,7 @@ markclassdefinition
 	;
 
 classdefinition
-	: '@' identifier '=' '[' classcomponents ']' {$$ = new ClassDefinition($identifier,new GlyphClass($classcomponents));}
+	: '@' identifier '=' '[' classcomponents ']' {$$ = new ClassDefinition($identifier,new GlyphClass(std::move($classcomponents)));}
 	;
 
 anchor
@@ -403,14 +417,14 @@ glyphsetwithoutglyph
 	| T_NULL		{$$ = new GlyphSet();}
 
 glyphclass
-	: '[' classcomponents ']'	{$$ = new GlyphClass($2);}
+	: '[' classcomponents ']'	{$$ = new GlyphClass(std::move($2));}
 	| classname					{$$ = new GlyphClass($1);}		
 	| REGEXP					{$$ = new GlyphClass(new RegExpClass($1));}
 	;
 
 classcomponents	
-	: classcomponent					{ $$ = new std::vector<ClassComponent *>{ $1};}
-	| classcomponents  classcomponent	{ $1->push_back($2);$$ = $1;}
+	: classcomponent					{ $$ = std::vector<ClassComponent *>{ $1};}
+	| classcomponents  classcomponent	{ $1.push_back($2);$$ = std::move($1);}
 	;
 
 classcomponent	
@@ -423,7 +437,7 @@ classcomponent
 glyph	
 	: identifier	{$$ = new GlyphName($1);}
 	| GLYPHNAME		{$$ = new GlyphName($1);}
-	| NOTDEF		{$$ = new GlyphName(new std::string(".notdef"));}
+	| NOTDEF		{$$ = new GlyphName(std::string(".notdef"));}
 	| CID			{$$ = new GlyphCID($1);}	
 	;
 
@@ -447,11 +461,94 @@ featurereference
 
 featuretag
 	: IDENTIFIANT {$$ = $1;}
-	| MARK	 {$$ = new std::string("mark");}
+	| MARK	 {$$ = std::string("mark");}
 	;
 
 identifier
 	: IDENTIFIANT	{$$ = $1;}
+	;
+
+table_definition
+	: TABLE '(' identifier ')' passes ENDTABLE { $$ = $passes;driver.context.tables[$identifier] = $$;$$->name = std::move($identifier); }
+	;
+
+passes
+	: passes pass_definition ';' {$$ = $1; $$->updatePass(std::move($pass_definition));}
+	| pass_definition ';'  { $$ = new TableDefinition("substitution");$$->updatePass(std::move($pass_definition));}
+	;
+
+pass_definition
+	: PASS '(' INT_LITERAL ')' rules  ENDPASS 
+		{ 
+			if($INT_LITERAL < 1){
+				error(yyla.location, std::string("Pass number cannot be less than 1 "));
+				YYERROR;
+			}
+			$rules.setNumber($INT_LITERAL);
+			$$ = std::move($rules);
+		}
+		
+		
+	;
+
+rules 
+	: rules rule ';'  {$$ = std::move($1); $$.addRule($rule);}
+	| rule ';' {$$ = Pass(); $$.addRule($rule);}
+	;
+rule
+	: rule_lhs rule_rhs rule_context { $$ = GraphiteRule{$rule_lhs,$rule_rhs,$rule_context};}
+	| rule_rhs rule_context { $$ = GraphiteRule{nullptr,$rule_rhs,$rule_context};}
+	/*| rule_rhs { $$ = GraphiteRule{nullptr,$rule_rhs,nullptr};}*/
+	| openttype_regexp  { $$ = $openttype_regexp;}
+	;
+
+openttype_regexp
+	: rule_regex {$$ = GraphiteRule{nullptr,nullptr,$rule_regex};}
+	| rule_regex[backtrack] '$' rule_regex[input] {$$ = GraphiteRule{$backtrack,nullptr,$input};}
+	;
+
+rule_lhs
+	: rule_regex '>'  { $$ = $rule_regex;}	
+	;
+
+rule_rhs
+	: rule_regex  { $$ = $rule_regex;}	
+	;
+
+rule_context
+	: '/' rule_regex { $$ = $rule_regex;}	
+	;
+
+rule_regex   
+	: term '|' rule_regex { $$ = make_shared<RuleRegExpOr>($term,$3);}	
+	| term	{ $$ = $term;}	
+	;
+
+term 
+	: term factor  { $$ = make_shared<RuleRegExpConcat>($1,$factor);}	
+	| factor	{ $$ = $factor;}		
+	;
+
+	/*
+factorcaret
+	: factor	{ $$ = $factor;}	
+	| '^' factor 			{ $$ = make_shared<RuleRegExpConcat>(make_shared<RuleRegExpPosition>(),$factor);}	
+	|  factor 	'^'		{ $$ = make_shared<RuleRegExpConcat>($factor, make_shared<RuleRegExpPosition>());}	
+	;*/
+	
+factor
+	: base '*'					{ $$ = make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::STAR);}
+	| base '?'					{ $$ = make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::OPT);}
+	| base '+'					{ $$ = make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::PLUS);}
+	| base '{' identifier '}'	{ $$ = make_shared<RuleRegExpConcat>($base,make_shared<RuleRegExpAction>($identifier));}	
+	| base '^'					{ $$ = make_shared<RuleRegExpConcat>($base, make_shared<RuleRegExpPosition>());}
+	| base						{ $$ = $base;}	
+	;
+
+base 
+	: '(' rule_regex ')' { $$ = $rule_regex;}	
+	| glyphset { $$ = make_shared<RuleRegExpGlyphSet>($1);}		
+	| ANY {$$ = make_shared<RuleRegExpANY>();}	
 	;
 
 %%

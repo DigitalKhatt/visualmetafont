@@ -44,6 +44,11 @@ typedef struct mp_gr_knot_data*mp_gr_knot;
 class QPainterPath;
 struct mp_graphic_object;
 
+struct GlyphVisAnchor {
+  QPoint anchor;
+  int type;
+};
+
 
 class GlyphVis {
 	friend class MyQPdfEnginePrivate;
@@ -86,7 +91,7 @@ public:
 	QPicture picture;
 	void refresh(QHash<QString, GlyphVis>& glyphs);
 #endif
-	QMap<QString, QPoint> anchors;
+	QMap<QString, GlyphVisAnchor> anchors;
 	Transform matrix = {};
 
 	mp_edge_object* edge() {
@@ -100,6 +105,8 @@ public:
 	QPoint getAnchor(QString name);
 
     bool conatinsAnchor(QString name);
+    bool expanded = false;
+    mp_graphic_object* copyEdgeBody();
 
 private:
 #ifndef DIGITALKHATT_WEBLIB
@@ -115,7 +122,9 @@ private:
 	OtLayout * m_otLayout = nullptr;
 	bool isCopiedPath = false;
 
-	void copyEdgeBody();
+
+
+
 
 	
 };

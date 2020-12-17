@@ -36,6 +36,7 @@ namespace feayy {
 	void ClassDefinition::accept(Visitor& v) { v.accept(*this); }
 	void MarkedGlyphSetRegExp::accept(Visitor& v) { v.accept(*this); }
 	void LigatureSubstitutionRule::accept(Visitor& v) { v.accept(*this); }
+	void TableDefinition::accept(Visitor& v) { v.accept(*this); }
 
 
 
@@ -48,6 +49,13 @@ namespace feayy {
 			FeatureDefenition* featureDefinition = feature.second;
 
 			featureDefinition->accept(feaVisitor);
+		}
+
+		for (auto table : tables)
+		{
+			TableDefinition* tableDefinition = table.second;
+
+			tableDefinition->accept(feaVisitor);
 		}
 
 	}
@@ -201,10 +209,10 @@ namespace feayy {
 			value.entry = QPoint(anchor->x, anchor->y);
         }else if (cursiveRule.entryAnchor->anchortype() == AnchorType::Name) {
             auto anchor = static_cast<AnchorName*>(cursiveRule.entryAnchor);
-            value.entryName = QString::fromStdString(*anchor->name);
+            value.entryName = QString::fromStdString(anchor->name);
         }else if (cursiveRule.entryAnchor->anchortype() == AnchorType::Function) {
             auto functionAnchor = static_cast<AnchorFunction*>(cursiveRule.entryAnchor);
-            value.entryFunction = otlayout->getanchorCalcFunctions(QString::fromStdString(*functionAnchor->name), newsubtable);
+            value.entryFunction = otlayout->getanchorCalcFunctions(QString::fromStdString(functionAnchor->name), newsubtable);
         }
 
 		if (cursiveRule.exitAnchor->anchortype() == AnchorType::FormatA) {
@@ -212,10 +220,10 @@ namespace feayy {
 			value.exit = QPoint(anchor->x, anchor->y);
         }else if (cursiveRule.exitAnchor->anchortype() == AnchorType::Name) {
             auto anchor = static_cast<AnchorName*>(cursiveRule.exitAnchor);
-            value.exitName = QString::fromStdString(*anchor->name);
+            value.exitName = QString::fromStdString(anchor->name);
         }else if (cursiveRule.exitAnchor->anchortype() == AnchorType::Function) {
             auto functionAnchor = static_cast<AnchorFunction*>(cursiveRule.exitAnchor);
-            value.exitFunction = otlayout->getanchorCalcFunctions(QString::fromStdString(*functionAnchor->name), newsubtable);
+            value.exitFunction = otlayout->getanchorCalcFunctions(QString::fromStdString(functionAnchor->name), newsubtable);
         }
 
 		auto codes = cursiveRule.glyphset->getCodes(otlayout);
@@ -241,7 +249,7 @@ namespace feayy {
 		newsubtable->sortedBaseCodes = mark2BaseRule.baseGlyphSet->getSortedCodes(otlayout);
 
 		for (auto mark2baseclass : *mark2BaseRule.mark2baseclasses) {
-			QString className = QString::fromStdString(*mark2baseclass->className);
+			QString className = QString::fromStdString(mark2baseclass->className);
 
 			MarkBaseSubtable::MarkClass newclass;
 
@@ -249,7 +257,7 @@ namespace feayy {
 
 			if (mark2baseclass->baseAnchor->anchortype() == AnchorType::Function) {
 				auto functionAnchor = static_cast<AnchorFunction*>(mark2baseclass->baseAnchor);
-				newclass.basefunction = otlayout->getanchorCalcFunctions(QString::fromStdString(*functionAnchor->name), newsubtable);
+				newclass.basefunction = otlayout->getanchorCalcFunctions(QString::fromStdString(functionAnchor->name), newsubtable);
 			}
 			else if (mark2baseclass->baseAnchor->anchortype() == AnchorType::FormatA) {
 				auto formaAAnchor = static_cast<AnchorFormatA*>(mark2baseclass->baseAnchor);
@@ -262,7 +270,7 @@ namespace feayy {
 
 			if (mark2baseclass->markAnchor->anchortype() == AnchorType::Function) {
 				auto functionAnchor = static_cast<AnchorFunction*>(mark2baseclass->markAnchor);
-				newclass.markfunction = otlayout->getanchorCalcFunctions(QString::fromStdString(*functionAnchor->name), newsubtable);
+				newclass.markfunction = otlayout->getanchorCalcFunctions(QString::fromStdString(functionAnchor->name), newsubtable);
 			}
 			else if (mark2baseclass->markAnchor->anchortype() == AnchorType::FormatA) {
 				auto formaAAnchor = static_cast<AnchorFormatA*>(mark2baseclass->markAnchor);
@@ -420,7 +428,7 @@ namespace feayy {
 				if (lastInlineType == value->inlineType && lastInlineType == InlineType::CursivePos) {
 					lastautolookup->getStmts().push_back(value->stmt);
 					std::string named = lastautolookup->getName();
-					value->lookupName = new std::string(named);
+					value->lookupName = std::string(named);
 				}
 				else {
 					auto stmts = new vector<LookupStatement*>();
@@ -430,16 +438,16 @@ namespace feayy {
 
 					std::string named = name.toStdString();
 
-					value->lookupName = new std::string(named);
+					value->lookupName = std::string(named);
 					lastautolookup = new LookupDefinition(value->lookupName, stmts);
-					context.lookups[*value->lookupName] = lastautolookup;
+					context.lookups[value->lookupName] = lastautolookup;
 				}
 			}
 			lastInlineType = value->inlineType;
 			auto input = value->regexp->getSequences();
 			QString lookupName;
-			if (value->lookupName) {
-				lookupName = QString::fromStdString(*value->lookupName);
+			if (!value->lookupName.empty()) {
+				lookupName = QString::fromStdString(value->lookupName);
 			}
 
 			QVector<QVector<QPair<GlyphSet*, QString>>> result;
@@ -507,9 +515,9 @@ namespace feayy {
 
 			QString name = QString("%1_auto%2").arg(lookup->name).arg(nextautolookup++);
 
-			markedGlyphSetRegExp.lookupName = new std::string(name.toStdString());
+			markedGlyphSetRegExp.lookupName = std::string(name.toStdString());
 			auto lookup = new LookupDefinition(markedGlyphSetRegExp.lookupName, stmts);
-			context.lookups[*markedGlyphSetRegExp.lookupName] = lookup;
+			context.lookups[markedGlyphSetRegExp.lookupName] = lookup;
 
 		}
 	}
@@ -600,5 +608,6 @@ namespace feayy {
 		newsubtable->ligatures.append(ligStruct);
 	}
 
+	
 
 }

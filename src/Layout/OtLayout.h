@@ -30,6 +30,8 @@
 #include <unordered_map>
 #include <QDataStream>
 #include "to_opentype.h"
+#include "FSMDriver.h"
+#include "JustificationContext.h"
 
 
 class Lookup;
@@ -39,7 +41,7 @@ struct hb_font_t;
 struct hb_face_t;
 class Automedina;
 class GlyphVis;
-class Subtable;
+struct Subtable;
 class MarkBaseSubtable;
 
 struct hb_buffer_t;
@@ -149,23 +151,6 @@ public:
 
 };
 
-template<typename F>
-class AnchorCalcLamda : public AnchorCalc
-{
-public:
-	AnchorCalcLamda(F f) : call(f) {};
-
-	QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
-		return call(glyphName, className, adjust);
-	};
-
-private:
-	F call;
-};
-
-template <typename F>
-AnchorCalc* MakeAnchorCalc(F a) { return new AnchorCalcLamda<F>(a); }
-
 #ifdef DIGITALKHATT_WEBLIB
 class OtLayout {
 #else
@@ -175,6 +160,7 @@ class OtLayout : public QObject {
 	friend class Automedia;
 	friend class GlyphVis;
 	friend class LayoutWindow;
+	friend class ToOpenType;
 public:
 
 	constexpr static int FrameHeight = 27400;
@@ -192,11 +178,13 @@ public:
 	};
 
 #if DIGITALKHATT_WEBLIB
-	OtLayout(MP mp);
+	OtLayout(MP mp, bool extended);
 #else
-	OtLayout(MP mp, QObject* parent = Q_NULLPTR);
+	OtLayout(MP mp, bool extended, QObject* parent = Q_NULLPTR);
 #endif
 	~OtLayout();
+
+	void loadLookupFile(std::string fileName);
 
 	void readJson(const QJsonObject& json);
 	hb_font_t* createFont(int scale, bool newFace = true);
@@ -252,7 +240,7 @@ public:
 	QMap<quint16, GDEFClasses> glyphGlobalClasses;
 
 	//QMap<QString, AnchorCalc*> anchorCalcFunctions;
-	AnchorCalc* getanchorCalcFunctions(QString functionName, Subtable* subtable);
+	CalcAnchor getanchorCalcFunctions(QString functionName, Subtable* subtable);
 	void setParameter(quint16 glyphCode, quint32 lookup, quint32 subtable, quint16 markCode, quint16 baseCode, QPoint displacement, Qt::KeyboardModifiers modifiers);
 
 	QHash<QString, GlyphVis> glyphs;
@@ -263,6 +251,10 @@ public:
 	quint16 addMarkSet(QVector<QString> list);
 
 	void addLookup(Lookup* lookup);	
+	void addTable(Lookup* lookup) {
+		this->addLookup(lookup);
+		this->tables.push_back(lookup);
+	};
 
 	MP mp;
 
@@ -290,13 +282,23 @@ public:
 
 	ToOpenType toOpenType = ToOpenType{ this };
 
+	void setDisabled(Lookup* lookup) {
+		disabledLookups.insert(lookup);
+	}
+
+  void executeFSM(FSMSubtable& subtable, OT::hb_ot_apply_context_t* c) {
+    fsmDriver.executeFSM(subtable, c);
+  }
+
+  JustificationContext justificationContext;
+
 #ifndef DIGITALKHATT_WEBLIB
 signals:
 	void parameterChanged();
 #endif
 
 	
-
+  
 private:
 	//void evaluateImport();
 	//void prepareJSENgine();
@@ -325,7 +327,15 @@ private:
 	bool JustificationInProgress = false;
 
 	void applyJustLookup(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, int emScale);
+  void applyJustLookup_old(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, int emScale);
 
+	bool extended = true;
+
+	std::vector<Lookup*> tables;
+
+	FSMDriver fsmDriver;
+
+  
 	
 
 };

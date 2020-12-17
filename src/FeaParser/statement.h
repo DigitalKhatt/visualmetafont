@@ -17,46 +17,23 @@
  * <https: //www.gnu.org/licenses />.
 */
 
-#pragma once
+#ifndef H_FEAAST_STATEMENT
+#define H_FEAAST_STATEMENT
 
-#include "qvector.h"
-#include "qmap.h"
+namespace feayy {
 
-
-enum class StartEndLig {
-	StartEnd,
-	Start,
-	End,
-  EndKashida
-};
+	class Visitor;
 
 
-struct GlyphExpansion {
-	float MinLeftTatweel = 0.0;
-	float MaxLeftTatweel = 0.0;
-	float MinRightTatweel = 0.0;
-	float MaxRightTatweel = 0.0;
-  int weight = 1;
-  int level = 0;
-	StartEndLig startEndLig;
-  bool shrinkIsAbsolute = false;
-  bool stretchIsAbsolute = true;
-  
-};
+	class Statement {
+	public:
+		virtual void accept(Visitor&) = 0;
+		virtual ~Statement() {}
+	};
 
-
-
-class JustificationContext {
-public:
-	std::vector<unsigned int> GlyphsToExtend;
-	std::vector<unsigned int> Substitutes;
-	std::unordered_map<unsigned int, GlyphExpansion> Expansions;
-  int totalWeight = 0;
-
-	void clear() {
-		GlyphsToExtend.clear();
-		Substitutes.clear();
-		Expansions.clear();
-    totalWeight = 0;
-	}
-};
+	class LookupStatement : public Statement {
+	public:
+		void accept(Visitor&) override;
+	};
+}
+#endif // H_FEAAST_STATEMENT

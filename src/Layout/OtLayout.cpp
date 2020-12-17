@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -51,6 +51,7 @@
 #include <limits>
 
 #include <QtCore/qmath.h>
+#include <fstream>
 
 
 
@@ -65,2499 +66,2896 @@ int OtLayout::MAXSPACEWIDTH = 100;
 
 QDataStream& operator<<(QDataStream& s, const QSet<quint16>& v)
 {
-	for (QSet<quint16>::const_iterator it = v.begin(); it != v.end(); ++it)
-		s << *it;
-	return s;
+  for (QSet<quint16>::const_iterator it = v.begin(); it != v.end(); ++it)
+    s << *it;
+  return s;
 }
 
 QDataStream& operator<<(QDataStream& s, const QSet<quint32>& v)
 {
-	for (QSet<quint32>::const_iterator it = v.begin(); it != v.end(); ++it)
-		s << *it;
-	return s;
+  for (QSet<quint32>::const_iterator it = v.begin(); it != v.end(); ++it)
+    s << *it;
+  return s;
 }
 
 QDataStream& operator<<(QDataStream& stream, const SuraLocation& location) {
-	stream << location.name << location.pageNumber << location.x << location.y;
-	return stream;
+  stream << location.name << location.pageNumber << location.x << location.y;
+  return stream;
 }
 QDataStream& operator>>(QDataStream& stream, SuraLocation& location) {
-	return stream >> location.name >> location.pageNumber >> location.x >> location.y;
+  return stream >> location.name >> location.pageNumber >> location.x >> location.y;
 }
 
 #include "hb-ot-name-table.hh"
 
 static hb_blob_t* harfbuzzGetTables(hb_face_t* face, hb_tag_t tag, void* userData)
 {
-	OtLayout* layout = reinterpret_cast<OtLayout*>(userData);
+  OtLayout* layout = reinterpret_cast<OtLayout*>(userData);
 
-	QByteArray data;
-	hb_memory_mode_t mode = HB_MEMORY_MODE_READONLY;
+  QByteArray data;
+  hb_memory_mode_t mode = HB_MEMORY_MODE_READONLY;
 
-	switch (tag) {
-	case HB_OT_TAG_GSUB:
-		data = layout->getGSUB();
-		break;
-	case HB_OT_TAG_GPOS:
-		data = layout->getGPOS();
-		break;
-	case HB_OT_TAG_GDEF:
-		data = layout->getGDEF();
-		break;
-	case HB_TAG('c','m','a','p'):
-		data = layout->getCmap();
-		mode = HB_MEMORY_MODE_DUPLICATE;
-		break;
-	case HB_TAG('n', 'a', 'm', 'e'):
-		data = layout->toOpenType.name();
-		mode = HB_MEMORY_MODE_DUPLICATE;
-		break;
-	}
+  switch (tag) {
+  case HB_OT_TAG_GSUB:
+    data = layout->getGSUB();
+    break;
+  case HB_OT_TAG_GPOS:
+    data = layout->getGPOS();
+    break;
+  case HB_OT_TAG_GDEF:
+    data = layout->getGDEF();
+    break;
+  case HB_TAG('c', 'm', 'a', 'p'):
+    data = layout->getCmap();
+    mode = HB_MEMORY_MODE_DUPLICATE;
+    break;
+  case HB_TAG('n', 'a', 'm', 'e'):
+    data = layout->toOpenType.name();
+    mode = HB_MEMORY_MODE_DUPLICATE;
+    break;
+  }
 
-	return hb_blob_create(data.constData(), data.size(), mode, NULL, NULL);
+  return hb_blob_create(data.constData(), data.size(), mode, NULL, NULL);
 
 }
 
 static unsigned int
-getNominalGlyphs (hb_font_t *font HB_UNUSED,
-			  void *font_data,
-			  unsigned int count,
-			  const hb_codepoint_t *first_unicode,
-			  unsigned int unicode_stride,
-			  hb_codepoint_t *first_glyph,
-			  unsigned int glyph_stride,
-			  void *user_data HB_UNUSED)
+getNominalGlyphs(hb_font_t* font HB_UNUSED,
+  void* font_data,
+  unsigned int count,
+  const hb_codepoint_t* first_unicode,
+  unsigned int unicode_stride,
+  hb_codepoint_t* first_glyph,
+  unsigned int glyph_stride,
+  void* user_data HB_UNUSED)
 {
   OtLayout* layoutgg = reinterpret_cast<OtLayout*>(font_data);
 
-  auto ot_face = layoutgg->face;  
+  auto ot_face = layoutgg->face;
 
-  return ot_face->table.cmap->get_nominal_glyphs (count,
-                                            first_unicode, unicode_stride,
-                                            first_glyph, glyph_stride);
+  return ot_face->table.cmap->get_nominal_glyphs(count,
+    first_unicode, unicode_stride,
+    first_glyph, glyph_stride);
 }
 static hb_bool_t
 getNominalGlyph(hb_font_t* font,
-	void* font_data,
-	hb_codepoint_t unicode,
-	hb_codepoint_t* glyph,
-	void* user_data)
+  void* font_data,
+  hb_codepoint_t unicode,
+  hb_codepoint_t* glyph,
+  void* user_data)
 {
-	/*
-	OtLayout* layoutg = reinterpret_cast<OtLayout*>(font_data);
+  /*
+      OtLayout* layoutg = reinterpret_cast<OtLayout*>(font_data);
 
-	auto& table = *layoutg->face->table.name;
+      auto& table = *layoutg->face->table.name;
 
-	auto test = table.get_name(0);
+      auto test = table.get_name(0);
 
-	uint text_size = 1000;
-	char text[1000];
+      uint text_size = 1000;
+      char text[1000];
 
-	hb_ot_name_get_utf8(layoutg->face,9, 0, &text_size, text);*/
+      hb_ot_name_get_utf8(layoutg->face,9, 0, &text_size, text);*/
 
 
-	//auto tt = QString(text);
- OtLayout* layoutg = reinterpret_cast<OtLayout*>(font_data);
+      //auto tt = QString(text);
+  OtLayout* layoutg = reinterpret_cast<OtLayout*>(font_data);
 
   auto ot_face = layoutg->face;
 
-  return ot_face->table.cmap->get_nominal_glyph (unicode, glyph);
+  return ot_face->table.cmap->get_nominal_glyph(unicode, glyph);
 
   *glyph = unicode;
 
   return true;
 
-	
+
 
 
 }
 
 static hb_position_t floatToHarfBuzzPosition(double value)
 {
-	return static_cast<hb_position_t>(value * (1 << OtLayout::SCALEBY));
+  return static_cast<hb_position_t>(value * (1 << OtLayout::SCALEBY));
 }
 
 static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData, hb_codepoint_t glyph, double lefttatweel, double righttatweel, void* userData)
 {
-	OtLayout* layout = reinterpret_cast<OtLayout*>(fontData);
+  OtLayout* layout = reinterpret_cast<OtLayout*>(fontData);
 
-	if (!layout->glyphNamePerCode.contains(glyph)) {
-		//std::cout << "Glyph " << glyph << " not found" << std::endl;
-		return 0;
-	}
+  if (!layout->glyphNamePerCode.contains(glyph)) {
+    //std::cout << "Glyph " << glyph << " not found" << std::endl;
+    return 0;
+  }
 
-	if (layout->glyphGlobalClasses[glyph] == OtLayout::MarkGlyph) {
-		return 0;
-	}
-	else {
-		QString name = layout->glyphNamePerCode[glyph];
+  if (layout->glyphGlobalClasses[glyph] == OtLayout::MarkGlyph) {
+    return 0;
+  }
+  else {
+    QString name = layout->glyphNamePerCode[glyph];
 
-		GlyphVis* pglyph = &layout->glyphs[name];
+    GlyphVis* pglyph = &layout->glyphs[name];
 
-		if (lefttatweel != 0 || righttatweel != 0) {
-			GlyphParameters parameters{};
+    if (lefttatweel != 0 || righttatweel != 0) {
+      GlyphParameters parameters{};
 
-			parameters.lefttatweel = lefttatweel;
-			parameters.righttatweel = righttatweel;
+      parameters.lefttatweel = lefttatweel;
+      parameters.righttatweel = righttatweel;
 
-			pglyph = layout->getAlternate(pglyph->charcode, parameters);
-		}
+      pglyph = layout->getAlternate(pglyph->charcode, parameters);
+    }
 
 
-		double advance = pglyph->width;
-		//return advance; // floatToHarfBuzzPosition(advance);
-		int upem = 1000;
-		int xscale, yscale;
-		hb_font_get_scale(hbFont, &xscale, &yscale);
-		int64_t scaled = advance * xscale;
-		scaled += scaled >= 0 ? upem / 2 : -upem / 2; /* Round. */
-		auto gg = (hb_position_t)(scaled / upem);
-		return gg;
-	}
+    double advance = pglyph->width;
+    //return advance; // floatToHarfBuzzPosition(advance);
+    int upem = 1000;
+    int xscale, yscale;
+    hb_font_get_scale(hbFont, &xscale, &yscale);
+    int64_t scaled = advance * xscale;
+    scaled += scaled >= 0 ? upem / 2 : -upem / 2; /* Round. */
+    auto gg = (hb_position_t)(scaled / upem);
+    return gg;
+  }
 
 }
 
 static void get_glyph_h_advances(hb_font_t* font, void* font_data,
-	unsigned count,
-	const hb_codepoint_t* first_glyph,
-	unsigned glyph_stride,
-	hb_position_t* first_advance,
-	unsigned advance_stride,
-	void* user_data)
+  unsigned count,
+  const hb_codepoint_t* first_glyph,
+  unsigned glyph_stride,
+  hb_position_t* first_advance,
+  unsigned advance_stride,
+  void* user_data)
 {
-	//TODO:hacking
-	auto glyphs = (hb_glyph_info_t*)(first_glyph);
-	auto positions = (hb_glyph_position_t*)(first_advance);
+  //TODO:hacking
+  auto glyphs = (hb_glyph_info_t*)(first_glyph);
+  auto positions = (hb_glyph_position_t*)(first_advance);
 
-	OtLayout* layout = reinterpret_cast<OtLayout*>(font_data);
+  OtLayout* layout = reinterpret_cast<OtLayout*>(font_data);
 
 
-	for (unsigned int i = 0; i < count; i++)
-	{
-		//TEST
-		/*
-		QString name = layout->glyphNamePerCode[glyphs[i].codepoint];
-		if (name == "behshape.init") {
-			glyphs[i].lefttatweel = 12;
-		}else if (name == "lam.medi") {
-			glyphs[i].lefttatweel = 6;
-			glyphs[i].righttatweel = 6;
-		}*/
+  for (unsigned int i = 0; i < count; i++)
+  {
+    //TEST
+    /*
+          QString name = layout->glyphNamePerCode[glyphs[i].codepoint];
+          if (name == "behshape.init") {
+              glyphs[i].lefttatweel = 12;
+          }else if (name == "lam.medi") {
+              glyphs[i].lefttatweel = 6;
+              glyphs[i].righttatweel = 6;
+          }*/
 
-		positions[i].x_advance = getGlyphHorizontalAdvance(font, font_data, glyphs[i].codepoint, glyphs[i].lefttatweel, glyphs[i].righttatweel, user_data);
-	}
+    positions[i].x_advance = getGlyphHorizontalAdvance(font, font_data, glyphs[i].codepoint, glyphs[i].lefttatweel, glyphs[i].righttatweel, user_data);
+  }
 
 }
 
 static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
-	hb_cursive_anchor_context_t* context,
-	hb_position_t* x,
-	hb_position_t* y,
-	void* user_data) {
+  hb_cursive_anchor_context_t* context,
+  hb_position_t* x,
+  hb_position_t* y,
+  void* user_data) {
 
-	OtLayout* layout = reinterpret_cast<OtLayout*>(font_data);
+  OtLayout* layout = reinterpret_cast<OtLayout*>(font_data);
 
-	Lookup* lookupTable = layout->gposlookups.at(context->lookup_index);
+  Lookup* lookupTable = layout->gposlookups.at(context->lookup_index);
 
-	auto subtable = lookupTable->subtables.at(context->subtable_index);
+  auto subtable = lookupTable->subtables.at(context->subtable_index);
 
-	if (lookupTable->type == Lookup::cursive) {
-		CursiveSubtable* subtableTable = static_cast<CursiveSubtable*>(subtable);
+  if (lookupTable->type == Lookup::cursive) {
+    CursiveSubtable* subtableTable = static_cast<CursiveSubtable*>(subtable);
 
-		if (context->type == hb_cursive_anchor_context_t::entry) {
-			auto anchor = subtableTable->getEntry(context->glyph_id, context->lefttatweel, context->righttatweel);
-			if (anchor) {
+    if (context->type == hb_cursive_anchor_context_t::entry) {
+      auto anchor = subtableTable->getEntry(context->glyph_id, context->lefttatweel, context->righttatweel);
+      if (anchor) {
 
-				*x = anchor->x();
-				*y = anchor->y();
+        *x = anchor->x();
+        *y = anchor->y();
 
-				return true;
-			}
-			else {
-				*x = 0;
-				*y = 0;
-			}
-		}
-		else if (context->type == hb_cursive_anchor_context_t::exit) {
-			auto anchor = subtableTable->getExit(context->glyph_id, context->lefttatweel, context->righttatweel);
-			if (anchor) {
+        return true;
+      }
+      else {
+        *x = 0;
+        *y = 0;
+      }
+    }
+    else if (context->type == hb_cursive_anchor_context_t::exit) {
+      auto anchor = subtableTable->getExit(context->glyph_id, context->lefttatweel, context->righttatweel);
+      if (anchor) {
 
-				*x = anchor->x();
-				*y = anchor->y();
+        *x = anchor->x();
+        *y = anchor->y();
 
-				return true;
-			}
-			else {
-				*x = 0;
-				*y = 0;
-			}
-		}
+        return true;
+      }
+      else {
+        *x = 0;
+        *y = 0;
+      }
+    }
 
-	}
-	else if (lookupTable->type == Lookup::mark2base || lookupTable->type == Lookup::mark2mark) {
+  }
+  else if (lookupTable->type == Lookup::mark2base || lookupTable->type == Lookup::mark2mark) {
 
-		MarkBaseSubtable* subtableTable = static_cast<MarkBaseSubtable*>(subtable);
+    MarkBaseSubtable* subtableTable = static_cast<MarkBaseSubtable*>(subtable);
 
-		quint16 classIndex = subtableTable->markCodes[context->glyph_id];
+    quint16 classIndex = subtableTable->markCodes[context->glyph_id];
 
-		QString className = subtableTable->classNamebyIndex[classIndex];
-
-
-
-		if (context->type == hb_cursive_anchor_context_t::base) {
-
-			QString baseGlyphName = layout->glyphNamePerCode[context->base_glyph_id];
-
-			GlyphVis& curr = layout->glyphs[baseGlyphName];
-
-			auto anchor = subtableTable->getBaseAnchor(context->glyph_id, context->base_glyph_id, context->lefttatweel, context->righttatweel);
-			if (anchor) {
-
-				*x = anchor->x();
-				*y = anchor->y();
-
-				return true;
-			}
-			else {
-				*x = 0;
-				*y = 0;
-			}
-
-		}
-		else if (context->type == hb_cursive_anchor_context_t::mark) {
-			QString markGlyphName = layout->glyphNamePerCode[context->glyph_id];
-
-
-			GlyphVis& curr = layout->glyphs[markGlyphName];
-
-			auto anchor = subtableTable->getMarkAnchor(context->glyph_id, context->base_glyph_id, context->lefttatweel, context->righttatweel);
-			if (anchor) {
-
-				*x = anchor->x();
-				*y = anchor->y();
-
-				return true;
-			}
-			else {
-				*x = 0;
-				*y = 0;
-			}
-
-
-		}
+    QString className = subtableTable->classNamebyIndex[classIndex];
 
 
 
-	}
+    if (context->type == hb_cursive_anchor_context_t::base) {
 
-	return false;
+      QString baseGlyphName = layout->glyphNamePerCode[context->base_glyph_id];
+
+      GlyphVis& curr = layout->glyphs[baseGlyphName];
+
+      auto anchor = subtableTable->getBaseAnchor(context->glyph_id, context->base_glyph_id, context->lefttatweel, context->righttatweel);
+      if (anchor) {
+
+        *x = anchor->x();
+        *y = anchor->y();
+
+        return true;
+      }
+      else {
+        *x = 0;
+        *y = 0;
+      }
+
+    }
+    else if (context->type == hb_cursive_anchor_context_t::mark) {
+      QString markGlyphName = layout->glyphNamePerCode[context->glyph_id];
+
+
+      GlyphVis& curr = layout->glyphs[markGlyphName];
+
+      auto anchor = subtableTable->getMarkAnchor(context->glyph_id, context->base_glyph_id, context->lefttatweel, context->righttatweel);
+      if (anchor) {
+
+        *x = anchor->x();
+        *y = anchor->y();
+
+        return true;
+      }
+      else {
+        *x = 0;
+        *y = 0;
+      }
+
+
+    }
+
+
+
+  }
+
+  return false;
 
 }
 
 static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
-	hb_substitution_context_t* context, void* user_data) {
+  hb_substitution_context_t* context, void* user_data) {
 
-	OtLayout* layout = reinterpret_cast<OtLayout*>(font_data);
+  OtLayout* layout = reinterpret_cast<OtLayout*>(font_data);
 
-	Lookup* lookupTable = layout->gsublookups.at(context->ot_context->lookup_index);
+  Lookup* lookupTable = layout->gsublookups.at(context->ot_context->lookup_index);
 
-	if (lookupTable->name == "markexpansion.l1") {
-		auto buffer = context->ot_context->buffer;
+  if (lookupTable->name == "markexpansion.l1") {
+    auto buffer = context->ot_context->buffer;
 
-		auto& curr_info = buffer->cur();
-		auto& prev_info = buffer->cur(-1);
+    auto& curr_info = buffer->cur();
+    auto& prev_info = buffer->cur(-1);
 
-		auto& curr_glyph = *layout->getGlyph(curr_info.codepoint);
-		auto& prev_glyph = *layout->getGlyph(prev_info.codepoint);
-
-
-		curr_info.lefttatweel = prev_info.lefttatweel / 2;
-
-		/*
+    auto& curr_glyph = *layout->getGlyph(curr_info.codepoint);
+    auto& prev_glyph = *layout->getGlyph(prev_info.codepoint);
 
 
-		auto& curr_glyph = *layout->getGlyph(curr_info.codepoint);
-		auto& prev_glyph = *layout->getGlyph(prev_info.codepoint);
+    curr_info.lefttatweel = prev_info.lefttatweel / 2;
 
-		if (prev_glyph.name == "noon.isol.expa" && prev_info.lefttatweel != 0) {
-			curr_info.lefttatweel = prev_info.lefttatweel / 2;
-		}*/
+    /*
 
 
-	}
-	else if (lookupTable->name.startsWith("expa.")) {
+          auto& curr_glyph = *layout->getGlyph(curr_info.codepoint);
+          auto& prev_glyph = *layout->getGlyph(prev_info.codepoint);
 
-		auto buffer = context->ot_context->buffer;
-
-		auto& curr_info = buffer->cur();
-
-		auto name = layout->glyphNamePerCode[curr_info.codepoint];
-
-		JustificationContext::GlyphsToExtend.append(buffer->idx);
-		JustificationContext::Substitutes.append(context->substitute);
-
-		auto subtable = lookupTable->subtables.at(context->ot_context->subtable_index);
-
-		if (lookupTable->type == Lookup::single) {
-			SingleSubtable* subtableTable = static_cast<SingleSubtable*>(subtable);
-			if (subtableTable->format == 10) {
-				SingleSubtableWithExpansion* tatweelSubtable = static_cast<SingleSubtableWithExpansion*>(subtableTable);
-				JustificationContext::Expansions.insert(buffer->idx, tatweelSubtable->expansion.value(curr_info.codepoint));
-			}
-		}
+          if (prev_glyph.name == "noon.isol.expa" && prev_info.lefttatweel != 0) {
+              curr_info.lefttatweel = prev_info.lefttatweel / 2;
+          }*/
 
 
+  }
+  else if (lookupTable->name.startsWith("expa.")) {
 
+    auto buffer = context->ot_context->buffer;
 
-		return false;
+    auto& curr_info = buffer->cur();
 
-	}
-	else if (lookupTable->name.contains("test")) {
+    auto name = layout->glyphNamePerCode[curr_info.codepoint];
 
-		auto buffer = context->ot_context->buffer;
+    layout->justificationContext.GlyphsToExtend.push_back(buffer->idx);
+    layout->justificationContext.Substitutes.push_back(context->substitute);
 
-		auto& curr_info = buffer->cur();
+    auto subtable = lookupTable->subtables.at(context->ot_context->subtable_index);
 
-		auto name = layout->glyphNamePerCode[curr_info.codepoint];
-
-		//JustificationContext::GlyphsToExtend.append(buffer->idx);
-
-		if (name == "behshape.medi") {
-			curr_info.lefttatweel = 3;
-			curr_info.righttatweel = 2;
-		}
-
-	}
-    else{
-        auto buffer = context->ot_context->buffer;
-
-        auto& curr_info = buffer->cur();
-
-        auto name = layout->glyphNamePerCode[curr_info.codepoint];
-
-        //JustificationContext::GlyphsToExtend.append(buffer->idx);
-        //JustificationContext::Substitutes.append(context->substitute);
-
-        auto subtable = lookupTable->subtables.at(context->ot_context->subtable_index);
-
-        if (lookupTable->type == Lookup::single) {
-            SingleSubtable* subtableTable = static_cast<SingleSubtable*>(subtable);
-            if (subtableTable->format == 10) {
-                SingleSubtableWithExpansion* tatweelSubtable = static_cast<SingleSubtableWithExpansion*>(subtableTable);
-                auto expa = tatweelSubtable->expansion.value(curr_info.codepoint);JustificationContext::Expansions.insert(buffer->idx, tatweelSubtable->expansion.value(curr_info.codepoint));
-                curr_info.lefttatweel+= expa.MaxLeftTatweel;
-                curr_info.righttatweel+= expa.MaxRightTatweel;
-            }
-        }
+    if (lookupTable->type == Lookup::single) {
+      SingleSubtable* subtableTable = static_cast<SingleSubtable*>(subtable);
+      if (subtableTable->format == 10) {
+        SingleSubtableWithExpansion* tatweelSubtable = static_cast<SingleSubtableWithExpansion*>(subtableTable);
+        auto& expa = tatweelSubtable->expansion.value(curr_info.codepoint);
+        layout->justificationContext.Expansions.insert({ buffer->idx, expa });
+        layout->justificationContext.totalWeight += expa.weight;
+      }
     }
 
-	return true;
+
+
+
+    return false;
+
+  }
+  else if (lookupTable->name.contains("test")) {
+
+    auto buffer = context->ot_context->buffer;
+
+    auto& curr_info = buffer->cur();
+
+    auto name = layout->glyphNamePerCode[curr_info.codepoint];
+
+    //JustificationContext::GlyphsToExtend.append(buffer->idx);
+
+    if (name == "behshape.medi") {
+      curr_info.lefttatweel = 3;
+      curr_info.righttatweel = 2;
+    }
+
+  }
+  else {
+    auto buffer = context->ot_context->buffer;
+
+    auto& curr_info = buffer->cur();
+
+    auto name = layout->glyphNamePerCode[curr_info.codepoint];
+
+    //JustificationContext::GlyphsToExtend.append(buffer->idx);
+    //JustificationContext::Substitutes.append(context->substitute);
+
+    auto subtable = lookupTable->subtables.at(context->ot_context->subtable_index);
+
+    if (lookupTable->type == Lookup::single) {
+      SingleSubtable* subtableTable = static_cast<SingleSubtable*>(subtable);
+      if (subtableTable->format == 10) {
+        SingleSubtableWithExpansion* tatweelSubtable = static_cast<SingleSubtableWithExpansion*>(subtableTable);
+        auto expa = tatweelSubtable->expansion.value(curr_info.codepoint);
+        //layout->justificationContext.Expansions.insert({ buffer->idx, tatweelSubtable->expansion.value(curr_info.codepoint) });
+        curr_info.lefttatweel += expa.MaxLeftTatweel;
+        curr_info.righttatweel += expa.MaxRightTatweel;
+      }
+    }
+  }
+
+  return true;
+}
+
+static hb_bool_t apply_lookup(hb_font_t* font, void* font_data,
+  OT::hb_ot_apply_context_t* c, void* user_data) {
+
+  OtLayout* layout = reinterpret_cast<OtLayout*>(font_data);
+
+  Lookup* lookupTable = nullptr;
+
+  if (c->table_index == 0) {
+    lookupTable = layout->gsublookups.at(c->lookup_index);
+  }
+  else {
+    lookupTable = layout->gposlookups.at(c->lookup_index);
+  }
+
+  auto subtable = lookupTable->subtables.at(c->subtable_index);
+
+  if (lookupTable->type == Lookup::fsmgsub || lookupTable->type == Lookup::fsmgpos) {
+    FSMSubtable* subtableTable = static_cast<FSMSubtable*>(subtable);
+    layout->executeFSM(*subtableTable, c);
+  }
+
+  return true;
+
 }
 
 static hb_font_funcs_t* getFontFunctions()
 {
-	static hb_font_funcs_t* harfbuzzCoreTextFontFuncs = 0;
+  static hb_font_funcs_t* harfbuzzCoreTextFontFuncs = 0;
 
-	if (!harfbuzzCoreTextFontFuncs) {
-		harfbuzzCoreTextFontFuncs = hb_font_funcs_create();
-		hb_font_funcs_set_nominal_glyph_func(harfbuzzCoreTextFontFuncs, getNominalGlyph, NULL, NULL);
-		//hb_font_funcs_set_nominal_glyphs_func(harfbuzzCoreTextFontFuncs, getNominalGlyphs, NULL, NULL);
-		//hb_font_funcs_set_glyph_h_advance_func(harfbuzzCoreTextFontFuncs, getGlyphHorizontalAdvance, 0, 0);
-		hb_font_funcs_set_glyph_h_advances_func(harfbuzzCoreTextFontFuncs, get_glyph_h_advances, 0, 0);
-		hb_font_funcs_set_cursive_anchor_func(harfbuzzCoreTextFontFuncs, get_cursive_anchor, 0, 0);
-		hb_font_funcs_set_substitution_func(harfbuzzCoreTextFontFuncs, get_substitution, 0, 0);
+  if (!harfbuzzCoreTextFontFuncs) {
+    harfbuzzCoreTextFontFuncs = hb_font_funcs_create();
+    hb_font_funcs_set_nominal_glyph_func(harfbuzzCoreTextFontFuncs, getNominalGlyph, NULL, NULL);
+    //hb_font_funcs_set_nominal_glyphs_func(harfbuzzCoreTextFontFuncs, getNominalGlyphs, NULL, NULL);
+    //hb_font_funcs_set_glyph_h_advance_func(harfbuzzCoreTextFontFuncs, getGlyphHorizontalAdvance, 0, 0);
+    hb_font_funcs_set_glyph_h_advances_func(harfbuzzCoreTextFontFuncs, get_glyph_h_advances, 0, 0);
+    hb_font_funcs_set_cursive_anchor_func(harfbuzzCoreTextFontFuncs, get_cursive_anchor, 0, 0);
+    hb_font_funcs_set_substitution_func(harfbuzzCoreTextFontFuncs, get_substitution, 0, 0);
+    hb_font_funcs_set_apply_lookup_func(harfbuzzCoreTextFontFuncs, apply_lookup, 0, 0);
 
-		//hb_font_funcs_set_glyph_h_origin_func(harfbuzzCoreTextFontFuncs, getGlyphHorizontalOrigin, 0, 0);
-		//hb_font_funcs_set_glyph_extents_func(harfbuzzCoreTextFontFuncs, getGlyphExtents, 0, 0);
+    //hb_font_funcs_set_glyph_h_origin_func(harfbuzzCoreTextFontFuncs, getGlyphHorizontalOrigin, 0, 0);
+    //hb_font_funcs_set_glyph_extents_func(harfbuzzCoreTextFontFuncs, getGlyphExtents, 0, 0);
 
-		hb_font_funcs_make_immutable(harfbuzzCoreTextFontFuncs);
+    hb_font_funcs_make_immutable(harfbuzzCoreTextFontFuncs);
 
-	}
-	return harfbuzzCoreTextFontFuncs;
+  }
+  return harfbuzzCoreTextFontFuncs;
 }
 
 QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, GlyphVis* curr, QString className, QPoint adjust, double lefttatweel, double righttatweel, GlyphVis** poriginalglyph) {
 
-	GlyphVis* originalglyph = curr;
+  GlyphVis* originalglyph = curr;
 
-	QPoint adjustoriginal;
+  QPoint adjustoriginal;
 
-	if (curr->name != "alternatechar" && (!curr->originalglyph.isEmpty() && (curr->charlt != 0 || curr->charrt != 0))) {
-		originalglyph = &y.glyphs[curr->originalglyph];
-		adjustoriginal = subtable.classes[className].baseparameters[curr->originalglyph];
+  if (curr->expanded) {
+    if (curr->name != "alternatechar" && (!curr->originalglyph.isEmpty() && (curr->charlt != 0 || curr->charrt != 0))) {
+      adjustoriginal = subtable.classes[className].baseparameters[curr->originalglyph];
+    }
 
-		if (originalglyph != curr) {
-			if (curr->leftAnchor) {
-				double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
-				double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
+    originalglyph = &y.glyphs[curr->originalglyph];
+    if (curr->leftAnchor) {
+      double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
+      double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
 
-				adjustoriginal += QPoint(xshift, yshift);
-			}
-			else {
-				//adjustoriginal += QPoint(curr->width - originalglyph->width, curr->height - originalglyph->height);
-			}
+      adjustoriginal += QPoint(xshift, yshift);
+    }
+    else if (curr->rightAnchor) {
 
-		}
-	}
+    }
+    else {
+      originalglyph = curr;
+    }
+  }
 
-	if (curr->name == "alternatechar") {
-		originalglyph = &y.glyphs[curr->originalglyph];
-		//adjustoriginal = subtable.classes[className].baseparameters[curr->originalglyph];
-		if (curr->leftAnchor) {
-			double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
-			double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
+  /*
+    if (curr->name != "alternatechar" && (!curr->originalglyph.isEmpty() && (curr->charlt != 0 || curr->charrt != 0))) {
+    originalglyph = &y.glyphs[curr->originalglyph];
+    adjustoriginal = subtable.classes[className].baseparameters[curr->originalglyph];
 
-			adjustoriginal += QPoint(xshift, yshift);
-        }else if (curr->rightAnchor) {
+    if (originalglyph != curr) {
+      if (curr->leftAnchor) {
+      double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
+      double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
 
-        }
-		else {
-			originalglyph = curr;
-		}
-	}
+      adjustoriginal += QPoint(xshift, yshift);
+      }
+      else {
+      //adjustoriginal += QPoint(curr->width - originalglyph->width, curr->height - originalglyph->height);
+      }
 
-	*poriginalglyph = originalglyph;
+    }
+    }
 
-	return adjustoriginal;
+    if (curr->name == "alternatechar") {
+    //if (curr->expanded) {
+    originalglyph = &y.glyphs[curr->originalglyph];
+    //adjustoriginal = subtable.classes[className].baseparameters[curr->originalglyph];
+    if (curr->leftAnchor) {
+      double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
+      double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
+
+      adjustoriginal += QPoint(xshift, yshift);
+    }else if (curr->rightAnchor) {
+
+    }
+    else {
+      originalglyph = curr;
+    }
+    }*/
+
+  * poriginalglyph = originalglyph;
+
+  return adjustoriginal;
 
 }
 
 GlyphVis* OtLayout::getGlyph(QString name, double lefttatweel, double righttatweel) {
-	GlyphVis* pglyph = &this->glyphs[name];
+  GlyphVis* pglyph = &this->glyphs[name];
 
-	if (lefttatweel != 0 || righttatweel != 0) {
-		GlyphParameters parameters{};
+  if (lefttatweel != 0 || righttatweel != 0) {
+    GlyphParameters parameters{};
 
-		parameters.lefttatweel = lefttatweel;
-		parameters.righttatweel = righttatweel;
+    parameters.lefttatweel = lefttatweel;
+    parameters.righttatweel = righttatweel;
 
-		pglyph = getAlternate(pglyph->charcode, parameters);
-	}
+    pglyph = getAlternate(pglyph->charcode, parameters);
+  }
 
-	return pglyph;
+  return pglyph;
 }
 
 GlyphVis* OtLayout::getGlyph(int code, double lefttatweel, double righttatweel) {
 
-	if (glyphNamePerCode.contains(code)) {
-		if (lefttatweel != 0 || righttatweel != 0) {
-			GlyphParameters parameters{};
+  if (glyphNamePerCode.contains(code)) {
+    if (lefttatweel != 0 || righttatweel != 0) {
+      GlyphParameters parameters{};
 
-			parameters.lefttatweel = lefttatweel;
-			parameters.righttatweel = righttatweel;
+      parameters.lefttatweel = lefttatweel;
+      parameters.righttatweel = righttatweel;
 
-			return getAlternate(code, parameters);
-		}
-		else {
-			return getGlyph(glyphNamePerCode[code], lefttatweel, righttatweel);
-		}
-	}
+      return getAlternate(code, parameters);
+    }
+    else {
+      return getGlyph(glyphNamePerCode[code], lefttatweel, righttatweel);
+    }
+  }
 
-	return nullptr;
+  return nullptr;
 }
 
 GlyphVis* OtLayout::getGlyph(int code) {
 
-	GlyphVis* curr = nullptr;
+  GlyphVis* curr = nullptr;
 
-	if (glyphNamePerCode.contains(code)) {
-		QString baseGlyphName = glyphNamePerCode[code];
+  if (glyphNamePerCode.contains(code)) {
+    QString baseGlyphName = glyphNamePerCode[code];
 
-		curr = &glyphs[baseGlyphName];
-	}
+    curr = &glyphs[baseGlyphName];
+  }
 
-	return curr;
+  return curr;
 }
 
 QByteArray OtLayout::getGDEF() {
-	if (!gdef_array.isEmpty() && !dirty) {
-		return gdef_array;
-	}
+  if (!gdef_array.isEmpty() && !dirty) {
+    return gdef_array;
+  }
 
-	gdef_array.clear();
+  gdef_array.clear();
 
-	quint16 markGlyphSetsDefOffset = 0;
-	quint16 glyphClassDefOffset = 14;
+  quint16 markGlyphSetsDefOffset = 0;
+  quint16 glyphClassDefOffset = 14;
 
-	quint16 glyphCount = glyphGlobalClasses.size();
-	quint16 markGlyphSetCount = markGlyphSets.size();
+  quint16 glyphCount = glyphGlobalClasses.size();
+  quint16 markGlyphSetCount = markGlyphSets.size();
 
-	if (markGlyphSetCount > 0) {
-		markGlyphSetsDefOffset = glyphClassDefOffset + 2 + 2 + glyphCount * 6;
-	}
+  if (markGlyphSetCount > 0) {
+    markGlyphSetsDefOffset = glyphClassDefOffset + 2 + 2 + glyphCount * 6;
+  }
 
-	gdef_array << (quint16)1 << (quint16)2 << glyphClassDefOffset << (quint16)0 << (quint16)0 << (quint16)0 << markGlyphSetsDefOffset;
+  gdef_array << (quint16)1 << (quint16)2 << glyphClassDefOffset << (quint16)0 << (quint16)0 << (quint16)0 << markGlyphSetsDefOffset;
 
-	gdef_array << (quint16)2;
+  gdef_array << (quint16)2;
 
-	gdef_array << glyphCount;
+  gdef_array << glyphCount;
 
-	for (auto i = glyphGlobalClasses.constBegin(); i != glyphGlobalClasses.constEnd(); ++i) {
-		quint16 code = i.key();
-		quint16 classValue = i.value();
-		gdef_array << code;
-		gdef_array << code;
-		gdef_array << classValue;
-	}
+  for (auto i = glyphGlobalClasses.constBegin(); i != glyphGlobalClasses.constEnd(); ++i) {
+    quint16 code = i.key();
+    quint16 classValue = i.value();
+    gdef_array << code;
+    gdef_array << code;
+    gdef_array << classValue;
+  }
 
-	QByteArray MarkGlyphSetsTable;
-	QByteArray coverageTables;
+  QByteArray MarkGlyphSetsTable;
+  QByteArray coverageTables;
 
 
 
-	MarkGlyphSetsTable << (quint16)1 << markGlyphSetCount;
+  MarkGlyphSetsTable << (quint16)1 << markGlyphSetCount;
 
-	quint32 CoverageOffsets = 2 + 2 + 4 * markGlyphSetCount;
+  quint32 CoverageOffsets = 2 + 2 + 4 * markGlyphSetCount;
 
-	for (auto MarkGlyphSet : markGlyphSets) {
-		MarkGlyphSetsTable << CoverageOffsets;
-		std::sort(MarkGlyphSet.begin(), MarkGlyphSet.end());
-		quint16 MarkGlyphSetCount = MarkGlyphSet.size();
-		coverageTables << (quint16)1 << MarkGlyphSetCount << MarkGlyphSet;
-		CoverageOffsets += 2 + 2 + 2 * MarkGlyphSetCount;
-	}
+  for (auto MarkGlyphSet : markGlyphSets) {
+    MarkGlyphSetsTable << CoverageOffsets;
+    std::sort(MarkGlyphSet.begin(), MarkGlyphSet.end());
+    quint16 MarkGlyphSetCount = MarkGlyphSet.size();
+    coverageTables << (quint16)1 << MarkGlyphSetCount << MarkGlyphSet;
+    CoverageOffsets += 2 + 2 + 2 * MarkGlyphSetCount;
+  }
 
-	MarkGlyphSetsTable.append(coverageTables);
+  MarkGlyphSetsTable.append(coverageTables);
 
-	gdef_array.append(MarkGlyphSetsTable);
+  gdef_array.append(MarkGlyphSetsTable);
 
-	return gdef_array;
+  return gdef_array;
 
 }
 QByteArray OtLayout::getGSUB() {
-	if (!gsub_array.isEmpty() && !dirty) {
-		return gsub_array;
-	}
-	gsub_array = getGSUBorGPOS(true, gsublookups, allGsubFeatures, gsublookupsIndexByName);
+  if (!gsub_array.isEmpty() && !dirty) {
+    return gsub_array;
+  }
 
-	return gsub_array;
+  gsub_array = getGSUBorGPOS(true, gsublookups, allGsubFeatures, gsublookupsIndexByName);
+
+  return gsub_array;
 }
 QByteArray OtLayout::getGPOS() {
-	if (!gpos_array.isEmpty() && !dirty) {
-		return gpos_array;
-	}
+  if (!gpos_array.isEmpty() && !dirty) {
+    return gpos_array;
+  }
 
-	gpos_array = getGSUBorGPOS(false, gposlookups, allGposFeatures, gposlookupsIndexByName);
 
-	tajweedcolorindex = gposlookupsIndexByName.value("green", 0xFFFF);
+  gpos_array = getGSUBorGPOS(false, gposlookups, allGposFeatures, gposlookupsIndexByName);
 
-	return gpos_array;
+  tajweedcolorindex = gposlookupsIndexByName.value("green", 0xFFFF);
+
+  return gpos_array;
 }
 QByteArray OtLayout::getFeatureList(QMap<QString, QSet<quint16>> allFeatures) {
 
-	QByteArray featureList_array;
-	QByteArray features_array;
-	QDataStream featureList_stream(&featureList_array, QIODevice::WriteOnly);
-	QDataStream features_stream(&features_array, QIODevice::WriteOnly);
+  QByteArray featureList_array;
+  QByteArray features_array;
+  QDataStream featureList_stream(&featureList_array, QIODevice::WriteOnly);
+  QDataStream features_stream(&features_array, QIODevice::WriteOnly);
 
-	quint16 featureCount = allFeatures.size();
-	quint16 beginoffset = 2 + 6 * featureCount;
+  quint16 featureCount = allFeatures.size();
+  quint16 beginoffset = 2 + 6 * featureCount;
 
-	featureList_stream << featureCount;
+  featureList_stream << featureCount;
 
-	QMapIterator<QString, QSet<quint16>> it(allFeatures);
-	while (it.hasNext()) {
-		it.next();
-		featureList_stream.writeRawData(it.key().toLatin1(), 4); // scriptTag
-		featureList_stream << beginoffset;
+  QMapIterator<QString, QSet<quint16>> it(allFeatures);
+  while (it.hasNext()) {
+    it.next();
+    featureList_stream.writeRawData(it.key().toLatin1(), 4); // scriptTag
+    featureList_stream << beginoffset;
 
-		quint16 lookupIndexCount = it.value().count();
+    quint16 lookupIndexCount = it.value().count();
 
-		features_stream << (quint16)0; //featureParams
-		features_stream << lookupIndexCount;
+    features_stream << (quint16)0; //featureParams
+    features_stream << lookupIndexCount;
 
-		features_stream << it.value();
+    features_stream << it.value();
 
-		/*
-		QSetIterator<quint16> i(it.value());
-		while (i.hasNext()) {
-		features_stream << i.next();
-		}*/
+    /*
+          QSetIterator<quint16> i(it.value());
+          while (i.hasNext()) {
+          features_stream << i.next();
+          }*/
 
-		beginoffset += 2 + 2 + 2 * lookupIndexCount;
+    beginoffset += 2 + 2 + 2 * lookupIndexCount;
 
-	}
+  }
 
-	featureList_array.append(features_array);
+  featureList_array.append(features_array);
 
-	return featureList_array;
+  return featureList_array;
 }
 QByteArray OtLayout::getScriptList(int featureCount) {
-	// script list
+  // script list
 
-	QByteArray scriptList_array;
-	QDataStream scriptList_stream(&scriptList_array, QIODevice::WriteOnly);
+  QByteArray scriptList_array;
+  QDataStream scriptList_stream(&scriptList_array, QIODevice::WriteOnly);
 
-	//ScriptList table
-	scriptList_stream << (quint16)1; // scriptCount
-	scriptList_stream.writeRawData("arab", 4); // scriptTag
-	scriptList_stream << (quint16)8; // scriptOffset
+  //ScriptList table
+  scriptList_stream << (quint16)1; // scriptCount
+  scriptList_stream.writeRawData("arab", 4); // scriptTag
+  scriptList_stream << (quint16)8; // scriptOffset
 
-									 // arab script table
-	scriptList_stream << (quint16)0; // defaultLangSys
-	scriptList_stream << (quint16)1; // langSysCount
-	scriptList_stream.writeRawData("ARA ", 4); // langSysTag
-	scriptList_stream << (quint16)10; // langSysOffset (2 + 2 + 4 + 2)
+  // arab script table
+  scriptList_stream << (quint16)10; // defaultLangSys
+  scriptList_stream << (quint16)1; // langSysCount
+  scriptList_stream.writeRawData("ARA ", 4); // langSysTag
+  scriptList_stream << (quint16)10; // langSysOffset (2 + 2 + 4 + 2)
 
-										// LangSys table
+  // LangSys table
 
-	scriptList_stream << (quint16)0; // lookupOrder
-	scriptList_stream << (quint16)0xFFFF; // lookupOrder
-	scriptList_stream << (quint16)featureCount; // featureIndexCount
+  scriptList_stream << (quint16)0; // lookupOrder
+  scriptList_stream << (quint16)0xFFFF; // lookupOrder
+  scriptList_stream << (quint16)featureCount; // featureIndexCount
 
-	for (int i = 0; i < featureCount; i++) {
-		scriptList_stream << (quint16)i;
-	}
+  for (int i = 0; i < featureCount; i++) {
+    scriptList_stream << (quint16)i;
+  }
 
-	return scriptList_array;
+  return scriptList_array;
 }
 
 QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures,
-	QMap<QString, int>& lookupsIndexByName) {
+  QMap<QString, int>& lookupsIndexByName) {
 
-	allFeatures.clear();
-	lookupsIndexByName.clear();
-	lookups.clear();
+  allFeatures.clear();
+  lookupsIndexByName.clear();
+  lookups.clear();
 
-	for (auto lookup : this->lookups) {
-		if (!disabledLookups.contains(lookup)) {
-			if (isgsub == lookup->isGsubLookup()) {
-				quint16 lookupIndex = lookups.size();
+  for (auto lookup : this->lookups) {
+    if (!disabledLookups.contains(lookup)) {
+      if (isgsub == lookup->isGsubLookup()) {
+        quint16 lookupIndex = lookups.size();
 
-				lookupsIndexByName[lookup->name] = lookupIndex;
-				lookups.append(lookup);
-			}
-		}
-	}
+        lookupsIndexByName[lookup->name] = lookupIndex;
+        lookups.append(lookup);
+      }
+    }
+  }
 
-	for (auto featureName : this->allFeatures.keys()) {
-		for (auto lookup : this->allFeatures.value(featureName)) {
-			int lookupIndex = lookupsIndexByName.value(lookup->name, -1);
-			if (lookupIndex != -1) {
-				allFeatures[featureName].insert(lookupIndex);
-			}
-		}
-	}
+  for (auto featureName : this->allFeatures.keys()) {
+    for (auto lookup : this->allFeatures.value(featureName)) {
+      int lookupIndex = lookupsIndexByName.value(lookup->name, -1);
+      if (lookupIndex != -1) {
+        allFeatures[featureName].insert(lookupIndex);
+      }
+    }
+  }
 
-	QByteArray scriptList = getScriptList(allFeatures.count());
-	QByteArray featureList = getFeatureList(allFeatures);
-
-
-	QByteArray root;
-
-	quint16 scriptListOffset = 10;
-	quint16 featureListOffset = scriptListOffset + scriptList.size();
-	quint16 lookupListOffset = featureListOffset + featureList.size();
-
-	root << (quint16)1 << (quint16)0 << scriptListOffset << featureListOffset << lookupListOffset;
-
-	root.append(scriptList);
-	root.append(featureList);
+  QByteArray scriptList = getScriptList(allFeatures.count());
+  QByteArray featureList = getFeatureList(allFeatures);
 
 
+  QByteArray root;
 
-	quint16 lookupCount = lookups.size();
+  quint16 scriptListOffset = 10;
+  quint16 featureListOffset = scriptListOffset + scriptList.size();
+  quint16 lookupListOffset = featureListOffset + featureList.size();
 
-	quint32 lookupListtotalSize = 2 + 2 * lookupCount;
-	for (int i = 0; i < lookups.size(); ++i) {
+  root << (quint16)1 << (quint16)0 << scriptListOffset << featureListOffset << lookupListOffset;
 
-		Lookup* lookup = lookups.at(i);
-
-		quint32 nb_subtables = lookup->subtables.size();
-
-		//lookup header
-		lookupListtotalSize += 2 + 2 + 2 + 2 * nb_subtables;
-
-		if (lookup->markGlyphSetIndex != -1) {
-			lookupListtotalSize += 2;
-		}
-
-		//extension subtables
-		lookupListtotalSize += 8 * nb_subtables;
-
-	}
-
-	QByteArray lookupList;
-	QByteArray lookups_array;
-	lookupList << lookupCount;
-
-	quint16 beginoffset = 2 + 2 * lookupCount;
-	quint16 extensiontype = isgsub ? Lookup::extensiongsub : (Lookup::extensiongpos - 10);
-	QByteArray subtablesArray;
-
-	quint32 subtablesOffset = lookupListtotalSize;
-
-	for (int i = 0; i < lookups.size(); ++i) {
-
-		Lookup* lookup = lookups.at(i);
-
-		quint32 nb_subtables = lookup->subtables.size();
-
-		QByteArray lookupArray;
-
-		lookupArray << extensiontype;
-		lookupArray << lookup->flags;
-		lookupArray << (quint16)nb_subtables;
-
-		quint16 debutsequence = 2 + 2 + 2 + 2 * nb_subtables;
-
-		if (lookup->markGlyphSetIndex != -1) {
-			debutsequence += 2;
-		}
-		//QByteArray temp = lookup->getSubtables();
-		QByteArray exttables_array;
-
-		for (int i = 0; i < nb_subtables; ++i) {
-
-			lookupArray << debutsequence;
-
-			exttables_array << (quint16)1 << (quint16)(lookup->type % 10) << (quint32)(subtablesOffset - (beginoffset + debutsequence));
-
-			QByteArray subtableArray = lookup->subtables.at(i)->getOptOpenTypeTable();
+  root.append(scriptList);
+  root.append(featureList);
 
 
-			if (subtableArray.size() > 0xFFFF) {
-				throw std::runtime_error{ "Subtable exeeded the limit of 64K" };
-			}
 
-			// std::cout << lookup->name.toLatin1().data() << " --- " << lookup->subtables.at(i)->name.toLatin1().data() << " : " << subtableArray.size() << "\n";
+  quint16 lookupCount = lookups.size();
 
-			subtablesArray.append(subtableArray);
+  quint32 lookupListtotalSize = 2 + 2 * lookupCount;
+  for (int i = 0; i < lookups.size(); ++i) {
 
-			subtablesOffset += subtableArray.size();
+    Lookup* lookup = lookups.at(i);
 
-			debutsequence += 8;
-		}
+    auto subtables = lookup->getSubtables(extended);
 
-		if (lookup->markGlyphSetIndex != -1) {
-			lookupArray << lookup->markGlyphSetIndex;
-		}
+    quint32 nb_subtables = subtables.size();
 
-		lookupArray.append(exttables_array);
-		lookups_array.append(lookupArray);
+    //lookup header
+    lookupListtotalSize += 2 + 2 + 2 + 2 * nb_subtables;
 
-		lookupList << beginoffset;
+    if (lookup->markGlyphSetIndex != -1) {
+      lookupListtotalSize += 2;
+    }
 
-		beginoffset += lookupArray.size();
+    //extension subtables
+    lookupListtotalSize += 8 * nb_subtables;
 
-	}
+  }
 
-	lookupList.append(lookups_array);
-	lookupList.append(subtablesArray);
+  QByteArray lookupList;
+  QByteArray lookups_array;
+  lookupList << lookupCount;
+
+  quint16 beginoffset = 2 + 2 * lookupCount;
+  quint16 extensiontype = isgsub ? Lookup::extensiongsub : Lookup::extensiongpos;
+  QByteArray subtablesArray;
+
+  quint32 subtablesOffset = lookupListtotalSize;
+
+  for (int i = 0; i < lookups.size(); ++i) {
+
+    Lookup* lookup = lookups.at(i);
+
+    auto subtables = lookup->getSubtables(extended);
+
+    quint32 nb_subtables = subtables.size();
+
+    QByteArray lookupArray;
+
+    lookupArray << extensiontype;
+    lookupArray << lookup->flags;
+    lookupArray << (quint16)nb_subtables;
+
+    quint16 debutsequence = 2 + 2 + 2 + 2 * nb_subtables;
+
+    if (lookup->markGlyphSetIndex != -1) {
+      debutsequence += 2;
+    }
+    //QByteArray temp = lookup->getSubtables();
+    QByteArray exttables_array;
+
+    for (int i = 0; i < nb_subtables; ++i) {
+
+      auto& subtable = subtables.at(i);
+      lookupArray << debutsequence;
+
+      quint16 lookuptype = (quint16)lookup->type;
 
 
-	root.append(lookupList);
+      exttables_array << (quint16)1 << lookuptype << (quint32)(subtablesOffset - (beginoffset + debutsequence));
 
-	return root;
+
+
+      QByteArray subtableArray;
+
+      if (!extended && subtable->isConvertible()) {
+        subtableArray = subtable->getConvertedOpenTypeTable();
+      }
+      else {
+        subtableArray = subtable->getOptOpenTypeTable(extended);
+      }
+
+
+
+
+      if (subtableArray.size() > 0xFFFF) {
+        throw std::runtime_error{ "Subtable exeeded the limit of 64K" };
+      }
+
+
+
+      subtablesArray.append(subtableArray);
+
+      subtablesOffset += subtableArray.size();
+
+      debutsequence += 8;
+    }
+
+    if (lookup->markGlyphSetIndex != -1) {
+      lookupArray << lookup->markGlyphSetIndex;
+    }
+
+    lookupArray.append(exttables_array);
+    lookups_array.append(lookupArray);
+
+    lookupList << beginoffset;
+
+    beginoffset += lookupArray.size();
+
+  }
+
+  lookupList.append(lookups_array);
+  lookupList.append(subtablesArray);
+
+
+  root.append(lookupList);
+
+  return root;
 
 }
 /*
 QByteArray OtLayout::getGSUBorGPOS(bool isgsub) {
 
-	QByteArray scriptList = getScriptList(isgsub);
-	QByteArray featureList = getFeatureList(isgsub);
+  QByteArray scriptList = getScriptList(isgsub);
+  QByteArray featureList = getFeatureList(isgsub);
 
 
-	QByteArray root;
+  QByteArray root;
 
-	quint16 scriptListOffset = 10;
-	quint16 featureListOffset = scriptListOffset + scriptList.size();
-	quint16 lookupListOffset = featureListOffset + featureList.size();
+  quint16 scriptListOffset = 10;
+  quint16 featureListOffset = scriptListOffset + scriptList.size();
+  quint16 lookupListOffset = featureListOffset + featureList.size();
 
-	root << (quint16)1 << (quint16)0 << scriptListOffset << featureListOffset << lookupListOffset;
+  root << (quint16)1 << (quint16)0 << scriptListOffset << featureListOffset << lookupListOffset;
 
-	root.append(scriptList);
-	root.append(featureList);
+  root.append(scriptList);
+  root.append(featureList);
 
-	//lookupList
-
-
-	QVector<Lookup*> lookups;
-
-	if (isgsub) {
-		lookups = gsublookups;
-	}
-	else {
-		lookups = gposlookups;
-	}
-
-	quint16 lookupCount = lookups.size();
-
-	QByteArray lookupList;
-	QByteArray lookups_array;
+  //lookupList
 
 
-	quint16 beginoffset = 2 + 2 * lookupCount;
+  QVector<Lookup*> lookups;
 
-	lookupList << lookupCount;
+  if (isgsub) {
+    lookups = gsublookups;
+  }
+  else {
+    lookups = gposlookups;
+  }
 
-	for (int i = 0; i < lookups.size(); ++i) {
+  quint16 lookupCount = lookups.size();
 
-		QByteArray temp = lookups.at(i)->getOpenTypeTable();
-
-		lookupList << beginoffset;
-		lookups_array.append(temp);
-
-		beginoffset += temp.size();
-	}
-
-	lookupList.append(lookups_array);
+  QByteArray lookupList;
+  QByteArray lookups_array;
 
 
-	root.append(lookupList);
+  quint16 beginoffset = 2 + 2 * lookupCount;
 
-	return root;
+  lookupList << lookupCount;
+
+  for (int i = 0; i < lookups.size(); ++i) {
+
+    QByteArray temp = lookups.at(i)->getOpenTypeTable();
+
+    lookupList << beginoffset;
+    lookups_array.append(temp);
+
+    beginoffset += temp.size();
+  }
+
+  lookupList.append(lookups_array);
+
+
+  root.append(lookupList);
+
+  return root;
 
 }*/
 
 #if DIGITALKHATT_WEBLIB
-OtLayout::OtLayout(MP mp) {
+OtLayout::OtLayout(MP mp, bool extended) : fsmDriver{ *this } {
 #else
-OtLayout::OtLayout(MP mp, QObject * parent) :QObject(parent) {
+OtLayout::OtLayout(MP mp, bool extended, QObject * parent) :QObject(parent), fsmDriver{ *this } {
 #endif
 
-	face = hb_face_create_for_tables(harfbuzzGetTables, this, 0);
+  this->extended = extended;
+  face = hb_face_create_for_tables(harfbuzzGetTables, this, 0);
 
-	dirty = true;
+  dirty = true;
 
-	this->mp = mp;
+  this->mp = mp;
 
-	automedina = new Automedina(this, mp);
+  automedina = new Automedina(this, mp, extended);
 
-	nuqta();
+  nuqta();
 
-	//auto test = getCmap();
+  if (!extended) {
 
-	//TEST performance
-	/*
-	GlyphVis* originalglyph = &glyphs["kaf.fina.expa"];
-	int num = 0;
+    loadLookupFile("lookups.json");
 
-	for (double ii = 0x0.00001p-1; ii <= 3; ii += 0x0.00001p-1) {
+    QSet<QString> newhaslefttatweel = automedina->classes["haslefttatweel"];
 
-		GlyphParameters parameters{};
+    for (auto name : automedina->classes["haslefttatweel"]) {
 
-		parameters.lefttatweel = ii;
-		parameters.righttatweel = 0;
+      auto code = glyphCodePerName.value(name);
+      GlyphParameters parameters{};
 
-		auto& test = originalglyph->getAlternate(parameters);
-		num++;
+      auto tatweels = { 1.0,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5 };
 
-	}*/
+      for (auto tatweel : tatweels) {
+        parameters.lefttatweel = tatweel;
+        parameters.righttatweel = 0;
 
+        GlyphVis* glyph = getAlternate(code, parameters);
+        if (tatweel <= 4) {
+          newhaslefttatweel.insert(glyph->name);
+        }
+
+      }
+    }
+
+    automedina->classes["haslefttatweel"] = newhaslefttatweel;
+
+
+  }
 
 }
 OtLayout::~OtLayout() {
-	for (auto lookup : lookups) {
-		delete lookup;
-	}
-	clearAlternates();
+  for (auto lookup : lookups) {
+    delete lookup;
+  }
+  clearAlternates();
 
-	delete face;
-	delete automedina;
+  delete face;
+  delete automedina;
 }
 
 void OtLayout::clearAlternates() {
-	for (auto& glyph : alternatePaths) {
-		for (auto& path : glyph.second) {
-			delete path.second;
-		}
-		//glyph.second.clear();
-	}
-	alternatePaths.clear();
+  for (auto& glyph : alternatePaths) {
+    for (auto& path : glyph.second) {
+      delete path.second;
+    }
+    //glyph.second.clear();
+  }
+  alternatePaths.clear();
 }
 
-AnchorCalc* OtLayout::getanchorCalcFunctions(QString functionName, Subtable * subtable) {
-	return automedina->getanchorCalcFunctions(functionName, subtable);
+CalcAnchor OtLayout::getanchorCalcFunctions(QString functionName, Subtable * subtable) {
+  return automedina->getanchorCalcFunctions(functionName, subtable);
 }
 /*
 void OtLayout::prepareJSENgine() {
 
-	evaluateImport();
+  evaluateImport();
 
-	QJSValue descriptions = myEngine.newObject();
-	myEngine.globalObject().setProperty("desc", descriptions);
-	QJSValue classes = myEngine.globalObject().property("classes");
-	QJSValue marksClass = classes.property("marks");
-	QJSValue basesClass = myEngine.newObject();
-	classes.setProperty("bases", basesClass);
+  QJSValue descriptions = myEngine.newObject();
+  myEngine.globalObject().setProperty("desc", descriptions);
+  QJSValue classes = myEngine.globalObject().property("classes");
+  QJSValue marksClass = classes.property("marks");
+  QJSValue basesClass = myEngine.newObject();
+  classes.setProperty("bases", basesClass);
 
-	for (int i = 0; i < m_font->glyphs.length(); i++) {
+  for (int i = 0; i < m_font->glyphs.length(); i++) {
 
-		Glyph* curr = m_font->glyphs[i];
+    Glyph* curr = m_font->glyphs[i];
 
-		Glyph::ComputedValues & values = curr->getComputedValues();
+    Glyph::ComputedValues & values = curr->getComputedValues();
 
-		QJSValue item = myEngine.newObject();
+    QJSValue item = myEngine.newObject();
 
-		item.setProperty("width", values.width);
-		item.setProperty("height", values.height);
-		item.setProperty("depth", values.depth);
-		item.setProperty("charcode", values.charcode);
-		QJSValue bbox = myEngine.newObject();
+    item.setProperty("width", values.width);
+    item.setProperty("height", values.height);
+    item.setProperty("depth", values.depth);
+    item.setProperty("charcode", values.charcode);
+    QJSValue bbox = myEngine.newObject();
 
-		bbox.setProperty("llx", values.bbox.llx);
-		bbox.setProperty("lly", values.bbox.lly);
-		bbox.setProperty("urx", values.bbox.urx);
-		bbox.setProperty("ury", values.bbox.ury);
+    bbox.setProperty("llx", values.bbox.llx);
+    bbox.setProperty("lly", values.bbox.lly);
+    bbox.setProperty("urx", values.bbox.urx);
+    bbox.setProperty("ury", values.bbox.ury);
 
-		item.setProperty("boundingbox", bbox);
-		item.setProperty("name", curr->name());
-
-
-		if (values.leftAnchor.has_value()) {
-			QJSValue leftAnchor = myEngine.newObject();
-			leftAnchor.setProperty("x", values.leftAnchor.value().x());
-			leftAnchor.setProperty("y", values.leftAnchor.value().y());
-			item.setProperty("leftanchor", leftAnchor);
-		}
-
-		if (values.rightAnchor.has_value()) {
-			QJSValue rightAnchor = myEngine.newObject();
-			rightAnchor.setProperty("x", values.rightAnchor.value().x());
-			rightAnchor.setProperty("y", values.rightAnchor.value().y());
-			item.setProperty("rightanchor", rightAnchor);
-		}
-
-		descriptions.setProperty(curr->name(), item);
-
-		if (!marksClass.hasProperty(curr->name())) {
-			basesClass.setProperty(curr->name(), true);
-			glyphGlobalClasses[curr->name()] = BaseGlyph;
-		}
-		else {
-			glyphGlobalClasses[curr->name()] = MarkGlyph;
-		}
-	}
+    item.setProperty("boundingbox", bbox);
+    item.setProperty("name", curr->name());
 
 
-	//QJSValueIterator it(myEngine.globalObject().property("desc"));
-	//while (it.hasNext()) {
-	//	it.next();
-		//std::cout << it.name().toLatin1().data() << ": " << it.value().toString().toLatin1().data() << "\n";
-		//ebug() << it.name() << ": " << it.value().toString();
-	//}
+    if (values.leftAnchor.has_value()) {
+      QJSValue leftAnchor = myEngine.newObject();
+      leftAnchor.setProperty("x", values.leftAnchor.value().x());
+      leftAnchor.setProperty("y", values.leftAnchor.value().y());
+      item.setProperty("leftanchor", leftAnchor);
+    }
+
+    if (values.rightAnchor.has_value()) {
+      QJSValue rightAnchor = myEngine.newObject();
+      rightAnchor.setProperty("x", values.rightAnchor.value().x());
+      rightAnchor.setProperty("y", values.rightAnchor.value().y());
+      item.setProperty("rightanchor", rightAnchor);
+    }
+
+    descriptions.setProperty(curr->name(), item);
+
+    if (!marksClass.hasProperty(curr->name())) {
+      basesClass.setProperty(curr->name(), true);
+      glyphGlobalClasses[curr->name()] = BaseGlyph;
+    }
+    else {
+      glyphGlobalClasses[curr->name()] = MarkGlyph;
+    }
+  }
+
+
+  //QJSValueIterator it(myEngine.globalObject().property("desc"));
+  //while (it.hasNext()) {
+  //	it.next();
+    //std::cout << it.name().toLatin1().data() << ": " << it.value().toString().toLatin1().data() << "\n";
+    //ebug() << it.name() << ": " << it.value().toString();
+  //}
 
 
 
 }
 
 void OtLayout::evaluateImport() {
-	QString fileName = import;
-	QFile scriptFile(fileName);
-	if (!scriptFile.open(QIODevice::ReadOnly)) {
-		return;
-	}
-	// handle error
-	QTextStream stream(&scriptFile);
-	QString contents = stream.readAll();
-	scriptFile.close();
-	QJSValue result = myEngine.evaluate(contents, fileName);
+  QString fileName = import;
+  QFile scriptFile(fileName);
+  if (!scriptFile.open(QIODevice::ReadOnly)) {
+    return;
+  }
+  // handle error
+  QTextStream stream(&scriptFile);
+  QString contents = stream.readAll();
+  scriptFile.close();
+  QJSValue result = myEngine.evaluate(contents, fileName);
 
-	if (result.isError()) {
-		qDebug()
-			<< "Uncaught exception at line"
-			<< result.property("lineNumber").toInt()
-			<< ":" << result.toString();
-		//printf("Uncaught exception at line %d :\n%s\n", result.property("lineNumber").toInt(), result.toString().toLatin1().constData());
-	}
+  if (result.isError()) {
+    qDebug()
+      << "Uncaught exception at line"
+      << result.property("lineNumber").toInt()
+      << ":" << result.toString();
+    //printf("Uncaught exception at line %d :\n%s\n", result.property("lineNumber").toInt(), result.toString().toLatin1().constData());
+  }
 
 }*/
 void OtLayout::addLookup(Lookup * lookup) {
-	if (lookup->type == Lookup::none) {
-		throw "Lookup Type not defined";
-	}
+  if (lookup->type == Lookup::none) {
+    throw "Lookup Type not defined";
+  }
 
-	if (lookup->name.isEmpty()) {
-		throw "Lookup name not defined";
-	}
+  if (lookup->name.isEmpty()) {
+    throw "Lookup name not defined";
+  }
 
-	if (!lookup->feature.isEmpty()) {
-		allFeatures[lookup->feature].insert(lookup);
-	}
+  if (!lookup->feature.isEmpty()) {
+    allFeatures[lookup->feature].insert(lookup);
+  }
 
-	quint16 lookupIndex = lookups.size();
+  quint16 lookupIndex = lookups.size();
 
-	lookupsIndexByName[lookup->name] = lookupIndex;
-	lookups.append(lookup);
+  lookupsIndexByName[lookup->name] = lookupIndex;
+  lookups.append(lookup);
 
 
+}
+
+void OtLayout::loadLookupFile(std::string fileName) {
+
+  //QJsonModel * model = new QJsonModel;
+
+  std::ifstream lookupStream(fileName, std::ios::binary);
+
+  if (lookupStream) {
+    // get length of file:
+    lookupStream.seekg(0, lookupStream.end);
+    int length = lookupStream.tellg();
+    lookupStream.seekg(0, lookupStream.beg);
+
+    char* buffer = new char[length];
+
+    lookupStream.read(buffer, length);
+
+    if (!lookupStream) {
+      std::cout << "Problem reading file." << fileName;
+    }
+    else {
+      QJsonDocument mDocument = QJsonDocument::fromJson(QByteArray::fromRawData(buffer, length));
+      this->readJson(mDocument.object());
+
+    }
+
+    lookupStream.close();
+    delete[] buffer;
+
+  }
+
+  std::ifstream parametersStream("parameters.json", std::ios::binary);
+
+  if (parametersStream) {
+    // get length of file:
+    parametersStream.seekg(0, parametersStream.end);
+    int length = parametersStream.tellg();
+    parametersStream.seekg(0, parametersStream.beg);
+
+    char* buffer = new char[length];
+
+    parametersStream.read(buffer, length);
+
+    if (!parametersStream) {
+      std::cout << "Problem reading file." << fileName;
+    }
+    else {
+      QJsonDocument mDocument = QJsonDocument::fromJson(QByteArray::fromRawData(buffer, length));
+      this->readParameters(mDocument.object());
+
+    }
+
+    parametersStream.close();
+    delete[] buffer;
+
+  }
 }
 
 void OtLayout::readJson(const QJsonObject & json)
 {
 
-	for (auto lookup : lookups) {
-		delete lookup;
-	}
-	lookups.clear();
-	lookupsIndexByName.clear();
-	gsublookups.clear();
-	gposlookups.clear();
-	markGlyphSets.clear();
-	allGposFeatures.clear();
-	allGsubFeatures.clear();
-	gsublookupsIndexByName.clear();
-	gposlookupsIndexByName.clear();
-	automedina->cachedClasstoUnicode.clear();
-	allFeatures.clear();
-	disabledLookups.clear();
+  for (auto lookup : lookups) {
+    delete lookup;
+  }
+  lookups.clear();
+  lookupsIndexByName.clear();
+  gsublookups.clear();
+  gposlookups.clear();
+  markGlyphSets.clear();
+  allGposFeatures.clear();
+  allGsubFeatures.clear();
+  gsublookupsIndexByName.clear();
+  gposlookupsIndexByName.clear();
+  automedina->cachedClasstoUnicode.clear();
+  allFeatures.clear();
+  disabledLookups.clear();
+  tables.clear();
 
-	//import = json["import"].toString();
+  //import = json["import"].toString();
 
-	QJsonObject lookupsObject = json["lookups"].toObject();
+  QJsonObject lookupsObject = json["lookups"].toObject();
 
-	feayy::FeaContext context{ this, &lookupsObject };
+  feayy::FeaContext context{ this, &lookupsObject };
 
-	if (json.contains("featurefile")) {
-		QString featurefile = json["featurefile"].toString();
-		if (!featurefile.isEmpty()) {
-			feayy::Driver driver(context);
-			if (!driver.parse_file(featurefile.toStdString())) {
-				std::cout << "Error in parsing " << featurefile.toStdString() << endl;
-			};
-		}
+  if (json.contains("featurefile")) {
+    QString featurefile = json["featurefile"].toString();
+    if (!featurefile.isEmpty()) {
+      feayy::Driver driver(context);
+      if (!driver.parse_file(featurefile.toStdString())) {
+        std::cout << "Error in parsing " << featurefile.toStdString() << endl;
+      };
+    }
 
-	}
+  }
 
-	//anchorCalcFunctions = automedina->anchorCalcFunctions;
-	/*
-	for (int gi = 0; gi < 2; gi++) {
+  //anchorCalcFunctions = automedina->anchorCalcFunctions;
+  /*
+      for (int gi = 0; gi < 2; gi++) {
 
-		QString table = gi ? "gpos" : "gsub";
+          QString table = gi ? "gpos" : "gsub";
 
-		QJsonArray lookupsjson = json[table].toArray();
-		for (QJsonArray::iterator it = lookupsjson.begin(); it != lookupsjson.end(); it++) {
+          QJsonArray lookupsjson = json[table].toArray();
+          for (QJsonArray::iterator it = lookupsjson.begin(); it != lookupsjson.end(); it++) {
 
-			QString lookupName = it->toString();
+              QString lookupName = it->toString();
 
-			QJsonObject jsonsubtable = lookupsObject[lookupName].toObject();
+              QJsonObject jsonsubtable = lookupsObject[lookupName].toObject();
 
-			if (jsonsubtable.isEmpty()) {
+              if (jsonsubtable.isEmpty()) {
 
-				Lookup* lookup = automedina->getLookup(lookupName);
-				if (lookup)
-					addLookup(lookup);
-				else {
-					context.useLookup(lookupName);
-				}
+                  Lookup* lookup = automedina->getLookup(lookupName);
+                  if (lookup)
+                      addLookup(lookup);
+                  else {
+                      context.useLookup(lookupName);
+                  }
 
-			}
-			else {
-				QJsonObject lookupsObject = jsonsubtable["lookups"].toObject();
-				for (int index = 0; index < lookupsObject.size(); ++index) {
-					QString innerlookupName = lookupsObject.keys()[index];
-					QJsonObject lookupObject = lookupsObject[innerlookupName].toObject();
-					Lookup* lookup = new Lookup(this);
-					lookup->readJson(lookupObject);
-					lookup->name = lookupName + "." + innerlookupName;
-					lookup->feature = "";
-					addLookup(lookup);
-				}
+              }
+              else {
+                  QJsonObject lookupsObject = jsonsubtable["lookups"].toObject();
+                  for (int index = 0; index < lookupsObject.size(); ++index) {
+                      QString innerlookupName = lookupsObject.keys()[index];
+                      QJsonObject lookupObject = lookupsObject[innerlookupName].toObject();
+                      Lookup* lookup = new Lookup(this);
+                      lookup->readJson(lookupObject);
+                      lookup->name = lookupName + "." + innerlookupName;
+                      lookup->feature = "";
+                      addLookup(lookup);
+                  }
 
-				Lookup* lookup = new Lookup(this);
+                  Lookup* lookup = new Lookup(this);
 
 
-				lookup->name = lookupName;
-				lookup->feature = jsonsubtable["feature"].toString();
+                  lookup->name = lookupName;
+                  lookup->feature = jsonsubtable["feature"].toString();
 
-				lookup->readJson(jsonsubtable);
+                  lookup->readJson(jsonsubtable);
 
-				addLookup(lookup);
+                  addLookup(lookup);
 
-			}
-		}
-	}*/
+              }
+          }
+      }*/
 
-	context.populateFeatures();
+  context.populateFeatures();
 
-	if (face != nullptr) {
-		hb_face_destroy(face);
-		face = nullptr;
-	}
+  if (face != nullptr) {
+    hb_face_destroy(face);
+    face = nullptr;
+  }
 
-	/*
-	for (auto iter = allFeatures.constBegin(); iter != allFeatures.constEnd(); ++iter) {
-		std::cout << "feature " << iter.key().toStdString() << " { " << endl;
-		for (auto lookup : iter.value()) {
-			std::cout << '\t' << "lookup " << lookup->name.toStdString() << ";" << endl;
-		}
+  /*
+      for (auto iter = allFeatures.constBegin(); iter != allFeatures.constEnd(); ++iter) {
+          std::cout << "feature " << iter.key().toStdString() << " { " << endl;
+          for (auto lookup : iter.value()) {
+              std::cout << '\t' << "lookup " << lookup->name.toStdString() << ";" << endl;
+          }
 
-		std::cout << "} " << iter.key().toStdString() << ";" << endl << endl;
-	}*/
+          std::cout << "} " << iter.key().toStdString() << ";" << endl << endl;
+      }*/
 }
 void OtLayout::parseCppJsonLookup(QString lookupName, const QJsonObject & lookups) {
 
-	Lookup* newlookup = automedina->getLookup(lookupName);
-	if (newlookup) {
-		addLookup(newlookup);
-	}
-	else {
-		QJsonObject jsonsubtable = lookups[lookupName].toObject();
+  Lookup* newlookup = automedina->getLookup(lookupName);
+  if (newlookup) {
+    addLookup(newlookup);
+  }
+  else {
+    QJsonObject jsonsubtable = lookups[lookupName].toObject();
 
-		if (jsonsubtable.isEmpty())
-			return;
+    if (jsonsubtable.isEmpty())
+      return;
 
-		QJsonObject lookupsObject = jsonsubtable["lookups"].toObject();
-		for (int index = 0; index < lookupsObject.size(); ++index) {
-			QString innerlookupName = lookupsObject.keys()[index];
-			QJsonObject lookupObject = lookupsObject[innerlookupName].toObject();
-			Lookup* lookup = new Lookup(this);
-			lookup->readJson(lookupObject);
-			lookup->name = lookupName + "." + innerlookupName;
-			lookup->feature = "";
-			addLookup(lookup);
-		}
+    QJsonObject lookupsObject = jsonsubtable["lookups"].toObject();
+    for (int index = 0; index < lookupsObject.size(); ++index) {
+      QString innerlookupName = lookupsObject.keys()[index];
+      QJsonObject lookupObject = lookupsObject[innerlookupName].toObject();
+      Lookup* lookup = new Lookup(this);
+      lookup->readJson(lookupObject);
+      lookup->name = lookupName + "." + innerlookupName;
+      lookup->feature = "";
+      addLookup(lookup);
+    }
 
-		Lookup* lookup = new Lookup(this);
+    Lookup* lookup = new Lookup(this);
 
 
-		lookup->name = lookupName;
-		lookup->feature = jsonsubtable["feature"].toString();
+    lookup->name = lookupName;
+    lookup->feature = jsonsubtable["feature"].toString();
 
-		lookup->readJson(jsonsubtable);
+    lookup->readJson(jsonsubtable);
 
-		addLookup(lookup);
+    addLookup(lookup);
 
-	}
+  }
 
 
 
 }
 void OtLayout::saveParameters(QJsonObject & json) const {
-	for (auto lookup : lookups) {
-		if (!lookup->isGsubLookup()) {
-			QJsonObject lookupObject;
-			lookup->saveParameters(lookupObject);
-			if (!lookupObject.isEmpty()) {
-				json[lookup->name] = lookupObject;
-			}
-		}
+  for (auto lookup : lookups) {
+    if (!lookup->isGsubLookup()) {
+      QJsonObject lookupObject;
+      lookup->saveParameters(lookupObject);
+      if (!lookupObject.isEmpty()) {
+        json[lookup->name] = lookupObject;
+      }
+    }
 
-	}
+  }
 }
 void OtLayout::readParameters(const QJsonObject & json) {
-	for (auto lookup : lookups) {
-		if (!lookup->isGsubLookup()) {
-			if (!json[lookup->name].toObject().isEmpty()) {
-				lookup->readParameters(json[lookup->name].toObject());
-			}
-		}
-	}
+  for (auto lookup : lookups) {
+    if (!lookup->isGsubLookup()) {
+      if (!json[lookup->name].toObject().isEmpty()) {
+        lookup->readParameters(json[lookup->name].toObject());
+      }
+    }
+  }
 }
 void OtLayout::addClass(QString name, QSet<QString> set) {
-	if (automedina->classes.contains(name)) {
-		//throw "Class " + name + " Already exists";
-	}
-	automedina->classes[name] = set;
+  if (automedina->classes.contains(name)) {
+    if (name == "haslefttatweel" && automedina->extended == false) {
+      return;
+    }
+    //throw "Class " + name + " Already exists";
+  }
+  automedina->classes[name] = set;
 }
 hb_font_t* OtLayout::createFont(int emScale, bool newFace)
 {
-	int upem = 1000;
+  int upem = 1000;
 
-	if (newFace || face == nullptr) {
-		if (face != nullptr) {
-			hb_face_destroy(face);
-			face = nullptr;
-		}
+  if (newFace || face == nullptr) {
+    if (face != nullptr) {
+      hb_face_destroy(face);
+      face = nullptr;
+    }
 
 
-		face = hb_face_create_for_tables(harfbuzzGetTables, this, 0);
-		hb_face_set_upem(face, upem);
-	}
+    face = hb_face_create_for_tables(harfbuzzGetTables, this, 0);
+    hb_face_set_upem(face, upem);
+  }
 
-	hb_font_t* font = hb_font_create(face);
-	hb_font_set_funcs(font, getFontFunctions(), this, 0);
-	hb_font_set_ppem(font, upem, upem);
-	const int scale = emScale * upem; // // (1 << OtLayout::SCALEBY) * static_cast<int>(size);
-	hb_font_set_scale(font, scale, scale);
-	return font;
+  hb_font_t* font = hb_font_create(face);
+  hb_font_set_funcs(font, getFontFunctions(), this, 0);
+  hb_font_set_ppem(font, upem, upem);
+  const int scale = emScale * upem; // // (1 << OtLayout::SCALEBY) * static_cast<int>(size);
+  hb_font_set_scale(font, scale, scale);
+  return font;
 }
 
 
 quint16 OtLayout::addMarkSet(QList<quint16> list) {
 
-	quint16 index = markGlyphSets.size();
+  quint16 index = markGlyphSets.size();
 
-	markGlyphSets.append(list);
+  markGlyphSets.append(list);
 
-	return index;
+  return index;
 }
 quint16 OtLayout::addMarkSet(QVector<QString> list) {
-	QList<quint16> codeList;
-	for (auto glyphName : list) {
-		if (quint16 glyphcode = glyphCodePerName.value(glyphName, 0)) {
-			codeList.append(glyphcode);
-		}
-		else {
-			std::cout << "addMarkSet : Glyph Name '" << glyphName.toStdString() << "' does not exist.\n";
-		}
-	}
+  QList<quint16> codeList;
+  for (auto glyphName : list) {
+    if (quint16 glyphcode = glyphCodePerName.value(glyphName, 0)) {
+      codeList.append(glyphcode);
+    }
+    else {
+      std::cout << "addMarkSet : Glyph Name '" << glyphName.toStdString() << "' does not exist.\n";
+    }
+  }
 
-	return addMarkSet(codeList);
+  return addMarkSet(codeList);
 
 }
 QSet<quint16> OtLayout::classtoUnicode(QString className) {
-	return automedina->classtoUnicode(className);
+  return automedina->classtoUnicode(className);
 }
 
 QSet<quint16> OtLayout::regexptoUnicode(QString regexp) {
-	return automedina->regexptoUnicode(regexp);
+  return automedina->regexptoUnicode(regexp);
 }
 
 QSet<QString> OtLayout::classtoGlyphName(QString className) {
 
-	return automedina->classtoGlyphName(className);
-	/*
-	QSet<QString> names;
+  return automedina->classtoGlyphName(className);
+  /*
+      QSet<QString> names;
 
-	QJSValue classes = myEngine.globalObject().property("classes");
+      QJSValue classes = myEngine.globalObject().property("classes");
 
-	if (!classes.hasOwnProperty(className)) {
-		Glyph* glyph = m_font->glyphperName[className];
-		if (glyph) {
-			names.insert(glyph->name());
-		}
-	}
-	else {
-		QJSValue classObject = classes.property(className);
+      if (!classes.hasOwnProperty(className)) {
+          Glyph* glyph = m_font->glyphperName[className];
+          if (glyph) {
+              names.insert(glyph->name());
+          }
+      }
+      else {
+          QJSValue classObject = classes.property(className);
 
-		QJSValueIterator it(classObject);
-		while (it.hasNext()) {
-			it.next();
-			names.unite(classtoGlyphName(it.name()));
-		}
-	}
+          QJSValueIterator it(classObject);
+          while (it.hasNext()) {
+              it.next();
+              names.unite(classtoGlyphName(it.name()));
+          }
+      }
 
-	return names;*/
+      return names;*/
 }
 
 double OtLayout::nuqta() {
-	if (_nuqta == -1) {
-		_nuqta = getNumericVariable("nuqta");
-	}
+  if (_nuqta == -1) {
+    _nuqta = getNumericVariable("nuqta");
+  }
 
-	return _nuqta;
+  return _nuqta;
 }
 
 double OtLayout::getNumericVariable(QString name) {
-	double value;
-	QString command("show " + name + ";");
+  double value;
+  QString command("show " + name + ";");
 
-	QByteArray commandBytes = command.toLatin1();
-	mp->history = mp_spotless;
-	int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());
-	mp_run_data* results = mp_rundata(mp);
-	QString ret(results->term_out.data);
-	ret = ret.trimmed();
-	if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-		mp_finish(mp);
-		throw "Could not get " + name + " !\n" + ret;
-	}
-	else {
-		value = ret.mid(3).toDouble();
-	}
+  QByteArray commandBytes = command.toLatin1();
+  mp->history = mp_spotless;
+  int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());
+  mp_run_data* results = mp_rundata(mp);
+  QString ret(results->term_out.data);
+  ret = ret.trimmed();
+  if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
+    mp_finish(mp);
+    throw "Could not get " + name + " !\n" + ret;
+  }
+  else {
+    value = ret.mid(3).toDouble();
+  }
 
-	return value;
+  return value;
 }
 
 #ifndef DIGITALKHATT_WEBLIB
 void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableIndex, quint16 markCode, quint16 baseCode, QPoint displacement, Qt::KeyboardModifiers modifiers) {
 
-	bool shift = false;
-	bool ctrl = false;
-	bool alt = false;
+  bool shift = false;
+  bool ctrl = false;
+  bool alt = false;
 
-	if (modifiers & Qt::ShiftModifier) {
-		shift = true;
-	}
+  if (modifiers & Qt::ShiftModifier) {
+    shift = true;
+  }
 
-	if (modifiers & Qt::ControlModifier) {
-		ctrl = true;
-	}
+  if (modifiers & Qt::ControlModifier) {
+    ctrl = true;
+  }
 
-	if (modifiers & Qt::AltModifier) {
-		alt = true;
-	}
+  if (modifiers & Qt::AltModifier) {
+    alt = true;
+  }
 
-	Lookup* lookupTable = gposlookups.at(lookup);
+  Lookup* lookupTable = gposlookups.at(lookup);
 
-	auto subtable = lookupTable->subtables.at(subtableIndex);
+  auto subtable = lookupTable->subtables.at(subtableIndex);
 
-	if (lookupTable->type == Lookup::singleadjustment) {
-		SingleAdjustmentSubtable* subtableTable = static_cast<SingleAdjustmentSubtable*>(subtable);
-		QString glyphName = glyphNamePerCode[markCode];
+  if (lookupTable->type == Lookup::singleadjustment) {
+    SingleAdjustmentSubtable* subtableTable = static_cast<SingleAdjustmentSubtable*>(subtable);
+    QString glyphName = glyphNamePerCode[markCode];
 
-		ValueRecord prev = subtableTable->parameters[markCode];
+    ValueRecord prev = subtableTable->parameters[markCode];
 
-		ValueRecord newvalue{ (qint16)(prev.xPlacement + displacement.x()),(qint16)(prev.yPlacement + displacement.y()),prev.xAdvance,(qint16)0 };
+    ValueRecord newvalue{ (qint16)(prev.xPlacement + displacement.x()),(qint16)(prev.yPlacement + displacement.y()),prev.xAdvance,(qint16)0 };
 
-		if (shift) {
-			newvalue.xAdvance += displacement.x();
-		}
-		else if (alt) {
-			newvalue.xAdvance -= displacement.x();
-		}
+    if (shift) {
+      newvalue.xAdvance += displacement.x();
+    }
+    else if (alt) {
+      newvalue.xAdvance -= displacement.x();
+    }
 
-		subtableTable->parameters[markCode] = newvalue;
+    subtableTable->parameters[markCode] = newvalue;
 
-		qDebug() << QString("Changing single adjust anchor %1.%2.%3 :").arg(lookupTable->name, subtable->name, glyphName) << newvalue.xPlacement << newvalue.yPlacement << newvalue.xAdvance;
+    qDebug() << QString("Changing single adjust anchor %1.%2.%3 :").arg(lookupTable->name, subtable->name, glyphName) << newvalue.xPlacement << newvalue.yPlacement << newvalue.xAdvance;
 
-		subtableTable->isDirty = true;
+    subtableTable->isDirty = true;
 
-		emit parameterChanged();
-	}
-	else if (lookupTable->type == Lookup::mark2base || lookupTable->type == Lookup::mark2mark) {
+    emit parameterChanged();
+  }
+  else if (lookupTable->type == Lookup::mark2base || lookupTable->type == Lookup::mark2mark) {
 
-		MarkBaseSubtable* subtableTable = static_cast<MarkBaseSubtable*>(subtable);
+    MarkBaseSubtable* subtableTable = static_cast<MarkBaseSubtable*>(subtable);
 
-		quint16 classIndex = subtableTable->markCodes[markCode];
+    quint16 classIndex = subtableTable->markCodes[markCode];
 
-		QString className = subtableTable->classNamebyIndex[classIndex];
-
-
-
-		if (!shift) {
-
-			QString baseGlyphName = glyphNamePerCode[baseCode];
-
-			GlyphVis& curr = glyphs[baseGlyphName];
-
-			if (ctrl && !curr.originalglyph.isEmpty() && (curr.charlt != 0 || curr.charrt != 0)) {
-				baseGlyphName = curr.originalglyph;
-			}
-
-
-			QPoint prev = subtableTable->classes[className].baseparameters[baseGlyphName];
-
-			QPoint newvalue = prev + displacement;
-
-			subtableTable->classes[className].baseparameters[baseGlyphName] = newvalue;
-
-			qDebug() << QString("Changing base anchor %1::%2::%3::%4 : (%5,%6)").arg(lookupTable->name, subtable->name, className, baseGlyphName, QString::number(newvalue.x()), QString::number(newvalue.y()));
-
-		}
-		else {
-			QString markGlyphName = glyphNamePerCode[markCode];
-			QPoint prev = subtableTable->classes[className].markparameters[markGlyphName];
-
-			QPoint newvalue = prev - displacement;
-
-			subtableTable->classes[className].markparameters[markGlyphName] = prev - displacement;
-
-			qDebug() << QString("Changing mark anchor %1::%2::%3::%4 : (%5,%6)").arg(lookupTable->name, subtable->name, className, markGlyphName, QString::number(newvalue.x()), QString::number(newvalue.y()));
-		}
-		subtableTable->isDirty = true;
+    QString className = subtableTable->classNamebyIndex[classIndex];
 
 
 
-		//qDebug() << "prev : " << prev << "new" << subtableTable->classes[className].baseparameters[baseGlyphName];
+    if (!shift) {
+
+      QString baseGlyphName = glyphNamePerCode[baseCode];
+
+      GlyphVis& curr = glyphs[baseGlyphName];
+
+      if (ctrl && !curr.originalglyph.isEmpty() && (curr.charlt != 0 || curr.charrt != 0)) {
+        baseGlyphName = curr.originalglyph;
+      }
+
+
+      QPoint prev = subtableTable->classes[className].baseparameters[baseGlyphName];
+
+      QPoint newvalue = prev + displacement;
+
+      subtableTable->classes[className].baseparameters[baseGlyphName] = newvalue;
+
+      qDebug() << QString("Changing base anchor %1::%2::%3::%4 : (%5,%6)").arg(lookupTable->name, subtable->name, className, baseGlyphName, QString::number(newvalue.x()), QString::number(newvalue.y()));
+
+    }
+    else {
+      QString markGlyphName = glyphNamePerCode[markCode];
+      QPoint prev = subtableTable->classes[className].markparameters[markGlyphName];
+
+      QPoint newvalue = prev - displacement;
+
+      subtableTable->classes[className].markparameters[markGlyphName] = prev - displacement;
+
+      qDebug() << QString("Changing mark anchor %1::%2::%3::%4 : (%5,%6)").arg(lookupTable->name, subtable->name, className, markGlyphName, QString::number(newvalue.x()), QString::number(newvalue.y()));
+    }
+    subtableTable->isDirty = true;
 
 
 
-		emit parameterChanged();
-
-	}
-	else if (lookupTable->type == Lookup::cursive) {
-		CursiveSubtable* subtableTable = static_cast<CursiveSubtable*>(subtable);
-
-		QString glyphName = glyphNamePerCode[glyphCode];
-
-		QString baseGlyphName = glyphNamePerCode[baseCode];
-
-		GlyphVis& curr = glyphs[glyphName];
-
-		Lookup* lookup = subtableTable->getLookup();
-
-        //if (lookup->flags & Lookup::RightToLeft) {
-        //	QPoint newvalue = subtableTable->exitParameters[glyphCode] + displacement;
-        //	subtableTable->exitParameters[glyphCode] = newvalue;
-
-        //    qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :").arg(lookupTable->name, subtable->name, glyphName) << newvalue;
-        //}
-        //else {
-			if (!shift) {
-				QPoint newvalue = subtableTable->entryParameters[glyphCode] - displacement;
-				subtableTable->entryParameters[glyphCode] = newvalue;
-
-                qDebug() << QString("Changing cursive entry anchor %1::%2::%3 :").arg(lookupTable->name, subtable->name, glyphName) << newvalue;
-			}
-			else {
-				QPoint newvalue = subtableTable->exitParameters[baseCode] + displacement;
-				subtableTable->exitParameters[baseCode] = newvalue;
-
-                qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :").arg(lookupTable->name, subtable->name, baseGlyphName) << newvalue;
-			}
-        //}
-
-		subtableTable->isDirty = true;
-
-		emit parameterChanged();
-
-
-	}
+    //qDebug() << "prev : " << prev << "new" << subtableTable->classes[className].baseparameters[baseGlyphName];
 
 
 
+    emit parameterChanged();
 
+  }
+  else if (lookupTable->type == Lookup::cursive) {
+    CursiveSubtable* subtableTable = static_cast<CursiveSubtable*>(subtable);
+
+    QString glyphName = glyphNamePerCode[glyphCode];
+
+    QString baseGlyphName = glyphNamePerCode[baseCode];
+
+    GlyphVis& curr = glyphs[glyphName];
+
+    Lookup* lookup = subtableTable->getLookup();
+
+    //if (lookup->flags & Lookup::RightToLeft) {
+    //	QPoint newvalue = subtableTable->exitParameters[glyphCode] + displacement;
+    //	subtableTable->exitParameters[glyphCode] = newvalue;
+
+    //    qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :").arg(lookupTable->name, subtable->name, glyphName) << newvalue;
+    //}
+    //else {
+    if (!shift) {
+      QPoint newvalue = subtableTable->entryParameters[glyphCode] - displacement;
+      subtableTable->entryParameters[glyphCode] = newvalue;
+
+      qDebug() << QString("Changing cursive entry anchor %1::%2::%3 :").arg(lookupTable->name, subtable->name, glyphName) << newvalue;
+    }
+    else {
+      QPoint newvalue = subtableTable->exitParameters[baseCode] + displacement;
+      subtableTable->exitParameters[baseCode] = newvalue;
+
+      qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :").arg(lookupTable->name, subtable->name, baseGlyphName) << newvalue;
+    }
+    //}
+
+    subtableTable->isDirty = true;
+
+    emit parameterChanged();
+
+
+  }
 }
 #endif
 
 void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, int emScale) {
 
-	if (!this->allGsubFeatures.contains(feature))
-		return;
+  if (!this->allGsubFeatures.contains(feature))
+    return;
 
-	const unsigned int table_index = 0u;
-	buffer->reverse();
+  const unsigned int table_index = 0u;
+  buffer->reverse();
 
-	uint glyph_count;
+  uint glyph_count;
 
-	hb_buffer_t* copy_buffer = nullptr;
-	copy_buffer = hb_buffer_create();
-	hb_buffer_append(copy_buffer, buffer, 0, -1);
+  hb_buffer_t* copy_buffer = nullptr;
+  copy_buffer = hb_buffer_create();
+  hb_buffer_append(copy_buffer, buffer, 0, -1);
 
-	hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(copy_buffer, &glyph_count);
+  hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(copy_buffer, &glyph_count);
 
-	OT::hb_ot_apply_context_t c(table_index, shapefont, buffer);
-	c.set_recurse_func(OT::SubstLookup::apply_recurse_func);
-	auto list = this->allGsubFeatures[feature].toList();
-	qSort(list);
-	bool stretch = diff > 0;
-	for (auto lookup_index : list) {
-		if ((stretch && diff > 0) || (!stretch && diff < 0)) {
-			c.set_lookup_index(lookup_index);
-			c.set_lookup_mask(2);
-			c.set_auto_zwj(1);
-			c.set_auto_zwnj(1);
+  OT::hb_ot_apply_context_t c(table_index, shapefont, buffer);
+  c.set_recurse_func(OT::SubstLookup::apply_recurse_func);
+  auto list = this->allGsubFeatures[feature].toList();
+  std::sort(list.begin(), list.end());
 
-			needgpos = true;
-			JustificationContext::clear();
+  bool stretch = diff > 0;
 
-			hb_ot_layout_substitute_lookup(&c,
-				shapefont->face->table.GSUB->table->get_lookup(lookup_index),
-				shapefont->face->table.GSUB->accels[lookup_index]);
+  /*
+  for (auto& table : tables) {
+    if (table->name == "just") {
+      for (auto& subtable : table->subtables) {
+        if (auto dd = dynamic_cast<FSMSubtable*>(subtable)) {
+          fsmDriver.executeFSM(*dd, buffer);
+        }
+      }
+    }
+  }*/
 
-			hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
+  for (auto lookup_index : list) {
 
-			if (JustificationContext::GlyphsToExtend.count() != 0) {
+    if (!((stretch && diff > 0) || (!stretch && diff < 0))) break;
 
-				//double tatweel = diff / JustificationContext::GlyphsToExtend.count() / nuqta;
+    c.set_lookup_index(lookup_index);
+    c.set_lookup_mask(2);
+    c.set_auto_zwj(1);
+    c.set_auto_zwnj(1);
 
-				QMap<int, GlyphExpansion > affectedIndexes;
+    needgpos = true;
+    justificationContext.clear();
 
-				bool insideGroup = false;
-				hb_position_t oldWidth = 0;
-				hb_position_t newWidth = 0;
-				QVector<int> group;
+    hb_ot_layout_substitute_lookup(&c,
+      shapefont->face->table.GSUB->table->get_lookup(lookup_index),
+      shapefont->face->table.GSUB->accels[lookup_index]);
 
-				for (int i = 0; i < JustificationContext::GlyphsToExtend.count(); i++) {
+    hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
 
-					int index = JustificationContext::GlyphsToExtend[i]; // glyph_count - 1 - JustificationContext::GlyphsToExtend[i];
-					GlyphVis& substitute = this->glyphs[this->glyphNamePerCode[JustificationContext::Substitutes[i]]];
+    int totalWeight = justificationContext.totalWeight;
 
-					GlyphExpansion& expa = JustificationContext::Expansions[index];
+    bool remaining = true;
 
-					group.append(i);
-					oldWidth += glyph_pos[index].x_advance;
-					if (glyph_info[index].codepoint == JustificationContext::Substitutes[i]) {
-						newWidth += glyph_pos[index].x_advance;
-					}
-					else {
-						double leftTatweel = glyph_pos[index].lefttatweel + expa.MinLeftTatweel > 0 ? expa.MinLeftTatweel : 0;
-						double rightTatweel = glyph_pos[index].righttatweel + expa.MinRightTatweel > 0 ? expa.MinRightTatweel : 0;
-						newWidth += getGlyphHorizontalAdvance(shapefont, this, JustificationContext::Substitutes[i], leftTatweel, rightTatweel, nullptr); // substitute.width* emScale;
-					}
+    double remainingWidth = -1;
 
+    while (totalWeight != 0 && remaining && remainingWidth != 0.0) {
 
-					if (expa.startEndLig == StartEndLig::Start) {
-						insideGroup = true;
-						continue;
-					}
-					else if (insideGroup && expa.startEndLig != StartEndLig::End) {
-						continue;
-					}
+      double expaUnit = diff / totalWeight;
+      if (expaUnit == 0.0) {
+        diff = 0.0;
+        break;;
+      }
 
-					auto expansion = newWidth - oldWidth;
+      totalWeight = 0;
 
-					if ((stretch && expansion <= diff && expansion >= 0) || (!stretch && expansion >= diff && expansion <= 0)) {
+      QMap<int, GlyphExpansion > affectedIndexes;
 
-						diff -= expansion;
+      bool insideGroup = false;
+      hb_position_t oldWidth = 0;
+      hb_position_t newWidth = 0;
+      GlyphExpansion groupExpa{};
+      groupExpa.weight = 0;
+      QVector<int> group;
+      remaining = false;
+      remainingWidth = 0.0;
+      
 
-						for (int i : group) {
+      for (int i = 0; i < justificationContext.GlyphsToExtend.size(); i++) {
 
-							int index = JustificationContext::GlyphsToExtend[i];
-							GlyphExpansion& expa = JustificationContext::Expansions[index];
+        int index = justificationContext.GlyphsToExtend[i];
+        GlyphVis& substitute = this->glyphs[this->glyphNamePerCode[justificationContext.Substitutes[i]]];
 
-							if (glyph_info[index].codepoint == JustificationContext::Substitutes[i]) {
+        GlyphExpansion& expa = justificationContext.Expansions[index];
 
-								expa.MaxLeftTatweel = expa.MaxLeftTatweel - glyph_info[index].lefttatweel;
-								expa.MaxRightTatweel = expa.MaxRightTatweel - glyph_info[index].righttatweel;
+        if (expa.stretchIsAbsolute) {
+          expa.MaxLeftTatweel = expa.MaxLeftTatweel - glyph_info[index].lefttatweel;
+          expa.MaxRightTatweel = expa.MaxRightTatweel - glyph_info[index].righttatweel;
+          expa.stretchIsAbsolute = false;
+        }
 
-								if (stretch && expa.MaxLeftTatweel <= 0 && expa.MaxRightTatweel <= 0
-									|| !stretch && expa.MinLeftTatweel >= 0 && expa.MinRightTatweel >= 0)
-									continue;
+        if (expa.shrinkIsAbsolute) {
+          expa.MinLeftTatweel = expa.MinLeftTatweel - glyph_info[index].lefttatweel;
+          expa.MinRightTatweel = expa.MinRightTatweel - glyph_info[index].righttatweel;
+          expa.shrinkIsAbsolute = false;
+        }
 
-								affectedIndexes.insert(i, expa);
-							}
-							else {
-								//GlyphVis& glyph = this->glyphs[this->glyphNamePerCode[glyph_info[index].codepoint]];
-								//GlyphVis& substitute = this->glyphs[this->glyphNamePerCode[JustificationContext::Substitutes[i]]];
+        group.append(i);
+        oldWidth += glyph_pos[index].x_advance;
+        if (glyph_info[index].codepoint == justificationContext.Substitutes[i]) {
+          newWidth += glyph_pos[index].x_advance;
+        }
+        else {
+          newWidth += getGlyphHorizontalAdvance(shapefont, this, justificationContext.Substitutes[i], glyph_pos[index].lefttatweel, glyph_pos[index].righttatweel, nullptr); // substitute.width* emScale;
+        }
 
-								//auto minStretch = (substitute.width - glyph.width) * emScale; // +JustificationContext::Expansions[index].MinLeftTatweel * nuqta;					
-
-								glyph_info[index].codepoint = JustificationContext::Substitutes[i];
-								if (expa.MinLeftTatweel > 0) {
-									glyph_info[index].lefttatweel += expa.MinLeftTatweel;
-									expa.MinLeftTatweel = 0;
-								}
-
-								if (expa.MinRightTatweel > 0) {
-									glyph_info[index].righttatweel += expa.MinRightTatweel;
-									expa.MinRightTatweel = 0;
-								}
-
-								if (stretch) {
-
-									if (expa.MaxLeftTatweel > 0 || expa.MaxRightTatweel > 0) {
-										affectedIndexes.insert(i, expa);
-									}
-								}
-								else if (!stretch) {
-
-									if (expa.MinLeftTatweel < 0 || expa.MinRightTatweel < 0) {
-										affectedIndexes.insert(i, expa);
-									}
-								}
-							}
-						}
-
-					}
-
-					insideGroup = false;
-					oldWidth = 0.0;
-					newWidth = 0.0;
-					group.clear();
-				}
-
-				while (affectedIndexes.size() != 0) {
-					double meanTatweel = diff / (affectedIndexes.size());
-
-					if (meanTatweel == 0.0) break;
-
-					QMap<int, GlyphExpansion >::iterator i;
-					QMap<int, GlyphExpansion > newaffectedIndexes;
-					for (i = affectedIndexes.begin(); i != affectedIndexes.end(); ++i) {
-
-						int index = JustificationContext::GlyphsToExtend[i.key()]; // glyph_count - 1 - JustificationContext::GlyphsToExtend[i];
-
-						auto expa = i.value();
-
-						if (stretch) {
-							expa.MaxLeftTatweel = expa.MaxLeftTatweel > 0 ? expa.MaxLeftTatweel : 0;
-							expa.MaxRightTatweel = expa.MaxRightTatweel > 0 ? expa.MaxRightTatweel : 0;
-
-							auto MaxTatweel = expa.MaxLeftTatweel + expa.MaxRightTatweel;
-							auto maxStretch = MaxTatweel * nuqta;
+        groupExpa.weight += expa.weight;
+        groupExpa.MinLeftTatweel += expa.MinLeftTatweel;
+        groupExpa.MaxLeftTatweel += expa.MaxLeftTatweel;
+        groupExpa.MinRightTatweel += expa.MinRightTatweel;
+        groupExpa.MaxRightTatweel += expa.MaxRightTatweel;
 
 
-							auto tatweel = meanTatweel;
+        if (expa.startEndLig == StartEndLig::Start) {
+          insideGroup = true;
+          continue;
+        }
+        else if (insideGroup && expa.startEndLig != StartEndLig::End && expa.startEndLig != StartEndLig::EndKashida) {
+          continue;
+        }
 
-							if (meanTatweel > maxStretch) {
-								tatweel = maxStretch;
-							}
+        if (groupExpa.weight == 0) continue;
 
-							diff -= tatweel;
+        int widthDiff = newWidth - oldWidth;
 
-							double leftTatweel = (tatweel * (expa.MaxLeftTatweel / MaxTatweel)) / nuqta;
-							double rightTatweel = (tatweel * (expa.MaxRightTatweel / MaxTatweel)) / nuqta;
+        auto tatweel = expaUnit * groupExpa.weight + remainingWidth;
 
-							glyph_info[index].lefttatweel += leftTatweel;
-							glyph_info[index].righttatweel += rightTatweel;
+        if ((stretch && widthDiff > tatweel) || (!stretch && widthDiff < tatweel)) {
+          totalWeight += groupExpa.weight;
+          remainingWidth = tatweel;
+        }
+        else {          
 
-							if (meanTatweel < maxStretch && diff > 0) {
-								expa.MaxLeftTatweel -= leftTatweel;
-								expa.MaxRightTatweel -= rightTatweel;
-								newaffectedIndexes.insert(i.key(), expa);
-							}
+          diff -= widthDiff;          
+          tatweel -= widthDiff;
 
-						}
-						else {
-							expa.MinLeftTatweel = expa.MinLeftTatweel < 0 ? expa.MinLeftTatweel : 0;
-							expa.MinRightTatweel = expa.MinRightTatweel < 0 ? expa.MinRightTatweel : 0;
+          for (int i : group) {
 
-							auto MinTatweel = expa.MinLeftTatweel + expa.MinRightTatweel;
-							auto minShrink = MinTatweel * nuqta;
+            int index = justificationContext.GlyphsToExtend[i];
+            GlyphExpansion& expa = justificationContext.Expansions[index];
+
+            glyph_info[index].codepoint = justificationContext.Substitutes[i];
+
+            if (stretch) {
+              expa.MaxLeftTatweel = expa.MaxLeftTatweel > 0 ? expa.MaxLeftTatweel : 0;
+              expa.MaxRightTatweel = expa.MaxRightTatweel > 0 ? expa.MaxRightTatweel : 0;
+
+              auto maxTatweel = expa.MaxLeftTatweel + expa.MaxRightTatweel;
+              if (maxTatweel != 0) {
+                auto maxStretch = maxTatweel * nuqta;
+
+                if (tatweel > maxStretch) {
+                  remainingWidth = tatweel - maxStretch;
+                  tatweel = maxStretch;                  
+                }
+                else {
+                  remainingWidth = 0;
+                }
+
+                double leftTatweel = (tatweel * (expa.MaxLeftTatweel / maxTatweel)) / nuqta;
+                double rightTatweel = (tatweel * (expa.MaxRightTatweel / maxTatweel)) / nuqta;
+
+                glyph_info[index].lefttatweel += leftTatweel;
+                glyph_info[index].righttatweel += rightTatweel;
+
+                diff -= tatweel;
+
+                if (maxStretch > tatweel) {
+                  expa.MaxLeftTatweel -= leftTatweel;
+                  expa.MaxRightTatweel -= rightTatweel;
+                  remaining = true;
+                  totalWeight += expa.weight;
+                }
+                else {
+                  expa.weight = 0;
+                }
+              }
+              else {
+                expa.weight = 0;
+              }
+            }
+            else {
+              expa.MinLeftTatweel = expa.MinLeftTatweel < 0 ? expa.MinLeftTatweel : 0;
+              expa.MinRightTatweel = expa.MinRightTatweel < 0 ? expa.MinRightTatweel : 0;
+
+              auto MinTatweel = expa.MinLeftTatweel + expa.MinRightTatweel;
+
+              if (MinTatweel != 0) {
+                auto minShrink = MinTatweel * nuqta;
+
+                if (tatweel < minShrink) {
+                  remainingWidth = tatweel - minShrink;
+                  tatweel = minShrink;                  
+                }
+                else {
+                  remainingWidth = 0;
+                }
+
+                double leftTatweel = (tatweel * (expa.MinLeftTatweel / MinTatweel)) / nuqta;
+                double rightTatweel = (tatweel * (expa.MinRightTatweel / MinTatweel)) / nuqta;
+
+                glyph_info[index].lefttatweel += leftTatweel;
+                glyph_info[index].righttatweel += rightTatweel;
+
+                diff -= tatweel;
+
+                if (tatweel > minShrink) {
+                  expa.MinLeftTatweel -= leftTatweel;
+                  expa.MinRightTatweel -= rightTatweel;
+                  remaining = true;
+                  totalWeight += expa.weight;
+                }
+                else {
+                  expa.weight = 0;
+                }
+              }
+              else {
+                expa.weight = 0;
+              }
+            }
+          }
+        }        
+
+        insideGroup = false;
+        oldWidth = 0.0;
+        newWidth = 0.0;
+        groupExpa = {};
+        groupExpa.weight = 0;
+        group.clear();
+      }      
+    }
+  }
+  buffer->reverse();
+  if (copy_buffer)
+    hb_buffer_destroy(copy_buffer);
+
+}
+
+void OtLayout::applyJustLookup_old(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, int emScale) {
+
+  if (!this->allGsubFeatures.contains(feature))
+    return;
+
+  const unsigned int table_index = 0u;
+  buffer->reverse();
+
+  uint glyph_count;
+
+  hb_buffer_t* copy_buffer = nullptr;
+  copy_buffer = hb_buffer_create();
+  hb_buffer_append(copy_buffer, buffer, 0, -1);
+
+  hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(copy_buffer, &glyph_count);
+
+  OT::hb_ot_apply_context_t c(table_index, shapefont, buffer);
+  c.set_recurse_func(OT::SubstLookup::apply_recurse_func);
+  auto list = this->allGsubFeatures[feature].toList();
+  qSort(list);
+  bool stretch = diff > 0;
+
+  /*
+  for (auto& table : tables) {
+    if (table->name == "just") {
+      for (auto& subtable : table->subtables) {
+        if (auto dd = dynamic_cast<FSMSubtable*>(subtable)) {
+          fsmDriver.executeFSM(*dd, buffer);
+        }
+      }
+    }
+  }*/
+
+  for (auto lookup_index : list) {
+    if ((stretch && diff > 0) || (!stretch && diff < 0)) {
+      c.set_lookup_index(lookup_index);
+      c.set_lookup_mask(2);
+      c.set_auto_zwj(1);
+      c.set_auto_zwnj(1);
+
+      needgpos = true;
+      justificationContext.clear();
+
+      hb_ot_layout_substitute_lookup(&c,
+        shapefont->face->table.GSUB->table->get_lookup(lookup_index),
+        shapefont->face->table.GSUB->accels[lookup_index]);
+
+      hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
+
+      if (justificationContext.GlyphsToExtend.size() != 0) {
+
+        //double tatweel = diff / JustificationContext::GlyphsToExtend.count() / nuqta;
+
+        QMap<int, GlyphExpansion > affectedIndexes;
+
+        bool insideGroup = false;
+        hb_position_t oldWidth = 0;
+        hb_position_t newWidth = 0;
+        QVector<int> group;
+
+        for (int i = 0; i < justificationContext.GlyphsToExtend.size(); i++) {
+
+          int index = justificationContext.GlyphsToExtend[i]; // glyph_count - 1 - JustificationContext::GlyphsToExtend[i];
+          GlyphVis& substitute = this->glyphs[this->glyphNamePerCode[justificationContext.Substitutes[i]]];
+
+          GlyphExpansion& expa = justificationContext.Expansions[index];
+
+          group.append(i);
+          oldWidth += glyph_pos[index].x_advance;
+          if (glyph_info[index].codepoint == justificationContext.Substitutes[i]) {
+            newWidth += glyph_pos[index].x_advance;
+          }
+          else {
+            double leftTatweel = glyph_pos[index].lefttatweel + expa.MinLeftTatweel > 0 ? expa.MinLeftTatweel : 0;
+            double rightTatweel = glyph_pos[index].righttatweel + expa.MinRightTatweel > 0 ? expa.MinRightTatweel : 0;
+            newWidth += getGlyphHorizontalAdvance(shapefont, this, justificationContext.Substitutes[i], leftTatweel, rightTatweel, nullptr); // substitute.width* emScale;
+          }
 
 
-							auto tatweel = meanTatweel;
+          if (expa.startEndLig == StartEndLig::Start) {
+            insideGroup = true;
+            continue;
+          }
+          else if (insideGroup && expa.startEndLig != StartEndLig::End && expa.startEndLig != StartEndLig::EndKashida) {
+            continue;
+          }
 
-							if (meanTatweel < minShrink) {
-								tatweel = minShrink;
-							}
+          auto expansion = newWidth - oldWidth;
 
-							diff -= tatweel;
+          if ((stretch && expansion <= diff && expansion >= 0) || (!stretch && expansion >= diff && expansion <= 0)) {
 
-							double leftTatweel = (tatweel * (expa.MinLeftTatweel / MinTatweel)) / nuqta;
-							double rightTatweel = (tatweel * (expa.MinRightTatweel / MinTatweel)) / nuqta;
+            diff -= expansion;
 
-							glyph_info[index].lefttatweel += leftTatweel;
-							glyph_info[index].righttatweel += rightTatweel;
+            for (int i : group) {
 
-							if (meanTatweel > minShrink && diff < 0) {
-								expa.MinLeftTatweel -= leftTatweel;
-								expa.MinRightTatweel -= rightTatweel;
-								newaffectedIndexes.insert(i.key(), expa);
-							}
-						}
-					}
-					affectedIndexes = newaffectedIndexes;
-				}
-			}
-		}
-		else {
-			continue;
-		}
-	}
-	buffer->reverse();
-	if (copy_buffer)
-		hb_buffer_destroy(copy_buffer);
+              int index = justificationContext.GlyphsToExtend[i];
+              GlyphExpansion& expa = justificationContext.Expansions[index];
+
+              if (glyph_info[index].codepoint == justificationContext.Substitutes[i]) {
+
+                expa.MaxLeftTatweel = expa.MaxLeftTatweel - glyph_info[index].lefttatweel;
+                expa.MaxRightTatweel = expa.MaxRightTatweel - glyph_info[index].righttatweel;
+
+                if (stretch && expa.MaxLeftTatweel <= 0 && expa.MaxRightTatweel <= 0
+                  || !stretch && expa.MinLeftTatweel >= 0 && expa.MinRightTatweel >= 0)
+                  continue;
+
+                affectedIndexes.insert(i, expa);
+              }
+              else {
+                //GlyphVis& glyph = this->glyphs[this->glyphNamePerCode[glyph_info[index].codepoint]];
+                //GlyphVis& substitute = this->glyphs[this->glyphNamePerCode[JustificationContext::Substitutes[i]]];
+
+                //auto minStretch = (substitute.width - glyph.width) * emScale; // +JustificationContext::Expansions[index].MinLeftTatweel * nuqta;
+
+                glyph_info[index].codepoint = justificationContext.Substitutes[i];
+                if (expa.MinLeftTatweel > 0) {
+                  glyph_info[index].lefttatweel += expa.MinLeftTatweel;
+                  expa.MinLeftTatweel = 0;
+                }
+
+                if (expa.MinRightTatweel > 0) {
+                  glyph_info[index].righttatweel += expa.MinRightTatweel;
+                  expa.MinRightTatweel = 0;
+                }
+
+                if (stretch) {
+
+                  if (expa.MaxLeftTatweel > 0 || expa.MaxRightTatweel > 0) {
+                    affectedIndexes.insert(i, expa);
+                  }
+                }
+                else if (!stretch) {
+
+                  if (expa.MinLeftTatweel < 0 || expa.MinRightTatweel < 0) {
+                    affectedIndexes.insert(i, expa);
+                  }
+                }
+              }
+            }
+
+          }
+
+          insideGroup = false;
+          oldWidth = 0.0;
+          newWidth = 0.0;
+          group.clear();
+        }
+
+        while (affectedIndexes.size() != 0) {
+          double meanTatweel = diff / (affectedIndexes.size());
+
+          if (meanTatweel == 0.0) break;
+
+          QMap<int, GlyphExpansion >::iterator i;
+          QMap<int, GlyphExpansion > newaffectedIndexes;
+          for (i = affectedIndexes.begin(); i != affectedIndexes.end(); ++i) {
+
+            int index = justificationContext.GlyphsToExtend[i.key()]; // glyph_count - 1 - JustificationContext::GlyphsToExtend[i];
+
+            auto expa = i.value();
+
+            if (stretch) {
+              expa.MaxLeftTatweel = expa.MaxLeftTatweel > 0 ? expa.MaxLeftTatweel : 0;
+              expa.MaxRightTatweel = expa.MaxRightTatweel > 0 ? expa.MaxRightTatweel : 0;
+
+              auto MaxTatweel = expa.MaxLeftTatweel + expa.MaxRightTatweel;
+              auto maxStretch = MaxTatweel * nuqta;
+
+
+              auto tatweel = meanTatweel;
+
+              if (meanTatweel > maxStretch) {
+                tatweel = maxStretch;
+              }
+
+              diff -= tatweel;
+
+              double leftTatweel = (tatweel * (expa.MaxLeftTatweel / MaxTatweel)) / nuqta;
+              double rightTatweel = (tatweel * (expa.MaxRightTatweel / MaxTatweel)) / nuqta;
+
+              glyph_info[index].lefttatweel += leftTatweel;
+              glyph_info[index].righttatweel += rightTatweel;
+
+              if (meanTatweel < maxStretch && diff > 0) {
+                expa.MaxLeftTatweel -= leftTatweel;
+                expa.MaxRightTatweel -= rightTatweel;
+                newaffectedIndexes.insert(i.key(), expa);
+              }
+
+            }
+            else {
+              expa.MinLeftTatweel = expa.MinLeftTatweel < 0 ? expa.MinLeftTatweel : 0;
+              expa.MinRightTatweel = expa.MinRightTatweel < 0 ? expa.MinRightTatweel : 0;
+
+              auto MinTatweel = expa.MinLeftTatweel + expa.MinRightTatweel;
+              auto minShrink = MinTatweel * nuqta;
+
+
+              auto tatweel = meanTatweel;
+
+              if (meanTatweel < minShrink) {
+                tatweel = minShrink;
+              }
+
+              diff -= tatweel;
+
+              double leftTatweel = (tatweel * (expa.MinLeftTatweel / MinTatweel)) / nuqta;
+              double rightTatweel = (tatweel * (expa.MinRightTatweel / MinTatweel)) / nuqta;
+
+              glyph_info[index].lefttatweel += leftTatweel;
+              glyph_info[index].righttatweel += rightTatweel;
+
+              if (meanTatweel > minShrink && diff < 0) {
+                expa.MinLeftTatweel -= leftTatweel;
+                expa.MinRightTatweel -= rightTatweel;
+                newaffectedIndexes.insert(i.key(), expa);
+              }
+            }
+          }
+          affectedIndexes = newaffectedIndexes;
+        }
+      }
+    }
+    else {
+      continue;
+    }
+  }
+  buffer->reverse();
+  if (copy_buffer)
+    hb_buffer_destroy(copy_buffer);
 
 }
 
 QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor) {
 
-	QList<LineLayoutInfo> page;
+  QList<LineLayoutInfo> page;
 
-	hb_buffer_t* buffer = buffer = hb_buffer_create();
-	hb_font_t* shapefont = this->createFont(emScale, newFace);
+  hb_buffer_t* buffer = buffer = hb_buffer_create();
+  hb_font_t* shapefont = this->createFont(emScale, newFace);
 
-
-	const int minSpace = OtLayout::MINSPACEWIDTH * emScale;
-	const int  defaultSpace = OtLayout::SPACEWIDTH * emScale;
-	double nuqta = this->nuqta() * emScale;
-
-	int currentyPos = TopSpace << OtLayout::SCALEBY;
-
-	/*
-	hb_feature_t features[] = {
-		{HB_TAG('c', 'c', 'm', 'p'),0,0,(uint)-1},
-		{HB_TAG('i', 'n', 'i', 't'),0,0,(uint)-1},
-		{HB_TAG('m', 'e', 'd', 'i'),0,0,(uint)-1},
-		{HB_TAG('f', 'i', 'n', 'a'),0,0,(uint)-1},
-		{HB_TAG('r', 'l', 'i', 'g'),0,0,(uint)-1},
-		{HB_TAG('l', 'i', 'g', 'a'),0,0,(uint)-1},
-		{HB_TAG('c', 'a', 'l', 't'),0,0,(uint)-1},
-		{HB_TAG('c', 'u', 'r', 's'),0,0,(uint)-1},
-		{HB_TAG('k', 'e', 'r', 'n'),0,0,(uint)-1},
-		{HB_TAG('m', 'a', 'r', 'k'),0,0,(uint)-1},
-		{HB_TAG('m', 'k', 'm', 'k'),0,0,(uint)-1},
-		{HB_TAG('s', 'c', 'h', '1'),0,0,(uint)-1},
-	};*/
 
-	//int num_features = sizeof(features) / sizeof(*features);
-
-	hb_segment_properties_t savedprops;
-	savedprops.direction = HB_DIRECTION_RTL;
-	savedprops.script = HB_SCRIPT_ARABIC;
-	savedprops.language = hb_language_from_string("ar", strlen("ar"));
-	savedprops.reserved1 = 0;
-	savedprops.reserved2 = 0;
-
-	hb_feature_t color_fea{ HB_TAG('t', 'j', 'w', 'd'),0,0,(uint)-1 };
-	if (tajweedColor) {
-		color_fea.value = 1;
-	}
+  const int minSpace = OtLayout::MINSPACEWIDTH * emScale;
+  const int  defaultSpace = OtLayout::SPACEWIDTH * emScale;
+  double nuqta = this->nuqta() * emScale;
 
-	hb_feature_t gpos_features[] = {
-		{HB_TAG('i', 'n', 'i', 't'),0,0,(uint)-1},
-		{HB_TAG('m', 'e', 'd', 'i'),0,0,(uint)-1},
-		{HB_TAG('f', 'i', 'n', 'a'),0,0,(uint)-1},
-		{HB_TAG('r', 'l', 'i', 'g'),0,0,(uint)-1},
-		{HB_TAG('l', 'i', 'g', 'a'),0,0,(uint)-1},
-		{HB_TAG('c', 'a', 'l', 't'),0,0,(uint)-1},
-		{HB_TAG('s', 'c', 'h', 'm'),1,0,(uint)-1},
-		{HB_TAG('s', 'h', 'r', '1'),0,0,(uint)-1},
-		color_fea
-	};
-
-	int num_gpos_features = sizeof(gpos_features) / sizeof(*gpos_features);
+  int currentyPos = TopSpace << OtLayout::SCALEBY;
 
+  /*
+      hb_feature_t features[] = {
+          {HB_TAG('c', 'c', 'm', 'p'),0,0,(uint)-1},
+          {HB_TAG('i', 'n', 'i', 't'),0,0,(uint)-1},
+          {HB_TAG('m', 'e', 'd', 'i'),0,0,(uint)-1},
+          {HB_TAG('f', 'i', 'n', 'a'),0,0,(uint)-1},
+          {HB_TAG('r', 'l', 'i', 'g'),0,0,(uint)-1},
+          {HB_TAG('l', 'i', 'g', 'a'),0,0,(uint)-1},
+          {HB_TAG('c', 'a', 'l', 't'),0,0,(uint)-1},
+          {HB_TAG('c', 'u', 'r', 's'),0,0,(uint)-1},
+          {HB_TAG('k', 'e', 'r', 'n'),0,0,(uint)-1},
+          {HB_TAG('m', 'a', 'r', 'k'),0,0,(uint)-1},
+          {HB_TAG('m', 'k', 'm', 'k'),0,0,(uint)-1},
+          {HB_TAG('s', 'c', 'h', '1'),0,0,(uint)-1},
+      };*/
 
+      //int num_features = sizeof(features) / sizeof(*features);
 
+  hb_segment_properties_t savedprops;
+  savedprops.direction = HB_DIRECTION_RTL;
+  savedprops.script = HB_SCRIPT_ARABIC;
+  savedprops.language = hb_language_from_string("ar", strlen("ar"));
+  savedprops.reserved1 = 0;
+  savedprops.reserved2 = 0;
 
+  hb_feature_t color_fea{ HB_TAG('t', 'j', 'w', 'd'),0,0,(uint)-1 };
+  if (tajweedColor) {
+    color_fea.value = 1;
+  }
 
-	auto initializeBuffer = [&](hb_buffer_t* buffer, hb_segment_properties_t* savedprops, QString& line)
-	{
-		hb_buffer_clear_contents(buffer);
-		hb_buffer_set_segment_properties(buffer, savedprops);
-		hb_buffer_add_utf16(buffer, line.utf16(), -1, 0, -1);
-	};
+  hb_feature_t gpos_features[] = {
+    {HB_TAG('i', 'n', 'i', 't'),0,0,(uint)-1},
+    {HB_TAG('m', 'e', 'd', 'i'),0,0,(uint)-1},
+    {HB_TAG('f', 'i', 'n', 'a'),0,0,(uint)-1},
+    {HB_TAG('r', 'l', 'i', 'g'),0,0,(uint)-1},
+    {HB_TAG('l', 'i', 'g', 'a'),0,0,(uint)-1},
+    {HB_TAG('c', 'a', 'l', 't'),0,0,(uint)-1},
+    {HB_TAG('s', 'c', 'h', 'm'),1,0,(uint)-1},
+    {HB_TAG('s', 'h', 'r', '1'),0,0,(uint)-1},
+    color_fea
+  };
 
-	for (auto& line : lines) {
+  int num_gpos_features = sizeof(gpos_features) / sizeof(*gpos_features);
 
-		initializeBuffer(buffer, &savedprops, line);
-		//hb_buffer_set_cluster_level(buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
-		// hb_buffer_set_message_func(buffer, setMessage, this, NULL);			
 
-		uint glyph_count;
 
-		/*
-		hb_shape_plan_t* shape_plan = hb_shape_plan_create_cached2(shapefont->face, &buffer->props, nullptr, 0, shapefont->coords, shapefont->num_coords, nullptr);
 
-		hb_bool_t res = hb_shape_plan_execute(shape_plan, shapefont, buffer, nullptr, 0);
-		hb_shape_plan_destroy(shape_plan);
-		if (res)
-			buffer->content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS;*/
 
-		hb_shape(shapefont, buffer, &color_fea, 1);
+  auto initializeBuffer = [&](hb_buffer_t* buffer, hb_segment_properties_t* savedprops, QString& line)
+  {
+    hb_buffer_clear_contents(buffer);
+    hb_buffer_set_segment_properties(buffer, savedprops);
+    hb_buffer_add_utf16(buffer, line.utf16(), -1, 0, -1);
+  };
 
-		if (applyJustification && lineWidth != 0) {
-			JustificationInProgress = true;
-			bool continueJustification = true;
-			bool schr1applied = false;
-			while (continueJustification) {
+  for (auto& line : lines) {
 
-				continueJustification = false;
+    initializeBuffer(buffer, &savedprops, line);
+    //hb_buffer_set_cluster_level(buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+    // hb_buffer_set_message_func(buffer, setMessage, this, NULL);
 
-				hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-				hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
-				QVector<quint32> spaces;
-				int currentlineWidth = 0;
-				int lastGlyph;
-
+    uint glyph_count;
 
-				for (int i = glyph_count - 1; i >= 0; i--) {
-					//auto name = this->glyphs[this->glyphNamePerCode[glyph_info[i].codepoint]];
-					if (glyph_info[i].codepoint == 32) {
-						glyph_pos[i].x_advance = minSpace;
-						spaces.append(i);
-					}
-					else {
-						currentlineWidth += glyph_pos[i].x_advance;
-						if (this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::BaseGlyph || this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::LigatureGlyph) {
-							lastGlyph = glyph_info[i].codepoint;
-						}
-
-					}
-				}
-
-				GlyphVis& llglyph = this->glyphs[this->glyphNamePerCode[lastGlyph]];
-
-				if (!llglyph.isAyaNumber()) {
-					currentlineWidth = currentlineWidth - this->glyphs[this->glyphNamePerCode[lastGlyph]].bbox.llx;
-				}
-
-
-				double diff = (double)lineWidth - currentlineWidth - spaces.size() * defaultSpace;
-
-				bool needgpos = false;
-				if (diff > 0) {
-					applyJustLookup(buffer, needgpos, diff, "sch1", shapefont, nuqta, emScale);
-				}
-				//shrink
-				else {
-
-					if (!schr1applied) {
-						hb_feature_t festures2[2];
-						festures2[0].tag = HB_TAG('s', 'h', 'r', '1');
-						festures2[0].value = 1;
-						festures2[0].start = 0;
-						festures2[0].end = -1;
-
-						festures2[1] = color_fea;
+    /*
+          hb_shape_plan_t* shape_plan = hb_shape_plan_create_cached2(shapefont->face, &buffer->props, nullptr, 0, shapefont->coords, shapefont->num_coords, nullptr);
 
+          hb_bool_t res = hb_shape_plan_execute(shape_plan, shapefont, buffer, nullptr, 0);
+          hb_shape_plan_destroy(shape_plan);
+          if (res)
+              buffer->content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS;*/
 
-						//buffer->reverse();
-						initializeBuffer(buffer, &savedprops, line);
-
-						hb_shape(shapefont, buffer, festures2, 2);
-
-						continueJustification = true;
-						schr1applied = true;
-					}
-					else {
-						applyJustLookup(buffer, needgpos, diff, "shr2", shapefont, nuqta, emScale);
-					}
-				}
+    hb_shape(shapefont, buffer, &color_fea, 1);
 
-				if (needgpos) {
-					buffer->reverse();
 
-					gpos_features[7].value = schr1applied ? 1 : 0;;
-
-					hb_shape(shapefont, buffer, gpos_features, num_gpos_features);
-					//hb_shape(shapefont, buffer, nullptr, 0);
-				}
-			}
-			JustificationInProgress = false;
-		}
+    if (applyJustification && lineWidth != 0) {
 
 
-		hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-		hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
-		QVector<quint32> spaces;
-		int currentlineWidth = 0;
 
-		int lastGlyph;
-		LineLayoutInfo lineLayout;
 
-		for (int i = glyph_count - 1; i >= 0; i--) {
+      JustificationInProgress = true;
+      bool continueJustification = true;
+      bool schr1applied = false;
+      while (continueJustification) {
 
-			GlyphLayoutInfo glyphLayout;
+        continueJustification = false;
 
-			//if (glyph_info[i].lefttatweel != 0) {
-			//	int t = 0;
-			//}
+        hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
+        hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
+        QVector<quint32> spaces;
+        int currentlineWidth = 0;
+        int lastGlyph;
+
 
-			glyphLayout.codepoint = glyph_info[i].codepoint;
-			glyphLayout.lefttatweel = glyph_info[i].lefttatweel;
-			glyphLayout.righttatweel = glyph_info[i].righttatweel;
-			glyphLayout.cluster = glyph_info[i].cluster;
-			glyphLayout.x_advance = glyph_pos[i].x_advance;
-			glyphLayout.y_advance = glyph_pos[i].y_advance;
-			glyphLayout.x_offset = glyph_pos[i].x_offset;
-			glyphLayout.y_offset = glyph_pos[i].y_offset;
-			glyphLayout.lookup_index = glyph_pos[i].lookup_index;
-			glyphLayout.color = glyph_pos[i].lookup_index >= this->tajweedcolorindex ? glyph_pos[i].base_codepoint : 0;
-			glyphLayout.subtable_index = glyph_pos[i].subtable_index;
-			glyphLayout.base_codepoint = glyph_pos[i].base_codepoint;
+        for (int i = glyph_count - 1; i >= 0; i--) {
+          //auto name = this->glyphs[this->glyphNamePerCode[glyph_info[i].codepoint]];
+          if (glyph_info[i].codepoint == 32) {
+            glyph_pos[i].x_advance = minSpace;
+            spaces.append(i);
+          }
+          else {
+            currentlineWidth += glyph_pos[i].x_advance;
+            if (this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::BaseGlyph || this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::LigatureGlyph) {
+              lastGlyph = glyph_info[i].codepoint;
+            }
+
+          }
+        }
+
+        GlyphVis& llglyph = this->glyphs[this->glyphNamePerCode[lastGlyph]];
+
+        if (!llglyph.isAyaNumber()) {
+          currentlineWidth = currentlineWidth - this->glyphs[this->glyphNamePerCode[lastGlyph]].bbox.llx;
+        }
+
+
+        double diff = (double)lineWidth - currentlineWidth - spaces.size() * defaultSpace;
+
+        bool needgpos = false;
+        if (diff > 0) {
+          applyJustLookup(buffer, needgpos, diff, "sch1", shapefont, nuqta, emScale);
+        }
+        //shrink
+        else {
 
-			glyphLayout.beginsajda = false;
-			glyphLayout.endsajda = false;
+          if (!schr1applied) {
+            hb_feature_t festures2[2];
+            festures2[0].tag = HB_TAG('s', 'h', 'r', '1');
+            festures2[0].value = 1;
+            festures2[0].start = 0;
+            festures2[0].end = -1;
 
-			if (glyphLayout.codepoint == 32) {
-				if (lineWidth != 0) {
-					glyphLayout.x_advance = minSpace;
-					spaces.append(lineLayout.glyphs.size());
-				}
-				else {
-					glyphLayout.x_advance = defaultSpace;
-					currentlineWidth += glyphLayout.x_advance;
-				}
+            festures2[1] = color_fea;
 
-			}
-			else {
-				currentlineWidth += glyphLayout.x_advance;
-				if (this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::BaseGlyph || this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::LigatureGlyph) {
-					lastGlyph = glyph_info[i].codepoint;
-				}
-			}
 
-			lineLayout.glyphs.push_back(glyphLayout);
+            //buffer->reverse();
+            initializeBuffer(buffer, &savedprops, line);
 
-		}
+            hb_shape(shapefont, buffer, festures2, 2);
+
+            continueJustification = true;
+            schr1applied = true;
+          }
+          else {
+            applyJustLookup(buffer, needgpos, diff, "shr2", shapefont, nuqta, emScale);
+          }
+        }
 
-		GlyphVis& llglyph = this->glyphs[this->glyphNamePerCode[lastGlyph]];
+        if (needgpos) {
+          buffer->reverse();
 
-		if (!llglyph.isAyaNumber()) {
-			currentlineWidth = currentlineWidth - llglyph.bbox.llx;
-		}
+          gpos_features[7].value = schr1applied ? 1 : 0;;
 
+          hb_shape(shapefont, buffer, gpos_features, num_gpos_features);
+          //hb_shape(shapefont, buffer, nullptr, 0);
+        }
+      }
+      JustificationInProgress = false;
+    }
 
 
-		lineLayout.underfull = 0;
+    hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
+    hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
+    QVector<quint32> spaces;
+    int currentlineWidth = 0;
 
-		double spaceaverage = 0;
-		if (lineWidth != 0) {
+    int lastGlyph;
+    LineLayoutInfo lineLayout;
 
-			if (spaces.size() != 0) {
-				spaceaverage = (lineWidth - currentlineWidth) / spaces.size();
-			}
+    for (int i = glyph_count - 1; i >= 0; i--) {
 
-			if (spaceaverage > minSpace) {
-				for (auto index : spaces) {
-					lineLayout.glyphs[index].x_advance = spaceaverage;
-				}
-			}
-			else {
-				lineLayout.underfull = (minSpace - spaceaverage) * spaces.size();
-				spaceaverage = minSpace;
-			}
-		}
+      GlyphLayoutInfo glyphLayout;
 
+      //if (glyph_info[i].lefttatweel != 0) {
+      //	int t = 0;
+      //}
 
+      glyphLayout.codepoint = glyph_info[i].codepoint;
+      glyphLayout.lefttatweel = glyph_info[i].lefttatweel;
+      glyphLayout.righttatweel = glyph_info[i].righttatweel;
+      glyphLayout.cluster = glyph_info[i].cluster;
+      glyphLayout.x_advance = glyph_pos[i].x_advance;
+      glyphLayout.y_advance = glyph_pos[i].y_advance;
+      glyphLayout.x_offset = glyph_pos[i].x_offset;
+      glyphLayout.y_offset = glyph_pos[i].y_offset;
+      glyphLayout.lookup_index = glyph_pos[i].lookup_index;
+      glyphLayout.color = glyph_pos[i].lookup_index >= this->tajweedcolorindex ? glyph_pos[i].base_codepoint : 0;
+      glyphLayout.subtable_index = glyph_pos[i].subtable_index;
+      glyphLayout.base_codepoint = glyph_pos[i].base_codepoint;
 
+      glyphLayout.beginsajda = false;
+      glyphLayout.endsajda = false;
 
-		if (justification == LineJustification::Distribute) {
-			lineLayout.xstartposition = 0;
-		}
-		else {
-			//lineLayout.xstartposition = -(lineWidth - (currentlineWidth + spaces.size() * defaultSpace)) / 2;
-			lineLayout.xstartposition = (pageWidth - (currentlineWidth + spaces.size() * spaceaverage)) / 2;
-			//lineLayout.xstartposition = 0;
-		}
+      if (glyphLayout.codepoint == 32) {
+        if (lineWidth != 0) {
+          glyphLayout.x_advance = minSpace;
+          spaces.append(lineLayout.glyphs.size());
+        }
+        else {
+          glyphLayout.x_advance = defaultSpace;
+          currentlineWidth += glyphLayout.x_advance;
+        }
 
-		lineLayout.ystartposition = currentyPos;
+      }
+      else {
+        currentlineWidth += glyphLayout.x_advance;
+        if (this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::BaseGlyph || this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::LigatureGlyph) {
+          lastGlyph = glyph_info[i].codepoint;
+        }
+      }
 
-		page.append(lineLayout);
+      lineLayout.glyphs.push_back(glyphLayout);
 
-		currentyPos = currentyPos + (InterLineSpacing << OtLayout::SCALEBY);
-	}
+    }
 
-	hb_font_destroy(shapefont);
-	hb_buffer_destroy(buffer);
+    GlyphVis& llglyph = this->glyphs[this->glyphNamePerCode[lastGlyph]];
 
-	return page;
+    if (!llglyph.isAyaNumber()) {
+      currentlineWidth = currentlineWidth - llglyph.bbox.llx;
+    }
+
+
+
+    lineLayout.underfull = 0;
+
+    double spaceaverage = 0;
+    if (lineWidth != 0) {
+
+      if (spaces.size() != 0) {
+        spaceaverage = (lineWidth - currentlineWidth) / spaces.size();
+      }
+
+      if (spaceaverage > minSpace) {
+        for (auto index : spaces) {
+          lineLayout.glyphs[index].x_advance = spaceaverage;
+        }
+      }
+      else {
+        lineLayout.underfull = (minSpace - spaceaverage) * spaces.size();
+        spaceaverage = minSpace;
+      }
+    }
+
+
+
+
+    if (justification == LineJustification::Distribute) {
+      lineLayout.xstartposition = 0;
+    }
+    else {
+      //lineLayout.xstartposition = -(lineWidth - (currentlineWidth + spaces.size() * defaultSpace)) / 2;
+      lineLayout.xstartposition = (pageWidth - (currentlineWidth + spaces.size() * spaceaverage)) / 2;
+      //lineLayout.xstartposition = 0;
+    }
+
+    lineLayout.ystartposition = currentyPos;
+
+    page.append(lineLayout);
+
+    currentyPos = currentyPos + (InterLineSpacing << OtLayout::SCALEBY);
+  }
+
+  hb_font_destroy(shapefont);
+  hb_buffer_destroy(buffer);
+
+  return page;
 
 }
 
 LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVerse) {
 
 
-	bool isQurancomplex = false;
+  bool isQurancomplex = false;
 
-	typedef double ParaWidth;
+  typedef double ParaWidth;
 
-	struct Candidate {
-		size_t index;  // index int the text buffer
-		int prev;  // index to previous break		
-		ParaWidth totalWidth;  // width of text until this point, if we decide to break here		
-		double  totalDemerits;  // best demerits found for this break (index) and lineNumber
-		size_t lineNumber;  // only updated for non-constant line widths
-		size_t pageNumber;
-		size_t totalSpaces;  // preceding space count after breaking		
-	};
+  struct Candidate {
+    size_t index;  // index int the text buffer
+    int prev;  // index to previous break
+    ParaWidth totalWidth;  // width of text until this point, if we decide to break here
+    double  totalDemerits;  // best demerits found for this break (index) and lineNumber
+    size_t lineNumber;  // only updated for non-constant line widths
+    size_t pageNumber;
+    size_t totalSpaces;  // preceding space count after breaking
+  };
 
 
-	const double DEMERITS_INFTY = std::numeric_limits<double>::max();
+  const double DEMERITS_INFTY = std::numeric_limits<double>::max();
 
-	hb_buffer_t* buffer = buffer = hb_buffer_create();
+  hb_buffer_t* buffer = buffer = hb_buffer_create();
 
-	hb_buffer_set_direction(buffer, HB_DIRECTION_RTL);
-	hb_buffer_set_script(buffer, HB_SCRIPT_ARABIC);
-	hb_buffer_set_language(buffer, hb_language_from_string("ar", strlen("ar")));
-	//hb_buffer_set_cluster_level(buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+  hb_buffer_set_direction(buffer, HB_DIRECTION_RTL);
+  hb_buffer_set_script(buffer, HB_SCRIPT_ARABIC);
+  hb_buffer_set_language(buffer, hb_language_from_string("ar", strlen("ar")));
+  //hb_buffer_set_cluster_level(buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
-	hb_font_t* font = this->createFont(emScale);
+  hb_font_t* font = this->createFont(emScale);
 
-	QString quran;
+  QString quran;
 
-	for (int i = 2; i < 604; i++) {
-		//for (int i = 581; i < 604; i++) {
-			//for (int i = 1; i < 2; i++) {
-				//const char * text = qurantext[i];
-		const char* tt;
+  for (int i = 2; i < 604; i++) {
+    //for (int i = 581; i < 604; i++) {
+    //for (int i = 1; i < 2; i++) {
+    //const char * text = qurantext[i];
+    const char* tt;
 
-		if (isQurancomplex) {
-			tt = quranComplex[i] + 1;
-		}
-		else {
-			tt = qurantext[i] + 1;
-		}
+    if (isQurancomplex) {
+      tt = quranComplex[i] + 1;
+    }
+    else {
+      tt = qurantext[i] + 1;
+    }
 
-		//unsigned int text_len = strlen(tt);
+    //unsigned int text_len = strlen(tt);
 
-		quran.append(quran.fromUtf8(tt));
+    quran.append(quran.fromUtf8(tt));
 
-		//hb_buffer_add_utf8(buffer, tt, text_len, 0, text_len);
+    //hb_buffer_add_utf8(buffer, tt, text_len, 0, text_len);
 
-	}
+  }
 
-	quran = quran.replace(QRegularExpression("\\s*" + QString("۞") + "\\s*"), QString("۞") + " ");
+  quran = quran.replace(QRegularExpression("\\s*" + QString("۞") + "\\s*"), QString("۞") + " ");
 
-	QSet<int> lineBreaks;
-	QSet<int> suraLines;
-	QSet<int> bismLines;
+  QSet<int> lineBreaks;
+  QSet<int> suraLines;
+  QSet<int> bismLines;
 
-	QString suraWord = "سُورَةُ";
-	QString bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
+  QString suraWord = "سُورَةُ";
+  QString bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
 
-	QString surapattern = "^("
-		+ suraWord + " .*|"
-		+ bism
-		+ "|" + "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
-		+ ")$";
+  QString surapattern = "^("
+    + suraWord + " .*|"
+    + bism
+    + "|" + "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+    + ")$";
 
-	QList<QString> suraNames;
+  QList<QString> suraNames;
 
-	QRegularExpression re(surapattern, QRegularExpression::MultilineOption);
-	QRegularExpressionMatchIterator i = re.globalMatch(quran);
-	while (i.hasNext()) {
-		QRegularExpressionMatch match = i.next();
-		int startOffset = match.capturedStart(); // startOffset == 6
-		int endOffset = match.capturedEnd(); // endOffset == 9
-		lineBreaks.insert(endOffset);
-		lineBreaks.insert(startOffset - 1);
+  QRegularExpression re(surapattern, QRegularExpression::MultilineOption);
+  QRegularExpressionMatchIterator i = re.globalMatch(quran);
+  while (i.hasNext()) {
+    QRegularExpressionMatch match = i.next();
+    int startOffset = match.capturedStart(); // startOffset == 6
+    int endOffset = match.capturedEnd(); // endOffset == 9
+    lineBreaks.insert(endOffset);
+    lineBreaks.insert(startOffset - 1);
 
-		if (match.captured(0).startsWith("سُ")) {
-			suraLines.insert(startOffset);
-			suraNames.append(match.captured(0));
-		}
-		else {
-			bismLines.insert(startOffset);
-		}
-	}
+    if (match.captured(0).startsWith("سُ")) {
+      suraLines.insert(startOffset);
+      suraNames.append(match.captured(0));
+    }
+    else {
+      bismLines.insert(startOffset);
+    }
+  }
 
-	quran = quran.replace(10, 32);
-	quran = quran.replace(bism + char(32), bism + char(10));
+  quran = quran.replace(10, 32);
+  quran = quran.replace(bism + char(32), bism + char(10));
 
 
-	//Mark sajda rules
-	QSet<int> beginsajdas;
-	QSet<int> endsajdas;
+  //Mark sajda rules
+  QSet<int> beginsajdas;
+  QSet<int> endsajdas;
 
 
 
-	//QString gg = //"يَخِرُّونَ لِلْأَذْقَانِ سُجَّدٗا|يَسْجُدُ لَهُۥ|وَخَرَّ رَاكِعٗا|أَلَّا يَسْجُدُوا۟ لِلَّهِ|وَٱسْجُدُوا۟ لِلَّهِ|فَٱسْجُدُوا۟ لِلَّهِ|يَسْجُدُونَ|وَلِلَّهِ يَسْجُدُ|خَرُّوا۟ سُجَّدٗا";
-	//QString sajdapatterns = QString("(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدٗا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعٗا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدٗا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)");
-	QString sajdapatterns = "(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)"; // sajdapatterns.replace("\u0657", "\u08F0").replace("\u065E", "\u08F1").replace("\u0656", "\u08F2");
-	re = QRegularExpression(sajdapatterns, QRegularExpression::MultilineOption);
-	i = re.globalMatch(quran);
-	while (i.hasNext()) {
-		QRegularExpressionMatch match = i.next();
-		int startOffset = match.capturedStart(match.lastCapturedIndex()); // startOffset == 6
-		int endOffset = match.capturedEnd(match.lastCapturedIndex()) - 1; // endOffset == 9
-		QString c0 = match.captured(0);
-		QString captured = match.captured(match.lastCapturedIndex());
+  //QString gg = //"يَخِرُّونَ لِلْأَذْقَانِ سُجَّدٗا|يَسْجُدُ لَهُۥ|وَخَرَّ رَاكِعٗا|أَلَّا يَسْجُدُوا۟ لِلَّهِ|وَٱسْجُدُوا۟ لِلَّهِ|فَٱسْجُدُوا۟ لِلَّهِ|يَسْجُدُونَ|وَلِلَّهِ يَسْجُدُ|خَرُّوا۟ سُجَّدٗا";
+  //QString sajdapatterns = QString("(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدٗا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعٗا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدٗا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)");
+  QString sajdapatterns = "(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)"; // sajdapatterns.replace("\u0657", "\u08F0").replace("\u065E", "\u08F1").replace("\u0656", "\u08F2");
+  re = QRegularExpression(sajdapatterns, QRegularExpression::MultilineOption);
+  i = re.globalMatch(quran);
+  while (i.hasNext()) {
+    QRegularExpressionMatch match = i.next();
+    int startOffset = match.capturedStart(match.lastCapturedIndex()); // startOffset == 6
+    int endOffset = match.capturedEnd(match.lastCapturedIndex()) - 1; // endOffset == 9
+    QString c0 = match.captured(0);
+    QString captured = match.captured(match.lastCapturedIndex());
 
-		//int tt = match.lastCapturedIndex();
+    //int tt = match.lastCapturedIndex();
 
 
-		beginsajdas.insert(startOffset);
+    beginsajdas.insert(startOffset);
 
-		while (this->glyphGlobalClasses[quran[endOffset].unicode()] == OtLayout::MarkGlyph)
-			endOffset--;
+    while (this->glyphGlobalClasses[quran[endOffset].unicode()] == OtLayout::MarkGlyph)
+      endOffset--;
 
-		endsajdas.insert(endOffset);
-	}
+    endsajdas.insert(endOffset);
+  }
 
-	hb_buffer_add_utf16(buffer, quran.utf16(), -1, 0, -1);
+  hb_buffer_add_utf16(buffer, quran.utf16(), -1, 0, -1);
 
-	hb_shape(font, buffer, NULL, 0);
+  hb_shape(font, buffer, NULL, 0);
 
-	uint glyph_count;
+  uint glyph_count;
 
-	const int minSpaceWidth = 50 * emScale;
-	const int spaceWidth = 75 * emScale;
-	const int maxSpaceWidth = 100 * emScale;
+  const int minSpaceWidth = 50 * emScale;
+  const int spaceWidth = 75 * emScale;
+  const int maxSpaceWidth = 100 * emScale;
 
-	//ParaWidth lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  //ParaWidth lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
-	hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-	hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
+  hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
+  hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
 
 
 
-	ParaWidth totalWidth = 0;
-	int totalSpaces = 0;
-	std::vector<int> actives;
-	std::vector<Candidate> candidates;
+  ParaWidth totalWidth = 0;
+  int totalSpaces = 0;
+  std::vector<int> actives;
+  std::vector<Candidate> candidates;
 
-	candidates.push_back({});
-	Candidate* initCand = &candidates.back();
+  candidates.push_back({});
+  Candidate* initCand = &candidates.back();
 
-	initCand->pageNumber = 1;
-	initCand->index = glyph_count;
-	initCand->prev = -1;
+  initCand->pageNumber = 1;
+  initCand->index = glyph_count;
+  initCand->prev = -1;
 
-	actives.push_back(0);
+  actives.push_back(0);
 
-	for (int i = glyph_count - 1; i >= 0; i--) {
+  for (int i = glyph_count - 1; i >= 0; i--) {
 
-		if (glyph_info[i].codepoint != 10 && glyph_info[i].codepoint != 0x20) {
-			totalWidth += glyph_pos[i].x_advance;
-			continue;
-		}
+    if (glyph_info[i].codepoint != 10 && glyph_info[i].codepoint != 0x20) {
+      totalWidth += glyph_pos[i].x_advance;
+      continue;
+    }
 
-		totalSpaces++;
+    totalSpaces++;
 
-		QHash<int, int> potcandidates;
+    QHash<int, int> potcandidates;
 
-		auto activeit = actives.begin();
-		while (activeit != actives.end()) {
+    auto activeit = actives.begin();
+    while (activeit != actives.end()) {
 
-			auto active = &candidates.at(*activeit);
+      auto active = &candidates.at(*activeit);
 
-			// must terminate a page with end of aya
-			// A page has always 15 lines
-			if (pageFinishbyaVerse) {
-				if (active->lineNumber == 14 && !(glyph_info[i + 1].codepoint >= Automedina::AyaNumberCode && glyph_info[i + 1].codepoint <= Automedina::AyaNumberCode + 286)) {
-					activeit++;
-					continue;
-				}
-			}
+      // must terminate a page with end of aya
+      // A page has always 15 lines
+      if (pageFinishbyaVerse) {
+        if (active->lineNumber == 14 && !(glyph_info[i + 1].codepoint >= Automedina::AyaNumberCode && glyph_info[i + 1].codepoint <= Automedina::AyaNumberCode + 286)) {
+          activeit++;
+          continue;
+        }
+      }
 
-			// calculate adjustment ratio
-			double adjRatio = 0.0;
-			int spaces = totalSpaces - active->totalSpaces;
-			ParaWidth width = (totalWidth - active->totalWidth) + spaces * spaceWidth;
-			if (width < lineWidth) {
-				adjRatio = (lineWidth - width) / (spaces * maxSpaceWidth);
-			}
-			else if (width > lineWidth) {
-				adjRatio = (lineWidth - width) / (spaces * minSpaceWidth);
-			}
+      // calculate adjustment ratio
+      double adjRatio = 0.0;
+      int spaces = totalSpaces - active->totalSpaces;
+      ParaWidth width = (totalWidth - active->totalWidth) + spaces * spaceWidth;
+      if (width < lineWidth) {
+        adjRatio = (lineWidth - width) / (spaces * maxSpaceWidth);
+      }
+      else if (width > lineWidth) {
+        adjRatio = (lineWidth - width) / (spaces * minSpaceWidth);
+      }
 
-			if (adjRatio < -1) {
-				activeit = actives.erase(activeit);
-				continue;
-			}
+      if (adjRatio < -1) {
+        activeit = actives.erase(activeit);
+        continue;
+      }
 
-			double demerits = (1 + 100 * std::pow(std::abs(adjRatio), 3));
+      double demerits = (1 + 100 * std::pow(std::abs(adjRatio), 3));
 
-			double totalDemerits = active->totalDemerits + demerits;
+      double totalDemerits = active->totalDemerits + demerits;
 
-			/*
-			qDebug() << "index : " << active->index
-				<< ", lineNumber : " << active->lineNumber
-				<< ", pageNumber : " << active->pageNumber
-				<< ", totalSpaces : " << active->totalSpaces
-				<< ", totalWidth : " << active->totalWidth
-				<< ",active->totalDemerits : " << active->totalDemerits
-				<< ",demerits : " << demerits
-				<< ",totalDemerits : " << totalDemerits
-				<< ",currentIndex : " << i;*/
+      /*
+                qDebug() << "index : " << active->index
+                    << ", lineNumber : " << active->lineNumber
+                    << ", pageNumber : " << active->pageNumber
+                    << ", totalSpaces : " << active->totalSpaces
+                    << ", totalWidth : " << active->totalWidth
+                    << ",active->totalDemerits : " << active->totalDemerits
+                    << ",demerits : " << demerits
+                    << ",totalDemerits : " << totalDemerits
+                    << ",currentIndex : " << i;*/
 
-			int lineNumber = active->lineNumber + 1;
-			int pageNumber = active->pageNumber;
+      int lineNumber = active->lineNumber + 1;
+      int pageNumber = active->pageNumber;
 
-			if (lineNumber == 16) {
-				lineNumber = 1;
-				pageNumber = pageNumber + 1;
-			}
+      if (lineNumber == 16) {
+        lineNumber = 1;
+        pageNumber = pageNumber + 1;
+      }
 
-			//int key = (pageNumber - 1)* 15 + lineNumber;
-			int key = lineNumber;
+      //int key = (pageNumber - 1)* 15 + lineNumber;
+      int key = lineNumber;
 
-			if (potcandidates.contains(key)) {
-				auto& candidate = candidates.at(potcandidates[key]);
-				if (candidate.pageNumber != pageNumber && candidate.totalDemerits > totalDemerits) {
-					throw "Should not";
-				}
-			}
+      if (potcandidates.contains(key)) {
+        auto& candidate = candidates.at(potcandidates[key]);
+        if (candidate.pageNumber != pageNumber && candidate.totalDemerits > totalDemerits) {
+          throw "Should not";
+        }
+      }
 
 
-			if (!potcandidates.contains(key) || candidates.at(potcandidates[key]).totalDemerits > totalDemerits) {
+      if (!potcandidates.contains(key) || candidates.at(potcandidates[key]).totalDemerits > totalDemerits) {
 
 
-				potcandidates[key] = candidates.size();
+        potcandidates[key] = candidates.size();
 
-				candidates.push_back({});
-				Candidate* cand = &candidates.back();
+        candidates.push_back({});
+        Candidate* cand = &candidates.back();
 
 
-				cand->lineNumber = lineNumber;
-				cand->pageNumber = pageNumber;
+        cand->lineNumber = lineNumber;
+        cand->pageNumber = pageNumber;
 
-				cand->index = i;
-				cand->totalSpaces = totalSpaces;
-				cand->totalWidth = totalWidth;
-				cand->totalDemerits = totalDemerits;
-				cand->prev = *activeit;
+        cand->index = i;
+        cand->totalSpaces = totalSpaces;
+        cand->totalWidth = totalWidth;
+        cand->totalDemerits = totalDemerits;
+        cand->prev = *activeit;
 
 
-			}
+      }
 
-			activeit++;
-		}
+      activeit++;
+    }
 
-		if (lineBreaks.contains(glyph_info[i].cluster)) {
-			actives.clear();
-		}
+    if (lineBreaks.contains(glyph_info[i].cluster)) {
+      actives.clear();
+    }
 
-		for (auto cand : potcandidates) {
-			actives.push_back(cand);
-		}
+    for (auto cand : potcandidates) {
+      actives.push_back(cand);
+    }
 
-	}
+  }
 
-	Candidate* bestCandidate = nullptr;
+  Candidate* bestCandidate = nullptr;
 
-	double best = DEMERITS_INFTY;
-	for (auto activenum : actives) {
-		auto active = &candidates.at(activenum);
-		//qDebug() << "index : " << active->index << ", lineNumber : " << active->lineNumber << "Total demerits : " << active->totalDemerits;		
-		if (active->index == 0 && active->totalDemerits < best && active->lineNumber == 15) {
-			best = active->totalDemerits;
-			bestCandidate = active;
-		}
+  double best = DEMERITS_INFTY;
+  for (auto activenum : actives) {
+    auto active = &candidates.at(activenum);
+    //qDebug() << "index : " << active->index << ", lineNumber : " << active->lineNumber << "Total demerits : " << active->totalDemerits;
+    if (active->index == 0 && active->totalDemerits < best && active->lineNumber == 15) {
+      best = active->totalDemerits;
+      bestCandidate = active;
+    }
 
-	}
+  }
 
-	if (bestCandidate == nullptr) {
-		//QMessageBox msgBox;
-		//msgBox.setText("No feasable solution. Try to change the scale.");
-		//msgBox.exec();
-		return {};
-	}
+  if (bestCandidate == nullptr) {
+    //QMessageBox msgBox;
+    //msgBox.setText("No feasable solution. Try to change the scale.");
+    //msgBox.exec();
+    return {};
+  }
 
-	QList<LineLayoutInfo> currentPage;
-	QList<QList<LineLayoutInfo>> pages;
-	QStringList originalPage;
-	QList<QStringList> originalPages;
-	QList<QString> suraNamebyPage;
+  QList<LineLayoutInfo> currentPage;
+  QList<QList<LineLayoutInfo>> pages;
+  QStringList originalPage;
+  QList<QStringList> originalPages;
+  QList<QString> suraNamebyPage;
 
 
-	auto cand = bestCandidate;
-	int currentpageNumber = bestCandidate->pageNumber;
+  auto cand = bestCandidate;
+  int currentpageNumber = bestCandidate->pageNumber;
 
-	int nbbeginsajda = 0;
-	int nbendsajda = 0;
+  int nbbeginsajda = 0;
+  int nbendsajda = 0;
 
-	int lastLinePos = (OtLayout::TopSpace + OtLayout::InterLineSpacing * 14) << OtLayout::SCALEBY;
+  int lastLinePos = (OtLayout::TopSpace + OtLayout::InterLineSpacing * 14) << OtLayout::SCALEBY;
 
-	int currentyPos = lastLinePos;
+  int currentyPos = lastLinePos;
 
-	int suraIndex = suraNames.length();
-	QString currentSuraName;
-	QString firstSuraInCurrentage;
+  int suraIndex = suraNames.length();
+  QString currentSuraName;
+  QString firstSuraInCurrentage;
 
 
-	while (cand->prev != -1) {
+  while (cand->prev != -1) {
 
-		auto prev = &candidates.at(cand->prev);
+    auto prev = &candidates.at(cand->prev);
 
-		int beginIndex = prev->index - 1;
-		int endIndex = cand->index + 1;
-		int totalSpaces = cand->totalSpaces - prev->totalSpaces - 1;
-		int totalWidth = cand->totalWidth - prev->totalWidth;
+    int beginIndex = prev->index - 1;
+    int endIndex = cand->index + 1;
+    int totalSpaces = cand->totalSpaces - prev->totalSpaces - 1;
+    int totalWidth = cand->totalWidth - prev->totalWidth;
 
-		int spaceaverage = (lineWidth - totalWidth) / totalSpaces;
-		if (spaceaverage < minSpaceWidth) {
-			spaceaverage = minSpaceWidth;
-		}
+    int spaceaverage = (lineWidth - totalWidth) / totalSpaces;
+    if (spaceaverage < minSpaceWidth) {
+      spaceaverage = minSpaceWidth;
+    }
 
-		LineLayoutInfo lineLayout;
+    LineLayoutInfo lineLayout;
 
-		lineLayout.type = LineType::Line;
+    lineLayout.type = LineType::Line;
 
-		int currentxPos = 0;
+    int currentxPos = 0;
 
-		if (cand->pageNumber != currentpageNumber) {
-			if (!firstSuraInCurrentage.isEmpty()) {
-				suraNamebyPage.prepend(firstSuraInCurrentage);
+    if (cand->pageNumber != currentpageNumber) {
+      if (!firstSuraInCurrentage.isEmpty()) {
+        suraNamebyPage.prepend(firstSuraInCurrentage);
 
-				if (suraIndex - 1 >= 0) {
-					currentSuraName = suraNames[suraIndex - 1];
-				}
-				else {
-					currentSuraName = "سُورَةُ البَقَرَةِ";
-				}
+        if (suraIndex - 1 >= 0) {
+          currentSuraName = suraNames[suraIndex - 1];
+        }
+        else {
+          currentSuraName = "سُورَةُ البَقَرَةِ";
+        }
 
-			}
-			else {
-				suraNamebyPage.prepend(currentSuraName);
-			}
+      }
+      else {
+        suraNamebyPage.prepend(currentSuraName);
+      }
 
-			firstSuraInCurrentage = "";
-		}
+      firstSuraInCurrentage = "";
+    }
 
 
 
-		if (suraLines.contains(glyph_info[beginIndex].cluster)) {
-			spaceaverage = (int)spaceWidth;
-			currentxPos = (lineWidth - (totalWidth + totalSpaces * spaceaverage)) / 2;
-			lineLayout.type = LineType::Sura;
+    if (suraLines.contains(glyph_info[beginIndex].cluster)) {
+      spaceaverage = (int)spaceWidth;
+      currentxPos = (lineWidth - (totalWidth + totalSpaces * spaceaverage)) / 2;
+      lineLayout.type = LineType::Sura;
 
-			firstSuraInCurrentage = suraNames[--suraIndex];
-		}
-		else if (bismLines.contains(glyph_info[beginIndex].cluster)) {
-			spaceaverage = (int)spaceWidth;
-			currentxPos = (lineWidth - (totalWidth + totalSpaces * spaceaverage)) / 2;
-			lineLayout.type = LineType::Bism;
-		}
+      firstSuraInCurrentage = suraNames[--suraIndex];
+    }
+    else if (bismLines.contains(glyph_info[beginIndex].cluster)) {
+      spaceaverage = (int)spaceWidth;
+      currentxPos = (lineWidth - (totalWidth + totalSpaces * spaceaverage)) / 2;
+      lineLayout.type = LineType::Bism;
+    }
 
-		spaceaverage = spaceaverage;
-		currentxPos = currentxPos;
+    spaceaverage = spaceaverage;
+    currentxPos = currentxPos;
 
-		QString originalLine;
+    QString originalLine;
 
-		int currentcluster = glyph_info[beginIndex].cluster;
-		int currentnewcluster = 0;
+    int currentcluster = glyph_info[beginIndex].cluster;
+    int currentnewcluster = 0;
 
-		for (int i = beginIndex; i >= endIndex; i--) {
+    for (int i = beginIndex; i >= endIndex; i--) {
 
-			GlyphLayoutInfo glyphLayout;
+      GlyphLayoutInfo glyphLayout;
 
 
-			QString glyphName = this->glyphNamePerCode[glyph_info[i].codepoint];
+      QString glyphName = this->glyphNamePerCode[glyph_info[i].codepoint];
 
-			if (glyph_info[i].cluster != currentcluster) {
-				int clusternb = glyph_info[i].cluster - currentcluster;
-				originalLine.append(quran.mid(currentcluster, clusternb));
-				currentcluster = glyph_info[i].cluster;
-				currentnewcluster += clusternb;
-			}
+      if (glyph_info[i].cluster != currentcluster) {
+        int clusternb = glyph_info[i].cluster - currentcluster;
+        originalLine.append(quran.mid(currentcluster, clusternb));
+        currentcluster = glyph_info[i].cluster;
+        currentnewcluster += clusternb;
+      }
 
-			glyphLayout.codepoint = glyph_info[i].codepoint;
-			glyphLayout.cluster = currentnewcluster; // glyph_info[i].cluster;
-			glyphLayout.x_advance = glyph_pos[i].x_advance;
-			glyphLayout.y_advance = glyph_pos[i].y_advance;
-			glyphLayout.x_offset = glyph_pos[i].x_offset;
-			glyphLayout.y_offset = glyph_pos[i].y_offset;
-			glyphLayout.lookup_index = glyph_pos[i].lookup_index;
-			glyphLayout.color = glyph_pos[i].lookup_index >= this->tajweedcolorindex ? glyph_pos[i].base_codepoint : 0;
-			glyphLayout.subtable_index = glyph_pos[i].subtable_index;
-			glyphLayout.base_codepoint = glyph_pos[i].base_codepoint;
-			//Todo Optimize 
-			glyphLayout.beginsajda = false;
-			glyphLayout.endsajda = false;
+      glyphLayout.codepoint = glyph_info[i].codepoint;
+      glyphLayout.cluster = currentnewcluster; // glyph_info[i].cluster;
+      glyphLayout.x_advance = glyph_pos[i].x_advance;
+      glyphLayout.y_advance = glyph_pos[i].y_advance;
+      glyphLayout.x_offset = glyph_pos[i].x_offset;
+      glyphLayout.y_offset = glyph_pos[i].y_offset;
+      glyphLayout.lookup_index = glyph_pos[i].lookup_index;
+      glyphLayout.color = glyph_pos[i].lookup_index >= this->tajweedcolorindex ? glyph_pos[i].base_codepoint : 0;
+      glyphLayout.subtable_index = glyph_pos[i].subtable_index;
+      glyphLayout.base_codepoint = glyph_pos[i].base_codepoint;
+      //Todo Optimize
+      glyphLayout.beginsajda = false;
+      glyphLayout.endsajda = false;
 
-			if (beginsajdas.contains(glyph_info[i].cluster)) {
-				glyphLayout.beginsajda = true;
-				nbbeginsajda++;
-				beginsajdas.remove(glyph_info[i].cluster);
+      if (beginsajdas.contains(glyph_info[i].cluster)) {
+        glyphLayout.beginsajda = true;
+        nbbeginsajda++;
+        beginsajdas.remove(glyph_info[i].cluster);
 
-			}
-			else if (endsajdas.contains(glyph_info[i].cluster)) {
-				glyphLayout.endsajda = true;
-				nbendsajda++;
-				endsajdas.remove(glyph_info[i].cluster);
-			}
+      }
+      else if (endsajdas.contains(glyph_info[i].cluster)) {
+        glyphLayout.endsajda = true;
+        nbendsajda++;
+        endsajdas.remove(glyph_info[i].cluster);
+      }
 
 
-			if (glyphLayout.codepoint == 32 || glyphLayout.codepoint == 10) {
-				glyphLayout.x_advance = spaceaverage;
-				glyphLayout.codepoint = 32;
-			}
-			else {
-				//currentlineWidth += glyphLayout.x_advance;
-				if (this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::BaseGlyph || this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::LigatureGlyph) {
-					//	lastGlyph = glyph_info[i].codepoint;
-				}
-			}
+      if (glyphLayout.codepoint == 32 || glyphLayout.codepoint == 10) {
+        glyphLayout.x_advance = spaceaverage;
+        glyphLayout.codepoint = 32;
+      }
+      else {
+        //currentlineWidth += glyphLayout.x_advance;
+        if (this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::BaseGlyph || this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::LigatureGlyph) {
+          //	lastGlyph = glyph_info[i].codepoint;
+        }
+      }
 
-			lineLayout.glyphs.push_back(glyphLayout);
+      lineLayout.glyphs.push_back(glyphLayout);
 
-		}
+    }
 
-		originalLine.append(quran.mid(currentcluster, glyph_info[endIndex - 1].cluster - currentcluster));
+    originalLine.append(quran.mid(currentcluster, glyph_info[endIndex - 1].cluster - currentcluster));
 
 
-		lineLayout.xstartposition = currentxPos;
+    lineLayout.xstartposition = currentxPos;
 
 
 
-		if (cand->pageNumber == currentpageNumber) {
-			lineLayout.ystartposition = currentyPos;
-			currentPage.prepend(lineLayout);
-			originalPage.prepend(originalLine);
-		}
-		else {
-			currentyPos = lastLinePos;
-			lineLayout.ystartposition = currentyPos;
-			currentpageNumber--;
+    if (cand->pageNumber == currentpageNumber) {
+      lineLayout.ystartposition = currentyPos;
+      currentPage.prepend(lineLayout);
+      originalPage.prepend(originalLine);
+    }
+    else {
+      currentyPos = lastLinePos;
+      lineLayout.ystartposition = currentyPos;
+      currentpageNumber--;
 
-			pages.prepend(currentPage);
-			originalPages.prepend(originalPage);
-			currentPage = QList<LineLayoutInfo>();
-			originalPage.clear();
-			originalPage.append(originalLine);
-			currentPage.append(lineLayout);
+      pages.prepend(currentPage);
+      originalPages.prepend(originalPage);
+      currentPage = QList<LineLayoutInfo>();
+      originalPage.clear();
+      originalPage.append(originalLine);
+      currentPage.append(lineLayout);
 
-		}
+    }
 
-		currentyPos -= OtLayout::InterLineSpacing << OtLayout::SCALEBY;
-		cand = &candidates.at(cand->prev);
+    currentyPos -= OtLayout::InterLineSpacing << OtLayout::SCALEBY;
+    cand = &candidates.at(cand->prev);
 
 
-	}
+  }
 
-	if (nbbeginsajda != 15) {
-		qDebug() << "nbbeginsajda problems?";
-	}
-	if (nbendsajda != 15) {
-		qDebug() << "nbendsajda problems?";
-	}
+  if (nbbeginsajda != 15) {
+    qDebug() << "nbbeginsajda problems?";
+  }
+  if (nbendsajda != 15) {
+    qDebug() << "nbendsajda problems?";
+  }
 
-	pages.prepend(currentPage);
-	originalPages.prepend(originalPage);
-	suraNamebyPage.prepend(currentSuraName);
+  pages.prepend(currentPage);
+  originalPages.prepend(originalPage);
+  suraNamebyPage.prepend(currentSuraName);
 
-	// First & second pages : Al fatiha &  Al Bakara
+  // First & second pages : Al fatiha &  Al Bakara
 
 
-	for (int pageNumber = 1; pageNumber >= 0; pageNumber--) {
+  for (int pageNumber = 1; pageNumber >= 0; pageNumber--) {
 
-		QString textt = QString::fromUtf8(qurantext[pageNumber] + 1);
+    QString textt = QString::fromUtf8(qurantext[pageNumber] + 1);
 
-		auto lines = textt.split(10, QString::SkipEmptyParts);
+    auto lines = textt.split(10, QString::SkipEmptyParts);
 
-		int beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
+    int beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
 
-		int pageWidth = lineWidth;
-		int newLineWidth = 0;
+    int pageWidth = lineWidth;
+    int newLineWidth = 0;
 
-		QList<LineLayoutInfo> page;
+    QList<LineLayoutInfo> page;
 
-		for (int lineIndex = 0; lineIndex < lines.length(); lineIndex++) {
+    for (int lineIndex = 0; lineIndex < lines.length(); lineIndex++) {
 
-			if (lineIndex > 0) {
-				double diameter = pageWidth * 1; // 0.9;
-				if (pageNumber == 0) {
-					diameter = pageWidth * 1; // 0.9;
-				}
+      if (lineIndex > 0) {
+        double diameter = pageWidth * 1; // 0.9;
+        if (pageNumber == 0) {
+          diameter = pageWidth * 1; // 0.9;
+        }
 
-				int index = lineIndex - 1;
-				//index = index % 4;
-				// 22.5 = 180 / 8
-				double degree = lineIndex * 22.5 * M_PI / 180;
-				newLineWidth = diameter * std::sin(degree);
-				//std::cout << "lineIndex=" << lineIndex << ", lineWidth=" << lineWidth << std::endl;
-			}
-			else {
-				newLineWidth = 0;
-			}
+        int index = lineIndex - 1;
+        //index = index % 4;
+        // 22.5 = 180 / 8
+        double degree = lineIndex * 22.5 * M_PI / 180;
+        newLineWidth = diameter * std::sin(degree);
+        //std::cout << "lineIndex=" << lineIndex << ", lineWidth=" << lineWidth << std::endl;
+      }
+      else {
+        newLineWidth = 0;
+      }
 
-			auto lineResult = this->justifyPage(emScale, newLineWidth, pageWidth, QStringList{ lines[lineIndex] }, LineJustification::Center, false, true)[0];
+      auto lineResult = this->justifyPage(emScale, newLineWidth, pageWidth, QStringList{ lines[lineIndex] }, LineJustification::Center, false, true)[0];
 
 
-			if (lineIndex == 0) {
-				lineResult.type = LineType::Sura;
-				lineResult.ystartposition = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1)) << OtLayout::SCALEBY;
-			}
-			else {
-				lineResult.ystartposition = beginsura;
-				beginsura += OtLayout::InterLineSpacing << OtLayout::SCALEBY;
-			}
+      if (lineIndex == 0) {
+        lineResult.type = LineType::Sura;
+        lineResult.ystartposition = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1)) << OtLayout::SCALEBY;
+      }
+      else {
+        lineResult.ystartposition = beginsura;
+        beginsura += OtLayout::InterLineSpacing << OtLayout::SCALEBY;
+      }
 
-			page.append(lineResult);
-		}
-		pages.prepend(page);
-		originalPages.prepend(lines);
+      page.append(lineResult);
+    }
+    pages.prepend(page);
+    originalPages.prepend(lines);
 
-		if (pageNumber == 1) {
-			suraNamebyPage.prepend(currentSuraName);
-		}
-		else {
-			suraNamebyPage.prepend("سُورَةُ الفَاتِحَةِ");
-		}
-	}
+    if (pageNumber == 1) {
+      suraNamebyPage.prepend(currentSuraName);
+    }
+    else {
+      suraNamebyPage.prepend("سُورَةُ الفَاتِحَةِ");
+    }
+  }
 
-	delete font;
-	hb_buffer_destroy(buffer);
+  delete font;
+  hb_buffer_destroy(buffer);
 
-	//Compare text
+  //Compare text
 
-	/*
-	QFile file("qurantinputtext.txt");
-	file.open(QIODevice::WriteOnly | QIODevice::Text);
-	QTextStream out(&file);   // we will serialize the data into the file
-	out.setCodec("UTF-8");
+  /*
+      QFile file("qurantinputtext.txt");
+      file.open(QIODevice::WriteOnly | QIODevice::Text);
+      QTextStream out(&file);   // we will serialize the data into the file
+      out.setCodec("UTF-8");
 
 
-	QString newquran;
+      QString newquran;
 
-	for (auto page : originalPages) {
-		for (auto line : page) {
-			if (newquran.isEmpty()) {
-				newquran = line;
-			}
-			else {
-				newquran = newquran + " " + line;
-			}
-			//out << line.replace("\u06E5","").replace("\u06E6", "") << "\n";   // serialize a string
-			out << line << "\n";   // serialize a string
+      for (auto page : originalPages) {
+          for (auto line : page) {
+              if (newquran.isEmpty()) {
+                  newquran = line;
+              }
+              else {
+                  newquran = newquran + " " + line;
+              }
+              //out << line.replace("\u06E5","").replace("\u06E6", "") << "\n";   // serialize a string
+              out << line << "\n";   // serialize a string
 
-		}
-	}
-	newquran = newquran + " ";
+          }
+      }
+      newquran = newquran + " ";
 
-	int index = newquran.compare(quran);
-	file.close();*/
+      int index = newquran.compare(quran);
+      file.close();*/
 
-	return { pages, originalPages, suraNamebyPage };
+  return { pages, originalPages, suraNamebyPage };
 
 }
 int OtLayout::AlternatelastCode = 0xF0000;
@@ -2565,49 +2963,120 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters) {
 
 
 
-	auto& paths = JustificationInProgress ? alternatePaths[glyphCode] : nojustalternatePaths[glyphCode];
+  auto paths = JustificationInProgress ? &alternatePaths[glyphCode] : &nojustalternatePaths[glyphCode];
 
-	if (paths.find(parameters) != paths.end()) {
-		return paths.at(parameters);
-	}
-	else {
+  if (paths->find(parameters) != paths->end()) {
+    return paths->at(parameters);
+  }
+  else {
 
-		auto glyph = this->getGlyph(glyphCode);
+    auto glyph = this->getGlyph(glyphCode);
 
-		automedina->addchar(glyph->name, AlternatelastCode, parameters.lefttatweel, parameters.righttatweel, parameters.leftextratio, parameters.rightextratio,
-			parameters.left_tatweeltension, parameters.right_tatweeltension, "alternatechar", parameters.which_in_baseline);
+    if (!extended && glyph->name.contains(".added_")) {
+      auto originalGlyph = glyph->originalglyph;
+      parameters.lefttatweel += glyph->charlt;
+      parameters.righttatweel += glyph->charrt;
 
-		mp_run_data* _mp_results = mp_rundata(automedina->mp);
-		mp_edge_object* edges = _mp_results->edges;
+      quint16 oldlyphCode = glyphCodePerName[originalGlyph];
 
-		mp_edge_object* p = _mp_results->edges;
+      paths = JustificationInProgress ? &alternatePaths[oldlyphCode] : &nojustalternatePaths[oldlyphCode];
 
-		mp_edge_object* edge = nullptr;
-		while (p) {
-			if (p->charcode == AlternatelastCode) {
-				edge = p;
-				break;
-			}
-			p = p->next;
-		}
+      if (paths->find(parameters) != paths->end()) {
+        return paths->at(parameters);
+      }
 
-		if (edge == nullptr) {
-			throw "Error";
-		}
+      glyph = &glyphs[originalGlyph];
 
-		GlyphVis* newglyph = new	GlyphVis{ this, edge, true };
+    }
 
-		//newglyph.name = this->name;
+    automedina->addchar(glyph->name, AlternatelastCode, parameters.lefttatweel, parameters.righttatweel, parameters.leftextratio, parameters.rightextratio,
+      parameters.left_tatweeltension, parameters.right_tatweeltension, "alternatechar", parameters.which_in_baseline);
 
-		paths.insert({ parameters, newglyph });
-
-		return paths.at(parameters);
-	}
+    mp_run_data* _mp_results = mp_rundata(automedina->mp);
 
 
-	return nullptr;
+    mp_edge_object* p = _mp_results->edges;
+
+    mp_edge_object* edge = nullptr;
+    while (p) {
+      if (p->charcode == AlternatelastCode) {
+        edge = p;
+        break;
+      }
+      p = p->next;
+    }
+
+    if (edge == nullptr) {
+      throw "Error";
+    }
+
+    GlyphVis* newglyph = nullptr;
+
+    if (extended) {
+      newglyph = new	GlyphVis{ this, edge, true };
+      newglyph->expanded = true;
+    }
+    else {
+
+      quint16 charcode = glyphNamePerCode.keys().last() + 1;
+      QString name = QString("%1.added_%2").arg(glyph->name).arg(charcode);
+
+      GlyphVis& temp = *glyphs.insert(name, GlyphVis(this, edge, true));
+
+      newglyph = &temp;
+
+      newglyph->charcode = charcode;
+      newglyph->name = name;
+      newglyph->expanded = true;
+
+      glyphNamePerCode[newglyph->charcode] = newglyph->name;
+      glyphCodePerName[newglyph->name] = newglyph->charcode;
+
+      if (glyphGlobalClasses.contains(glyphCode)) {
+        glyphGlobalClasses[newglyph->charcode] = glyphGlobalClasses[glyphCode];
+
+        if (glyphGlobalClasses[newglyph->charcode] == OtLayout::BaseGlyph) {
+          automedina->classes["bases"].insert(newglyph->name);
+        }
+        else {
+          automedina->classes["marks"].insert(newglyph->name);
+        }
+      }
+
+      QMap<QString, GlyphVisAnchor>::iterator i;
+      for (i = newglyph->anchors.begin(); i != newglyph->anchors.end(); ++i) {
+        auto anchor = i.value();
+        auto anchorName = i.key();
+        switch (i.value().type)
+        {
+        case 1:
+          automedina->markAnchors[anchorName][newglyph->charcode] = anchor.anchor;
+          break;
+        case 2:
+          automedina->entryAnchors[anchorName][newglyph->charcode] = anchor.anchor;
+          break;
+        case 3:
+          automedina->exitAnchors[anchorName][newglyph->charcode] = anchor.anchor;
+        case 4:
+          automedina->entryAnchorsRTL[anchorName][newglyph->charcode] = anchor.anchor;
+          break;
+        case 5:
+          automedina->exitAnchorsRTL[anchorName][newglyph->charcode] = anchor.anchor;
+        default:
+          break;
+        }
+      }
+    }
+
+    paths->insert({ parameters, newglyph });
+
+    return paths->at(parameters);
+  }
+
+
+  return nullptr;
 }
-QByteArray OtLayout::getCmap(){
+QByteArray OtLayout::getCmap() {
 
   struct Segemnt {
     uint16_t startCode;
@@ -2623,23 +3092,28 @@ QByteArray OtLayout::getCmap(){
   while (i != unicodeToGlyphCode.constEnd()) {
     auto unicode = i.key();
     auto glyphId = i.value();
-    if(unicode >= 10){
-      if(currentSegment.endCode + 1 == unicode &&  unicode + currentSegment.idDelta == glyphId){
+    if (unicode >= 10) {
+      if (currentSegment.endCode + 1 == unicode && unicode + currentSegment.idDelta == glyphId) {
         currentSegment.endCode = unicode;
-      }else{
-        if(currentSegment.startCode != 0 ){
+      }
+      else {
+        if (currentSegment.startCode != 0) {
           segements.append(currentSegment);
         }
-        currentSegment = {unicode,unicode,(int16_t)(glyphId - unicode)};
+        currentSegment = { unicode,unicode,(int16_t)(glyphId - unicode) };
       }
     }
 
     ++i;
   }
 
-  segements.append({0xFFFF,0xFFFF,1});
+  if (currentSegment.startCode != 0) {
+    segements.append(currentSegment);
+  }
 
-  uint16_t segCount  = segements.size();
+  segements.append({ 0xFFFF,0xFFFF,1 });
+
+  uint16_t segCount = segements.size();
 
 
   QByteArray data;
@@ -2651,46 +3125,50 @@ QByteArray OtLayout::getCmap(){
   // encodingRecords[0]
   data << (uint16_t)0; // platformID
   data << (uint16_t)3; // encodingID
-  data << (uint32_t)(2+2+(2+2+4) * nbEncoding); // offset
+  data << (uint32_t)(2 + 2 + (2 + 2 + 4) * nbEncoding); // offset
   // encodingRecords[1]
   data << (uint16_t)3; // platformID
   data << (uint16_t)1; // encodingID
   data << (uint32_t)(2 + 2 + (2 + 2 + 4) * nbEncoding); // offset
 
-  data << (uint16_t)4; // format
+  QByteArray subtable;
 
-  int lengthPos = data.size();
+  subtable << (uint16_t)4; // format
 
-  data << (uint16_t)0; // length
-  data << (uint16_t)0; // language
-  data << (uint16_t)(segCount*2); // 2 × segCount
+  int lengthPos = subtable.size();
+
+  subtable << (uint16_t)0; // length
+  subtable << (uint16_t)0; // language
+  subtable << (uint16_t)(segCount * 2); // 2 × segCount
 
   auto range = exp2(floor(log2(segCount)));
-  data << (uint16_t)(2*range); // searchRange
-  data << (uint16_t)log2(range);//entrySelector
-  data << (uint16_t)(2*(segCount - range));//rangeShift
+  subtable << (uint16_t)(2 * range); // searchRange
+  subtable << (uint16_t)log2(range);//entrySelector
+  subtable << (uint16_t)(2 * (segCount - range));//rangeShift
 
-  for(auto& seg : segements){
-    data << seg.endCode;
+  for (auto& seg : segements) {
+    subtable << seg.endCode;
   }
 
-  data << (uint16_t)0; // reservedPad
+  subtable << (uint16_t)0; // reservedPad
 
-  for(auto& seg : segements){
-    data << seg.startCode;
+  for (auto& seg : segements) {
+    subtable << seg.startCode;
   }
-  for(auto& seg : segements){
-    data << seg.idDelta;
+  for (auto& seg : segements) {
+    subtable << seg.idDelta;
   }
   //idRangeOffset[segCount]
-  for(auto& seg : segements){
-    data << (uint16_t)0; //idRangeOffset
+  for (auto& seg : segements) {
+    subtable << (uint16_t)0; //idRangeOffset
   }
 
   QByteArray length;
 
-  length << (uint16_t)data.size();
-  data.replace(lengthPos,2,length);
+  length << (uint16_t)subtable.size();
+  subtable.replace(lengthPos, 2, length);
+
+  data.append(subtable);
 
   return data;
 }

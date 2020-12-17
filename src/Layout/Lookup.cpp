@@ -26,271 +26,285 @@
 #include "QByteArrayOperator.h"
 
 Lookup::Lookup(OtLayout* layout) {
-	this->layout = layout;	
-	flags = 0;
-	type = none;
+  this->layout = layout;
+  flags = 0;
 }
 
 Lookup::~Lookup()
 {
-	for (auto subtable : subtables) {
-		delete subtable;
-	}
+  for (auto subtable : subtables) {
+    delete subtable;
+  }
 }
 void Lookup::setGlyphSet(QVector<QString> list) {
-	QSet<quint16> set;
-	for (auto className : list) {
-		markGlyphSet.append(className);
-		set.unite(layout->classtoUnicode(className));
-	}
+  QSet<quint16> set;
+  for (auto className : list) {
+    markGlyphSet.append(className);
+    set.unite(layout->classtoUnicode(className));
+  }
 
-	markGlyphSetIndex = -1;
-	if (set.size() > 0) {
-		auto list = set.values();
-		std::sort(list.begin(), list.end());
-		markGlyphSetIndex = layout->addMarkSet(list);
-		flags = flags | Flags::UseMarkFilteringSet;
-	}
+  markGlyphSetIndex = -1;
+  if (set.size() > 0) {
+    auto list = set.values();
+    std::sort(list.begin(), list.end());
+    markGlyphSetIndex = layout->addMarkSet(list);
+    flags = flags | Flags::UseMarkFilteringSet;
+  }
 }
-void Lookup::readJson(const QJsonObject &jsonsubtable) {
-	QString type = jsonsubtable["type"].toString();
+void Lookup::readJson(const QJsonObject& jsonsubtable) {
+  QString type = jsonsubtable["type"].toString();
 
-	QJsonArray flagsArray = jsonsubtable["flags"].toArray();
-	flags = 0;
-	if (flagsArray.size() == 4) {
-		if (flagsArray[0].toBool()) {
-			flags = flags | Flags::RightToLeft;
-		}
-		if (flagsArray[1].toBool()) {
-			flags = flags | Flags::IgnoreBaseGlyphs;
-		}
-		if (flagsArray[2].toBool()) {
-			flags = flags | Flags::IgnoreLigatures;
-		}
-		if (flagsArray[3].toBool()) {
-			flags = flags | Flags::IgnoreMarks;
-		}
-	}
+  QJsonArray flagsArray = jsonsubtable["flags"].toArray();
+  flags = 0;
+  if (flagsArray.size() == 4) {
+    if (flagsArray[0].toBool()) {
+      flags = flags | Flags::RightToLeft;
+    }
+    if (flagsArray[1].toBool()) {
+      flags = flags | Flags::IgnoreBaseGlyphs;
+    }
+    if (flagsArray[2].toBool()) {
+      flags = flags | Flags::IgnoreLigatures;
+    }
+    if (flagsArray[3].toBool()) {
+      flags = flags | Flags::IgnoreMarks;
+    }
+  }
 
-	QJsonArray markGlyphSetArray = jsonsubtable["markSet"].toArray();
+  QJsonArray markGlyphSetArray = jsonsubtable["markSet"].toArray();
 
-	QSet<quint16> set;
-	for (int index = 0; index < markGlyphSetArray.size(); ++index) {
-		QString className = markGlyphSetArray[index].toString();
-		markGlyphSet.append(className);
-		set.unite(layout->classtoUnicode(className));
-	}
+  QSet<quint16> set;
+  for (int index = 0; index < markGlyphSetArray.size(); ++index) {
+    QString className = markGlyphSetArray[index].toString();
+    markGlyphSet.append(className);
+    set.unite(layout->classtoUnicode(className));
+  }
 
-	markGlyphSetIndex = -1;
-	if (set.size() > 0) {
-		auto list = set.values();
-		std::sort(list.begin(), list.end());
-		markGlyphSetIndex = layout->addMarkSet(list);
-		flags = flags | Flags::UseMarkFilteringSet;
-	}
+  markGlyphSetIndex = -1;
+  if (set.size() > 0) {
+    auto list = set.values();
+    std::sort(list.begin(), list.end());
+    markGlyphSetIndex = layout->addMarkSet(list);
+    flags = flags | Flags::UseMarkFilteringSet;
+  }
 
-	if (type == "color") {		
-		SingleAdjustmentSubtable* newsubtable = new SingleAdjustmentSubtable(this, 3);
-		this->type = Lookup::singleadjustment;
-		newsubtable->name = name;
-		newsubtable->readJson(jsonsubtable["data"].toObject());
-		subtables.append(newsubtable);
+  if (type == "color") {
+    SingleAdjustmentSubtable* newsubtable = new SingleAdjustmentSubtable(this, 3);
+    this->type = Lookup::singleadjustment;
+    newsubtable->name = name;
+    newsubtable->readJson(jsonsubtable["data"].toObject());
+    subtables.append(newsubtable);
 
-	}
-	else if (type == "singleadj") {		
-		SingleAdjustmentSubtable* newsubtable = new SingleAdjustmentSubtable(this);
-		this->type = Lookup::singleadjustment;
-		newsubtable->name = name;
-		newsubtable->readJson(jsonsubtable["data"].toObject());
-		subtables.append(newsubtable);
+  }
+  else if (type == "singleadj") {
+    SingleAdjustmentSubtable* newsubtable = new SingleAdjustmentSubtable(this);
+    this->type = Lookup::singleadjustment;
+    newsubtable->name = name;
+    newsubtable->readJson(jsonsubtable["data"].toObject());
+    subtables.append(newsubtable);
 
-	}
-	else if (type == "cursive") {		
-		CursiveSubtable* newsubtable = new CursiveSubtable(this);
-		this->type = Lookup::cursive;
-		newsubtable->name = name;
-		newsubtable->readJson(jsonsubtable);
-		subtables.append(newsubtable);
+  }
+  else if (type == "cursive") {
+    CursiveSubtable* newsubtable = new CursiveSubtable(this);
+    this->type = Lookup::cursive;
+    newsubtable->name = name;
+    newsubtable->readJson(jsonsubtable);
+    subtables.append(newsubtable);
 
-	}
-	else if (type == "mark2base") {		
-		MarkBaseSubtable* newsubtable = new MarkBaseSubtable(this);
-		this->type = Lookup::mark2base;
-		newsubtable->name = name;
-		newsubtable->readJson(jsonsubtable);
-		subtables.append(newsubtable);
+  }
+  else if (type == "mark2base") {
+    MarkBaseSubtable* newsubtable = new MarkBaseSubtable(this);
+    this->type = Lookup::mark2base;
+    newsubtable->name = name;
+    newsubtable->readJson(jsonsubtable);
+    subtables.append(newsubtable);
 
-	}
-	else if (type == "mark2mark") {		
-		MarkBaseSubtable* newsubtable = new MarkBaseSubtable(this);
-		this->type = Lookup::mark2mark;
-		newsubtable->name = name;
-		newsubtable->readJson(jsonsubtable);
-		this->subtables.append(newsubtable);
+  }
+  else if (type == "mark2mark") {
+    MarkBaseSubtable* newsubtable = new MarkBaseSubtable(this);
+    this->type = Lookup::mark2mark;
+    newsubtable->name = name;
+    newsubtable->readJson(jsonsubtable);
+    this->subtables.append(newsubtable);
 
-	}
-	else if (type == "single") {
-		SingleSubtable* newsubtable = new SingleSubtable(this);
-		this->type = Lookup::single;		
-		newsubtable->name = name;
-		newsubtable->readJson(jsonsubtable["data"].toObject());
-		this->subtables.append(newsubtable);
-	}
-	else if (type == "multiple") {
-		MultipleSubtable* newsubtable = new MultipleSubtable(this);
-		this->type = Lookup::multiple;		
-		newsubtable->name = name;
-		newsubtable->readJson(jsonsubtable["data"].toObject());
-		this->subtables.append(newsubtable);
-	}
-	else if (type == "ligature") {
-		LigatureSubtable* newsubtable = new LigatureSubtable(this);
-		this->type = Lookup::ligature;		
-		newsubtable->name = name;
-		newsubtable->readJson(jsonsubtable["data"].toObject());
-		this->subtables.append(newsubtable);
-	}
-	else if (type == "chainingsub") {
+  }
+  else if (type == "single") {
+    SingleSubtable* newsubtable = new SingleSubtable(this);
+    this->type = Lookup::single;
+    newsubtable->name = name;
+    newsubtable->readJson(jsonsubtable["data"].toObject());
+    this->subtables.append(newsubtable);
+  }
+  else if (type == "multiple") {
+    MultipleSubtable* newsubtable = new MultipleSubtable(this);
+    this->type = Lookup::multiple;
+    newsubtable->name = name;
+    newsubtable->readJson(jsonsubtable["data"].toObject());
+    this->subtables.append(newsubtable);
+  }
+  else if (type == "ligature") {
+    LigatureSubtable* newsubtable = new LigatureSubtable(this);
+    this->type = Lookup::ligature;
+    newsubtable->name = name;
+    newsubtable->readJson(jsonsubtable["data"].toObject());
+    this->subtables.append(newsubtable);
+  }
+  else if (type == "chainingsub") {
 
-		QJsonArray subtablesArray = jsonsubtable["subtables"].toArray();
-		for (int index = 0; index < subtablesArray.size(); ++index) {
+    QJsonArray subtablesArray = jsonsubtable["subtables"].toArray();
+    for (int index = 0; index < subtablesArray.size(); ++index) {
 
-			QJsonObject ruleObject = subtablesArray[index].toObject();
-			ChainingSubtable* newsubtable = new ChainingSubtable(this);
-			this->type = Lookup::chainingsub;			
-			newsubtable->name = name + QString::number(index);
-			this->subtables.append(newsubtable);
-			newsubtable->readJson(ruleObject);			
-		}
+      QJsonObject ruleObject = subtablesArray[index].toObject();
+      ChainingSubtable* newsubtable = new ChainingSubtable(this);
+      this->type = Lookup::chainingsub;
+      newsubtable->name = name + QString::number(index);
+      this->subtables.append(newsubtable);
+      newsubtable->readJson(ruleObject);
+    }
 
-	}
-	else if (type == "chainingpos") {
+  }
+  else if (type == "chainingpos") {
 
-		QJsonArray subtablesArray = jsonsubtable["subtables"].toArray();
-		for (int index = 0; index < subtablesArray.size(); ++index) {
+    QJsonArray subtablesArray = jsonsubtable["subtables"].toArray();
+    for (int index = 0; index < subtablesArray.size(); ++index) {
 
-			QJsonObject ruleObject = subtablesArray[index].toObject();
-			ChainingSubtable* newsubtable = new ChainingSubtable(this);
-			this->type = Lookup::chainingpos;			
-			newsubtable->name = name + QString::number(index);
-			this->subtables.append(newsubtable);
-			newsubtable->readJson(ruleObject);
-			
-		}
+      QJsonObject ruleObject = subtablesArray[index].toObject();
+      ChainingSubtable* newsubtable = new ChainingSubtable(this);
+      this->type = Lookup::chainingpos;
+      newsubtable->name = name + QString::number(index);
+      this->subtables.append(newsubtable);
+      newsubtable->readJson(ruleObject);
 
-	}
+    }
 
-}
-void Lookup::saveParameters(QJsonObject &json) const {
-	for (auto subtable : subtables) {
-		QJsonObject  subtableObject;
-		subtable->saveParameters(subtableObject);
-		if (!subtableObject.isEmpty()) {
-			json[subtable->name] = subtableObject;
-		}
-
-	}
-}
-void Lookup::readParameters(const QJsonObject &json) {
-	for (int index = 0; index < json.size(); ++index) {
-		QString subtableName = json.keys()[index];
-		for (auto subtable : subtables) {
-			if (subtable->name == subtableName) {
-				subtable->readParameters(json[subtableName].toObject());
-				break;
-			}
-		}
-
-	}
+  }
 
 }
-QByteArray Lookup::getSubtables() {
-	QByteArray subtablesArray;
+void Lookup::saveParameters(QJsonObject& json) const {
+  for (auto subtable : subtables) {
+    QJsonObject  subtableObject;
+    subtable->saveParameters(subtableObject);
+    if (!subtableObject.isEmpty()) {
+      json[subtable->name] = subtableObject;
+    }
 
-	for (auto subtable : subtables) {
-		QByteArray temp = subtable->getOptOpenTypeTable();
-		subtablesArray.append(temp);
-	}
+  }
+}
+void Lookup::readParameters(const QJsonObject& json) {
+  for (int index = 0; index < json.size(); ++index) {
+    QString subtableName = json.keys()[index];
+    for (auto subtable : subtables) {
+      if (subtable->name == subtableName) {
+        subtable->readParameters(json[subtableName].toObject());
+        break;
+      }
+    }
 
-	return subtablesArray;
+  }
 
 }
-QByteArray Lookup::getOpenTypeTable() {
+QByteArray Lookup::getSubtableDatas(bool extended) {
+  QByteArray subtablesArray;
 
-	QByteArray root;
-	QByteArray subtables_array;
+  for (auto subtable : subtables) {
+    QByteArray temp = subtable->getOptOpenTypeTable(extended);
+    subtablesArray.append(temp);
+  }
+
+  return subtablesArray;
+
+}
+QVector<Subtable*> Lookup::getSubtables(bool extended) {
+
+  if (extended) return subtables;
+
+  QVector<Subtable*> subs;
+
+  for (auto sub : subtables) {
+    if (!sub->isExtended() || sub->isConvertible()) {
+      subs.append(sub);
+    }
+  }
+
+  return subs;
+
+}
+QByteArray Lookup::getOpenTypeTable(bool extended) {
+
+  QByteArray root;
+  QByteArray subtables_array;
 
 
-	quint16 nb_subtables = subtables.size();
+  quint16 nb_subtables = subtables.size();
 
-	root << (quint16)(type % 10);
-	root << flags;
-	root << (quint16)nb_subtables;
+  root << (quint16)type;
+  root << flags;
+  root << (quint16)nb_subtables;
 
-	quint16 debutsequence = 2 + 2 + 2 + 2 * nb_subtables;
+  quint16 debutsequence = 2 + 2 + 2 + 2 * nb_subtables;
 
-	//if (markGlyphSetIndex != -1) {
-	debutsequence += 2;
-	//}
+  //if (markGlyphSetIndex != -1) {
+  debutsequence += 2;
+  //}
 
-	for (int i = 0; i < nb_subtables; ++i) {
-		QByteArray temp = subtables.at(i)->getOptOpenTypeTable();
+  for (int i = 0; i < nb_subtables; ++i) {
+    QByteArray temp = subtables.at(i)->getOptOpenTypeTable(extended);
 
-		root << debutsequence;
-		subtables_array.append(temp);
+    root << debutsequence;
+    subtables_array.append(temp);
 
-		debutsequence += temp.size();
-	}
+    debutsequence += temp.size();
+  }
 
-	//if (markGlyphSetIndex != -1) {
-	root << markGlyphSetIndex;
-	//}
+  //if (markGlyphSetIndex != -1) {
+  root << markGlyphSetIndex;
+  //}
 
-	root.append(subtables_array);
+  root.append(subtables_array);
 
-	return root;
+  return root;
 };
-QByteArray Lookup::getOpenTypeExtenionTable() {
+QByteArray Lookup::getOpenTypeExtenionTable(bool extended) {
 
-	QByteArray root;
-	QByteArray subtables_array;
-	QDataStream root_stream(&root, QIODevice::WriteOnly);
-
-
-	quint16 nb_subtables = subtables.size();
-
-	if (isGsubLookup()) {
-		root_stream << (quint16)extensiongsub;
-	}
-	else {
-		root_stream << (quint16)(extensiongpos - 10);
-	}
-	
-	root_stream << flags;
-	root_stream << (quint16)nb_subtables;
-
-	quint16 debutsequence = 2 + 2 + 2 + 2 * nb_subtables;
-
-	if (markGlyphSetIndex != -1) {
-		debutsequence += 2;
-	}
+  QByteArray root;
+  QByteArray subtables_array;
+  QDataStream root_stream(&root, QIODevice::WriteOnly);
 
 
+  quint16 nb_subtables = subtables.size();
 
-	for (int i = 0; i < nb_subtables; ++i) {
-		QByteArray temp = subtables.at(i)->getOptOpenTypeTable();
+  if (isGsubLookup()) {
+    root_stream << (quint16)extensiongsub;
+  }
+  else {
+    root_stream << (quint16)extensiongpos;
+  }
 
-		root_stream << debutsequence;
-		subtables_array.append(temp);
+  root_stream << flags;
+  root_stream << (quint16)nb_subtables;
 
-		debutsequence += temp.size();
-	}
+  quint16 debutsequence = 2 + 2 + 2 + 2 * nb_subtables;
 
-	if (markGlyphSetIndex != -1) {
-		root_stream << markGlyphSetIndex;
-	}
+  if (markGlyphSetIndex != -1) {
+    debutsequence += 2;
+  }
 
-	root.append(subtables_array);
 
-	return root;
+
+  for (int i = 0; i < nb_subtables; ++i) {
+    QByteArray temp = subtables.at(i)->getOptOpenTypeTable(extended);
+
+    root_stream << debutsequence;
+    subtables_array.append(temp);
+
+    debutsequence += temp.size();
+  }
+
+  if (markGlyphSetIndex != -1) {
+    root_stream << markGlyphSetIndex;
+  }
+
+  root.append(subtables_array);
+
+  return root;
 };

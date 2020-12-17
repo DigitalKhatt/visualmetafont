@@ -111,6 +111,8 @@ set(FeaParser
   FeaParser/feaast.cpp
   FeaParser/feaast.h
   FeaParser/scanner.h
+  FeaParser/just.h
+  FeaParser/just.cpp
   ${BISON_FeaParser_OUTPUTS}
   ${FLEX_FeaScanner_OUTPUTS}
   )
@@ -158,6 +160,8 @@ set(Layout_WithoutGUI
   Layout/Subtable.h
   Layout/to_opentype.cpp
   Layout/to_opentype.h
+  Layout/FSMDriver.h
+  Layout/FSMDriver.cpp
   )
 
 

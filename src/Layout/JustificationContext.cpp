@@ -18,7 +18,3 @@
 */
 
 #include "JustificationContext.h"
-
-QVector<unsigned int>  JustificationContext::GlyphsToExtend;
-QVector<unsigned int> JustificationContext::Substitutes;
-QMap<unsigned int,GlyphExpansion> JustificationContext::Expansions;
