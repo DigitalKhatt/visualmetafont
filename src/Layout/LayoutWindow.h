@@ -25,7 +25,7 @@
 
 class Font;
 class GlyphVis;
-struct OtLayout;
+class OtLayout;
 class GraphicsViewAdjustment;
 class GraphicsSceneAdjustment;
 struct hb_buffer_t;

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.8.0 FATAL_ERROR)
 project(visualmetafont CXX)
 
 if (NOT EMSCRIPTEN)
-#  find_package(ZLIB REQUIRED)
+  find_package(ZLIB REQUIRED)
 #  find_package(PNG REQUIRED)
 #  find_package(Freetype REQUIRED)
 endif()
@@ -24,7 +24,7 @@ set(WEBLIB_NAME VisualMetaFontWasm)
 
 if (NOT EMSCRIPTEN)
 
-  find_package(Qt5 COMPONENTS Core OpenGL Svg PrintSupport Widgets Qml REQUIRED)
+  find_package(Qt5 COMPONENTS Core OpenGL Svg PrintSupport Widgets REQUIRED)
 
 
 
@@ -37,18 +37,18 @@ if (NOT EMSCRIPTEN)
     )
 
 
-  set(debug "${_qt5Widgets_install_prefix}/lib/qtpcre2d.lib;"
-    "${_qt5Widgets_install_prefix}/lib/Qt5ThemeSupportd.lib;"
-    "${_qt5Widgets_install_prefix}/lib/Qt5EventDispatcherSupportd.lib;"
-    "${_qt5Widgets_install_prefix}/lib/Qt5AccessibilitySupportd.lib;"
-    "${_qt5Widgets_install_prefix}/lib/Qt5WindowsUIAutomationSupportd.lib;"
-    "${_qt5Widgets_install_prefix}/lib/Qt5FontDatabaseSupportd.lib;")
-  set(nondebug "${_qt5Widgets_install_prefix}/lib/qtpcre2.lib"
-    "${_qt5Widgets_install_prefix}/lib/Qt5ThemeSupport.lib;"
-    "${_qt5Widgets_install_prefix}/lib/Qt5EventDispatcherSupport.lib;"
-    "${_qt5Widgets_install_prefix}/lib/Qt5AccessibilitySupport.lib;"
-    "${_qt5Widgets_install_prefix}/lib/Qt5WindowsUIAutomationSupport.lib;"
-    "${_qt5Widgets_install_prefix}/lib/Qt5FontDatabaseSupport.lib;")
+  set(debug "${_Qt5Widgets_install_prefix}/lib/qtpcre2d.lib;"
+    "${_Qt5Widgets_install_prefix}/lib/Qt5ThemeSupportd.lib;"
+    "${_Qt5Widgets_install_prefix}/lib/Qt5EventDispatcherSupportd.lib;"
+    "${_Qt5Widgets_install_prefix}/lib/Qt5AccessibilitySupportd.lib;"
+    "${_Qt5Widgets_install_prefix}/lib/Qt5WindowsUIAutomationSupportd.lib;"
+    "${_Qt5Widgets_install_prefix}/lib/Qt5FontDatabaseSupportd.lib;")
+  set(nondebug "${_Qt5Widgets_install_prefix}/lib/qtpcre2.lib"
+    "${_Qt5Widgets_install_prefix}/lib/Qt5ThemeSupport.lib;"
+    "${_Qt5Widgets_install_prefix}/lib/Qt5EventDispatcherSupport.lib;"
+    "${_Qt5Widgets_install_prefix}/lib/Qt5AccessibilitySupport.lib;"
+    "${_Qt5Widgets_install_prefix}/lib/Qt5WindowsUIAutomationSupport.lib;"
+    "${_Qt5Widgets_install_prefix}/lib/Qt5FontDatabaseSupport.lib;")
 
   set(debug_gen_expr "$<$<CONFIG:Debug>:${debug}>")
   set(nondebug_gen_expr "$<$<NOT:$<CONFIG:Debug>>:${nondebug}>")
@@ -301,7 +301,9 @@ target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser
   Qt5::QJpegPlugin
   Qt5::QSvgPlugin
   Qt5::QSvgIconPlugin
+  ZLIB::ZLIB
   )
+#Qt5_import_plugins(${PROJECT_NAME} INCLUDE Qt5::QSvgPlugin INCLUDE Qt5::QSvgIconPlugin)
 
 target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib # QtPropertyBrowser     
   Qt5::Core  # Qt5::Widgets Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport

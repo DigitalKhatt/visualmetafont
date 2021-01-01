@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -26,10 +26,10 @@ ComponentItem::ComponentItem(Glyph* glyph, Glyph* compglyp, QGraphicsItem * pare
 	m_glyph = glyph;
 	m_compglyph = compglyp;
 
-	QMatrix m;
+	QTransform m;
 	m.scale(1, -1);
 
-	setMatrix(m);
+	setTransform(m);
 
 	calculatePath();
 

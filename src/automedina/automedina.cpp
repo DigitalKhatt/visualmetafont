@@ -2039,7 +2039,12 @@ Lookup* Automedina::forheh() {
 
   newsubtable->compiledRule = ChainingSubtable::CompiledRule();
 
-  newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  auto keys = singlesubtable->subst.keys();
+  if (!keys.isEmpty()) {
+    newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
+  }
+
+  
   //newsubtable->compiledRule.input.append({ (quint16)glyphs["heh.medi"].charcode,(quint16)glyphs["heh.medi.forsmalllalef"].charcode });
   newsubtable->compiledRule.lookahead.append(classtoUnicode("^heh.medi")); //  { (quint16)glyphs["heh.medi"].charcode });
 
@@ -2124,7 +2129,13 @@ Lookup* Automedina::forhamza() {
 
   newsubtable->compiledRule = ChainingSubtable::CompiledRule();
 
-  newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  //newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  auto keys = singlesubtable->subst.keys();
+  if (!keys.isEmpty()) {
+    newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
+  }
+
+  
   newsubtable->compiledRule.input.append({ 0x200D ,  (quint16)glyphs["tatweel"].charcode });
   newsubtable->compiledRule.input.append({ (quint16)glyphs["hamzaabove"].charcode,(quint16)glyphs["smallhighyeh"].charcode, (quint16)glyphs["smallhighnoon"].charcode });
 
@@ -2140,7 +2151,12 @@ Lookup* Automedina::forhamza() {
 
   newsubtable->compiledRule = ChainingSubtable::CompiledRule();
 
-  newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  //newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  keys = singlesubtable->subst.keys();
+  if (!keys.isEmpty()) {
+    newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
+  }
+
   newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["roundedfilledhigh"].charcode, });
 
   newsubtable->compiledRule.lookupRecords.append({ 0,"l1" });
@@ -2248,7 +2264,11 @@ Lookup* Automedina::shrinkstretchlt(float lt, QString featureName) {
 
   newsubtable->compiledRule = ChainingSubtable::CompiledRule();
 
-  newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  //newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  auto keys = singlesubtable->subst.keys();
+  if (!keys.isEmpty()) {
+    newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
+  }
 
   newsubtable->compiledRule.lookupRecords.append({ 0,"l1" });
 
@@ -2316,7 +2336,11 @@ Lookup* Automedina::forsmallhighwaw() {
 
   newsubtable->compiledRule = ChainingSubtable::CompiledRule();
 
-  newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  //newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  auto keys = singlesubtable->subst.keys();
+  if (!keys.isEmpty()) {
+    newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
+  }
   newsubtable->compiledRule.input.append(QSet{ (quint16)0x034F });
   newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["smallhighwaw"].charcode });
 
@@ -2408,7 +2432,12 @@ Lookup* Automedina::forsmalllalef() {
 
   newsubtable->compiledRule = ChainingSubtable::CompiledRule();
 
-  newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  //newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  auto keys = singlesubtable->subst.keys();
+  if (!keys.isEmpty()) {
+    newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
+  }
+
   newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["smallalef"].charcode });
   newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["maddahabove"].charcode });
 
@@ -2423,7 +2452,12 @@ Lookup* Automedina::forsmalllalef() {
 
   newsubtable->compiledRule = ChainingSubtable::CompiledRule();
 
-  newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  //newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  keys = singlesubtable->subst.keys();
+  if (!keys.isEmpty()) {
+    newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
+  }
+
   newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["smallalef"].charcode });
 
 
@@ -2438,7 +2472,12 @@ Lookup* Automedina::forsmalllalef() {
 
   newsubtable->compiledRule = ChainingSubtable::CompiledRule();
 
-  newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  //newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  keys = singlesubtable->subst.keys();
+  if (!keys.isEmpty()) {
+    newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
+  }
+
   newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["maddahabove"].charcode });
   newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["smallalef"].charcode });
 
@@ -2554,7 +2593,12 @@ Lookup* Automedina::forwaw() {
 
   newsubtable->compiledRule = ChainingSubtable::CompiledRule();
 
-  newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  //newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
+  auto keys = singlesubtable->subst.keys();
+  if (!keys.isEmpty()) {
+    newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
+  }
+
   newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["waw.fina"].charcode });
 
   newsubtable->compiledRule.lookupRecords.append({ 0,"l1" });

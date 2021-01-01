@@ -23,7 +23,7 @@
 #include "qstring.h"
 #include "qvector.h"
 
-struct OtLayout;
+class OtLayout;
 struct Subtable;
 class QJsonObject;
 

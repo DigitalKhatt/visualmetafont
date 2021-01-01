@@ -32,6 +32,7 @@
 #include "to_opentype.h"
 #include "FSMDriver.h"
 #include "JustificationContext.h"
+#include "qobject.h"
 
 
 class Lookup;

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -35,10 +35,10 @@ ContourItem::ContourItem(QGraphicsItem * parent)
 	rotationAngle = 0;
 	penColor = Qt::black;
 
-	QMatrix m;
+	QTransform m;
 	m.scale(1, -1);
 
-	setMatrix(m);
+	setTransform(m);
 
 	path = NULL;
 	parampoints = NULL;

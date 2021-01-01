@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -47,8 +47,8 @@ KnotControlledItem::KnotControlledItem(int numsubpath, int numpoint, mp_gr_knot 
 	setFlags(ItemIsMovable | ItemHasNoContents);
 
 
-	QString rightkey = QString(numsubpath) + "_" + QString(numpoint);
-	QString leftkey = QString(numsubpath) + "_" + QString(numpoint);
+	QString rightkey = QString::number(numsubpath) + "_" + QString::number(numpoint);
+	QString leftkey = QString::number(numsubpath) + "_" + QString::number(numpoint);
 
 	setFiltersChildEvents(true);
 
