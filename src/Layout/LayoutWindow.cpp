@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -44,7 +44,7 @@
 #include "GraphicsSceneAdjustment.h"
 
 #include "qurantext/quran.h"
-#include <QGLWidget>
+//#include <QGLWidget>
 
 #include "GlyphItem.h"
 
@@ -143,7 +143,7 @@ void LayoutWindow::createActions()
 	typeGroup->addButton(medinabutton, 1);
 	typeGroup->addButton(texbutton, 2);
 
-	connect(typeGroup, static_cast<void(QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked), this, &LayoutWindow::setQutranText);
+	connect(typeGroup, static_cast<void(QButtonGroup::*)(int)>(&QButtonGroup::idClicked), this, &LayoutWindow::setQutranText);
 
 	auto pagesToolbar = addToolBar(tr("Pages type"));
 	pagesToolbar->addWidget(medinabutton);
@@ -292,7 +292,7 @@ bool LayoutWindow::exportpdf() {
 
 	QString textt = textEdit->toPlainText();
 
-	auto lines = textt.split(10, QString::SkipEmptyParts);
+	auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
 	int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
@@ -424,7 +424,7 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth) {
 
 		textt = textt.replace(QRegularExpression(" *" + QString("۞") + " *"), QString("۞") + " ");
 
-		auto lines = textt.split(10, QString::SkipEmptyParts);
+		auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
 		auto justification = LineJustification::Distribute;
 		int beginsura = OtLayout::TopSpace << OtLayout::SCALEBY;
@@ -542,6 +542,7 @@ bool LayoutWindow::generateAllQuranTexMedina() {
 	file.open(QIODevice::WriteOnly | QIODevice::Text);
 	QTextStream out(&file);   // we will serialize the data into the file
 	out.setCodec("UTF-8");
+  //out.setEncoding(QStringConverter::Utf8);
 
 	for (auto page : result.originalPages) {
 		for (auto line : page) {
@@ -562,10 +563,10 @@ bool LayoutWindow::generateAllQuranTexMedina() {
 
 	quranWriter.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
 
-	/*
+	
 	ExportToHTML extohtml{ m_otlayout };
 
-	extohtml.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);*/
+	extohtml.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
 
 #endif
 	return true;
@@ -892,7 +893,7 @@ void LayoutWindow::calculateMinimumSize_old() {
 
 			QString textt = QString::fromUtf8(qurantext[pagenum] + 1);
 
-			auto lines = textt.split(10, QString::SkipEmptyParts);
+			auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
 
 			for (int linenum = 0; linenum < lines.length(); linenum++) {
@@ -966,6 +967,7 @@ void LayoutWindow::calculateMinimumSize_old() {
 	file.open(QIODevice::WriteOnly | QIODevice::Text);
 	QTextStream out(&file);   // we will serialize the data into the file
 	out.setCodec("ISO 8859-1");
+  //out.setEncoding(QStringConverter::Latin1);
 
 	for (auto key : alloverflows.keys()) {
 		auto overflow = alloverflows.value(key);
@@ -1151,7 +1153,7 @@ void LayoutWindow::calculateMinimumSize() {
 
 			QString textt = QString::fromUtf8(qurantext[pagenum] + 1);
 
-			auto lines = textt.split(10, QString::SkipEmptyParts);
+			auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
 			auto page = m_otlayout->justifyPage(emScale, lineWidth, lineWidth, lines, LineJustification::Distribute, false, true);
 
@@ -1185,6 +1187,7 @@ void LayoutWindow::calculateMinimumSize() {
 	file.open(QIODevice::WriteOnly | QIODevice::Text);
 	QTextStream out(&file);   // we will serialize the data into the file
 	out.setCodec("ISO 8859-1");
+  //out.setEncoding(QStringConverter::Latin1);
 
 	for (auto key : alloverflows.keys()) {
 		auto overflow = alloverflows.value(key);
@@ -1301,7 +1304,7 @@ void LayoutWindow::testQuarn() {
 	auto marks = m_otlayout->automedina->classtoUnicode("marks");
 	int totlaWaqfMark = 0;
 
-	QMap<QString, QString> beforewagf;
+  QMultiMap<QString, QString> beforewagf;
 
 	for (uint i = glyph_count - 1; i >= 0; i--) {
 		if (waqgmark.contains(glyph_info[i].codepoint)) {
@@ -1320,7 +1323,7 @@ void LayoutWindow::testQuarn() {
 
 	auto keys = beforewagf.uniqueKeys();
 
-	qDebug() << "Total waqf count : " << totlaWaqfMark << endl << "Total bases : " << beforewagf.uniqueKeys().size();
+	qDebug() << "Total waqf count : " << totlaWaqfMark << '\n'   << "Total bases : " << beforewagf.uniqueKeys().size();
 
 	delete font;
 
@@ -1341,7 +1344,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 
 	QString textt = textEdit->toPlainText();
 
-	auto lines = textt.split(10, QString::SkipEmptyParts);
+	auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
 	const int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
@@ -1662,7 +1665,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 			curpage.append(lineInfo);
 
 			auto& gg = neworiginalPages.last();
-			gg.append(QString(pageNumber));
+			gg.append(QString::number(pageNumber));
 		}
 
 		delete t;

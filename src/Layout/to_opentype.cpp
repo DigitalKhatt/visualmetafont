@@ -593,7 +593,7 @@ QByteArray ToOpenType::name(){
   names.append(Name{ 2,globalValues.Weight});
   names.append(Name{ 3,"DigitalKhatt_V0.1_2020-09-18" });
   names.append(Name{ 4,globalValues.FullName });
-  names.append(Name{ 5,"Version " + QString(globalValues.major) + "." +  globalValues.minor});
+  names.append(Name{ 5,"Version " + QString::number(globalValues.major) + "." + QString::number(globalValues.minor)});
   names.append(Name{ 6,"DigitalKhattQuranic" });
   //names.append(Name{ 7,"DigitalKhatt" });
   //names.append(Name{ 8,"DigitalKhatt" });
@@ -1049,7 +1049,7 @@ QByteArray ToOpenType::cff(){
 
   int lastSid = 391;
 
-  QString version = QString(globalValues.major) + "." +  globalValues.minor;
+  QString version = QString::number(globalValues.major) + "." + QString::number(globalValues.minor);
 
   stringIndexData.append(version.toLatin1());
   stringIndex << (uint32_t)(1 + stringIndexData.size());

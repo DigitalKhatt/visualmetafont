@@ -17,7 +17,7 @@
  * <https: //www.gnu.org/licenses />.
 */
 
-#include "metafont.h"
+
 
 #include "hb-ot-layout-gsub-table.hh"
 #undef max
@@ -43,6 +43,7 @@
 #include "GlyphVis.h"
 #include "FeaParser/driver.h"
 #include "FeaParser/feaast.h"
+#include "qiodevice.h"
 //#include "hb-ot-layout-gsubgpos.hh"
 
 #include "qregularexpression.h"
@@ -52,7 +53,7 @@
 
 #include <QtCore/qmath.h>
 #include <fstream>
-
+#include "metafont.h"
 
 
 
@@ -403,7 +404,7 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
       SingleSubtable* subtableTable = static_cast<SingleSubtable*>(subtable);
       if (subtableTable->format == 10) {
         SingleSubtableWithExpansion* tatweelSubtable = static_cast<SingleSubtableWithExpansion*>(subtableTable);
-        auto& expa = tatweelSubtable->expansion.value(curr_info.codepoint);
+        auto& expa = tatweelSubtable->expansion[curr_info.codepoint];
         layout->justificationContext.Expansions.insert({ buffer->idx, expa });
         layout->justificationContext.totalWeight += expa.weight;
       }
@@ -1662,7 +1663,7 @@ void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& dif
 
   OT::hb_ot_apply_context_t c(table_index, shapefont, buffer);
   c.set_recurse_func(OT::SubstLookup::apply_recurse_func);
-  auto list = this->allGsubFeatures[feature].toList();
+  auto list = this->allGsubFeatures[feature].values();
   std::sort(list.begin(), list.end());
 
   bool stretch = diff > 0;
@@ -1902,8 +1903,8 @@ void OtLayout::applyJustLookup_old(hb_buffer_t * buffer, bool& needgpos, double&
 
   OT::hb_ot_apply_context_t c(table_index, shapefont, buffer);
   c.set_recurse_func(OT::SubstLookup::apply_recurse_func);
-  auto list = this->allGsubFeatures[feature].toList();
-  qSort(list);
+  auto list = this->allGsubFeatures[feature].values();
+  std::sort(list.begin(), list.end());  
   bool stretch = diff > 0;
 
   /*
@@ -2487,7 +2488,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
     }
   }
 
-  quran = quran.replace(10, 32);
+  quran = quran.replace(char(10), char(32));
   quran = quran.replace(bism + char(32), bism + char(10));
 
 
@@ -2870,7 +2871,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
     QString textt = QString::fromUtf8(qurantext[pageNumber] + 1);
 
-    auto lines = textt.split(10, QString::SkipEmptyParts);
+    auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
     int beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
 

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -776,7 +776,7 @@ void Glyph::setParameter(QString name, Glyph::ParameterType type, double x, doub
       setProperty(param.name.toLatin1(), x);
   //  }
 
-  QString key = QString(param.applytosubpath) + "_" + QString(param.applytopoint);
+  QString key = QString::number(param.applytosubpath) + "_" + QString::number(param.applytopoint);
   if (param.type == direction) {
       if (param.position == left) {
           ldirections[key] = param;

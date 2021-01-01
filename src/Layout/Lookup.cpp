@@ -24,6 +24,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include "QByteArrayOperator.h"
+#include "qiodevice.h"
 
 Lookup::Lookup(OtLayout* layout) {
   this->layout = layout;

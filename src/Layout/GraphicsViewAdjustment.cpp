@@ -28,7 +28,7 @@ GraphicsViewAdjustment::GraphicsViewAdjustment(QWidget *parent)
 GraphicsViewAdjustment::GraphicsViewAdjustment(QGraphicsScene *scene, QWidget *parent)
 	: QGraphicsView(scene, parent)
 {
-	setRenderHints(QPainter::HighQualityAntialiasing);
+	setRenderHints(QPainter::Antialiasing);
 	//setRenderHint(QPainter::Antialiasing, true);
 	//setDragMode(QGraphicsView::RubberBandDrag);
 	setOptimizationFlags(QGraphicsView::DontSavePainterState);

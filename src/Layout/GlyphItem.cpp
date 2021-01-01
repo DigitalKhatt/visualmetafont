@@ -64,10 +64,10 @@ GlyphItem::GlyphItem(int scale, GlyphVis* glyph, OtLayout * layout, quint32 look
 
 
 
-	QMatrix m;
+	QTransform m;
 	m.scale(scale, -scale);
 
-	setMatrix(m);
+	setTransform(m);
 
 
 }

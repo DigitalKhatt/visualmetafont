@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -24,13 +24,14 @@
 #include <QGraphicsView>
 #include "font.hpp"
 
+
 GuidesItem::GuidesItem(Glyph* glyph, QGraphicsItem * parent) : QGraphicsObject(parent) {
 	this->glyph = glyph;
 
-	QMatrix m;
+	QTransform m;
 	m.scale(1, -1);
 
-	setMatrix(m);
+	setTransform(m);
 }
 
 GuidesItem::~GuidesItem() {

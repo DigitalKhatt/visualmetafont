@@ -233,7 +233,7 @@ void GlyphVis::refresh(QHash<QString, GlyphVis>& glyphs)
     }
 
 
-    painter.resetMatrix();
+    painter.resetTransform();
 
 
 

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -27,7 +27,7 @@
 #include <QHash>
 #include <QVector>
 #include <optional>
-#include "qmetatype.h"
+
 #include "qpainterpath.h"
 #include "exp.hpp"
 
