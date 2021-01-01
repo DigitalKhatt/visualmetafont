@@ -41,4 +41,5 @@ files/overflows_with_just.csv
 files/quranMedina.pdf
 .vscode/
 CMakeLists.txt.user
+lib/QtPropertyBrowser/qt6/
 

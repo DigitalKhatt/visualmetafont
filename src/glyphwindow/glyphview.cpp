@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -24,7 +24,7 @@
 #include "glyph.hpp"
 #include "tensiondirectionitem.hpp"
 #include "glyphcellitem.hpp"
-#include <QGLWidget>
+//#include <QGLWidget>
 
 
 

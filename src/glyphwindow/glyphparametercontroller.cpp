@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -30,7 +30,7 @@ GlyphParameterController::GlyphParameterController(Glyph* glyph, QWidget * paren
 
 
 	QVBoxLayout *layout = new QVBoxLayout(this);
-	layout->setMargin(0);
+	layout->getContentsMargins(0,0,0,0);
 	layout->addWidget(m_browser);
 
 	m_readOnlyManager = new QtVariantPropertyManager(this);

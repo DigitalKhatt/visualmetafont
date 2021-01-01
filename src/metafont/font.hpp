@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -48,8 +48,7 @@ public:
 	QString filePath();
 	double lineHeight();
 	double getNumericVariable(QString name);
-	Glyph* getGlyph(uint code);
-	mp_edge_object* getEdge();
+	Glyph* getGlyph(uint code);	
 	QString path() {
 		return m_path;
 	}

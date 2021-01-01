@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -17,18 +17,19 @@
  * <https: //www.gnu.org/licenses />.
 */
 
-#include "metafont.h"
-
 #include "qfile.h"
 #include "font.hpp"
 #include "glyph.hpp"
 
-#include "hb.hh"
+
 
 #include "qtextstream.h"
 #include "qregularexpression.h"
 #include "qapplication.h"
 #include "qfileinfo.h"
+
+#include "hb.hh"
+#include "metafont.h"
 
 Font::Font(QObject * parent) : QObject(parent) {
 	MP_options * _mp_options = mp_options();
