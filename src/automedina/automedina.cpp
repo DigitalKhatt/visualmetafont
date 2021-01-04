@@ -1874,6 +1874,9 @@ Lookup* Automedina::ayanumbers() {
       ligaturesubtable->ligatures.append({ code, { (quint16)(m_layout->unicodeToGlyphCode.value(1632 + onesdigit)),
                                                    (quint16)(m_layout->unicodeToGlyphCode.value(1632 + tensdigit)),
                                                    (quint16)(m_layout->unicodeToGlyphCode.value(1632 + hundredsdigit)),endofaya } });
+      ligaturesubtable->ligatures.append({ code, {endofaya,(quint16)(m_layout->unicodeToGlyphCode.value(1632 + hundredsdigit)),
+                                                  (quint16)(m_layout->unicodeToGlyphCode.value(1632 + tensdigit)),
+                                                  (quint16)(m_layout->unicodeToGlyphCode.value(1632 + onesdigit)) } });
     }
 
 
@@ -1900,6 +1903,8 @@ Lookup* Automedina::ayanumbers() {
     }else{
       ligaturesubtable->ligatures.append({ code,{(quint16)(m_layout->unicodeToGlyphCode.value(1632 + onesdigit)),
                                                   (quint16)(m_layout->unicodeToGlyphCode.value(1632 + tensdigit)),endofaya } });
+      ligaturesubtable->ligatures.append({ code,{endofaya,(quint16)(m_layout->unicodeToGlyphCode.value(1632 + tensdigit)),
+                                                 (quint16)(m_layout->unicodeToGlyphCode.value(1632 + onesdigit)) } });
     }
 
   }
@@ -1934,6 +1939,7 @@ Lookup* Automedina::ayanumbers() {
 
     for (int i = 1; i < 10; i++) {
       quint16 code = m_layout->glyphCodePerName[QString("aya%1").arg(i)];
+      ligaturesubtable->ligatures.append({ code,{endofaya,(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i))} });
       ligaturesubtable->ligatures.append({ code,{(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i)),endofaya} });
     }
 
@@ -1954,6 +1960,9 @@ Lookup* Automedina::ayanumbers() {
 
   auto digitySet = classtoUnicode("digits");
 
+  auto digitySetplusendofaya = digitySet;
+  digitySetplusendofaya.insert(endofaya);
+
 
   ChainingSubtable* subtable = new ChainingSubtable(lookup);
   lookup->subtables.append(subtable);
@@ -1963,7 +1972,8 @@ Lookup* Automedina::ayanumbers() {
     subtable->compiledRule.input = { digitySet,digitySet,digitySet };
   }
   else{
-    subtable->compiledRule.input = {digitySet,digitySet,digitySet,{endofaya} };
+    //subtable->compiledRule.input = {digitySet,digitySet,digitySet,{endofaya} };
+    subtable->compiledRule.input = { digitySetplusendofaya,digitySet,digitySet,digitySetplusendofaya };
   }
 
   subtable->compiledRule.lookupRecords.append({ 0,"l1" });
@@ -1976,7 +1986,7 @@ Lookup* Automedina::ayanumbers() {
     subtable->compiledRule.input = { digitySet,digitySet };
   }
   else{
-    subtable->compiledRule.input = {digitySet,digitySet,{endofaya} };
+    subtable->compiledRule.input = { digitySetplusendofaya,digitySet,digitySetplusendofaya };
   }
   subtable->compiledRule.lookupRecords.append({ 0,"l2" });
 
@@ -1988,7 +1998,8 @@ Lookup* Automedina::ayanumbers() {
     subtable->compiledRule.input = { digitySet };
   }
   else{
-    subtable->compiledRule.input = {digitySet,{endofaya} };
+   
+    subtable->compiledRule.input = { digitySetplusendofaya,digitySetplusendofaya };
   }
   subtable->compiledRule.lookupRecords.append({ 0,"l3" });
 

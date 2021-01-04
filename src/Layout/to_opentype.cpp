@@ -541,11 +541,28 @@ QByteArray ToOpenType::hhea(){
 QByteArray ToOpenType::hmtx(){
   QByteArray data;
 
+  auto& marks = ot_layout->automedina->classes.value("marks");
+  
+
 
   for(int i =0 ; i < glyphs.lastKey() + 1; i ++){
     if(glyphs.contains(i)){
       auto glyph = glyphs.value(i);
-      data << (uint16_t)toInt(glyph->width);
+
+      bool ismark = false;
+      if (!glyph->originalglyph.isEmpty()) {
+        ismark = marks.contains(glyph->originalglyph);
+      }
+      else {
+        ismark = marks.contains(glyph->name);
+      }
+      if (ismark) {
+        data << (uint16_t)0;
+      }
+      else {
+        data << (uint16_t)toInt(glyph->width);
+      }
+        
       data << (int16_t)toInt(glyph->bbox.llx);
     }else{
       data << (uint16_t)0;
