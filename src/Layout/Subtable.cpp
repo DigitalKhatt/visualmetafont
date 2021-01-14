@@ -908,7 +908,7 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
       bool done = false;
 
       if (m_layout->isOTVar) {
-        auto& ff = m_layout->expandableGlyphs.find(m_layout->glyphNamePerCode[anchor.key()]);
+        const auto& ff = m_layout->expandableGlyphs.find(m_layout->glyphNamePerCode[anchor.key()]);
 
         if (ff != m_layout->expandableGlyphs.end()) {
           auto val1 = getEntry(anchor.key(), ff->second.maxLeft, 0.0);
@@ -980,7 +980,7 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
       bool done = false;
 
       if (m_layout->isOTVar) {
-        auto& ff = m_layout->expandableGlyphs.find(m_layout->glyphNamePerCode[anchor.key()]);
+        const auto& ff = m_layout->expandableGlyphs.find(m_layout->glyphNamePerCode[anchor.key()]);
 
         if (ff != m_layout->expandableGlyphs.end()) {
           auto val1 = getExit(anchor.key(), ff->second.maxLeft, 0.0);
@@ -1277,7 +1277,7 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
       bool done = false;
       if (m_layout->isOTVar && !markClass.baseanchors.contains(baseglyphName) && markClass.basefunction != nullptr) {
-        auto& ff = m_layout->expandableGlyphs.find(m_layout->glyphNamePerCode[glyphCode]);
+        const auto& ff = m_layout->expandableGlyphs.find(m_layout->glyphNamePerCode[glyphCode]);
 
         if (ff != m_layout->expandableGlyphs.end()) {
 
@@ -1371,7 +1371,7 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
     bool done = false;
     if (m_layout->isOTVar && !markClass.markanchors.contains(markglyphName) && markClass.markfunction != nullptr && false) {
-      auto& ff = m_layout->expandableGlyphs.find(m_layout->glyphNamePerCode[charcode]);
+      const auto& ff = m_layout->expandableGlyphs.find(m_layout->glyphNamePerCode[charcode]);
 
       if (ff != m_layout->expandableGlyphs.end()) {
 

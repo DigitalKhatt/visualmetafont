@@ -20,6 +20,8 @@
 #ifndef H_COMMONTYPES
 #define H_COMMONTYPES
 
+#include <math.h>
+
 struct ValueLimits {
   double maxLeft = 0.0;
   double minLeft = 0.0;

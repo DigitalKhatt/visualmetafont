@@ -314,7 +314,7 @@ bool ToOpenType::GenerateFile(QString fileName) {
   if (isCff2) {
     tables.append({ fvar(),HB_TAG('f','v','a','r') });
     tables.append({ HVAR(),HB_TAG('H','V','A','R') });
-    tables.append({ MVAR(),HB_TAG('M','V','A','R') });
+    //tables.append({ MVAR(),HB_TAG('M','V','A','R') });
     tables.append({ STAT(),HB_TAG('S','T','A','T') });
   }
 
@@ -780,17 +780,17 @@ void ToOpenType::dumpPath(QByteArray& data, mp_fill_object* fill, double& curren
 
   if (path == nullptr) return;
 
-  double default = path->x_coord - currentx;
-  fixed_to_cff2(data, default);
+  double defaultt = path->x_coord - currentx;
+  fixed_to_cff2(data, defaultt);
   if (isCff2) {
-    auto delta = pathLimits.x_coord() - pathLimits.currentx - default;
+    auto delta = pathLimits.x_coord() - pathLimits.currentx - defaultt;
     data.append(blend(delta));
   }
 
-  default = path->y_coord - currenty;
-  fixed_to_cff2(data, default);
+  defaultt = path->y_coord - currenty;
+  fixed_to_cff2(data, defaultt);
   if (isCff2) {
-    auto delta = pathLimits.y_coord() - pathLimits.currenty - default;
+    auto delta = pathLimits.y_coord() - pathLimits.currenty - defaultt;
     data.append(blend(delta));
   }
 
@@ -802,45 +802,45 @@ void ToOpenType::dumpPath(QByteArray& data, mp_fill_object* fill, double& curren
     q = p->next;
     qLimits = pLimits.next();
 
-    default = p->right_x - p->x_coord;
-    fixed_to_cff2(data, default);
+    defaultt = p->right_x - p->x_coord;
+    fixed_to_cff2(data, defaultt);
     if (isCff2) {
-      auto deltax = pLimits.right_x() - pLimits.x_coord() - default;
+      auto deltax = pLimits.right_x() - pLimits.x_coord() - defaultt;
       data.append(blend(deltax));
     }
 
-    default = p->right_y - p->y_coord;
-    fixed_to_cff2(data, default);
+    defaultt = p->right_y - p->y_coord;
+    fixed_to_cff2(data, defaultt);
     if (isCff2) {
-      auto deltay = pLimits.right_y() - pLimits.y_coord() - default;
+      auto deltay = pLimits.right_y() - pLimits.y_coord() - defaultt;
       data.append(blend(deltay));
     }
 
-    default = q->left_x - p->right_x;
-    fixed_to_cff2(data, default);
+    defaultt = q->left_x - p->right_x;
+    fixed_to_cff2(data, defaultt);
     if (isCff2) {
-      auto delta = qLimits.left_x() - pLimits.right_x() - default;
+      auto delta = qLimits.left_x() - pLimits.right_x() - defaultt;
       data.append(blend(delta));
     }
 
-    default = q->left_y - p->right_y;
-    fixed_to_cff2(data, default);
+    defaultt = q->left_y - p->right_y;
+    fixed_to_cff2(data, defaultt);
     if (isCff2) {
-      auto delta = qLimits.left_y() - pLimits.right_y() - default;
+      auto delta = qLimits.left_y() - pLimits.right_y() - defaultt;
       data.append(blend(delta));
     }
 
-    default = q->x_coord - q->left_x;
-    fixed_to_cff2(data, default);
+    defaultt = q->x_coord - q->left_x;
+    fixed_to_cff2(data, defaultt);
     if (isCff2) {
-      auto delta = qLimits.x_coord() - qLimits.left_x() - default;
+      auto delta = qLimits.x_coord() - qLimits.left_x() - defaultt;
       data.append(blend(delta));
     }
 
-    default = q->y_coord - q->left_y;
-    fixed_to_cff2(data, default);
+    defaultt = q->y_coord - q->left_y;
+    fixed_to_cff2(data, defaultt);
     if (isCff2) {
-      auto delta = qLimits.y_coord() - qLimits.left_y() - default;
+      auto delta = qLimits.y_coord() - qLimits.left_y() - defaultt;
       data.append(blend(delta));
     }
 
@@ -959,7 +959,7 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
       else {
         ContourLimits contourLimits;
 
-        auto& ff = expandableGlyphs.find(glyph.name);
+        const auto& ff = expandableGlyphs.find(glyph.name);
 
         if (ff != expandableGlyphs.end()) {
           auto& jj = ff->second;
@@ -2027,7 +2027,7 @@ QByteArray ToOpenType::HVAR() {
         throw new std::runtime_error("Glyph name "+ it.first.toStdString() + " does not exist");
       }*/
 
-      auto& ff = expandableGlyphs.find(glyph.name);
+      const auto& ff = expandableGlyphs.find(glyph.name);
 
       if (ff != expandableGlyphs.end()) {
         entryExist = true;

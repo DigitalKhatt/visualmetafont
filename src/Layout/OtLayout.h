@@ -299,7 +299,7 @@ public:
   std::unordered_map<QString, ValueLimits> expandableGlyphs;
 
   int getDeltaSetEntry(DefaultDelta delta) {
-    auto& it = defaultDeltaSets.find(delta);
+    const auto& it = defaultDeltaSets.find(delta);
     if (it != defaultDeltaSets.end()) {
       return it->second;
     }
