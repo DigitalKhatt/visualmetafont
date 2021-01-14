@@ -953,13 +953,9 @@ lookup justification {
 		lookup expa.aleffina.1 {
 			sub callback behshape.medi expfactors 0 3.5 0 0 3 0;
 			sub callback alef.fina expfactors 0 0 0 3.5 3 0 ;
-		} expa.aleffina.1;
+		} expa.aleffina.1;		
 
-		
-
-		sub (behshape.medi  alef.fina)'lookup expa.aleffina.1;
-
-		
+		sub (behshape.medi  alef.fina)'lookup expa.aleffina.1;		
 
 	} expa.aleffina;
 
@@ -1202,26 +1198,28 @@ lookup justification {
 
 	} expa.shrink2;	
 
-	lookup expa.testtable {
-
-		feature sch1;
-
-		lookupflag IgnoreMarks;
-
-		table(sub)
-			pass(1)
-				#[noon.isol noon.fina noon.fina.afterbeh] {action1};
-				#(behshape.medi {action2} )^ @marks* alef.fina {action3};
-				#@haslefttatweel {action4} @marks* @bases @marks* @bases @marks* (@bases @marks*)* @haslefttatweel  @bases {action5};
-				#/init/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* (/medi/ @marks*)* /fina/ {action1};
-				(@haslefttatweel ^ ) {action1} @marks* (/medi/ @marks*)* @haslefttatweel {action2};
-			endpass;
-		endtable;
-
-	} expa.testtable;
+	
 	
 
 } justification;
+
+lookup test.testtable {
+
+	feature sch1;
+
+	lookupflag IgnoreMarks;
+
+	table(sub)
+		pass(1)
+			#[noon.isol noon.fina noon.fina.afterbeh] {action1};
+			#(behshape.medi {action2} )^ @marks* alef.fina {action3};
+			#@haslefttatweel {action4} @marks* @bases @marks* @bases @marks* (@bases @marks*)* @haslefttatweel  @bases {action5};
+			#/init/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* (/medi/ @marks*)* /fina/ {action1};
+			(@haslefttatweel ^ ) {action1} @marks* (/medi/ @marks*)* @haslefttatweel {action2};
+		endpass;
+	endtable;
+
+} test.testtable;
 
 lookup markexpansion{		
 		
@@ -1576,20 +1574,52 @@ feature schm {
   lookup markexpansion;
 } schm;
 
+feature jalt {
+  lookup jalt.alternate {
+	
+		feature jalt;
 
-table(just)
-	pass(1)
-		#[noon.isol noon.fina noon.fina.afterbeh] {action1};
+		lookupflag IgnoreMarks;
+
+		sub  behshape.isol by behshape.isol.expa;
+		sub  behshape.fina by behshape.fina.expa;
+		sub  kaf.fina by kaf.fina.expa;
+		sub  kaf.fina.afterlam by kaf.fina.afterlam.expa;
+		sub  noon.isol by noon.isol.expa;
+		sub  noon.fina by noon.fina.expa;
+		sub  noon.fina.afterbeh by noon.isol.expa;
+		sub  alefmaksura.isol by alefmaksura.isol.expa;
+		sub  yehshape.isol by yehshape.isol.expa;
+		sub  yehshape.fina.afterbeh by yehshape.fina.afterbeh.expa;
+		sub  yehshape.fina.ii by yehshape.fina.ii.expa;
+		sub  yehshape.fina by yehshape.fina.expa;
+		sub  sad.isol by sad.isol.expa;
+		sub  sad.isol.ii by sad.isol.expa;
+		sub  sad.fina by sad.fina.expa;
+		sub  seen.isol by seen.isol.expa;
+		sub  seen.fina by seen.fina.expa;
+		sub  feh.isol by feh.isol.expa;
+		sub  feh.fina by feh.fina.expa;
+		sub  qaf.isol by qaf.isol.expa;
+		sub  qaf.fina by qaf.fina.expa;
+		
+	} jalt.alternate;
+} jalt;
+
+
+#table(just)
+#	pass(1)
+#		#[noon.isol noon.fina noon.fina.afterbeh] {action1};
 		#(behshape.medi {action2} )^ @marks* alef.fina {action3};
 		#@haslefttatweel {action4} @marks* @bases @marks* @bases @marks* (@bases @marks*)* @haslefttatweel  @bases {action5};
 		#/init/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* (/medi/ @marks*)* /fina/ {action1};
-		(@haslefttatweel ) {action1} @marks* (/medi/ @marks*)* @haslefttatweel {action2};
-	endpass;
+#		(@haslefttatweel ) {action1} @marks* (/medi/ @marks*)* @haslefttatweel {action2};
+#	endpass;
 
 	
 	
 
-endtable;
+#endtable;
 
 
 

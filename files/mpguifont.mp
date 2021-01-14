@@ -1,4 +1,4 @@
-%% Copyright © 2015-2020 Amine Anane. http://digitalkhatt/license
+%% Copyright Â© 2015-2020 Amine Anane. http://digitalkhatt/license
  %
  % This file is part of DigitalKhatt.
  %
@@ -31,6 +31,7 @@ vardef round primary u =
 
 newinternal nextunicode, lefttatweel,righttatweel, leftbearing, rightbearing,  nuqta, which_in_baseline, leftbearingnumber, totalglyphs, ignore_exp_parameters, savepicture, number_of_anchors; 
 newinternal string charname,originalglyph;
+newinternal showAnchors;
 pair lefttatweel_const, righttatweel_const;
 
 leftbearingnumber := 0;
@@ -76,6 +77,7 @@ enddef;
 def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =  
  begingroup
  originalglyph := "";
+ showAnchors := 0;
  charcode:=if known c: byte c else: -1 fi; 
  if (charcode = -1) and (unknown name): 
   charcode := incr nextunicode; name:= charcode; 
@@ -181,6 +183,7 @@ def endchar =
   
   for i = 0 upto (number_of_anchors - 1): 
     anchors[i].pairvalue := anchors[i].pairvalue transformed tr_;
+    if showAnchors <> 0 : setlabel(anchors[i].anchorname,anchors[i].pairvalue); fi;
   endfor;
   
 	shipit;

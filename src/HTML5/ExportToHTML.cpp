@@ -60,6 +60,7 @@ void ExportToHTML::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int li
       out << " justify";
     }
     out << "' data-page-number='" << p + 1 << "'>" << '\n';
+    out << "<div class='innerpage'>" << '\n';
     for (int l = 0; l < pageText.length(); l++) {
       auto& lineText = pageText[l];
       auto& line = page[l];
@@ -80,7 +81,7 @@ void ExportToHTML::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int li
       out << lineText.replace(re, QString("۝") + "\\1") << '\n';
       out << "</div>" << '\n';
     }
-   
+    out << "</div>" << '\n';
     out << "</div>" << '\n';
   }
 }

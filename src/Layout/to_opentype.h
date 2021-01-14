@@ -23,11 +23,14 @@
 #include "qstring.h"
 #include "QByteArrayOperator.h"
 #include "qmap.h"
+#include "qstring.h"
+#include "commontypes.h"
 
 class OtLayout;
 class GlyphVis;
 struct mp_graphic_object;
 struct mp_fill_object;
+typedef struct mp_gr_knot_data* mp_gr_knot;
 
 class ToOpenType
 {
@@ -35,7 +38,7 @@ public:
   ToOpenType(OtLayout* layout);
   bool GenerateFile(QString fileName);
 
-  struct GlobalValues{
+  struct GlobalValues {
     int16_t ascender;
     int16_t descender;
     int16_t lineGap;
@@ -60,6 +63,135 @@ public:
     QString License;
   };
 
+  struct DeltaValues {
+    std::vector<double> deltas{ 0.0,0.0,0.0,0.0 };
+    std::vector<bool> active{ false,false,false,false };
+
+    bool isEmpty() {
+      for (int i = 0; i < deltas.size(); i++) {
+        if (active[i] && deltas[i] != 0.0) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    DeltaValues& operator+=(const DeltaValues& rhs)
+    {
+      assert(rhs.deltas.size() == deltas.size());
+
+      for (int i = 0; i < deltas.size(); i++) {
+        assert(rhs.active[i] == this->active[i]);
+        if (active[i]) {
+          deltas[i] += rhs.deltas[i];
+        }
+      }
+
+      return *this; // return the result by reference
+    }
+
+    DeltaValues& operator-=(const DeltaValues& rhs)
+    {
+      assert(rhs.deltas.size() == deltas.size());
+
+      for (int i = 0; i < deltas.size(); i++) {
+        //assert(rhs.active[i] == this->active[i]);
+        if (active[i]) {
+          deltas[i] -= rhs.deltas[i];
+        }
+      }
+
+      return *this; // return the result by reference
+    }
+
+    friend DeltaValues operator+(DeltaValues lhs,
+      double value)
+    {
+      for (int i = 0; i < lhs.deltas.size(); i++) {
+        if (lhs.active[i]) {
+          lhs.deltas[i] += value;
+        }
+      }
+      return lhs; // return the result by value (uses move constructor)
+    }
+
+    friend DeltaValues operator-(DeltaValues lhs,
+      double value)
+    {
+      for (int i = 0; i < lhs.deltas.size(); i++) {
+        if (lhs.active[i]) {
+          lhs.deltas[i] -= value;
+        }
+      }
+      return lhs; // return the result by value (uses move constructor)
+    }
+
+
+    friend DeltaValues operator+(DeltaValues lhs,
+      const DeltaValues& rhs)
+    {
+      lhs += rhs; // reuse compound assignment
+      return lhs; // return the result by value (uses move constructor)
+    }
+
+    friend DeltaValues operator-(DeltaValues lhs,
+      const DeltaValues& rhs)
+    {
+      lhs -= rhs; // reuse compound assignment
+      return lhs; // return the result by value (uses move constructor)
+    }
+  };
+
+  QByteArray blend(DeltaValues delta) {
+    QByteArray data;
+    bool isEmpty = true;
+    for (int i = 0; i < delta.deltas.size(); i++) {
+      if (delta.active[i] && delta.deltas[i] != 0.0) {
+        isEmpty = false;
+        fixed_to_cff2(data, delta.deltas[i]);
+      }
+      else {
+        int_to_cff2(data, 0);
+      }
+    }
+    if (isEmpty) {
+      data.clear();
+    }
+    else {
+      int_to_cff2(data, 1);
+      data << (uint8_t)16; // blend;
+    }
+    return data;
+  }
+
+  struct ContourLimits {
+    mp_graphic_object* maxLeft = nullptr;
+    mp_graphic_object* minLeft = nullptr;
+    mp_graphic_object* maxRight = nullptr;
+    mp_graphic_object* minRight = nullptr;
+  };
+
+
+
+  struct PathLimits {
+    DeltaValues currentx;
+    DeltaValues currenty;
+    mp_gr_knot maxLeft = nullptr;
+    mp_gr_knot minLeft = nullptr;
+    mp_gr_knot maxRight = nullptr;
+    mp_gr_knot minRight = nullptr;
+
+    inline PathLimits next();
+    inline DeltaValues x_coord();
+    inline DeltaValues y_coord();
+    inline DeltaValues left_x();
+    inline DeltaValues left_y();
+    inline DeltaValues right_x();
+    inline DeltaValues right_y();
+  };
+
+  std::unordered_map<QString, ValueLimits> expandableGlyphs;
+
   struct Color {
     uint8_t blue = 0;
     uint8_t green = 0;
@@ -68,18 +200,18 @@ public:
     bool foreground = false;
     bool operator ==(Color b)
     {
-       return (blue == b.blue && green == b.green && red == b.red && alpha == b.alpha);
+      return (blue == b.blue && green == b.green && red == b.red && alpha == b.alpha);
     }
     bool operator <(Color b)
     {
-      if(red != b.red)
+      if (red != b.red)
         return red < b.red;
-      else if(green != b.green)
+      else if (green != b.green)
         return green < b.green;
       else if (blue != b.blue)
         return blue < b.blue;
       else
-       return alpha < b.alpha;
+        return alpha < b.alpha;
     }
   };
 
@@ -91,7 +223,7 @@ public:
     uint16_t gid = 0;
   };
 
-  QMap<uint16_t,QVector<Layer>> layers;
+  QMap<uint16_t, QVector<Layer>> layers;
 
   QByteArray cmap();
   QByteArray gdef();
@@ -107,20 +239,31 @@ public:
   QByteArray cff2();
   QByteArray cff();
   QByteArray dsig();
+  QByteArray fvar();
+  QByteArray HVAR();
+  QByteArray STAT();
+  QByteArray MVAR();
   bool colrcpal(QByteArray& colr, QByteArray& cpal);
+  bool isCff2 = false;
+  QByteArray getPrivateDictCff2(int* size);  
+
+  QByteArray CFF2VariationStore();
+
+  const uint16_t LTATNameId = 256;
+  const uint16_t RTATNameId = 257;
 
 private:
   OtLayout* ot_layout;
-  uint32_t calcTableChecksum(uint32_t *Table, uint32_t Length);
- 
-  QMap<quint16,GlyphVis*> glyphs;
+  uint32_t calcTableChecksum(uint32_t* Table, uint32_t Length);
+
+  QMap<quint16, GlyphVis*> glyphs;
   GlobalValues globalValues;
   int toInt(double value);
-  void int_to_cff2(QByteArray& cff,int val) ;
-  void fixed_to_cff2(QByteArray& cff,double val) ;
+  void int_to_cff2(QByteArray& cff, int val);
+  void fixed_to_cff2(QByteArray& cff, double val);
   QByteArray charStrings(bool iscff2);
-  QByteArray charString(mp_graphic_object* object, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty);
-  void initiliazeGlobals();
+  QByteArray charString(mp_graphic_object* object, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ContourLimits contourLimits);
+  void initiliazeGlobals(); 
 
   int nbSubrs = 0;
   QByteArray subrs;
@@ -128,25 +271,25 @@ private:
   int subIndexBias = 107;
   void setGIds();
   void setAyaGlyphPaths();
-  QMap<uint16_t,int> subrByGlyph;
-  QMap<uint16_t,QByteArray> replacedGlyphs;
-  bool isCff2 = false;
-  void dumpPath(QByteArray& data, mp_fill_object* fill, double& currentx, double& currenty);
+  QMap<uint16_t, int> subrByGlyph;
+  QMap<uint16_t, QByteArray> replacedGlyphs;
+
+  void dumpPath(QByteArray& data, mp_fill_object* fill, double& currentx, double& currenty, PathLimits& pathLimits);
 
   QByteArray getSubrs();
   QByteArray getAyaMono();
 };
 
-inline bool operator<(const ToOpenType::Color &a, const ToOpenType::Color &b)
+inline bool operator<(const ToOpenType::Color& a, const ToOpenType::Color& b)
 {
-  if(a.red != b.red)
+  if (a.red != b.red)
     return a.red < b.red;
-  else if(a.green != b.green)
+  else if (a.green != b.green)
     return a.green < b.green;
   else if (a.blue != b.blue)
     return a.blue < b.blue;
   else
-   return a.alpha < b.alpha;
+    return a.alpha < b.alpha;
 }
 
 

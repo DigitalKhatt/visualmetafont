@@ -226,6 +226,9 @@ void ContourItem::generateedge(mp_edge_object *  h, bool newelement) {
 					textitem->setFlags(QGraphicsItem::ItemIgnoresTransformations);
 					textitem->setPos(text->tx, text->ty);
 					textitem->setText(text->text_p);
+          QGraphicsEllipseItem* dot = new   QGraphicsEllipseItem(labels);
+          dot->setRect(text->tx - 5, text->ty - 5,10,10);
+          
 				}
 				default:
 					break;
