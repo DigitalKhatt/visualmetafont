@@ -60,7 +60,7 @@ CalcAnchor  Automedina::getanchorCalcFunctions(QString functionName, Subtable* s
   }
 }
 
-Automedina::Automedina(OtLayout* layout, MP mp,  bool extended) :glyphs{ layout->glyphs }, m_layout{ layout }, mp{ mp },extended{extended} {
+Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->glyphs }, m_layout{ layout }, mp{ mp }, extended{ extended } {
 
   //m_metafont = layout->m_font;
   classes["marks"] = {
@@ -108,56 +108,56 @@ Automedina::Automedina(OtLayout* layout, MP mp,  bool extended) :glyphs{ layout-
       "roundedfilledhigh",
       "roundedfilledlow",
       "space.ii"
-};
+  };
 
   classes["topmarks"] = {
-      //"onedotup",
-      //"twodotsup",
-      //"three_dots",
-      "fathatanidgham",
-      "dammatanidgham",
-      "fatha",
-      "damma",
-      "shadda",
-      "headkhah",
-      "sukun",
-      "dammatan",
-      "maddahabove",
-      "fathatan",
-      "smallalef",
-      "smallalef.replacement",
-      "smallalef.joined",
-      "meemiqlab",
-      "smallhighyeh",
-      "smallhighwaw",
-      "wasla",
-      "hamzaabove",
-      "hamzaabove.joined",
-      //"hamzaabove.lamalef",
-      "smallhighroundedzero",
-      "rectangularzero",
-      "smallhighseen",
-      "smallhighnoon",
-      "roundedfilledhigh",
-      "hamzaabove.joined",
-};
+    //"onedotup",
+    //"twodotsup",
+    //"three_dots",
+    "fathatanidgham",
+    "dammatanidgham",
+    "fatha",
+    "damma",
+    "shadda",
+    "headkhah",
+    "sukun",
+    "dammatan",
+    "maddahabove",
+    "fathatan",
+    "smallalef",
+    "smallalef.replacement",
+    "smallalef.joined",
+    "meemiqlab",
+    "smallhighyeh",
+    "smallhighwaw",
+    "wasla",
+    "hamzaabove",
+    "hamzaabove.joined",
+    //"hamzaabove.lamalef",
+    "smallhighroundedzero",
+    "rectangularzero",
+    "smallhighseen",
+    "smallhighnoon",
+    "roundedfilledhigh",
+    "hamzaabove.joined",
+  };
 
   classes["lowmarks"] = {
-      //"onedotdown",
-      //"twodotsdown",
-      "kasratanidgham",
-      "kasra",
-      "kasratan",
-      "hamzabelow",
-      "smalllowseen",
-      "roundedfilledlow"
-};
+    //"onedotdown",
+    //"twodotsdown",
+    "kasratanidgham",
+    "kasra",
+    "kasratan",
+    "hamzabelow",
+    "smalllowseen",
+    "roundedfilledlow"
+  };
 
   classes["kasras"] = {
       "kasratanidgham",
       "kasra",
       "kasratan"
-};
+  };
 
   classes["waqfmarks"] = {
       "waqf.meem",
@@ -166,7 +166,7 @@ Automedina::Automedina(OtLayout* layout, MP mp,  bool extended) :glyphs{ layout-
       "waqf.jeem",
       "waqf.sad",
       "waqf.smallhighthreedots"
-};
+  };
 
   classes["dotmarks"] = {
       "onedotup",
@@ -174,18 +174,18 @@ Automedina::Automedina(OtLayout* layout, MP mp,  bool extended) :glyphs{ layout-
       "twodotsup",
       "twodotsdown",
       "three_dots"
-};
+  };
 
   classes["topdotmarks"] = {
       "onedotup",
       "twodotsup",
       "three_dots"
-};
+  };
 
   classes["downdotmarks"] = {
       "onedotdown",
       "twodotsdown"
-};
+  };
 
   classes["digits"] = {
       "zeroindic",
@@ -198,7 +198,7 @@ Automedina::Automedina(OtLayout* layout, MP mp,  bool extended) :glyphs{ layout-
       "sevenindic",
       "eightindic",
       "nineindic"
-};
+  };
 
   initchar = {
     "behshape" ,
@@ -273,7 +273,67 @@ Automedina::Automedina(OtLayout* layout, MP mp,  bool extended) :glyphs{ layout-
 
   //setAnchorCalcFunctions();
 
+ 
+  layout->expandableGlyphs["behshape.isol.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["behshape.fina.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["kaf.fina.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["kaf.fina.afterlam.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["noon.isol.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["noon.fina.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["noon.fina.afterbeh.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["alefmaksura.isol.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["yehshape.isol.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["yehshape.fina.afterbeh.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["yehshape.fina.ii.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["yehshape.fina.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["sad.isol.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["sad.fina.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["seen.isol.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["seen.fina.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["feh.isol.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["feh.fina.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["qaf.isol.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["qaf.fina.expa"] = { 5,0,0,0 };
 
+  layout->expandableGlyphs["behshape.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["hah.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["seen.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["sad.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["tah.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["ain.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["fehshape.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["kaf.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["kaf.init.ii"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["lam.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["meem.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["heh.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["kaf.init.ii"] = { 5,-0.5,0.0,0.0 };
+
+  layout->expandableGlyphs["heh.medi"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["behshape.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["behshape.medi.beforeseen"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["hah.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["hah.medi.afterbeh"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["hah.medi.lam_hah"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["hah.medi.beforemeem"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["seen.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["sad.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["tah.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["ain.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["fehshape.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["kaf.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["lam.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["lam.medi.afterkaf"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["meem.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["meem.medi.afterhah"] = { 5,-0.5,5,-0.5 };
+
+  layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["hah.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["feh.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["meem.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["behshape.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["qaf.fina"] = { 0.0,0.0,5,-0.5 };
+  
 }
 
 void Automedina::generateGlyphs() {
@@ -285,15 +345,15 @@ void Automedina::generateGlyphs() {
 
   while (edges) {
 
-    auto name = QString(edges->charname) ;
+    auto name = QString(edges->charname);
 
-    if(name != "alternatechar"){
+    if (name != "alternatechar") {
       GlyphVis& glyph = *glyphs.insert(name, GlyphVis(m_layout, edges));
 
 
       m_layout->glyphNamePerCode[glyph.charcode] = glyph.name;
       m_layout->glyphCodePerName[glyph.name] = glyph.charcode;
-      m_layout->unicodeToGlyphCode.insert(glyph.charcode,glyph.charcode);
+      m_layout->unicodeToGlyphCode.insert(glyph.charcode, glyph.charcode);
 
       //if (glyph.name.contains("space")) {
 
@@ -318,21 +378,21 @@ void Automedina::generateGlyphs() {
         if (anchor.anchorName) {
           switch (anchor.type)
           {
-            case 1:
-              markAnchors[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
-              break;
-            case 2:
-              entryAnchors[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
-              break;
-            case 3:
-              exitAnchors[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
-            case 4:
-              entryAnchorsRTL[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
-              break;
-            case 5:
-              exitAnchorsRTL[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
-            default:
-              break;
+          case 1:
+            markAnchors[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
+            break;
+          case 2:
+            entryAnchors[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
+            break;
+          case 3:
+            exitAnchors[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
+          case 4:
+            entryAnchorsRTL[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
+            break;
+          case 5:
+            exitAnchorsRTL[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
+          default:
+            break;
           }
         }
       }
@@ -389,7 +449,7 @@ void Automedina::generateGlyphs() {
         "0671": [ "alef.isol", "wasla" ]*/
 
 
-  auto addFake = [this](QString glyphName, quint16 unicode,quint16 codechar){
+  auto addFake = [this](QString glyphName, quint16 unicode, quint16 codechar) {
     auto code = unicode; //codechar; //layout.glyphNamePerCode.lastKey();
     GlyphVis& glyph = *glyphs.insert(glyphName, GlyphVis());
     glyph.name = glyphName;
@@ -397,28 +457,28 @@ void Automedina::generateGlyphs() {
 
     m_layout->glyphNamePerCode[glyph.charcode] = glyph.name;
     m_layout->glyphCodePerName[glyph.name] = glyph.charcode;
-    m_layout->unicodeToGlyphCode.insert(unicode,glyph.charcode);
+    m_layout->unicodeToGlyphCode.insert(unicode, glyph.charcode);
 
 
   };
-  addFake("alef.maddahabove.isol",0x0622,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("alef.hamzaabove.isol",0x0623,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("waw.hamzaabove.isol",0x0624,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("alef.hamzabelow.isol",0x0625,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("alefmaksura.hamzaabove.isol",0x0626,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("behshape.onedotdown.isol",0x0628,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("heh.twodotsup.isol",0x0629,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("behshape.twodotsup.isol",0x062A,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("behshape.three_dots.isol",0x062B,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("hah.onedotdown.isol",0x062C,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("hah.onedotup.isol",0x062E,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("dal.onedotup.isol",0x0630,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("reh.onedotup.isol",0x0632,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("seen.three_dots.isol",0x0634,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("sad.onedotup.isol",0x0636,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("tah.onedotup.isol",0x0638,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("ain.onedotup.isol",0x063A,m_layout->glyphNamePerCode.lastKey() + 1);
-  addFake("alef.wasla.isol",0x0671,m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("alef.maddahabove.isol", 0x0622, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("alef.hamzaabove.isol", 0x0623, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("waw.hamzaabove.isol", 0x0624, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("alef.hamzabelow.isol", 0x0625, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("alefmaksura.hamzaabove.isol", 0x0626, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("behshape.onedotdown.isol", 0x0628, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("heh.twodotsup.isol", 0x0629, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("behshape.twodotsup.isol", 0x062A, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("behshape.three_dots.isol", 0x062B, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("hah.onedotdown.isol", 0x062C, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("hah.onedotup.isol", 0x062E, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("dal.onedotup.isol", 0x0630, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("reh.onedotup.isol", 0x0632, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("seen.three_dots.isol", 0x0634, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("sad.onedotup.isol", 0x0636, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("tah.onedotup.isol", 0x0638, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("ain.onedotup.isol", 0x063A, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("alef.wasla.isol", 0x0671, m_layout->glyphNamePerCode.lastKey() + 1);
 
   m_layout->glyphs = glyphs;
 
@@ -968,7 +1028,7 @@ Lookup* Automedina::defaultwaqfmarktobase() {
   lookup->type = Lookup::mark2base;
 
 
-  auto basefunction = [this](QString glyphName, QString className, QPoint adjust,double,double) -> QPoint {
+  auto basefunction = [this](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
     GlyphVis& curr = glyphs[glyphName];
 
     int height = std::max((int)curr.height + spacebasetotopmark, minwaqfhigh);
@@ -981,7 +1041,7 @@ Lookup* Automedina::defaultwaqfmarktobase() {
     return QPoint(width, height);
   };
 
-  auto markfunction = [this](QString glyphName, QString className, QPoint adjust,double,double) -> QPoint {
+  auto markfunction = [this](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
     GlyphVis& curr = glyphs[glyphName];
 
     int height = 0;
@@ -1169,7 +1229,7 @@ Lookup* Automedina::defaultmarkdotmarks() {
   topsubtable->name = "defaultmarkdotmarkstop";
   topsubtable->base = { "topdotmarks" };
 
-  auto basetopfunction = [this, topsubtable](QString glyphName, QString className, QPoint adjust,double,double) -> QPoint {
+  auto basetopfunction = [this, topsubtable](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
     GlyphVis& curr = glyphs[glyphName];
 
 
@@ -1210,7 +1270,7 @@ Lookup* Automedina::defaultmarkdotmarks() {
   bottomsubtable->name = "defaultmarkdotmarksbottom";
   bottomsubtable->base = { "downdotmarks" };
 
-  auto basedownfunction = [this, bottomsubtable](QString glyphName, QString className, QPoint adjust,double,double) -> QPoint {
+  auto basedownfunction = [this, bottomsubtable](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
     GlyphVis& curr = glyphs[glyphName];
 
     int depth = -(int)curr.depth + 50;
@@ -1319,7 +1379,7 @@ Lookup* Automedina::lowmarkafterwawandreh() {
 
         marksubtable->classes["kasratan"].mark = { "kasratan",  "kasratanidgham" };
         marksubtable->classes["kasratan"].basefunction = Defaulbaseanchorforlow(*this, *marksubtable);
-        marksubtable->classes["kasratan"].markfunction =  Defaullowmarkanchor(*this, *marksubtable);
+        marksubtable->classes["kasratan"].markfunction = Defaullowmarkanchor(*this, *marksubtable);
 
       }
       else if (kastradot == "2") {
@@ -1330,12 +1390,12 @@ Lookup* Automedina::lowmarkafterwawandreh() {
         marksubtable->base = { "(behshape|hah)[.](init|isol)" };
 
         marksubtable->classes["kasra"].mark = { "kasra", };
-        marksubtable->classes["kasra"].basefunction =  Defaulbaseanchorforlow(*this, *marksubtable);
-        marksubtable->classes["kasra"].markfunction =  Defaullowmarkanchor(*this, *marksubtable);
+        marksubtable->classes["kasra"].basefunction = Defaulbaseanchorforlow(*this, *marksubtable);
+        marksubtable->classes["kasra"].markfunction = Defaullowmarkanchor(*this, *marksubtable);
 
         marksubtable->classes["kasratan"].mark = { "kasratan", "kasratanidgham" };
-        marksubtable->classes["kasratan"].basefunction =  Defaulbaseanchorforlow(*this, *marksubtable);
-        marksubtable->classes["kasratan"].markfunction =  Defaullowmarkanchor(*this, *marksubtable);
+        marksubtable->classes["kasratan"].basefunction = Defaulbaseanchorforlow(*this, *marksubtable);
+        marksubtable->classes["kasratan"].markfunction = Defaullowmarkanchor(*this, *marksubtable);
 
 
       }
@@ -1344,8 +1404,8 @@ Lookup* Automedina::lowmarkafterwawandreh() {
         marksubtable->base = { "reh|waw" };
 
         marksubtable->classes["kasra"].mark = { "kasra" };
-        marksubtable->classes["kasra"].basefunction =  Defaulbaseanchorforlow(*this, *marksubtable);
-        marksubtable->classes["kasra"].markfunction =  Defaullowmarkanchor(*this, *marksubtable);
+        marksubtable->classes["kasra"].basefunction = Defaulbaseanchorforlow(*this, *marksubtable);
+        marksubtable->classes["kasra"].markfunction = Defaullowmarkanchor(*this, *marksubtable);
       }
 
       m_layout->addLookup(sublookup);
@@ -1373,48 +1433,48 @@ Lookup* Automedina::lowmarkafterwawandreh() {
                         }
                 }*/
 
-    /*
-                //rehwawcursive
-                Lookup * sublookup = new Lookup(m_layout);
-                sublookup->name = lookup->name + "." + finaisol + "rehwawcursive";
-                sublookup->feature = "";
-                sublookup->type = Lookup::cursive;
-                sublookup->is_gsub = false;
-                sublookup->local = true;
-                sublookup->flags = Lookup::Flags::IgnoreMarks;
+                /*
+                            //rehwawcursive
+                            Lookup * sublookup = new Lookup(m_layout);
+                            sublookup->name = lookup->name + "." + finaisol + "rehwawcursive";
+                            sublookup->feature = "";
+                            sublookup->type = Lookup::cursive;
+                            sublookup->is_gsub = false;
+                            sublookup->local = true;
+                            sublookup->flags = Lookup::Flags::IgnoreMarks;
 
-                m_layout->addLookup(sublookup, true);
+                            m_layout->addLookup(sublookup, true);
 
-                CursiveSubtable* cursivesubtable = new CursiveSubtable(lookup);
-                sublookup->subtables.append(cursivesubtable);
-                cursivesubtable->name = "cursivesubtable";
+                            CursiveSubtable* cursivesubtable = new CursiveSubtable(lookup);
+                            sublookup->subtables.append(cursivesubtable);
+                            cursivesubtable->name = "cursivesubtable";
 
-                auto& glyphcodes = m_layout->classtoUnicode("(waw|reh)[.]" + finaisol);
+                            auto& glyphcodes = m_layout->classtoUnicode("(waw|reh)[.]" + finaisol);
 
-                for (auto glyphcode : glyphcodes) {
-                        cursivesubtable->anchors[glyphcode].exit = QPoint(0, 0);
-                }
+                            for (auto glyphcode : glyphcodes) {
+                                    cursivesubtable->anchors[glyphcode].exit = QPoint(0, 0);
+                            }
 
-                glyphcodes = m_layout->classtoUnicode("isol|init"); //"((?<!reh|waw)[.]isol)|init"
+                            glyphcodes = m_layout->classtoUnicode("isol|init"); //"((?<!reh|waw)[.]isol)|init"
 
-                for (auto glyphcode : glyphcodes) {
-                        QString glyphName = m_layout->glyphNamePerCode[glyphcode];
-                        auto glyph = glyphs[glyphName];
-                        bool includeGlyph = true;
-                        for (auto anchors : exitAnchorsRTL) {
-                                if (anchors.contains(glyphcode)) {
-                                        includeGlyph = false;
-                                        break;
-                                }
-                        }
+                            for (auto glyphcode : glyphcodes) {
+                                    QString glyphName = m_layout->glyphNamePerCode[glyphcode];
+                                    auto glyph = glyphs[glyphName];
+                                    bool includeGlyph = true;
+                                    for (auto anchors : exitAnchorsRTL) {
+                                            if (anchors.contains(glyphcode)) {
+                                                    includeGlyph = false;
+                                                    break;
+                                            }
+                                    }
 
-                        if (includeGlyph) {
-                                cursivesubtable->anchors[glyphcode].entry = QPoint(glyph.width, 0);
-                        }
+                                    if (includeGlyph) {
+                                            cursivesubtable->anchors[glyphcode].entry = QPoint(glyph.width, 0);
+                                    }
 
-                }*/
+                            }*/
 
-    // beforehah
+                            // beforehah
     ChainingSubtable* newsubtable = new ChainingSubtable(lookup);
     lookup->subtables.append(newsubtable);
 
@@ -1689,8 +1749,8 @@ Lookup* Automedina::pointmarks() {
     marksubtable->base = { "bases" };
 
     marksubtable->classes["topmarks"].mark = { "topmarks" };
-    marksubtable->classes["topmarks"].basefunction =  Defaulbaseanchorfortop(*this, *marksubtable);
-    marksubtable->classes["topmarks"].markfunction =  Defaultopmarkanchor(*this, *marksubtable);
+    marksubtable->classes["topmarks"].basefunction = Defaulbaseanchorfortop(*this, *marksubtable);
+    marksubtable->classes["topmarks"].markfunction = Defaultopmarkanchor(*this, *marksubtable);
 
 
     marksubtable->classes["lowmarks"].mark = { "lowmarks" };
@@ -1723,7 +1783,7 @@ Lookup* Automedina::pointmarks() {
 
 Lookup* Automedina::ayanumberskern() {
 
-  if(extended){
+  if (extended) {
     return nullptr;
   }
 
@@ -1732,7 +1792,7 @@ Lookup* Automedina::ayanumberskern() {
   qint16 yoffset = 150;
 
   // three digits
-  Lookup * sublookup = new Lookup(m_layout);
+  Lookup* sublookup = new Lookup(m_layout);
   sublookup->name = "ayanumberskern.l1";
   sublookup->feature = "";
   sublookup->type = Lookup::singleadjustment;
@@ -1773,7 +1833,7 @@ Lookup* Automedina::ayanumberskern() {
   singleadjsubtable = new SingleAdjustmentSubtable(sublookup);
   sublookup->subtables.append(singleadjsubtable);
 
-  singleadjsubtable->name =sublookup->name;
+  singleadjsubtable->name = sublookup->name;
 
   for (auto digit : digitySet) {
     singleadjsubtable->singlePos[digit] = { 0,yoffset,-300,0 };
@@ -1829,7 +1889,7 @@ Lookup* Automedina::ayanumberskern() {
   subtable->name = "ayanumbers2digits";
   //subtable->compiledRule.backtrack = {{(int16_t)ayaGlyph.charcode}};
   subtable->compiledRule = ChainingSubtable::CompiledRule();
-  subtable->compiledRule.input = {{(uint16_t)ayaGlyph.charcode}, digitySet,digitySet };
+  subtable->compiledRule.input = { {(uint16_t)ayaGlyph.charcode}, digitySet,digitySet };
   subtable->compiledRule.lookupRecords.append({ 1,"l2" });
   subtable->compiledRule.lookupRecords.append({ 2,"up" });
 
@@ -1837,7 +1897,7 @@ Lookup* Automedina::ayanumberskern() {
   lookup->subtables.append(subtable);
   subtable->name = "ayanumbers1digit";
   subtable->compiledRule = ChainingSubtable::CompiledRule();
-  subtable->compiledRule.input = {{(uint16_t)ayaGlyph.charcode}, digitySet };
+  subtable->compiledRule.input = { {(uint16_t)ayaGlyph.charcode}, digitySet };
   subtable->compiledRule.lookupRecords.append({ 1,"l3" });
 
   return lookup;
@@ -1845,7 +1905,7 @@ Lookup* Automedina::ayanumberskern() {
 
 }
 
-Lookup* Automedina::ayanumbers() {  
+Lookup* Automedina::ayanumbers() {
 
   quint16 endofaya = m_layout->glyphCodePerName["endofaya"];
 
@@ -1866,11 +1926,12 @@ Lookup* Automedina::ayanumbers() {
     int onesdigit = i % 10;
     int tensdigit = (i / 10) % 10;
     int hundredsdigit = i / 100;
-    if(extended){
+    if (extended) {
       ligaturesubtable->ligatures.append({ code, { (quint16)(m_layout->unicodeToGlyphCode.value(1632 + hundredsdigit)),
                                                    (quint16)(m_layout->unicodeToGlyphCode.value(1632 + tensdigit)),
                                                    (quint16)(m_layout->unicodeToGlyphCode.value(1632 + onesdigit)) } });
-    }else{
+    }
+    else {
       ligaturesubtable->ligatures.append({ code, { (quint16)(m_layout->unicodeToGlyphCode.value(1632 + onesdigit)),
                                                    (quint16)(m_layout->unicodeToGlyphCode.value(1632 + tensdigit)),
                                                    (quint16)(m_layout->unicodeToGlyphCode.value(1632 + hundredsdigit)),endofaya } });
@@ -1893,14 +1954,15 @@ Lookup* Automedina::ayanumbers() {
   ligature->subtables.append(ligaturesubtable);
   ligaturesubtable->name = ligature->name;
 
-  for (quint16 i = 99; i > 9; i--) {   
+  for (quint16 i = 99; i > 9; i--) {
     quint16 code = m_layout->glyphCodePerName[QString("aya%1").arg(i)];
     int onesdigit = i % 10;
     int tensdigit = i / 10;
-    if(extended){
+    if (extended) {
       ligaturesubtable->ligatures.append({ code,{ (quint16)(m_layout->unicodeToGlyphCode.value(1632 + tensdigit)),
                                                   (quint16)(m_layout->unicodeToGlyphCode.value(1632 + onesdigit)) } });
-    }else{
+    }
+    else {
       ligaturesubtable->ligatures.append({ code,{(quint16)(m_layout->unicodeToGlyphCode.value(1632 + onesdigit)),
                                                   (quint16)(m_layout->unicodeToGlyphCode.value(1632 + tensdigit)),endofaya } });
       ligaturesubtable->ligatures.append({ code,{endofaya,(quint16)(m_layout->unicodeToGlyphCode.value(1632 + tensdigit)),
@@ -1908,7 +1970,7 @@ Lookup* Automedina::ayanumbers() {
     }
 
   }
-  if(extended){
+  if (extended) {
     // Single substitution
     Lookup* single = new Lookup(m_layout);
     single->name = "ayanumbers.l3";
@@ -1924,7 +1986,8 @@ Lookup* Automedina::ayanumbers() {
       singlesubtable->subst[(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i))] = glyphs[QString("aya%1").arg(i)].charcode;
     }
 
-  }else{
+  }
+  else {
 
     // ligature
     ligature = new Lookup(m_layout);
@@ -1968,10 +2031,10 @@ Lookup* Automedina::ayanumbers() {
   lookup->subtables.append(subtable);
   subtable->name = "ayanumbers3digits";
   subtable->compiledRule = ChainingSubtable::CompiledRule();
-  if(extended){
+  if (extended) {
     subtable->compiledRule.input = { digitySet,digitySet,digitySet };
   }
-  else{
+  else {
     //subtable->compiledRule.input = {digitySet,digitySet,digitySet,{endofaya} };
     subtable->compiledRule.input = { digitySetplusendofaya,digitySet,digitySet,digitySetplusendofaya };
   }
@@ -1982,10 +2045,10 @@ Lookup* Automedina::ayanumbers() {
   lookup->subtables.append(subtable);
   subtable->name = "ayanumbers2digits";
   subtable->compiledRule = ChainingSubtable::CompiledRule();
-  if(extended){
+  if (extended) {
     subtable->compiledRule.input = { digitySet,digitySet };
   }
-  else{
+  else {
     subtable->compiledRule.input = { digitySetplusendofaya,digitySet,digitySetplusendofaya };
   }
   subtable->compiledRule.lookupRecords.append({ 0,"l2" });
@@ -1994,11 +2057,11 @@ Lookup* Automedina::ayanumbers() {
   lookup->subtables.append(subtable);
   subtable->name = "ayanumbers1digit";
   subtable->compiledRule = ChainingSubtable::CompiledRule();
-  if(extended){
+  if (extended) {
     subtable->compiledRule.input = { digitySet };
   }
-  else{
-   
+  else {
+
     subtable->compiledRule.input = { digitySetplusendofaya,digitySetplusendofaya };
   }
   subtable->compiledRule.lookupRecords.append({ 0,"l3" });
@@ -2055,7 +2118,7 @@ Lookup* Automedina::forheh() {
     newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
   }
 
-  
+
   //newsubtable->compiledRule.input.append({ (quint16)glyphs["heh.medi"].charcode,(quint16)glyphs["heh.medi.forsmalllalef"].charcode });
   newsubtable->compiledRule.lookahead.append(classtoUnicode("^heh.medi")); //  { (quint16)glyphs["heh.medi"].charcode });
 
@@ -2124,12 +2187,12 @@ Lookup* Automedina::forhamza() {
   lookup->feature = "rlig";
   lookup->type = Lookup::chainingsub;
   lookup->markGlyphSetIndex = m_layout->addMarkSet({
-                                                     //(quint16)glyphs["smallhighwaw"].charcode,
-                                                     (quint16)glyphs["hamzaabove"].charcode,
-                                                     (quint16)glyphs["smallhighyeh"].charcode,
-                                                     (quint16)glyphs["smallhighnoon"].charcode,
-                                                     (quint16)glyphs["roundedfilledhigh"].charcode
-                                                   });
+    //(quint16)glyphs["smallhighwaw"].charcode,
+    (quint16)glyphs["hamzaabove"].charcode,
+    (quint16)glyphs["smallhighyeh"].charcode,
+    (quint16)glyphs["smallhighnoon"].charcode,
+    (quint16)glyphs["roundedfilledhigh"].charcode
+    });
   lookup->flags = lookup->flags | Lookup::Flags::UseMarkFilteringSet;
   //lookup->flags = lookup->flags | Lookup::Flags::IgnoreMarks;
 
@@ -2146,7 +2209,7 @@ Lookup* Automedina::forhamza() {
     newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
   }
 
-  
+
   newsubtable->compiledRule.input.append({ 0x200D ,  (quint16)glyphs["tatweel"].charcode });
   newsubtable->compiledRule.input.append({ (quint16)glyphs["hamzaabove"].charcode,(quint16)glyphs["smallhighyeh"].charcode, (quint16)glyphs["smallhighnoon"].charcode });
 
@@ -2652,50 +2715,50 @@ void Automedina::addchars() {
                 QString name = QStringLiteral("%1.beforeheh").arg(key);
                 addchar(key, -1, 200 / 100.0, {}, {}, {}, {}, {}, name, 2);
         }*/
-  /*
-        for (auto key : classes["haslefttatweel"]) {
-                for (float i = 100; i <= 500; i = i + 100) {
-                        QString name = QStringLiteral("%1.pluslt_%2").arg(key).arg((int)(i * 1));
-                        addchar(key, -1, i / 100.0, {}, {}, {}, {}, {}, name, 2);
-                }
+        /*
+              for (auto key : classes["haslefttatweel"]) {
+                      for (float i = 100; i <= 500; i = i + 100) {
+                              QString name = QStringLiteral("%1.pluslt_%2").arg(key).arg((int)(i * 1));
+                              addchar(key, -1, i / 100.0, {}, {}, {}, {}, {}, name, 2);
+                      }
 
 
-                // for (float i = 10; i <= 200; i = i + 10) {
-                //	QString name = QStringLiteral("%1.minuslt_%2").arg(key).arg((int)(i * 1));
-                //	addchar(key, -1, -i / 100.0, {}, {}, {}, {}, {}, name, 2);
-                //}
+                      // for (float i = 10; i <= 200; i = i + 10) {
+                      //	QString name = QStringLiteral("%1.minuslt_%2").arg(key).arg((int)(i * 1));
+                      //	addchar(key, -1, -i / 100.0, {}, {}, {}, {}, {}, name, 2);
+                      //}
 
-                QString metapostcode = QString("vardef %1.pluslt_[]_(expr lt,rt) = %1_(lt,rt);enddef;").arg(key);
+                      QString metapostcode = QString("vardef %1.pluslt_[]_(expr lt,rt) = %1_(lt,rt);enddef;").arg(key);
 
-                QByteArray commandBytes = metapostcode.toLatin1();
+                      QByteArray commandBytes = metapostcode.toLatin1();
 
-                int status = mp_execute(mp, commandBytes.data(), commandBytes.size());
-                if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-                        mp_run_data * results = mp_rundata(mp);
-                        QString ret(results->term_out.data);
-                        ret.trimmed();
-                        mp_finish(mp);
-                        throw "Could not initialize MetaPost library instance!\n" + ret;
-                }
-        }*/
+                      int status = mp_execute(mp, commandBytes.data(), commandBytes.size());
+                      if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
+                              mp_run_data * results = mp_rundata(mp);
+                              QString ret(results->term_out.data);
+                              ret.trimmed();
+                              mp_finish(mp);
+                              throw "Could not initialize MetaPost library instance!\n" + ret;
+                      }
+              }*/
 
-  //behshape.init.minuslt_110
-  //addchar("lam.medi", -1, {}, -0.2, {}, {}, {}, {}, "lam.medi.afterhah", 2);
+              //behshape.init.minuslt_110
+              //addchar("lam.medi", -1, {}, -0.2, {}, {}, {}, {}, "lam.medi.afterhah", 2);
   addchar("behshape.init", -1, -110 / 100.0, {}, {}, {}, {}, {}, "behshape.init.minuslt_110", 2);
 
 
 
 }
 void Automedina::addchar(QString macroname,
-			 int charcode,
-			 double lefttatweel,
-			 double righttatweel,
-			 optional<double> leftextratio,
-			 optional<double> rightextratio,
-			 optional<double> left_tatweeltension,
-			 optional<double> right_tatweeltension,
-			 QString newname,
-			 optional<int> which_in_baseline) {
+  int charcode,
+  double lefttatweel,
+  double righttatweel,
+  optional<double> leftextratio,
+  optional<double> rightextratio,
+  optional<double> left_tatweeltension,
+  optional<double> right_tatweeltension,
+  QString newname,
+  optional<int> which_in_baseline) {
 
   QString metapostcode = QString("beginchar(%1,%2,-1,-1,-1);").arg(newname).arg(charcode);
 

@@ -70,6 +70,7 @@ private:
 	void loadLookupFile(QString fileName);
 	bool save();
 	bool generateOpenType();
+  bool generateOpenTypeCff2();
 	bool exportpdf();
 	bool generateAllQuranTexBreaking();
 	bool generateAllQuranTexMedina();

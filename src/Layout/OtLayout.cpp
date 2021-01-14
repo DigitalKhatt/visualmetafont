@@ -525,7 +525,7 @@ QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, Glyp
 
       adjustoriginal += QPoint(xshift, yshift);
     }
-    else if (curr->rightAnchor) {
+    else if (curr->rightAnchor && !curr->originalglyph.contains("fina.expa")) {
 
     }
     else {
@@ -630,7 +630,7 @@ QByteArray OtLayout::getGDEF() {
   gdef_array.clear();
 
   quint16 markGlyphSetsDefOffset = 0;
-  quint16 glyphClassDefOffset = 14;
+  quint16 glyphClassDefOffset = 18;
 
   quint16 glyphCount = glyphGlobalClasses.size();
   quint16 markGlyphSetCount = markGlyphSets.size();
@@ -639,24 +639,10 @@ QByteArray OtLayout::getGDEF() {
     markGlyphSetsDefOffset = glyphClassDefOffset + 2 + 2 + glyphCount * 6;
   }
 
-  gdef_array << (quint16)1 << (quint16)2 << glyphClassDefOffset << (quint16)0 << (quint16)0 << (quint16)0 << markGlyphSetsDefOffset;
-
-  gdef_array << (quint16)2;
-
-  gdef_array << glyphCount;
-
-  for (auto i = glyphGlobalClasses.constBegin(); i != glyphGlobalClasses.constEnd(); ++i) {
-    quint16 code = i.key();
-    quint16 classValue = i.value();
-    gdef_array << code;
-    gdef_array << code;
-    gdef_array << classValue;
-  }
+  uint32_t itemVarStoreOffset = 0;
 
   QByteArray MarkGlyphSetsTable;
   QByteArray coverageTables;
-
-
 
   MarkGlyphSetsTable << (quint16)1 << markGlyphSetCount;
 
@@ -672,7 +658,60 @@ QByteArray OtLayout::getGDEF() {
 
   MarkGlyphSetsTable.append(coverageTables);
 
+  QByteArray itemVariationStore;
+
+  if (defaultDeltaSets.size() > 0) {
+
+    itemVarStoreOffset = markGlyphSetsDefOffset + MarkGlyphSetsTable.size();
+
+    QByteArray itemVariationData;
+
+    //subtable 0
+    itemVariationData << (uint16_t)defaultDeltaSets.size(); //itemCount
+    itemVariationData << (uint16_t)4; //shortDeltaCount
+    itemVariationData << (uint16_t)4; //regionIndexCount
+    for (int i = 0; i < 4; i++) {
+      itemVariationData << (uint16_t)i; //regionIndexes
+    }
+    std::map<int,DefaultDelta> delatSets;
+    for(auto& it : defaultDeltaSets){
+      delatSets.insert({ it.second,it.first });
+    }
+    for (auto& it : delatSets) {
+      itemVariationData << (uint16_t)it.second.maxLeft << (uint16_t)it.second.minLeft << (uint16_t)it.second.maxRight << (uint16_t)it.second.minRight;
+    }
+    
+
+    QByteArray variationRegionList = getVariationRegionList();
+
+    auto itemVariationDataCount = 1;
+    auto startOffset = 8 + 4 * itemVariationDataCount;
+
+    itemVariationStore << (uint16_t)1; //format
+    itemVariationStore << (uint32_t)startOffset; //variationRegionListOffset
+    itemVariationStore << (uint16_t)itemVariationDataCount; //itemVariationDataCount
+    itemVariationStore << (uint32_t)(startOffset + variationRegionList.size()); //itemVariationDataOffsets[0]    
+    itemVariationStore.append(variationRegionList);
+    itemVariationStore.append(itemVariationData);
+    
+  }
+
+  gdef_array << (quint16)1 << (quint16)3 << glyphClassDefOffset << (quint16)0 << (quint16)0 << (quint16)0 << markGlyphSetsDefOffset << itemVarStoreOffset;
+
+  gdef_array << (quint16)2;
+
+  gdef_array << glyphCount;
+
+  for (auto i = glyphGlobalClasses.constBegin(); i != glyphGlobalClasses.constEnd(); ++i) {
+    quint16 code = i.key();
+    quint16 classValue = i.value();
+    gdef_array << code;
+    gdef_array << code;
+    gdef_array << classValue;
+  }
+
   gdef_array.append(MarkGlyphSetsTable);
+  gdef_array.append(itemVariationStore);
 
   return gdef_array;
 
@@ -2960,7 +2999,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
 }
 int OtLayout::AlternatelastCode = 0xF0000;
-GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters) {
+GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph) {
 
 
 
@@ -3013,7 +3052,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters) {
 
     GlyphVis* newglyph = nullptr;
 
-    if (extended) {
+    if (extended || !generateNewGlyph) {
       newglyph = new	GlyphVis{ this, edge, true };
       newglyph->expanded = true;
     }
@@ -3069,9 +3108,17 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters) {
       }
     }
 
-    paths->insert({ parameters, newglyph });
+    if (!extended && !generateNewGlyph) {
+      //TODO: Memeory leak, used during OpenType generation
+      return newglyph;
+    }
+    else {
+      paths->insert({ parameters, newglyph });
 
-    return paths->at(parameters);
+      return paths->at(parameters);
+    }
+
+    
   }
 
 
@@ -3172,4 +3219,49 @@ QByteArray OtLayout::getCmap() {
   data.append(subtable);
 
   return data;
+}
+
+QByteArray OtLayout::getVariationRegionList() {
+  QByteArray variationRegionList;
+
+  variationRegionList << (uint16_t)2; //axisCount
+  variationRegionList << (uint16_t)4; //regionCount
+  //variationRegions[0]
+  //regionAxes[0] : leftTatweel
+  variationRegionList << getF2DOT14(0); // startCoord
+  variationRegionList << getF2DOT14(1); // peakCoord
+  variationRegionList << getF2DOT14(1); // endCoord
+  //regionAxes[1] : rightTatweel
+  variationRegionList << getF2DOT14(0); // startCoord
+  variationRegionList << getF2DOT14(0); // peakCoord
+  variationRegionList << getF2DOT14(0); // endCoord
+  //variationRegions[1]
+  //regionAxes[0] : leftTatweel
+  variationRegionList << getF2DOT14(-1); // startCoord
+  variationRegionList << getF2DOT14(-1); // peakCoord
+  variationRegionList << getF2DOT14(0); // endCoord
+  //regionAxes[1] : rightTatweel
+  variationRegionList << getF2DOT14(0); // startCoord
+  variationRegionList << getF2DOT14(0); // peakCoord
+  variationRegionList << getF2DOT14(0); // endCoord
+  //variationRegions[2]
+  //regionAxes[0] : leftTatweel
+  variationRegionList << getF2DOT14(0); // startCoord
+  variationRegionList << getF2DOT14(0); // peakCoord
+  variationRegionList << getF2DOT14(0); // endCoord  
+  //regionAxes[1] : rightTatweel
+  variationRegionList << getF2DOT14(0); // startCoord
+  variationRegionList << getF2DOT14(1); // peakCoord
+  variationRegionList << getF2DOT14(1); // endCoord
+  //variationRegions[3]
+  //regionAxes[0] : leftTatweel
+  variationRegionList << getF2DOT14(0); // startCoord
+  variationRegionList << getF2DOT14(0); // peakCoord
+  variationRegionList << getF2DOT14(0); // endCoord  
+  //regionAxes[1] : rightTatweel
+  variationRegionList << getF2DOT14(-1); // startCoord
+  variationRegionList << getF2DOT14(-1); // peakCoord
+  variationRegionList << getF2DOT14(0); // endCoord
+
+  return variationRegionList;
 }

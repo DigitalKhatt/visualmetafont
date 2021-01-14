@@ -33,6 +33,7 @@
 #include "FSMDriver.h"
 #include "JustificationContext.h"
 #include "qobject.h"
+#include "commontypes.h"
 
 
 class Lookup;
@@ -273,7 +274,7 @@ public:
 
 	bool applyJustification = true;
 
-	GlyphVis* getAlternate(int glyphCode, GlyphParameters parameters);
+	GlyphVis* getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph = false);
 
 	void clearAlternates();
 
@@ -293,12 +294,30 @@ public:
 
   JustificationContext justificationContext;
 
+  bool isOTVar = false;
+
+  std::unordered_map<QString, ValueLimits> expandableGlyphs;
+
+  int getDeltaSetEntry(DefaultDelta delta) {
+    auto& it = defaultDeltaSets.find(delta);
+    if (it != defaultDeltaSets.end()) {
+      return it->second;
+    }
+    else {
+      int val = defaultDeltaSets.size();
+      defaultDeltaSets.insert({ delta ,val});
+      return val;
+    }
+  }
+
+  QByteArray getVariationRegionList();
+
 #ifndef DIGITALKHATT_WEBLIB
 signals:
 	void parameterChanged();
 #endif
 
-	
+  
   
 private:
 	//void evaluateImport();
@@ -336,6 +355,8 @@ private:
 
 	FSMDriver fsmDriver;
 
+
+  std::unordered_map<DefaultDelta, int> defaultDeltaSets;
   
 	
 

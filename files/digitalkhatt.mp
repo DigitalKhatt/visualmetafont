@@ -8500,56 +8500,6 @@ fill
 
 %%endpaths
 enddefchar;
-defchar(expaform.ii,-1,-1,-1,-1);
-%%backgroundimage:images/beh.isol.expa.jpg,-336.256,-941.48,1,0,0,1
-%%beginparams
-d1 := 169.44; % numeric
-z33 = (-230.163,45.5019);
-z34 = (863.733,83.4418);
-z35 = (974.307,215.364);
-
-%%beginverbatim
-
-lefttatweel := lefttatweel -2;
-
-z33p = z33 rotatepen 105;
-z34p = z34 rotatepen 72;
-
-z101 = (-lefttatweel*nuqta,0 );
-z102 = (-(lefttatweel+2)*nuqta / 1.5, -(lefttatweel +2) *7 );
-
-z10 = dir d1;
-z10p = -z10;
-
-
-
-
-
-
-%%endverbatim
-
-%%beginpaths
-
-fill
-((-385.986,177.089)+ z101) .. tension 1.10251 and 0.877686 ..
- {right}((-379.955,187.306)+ z101) .. tension 3.69555 and 0.958307 ..
-((-326.392,163.92)+ z101) ..
-z33p + z101 .. tension atleast 0.977039 ..
-((382.566,70.8723)+ z102) {right} .. tension atleast 1.28097 ..
-z34p ..
- {curl1}z35 {down} ..
-z34 .. tension atleast 1.13363 ..
-((334.149,-7.3231)+ z102) {left} .. tension atleast 1.32141 ..
-z33 + z101 .. tension 1.84753 and 3.02182 ..
- {up} cycle
-;
-
-%%endpaths
-%%beginbody
-
-
-
-enddefchar;
 defchar(expaform.i,-1,0,-1,-1);
 %%backgroundimage:images/noon.taweel.jpg,-548.542,-1065.9,1,0,0,1
 %%beginparams
@@ -8607,17 +8557,32 @@ z3 {z10p} .. tension 0.75 and 2.05837 ..
 setAnchor(dbal,z1 + (0,-300));
 
 enddefchar;
-defchar(behshape.fina.expa,-1,-1,-1,-1);
-%%backgroundimage:images/behshape.fina.expa.ii.jpg,-2739,-1324,1,0,0,1
+defchar(expaform.ii,-1,-1,-1,-1);
+%%backgroundimage:images/beh.isol.expa.jpg,-336.256,-941.48,1,0,0,1
 %%beginparams
-z1 = (-57.1139,358.285);
+d1 := 169.44; % numeric
+z33 = (-230.163,45.5019);
+z34 = (863.733,83.4418);
+z35 = (974.307,215.364);
+z36 = (334.149,-7.3231);
 
 %%beginverbatim
 
+lefttatweel := lefttatweel -2;
+
+z33p = z33 rotatepen 105;
+z34p = z34 rotatepen 72;
+
+z101 = (-lefttatweel*nuqta,0 );
+z55 = (-lefttatweel*nuqta,0 );
+z102 = (-(lefttatweel+2)*nuqta / 1.5, -(lefttatweel +2) *7 );
+
+z10 = dir d1;
+z10p = -z10;
 
 
 
-righttatweel_const := (10,0);
+z37 = z36 + z102;
 
 
 %%endverbatim
@@ -8625,53 +8590,21 @@ righttatweel_const := (10,0);
 %%beginpaths
 
 fill
-(-25.5694,313.282) .. tension 1 and 1.05645 ..
- {dir 112.833}z1 {dir 36.4847} .. tension 0.886502 and 1 ..
-(9.25926,420.139) .. tension 1 and 2.11294 ..
- {right}(36.4861,460.259) .. tension 1 and 1.46819 ..
- {down}(43.8565,445.736) .. tension 1 and 2.31366 ..
- {down}(8.48611,363.545) .. tension 2.82467 and 1 ..
-(63.932,331.967) join
-(126.834,237.5) .. tension 1 and 1 ..
- cycle
+((-385.986,177.089)+ z101) .. tension 1.10251 and 0.877686 ..
+ {right}((-379.955,187.306)+ z101) .. tension 3.69555 and 0.958307 ..
+((-326.392,163.92)+ z101) ..
+z33p + z101 .. tension atleast 0.977039 ..
+((382.566,70.8723)+ z102) {right} .. tension atleast 1.28097 ..
+z34p ..
+ {curl1}z35 {down} ..
+z34 .. tension atleast 1.13363 ..
+z37 {left} .. tension atleast 1.32141 ..
+z33 + z101 .. tension 1.84753 and 3.02182 ..
+ {up} cycle
 ;
 
 %%endpaths
 %%beginbody
-
-
-
-path sinna;
-sinna := pathpart currentpicture;
-
-currentpicture:= nullpicture;
-
-lefttatweel := lefttatweel - 2;
-
-expaform.ii_(lefttatweel,0);
-
-pair shift;
-
-shift := (z35-z1);
-
-currentpicture := currentpicture shifted  - shift;
-
-path p;
-
-p := pathpart currentpicture;
-
-currentpicture:= nullpicture;
-
-%sinna := sinna  shifted shift;
-fill  subpath(0,4) of p .. tension 1.2 .. subpath(1,11) of sinna {curl1}  .. subpath(7,length p) of p ..  cycle;
-
-%fill subpath(0,4) of p .. z35 ..  subpath(6,length p ) of p .. cycle;
-
-%rightanchor := rightanchor +  shift;
-
-tr_  := tr_ shifted (0,-240);
-
-
 
 enddefchar;
 defchar(noonshape.expa,-1,-1,-1,-1);
@@ -8983,7 +8916,7 @@ enddefchar;
 defchar(noon.isol.expa,-1,-1,-1,-1);
 %%backgroundimage:images/noon.taweel.jpg,-12.828,-1062.14,1,0,0,1
 %%beginparams
-z11 = (696.824,159.666);
+z11 = (622.824,216.666);
 %%beginbody
 
 
@@ -9243,7 +9176,9 @@ draw pic shifted (points1 - z10);
 
 currentpicture := currentpicture shifted   (-points1 + z10);
 
+setAnchor(dbal,(600,-450));
 
+showAnchors:=1;
 
 enddefchar;
 defchar(sad.isol.expa,-1,-1,-1,-1);
@@ -9774,5 +9709,77 @@ draw pic shifted (z.expasinna.1 - z.twoseen.1);
 
 rightanchor := z.twoseen.2 shifted (z.expasinna.1 - z.twoseen.1);
 
+
+enddefchar;
+defchar(behshape.fina.expa,-1,-1,-1,-1);
+%%backgroundimage:images/behshape.fina.expa.ii.jpg,-2739,-1324,1,0,0,1
+%%beginparams
+z1 = (-57.1139,358.285);
+z2 = (193.597,-83.1458);
+
+%%beginverbatim
+
+
+
+
+righttatweel_const := (10,0);
+
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(-25.5694,313.282) .. tension 1 and 1.05645 ..
+ {dir 112.833}z1 {dir 36.4847} .. tension 0.886502 and 1 ..
+(9.25926,420.139) .. tension 1 and 2.11294 ..
+ {right}(36.4861,460.259) .. tension 1 and 1.46819 ..
+ {down}(43.8565,445.736) .. tension 1 and 2.31366 ..
+ {down}(8.48611,363.545) .. tension 2.82467 and 1 ..
+(63.932,331.967) join
+(126.834,237.5) .. tension 1 and 1 ..
+ cycle
+;
+
+%%endpaths
+%%beginbody
+
+
+
+path sinna;
+sinna := pathpart currentpicture;
+
+currentpicture:= nullpicture;
+
+lefttatweel := lefttatweel - 2;
+
+expaform.ii_(lefttatweel,0);
+
+pair shift;
+
+shift := (z35-z1);
+
+currentpicture := currentpicture shifted  - shift;
+
+path p;
+
+p := pathpart currentpicture;
+
+currentpicture:= nullpicture;
+
+%sinna := sinna  shifted shift;
+fill  subpath(0,4) of p .. tension 1.2 .. subpath(1,11) of sinna {curl1}  .. subpath(7,length p) of p ..  cycle;
+
+%fill subpath(0,4) of p .. z35 ..  subpath(6,length p ) of p .. cycle;
+
+%rightanchor := rightanchor +  shift;
+
+tr_  := tr_ shifted (0,-240);
+
+
+
+setAnchor(dotbelow, z37 shifted -shift + z2 +  (lefttatweel*nuqta*0.2,0));
+
+showAnchors :=1;
 
 enddefchar;

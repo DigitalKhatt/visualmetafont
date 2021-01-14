@@ -1,4 +1,4 @@
-%% Copyright © 2015-2020 Amine Anane. http://digitalkhatt/license
+%% Copyright Â© 2015-2020 Amine Anane. http://digitalkhatt/license
  %
  % This file is part of DigitalKhatt.
  %
@@ -148,12 +148,20 @@ enddef;
 
 vardef labels@#(text t) =
   forsuffixes $=t:
-    makelabel@#(str$,z$); 
+    setlabel(str$,z$); 
   endfor  
 enddef;
 
 vardef labelspoints@#(text t) =
   forsuffixes $=t:
-    makelabel@#(str$,points$); 
+    setlabel(str$,points$); 
   endfor  
+enddef;
+
+vardef setlabel(expr s,z) = % puts string s near point z
+  save p; picture p;
+  if known z:
+    p = s infont defaultfont scaled (defaultscale/bp_per_pixel);
+    draw p shifted z t_  withcolor black;   
+  fi
 enddef;

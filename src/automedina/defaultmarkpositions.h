@@ -26,537 +26,543 @@
 
 class Defaulbaseanchorfortop : public AnchorCalc {
 public:
-	Defaulbaseanchorfortop(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-	QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
+  Defaulbaseanchorfortop(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
+  QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-		GlyphVis* curr = &_y.glyphs[glyphName];
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
-		if(glyphName.contains("_5")){
-		  int stop = 5;
-		}
+    if (lefttatweel != 0.0 || righttatweel != 0.0) {
+      GlyphParameters parameters{};
 
-		if (lefttatweel != 0.0 || righttatweel != 0.0) {
-			GlyphParameters parameters{};
+      parameters.lefttatweel = lefttatweel;
+      parameters.righttatweel = righttatweel;
 
-			parameters.lefttatweel = lefttatweel;
-			parameters.righttatweel = righttatweel;
+      curr = curr->getAlternate(parameters);
+    }
 
-			curr = curr->getAlternate(parameters);
-		}
+    GlyphVis* originalglyph;
 
-		GlyphVis* originalglyph;
+    QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
-		QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
+    QPoint anchor = caclAnchor(*originalglyph, className) + adjustoriginal + adjust;
 
-		QPoint anchor = caclAnchor(*originalglyph, className) + adjustoriginal + adjust;
+    return anchor;
 
-		return anchor;
-
-	};
+  };
 private:
-	Automedina& _y;
-	MarkBaseSubtable& _subtable;
-	QPoint caclAnchor(GlyphVis& glyph, QString className) {
+  Automedina& _y;
+  MarkBaseSubtable& _subtable;
+  QPoint caclAnchor(GlyphVis& glyph, QString className) {
 
-		int height = 0;
+    int height = 0;
 
 
-		if (glyph.height > 800) {
-			height = glyph.height + 30;
-		}
-		else {
-			height = std::max((int)glyph.height + _y.spacebasetotopmark, className == "shadda" ? _y.shaddamarkheight : _y.markheigh);
-		}
+    if (glyph.height > 800) {
+      height = glyph.height + 30;
+    }
+    else {
+      height = std::max((int)glyph.height + _y.spacebasetotopmark, className == "shadda" ? _y.shaddamarkheight : _y.markheigh);
+    }
 
-		int width = glyph.width * 0.4;
+    int width = glyph.width * 0.4;
 
-		if (glyph.originalglyph == "noon.isol.expa") {
-			width = glyph.width * 0.5;
-		}
-		else if (glyph.name == "seen.isol.expa" || glyph.originalglyph == "seen.isol.expa" 
-			|| glyph.name == "sad.isol.expa" || glyph.originalglyph == "sad.isol.expa" 
-			|| glyph.name == "qaf.isol.expa" || glyph.originalglyph == "qaf.isol.expa"			
-			|| glyph.name == "feh.isol.expa" || glyph.originalglyph == "feh.isol.expa") {
-			width = glyph.width - 250;
-		}
-		else if (glyph.name == "qaf.fina.expa" || glyph.originalglyph == "qaf.fina.expa"
-			 || glyph.name == "sad.fina.expa" || glyph.originalglyph == "sad.fina.expa"
-			 || glyph.name == "seen.fina.expa" || glyph.originalglyph == "seen.fina.expa"
-			 || glyph.name == "feh.fina.expa" || glyph.originalglyph == "feh.fina.expa") {
-			width = glyph.width - 350;
-		}
-		else if (glyph.originalglyph == "alef.fina") {
-			width = 100;
-		}
+    if (glyph.originalglyph == "noon.isol.expa" || glyph.originalglyph == "behshape.fina.expa") {
+      width = glyph.width * 0.5;
+    }
+    else if (glyph.name == "seen.isol.expa" || glyph.originalglyph == "seen.isol.expa"
+      || glyph.name == "sad.isol.expa" || glyph.originalglyph == "sad.isol.expa"
+      || glyph.name == "qaf.isol.expa" || glyph.originalglyph == "qaf.isol.expa"
+      || glyph.name == "feh.isol.expa" || glyph.originalglyph == "feh.isol.expa") {
+      width = glyph.width - 250;
+    }
+    else if (glyph.name == "qaf.fina.expa" || glyph.originalglyph == "qaf.fina.expa"
+      || glyph.name == "sad.fina.expa" || glyph.originalglyph == "sad.fina.expa"
+      || glyph.name == "seen.fina.expa" || glyph.originalglyph == "seen.fina.expa"
+      || glyph.name == "feh.fina.expa" || glyph.originalglyph == "feh.fina.expa") {
+      width = glyph.width - 350;
+    }
+    else if (glyph.originalglyph == "alef.fina") {
+      width = 100;
+    }
 
-		return QPoint(width, height);
-	}
+    return QPoint(width, height);
+  }
 };
 
 class Defaulbaseanchorforlow : public AnchorCalc {
 public:
-	Defaulbaseanchorforlow(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-	QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
+  Defaulbaseanchorforlow(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
+  QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
 
-		GlyphVis* curr = &_y.glyphs[glyphName];
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
-		if (lefttatweel != 0.0 || righttatweel != 0.0) {
-			GlyphParameters parameters{};
+    if (lefttatweel != 0.0 || righttatweel != 0.0) {
+      GlyphParameters parameters{};
 
-			parameters.lefttatweel = lefttatweel;
-			parameters.righttatweel = righttatweel;
+      parameters.lefttatweel = lefttatweel;
+      parameters.righttatweel = righttatweel;
 
-			curr = curr->getAlternate(parameters);
-		}
+      curr = curr->getAlternate(parameters);
+    }
 
-        if(curr->conatinsAnchor("dbal")){
-            QPoint anchor = curr->getAnchor("dbal") + adjust;
-            return anchor;
-        }else{
-            GlyphVis* originalglyph;
+    if (curr->conatinsAnchor("dbal")) {
+      QPoint anchor = curr->getAnchor("dbal") + adjust;
+      return anchor;
+    }
+    else {
+      GlyphVis* originalglyph;
 
-            QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
+      QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
-            int depth = std::max((int)-originalglyph->depth + _y.spacebasetobottommark, _y.markdepth);
+      int depth = std::max((int)-originalglyph->depth + _y.spacebasetobottommark, _y.markdepth);
 
-            QPoint anchor = QPoint{ (int)(originalglyph->width * 0.5),-depth } +adjustoriginal + adjust;
+      QPoint anchor = QPoint{ (int)(originalglyph->width * 0.5),-depth } + adjustoriginal + adjust;
 
-            return anchor;
-        }
-
-
-
-		/*
-		GlyphVis& curr = _y.glyphs[glyphName];
-
-		int width;
-		int depth;
-
-		if (!curr.originalglyph.isEmpty() && (curr.charlt != 0 || curr.charrt != 0)) {
-			QPoint adjustoriginal;
-			if (_subtable.classes[className].baseparameters.contains(curr.originalglyph)) {
-				adjustoriginal = _subtable.classes[className].baseparameters[curr.originalglyph];
-			}
-
-			//QPoint originalAnchor = basefunction(curr.originalglyph, className, adjustoriginal);
-			GlyphVis& original = _y.glyphs[curr.originalglyph];
-			double xshift = curr.matrix.xpart - original.matrix.xpart;
-			double yshift = -curr.matrix.ypart + original.matrix.ypart;
-
-			width = original.width * 0.5;
-			depth = std::max((int)-original.depth + _y.spacebasetobottommark, _y.markdepth);
-
-			width += adjustoriginal.x() + xshift;
-			depth += -adjustoriginal.y() + yshift;
+      return anchor;
+    }
 
 
 
+    /*
+    GlyphVis& curr = _y.glyphs[glyphName];
 
-		}
-		else {
-			width = curr.width * 0.5;
-			depth = std::max((int)-curr.depth + _y.spacebasetobottommark, _y.markdepth);
-		}
+    int width;
+    int depth;
+
+    if (!curr.originalglyph.isEmpty() && (curr.charlt != 0 || curr.charrt != 0)) {
+      QPoint adjustoriginal;
+      if (_subtable.classes[className].baseparameters.contains(curr.originalglyph)) {
+        adjustoriginal = _subtable.classes[className].baseparameters[curr.originalglyph];
+      }
+
+      //QPoint originalAnchor = basefunction(curr.originalglyph, className, adjustoriginal);
+      GlyphVis& original = _y.glyphs[curr.originalglyph];
+      double xshift = curr.matrix.xpart - original.matrix.xpart;
+      double yshift = -curr.matrix.ypart + original.matrix.ypart;
+
+      width = original.width * 0.5;
+      depth = std::max((int)-original.depth + _y.spacebasetobottommark, _y.markdepth);
+
+      width += adjustoriginal.x() + xshift;
+      depth += -adjustoriginal.y() + yshift;
 
 
-		width = width + adjust.x();
-		depth = depth - adjust.y();
 
-		return QPoint(width, -depth);*/
-	};
+
+    }
+    else {
+      width = curr.width * 0.5;
+      depth = std::max((int)-curr.depth + _y.spacebasetobottommark, _y.markdepth);
+    }
+
+
+    width = width + adjust.x();
+    depth = depth - adjust.y();
+
+    return QPoint(width, -depth);*/
+  };
 private:
-	Automedina& _y;
-	MarkBaseSubtable& _subtable;
+  Automedina& _y;
+  MarkBaseSubtable& _subtable;
 };
 
 class Defaultopmarkanchor : public AnchorCalc {
 public:
-	Defaultopmarkanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-	QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
-		GlyphVis* curr = &_y.glyphs[glyphName];
+  Defaultopmarkanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
+  QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
 
-		if (lefttatweel != 0.0 || righttatweel != 0.0) {
-			GlyphParameters parameters{};
+    if (lefttatweel != 0.0 || righttatweel != 0.0) {
+      GlyphParameters parameters{};
 
-			parameters.lefttatweel = lefttatweel;
-			parameters.righttatweel = righttatweel;
+      parameters.lefttatweel = lefttatweel;
+      parameters.righttatweel = righttatweel;
 
-			curr = curr->getAlternate(parameters);
-		}
-
-
-		int width = curr->width * 0.5;
-		int height = 1;
+      curr = curr->getAlternate(parameters);
+    }
 
 
+    int width = curr->width * 0.5;
+    int height = 1;
 
-		width = width + adjust.x();
-		height = height + adjust.y();
 
 
-		return QPoint(width, height);
-	};
+    width = width + adjust.x();
+    height = height + adjust.y();
+
+
+    return QPoint(width, height);
+  };
 private:
-	Automedina& _y;
-	MarkBaseSubtable& _subtable;
+  Automedina& _y;
+  MarkBaseSubtable& _subtable;
 };
 
 
 class Defaullowmarkanchor : public AnchorCalc {
 public:
-	Defaullowmarkanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-	QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
+  Defaullowmarkanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
+  QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-		GlyphVis& curr = _y.glyphs[glyphName];
-
-
-		int width = curr.width * 0.5;
-		int height = curr.height;
-
-		width = width + adjust.x();
-		height = height + adjust.y();
+    GlyphVis& curr = _y.glyphs[glyphName];
 
 
-		return QPoint(width, height);
+    int width = curr.width * 0.5;
+    int height = curr.height;
 
-	};
+    width = width + adjust.x();
+    height = height + adjust.y();
+
+
+    return QPoint(width, height);
+
+  };
 private:
-	Automedina& _y;
-	MarkBaseSubtable& _subtable;
+  Automedina& _y;
+  MarkBaseSubtable& _subtable;
 };
 
 class Defaultmarkabovemark : public AnchorCalc {
 public:
-	Defaultmarkabovemark(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-	QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
+  Defaultmarkabovemark(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
+  QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-		GlyphVis& curr = _y.glyphs[glyphName];
+    GlyphVis& curr = _y.glyphs[glyphName];
 
-		int width = curr.width * 0.5;
-		int height = curr.height;
+    int width = curr.width * 0.5;
+    int height = curr.height;
 
-		width = width + adjust.x();
-		height = height + adjust.y();
+    width = width + adjust.x();
+    height = height + adjust.y();
 
 
-		return QPoint(width, height);
+    return QPoint(width, height);
 
-	};
+  };
 private:
-	Automedina& _y;
-	MarkBaseSubtable& _subtable;
+  Automedina& _y;
+  MarkBaseSubtable& _subtable;
 };
 
 class Defaultmarkbelowmark : public AnchorCalc {
 public:
-	Defaultmarkbelowmark(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-	QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
+  Defaultmarkbelowmark(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
+  QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-		GlyphVis& curr = _y.glyphs[glyphName];
-
-
-		int width = curr.width * 0.5;
-		int height = -curr.depth - 20;
-
-		width = width + adjust.x();
-		height = height - adjust.y();
+    GlyphVis& curr = _y.glyphs[glyphName];
 
 
-		return QPoint(width, height);
+    int width = curr.width * 0.5;
+    int height = -curr.depth - 20;
 
-	};
+    width = width + adjust.x();
+    height = height - adjust.y();
+
+
+    return QPoint(width, height);
+
+  };
 private:
-	Automedina& _y;
-	MarkBaseSubtable& _subtable;
+  Automedina& _y;
+  MarkBaseSubtable& _subtable;
 };
 
 class Defaulwaqftmarkabovemark : public AnchorCalc {
 public:
-	Defaulwaqftmarkabovemark(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-	QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
+  Defaulwaqftmarkabovemark(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
+  QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-		GlyphVis& curr = _y.glyphs[glyphName];
+    GlyphVis& curr = _y.glyphs[glyphName];
 
-		int width = curr.width * 0.5;
-		int height = curr.height + 100;
+    int width = curr.width * 0.5;
+    int height = curr.height + 100;
 
-		width = width + adjust.x();
-		height = height + adjust.y();
+    width = width + adjust.x();
+    height = height + adjust.y();
 
 
-		return QPoint(width, height);
+    return QPoint(width, height);
 
-	};
+  };
 private:
-	Automedina& _y;
-	MarkBaseSubtable& _subtable;
+  Automedina& _y;
+  MarkBaseSubtable& _subtable;
 };
 
 class Defaulbaseanchorforsmallalef : public AnchorCalc {
 public:
-	Defaulbaseanchorforsmallalef(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-	QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
+  Defaulbaseanchorforsmallalef(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
+  QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-		/*
-		GlyphVis* originalglyph = &_y.glyphs[glyphName];
+    /*
+    GlyphVis* originalglyph = &_y.glyphs[glyphName];
 
-		QPoint adjustoriginal = getAdjustment(_y, _subtable, glyphName, className, adjust, lefttatweel, righttatweel, &originalglyph);
+    QPoint adjustoriginal = getAdjustment(_y, _subtable, glyphName, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
-		QPoint anchor = caclAnchor(originalglyph) + adjustoriginal + adjust;
+    QPoint anchor = caclAnchor(originalglyph) + adjustoriginal + adjust;
 
-		return anchor;*/
+    return anchor;*/
 
-if(glyphName.contains("meem.init.added")){
-  int stop = 5;
-}
+    if (glyphName.contains("meem.init.added")) {
+      int stop = 5;
+    }
 
-		GlyphVis* curr = &_y.glyphs[glyphName];
-
-
-		if (lefttatweel != 0.0 || righttatweel != 0.0) {
-			GlyphParameters parameters{};
-
-			parameters.lefttatweel = lefttatweel;
-			parameters.righttatweel = righttatweel;
-
-			curr = curr->getAlternate(parameters);
-		}
-
-		GlyphVis* originalglyph = curr;
-		QPoint adjustoriginal;
-
-		// QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
-
-		//if (curr->name == "alternatechar" || curr->name.contains(".added_")) {
-		if (curr->expanded) {
-			originalglyph = &_y.glyphs[curr->originalglyph];
-			adjustoriginal = _subtable.classes[className].baseparameters[curr->originalglyph];
-			if (curr->leftAnchor) {
-				double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
-				double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
-
-				adjustoriginal += QPoint(xshift / 2, yshift);
-			}
-		}
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
 
-		QPoint anchor = caclAnchor(originalglyph) + adjustoriginal + adjust;
+    if (lefttatweel != 0.0 || righttatweel != 0.0) {
+      GlyphParameters parameters{};
 
-		return anchor;
+      parameters.lefttatweel = lefttatweel;
+      parameters.righttatweel = righttatweel;
 
-		/*
-		int height;
-		int width;
+      curr = curr->getAlternate(parameters);
+    }
 
-		QPoint anchor;
+    GlyphVis* originalglyph = curr;
+    QPoint adjustoriginal;
 
-		if (!curr.originalglyph.isEmpty() && (curr.charlt != 0 || curr.charrt != 0)) {
-			QPoint adjustoriginal;
-			QString originalName = curr.originalglyph;
-			if (_subtable.classes[className].baseparameters.contains(originalName)) {
-				adjustoriginal = _subtable.classes[className].baseparameters[originalName];
-			}
+    // QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
-			GlyphVis& original = _y.glyphs[originalName];
-			double xshift = curr.matrix.xpart - original.matrix.xpart;
-			double yshift = curr.matrix.ypart - original.matrix.ypart;
+    //if (curr->name == "alternatechar" || curr->name.contains(".added_")) {
+    if (curr->expanded) {
+      originalglyph = &_y.glyphs[curr->originalglyph];
+      adjustoriginal = _subtable.classes[className].baseparameters[curr->originalglyph];
+      if (curr->leftAnchor) {
+        double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
+        double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
 
-			anchor = caclAnchor(&original) + adjustoriginal + QPoint(xshift / 2, yshift / 2);
-		}
-		else {
-			anchor = caclAnchor(&curr);
-		}
+        adjustoriginal += QPoint(xshift / 2, yshift);
+      }
+    }
 
-		return anchor + adjust;*/
-	};
+
+    QPoint anchor = caclAnchor(originalglyph) + adjustoriginal + adjust;
+
+    return anchor;
+
+    /*
+    int height;
+    int width;
+
+    QPoint anchor;
+
+    if (!curr.originalglyph.isEmpty() && (curr.charlt != 0 || curr.charrt != 0)) {
+      QPoint adjustoriginal;
+      QString originalName = curr.originalglyph;
+      if (_subtable.classes[className].baseparameters.contains(originalName)) {
+        adjustoriginal = _subtable.classes[className].baseparameters[originalName];
+      }
+
+      GlyphVis& original = _y.glyphs[originalName];
+      double xshift = curr.matrix.xpart - original.matrix.xpart;
+      double yshift = curr.matrix.ypart - original.matrix.ypart;
+
+      anchor = caclAnchor(&original) + adjustoriginal + QPoint(xshift / 2, yshift / 2);
+    }
+    else {
+      anchor = caclAnchor(&curr);
+    }
+
+    return anchor + adjust;*/
+  };
 private:
-	Automedina& _y;
-	MarkBaseSubtable& _subtable;
+  Automedina& _y;
+  MarkBaseSubtable& _subtable;
 
-	QPoint caclAnchor(GlyphVis* glyph) {
-		int height = 250;
-		int width = 0; // glyph->width * 0.5;
-		if (!glyph->name.contains("isol")) {
-			width = glyph->width * 0.0;
-		}
-		/*
-		if (glyph->name.contains("hah")) {
-			width = glyph->width * 0;
-		}*/
+  QPoint caclAnchor(GlyphVis* glyph) {
+    int height = 250;
+    int width = 0; // glyph->width * 0.5;
+    if (!glyph->name.contains("isol")) {
+      width = glyph->width * 0.0;
+    }
+    /*
+    if (glyph->name.contains("hah")) {
+      width = glyph->width * 0;
+    }*/
 
-		return QPoint(width, height);
-	}
+    return QPoint(width, height);
+  }
 };
 
 class Defaulbaseanchorfortopdots : public AnchorCalc {
 public:
-	Defaulbaseanchorfortopdots(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-	QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
+  Defaulbaseanchorfortopdots(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
+  QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-		GlyphVis* curr = &_y.glyphs[glyphName];
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
-		if (lefttatweel != 0.0 || righttatweel != 0.0) {
-			GlyphParameters parameters{};
+    if (lefttatweel != 0.0 || righttatweel != 0.0) {
+      GlyphParameters parameters{};
 
-			parameters.lefttatweel = lefttatweel;
-			parameters.righttatweel = righttatweel;
+      parameters.lefttatweel = lefttatweel;
+      parameters.righttatweel = righttatweel;
 
-			curr = curr->getAlternate(parameters);
-		}
+      curr = curr->getAlternate(parameters);
+    }
 
-		GlyphVis* originalglyph;
+    GlyphVis* originalglyph;
 
-		QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
+    QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
-		int width = (int)(originalglyph->width * 0.5);
+    int width = (int)(originalglyph->width * 0.5);
 
-		if (originalglyph->name == "sad.isol.expa" || originalglyph->originalglyph == "sad.isol.expa") {
-			width = originalglyph->width - 50;
-		}
-		else if (originalglyph->name == "sad.fina.expa" || originalglyph->originalglyph == "sad.fina.expa") {
-			width = originalglyph->width - 250;
-		}else if (originalglyph->name == "seen.isol.expa" || originalglyph->originalglyph == "seen.isol.expa") {
-			width = originalglyph->width - 250;
-		}
-		else if (originalglyph->name == "seen.fina.expa" || originalglyph->originalglyph == "seen.fina.expa") {
-			width = originalglyph->width - 300;
-		}
+    if (originalglyph->name == "sad.isol.expa" || originalglyph->originalglyph == "sad.isol.expa") {
+      width = originalglyph->width - 50;
+    }
+    else if (originalglyph->name == "sad.fina.expa" || originalglyph->originalglyph == "sad.fina.expa") {
+      width = originalglyph->width - 250;
+    }
+    else if (originalglyph->name == "seen.isol.expa" || originalglyph->originalglyph == "seen.isol.expa") {
+      width = originalglyph->width - 250;
+    }
+    else if (originalglyph->name == "seen.fina.expa" || originalglyph->originalglyph == "seen.fina.expa") {
+      width = originalglyph->width - 300;
+    }
 
 
-		QPoint anchor = QPoint{ width,(int)(originalglyph->height + 80) } +adjustoriginal + adjust;
+    QPoint anchor = QPoint{ width,(int)(originalglyph->height + 80) } + adjustoriginal + adjust;
 
-		return anchor;
+    return anchor;
 
-	};
+  };
 private:
-	Automedina& _y;
-	MarkBaseSubtable& _subtable;
+  Automedina& _y;
+  MarkBaseSubtable& _subtable;
 };
 
 class Defaulbaseanchorforlowdots : public AnchorCalc {
 public:
-	Defaulbaseanchorforlowdots(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-	QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
+  Defaulbaseanchorforlowdots(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
+  QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-		GlyphVis* originalglyph = &_y.glyphs[glyphName];
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
-		if (lefttatweel != 0.0 || righttatweel != 0.0) {
-			GlyphParameters parameters{};
+    if (lefttatweel != 0.0 || righttatweel != 0.0) {
+      GlyphParameters parameters{};
 
-			parameters.lefttatweel = lefttatweel;
-			parameters.righttatweel = righttatweel;
+      parameters.lefttatweel = lefttatweel;
+      parameters.righttatweel = righttatweel;
 
-			originalglyph = originalglyph->getAlternate(parameters);
-		}
+      curr = curr->getAlternate(parameters);
+    }
 
-		QPoint adjustoriginal = getAdjustment(_y, _subtable, originalglyph, className, adjust, lefttatweel, righttatweel, &originalglyph);
+    if ((curr->name == "behshape.fina.expa" || curr->originalglyph == "behshape.fina.expa")&& curr->conatinsAnchor("dotbelow")) {
+      QPoint anchor = curr->getAnchor("dotbelow") + adjust;
+      return anchor;
+    }
+    else {
+      QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &curr);
 
-		QPoint anchor = QPoint{ (int)(originalglyph->width * 0.5),(int)(originalglyph->depth - 50) } +adjustoriginal + adjust;
+      QPoint anchor = QPoint{ (int)(curr->width * 0.5),(int)(curr->depth - 50) } + adjustoriginal + adjust;
 
-		return anchor;
+      return anchor;
+    }
 
-
-		/*
-		GlyphVis& curr = _y.glyphs[glyphName];
-
-		int height;
-		int width;
-
-		if (!curr.originalglyph.isEmpty() && (curr.charlt != 0 || curr.charrt != 0)) {
-			QPoint adjustoriginal;
-			if (_subtable.classes[className].baseparameters.contains(curr.originalglyph)) {
-				adjustoriginal = _subtable.classes[className].baseparameters[curr.originalglyph];
-			}
-
-			//QPoint originalAnchor = basefunction(curr.originalglyph, className, adjustoriginal);
-			GlyphVis& original = _y.glyphs[curr.originalglyph];
-			double xshift = curr.matrix.xpart - original.matrix.xpart;
-			double yshift = -curr.matrix.ypart + original.matrix.ypart;
-
-			width = original.width * 0.5 + xshift + adjustoriginal.x();
-			height = (int)-original.depth + 50 + yshift - adjustoriginal.y();
-
-		}
-		else {
-			height = (int)-curr.depth + 50;
-			width = curr.width * 0.5;
-		}
+    
 
 
-		width = width + adjust.x();
-		height = height - adjust.y();
+    /*
+    GlyphVis& curr = _y.glyphs[glyphName];
 
-		return QPoint(width, -height);*/
+    int height;
+    int width;
 
-	};
+    if (!curr.originalglyph.isEmpty() && (curr.charlt != 0 || curr.charrt != 0)) {
+      QPoint adjustoriginal;
+      if (_subtable.classes[className].baseparameters.contains(curr.originalglyph)) {
+        adjustoriginal = _subtable.classes[className].baseparameters[curr.originalglyph];
+      }
+
+      //QPoint originalAnchor = basefunction(curr.originalglyph, className, adjustoriginal);
+      GlyphVis& original = _y.glyphs[curr.originalglyph];
+      double xshift = curr.matrix.xpart - original.matrix.xpart;
+      double yshift = -curr.matrix.ypart + original.matrix.ypart;
+
+      width = original.width * 0.5 + xshift + adjustoriginal.x();
+      height = (int)-original.depth + 50 + yshift - adjustoriginal.y();
+
+    }
+    else {
+      height = (int)-curr.depth + 50;
+      width = curr.width * 0.5;
+    }
+
+
+    width = width + adjust.x();
+    height = height - adjust.y();
+
+    return QPoint(width, -height);*/
+
+  };
 private:
-	Automedina& _y;
-	MarkBaseSubtable& _subtable;
+  Automedina& _y;
+  MarkBaseSubtable& _subtable;
 };
 
 class Joinedsmalllettersbaseanchor : public AnchorCalc {
 public:
-	Joinedsmalllettersbaseanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-	QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
+  Joinedsmalllettersbaseanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
+  QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-		GlyphVis* originalglyph = &_y.glyphs[glyphName];
+    GlyphVis* originalglyph = &_y.glyphs[glyphName];
 
-		if (lefttatweel != 0.0 || righttatweel != 0.0) {
-			GlyphParameters parameters{};
+    if (lefttatweel != 0.0 || righttatweel != 0.0) {
+      GlyphParameters parameters{};
 
-			parameters.lefttatweel = lefttatweel;
-			parameters.righttatweel = righttatweel;
+      parameters.lefttatweel = lefttatweel;
+      parameters.righttatweel = righttatweel;
 
-			originalglyph = originalglyph->getAlternate(parameters);
-		}
+      originalglyph = originalglyph->getAlternate(parameters);
+    }
 
-		if (className == "jsl") {
-			int width = originalglyph->width * 0.5;
-			int height = 200;
+    if (className == "jsl") {
+      int width = originalglyph->width * 0.5;
+      int height = 200;
 
-			auto value = QPoint{ width , height };
+      auto value = QPoint{ width , height };
 
-			return value + adjust;
-		}
-		else if (className == "smallhighwaw") {
-			auto anchor = originalglyph->getAnchor("smallhighwaw");
+      return value + adjust;
+    }
+    else if (className == "smallhighwaw") {
+      auto anchor = originalglyph->getAnchor("smallhighwaw");
 
-			auto value = anchor + adjust;
+      auto value = anchor + adjust;
 
-			int diff = value.x() - 300;
+      int diff = value.x() - 300;
 
-			if (diff > 0) {
-				value.setX(value.x() - diff / 2);
-			}
+      if (diff > 0) {
+        value.setX(value.x() - diff / 2);
+      }
 
-			return value;
+      return value;
 
-		}
-		else if (className == "beforeheh") {
-			int width = 300;
-			int height = 200;
+    }
+    else if (className == "beforeheh") {
+      int width = 300;
+      int height = 200;
 
-			auto value = QPoint{ width , height };
+      auto value = QPoint{ width , height };
 
-			return value + adjust;
-		}
-		else if (className == "beforewaw") {
-			int width = 200;
-			int height = 200;
+      return value + adjust;
+    }
+    else if (className == "beforewaw") {
+      int width = 200;
+      int height = 200;
 
-			auto value = QPoint{ width , height };
+      auto value = QPoint{ width , height };
 
-			return value + adjust;
-		}
+      return value + adjust;
+    }
 
 
-		return adjust;
+    return adjust;
 
-	};
+  };
 private:
-	Automedina& _y;
-	MarkBaseSubtable& _subtable;
+  Automedina& _y;
+  MarkBaseSubtable& _subtable;
 };
 

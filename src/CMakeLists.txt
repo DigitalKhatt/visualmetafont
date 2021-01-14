@@ -162,6 +162,7 @@ set(Layout_WithoutGUI
   Layout/to_opentype.h
   Layout/FSMDriver.h
   Layout/FSMDriver.cpp
+  Layout/commontypes.h
   )
 
 

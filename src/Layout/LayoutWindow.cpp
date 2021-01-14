@@ -162,11 +162,20 @@ void LayoutWindow::createActions()
 
 	const QIcon otfIcon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
 	QAction* otfAct = new QAction(otfIcon, tr("&Generate OpenTpe font"), this);
-	saveAct->setShortcuts(QKeySequence::Save);
-	saveAct->setStatusTip(tr("Generate OpenTpe font"));
+  //otfAct->setShortcuts(QKeySequence::Save);
+  otfAct->setStatusTip(tr("Generate OpenTpe font"));
 	connect(otfAct, &QAction::triggered, this, &LayoutWindow::generateOpenType);
 	fileMenu->addAction(otfAct);
-	fileToolBar->addAction(otfAct);
+	//fileToolBar->addAction(otfAct);
+
+  const QIcon otfcff2Icon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
+  QAction* otfcff2Act = new QAction(otfcff2Icon, tr("&Generate OpenType CFF2"), this);
+  //otfcff2Act->setShortcuts(QKeySequence::Save);
+  otfcff2Act->setStatusTip(tr("Generate OpenTpe CFF2"));
+  connect(otfcff2Act, &QAction::triggered, this, &LayoutWindow::generateOpenTypeCff2);
+  fileMenu->addAction(otfcff2Act);
+  
+
 
 
 
@@ -249,6 +258,26 @@ void LayoutWindow::createActions()
 	});
 
 	fileToolBar->addWidget(toggleButton);
+
+}
+bool LayoutWindow::generateOpenTypeCff2() {
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString otfFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + "-cff2.otf";
+
+  OtLayout layout = OtLayout(m_otlayout->mp, false);
+
+  layout.isOTVar = true;
+
+  layout.loadLookupFile("lookups.json");
+
+  ToOpenType otf{ &layout };
+
+  otf.isCff2 = true;
+
+  otf.expandableGlyphs = m_otlayout->expandableGlyphs;
+
+  return otf.GenerateFile(otfFileName);
 
 }
 bool LayoutWindow::generateOpenType() {

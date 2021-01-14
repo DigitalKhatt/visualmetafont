@@ -33,23 +33,23 @@ extern "C"
 #include "mppsout.h"
 }
 
-ToOpenType::ToOpenType(OtLayout* layout):ot_layout{layout}
+ToOpenType::ToOpenType(OtLayout* layout) :ot_layout{ layout }
 {
 }
 
-void ToOpenType::initiliazeGlobals(){
-  for(auto pglyph : glyphs){
+void ToOpenType::initiliazeGlobals() {
+  for (auto pglyph : glyphs) {
     auto& glyph = *pglyph;
-    if(glyph.bbox.llx < globalValues.xMin){
+    if (glyph.bbox.llx < globalValues.xMin) {
       globalValues.xMin = toInt(glyph.bbox.llx);
     }
-    if(glyph.bbox.lly < globalValues.yMin ){
-      globalValues.yMin= toInt(glyph.bbox.lly);
+    if (glyph.bbox.lly < globalValues.yMin) {
+      globalValues.yMin = toInt(glyph.bbox.lly);
     }
-    if(glyph.bbox.urx > globalValues.xMax ){
+    if (glyph.bbox.urx > globalValues.xMax) {
       globalValues.xMax = toInt(glyph.bbox.urx);
     }
-    if(glyph.bbox.ury > globalValues.yMax ){
+    if (glyph.bbox.ury > globalValues.yMax) {
       globalValues.yMax = toInt(glyph.bbox.ury);
     }
     /*
@@ -59,12 +59,12 @@ void ToOpenType::initiliazeGlobals(){
     if(glyph.depth < globalValues.descender ){
       globalValues.descender = toInt(glyph.depth);
     }*/
-    if(glyph.width > globalValues.advanceWidthMax ){
+    if (glyph.width > globalValues.advanceWidthMax) {
       globalValues.advanceWidthMax = toInt(glyph.width);
     }
 
-    int rightSB = toInt(glyph.width) - toInt (glyph.bbox.urx);
-    if(rightSB < globalValues.minRightSideBearing ){
+    int rightSB = toInt(glyph.width) - toInt(glyph.bbox.urx);
+    if (rightSB < globalValues.minRightSideBearing) {
       globalValues.minRightSideBearing = rightSB;
     }
 
@@ -97,47 +97,47 @@ As a special exception, if you create a document which uses this font, and embed
 
 }
 
-int ToOpenType::toInt(double value){
-  if(value < 0)
+int ToOpenType::toInt(double value) {
+  if (value < 0)
     return floor(value);
   else
     return ceil(value);
 }
 
-void ToOpenType::setGIds(){
+void ToOpenType::setGIds() {
 
 
-  QMap<quint16,quint16> newCodes;
+  QMap<quint16, quint16> newCodes;
 
   QMap<QString, quint16> glyphCodePerName;
   QMap<quint16, QString> glyphNamePerCode;
-  QMap<quint16,quint16> unicodeToGlyphCode;
+  QMap<quint16, quint16> unicodeToGlyphCode;
   QMap<quint16, OtLayout::GDEFClasses> glyphGlobalClasses;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> alternatePaths;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> nojustalternatePaths;
 
-  if(!ot_layout->glyphs.contains("notdef")){
+  if (!ot_layout->glyphs.contains("notdef")) {
     throw new std::runtime_error("notdef glyph not found");
   }
 
-  if(!ot_layout->glyphs.contains("null")){
+  if (!ot_layout->glyphs.contains("null")) {
     throw new std::runtime_error("null glyph not found");
   }
 
-  newCodes.insert(ot_layout->glyphCodePerName.value("notdef"),0);
-  newCodes.insert(ot_layout->glyphCodePerName.value("null"),1);
+  newCodes.insert(ot_layout->glyphCodePerName.value("notdef"), 0);
+  newCodes.insert(ot_layout->glyphCodePerName.value("null"), 1);
   uint16_t newCode = 2;
 
-  for(auto code : ot_layout->glyphNamePerCode.keys()){
-    auto name =  ot_layout->glyphNamePerCode.value(code);
-    if(name.isEmpty()) continue;
-    if(name != "notdef" && name != "null" ){
-      if(!ot_layout->glyphs.contains(name)){
+  for (auto code : ot_layout->glyphNamePerCode.keys()) {
+    auto name = ot_layout->glyphNamePerCode.value(code);
+    if (name.isEmpty()) continue;
+    if (name != "notdef" && name != "null") {
+      if (!ot_layout->glyphs.contains(name)) {
         throw new std::runtime_error(QString("Glyph name %1 not found").arg(name).toStdString());
       }
-      newCodes.insert( code,newCode);
+      newCodes.insert(code, newCode);
       auto glyph = &ot_layout->glyphs[name];
-      if(glyph->charcode != code){
+      if (glyph->charcode != code) {
         int stop = 5;
       }
       glyph->charcode = newCode;
@@ -153,38 +153,38 @@ void ToOpenType::setGIds(){
     }
   }*/
 
-  QMap<quint16,quint16>::const_iterator iter = newCodes.constBegin();
-  while(iter != newCodes.constEnd()){
-    if(!ot_layout->glyphNamePerCode.contains(iter.key())){
+  QMap<quint16, quint16>::const_iterator iter = newCodes.constBegin();
+  while (iter != newCodes.constEnd()) {
+    if (!ot_layout->glyphNamePerCode.contains(iter.key())) {
       throw new std::runtime_error(QString("Code %1 not found").arg(iter.key()).toStdString());
     }
     auto name = ot_layout->glyphNamePerCode.value(iter.key());
-    glyphCodePerName.insert(name,iter.value());
+    glyphCodePerName.insert(name, iter.value());
     glyphNamePerCode.insert(iter.value(), name);
 
     iter++;
   }
 
-  QMap<quint16,quint16>::const_iterator unicodeToGlyphCodeIter =  ot_layout->unicodeToGlyphCode.constBegin();
-  while(unicodeToGlyphCodeIter != ot_layout->unicodeToGlyphCode.constEnd()){
-    if(!newCodes.contains(unicodeToGlyphCodeIter.value())){
+  QMap<quint16, quint16>::const_iterator unicodeToGlyphCodeIter = ot_layout->unicodeToGlyphCode.constBegin();
+  while (unicodeToGlyphCodeIter != ot_layout->unicodeToGlyphCode.constEnd()) {
+    if (!newCodes.contains(unicodeToGlyphCodeIter.value())) {
       throw new std::runtime_error(QString("Code %1 not found").arg(unicodeToGlyphCodeIter.value()).toStdString());
     }
     auto unicode = unicodeToGlyphCodeIter.key();
-    if(unicode < 0xE000 && unicode != 0 && unicode != 1) {
-      unicodeToGlyphCode.insert(unicode,newCodes.value(unicodeToGlyphCodeIter.value()));
+    if (unicode < 0xE000 && unicode != 0 && unicode != 1) {
+      unicodeToGlyphCode.insert(unicode, newCodes.value(unicodeToGlyphCodeIter.value()));
     }
 
     unicodeToGlyphCodeIter++;
   }
 
-  QMap<quint16, OtLayout::GDEFClasses>::const_iterator glyphGlobalClassesIter =  ot_layout->glyphGlobalClasses.constBegin();
-  while(glyphGlobalClassesIter != ot_layout->glyphGlobalClasses.constEnd()){
-    if(!newCodes.contains(glyphGlobalClassesIter.key())){
+  QMap<quint16, OtLayout::GDEFClasses>::const_iterator glyphGlobalClassesIter = ot_layout->glyphGlobalClasses.constBegin();
+  while (glyphGlobalClassesIter != ot_layout->glyphGlobalClasses.constEnd()) {
+    if (!newCodes.contains(glyphGlobalClassesIter.key())) {
       throw new std::runtime_error(QString("Code %1 not found").arg(glyphGlobalClassesIter.key()).toStdString());
     }
 
-    glyphGlobalClasses.insert(newCodes.value(glyphGlobalClassesIter.key()),glyphGlobalClassesIter.value());
+    glyphGlobalClasses.insert(newCodes.value(glyphGlobalClassesIter.key()), glyphGlobalClassesIter.value());
 
     glyphGlobalClassesIter++;
   }
@@ -192,7 +192,7 @@ void ToOpenType::setGIds(){
 
   for (std::pair<int, std::unordered_map<GlyphParameters, GlyphVis*>> element : ot_layout->alternatePaths)
   {
-    if(!newCodes.contains(element.first)){
+    if (!newCodes.contains(element.first)) {
       throw new std::runtime_error(QString("Code %1 not found").arg(element.first).toStdString());
     }
 
@@ -201,31 +201,31 @@ void ToOpenType::setGIds(){
 
   for (std::pair<int, std::unordered_map<GlyphParameters, GlyphVis*>> element : ot_layout->nojustalternatePaths)
   {
-    if(!newCodes.contains(element.first)){
+    if (!newCodes.contains(element.first)) {
       throw new std::runtime_error(QString("Code %1 not found").arg(element.first).toStdString());
     }
 
     nojustalternatePaths.insert({ newCodes.value(element.first), element.second });
   }
 
-  for(int i =0; i <= 4; i++){
+  for (int i = 0; i <= 4; i++) {
     auto automedina = ot_layout->automedina;
     QMap <QString, QMap<quint16, QPoint>>& currentAnchors = i == 0 ? automedina->markAnchors : i == 1 ? automedina->entryAnchors : i == 2
-                                                                                                        ?  automedina->exitAnchors : i == 3 ?automedina->entryAnchorsRTL : automedina->exitAnchorsRTL ;
+      ? automedina->exitAnchors : i == 3 ? automedina->entryAnchorsRTL : automedina->exitAnchorsRTL;
 
     QMap <QString, QMap<quint16, QPoint>>  anchors;
     QMap <QString, QMap<quint16, QPoint>>::const_iterator anchorsIter = currentAnchors.constBegin();
-    while(anchorsIter != currentAnchors.end()){
+    while (anchorsIter != currentAnchors.end()) {
       QMap<quint16, QPoint> map;
       QMap<quint16, QPoint>::ConstIterator mapIter = anchorsIter.value().constBegin();
-      while(mapIter != anchorsIter.value().constEnd()){
-        if(!newCodes.contains(mapIter.key())){
+      while (mapIter != anchorsIter.value().constEnd()) {
+        if (!newCodes.contains(mapIter.key())) {
           throw new std::runtime_error(QString("Code %1 not found").arg(mapIter.key()).toStdString());
         }
-        map.insert(newCodes.value(mapIter.key()),mapIter.value());
+        map.insert(newCodes.value(mapIter.key()), mapIter.value());
         mapIter++;
       }
-      anchors.insert(anchorsIter.key(),map);
+      anchors.insert(anchorsIter.key(), map);
       anchorsIter++;
     }
     currentAnchors = anchors;
@@ -246,14 +246,14 @@ void ToOpenType::setGIds(){
 
 }
 
-bool ToOpenType::GenerateFile(QString fileName){
+bool ToOpenType::GenerateFile(QString fileName) {
 
   struct Table {
     QByteArray data;
     hb_tag_t tag;
     uint32_t checkSum = 0;
-    uint32_t offset= 0;
-    uint32_t length= 0;
+    uint32_t offset = 0;
+    uint32_t length = 0;
   };
 
   QFile file(fileName);
@@ -271,8 +271,8 @@ bool ToOpenType::GenerateFile(QString fileName){
 
 
   glyphs.clear();
-  for(auto& glyph : ot_layout->glyphs){
-    glyphs.insert(glyph.charcode,&glyph);
+  for (auto& glyph : ot_layout->glyphs) {
+    glyphs.insert(glyph.charcode, &glyph);
   }
 
   initiliazeGlobals();
@@ -283,55 +283,65 @@ bool ToOpenType::GenerateFile(QString fileName){
   setAyaGlyphPaths();
 
   //generate new color glyphs
-  if(isCff2){
-    cffArray =  cff2();
-  }else{
-    cffArray =  cff();
+  if (isCff2) {
+    cffArray = cff2();
+  }
+  else {
+    cffArray = cff();
   }
 
 
-  tables.append({ head(),HB_TAG('h', 'e', 'a', 'd')});
-  tables.append({ hhea(),HB_TAG('h', 'h', 'e', 'a')});
-  tables.append({ maxp(),HB_TAG('m', 'a', 'x', 'p')});
-  tables.append({ os2(),HB_TAG('O','S','/','2')});
-  tables.append({ name(),HB_TAG('n','a','m','e')});
-  tables.append({ cmap(),HB_TAG('c','m','a','p')});
-  tables.append({ post(),HB_TAG('p','o','s','t')});
-  if(isCff2){
-    tables.append({ cffArray,HB_TAG('C','F','F','2')});
-  }else{
-    tables.append({ cffArray,HB_TAG('C','F','F',' ')});
+  tables.append({ head(),HB_TAG('h', 'e', 'a', 'd') });
+  tables.append({ hhea(),HB_TAG('h', 'h', 'e', 'a') });
+  tables.append({ maxp(),HB_TAG('m', 'a', 'x', 'p') });
+  tables.append({ os2(),HB_TAG('O','S','/','2') });
+  tables.append({ name(),HB_TAG('n','a','m','e') });
+  tables.append({ cmap(),HB_TAG('c','m','a','p') });
+  tables.append({ post(),HB_TAG('p','o','s','t') });
+  if (isCff2) {
+    tables.append({ cffArray,HB_TAG('C','F','F','2') });
   }
-  tables.append({ hmtx(),HB_TAG('h','m','t','x')});
-  tables.append({ gdef(),HB_TAG('G','D','E','F')});
-  tables.append({ gsub(),HB_TAG('G','S','U','B')});
-  tables.append({ gpos(),HB_TAG('G','P','O','S')});
-  tables.append({ dsig(),HB_TAG('D','S','I','G')});
+  else {
+    tables.append({ cffArray,HB_TAG('C','F','F',' ') });
+  }
+  tables.append({ hmtx(),HB_TAG('h','m','t','x') });
+  auto gposData = gpos();
+  tables.append({ gdef(),HB_TAG('G','D','E','F') });
+  
+  tables.append({ gsub(),HB_TAG('G','S','U','B') });
+  tables.append({ gposData,HB_TAG('G','P','O','S') });
+  tables.append({ dsig(),HB_TAG('D','S','I','G') });
+  if (isCff2) {
+    tables.append({ fvar(),HB_TAG('f','v','a','r') });
+    tables.append({ HVAR(),HB_TAG('H','V','A','R') });
+    tables.append({ MVAR(),HB_TAG('M','V','A','R') });
+    tables.append({ STAT(),HB_TAG('S','T','A','T') });
+  }
 
 
-  if(!layers.isEmpty()){
+  if (!layers.isEmpty()) {
     QByteArray cpal;
     QByteArray colr;
-    if(colrcpal(colr,cpal)){
-      tables.append({ colr,HB_TAG('C','O','L','R')});
-      tables.append({ cpal,HB_TAG('C','P','A','L')});
+    if (colrcpal(colr, cpal)) {
+      tables.append({ colr,HB_TAG('C','O','L','R') });
+      tables.append({ cpal,HB_TAG('C','P','A','L') });
     }
   }
 
   uint16_t numTables = tables.size();
 
-  int offset = sizeof(uint32_t)+4*sizeof(uint16_t) + numTables*4*sizeof(uint32_t);
+  int offset = sizeof(uint32_t) + 4 * sizeof(uint16_t) + numTables * 4 * sizeof(uint32_t);
 
-  for(int i = 0 ; i < numTables ; i++ ){
+  for (int i = 0; i < numTables; i++) {
 
     tables[i].length = tables[i].data.size();
-    uint32_t paddingLength = (tables[i].length+3) & ~3;
-    for(uint32_t pad  = 0 ; pad < paddingLength - tables[i].length ; pad++){
+    uint32_t paddingLength = (tables[i].length + 3) & ~3;
+    for (uint32_t pad = 0; pad < paddingLength - tables[i].length; pad++) {
       tables[i].data << (uint8_t)0;
     }
-    tables[i].checkSum = calcTableChecksum((uint32_t *)tables[i].data.constData(),paddingLength);
+    tables[i].checkSum = calcTableChecksum((uint32_t*)tables[i].data.constData(), paddingLength);
     tables[i].offset = offset;
-    offset+= paddingLength;
+    offset += paddingLength;
   }
 
   QByteArray data;
@@ -340,17 +350,17 @@ bool ToOpenType::GenerateFile(QString fileName){
   uint16_t entrySelector = floor(log2(numTables));
   uint16_t searchRange = exp2(entrySelector) * 16;
 
-  data << 0x4F54544F ;
+  data << 0x4F54544F;
   data << numTables;
   data << searchRange;
   data << entrySelector;
-  data << (uint16_t)(numTables*16-searchRange);
+  data << (uint16_t)(numTables * 16 - searchRange);
 
   auto tagordered = tables;
 
-  std::sort(tagordered.begin(), tagordered.end(),[](const Table &a, const Table &b){return a.tag < b.tag;} );
+  std::sort(tagordered.begin(), tagordered.end(), [](const Table& a, const Table& b) {return a.tag < b.tag; });
 
-  for(int i =0; i < numTables; i++){
+  for (int i = 0; i < numTables; i++) {
     auto& table = tagordered[i];
     data << (uint32_t)table.tag;
     data << (uint32_t)table.checkSum;
@@ -360,42 +370,40 @@ bool ToOpenType::GenerateFile(QString fileName){
 
   int headPos = 0;
 
-  for(int i =0; i < numTables; i++){
+  for (int i = 0; i < numTables; i++) {
     auto& table = tables[i];
-    if(tables[i].tag == HB_TAG('h', 'e', 'a', 'd')){
-      headPos= data.size();
+    if (tables[i].tag == HB_TAG('h', 'e', 'a', 'd')) {
+      headPos = data.size();
     }
     data.append(table.data);
   }
 
   //checkSumAdjustment
-  int32_t totalChecksum = calcTableChecksum((uint32_t *)data.constData(),data.size());
-  totalChecksum =  0xB1B0AFBA - totalChecksum;
+  int32_t totalChecksum = calcTableChecksum((uint32_t*)data.constData(), data.size());
+  totalChecksum = 0xB1B0AFBA - totalChecksum;
 
   QByteArray checksumArray;
 
   checksumArray << (uint32_t)totalChecksum;
-  data.replace(headPos + 8,4,checksumArray);
-
-
+  data.replace(headPos + 8, 4, checksumArray);
 
   file.write(data);
 
   return true;
 }
 
-uint32_t ToOpenType::calcTableChecksum(uint32_t *table, uint32_t length)
+uint32_t ToOpenType::calcTableChecksum(uint32_t* table, uint32_t length)
 {
   uint32_t sum = 0L;
-  uint32_t *endPtr = table+((length+3) & ~3) / sizeof(uint32_t);
+  uint32_t* endPtr = table + ((length + 3) & ~3) / sizeof(uint32_t);
   int n = 1;
-  bool littleEnd = *(char *)&n == 1;
+  bool littleEnd = *(char*)&n == 1;
 
-  while (table < endPtr){
+  while (table < endPtr) {
     auto value = *table;
 
-    if(littleEnd) {
-      value =  0 | ((value & 0x000000ff) << 24) | ((value & 0x0000ff00) << 8)| ((value & 0x00ff0000) >> 8) | ((value & 0xff000000) >> 24);
+    if (littleEnd) {
+      value = 0 | ((value & 0x000000ff) << 24) | ((value & 0x0000ff00) << 8) | ((value & 0x00ff0000) >> 8) | ((value & 0xff000000) >> 24);
     }
 
     sum += value;
@@ -405,10 +413,10 @@ uint32_t ToOpenType::calcTableChecksum(uint32_t *table, uint32_t length)
   return sum;
 }
 
-bool ToOpenType::colrcpal(QByteArray& colr, QByteArray& cpal){
+bool ToOpenType::colrcpal(QByteArray& colr, QByteArray& cpal) {
   if (layers.isEmpty()) return false;
 
-  QMap<Color,uint16_t> colormap;
+  QMap<Color, uint16_t> colormap;
   QVector<Color> colors;
 
   QByteArray layerRecords;
@@ -419,22 +427,23 @@ bool ToOpenType::colrcpal(QByteArray& colr, QByteArray& cpal){
   while (layIter.hasNext()) {
     layIter.next();
     auto& layers = layIter.value();
-    if(layers.size() == 0){
+    if (layers.size() == 0) {
       throw new std::runtime_error("The number of layers cannot be 0");
     }
     baseGlyphRecords << (uint16_t)layIter.key();
     baseGlyphRecords << (uint16_t)layerIndex;
     baseGlyphRecords << (uint16_t)layers.size();
-    for(auto& layer : layers){
+    for (auto& layer : layers) {
       layerRecords << (uint16_t)layer.gid;
-      if(layer.color.foreground){
+      if (layer.color.foreground) {
         layerRecords << (uint16_t)0xFFFF;
       }
-      else if(colormap.contains(layer.color)){
+      else if (colormap.contains(layer.color)) {
         layerRecords << (uint16_t)colormap.value(layer.color);
-      }else{
+      }
+      else {
         layerRecords << (uint16_t)colors.size();
-        colormap.insert(layer.color,colors.size());
+        colormap.insert(layer.color, colors.size());
         colors.append(layer.color);
       }
       layerIndex++;
@@ -461,7 +470,7 @@ bool ToOpenType::colrcpal(QByteArray& colr, QByteArray& cpal){
   cpal << (uint32_t)(2 + 2 + 2 + 2 + 4 + 2); // offsetFirstColorRecord
   cpal << (uint16_t)0; // colorRecordIndices[numPalettes]
 
-  for(auto& color : colors){
+  for (auto& color : colors) {
     cpal << (uint8_t)color.blue;
     cpal << (uint8_t)color.green;
     cpal << (uint8_t)color.red;
@@ -474,24 +483,24 @@ bool ToOpenType::colrcpal(QByteArray& colr, QByteArray& cpal){
 
 }
 
-QByteArray ToOpenType::cmap(){
+QByteArray ToOpenType::cmap() {
   return ot_layout->getCmap();
 }
-QByteArray ToOpenType::gdef(){ 
+QByteArray ToOpenType::gdef() {
   return ot_layout->getGDEF();
 }
-QByteArray ToOpenType::gpos(){
+QByteArray ToOpenType::gpos() {
   return ot_layout->getGPOS();
 
 }
-QByteArray ToOpenType::gsub(){
+QByteArray ToOpenType::gsub() {
   return ot_layout->getGSUB();
 }
-QByteArray ToOpenType::head(){
+QByteArray ToOpenType::head() {
   QByteArray data;
 
   QDateTime now = QDateTime::currentDateTimeUtc();
-  qint64 secs = QDate(1904,1,1).startOfDay(Qt::UTC).secsTo(now);
+  qint64 secs = QDate(1904, 1, 1).startOfDay(Qt::UTC).secsTo(now);
 
   data << (uint16_t)1; // majorVersion
   data << (uint16_t)0; // minorVersion
@@ -514,7 +523,7 @@ QByteArray ToOpenType::head(){
 
   return data;
 }
-QByteArray ToOpenType::hhea(){
+QByteArray ToOpenType::hhea() {
   QByteArray data;
 
   data << (uint16_t)1; // majorVersion
@@ -538,15 +547,15 @@ QByteArray ToOpenType::hhea(){
 
   return data;
 }
-QByteArray ToOpenType::hmtx(){
+QByteArray ToOpenType::hmtx() {
   QByteArray data;
 
   auto& marks = ot_layout->automedina->classes.value("marks");
-  
 
 
-  for(int i =0 ; i < glyphs.lastKey() + 1; i ++){
-    if(glyphs.contains(i)){
+
+  for (int i = 0; i < glyphs.lastKey() + 1; i++) {
+    if (glyphs.contains(i)) {
       auto glyph = glyphs.value(i);
 
       bool ismark = false;
@@ -562,9 +571,10 @@ QByteArray ToOpenType::hmtx(){
       else {
         data << (uint16_t)toInt(glyph->width);
       }
-        
+
       data << (int16_t)toInt(glyph->bbox.llx);
-    }else{
+    }
+    else {
       data << (uint16_t)0;
       data << (int16_t)0;
     }
@@ -573,15 +583,15 @@ QByteArray ToOpenType::hmtx(){
   return data;
 }
 
-QByteArray ToOpenType::maxp(){
+QByteArray ToOpenType::maxp() {
   QByteArray data;
 
-  data << (uint32_t)0x00005000 ;
-  data << (uint16_t)(glyphs.lastKey() + 1) ;
+  data << (uint32_t)0x00005000;
+  data << (uint16_t)(glyphs.lastKey() + 1);
 
   return data;
 }
-QByteArray ToOpenType::name(){
+QByteArray ToOpenType::name() {
 
   struct Name {
     uint16_t nameID;
@@ -605,12 +615,12 @@ QByteArray ToOpenType::name(){
   QVector<Name> names;
 
 
-  names.append(Name{ 0,globalValues.Copyright});
-  names.append(Name{ 1,globalValues.FamilyName});
-  names.append(Name{ 2,globalValues.Weight});
+  names.append(Name{ 0,globalValues.Copyright });
+  names.append(Name{ 1,globalValues.FamilyName });
+  names.append(Name{ 2,globalValues.Weight });
   names.append(Name{ 3,"DigitalKhatt_V0.1_2020-09-18" });
   names.append(Name{ 4,globalValues.FullName });
-  names.append(Name{ 5,"Version " + QString::number(globalValues.major) + "." + QString::number(globalValues.minor)});
+  names.append(Name{ 5,"Version " + QString::number(globalValues.major) + "." + QString::number(globalValues.minor) });
   names.append(Name{ 6,"DigitalKhattQuranic" });
   //names.append(Name{ 7,"DigitalKhatt" });
   //names.append(Name{ 8,"DigitalKhatt" });
@@ -618,7 +628,7 @@ QByteArray ToOpenType::name(){
   names.append(Name{ 10,"This font is the OpenType version of the MetaFont-designed parametric font used in the DigitalKhatt Arabic typesetter which justifies text dynamically using curvilinear expansion of letters" });
   names.append(Name{ 11,"https://digitalkhatt.org/" });
   names.append(Name{ 12,"https://digitalkhatt.org/" });
-  names.append(Name{ 13,globalValues.License});
+  names.append(Name{ 13,globalValues.License });
   names.append(Name{ 14,"https://www.gnu.org/licenses/agpl-3.0.en.html" });
 
   names.append(Name{ 16,"DigitalKhatt Madina" });
@@ -627,6 +637,9 @@ QByteArray ToOpenType::name(){
 
   names.append(Name{ 21,globalValues.FamilyName });
   names.append(Name{ 22,globalValues.Weight });
+
+  names.append(Name{ LTATNameId,"Left Elongation" });
+  names.append(Name{ RTATNameId,"Right Elongation" });
 
 
 
@@ -679,7 +692,7 @@ QByteArray ToOpenType::name(){
 
   return data;
 }
-QByteArray ToOpenType::os2(){
+QByteArray ToOpenType::os2() {
   QByteArray data;
 
   data << (uint16_t)0x0005; // version
@@ -710,8 +723,8 @@ QByteArray ToOpenType::os2(){
   data << (uint8_t)0;  //bMidline
   data << (uint8_t)0;  //bXHeight
 
-  
-  data << (uint32_t) (1 << 13); //ulUnicodeRange1(Bits 0-31)
+
+  data << (uint32_t)(1 << 13); //ulUnicodeRange1(Bits 0-31)
   data << (uint32_t)0; // ulUnicodeRange2(Bits 32-63)
   data << (uint32_t)0; //ulUnicodeRange3 (Bits 64-95)
   data << (uint32_t)0; //ulUnicodeRange4 (Bits 96-127)
@@ -743,7 +756,7 @@ QByteArray ToOpenType::os2(){
 
   return data;
 }
-QByteArray ToOpenType::post(){
+QByteArray ToOpenType::post() {
   QByteArray data;
 
   data << (uint32_t)0x00030000; // version
@@ -758,106 +771,163 @@ QByteArray ToOpenType::post(){
 
   return data;
 }
-void ToOpenType::dumpPath(QByteArray& data, mp_fill_object* fill, double& currentx, double& currenty){
+void ToOpenType::dumpPath(QByteArray& data, mp_fill_object* fill, double& currentx, double& currenty, PathLimits& pathLimits) {
+
   auto path = fill->path_p;
 
   mp_gr_knot p, q;
+  PathLimits pLimits, qLimits;
 
   if (path == nullptr) return;
 
-  //path.moveTo(path->x_coord, path->y_coord);
+  double default = path->x_coord - currentx;
+  fixed_to_cff2(data, default);
+  if (isCff2) {
+    auto delta = pathLimits.x_coord() - pathLimits.currentx - default;
+    data.append(blend(delta));
+  }
 
-  //currentx = path->x_coord - currentx;
-  //currenty = path->y_coord- currenty;
+  default = path->y_coord - currenty;
+  fixed_to_cff2(data, default);
+  if (isCff2) {
+    auto delta = pathLimits.y_coord() - pathLimits.currenty - default;
+    data.append(blend(delta));
+  }
 
-  fixed_to_cff2(data, path->x_coord - currentx);
-  fixed_to_cff2(data, path->y_coord- currenty);
   data << (uint8_t)21; // rmoveto;
 
-
-
   p = path;
+  pLimits = pathLimits;
   do {
     q = p->next;
-    //path.cubicTo(p->right_x, p->right_y, q->left_x, q->left_y, q->x_coord, q->y_coord);
+    qLimits = pLimits.next();
 
-    fixed_to_cff2(data, p->right_x - p->x_coord);
-    fixed_to_cff2(data, p->right_y - p->y_coord);
-    fixed_to_cff2(data, q->left_x - p->right_x);
-    fixed_to_cff2(data, q->left_y - p->right_y);
-    fixed_to_cff2(data, q->x_coord - q->left_x);
-    fixed_to_cff2(data, q->y_coord - q->left_y);
+    default = p->right_x - p->x_coord;
+    fixed_to_cff2(data, default);
+    if (isCff2) {
+      auto deltax = pLimits.right_x() - pLimits.x_coord() - default;
+      data.append(blend(deltax));
+    }
 
-    if(!isCff2){
+    default = p->right_y - p->y_coord;
+    fixed_to_cff2(data, default);
+    if (isCff2) {
+      auto deltay = pLimits.right_y() - pLimits.y_coord() - default;
+      data.append(blend(deltay));
+    }
+
+    default = q->left_x - p->right_x;
+    fixed_to_cff2(data, default);
+    if (isCff2) {
+      auto delta = qLimits.left_x() - pLimits.right_x() - default;
+      data.append(blend(delta));
+    }
+
+    default = q->left_y - p->right_y;
+    fixed_to_cff2(data, default);
+    if (isCff2) {
+      auto delta = qLimits.left_y() - pLimits.right_y() - default;
+      data.append(blend(delta));
+    }
+
+    default = q->x_coord - q->left_x;
+    fixed_to_cff2(data, default);
+    if (isCff2) {
+      auto delta = qLimits.x_coord() - qLimits.left_x() - default;
+      data.append(blend(delta));
+    }
+
+    default = q->y_coord - q->left_y;
+    fixed_to_cff2(data, default);
+    if (isCff2) {
+      auto delta = qLimits.y_coord() - qLimits.left_y() - default;
+      data.append(blend(delta));
+    }
+
+    if (!isCff2) {
       data << (uint8_t)8; // rrcurveto;
     }
 
     p = q;
+    pLimits = qLimits;
   } while (p != path);
 
   currentx = p->x_coord;
   currenty = p->y_coord;
+  if (isCff2) {
+    pathLimits.currentx = pLimits.x_coord();
+    pathLimits.currenty = pLimits.y_coord();
+  }
 
-  //if (path->data.types.left_type != mp_endpoint){
-  //path.closeSubpath();
-  //}
 
-  if(isCff2){
+  if (isCff2) {
     data << (uint8_t)8; // rrcurveto;
   }
 
 }
-QByteArray ToOpenType::charString(mp_graphic_object* body, bool iscff2,QVector<Layer>& layers, double& currentx, double& currenty){
+QByteArray ToOpenType::charString(mp_graphic_object* body, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ToOpenType::ContourLimits contourLimits) {
 
 
   QByteArray data;
 
-  Color ayablue = Color{255,240,220,255};
+  Color ayablue = Color{ 255,240,220,255 };
+  PathLimits pathlimits;
 
   if (body) {
     do {
       switch (body->type)
       {
-        case mp_fill_code: {
-            QByteArray layerArray;
-            mp_fill_object* fillobject = (mp_fill_object*)body;
-            dumpPath(layerArray,fillobject,currentx,currenty);
-            if(layerArray.size() != 0 ){
-              data.append(layerArray);
-              Layer layer;
-              QByteArray newGlyphArray;
-              double tempx = 0;
-              double tempy = 0;
-              dumpPath(newGlyphArray,fillobject,tempx,tempy);
-              layer.charString = newGlyphArray;
-              if (fillobject->color_model == mp_rgb_model) {
-                layer.color.red = toInt(fillobject->color.a_val * 255);
-                layer.color.green = toInt(fillobject->color.b_val * 255);
-                layer.color.blue = toInt(fillobject->color.c_val * 255);
-                /*
-              if(layer.color.blue != 0){
-                int stop = 5;
-              }
-              if(ayablue == layer.color){
-                layer.color.alpha = 130;
-              }*/
-              }
-              layers.append(layer);
-            }
+      case mp_fill_code: {
+        QByteArray layerArray;
+        mp_fill_object* fillobject = (mp_fill_object*)body;
 
-            break;
+
+        if (iscff2) {
+          pathlimits.maxLeft = contourLimits.maxLeft != nullptr ? ((mp_fill_object*)contourLimits.maxLeft)->path_p : nullptr;
+          pathlimits.minLeft = contourLimits.minLeft != nullptr ? ((mp_fill_object*)contourLimits.minLeft)->path_p : nullptr;
+          pathlimits.maxRight = contourLimits.maxRight != nullptr ? ((mp_fill_object*)contourLimits.maxRight)->path_p : nullptr;
+          pathlimits.minRight = contourLimits.minRight != nullptr ? ((mp_fill_object*)contourLimits.minRight)->path_p : nullptr;
+        }
+
+
+        dumpPath(layerArray, fillobject, currentx, currenty, pathlimits);
+        if (layerArray.size() != 0) {
+          data.append(layerArray);
+          Layer layer;
+          QByteArray newGlyphArray;
+          double tempx = 0;
+          double tempy = 0;
+          PathLimits tempPathLimits;
+          dumpPath(newGlyphArray, fillobject, tempx, tempy, tempPathLimits);
+          layer.charString = newGlyphArray;
+          if (fillobject->color_model == mp_rgb_model) {
+            layer.color.red = toInt(fillobject->color.a_val * 255);
+            layer.color.green = toInt(fillobject->color.b_val * 255);
+            layer.color.blue = toInt(fillobject->color.c_val * 255);
           }
-        default:
-          break;
+          layers.append(layer);
+        }
+
+        break;
+      }
+      default:
+        break;
       }
       body = body->next;
+      if (iscff2) {
+        contourLimits.maxLeft = contourLimits.maxLeft != nullptr ? contourLimits.maxLeft->next : nullptr;
+        contourLimits.minLeft = contourLimits.minLeft != nullptr ? contourLimits.minLeft->next : nullptr;
+        contourLimits.maxRight = contourLimits.maxRight != nullptr ? contourLimits.maxRight->next : nullptr;
+        contourLimits.minRight = contourLimits.minRight != nullptr ? contourLimits.minRight->next : nullptr;
+      }
+
     } while (body != nullptr);
   }
 
   return data;
 
 }
-QByteArray ToOpenType::charStrings(bool iscff2){
+QByteArray ToOpenType::charStrings(bool iscff2) {
 
   QByteArray objectData;
 
@@ -868,10 +938,10 @@ QByteArray ToOpenType::charStrings(bool iscff2){
 
   int glyphCount = glyphs.lastKey() + 1;
 
-  for(int i =0 ; i < glyphCount; i++){
+  for (int i = 0; i < glyphCount; i++) {
     QByteArray glyphArray;
 
-    if(glyphs.contains(i)){
+    if (glyphs.contains(i)) {
       auto& glyph = *glyphs.value(i);
 
       QVector<Layer> layers;
@@ -881,53 +951,108 @@ QByteArray ToOpenType::charStrings(bool iscff2){
       double currentx = 0.0;
       double currenty = 0.0;
 
-      if (replacedGlyphs.contains(glyph.charcode)){
+
+
+      if (replacedGlyphs.contains(glyph.charcode)) {
         glyphData = replacedGlyphs.value(glyph.charcode);
-      }else{
-        glyphData = charString(glyph.copiedPath, iscff2, layers, currentx, currenty);
+      }
+      else {
+        ContourLimits contourLimits;
+
+        auto& ff = expandableGlyphs.find(glyph.name);
+
+        if (ff != expandableGlyphs.end()) {
+          auto& jj = ff->second;
+          if (jj.maxLeft != 0) {
+            GlyphParameters parameters{};
+
+            parameters.lefttatweel = jj.maxLeft;
+            parameters.righttatweel = 0.0;
+
+            auto alternate = glyph.getAlternate(parameters);
+            contourLimits.maxLeft = alternate->copiedPath;
+
+          }
+          if (jj.minLeft != 0) {
+            GlyphParameters parameters{};
+
+            parameters.lefttatweel = jj.minLeft;
+            parameters.righttatweel = 0.0;
+
+            auto alternate = glyph.getAlternate(parameters);
+            contourLimits.minLeft = alternate->copiedPath;
+
+          }
+          if (jj.maxRight != 0) {
+            GlyphParameters parameters{};
+
+            parameters.lefttatweel = 0.0;
+            parameters.righttatweel = jj.maxRight;
+
+            auto alternate = glyph.getAlternate(parameters);
+            contourLimits.maxRight = alternate->copiedPath;
+
+          }
+          if (jj.minRight != 0) {
+            GlyphParameters parameters{};
+
+            parameters.lefttatweel = 0.0;
+            parameters.righttatweel = jj.minRight;
+
+            auto alternate = glyph.getAlternate(parameters);
+            contourLimits.minRight = alternate->copiedPath;
+
+          }
+        }
+        glyphData = charString(glyph.copiedPath, iscff2, layers, currentx, currenty, contourLimits);
       }
 
       bool needColor = false;
 
       Color black;
 
-      for(auto& layer : layers){
-        if (!(layer.color == black)){
+      for (auto& layer : layers) {
+        if (!(layer.color == black)) {
           needColor = true;
           break;
         }
       }
 
-      if(needColor){
-        this->layers.insert(i,layers);
+      if (needColor) {
+        this->layers.insert(i, layers);
       }
 
-      if(glyphData.size() == 0){
-        if(iscff2){
-          glyphArray << (uint8_t)0;
-        }else{
-          int_to_cff2(glyphArray,toInt(glyph.width)); // width
-          glyphArray <<  (uint8_t)14; //  endchar
+      if (glyphData.size() == 0) {
+        if (iscff2) {
+          //glyphArray << (uint8_t)0;
+        }
+        else {
+          int_to_cff2(glyphArray, toInt(glyph.width)); // width
+          glyphArray << (uint8_t)14; //  endchar
         }
 
-      }else{
-        if(iscff2){
+      }
+      else {
+        if (iscff2) {
           glyphArray = glyphData;
-        }else{
-          int_to_cff2(glyphArray,toInt(glyph.width)); // width
+        }
+        else {
+          int_to_cff2(glyphArray, toInt(glyph.width)); // width
           glyphArray.append(glyphData);
-          glyphArray <<  (uint8_t)14; //  endchar
+          glyphArray << (uint8_t)14; //  endchar
         }
 
       }
 
 
-    }else{
-      if(iscff2){
-        glyphArray << (uint8_t)0;
-      }else{
-        int_to_cff2(glyphArray,0); // width
-        glyphArray <<  (uint8_t)14; //  endchar
+    }
+    else {
+      if (iscff2) {
+        //glyphArray << (uint8_t)0;
+      }
+      else {
+        int_to_cff2(glyphArray, 0); // width
+        glyphArray << (uint8_t)14; //  endchar
       }
 
     }
@@ -941,35 +1066,36 @@ QByteArray ToOpenType::charStrings(bool iscff2){
   QMap<uint16_t, QVector<Layer>>::iterator layIter = this->layers.begin();
   while (layIter != this->layers.end()) {
     auto glyph = glyphs.value(layIter.key());
-    for(auto& layer : layIter.value()  ){
+    for (auto& layer : layIter.value()) {
 
 
 
       auto  prevlayIter = layIter;
-      while(prevlayIter != this->layers.constBegin()){
+      while (prevlayIter != this->layers.constBegin()) {
         prevlayIter--;
         bool foudEqual = false;
-        for(auto& prevlayer : prevlayIter.value()  ){
-          if(prevlayer.charString == layer.charString){
+        for (auto& prevlayer : prevlayIter.value()) {
+          if (prevlayer.charString == layer.charString) {
             layer.gid = prevlayer.gid;
             foudEqual = true;
             break;
           }
         }
-        if(foudEqual) break;
+        if (foudEqual) break;
 
       }
-      if(layer.gid == 0  ){
+      if (layer.gid == 0) {
         QByteArray glyphArray;
         layer.gid = glyphs.lastKey() + 1;
         glyphs.insert(layer.gid, glyph);
 
-        if(iscff2){
+        if (iscff2) {
           glyphArray = layer.charString;
-        }else{
-          int_to_cff2(glyphArray,toInt(glyph->width)); // width
+        }
+        else {
+          int_to_cff2(glyphArray, toInt(glyph->width)); // width
           glyphArray.append(layer.charString);
-          glyphArray <<  (uint8_t)14; //  endchar
+          glyphArray << (uint8_t)14; //  endchar
         }
 
         offsets.append(offset);
@@ -990,33 +1116,40 @@ QByteArray ToOpenType::charStrings(bool iscff2){
 
   int offSize;
 
-  if(maxOffset < exp2(8)){
+  if (maxOffset < exp2(8)) {
     offSize = 1;
-  }else if (maxOffset < exp2(16)){
+  }
+  else if (maxOffset < exp2(16)) {
     offSize = 2;
-  }else if (maxOffset < exp2(24)){
+  }
+  else if (maxOffset < exp2(24)) {
     offSize = 3;
-  }else{
+  }
+  else {
     offSize = 4;
   }
 
   QByteArray data;
-  if(iscff2){
+  if (iscff2) {
     data << (uint32_t)(glyphs.lastKey() + 1);
-  }else{
+  }
+  else {
     data << (uint16_t)(glyphs.lastKey() + 1);
   }
 
   data << (uint8_t)offSize;
 
-  for(auto offset : offsets){
-    if(offSize == 1){
+  for (auto offset : offsets) {
+    if (offSize == 1) {
       data << (uint8_t)offset;
-    }else if (offSize == 2){
+    }
+    else if (offSize == 2) {
       data << (uint16_t)offset;
-    }else if (offSize == 3){
+    }
+    else if (offSize == 3) {
       data << uint8_t(offset >> 16) << uint16_t(offset);
-    }else{
+    }
+    else {
       data << (uint32_t)offset;
     }
   }
@@ -1027,20 +1160,20 @@ QByteArray ToOpenType::charStrings(bool iscff2){
   return data;
 }
 
-QByteArray ToOpenType::cff(){
+QByteArray ToOpenType::cff() {
 
   QByteArray charStringsIndex = charStrings(false);
 
   // Private DICT Data
   QByteArray privateDict;
 
-  int_to_cff2(privateDict,200);
+  int_to_cff2(privateDict, 200);
   privateDict << (uint8_t)20; // defaultWidthX
 
   QByteArray subrsOffset;
-  int_to_cff2(subrsOffset,privateDict.size()+2);
+  int_to_cff2(subrsOffset, privateDict.size() + 2);
 
-  if(subrsOffset.size() != 1){
+  if (subrsOffset.size() != 1) {
     throw new std::runtime_error("Change offset");
   }
 
@@ -1092,7 +1225,7 @@ QByteArray ToOpenType::cff(){
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  for(int i =1 ; i <= glyphs.lastKey(); i ++){
+  for (int i = 1; i <= glyphs.lastKey(); i++) {
     stringIndexData.append(QString("Glyph%1").arg(i).toLatin1());
     stringIndex << (uint32_t)(1 + stringIndexData.size());
     charset << (uint16_t)lastSid;
@@ -1100,7 +1233,7 @@ QByteArray ToOpenType::cff(){
   }
 
   int lastOffset = 1 + stringIndexData.size();
-  if(lastOffset > std::numeric_limits<uint32_t>::max()){
+  if (lastOffset > std::numeric_limits<uint32_t>::max()) {
     throw new std::runtime_error("Increase offset size");
   }
 
@@ -1133,44 +1266,44 @@ QByteArray ToOpenType::cff(){
   QByteArray topDicData;
 
   //Version
-  int_to_cff2(topDicData,391);
+  int_to_cff2(topDicData, 391);
   topDicData << (uint8_t)0;
 
   //FullName
-  int_to_cff2(topDicData,392);
+  int_to_cff2(topDicData, 392);
   topDicData << (uint8_t)2;
 
   //FamilyName
-  int_to_cff2(topDicData,393);
+  int_to_cff2(topDicData, 393);
   topDicData << (uint8_t)3;
 
   //Weight
-  int_to_cff2(topDicData,394);
+  int_to_cff2(topDicData, 394);
   topDicData << (uint8_t)4;
 
   //Copyright
-  int_to_cff2(topDicData,395);
+  int_to_cff2(topDicData, 395);
   topDicData << (uint8_t)12 << (uint8_t)0;
 
   //Notice
-  int_to_cff2(topDicData,396);
+  int_to_cff2(topDicData, 396);
   topDicData << (uint8_t)1;
 
   //charset
   topDicData << (uint8_t)29;
   int offsetCharSetPos = topDictIndex.size() + topDicData.size() + offSize;
-  topDicData <<  (int32_t)0 << (uint8_t)15;
+  topDicData << (int32_t)0 << (uint8_t)15;
 
   topDicData << (uint8_t)29;
   int offsetCharStringPos = topDictIndex.size() + topDicData.size() + offSize;
-  topDicData <<  (int32_t)0 << (uint8_t)17;
+  topDicData << (int32_t)0 << (uint8_t)17;
 
   topDicData << (int8_t)29;
   int offsetPrivatePos = topDictIndex.size() + topDicData.size() + offSize;
-  topDicData <<  (int32_t)0 << (int8_t)29 << (int32_t)0 << (uint8_t)18;
+  topDicData << (int32_t)0 << (int8_t)29 << (int32_t)0 << (uint8_t)18;
 
   lastOffset = topDicData.size() + 1;
-  if(lastOffset > 255){
+  if (lastOffset > 255) {
     throw new std::runtime_error("Increase offset size");
   }
   topDictIndex << (uint8_t)lastOffset; // offset
@@ -1191,29 +1324,29 @@ QByteArray ToOpenType::cff(){
   data << (uint8_t)4; // offSize
 
   int charSetOffset = data.size() + nameIndex.size() + topDictIndex.size() + stringIndex.size() + globalSubrsIndex.size();
-  if(charSetOffset > std::numeric_limits<int32_t>::max()){
+  if (charSetOffset > std::numeric_limits<int32_t>::max()) {
     throw new std::runtime_error("Increase offset size");
   }
   QByteArray charSetOffsetArray;
   charSetOffsetArray << (int32_t)charSetOffset;
-  topDictIndex.replace(offsetCharSetPos,charSetOffsetArray.size(),charSetOffsetArray);
+  topDictIndex.replace(offsetCharSetPos, charSetOffsetArray.size(), charSetOffsetArray);
 
   int offsetCharStrings = charSetOffset + charset.size();
-  if(offsetCharStrings > std::numeric_limits<int32_t>::max()){
+  if (offsetCharStrings > std::numeric_limits<int32_t>::max()) {
     throw new std::runtime_error("Increase offset size");
   }
   QByteArray offsetCharString;
   offsetCharString << (int32_t)offsetCharStrings;
-  topDictIndex.replace(offsetCharStringPos,offsetCharString.size(),offsetCharString);
+  topDictIndex.replace(offsetCharStringPos, offsetCharString.size(), offsetCharString);
 
   int offsetPrivate = offsetCharStrings + charStringsIndex.size();
-  if(offsetPrivate > std::numeric_limits<int32_t>::max()){
+  if (offsetPrivate > std::numeric_limits<int32_t>::max()) {
     throw new std::runtime_error("Increase offset size");
   }
 
   QByteArray offsetPrivateByte;
-  offsetPrivateByte << (int32_t)privateDict.size() << (int8_t)29 << (int32_t)offsetPrivate ;
-  topDictIndex.replace(offsetPrivatePos,offsetPrivateByte.size(), offsetPrivateByte);
+  offsetPrivateByte << (int32_t)privateDict.size() << (int8_t)29 << (int32_t)offsetPrivate;
+  topDictIndex.replace(offsetPrivatePos, offsetPrivateByte.size(), offsetPrivateByte);
 
 
   data.append(nameIndex);
@@ -1229,14 +1362,35 @@ QByteArray ToOpenType::cff(){
   return data;
 
 }
-QByteArray ToOpenType::cff2(){
+QByteArray ToOpenType::getPrivateDictCff2(int* size) {
+
+  QByteArray privateDict;
+
+  //int_to_cff2(privateDict, 0);
+  //privateDict << 22; //vsindex
+
+  QByteArray subrsOffset;
+  int_to_cff2(subrsOffset, privateDict.size() + 2);
+
+  if (subrsOffset.size() != 1) {
+    throw new std::runtime_error("Change offset");
+  }
+
+  privateDict.append(subrsOffset);
+  privateDict << (uint8_t)19; // Subrs Operator
+
+  *size = privateDict.size();
+
+  privateDict.append(getSubrs());
+
+  return privateDict;
+}
+QByteArray ToOpenType::cff2() {
 
 
   QByteArray charStr = charStrings(true);
 
-  QByteArray privateDict;
-  int_to_cff2(privateDict,0);
-  privateDict << 22; //vsindex
+
 
   //Font DICT index
   QByteArray fontDic;
@@ -1245,68 +1399,88 @@ QByteArray ToOpenType::cff2(){
   fontDic << (uint32_t)1; //count
   fontDic << (uint8_t)1; //offSize
   fontDic << (uint8_t)1; // offset
-  fontDic << (uint8_t)4; // offset
-  int_to_cff2(fontDic,0); //size
-  int_to_cff2(fontDic, 0); //offset
-  fontDic << (uint8_t)18;
-
-
-
-  //fontDic << (uint32_t)0;
-
-
+  fontDic << (uint8_t)12; // offset
+  fontDic << (int8_t)29 << (int32_t)0 << (int8_t)29 << (int32_t)0 << (uint8_t)18; //Private DICT size and offset
 
   QByteArray topDict;
-  int_to_cff2(topDict,10); // Font DICT (FD) INDEX offset
-  topDict << (uint8_t)12 << (uint8_t)36; //FDArray operator
-  int_to_cff2(topDict,10 + fontDic.size()); // CharStrings INDEX offset, from start of the CFF2 table.
-  topDict << (uint8_t)17; // CharStrings operator
+  topDict << (int8_t)29 << (int32_t)0 << (uint8_t)12 << (uint8_t)36; //FDArray operator  
+  topDict << (int8_t)29 << (int32_t)0 << (uint8_t)17; // CharStrings operator
+  topDict << (int8_t)29 << (int32_t)0 << (uint8_t)24; // vstore
 
-  QByteArray data;
+  QByteArray globalSubrIndex;
+  globalSubrIndex << (int32_t)0; // majorVersion
 
-  data << (uint8_t)2; // majorVersion
-  data << (uint8_t)0; // minorVersion
-  data << (uint8_t)5; // headerSize
-  data << (uint16_t)topDict.size(); // topDictLength
+  QByteArray ret;
 
-  data.append(topDict);
-  data.append(fontDic);
-  //data.append(privateDict);
-  data.append(charStr);
+  ret << (uint8_t)2; // majorVersion
+  ret << (uint8_t)0; // minorVersion
+  ret << (uint8_t)5; // headerSize
+  ret << (uint16_t)topDict.size(); // topDictLength
+  int topDictOffset = ret.size();
+  ret.append(topDict);
+  ret.append(globalSubrIndex);
+  int variationStoreOffset = ret.size();
+  ret.append(CFF2VariationStore());
+  int fontDicOffset = ret.size();
+  ret.append(fontDic);
+  int charStrOffset = ret.size();
+  ret.append(charStr);
+  int privateDictSize;
+  ret.append(getPrivateDictCff2(&privateDictSize));
+
+  QByteArray offsetData;
+  offsetData << (int32_t)fontDicOffset;
+  ret.replace(topDictOffset + 1, offsetData.size(), offsetData);
+
+  offsetData.clear();
+  offsetData << (int32_t)charStrOffset;
+  ret.replace(topDictOffset + 8, offsetData.size(), offsetData);
+
+  offsetData.clear();
+  offsetData << (int32_t)variationStoreOffset;
+  ret.replace(topDictOffset + 14, offsetData.size(), offsetData);
+
+  offsetData.clear();
+  offsetData << (int32_t)privateDictSize << (int8_t)29 << (int32_t)(charStrOffset + charStr.size());
+  ret.replace(charStrOffset - 10, offsetData.size(), offsetData);
 
 
-  return data;
+  return ret;
 }
 //https://docs.microsoft.com/en-us/typography/opentype/spec/cff2#charStrings
 //Table 3 Operand Encoding
-void ToOpenType::int_to_cff2(QByteArray& cff,int val) {
+void ToOpenType::int_to_cff2(QByteArray& cff, int val) {
 
-  if ( val>=-107 && val<=107 )
-    cff << (int8_t)(val+139);
-  else if ( val>=108 && val<=1131 ) {
+  if (val >= -107 && val <= 107)
+    cff << (int8_t)(val + 139);
+  else if (val >= 108 && val <= 1131) {
     val -= 108;
-    cff << (int8_t)((val>>8)+247);
+    cff << (int8_t)((val >> 8) + 247);
     cff << (int8_t)val;
-  } else if ( val>=-1131 && val<=-108 ) {
+  }
+  else if (val >= -1131 && val <= -108) {
     val = -val;
     val -= 108;
-    cff << (int8_t)((val>>8)+251);
+    cff << (int8_t)((val >> 8) + 251);
     cff << (int8_t)(val);
-  } else if ( val>=-32768 && val<32768 ) {
+  }
+  else if (val >= -32768 && val < 32768) {
     cff << (int8_t)28;
     cff << (int16_t)val;
-  } else {
+  }
+  else {
     cff << (int8_t)29;
     cff << (int32_t)val;
   }
 }
-void ToOpenType::fixed_to_cff2(QByteArray& cff,double val){
-  int v = roundf (val * 65536.f);
+
+void ToOpenType::fixed_to_cff2(QByteArray& cff, double val) {
+  int v = roundf(val * 65536.f);
   cff << (uint8_t)255;
   cff << (int32_t)v;
 }
 
-QByteArray ToOpenType::dsig(){
+QByteArray ToOpenType::dsig() {
   QByteArray data;
 
   data << (uint32_t)1; //version
@@ -1316,16 +1490,18 @@ QByteArray ToOpenType::dsig(){
   return data;
 }
 
-QByteArray ToOpenType::getSubrs(){
+QByteArray ToOpenType::getSubrs() {
 
   uint maxOffset = subrs.size() + 1;
   int count = subrOffsets.size();
 
-  if(count < 1240){
+  if (count < 1240) {
     if (subIndexBias != 107) throw new std::runtime_error("Invalid bias");
-  }else  if(count < 33900){
+  }
+  else  if (count < 33900) {
     if (subIndexBias != 1131) throw new std::runtime_error("Invalid bias");
-  }else if (subIndexBias != 32768){
+  }
+  else if (subIndexBias != 32768) {
     throw new std::runtime_error("Invalid bias");
   }
 
@@ -1333,33 +1509,40 @@ QByteArray ToOpenType::getSubrs(){
 
   int offSize;
 
-  if(maxOffset < exp2(8)){
+  if (maxOffset < exp2(8)) {
     offSize = 1;
-  }else if (maxOffset < exp2(16)){
+  }
+  else if (maxOffset < exp2(16)) {
     offSize = 2;
-  }else if (maxOffset < exp2(24)){
+  }
+  else if (maxOffset < exp2(24)) {
     offSize = 3;
-  }else{
+  }
+  else {
     offSize = 4;
   }
 
   QByteArray data;
-  if(isCff2){
+  if (isCff2) {
     data << (uint32_t)count;
-  }else{
+  }
+  else {
     data << (uint16_t)count;
   }
 
   data << (uint8_t)offSize;
 
-  for(auto offset : subrOffsets){
-    if(offSize == 1){
+  for (auto offset : subrOffsets) {
+    if (offSize == 1) {
       data << (uint8_t)offset;
-    }else if (offSize == 2){
+    }
+    else if (offSize == 2) {
       data << (uint16_t)offset;
-    }else if (offSize == 3){
+    }
+    else if (offSize == 3) {
       data << uint8_t(offset >> 16) << uint16_t(offset);
-    }else{
+    }
+    else {
       data << (uint32_t)offset;
     }
   }
@@ -1370,7 +1553,7 @@ QByteArray ToOpenType::getSubrs(){
   return data;
 
 }
-QByteArray ToOpenType::getAyaMono(){
+QByteArray ToOpenType::getAyaMono() {
 
   QVector<Layer> ayaLayers;
 
@@ -1379,21 +1562,21 @@ QByteArray ToOpenType::getAyaMono(){
 
   GlyphVis& endofaya = ot_layout->glyphs["endofaya"];
 
-  QByteArray endofayaArray = charString(endofaya.copiedPath,this->isCff2,ayaLayers, endofayax, endofayay);
+  QByteArray endofayaArray = charString(endofaya.copiedPath, this->isCff2, ayaLayers, endofayax, endofayay, ContourLimits{});
 
-  auto monoPath =  (mp_fill_object * )mp_new_graphic_object(ot_layout->mp, mp_fill_code);
+  auto monoPath = (mp_fill_object*)mp_new_graphic_object(ot_layout->mp, mp_fill_code);
 
 
   auto source = endofaya.copiedPath->next;
   auto dest = monoPath;
-  dest->path_p = ((mp_fill_object *)endofaya.copiedPath)->path_p;
+  dest->path_p = ((mp_fill_object*)endofaya.copiedPath)->path_p;
 
   int pathIndex = 1;
 
   do {
-    if(source->type == mp_fill_code && pathIndex != 6  && pathIndex != 7 && pathIndex != 8 &&  pathIndex != 9){
-      auto newpath = (mp_fill_object * )mp_new_graphic_object(ot_layout->mp, mp_fill_code);
-      newpath->path_p = ((mp_fill_object *)source)->path_p;
+    if (source->type == mp_fill_code && pathIndex != 6 && pathIndex != 7 && pathIndex != 8 && pathIndex != 9) {
+      auto newpath = (mp_fill_object*)mp_new_graphic_object(ot_layout->mp, mp_fill_code);
+      newpath->path_p = ((mp_fill_object*)source)->path_p;
       dest->next = (mp_graphic_object*)newpath;
       dest = newpath;
     }
@@ -1405,19 +1588,19 @@ QByteArray ToOpenType::getAyaMono(){
   endofayax = 0.0;
   endofayay = 0.0;
 
-  QByteArray endofayaMonoArray = charString((mp_graphic_object*)monoPath,this->isCff2,ayaLayers, endofayax, endofayay);
+  QByteArray endofayaMonoArray = charString((mp_graphic_object*)monoPath, this->isCff2, ayaLayers, endofayax, endofayay, ContourLimits{});
 
 
   while (monoPath != nullptr) {
     auto q = monoPath->next;
     free(monoPath);
-    monoPath = (mp_fill_object * )q;
+    monoPath = (mp_fill_object*)q;
   }
 
   return endofayaMonoArray;
 
 }
-void ToOpenType::setAyaGlyphPaths(){
+void ToOpenType::setAyaGlyphPaths() {
   GlyphVis& endofaya = ot_layout->glyphs["endofaya"];
 
   QVector<Layer> ayaLayers;
@@ -1426,37 +1609,37 @@ void ToOpenType::setAyaGlyphPaths(){
   double endofayax = 0.0;
   double endofayay = 0.0;
 
-  QByteArray endofayaArray = charString(endofaya.copiedPath,this->isCff2,ayaLayers, endofayax, endofayay);
+  QByteArray endofayaArray = charString(endofaya.copiedPath, this->isCff2, ayaLayers, endofayax, endofayay, ContourLimits{});
 
-  QByteArray endofayaMonoArray =  getAyaMono();
+  QByteArray endofayaMonoArray = getAyaMono();
 
-  this->layers.insert(endofaya.charcode,ayaLayers);
-  replacedGlyphs.insert(endofaya.charcode,endofayaMonoArray);
+  this->layers.insert(endofaya.charcode, ayaLayers);
+  replacedGlyphs.insert(endofaya.charcode, endofayaMonoArray);
   QByteArray endofayaArraySubr;
   endofayaArraySubr.append(endofayaMonoArray);
   endofayaArraySubr << (uint8_t)11; // return
 
-  subrByGlyph.insert(endofaya.charcode,subrOffsets.size());
+  subrByGlyph.insert(endofaya.charcode, subrOffsets.size());
   subrOffsets.append(subrs.size() + 1);
   subrs.append(endofayaArraySubr);
 
-  for(int i=0; i < 10; i++){
+  for (int i = 0; i < 10; i++) {
 
-    double currentx  = 0.0;
+    double currentx = 0.0;
     double currenty = 0.0;
 
     auto digit = glyphs[ot_layout->unicodeToGlyphCode.value(0x0660 + i)];
-    QByteArray charStringArray = charString(digit->copiedPath,this->isCff2,layers, currentx, currenty);
+    QByteArray charStringArray = charString(digit->copiedPath, this->isCff2, layers, currentx, currenty, ContourLimits{});
     charStringArray << (uint8_t)11; // return
-    subrByGlyph.insert(digit->charcode,subrOffsets.size());
+    subrByGlyph.insert(digit->charcode, subrOffsets.size());
     subrOffsets.append(subrs.size() + 1);
     subrs.append(charStringArray);
   }
 
   int yOffset = 110;
 
-  for(auto glyph : glyphs){
-    if(!glyph->name.startsWith("aya")) continue;
+  for (auto glyph : glyphs) {
+    if (!glyph->name.startsWith("aya")) continue;
 
     auto ayaNumber = glyph->name.mid(3).toInt();
 
@@ -1469,10 +1652,10 @@ void ToOpenType::setAyaGlyphPaths(){
       fixed_to_cff2(charStringArray, 0);
       charStringArray << (uint8_t)21; // rmoveto;
 
-      double currentx  = 0.0;
+      double currentx = 0.0;
       double currenty = 0.0;
 
-      QByteArray oneDigitArray = charString(onesglyph->copiedPath,this->isCff2,layers, currentx, currenty);
+      QByteArray oneDigitArray = charString(onesglyph->copiedPath, this->isCff2, layers, currentx, currenty, ContourLimits{});
       charStringArray.append(oneDigitArray);
 
 
@@ -1483,26 +1666,26 @@ void ToOpenType::setAyaGlyphPaths(){
       fixed_to_cff2(addDigitArray, yOffset);
       addDigitArray << (uint8_t)21; // rmoveto;
       //addDigitArray.append(oneDigitArray);
-      int_to_cff2(addDigitArray,subrByGlyph.value(onesglyph->charcode) - subIndexBias);
-      addDigitArray <<  (uint8_t)10; // callsubr;
+      int_to_cff2(addDigitArray, subrByGlyph.value(onesglyph->charcode) - subIndexBias);
+      addDigitArray << (uint8_t)10; // callsubr;
       Layer newlayer;
       newlayer.charString = addDigitArray;
       newlayer.color.foreground = true;
       newlayers.append(newlayer);
 
-      this->layers.insert(glyph->charcode,newlayers);
+      this->layers.insert(glyph->charcode, newlayers);
 
       QByteArray monoChromeArray;
 
-      int_to_cff2(monoChromeArray,subrByGlyph.value(endofaya.charcode) - subIndexBias);
-      monoChromeArray <<  (uint8_t)10; // callsubr;
+      int_to_cff2(monoChromeArray, subrByGlyph.value(endofaya.charcode) - subIndexBias);
+      monoChromeArray << (uint8_t)10; // callsubr;
 
-      fixed_to_cff2(monoChromeArray, - endofayax);
-      fixed_to_cff2(monoChromeArray, - endofayay);
+      fixed_to_cff2(monoChromeArray, -endofayax);
+      fixed_to_cff2(monoChromeArray, -endofayay);
       monoChromeArray << (uint8_t)21; // rmoveto;
       monoChromeArray.append(addDigitArray);
 
-      replacedGlyphs.insert(glyph->charcode,monoChromeArray);
+      replacedGlyphs.insert(glyph->charcode, monoChromeArray);
 
     }
     else if (ayaNumber < 100) {
@@ -1511,51 +1694,51 @@ void ToOpenType::setAyaGlyphPaths(){
 
       auto onesglyph = glyphs[ot_layout->unicodeToGlyphCode.value(1632 + onesdigit)];
       auto tensglyph = glyphs[ot_layout->unicodeToGlyphCode.value(1632 + tensdigit)];
-      auto position = endofaya.width / 2  - (onesglyph->width + tensglyph->width + 40) / 2;
+      auto position = endofaya.width / 2 - (onesglyph->width + tensglyph->width + 40) / 2;
 
       QVector<Layer> newlayers = ayaLayers;
 
-      double lastx  = 0.0;
+      double lastx = 0.0;
       double lasty = 0.0;
-      double currentx  = 0.0;
+      double currentx = 0.0;
       double currenty = 0.0;
-      QByteArray onesDigitArray = charString(onesglyph->copiedPath,this->isCff2,layers, currentx, currenty);
-      QByteArray tensDigitArray = charString(tensglyph->copiedPath,this->isCff2,layers,lastx, lasty);
+      QByteArray onesDigitArray = charString(onesglyph->copiedPath, this->isCff2, layers, currentx, currenty, ContourLimits{});
+      QByteArray tensDigitArray = charString(tensglyph->copiedPath, this->isCff2, layers, lastx, lasty, ContourLimits{});
 
       QByteArray addDigitArray;
       fixed_to_cff2(addDigitArray, position);
       fixed_to_cff2(addDigitArray, yOffset);
       addDigitArray << (uint8_t)21; // rmoveto;
       //addDigitArray.append(tensDigitArray);
-      int_to_cff2(addDigitArray,subrByGlyph.value(tensglyph->charcode) - subIndexBias);
-      addDigitArray <<  (uint8_t)10; // callsubr;
+      int_to_cff2(addDigitArray, subrByGlyph.value(tensglyph->charcode) - subIndexBias);
+      addDigitArray << (uint8_t)10; // callsubr;
 
-      fixed_to_cff2(addDigitArray, tensglyph->width + 40  - lastx);
-      fixed_to_cff2(addDigitArray, 0- lasty);
+      fixed_to_cff2(addDigitArray, tensglyph->width + 40 - lastx);
+      fixed_to_cff2(addDigitArray, 0 - lasty);
       addDigitArray << (uint8_t)21; // rmoveto;
 
       //addDigitArray.append(onesDigitArray);
-      int_to_cff2(addDigitArray,subrByGlyph.value(onesglyph->charcode) - subIndexBias);
-      addDigitArray <<  (uint8_t)10; // callsubr;
+      int_to_cff2(addDigitArray, subrByGlyph.value(onesglyph->charcode) - subIndexBias);
+      addDigitArray << (uint8_t)10; // callsubr;
 
       Layer newlayer;
       newlayer.charString = addDigitArray;
       newlayer.color.foreground = true;
       newlayers.append(newlayer);
 
-      this->layers.insert(glyph->charcode,newlayers);
+      this->layers.insert(glyph->charcode, newlayers);
 
       QByteArray monoChromeArray;
 
-      int_to_cff2(monoChromeArray,subrByGlyph.value(endofaya.charcode) - subIndexBias);
-      monoChromeArray <<  (uint8_t)10; // callsubr;
+      int_to_cff2(monoChromeArray, subrByGlyph.value(endofaya.charcode) - subIndexBias);
+      monoChromeArray << (uint8_t)10; // callsubr;
 
-      fixed_to_cff2(monoChromeArray, - endofayax);
-      fixed_to_cff2(monoChromeArray, - endofayay);
+      fixed_to_cff2(monoChromeArray, -endofayax);
+      fixed_to_cff2(monoChromeArray, -endofayay);
       monoChromeArray << (uint8_t)21; // rmoveto;
       monoChromeArray.append(addDigitArray);
 
-      replacedGlyphs.insert(glyph->charcode,monoChromeArray);
+      replacedGlyphs.insert(glyph->charcode, monoChromeArray);
 
 
     }
@@ -1572,58 +1755,544 @@ void ToOpenType::setAyaGlyphPaths(){
 
       QVector<Layer> newlayers = ayaLayers;
 
-      double tensx  = 0.0;
+      double tensx = 0.0;
       double tensy = 0.0;
-      double hundredsx  = 0.0;
+      double hundredsx = 0.0;
       double hundredsy = 0.0;
-      double currentx  = 0.0;
+      double currentx = 0.0;
       double currenty = 0.0;
-      QByteArray onesDigitArray = charString(onesglyph->copiedPath,this->isCff2,layers, currentx, currenty);
-      QByteArray tensDigitArray = charString(tensglyph->copiedPath,this->isCff2,layers,tensx, tensy);
-      QByteArray hundredsDigitArray = charString(hundredsglyph->copiedPath,this->isCff2,layers,hundredsx, hundredsy);
+      QByteArray onesDigitArray = charString(onesglyph->copiedPath, this->isCff2, layers, currentx, currenty, ContourLimits{});
+      QByteArray tensDigitArray = charString(tensglyph->copiedPath, this->isCff2, layers, tensx, tensy, ContourLimits{});
+      QByteArray hundredsDigitArray = charString(hundredsglyph->copiedPath, this->isCff2, layers, hundredsx, hundredsy, ContourLimits{});
 
       QByteArray addDigitArray;
       fixed_to_cff2(addDigitArray, position);
       fixed_to_cff2(addDigitArray, yOffset);
       addDigitArray << (uint8_t)21; // rmoveto;
       //addDigitArray.append(hundredsDigitArray);
-      int_to_cff2(addDigitArray,subrByGlyph.value(hundredsglyph->charcode) - subIndexBias);
-      addDigitArray <<  (uint8_t)10; // callsubr;
+      int_to_cff2(addDigitArray, subrByGlyph.value(hundredsglyph->charcode) - subIndexBias);
+      addDigitArray << (uint8_t)10; // callsubr;
 
-      fixed_to_cff2(addDigitArray, hundredsglyph->width + 40  - hundredsx);
-      fixed_to_cff2(addDigitArray, 0- hundredsy);
+      fixed_to_cff2(addDigitArray, hundredsglyph->width + 40 - hundredsx);
+      fixed_to_cff2(addDigitArray, 0 - hundredsy);
       addDigitArray << (uint8_t)21; // rmoveto;
       //addDigitArray.append(tensDigitArray);
-      int_to_cff2(addDigitArray,subrByGlyph.value(tensglyph->charcode) - subIndexBias);
-      addDigitArray <<  (uint8_t)10; // callsubr;
+      int_to_cff2(addDigitArray, subrByGlyph.value(tensglyph->charcode) - subIndexBias);
+      addDigitArray << (uint8_t)10; // callsubr;
 
-      fixed_to_cff2(addDigitArray, tensglyph->width + 40  - tensx);
-      fixed_to_cff2(addDigitArray, 0- tensy);
+      fixed_to_cff2(addDigitArray, tensglyph->width + 40 - tensx);
+      fixed_to_cff2(addDigitArray, 0 - tensy);
       addDigitArray << (uint8_t)21; // rmoveto;
 
       //addDigitArray.append(onesDigitArray);
-      int_to_cff2(addDigitArray,subrByGlyph.value(onesglyph->charcode) - subIndexBias);
-      addDigitArray <<  (uint8_t)10; // callsubr;
+      int_to_cff2(addDigitArray, subrByGlyph.value(onesglyph->charcode) - subIndexBias);
+      addDigitArray << (uint8_t)10; // callsubr;
 
       Layer newlayer;
       newlayer.charString = addDigitArray;
       newlayer.color.foreground = true;
       newlayers.append(newlayer);
 
-      this->layers.insert(glyph->charcode,newlayers);
+      this->layers.insert(glyph->charcode, newlayers);
 
       QByteArray monoChromeArray;
 
-      int_to_cff2(monoChromeArray,subrByGlyph.value(endofaya.charcode) - subIndexBias);
-      monoChromeArray <<  (uint8_t)10; // callsubr;
+      int_to_cff2(monoChromeArray, subrByGlyph.value(endofaya.charcode) - subIndexBias);
+      monoChromeArray << (uint8_t)10; // callsubr;
 
-      fixed_to_cff2(monoChromeArray, - endofayax);
-      fixed_to_cff2(monoChromeArray, - endofayay);
+      fixed_to_cff2(monoChromeArray, -endofayax);
+      fixed_to_cff2(monoChromeArray, -endofayay);
       monoChromeArray << (uint8_t)21; // rmoveto;
       monoChromeArray.append(addDigitArray);
 
-      replacedGlyphs.insert(glyph->charcode,monoChromeArray);
+      replacedGlyphs.insert(glyph->charcode, monoChromeArray);
 
     }
   }
+}
+QByteArray ToOpenType::fvar() {
+  QByteArray data;
+
+  int axisCount = 2;
+
+  data << (uint16_t)1; // majorVersion
+  data << (uint16_t)0; // minorVersion
+  data << (uint16_t)16; // axesArrayOffset
+  data << (uint16_t)2; // This field is permanently reserved. Set to 2.
+  data << (uint16_t)axisCount; // axisCount
+  data << (uint16_t)20; // axisSize
+  data << (uint16_t)0; // instanceCount
+  data << (uint16_t)12; // instanceSize : axisCount * sizeof(Fixed) + 4
+
+  //VariationAxisRecord[0]
+  data << (uint32_t)HB_TAG('L', 'T', 'A', 'T');
+  data << getFixed(-2); // minValue
+  data << getFixed(0); // defaultValue
+  data << getFixed(12); // maxValue
+  data << (uint16_t)0; // flags
+  data << (uint16_t)LTATNameId; // axisNameID
+
+  //VariationAxisRecord[1]
+  data << (uint32_t)HB_TAG('R', 'T', 'A', 'T');
+  data << getFixed(-2); // minValue
+  data << getFixed(0); // defaultValue
+  data << getFixed(12); // maxValue
+  data << (uint16_t)0; // flags
+  data << (uint16_t)RTATNameId; // axisNameID
+
+
+
+  return data;
+}
+QByteArray ToOpenType::STAT() {
+
+  QByteArray data;
+
+  data << (uint16_t)1; // majorVersion
+  data << (uint16_t)2; // minorVersion
+  data << (uint16_t)8; // designAxisSize
+  data << (uint16_t)2; // designAxisCount
+  data << (uint32_t)20; // designAxesOffset
+  data << (uint16_t)0; // axisValueCount
+  data << (uint32_t)0; // offsetToAxisValueOffsets
+  data << (uint16_t)2; // elidedFallbackNameID
+
+  data << (uint32_t)HB_TAG('L', 'T', 'A', 'T'); //axisTag
+  data << (uint16_t)LTATNameId; // axisNameID
+  data << (uint16_t)0; // axisOrdering
+
+  data << (uint32_t)HB_TAG('R', 'T', 'A', 'T'); //axisTag
+  data << (uint16_t)RTATNameId; // axisNameID
+  data << (uint16_t)1; // axisOrdering
+
+  return data;
+
+}
+
+
+
+QByteArray ToOpenType::CFF2VariationStore() {
+
+  QByteArray variationRegionList = ot_layout->getVariationRegionList();
+
+  QByteArray ItemVariationData;
+  //subtable 0
+  ItemVariationData << (uint16_t)0; //itemCount
+  ItemVariationData << (uint16_t)0; //shortDeltaCount
+  ItemVariationData << (uint16_t)4; //regionIndexCount
+  for (int i = 0; i < 4; i++) {
+    ItemVariationData << (uint16_t)i; //regionIndexes
+  }
+
+  QByteArray itemVariationStore;
+
+  itemVariationStore << (uint16_t)1; //format
+  itemVariationStore << (uint32_t)12; //variationRegionListOffset
+  itemVariationStore << (uint16_t)1; //itemVariationDataCount
+  itemVariationStore << (uint32_t)(12 + variationRegionList.size()); //itemVariationDataCount
+  itemVariationStore.append(variationRegionList);
+  itemVariationStore.append(ItemVariationData);
+
+  QByteArray varStore;
+
+  varStore << (uint16_t)itemVariationStore.size();
+  varStore.append(itemVariationStore);
+
+  return varStore;
+
+}
+
+QByteArray ToOpenType::MVAR() {
+
+  int valueRecordCount = 0;
+
+  QByteArray itemVariationStore;
+  QByteArray ValueRecordArray;
+  QByteArray itemVarData;
+  QByteArray deltaSets;
+
+  ValueRecordArray << (uint32_t)HB_TAG('h', 'a', 's', 'c'); // valueTag
+  ValueRecordArray << (uint16_t)0; // deltaSetOuterIndex
+  ValueRecordArray << (uint16_t)valueRecordCount++; // deltaSetInnerIndex
+  deltaSets << (uint16_t)0 << (uint16_t)0 << (uint16_t)0 << (uint16_t)0;
+
+  ValueRecordArray << (uint32_t)HB_TAG('h', 'd', 's', 'c'); // valueTag
+  ValueRecordArray << (uint16_t)0; // deltaSetOuterIndex
+  ValueRecordArray << (uint16_t)valueRecordCount++; // deltaSetInnerIndex
+  deltaSets << (uint16_t)0 << (uint16_t)0 << (uint16_t)0 << (uint16_t)0;
+
+  ValueRecordArray << (uint32_t)HB_TAG('h', 'l', 'g', 'p'); // valueTag
+  ValueRecordArray << (uint16_t)0; // deltaSetOuterIndex
+  ValueRecordArray << (uint16_t)valueRecordCount++; // deltaSetInnerIndex
+  deltaSets << (uint16_t)0 << (uint16_t)0 << (uint16_t)0 << (uint16_t)0;
+
+  ValueRecordArray << (uint32_t)HB_TAG('h', 'c', 'l', 'a'); // valueTag
+  ValueRecordArray << (uint16_t)0; // deltaSetOuterIndex
+  ValueRecordArray << (uint16_t)valueRecordCount++; // deltaSetInnerIndex
+  deltaSets << (uint16_t)0 << (uint16_t)0 << (uint16_t)0 << (uint16_t)0;
+
+  ValueRecordArray << (uint32_t)HB_TAG('h', 'c', 'l', 'd'); // valueTag
+  ValueRecordArray << (uint16_t)0; // deltaSetOuterIndex
+  ValueRecordArray << (uint16_t)valueRecordCount++; // deltaSetInnerIndex
+  deltaSets << (uint16_t)0 << (uint16_t)0 << (uint16_t)0 << (uint16_t)0;
+
+  ValueRecordArray << (uint32_t)HB_TAG('u', 'n', 'd', 's'); // valueTag
+  ValueRecordArray << (uint16_t)0; // deltaSetOuterIndex
+  ValueRecordArray << (uint16_t)valueRecordCount++; // deltaSetInnerIndex
+  deltaSets << (uint16_t)0 << (uint16_t)0 << (uint16_t)0 << (uint16_t)0;
+
+  ValueRecordArray << (uint32_t)HB_TAG('u', 'n', 'd', 'o'); // valueTag
+  ValueRecordArray << (uint16_t)0; // deltaSetOuterIndex
+  ValueRecordArray << (uint16_t)valueRecordCount++; // deltaSetInnerIndex
+  deltaSets << (uint16_t)0 << (uint16_t)0 << (uint16_t)0 << (uint16_t)0;
+
+
+  itemVarData << (uint16_t)valueRecordCount; //itemCount
+  itemVarData << (uint16_t)4; //shortDeltaCount
+  itemVarData << (uint16_t)4; //regionIndexCount
+  for (int i = 0; i < 4; i++) {
+    itemVarData << (uint16_t)i; //regionIndexes
+  }
+  itemVarData.append(deltaSets);
+
+
+  auto itemVariationDataCount = 1;
+  auto startOffset = 8 + 4 * itemVariationDataCount;
+  QByteArray variationRegionList = ot_layout->getVariationRegionList();
+
+  itemVariationStore << (uint16_t)1; //format
+  itemVariationStore << (uint32_t)startOffset; //variationRegionListOffset
+  itemVariationStore << (uint16_t)itemVariationDataCount; //itemVariationDataCount
+  itemVariationStore << (uint32_t)(startOffset + variationRegionList.size()); //itemVariationDataOffsets[0]  
+  itemVariationStore.append(variationRegionList);
+  itemVariationStore.append(itemVarData);
+
+
+  //MVAR
+  QByteArray data;
+
+  data << (uint16_t)1; //majorVersion
+  data << (uint16_t)0; //minorVersion
+  data << (uint16_t)0; //reserved
+  data << (uint16_t)8; //valueRecordSize
+  data << (uint16_t)valueRecordCount; //valueRecordCount
+  data << (uint16_t)(12 + ValueRecordArray.size()); //itemVariationStoreOffset
+  data.append(ValueRecordArray);
+  data.append(itemVariationStore);
+
+  return data;
+}
+
+QByteArray ToOpenType::HVAR() {
+
+  struct EntryValue {
+    int32_t value1 = 0;
+    int32_t value2 = 0;
+    int32_t value3 = 0;
+    int32_t value4 = 0;
+  };
+
+  std::unordered_map<uint32_t, EntryValue> lsbs;
+
+  QByteArray variationRegionList = ot_layout->getVariationRegionList();
+  QByteArray aWidthVariationData;
+  QByteArray lsbVariationData;
+
+  int glyphCount = glyphs.lastKey() + 1;
+
+  //subtable 0
+  aWidthVariationData << (uint16_t)glyphCount; //itemCount
+  aWidthVariationData << (uint16_t)4; //shortDeltaCount
+  aWidthVariationData << (uint16_t)4; //regionIndexCount
+  for (int i = 0; i < 4; i++) {
+    aWidthVariationData << (uint16_t)i; //regionIndexes
+  }
+  //subtable 1
+  lsbVariationData << (uint16_t)glyphCount; //itemCount
+  lsbVariationData << (uint16_t)4; //shortDeltaCount
+  lsbVariationData << (uint16_t)4; //regionIndexCount
+  for (int i = 0; i < 4; i++) {
+    lsbVariationData << (uint16_t)i; //regionIndexes
+  }
+
+  for (int i = 0; i < glyphCount; i++) {
+    QByteArray glyphArray;
+
+    bool entryExist = false;
+
+    if (glyphs.contains(i)) {
+      auto& glyph = *glyphs.value(i);
+      /*
+      if (!ot_layout->glyphs.contains(it.first)) {
+        throw new std::runtime_error("Glyph name "+ it.first.toStdString() + " does not exist");
+      }*/
+
+      auto& ff = expandableGlyphs.find(glyph.name);
+
+      if (ff != expandableGlyphs.end()) {
+        entryExist = true;
+        auto& jj = ff->second;
+        if (jj.maxLeft != 0) {
+          GlyphParameters parameters{};
+
+          parameters.lefttatweel = jj.maxLeft;
+          parameters.righttatweel = 0.0;
+
+          auto alternate = glyph.getAlternate(parameters);
+          aWidthVariationData << (uint16_t)(toInt(alternate->width) - toInt(glyph.width));
+          lsbVariationData << (uint16_t)(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
+
+        }
+        else {
+          aWidthVariationData << (uint16_t)0;
+          lsbVariationData << (uint16_t)0;
+        }
+        if (jj.minLeft != 0) {
+          GlyphParameters parameters{};
+
+          parameters.lefttatweel = jj.minLeft;
+          parameters.righttatweel = 0.0;
+
+          auto alternate = glyph.getAlternate(parameters);
+          aWidthVariationData << (uint16_t)(toInt(alternate->width) - toInt(glyph.width));
+          lsbVariationData << (uint16_t)(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
+
+        }
+        else {
+          aWidthVariationData << (uint16_t)0;
+          lsbVariationData << (uint16_t)0;
+        }
+        if (jj.maxRight != 0) {
+          GlyphParameters parameters{};
+
+          parameters.lefttatweel = 0.0;
+          parameters.righttatweel = jj.maxRight;
+
+          auto alternate = glyph.getAlternate(parameters);
+          aWidthVariationData << (uint16_t)(toInt(alternate->width) - toInt(glyph.width));
+          lsbVariationData << (uint16_t)(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
+
+        }
+        else {
+          aWidthVariationData << (uint16_t)0;
+          lsbVariationData << (uint16_t)0;
+        }
+        if (jj.minRight != 0) {
+          GlyphParameters parameters{};
+
+          parameters.lefttatweel = 0.0;
+          parameters.righttatweel = jj.minRight;
+
+          auto alternate = glyph.getAlternate(parameters);
+          aWidthVariationData << (uint16_t)(toInt(alternate->width) - toInt(glyph.width));
+          lsbVariationData << (uint16_t)(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
+
+        }
+        else {
+          aWidthVariationData << (uint16_t)0;
+          lsbVariationData << (uint16_t)0;
+        }
+      }
+    }
+
+    if (!entryExist) {
+      aWidthVariationData << (uint16_t)0;
+      aWidthVariationData << (uint16_t)0;
+      aWidthVariationData << (uint16_t)0;
+      aWidthVariationData << (uint16_t)0;
+
+      lsbVariationData << (uint16_t)0;
+      lsbVariationData << (uint16_t)0;
+      lsbVariationData << (uint16_t)0;
+      lsbVariationData << (uint16_t)0;
+    }
+  }
+
+  QByteArray itemVariationStore;
+
+  auto itemVariationDataCount = 2;
+  auto startOffset = 8 + 4 * itemVariationDataCount;
+
+  itemVariationStore << (uint16_t)1; //format
+  itemVariationStore << (uint32_t)startOffset; //variationRegionListOffset
+  itemVariationStore << (uint16_t)itemVariationDataCount; //itemVariationDataCount
+  itemVariationStore << (uint32_t)(startOffset + variationRegionList.size()); //itemVariationDataOffsets[0]
+  itemVariationStore << (uint32_t)(startOffset + variationRegionList.size() + aWidthVariationData.size()); //itemVariationDataOffsets[1]  
+  itemVariationStore.append(variationRegionList);
+  itemVariationStore.append(aWidthVariationData);
+  itemVariationStore.append(lsbVariationData);
+
+  QByteArray advanceMapping;
+  advanceMapping << (uint16_t)0x3F; //entryFormat : 2 byte for outer, 2 byte for inner
+  advanceMapping << (uint16_t)glyphCount; //entryFormat : 1 byte for outer, 2 byte for inner
+  for (int i = 0; i < glyphCount; i++) {
+    advanceMapping << (uint16_t)0;
+    advanceMapping << (uint16_t)i;
+  }
+
+  QByteArray lsbMapping;
+  lsbMapping << (uint16_t)0x3F; //entryFormat : 2 byte for outer, 2 byte for inner
+  lsbMapping << (uint16_t)glyphCount; //entryFormat : 1 byte for outer, 2 byte for inner
+  for (int i = 0; i < glyphCount; i++) {
+    lsbMapping << (uint16_t)1;
+    lsbMapping << (uint16_t)i;
+  }
+
+
+  //hvar
+  QByteArray data;
+
+  data << (uint16_t)1; //majorVersion
+  data << (uint16_t)0; //minorVersion
+  data << (uint32_t)20; //itemVariationStoreOffset
+  data << (uint32_t)(20 + itemVariationStore.size()); //advanceWidthMappingOffset
+  data << (uint32_t)(20 + itemVariationStore.size() + advanceMapping.size()); //lsbMappingOffset
+  data << (uint32_t)(20 + itemVariationStore.size() + advanceMapping.size() + lsbMapping.size()); //rsbMappingOffset
+  data.append(itemVariationStore);
+  data.append(advanceMapping);
+  data.append(lsbMapping);
+  data.append(lsbMapping);
+
+  return data;
+
+}
+
+
+inline ToOpenType::PathLimits ToOpenType::PathLimits::next()
+{
+  PathLimits nn{};
+  if (maxLeft != nullptr) {
+    nn.maxLeft = maxLeft->next;
+  }
+  if (minLeft != nullptr) {
+    nn.minLeft = minLeft->next;
+  }
+  if (maxRight != nullptr) {
+    nn.maxRight = maxRight->next;
+  }
+  if (minRight != nullptr) {
+    nn.minRight = minRight->next;
+  }
+  return nn;
+}
+
+inline ToOpenType::DeltaValues ToOpenType::PathLimits::x_coord() {
+  DeltaValues nn{};
+  if (maxLeft != nullptr) {
+    nn.deltas[0] = maxLeft->x_coord;
+    nn.active[0] = true;
+  }
+  if (minLeft != nullptr) {
+    nn.deltas[1] = minLeft->x_coord;
+    nn.active[1] = true;
+  }
+  if (maxRight != nullptr) {
+    nn.deltas[2] = maxRight->x_coord;
+    nn.active[2] = true;
+  }
+  if (minRight != nullptr) {
+    nn.deltas[3] = minRight->x_coord;
+    nn.active[3] = true;
+  }
+  return nn;
+}
+inline ToOpenType::DeltaValues ToOpenType::PathLimits::y_coord() {
+  DeltaValues nn{};
+  if (maxLeft != nullptr) {
+    nn.deltas[0] = maxLeft->y_coord;
+    nn.active[0] = true;
+  }
+  if (minLeft != nullptr) {
+    nn.deltas[1] = minLeft->y_coord;
+    nn.active[1] = true;
+  }
+  if (maxRight != nullptr) {
+    nn.deltas[2] = maxRight->y_coord;
+    nn.active[2] = true;
+  }
+  if (minRight != nullptr) {
+    nn.deltas[3] = minRight->y_coord;
+    nn.active[3] = true;
+  }
+  return nn;
+}
+inline ToOpenType::DeltaValues ToOpenType::PathLimits::left_x() {
+  DeltaValues nn{};
+  if (maxLeft != nullptr) {
+    nn.deltas[0] = maxLeft->left_x;
+    nn.active[0] = true;
+  }
+  if (minLeft != nullptr) {
+    nn.deltas[1] = minLeft->left_x;
+    nn.active[1] = true;
+  }
+  if (maxRight != nullptr) {
+    nn.deltas[2] = maxRight->left_x;
+    nn.active[2] = true;
+  }
+  if (minRight != nullptr) {
+    nn.deltas[3] = minRight->left_x;
+    nn.active[3] = true;
+  }
+  return nn;
+}
+inline ToOpenType::DeltaValues ToOpenType::PathLimits::left_y() {
+  DeltaValues nn{};
+  if (maxLeft != nullptr) {
+    nn.deltas[0] = maxLeft->left_y;
+    nn.active[0] = true;
+  }
+  if (minLeft != nullptr) {
+    nn.deltas[1] = minLeft->left_y;
+    nn.active[1] = true;
+  }
+  if (maxRight != nullptr) {
+    nn.deltas[2] = maxRight->left_y;
+    nn.active[2] = true;
+  }
+  if (minRight != nullptr) {
+    nn.deltas[3] = minRight->left_y;
+    nn.active[3] = true;
+  }
+  return nn;
+}
+inline ToOpenType::DeltaValues ToOpenType::PathLimits::right_x() {
+  DeltaValues nn{};
+  if (maxLeft != nullptr) {
+    nn.deltas[0] = maxLeft->right_x;
+    nn.active[0] = true;
+  }
+  if (minLeft != nullptr) {
+    nn.deltas[1] = minLeft->right_x;
+    nn.active[1] = true;
+  }
+  if (maxRight != nullptr) {
+    nn.deltas[2] = maxRight->right_x;
+    nn.active[2] = true;
+  }
+  if (minRight != nullptr) {
+    nn.deltas[3] = minRight->right_x;
+    nn.active[3] = true;
+  }
+  return nn;
+}
+inline ToOpenType::DeltaValues ToOpenType::PathLimits::right_y() {
+  DeltaValues nn{};
+  if (maxLeft != nullptr) {
+    nn.deltas[0] = maxLeft->right_y;
+    nn.active[0] = true;
+  }
+  if (minLeft != nullptr) {
+    nn.deltas[1] = minLeft->right_y;
+    nn.active[1] = true;
+  }
+  if (maxRight != nullptr) {
+    nn.deltas[2] = maxRight->right_y;
+    nn.active[2] = true;
+  }
+  if (minRight != nullptr) {
+    nn.deltas[3] = minRight->right_y;
+    nn.active[3] = true;
+  }
+  return nn;
 }
