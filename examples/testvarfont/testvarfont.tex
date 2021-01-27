@@ -1,0 +1,73 @@
+\directlua{require('mobdebug').start()}
+%\directlua{require "debugger":start "127.0.0.1:12306":event "wait"}
+\edef\pdfcompresslevel{\pdfvariable compresslevel}
+\edef\pdfobjcompresslevel{\pdfvariable objcompresslevel}
+\pdfcompresslevel=0
+\pdfobjcompresslevel=0
+%\font\medinafont={file:digitalkhatt.otf:mode=harf;shaper=ot;script=arab}
+%\font\medinafontnode={file:digitalkhatt.otf:script=arab}
+%\font\medinafontvar={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes;axis={ltat=5,rtat=5}}
+\font\medinafontvar={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes} at 28pt
+\font\medinafontvarnode={file:digitalkhatt-cff2.otf:mode=node;shaper=ot;script=arab;variableshapes}
+%\font\medinafontvarnode={file:digitalkhatt-cff2.otf:mode=node;script=arab;axis={ltat=5,rtat=5};variableshapes}
+
+
+\documentclass{article}
+\usepackage[letterpaper, portrait, margin=5mm]{geometry}
+
+
+
+%\enabletrackers[fonts.cff.charstrings]
+
+
+
+\renewcommand{\baselinestretch}{6}
+\begin{document}
+\medinafontvar\pagedir TRT\pardir TRT\bodydir TRT\textdir TRT
+
+%\medinafontvar\pardir TRT\textdir TRT بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ\\
+%\medinafontvar\pardir TRT\textdir TRTتَبَّتْ يَدَآ أَبِي لَهَبࣲ وَتَبَّ ١\\
+%\medinafontvar\pardir TRT\textdir TRT إِنَّ ٱلَّذِينَ كَفَرُوا۟ سَوَآءٌ عَلَيْهِمْ ءَأَنذَرْتَهُمْ أَمْ لَمْ تُنذِرْهُمْ\\
+%\medinafontvar\pardir TRT\textdir TRT عَلَيْهِمْْ\\
+
+\directlua{amine.justify=true}
+
+\vspace*{-100pt}
+\vspace*{\fill}
+\begin{center}
+\leavevmode
+\vbox{
+\leavevmode\hbox to80mm{بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ}\par
+\leavevmode\hbox to130mm{الٓمٓ ١ ذَٰلِكَ ٱلْكِتَٰبُ لَا رَيْبَۛ فِيهِۛ هُدࣰى}\par
+\leavevmode\hbox to165mm{لِّلْمُتَّقِينَ ٢ ٱلَّذِينَ يُؤْمِنُونَ بِٱلْغَيْبِ وَيُقِيمُونَ ٱلصَّلَوٰةَ}\par
+\leavevmode\hbox to200mm{وَمِمَّا رَزَقْنَٰهُمْ يُنفِقُونَ ٣ وَٱلَّذِينَ يُؤْمِنُونَ بِمَآ أُنزِلَ}\par
+\leavevmode\hbox to165mm{إِلَيْكَ وَمَآ أُنزِلَ مِن قَبْلِكَ وَبِٱلْأٓخِرَةِ هُمْ يُوقِنُونَ ٤}\par
+\leavevmode\hbox to130mm{أُو۟لَٰٓئِكَ عَلَىٰ هُدࣰى مِّن رَّبِّهِمْۖ وَأُو۟لَٰٓئِكَ}\par
+\leavevmode\hbox to80mm{هُمُ ٱلْمُفْلِحُونَ ٥}\par
+}
+\end{center}
+\vspace*{\fill}
+
+\directlua{amine.justify=false}
+
+\newpage
+
+\vspace*{-100pt}
+\vspace*{\fill}
+\begin{center}
+\leavevmode
+\vbox{
+\leavevmode\hbox to80mm{بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ}\par
+\leavevmode\hbox to130mm{الٓمٓ ١ ذَٰلِكَ ٱلْكِتَٰبُ لَا رَيْبَۛ فِيهِۛ هُدࣰى}\par
+\leavevmode\hbox to165mm{لِّلْمُتَّقِينَ ٢ ٱلَّذِينَ يُؤْمِنُونَ بِٱلْغَيْبِ وَيُقِيمُونَ ٱلصَّلَوٰةَ}\par
+\leavevmode\hbox to200mm{وَمِمَّا رَزَقْنَٰهُمْ يُنفِقُونَ ٣ وَٱلَّذِينَ يُؤْمِنُونَ بِمَآ أُنزِلَ}\par
+\leavevmode\hbox to165mm{إِلَيْكَ وَمَآ أُنزِلَ مِن قَبْلِكَ وَبِٱلْأٓخِرَةِ هُمْ يُوقِنُونَ ٤}\par
+\leavevmode\hbox to130mm{أُو۟لَٰٓئِكَ عَلَىٰ هُدࣰى مِّن رَّبِّهِمْۖ وَأُو۟لَٰٓئِكَ}\par
+\leavevmode\hbox to80mm{هُمُ ٱلْمُفْلِحُونَ ٥}\par
+}
+\end{center}
+\vspace*{\fill}
+
+
+
+\end{document} 
