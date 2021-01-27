@@ -23,7 +23,7 @@ lookup basmala {
 
     lookup basmala.l1.new {
         sub behshape.init.beforeseen by behshape.init.basmala;
-        sub callback seen.medi by seen.medi.basmala expfactors 0 20 0 0;
+        sub seen.medi by seen.medi.basmala add 20 0;
         sub meem.fina by meem.fina.basmala;
         sub behshape.medi add 1 0;
         sub meem.medi.afterhah  add -1 0;
@@ -41,7 +41,7 @@ lookup basmala {
     } basmala.l2;
 
     lookup basmala.l3 {
-        sub callback noon.fina by noon.fina.basmala expfactors 0 10 0 -0.5;
+        sub noon.fina by noon.fina.basmala add 10 -0.5;
     } basmala.l3 ;
 
     lookup basmala.l4 {
@@ -153,6 +153,15 @@ lookup wawmaddaalef {
 	pos /waw.fina/ maddahabove alef.isol'< 0 0 50 0>;	
 
 } wawmaddaalef;
+
+lookup kernlastline {
+
+	feature kern;		
+
+	pos /aya/'space;
+	pos /aya/'< -50 0 -50 0>;
+
+} kernlastline;
 
 lookup alefalef {
 
@@ -1143,31 +1152,31 @@ lookup justification {
 		lookupflag IgnoreMarks;
 
 		lookup expa.shrink.l1 {
-			sub callback behshape.init expfactors -1 0 0 0;
-			sub callback behshape.medi expfactors -0.6 0 0 0;
-			sub callback hah.init expfactors -0.6 0 0 0;
-			sub callback hah.medi expfactors -0.6 0 0 0;
-			sub callback ain.init expfactors -0.6 0 0 0;
-			sub callback ain.medi expfactors -0.6 0 0 0;
-			sub callback fehshape.init expfactors -0.6 0 0 0;
-			sub callback fehshape.medi expfactors -0.6 0 0 0;
-			sub callback seen.init expfactors -0.6 0 0 0;
-			sub callback seen.medi expfactors -0.6 0 0 0;
-			sub callback sad.init expfactors -0.6 0 0 0;
-			sub callback sad.medi expfactors -0.6 0 0 0;
-			sub callback tah.init expfactors -0.6 0 0 0;
-			sub callback tah.medi expfactors -0.6 0 0 0;
+			sub callback behshape.init expfactors -0.5 0 0 0;
+			sub callback behshape.medi expfactors -0.5 0 0 0;
+			sub callback hah.init expfactors -0.5 0 0 0;
+			sub callback hah.medi expfactors -0.5 0 0 0;
+			sub callback ain.init expfactors -0.5 0 0 0;
+			sub callback ain.medi expfactors -0.5 0 0 0;
+			sub callback fehshape.init expfactors -0.5 0 0 0;
+			sub callback fehshape.medi expfactors -0.5 0 0 0;
+			sub callback seen.init expfactors -0.5 0 0 0;
+			sub callback seen.medi expfactors -0.5 0 0 0;
+			sub callback sad.init expfactors -0.5 0 0 0;
+			sub callback sad.medi expfactors -0.5 0 0 0;
+			sub callback tah.init expfactors -0.5 0 0 0;
+			sub callback tah.medi expfactors -0.5 0 0 0;
 			sub callback kaf.init expfactors -1.2 0 0 0;
-			sub callback kaf.medi expfactors -0.6 0 0 0;
-			sub callback lam.init expfactors -0.6 0 -0.6 0;
-			sub callback lam.medi expfactors -0.6 0 -0.6 0;
-			sub callback meem.init expfactors -0.6 0 0 0;
-			sub callback meem.medi expfactors -0.6 0 0 0;
-			sub callback heh.init expfactors -0.6 0 0 0;
-			sub callback heh.medi expfactors -0.6 0 0 0;
+			sub callback kaf.medi expfactors -0.5 0 0 0;
+			sub callback lam.init expfactors -0.5 0 0 0;
+			sub callback lam.medi expfactors -0.5 0 -0.5 0;
+			sub callback meem.init expfactors -0.5 0 0 0;
+			sub callback meem.medi expfactors -0.5 0 0 0;
+			sub callback heh.init expfactors -0.5 0 0 0;
+			sub callback heh.medi expfactors -0.5 0 0 0;
 			sub callback alef.fina expfactors 0 0 -0.4 0;
 			sub callback behshape.medi.beforenoon expfactors 0 0 -0.4 0;
-			sub callback hah.medi.lam_hah expfactors -1 0 0 0;
+			sub callback hah.medi.lam_hah expfactors -0.5 0 0 0;
 		} expa.shrink.l1;
 		
 		sub @hasshrink'lookup expa.shrink.l1;
@@ -1466,7 +1475,8 @@ feature kern {
 	lookup alefkern;
 	lookup variouskern;
 	lookup thalkafinit;
-  lookup otherkern;
+	lookup otherkern;
+	lookup kernlastline;
 } kern;
 
 feature mark {
@@ -1512,7 +1522,7 @@ feature sch1 {
   lookup expa.joining.prio1;
   lookup expa.joining.prio2;
   lookup expa.joining.prio3;
-  lookup expa.joining;
+  #lookup expa.joining;
 } sch1;
 
 feature shr1 {
@@ -1607,7 +1617,7 @@ feature jalt {
 } jalt;
 
 
-#table(just)
+#table(test)
 #	pass(1)
 #		#[noon.isol noon.fina noon.fina.afterbeh] {action1};
 		#(behshape.medi {action2} )^ @marks* alef.fina {action3};
@@ -1615,11 +1625,32 @@ feature jalt {
 		#/init/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* /medi/ @marks* (/medi/ @marks*)* /fina/ {action1};
 #		(@haslefttatweel ) {action1} @marks* (/medi/ @marks*)* @haslefttatweel {action2};
 #	endpass;
-
-	
-	
-
 #endtable;
+
+table(just) {
+	stretch {		
+		lookup expa.aleffina;			
+		lookup expa.ligadecomp;
+		lookup expa.kafalternate;
+		lookup expa.intreaglyph;
+		lookup expa.joining.prio1;
+		lookup expa.joining.prio2;
+		lookup expa.joining.prio3;
+		#lookup expa.joining;		
+	}
+	shrink {
+		step {
+			lookup shr1.alefcursive;
+			lookup shr1.kern;
+			lookup shr1.dalcursive;
+			lookup shr1.kaf;
+		}
+		lookup expa.shrink;
+	}
+};
+	
+
+
 
 
 

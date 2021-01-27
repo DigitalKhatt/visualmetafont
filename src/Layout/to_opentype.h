@@ -243,14 +243,15 @@ public:
   QByteArray HVAR();
   QByteArray STAT();
   QByteArray MVAR();
+  QByteArray JTST();
+
   bool colrcpal(QByteArray& colr, QByteArray& cpal);
   bool isCff2 = false;
   QByteArray getPrivateDictCff2(int* size);  
 
   QByteArray CFF2VariationStore();
 
-  const uint16_t LTATNameId = 256;
-  const uint16_t RTATNameId = 257;
+  void populateGlyphs();
 
 private:
   OtLayout* ot_layout;
@@ -258,7 +259,7 @@ private:
 
   QMap<quint16, GlyphVis*> glyphs;
   GlobalValues globalValues;
-  int toInt(double value);
+  
   void int_to_cff2(QByteArray& cff, int val);
   void fixed_to_cff2(QByteArray& cff, double val);
   QByteArray charStrings(bool iscff2);

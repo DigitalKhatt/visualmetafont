@@ -35,8 +35,13 @@ extern "C"
 
 ToOpenType::ToOpenType(OtLayout* layout) :ot_layout{ layout }
 {
+  
 }
-
+void ToOpenType::populateGlyphs() {
+  for (auto& glyph : ot_layout->glyphs) {
+    glyphs.insert(glyph.charcode, &glyph);
+  }
+}
 void ToOpenType::initiliazeGlobals() {
   for (auto pglyph : glyphs) {
     auto& glyph = *pglyph;
@@ -95,13 +100,6 @@ This font is distributed in the hope that it will be useful, but WITHOUT ANY WAR
 
 As a special exception, if you create a document which uses this font, and embed this font or unaltered portions of this font into the document, this font does not by itself cause the resulting document to be covered by the GNU General Public License. This exception does not however invalidate any other reasons why the document might be covered by the GNU General Public License. If you modify this font, you may extend this exception to your version of the font, but you are not obligated to do so. If you do not wish to do so, delete this exception statement from your version.)license";
 
-}
-
-int ToOpenType::toInt(double value) {
-  if (value < 0)
-    return floor(value);
-  else
-    return ceil(value);
 }
 
 void ToOpenType::setGIds() {
@@ -316,6 +314,11 @@ bool ToOpenType::GenerateFile(QString fileName) {
     tables.append({ HVAR(),HB_TAG('H','V','A','R') });
     //tables.append({ MVAR(),HB_TAG('M','V','A','R') });
     tables.append({ STAT(),HB_TAG('S','T','A','T') });
+    if (ot_layout->extended) {
+      tables.append({ JTST(),HB_TAG('J', 'T', 'S', 'T') });
+    }
+    
+    
   }
 
 
@@ -638,11 +641,8 @@ QByteArray ToOpenType::name() {
   names.append(Name{ 21,globalValues.FamilyName });
   names.append(Name{ 22,globalValues.Weight });
 
-  names.append(Name{ LTATNameId,"Left Elongation" });
-  names.append(Name{ RTATNameId,"Right Elongation" });
-
-
-
+  names.append(Name{ ot_layout->LTATNameId,"Left Elongation" });
+  names.append(Name{ ot_layout->RTATNameId,"Right Elongation" });
 
   QByteArray stringStorage;
   uint16_t offset = 0;
@@ -1811,39 +1811,13 @@ void ToOpenType::setAyaGlyphPaths() {
   }
 }
 QByteArray ToOpenType::fvar() {
-  QByteArray data;
-
-  int axisCount = 2;
-
-  data << (uint16_t)1; // majorVersion
-  data << (uint16_t)0; // minorVersion
-  data << (uint16_t)16; // axesArrayOffset
-  data << (uint16_t)2; // This field is permanently reserved. Set to 2.
-  data << (uint16_t)axisCount; // axisCount
-  data << (uint16_t)20; // axisSize
-  data << (uint16_t)0; // instanceCount
-  data << (uint16_t)12; // instanceSize : axisCount * sizeof(Fixed) + 4
-
-  //VariationAxisRecord[0]
-  data << (uint32_t)HB_TAG('L', 'T', 'A', 'T');
-  data << getFixed(-2); // minValue
-  data << getFixed(0); // defaultValue
-  data << getFixed(12); // maxValue
-  data << (uint16_t)0; // flags
-  data << (uint16_t)LTATNameId; // axisNameID
-
-  //VariationAxisRecord[1]
-  data << (uint32_t)HB_TAG('R', 'T', 'A', 'T');
-  data << getFixed(-2); // minValue
-  data << getFixed(0); // defaultValue
-  data << getFixed(12); // maxValue
-  data << (uint16_t)0; // flags
-  data << (uint16_t)RTATNameId; // axisNameID
-
-
-
-  return data;
+  return ot_layout->fvar();
 }
+QByteArray ToOpenType::JTST() {
+  return ot_layout->JTST();
+}
+
+
 QByteArray ToOpenType::STAT() {
 
   QByteArray data;
@@ -1858,11 +1832,11 @@ QByteArray ToOpenType::STAT() {
   data << (uint16_t)2; // elidedFallbackNameID
 
   data << (uint32_t)HB_TAG('L', 'T', 'A', 'T'); //axisTag
-  data << (uint16_t)LTATNameId; // axisNameID
+  data << (uint16_t)ot_layout->LTATNameId; // axisNameID
   data << (uint16_t)0; // axisOrdering
 
   data << (uint32_t)HB_TAG('R', 'T', 'A', 'T'); //axisTag
-  data << (uint16_t)RTATNameId; // axisNameID
+  data << (uint16_t)ot_layout->RTATNameId; // axisNameID
   data << (uint16_t)1; // axisOrdering
 
   return data;

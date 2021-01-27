@@ -417,7 +417,7 @@ namespace feayy {
 
 		QVector<GlyphSet*> seq;
 
-		explicit GlyphSetRegExpGlyphSeq(vector<Glyph*>* glyphSeq) {
+		explicit GlyphSetRegExpGlyphSeq(std::vector<Glyph*>* glyphSeq) {
 			for (auto glyph : *glyphSeq) {
 				this->seq.append(new GlyphSet(glyph));
 			}
@@ -549,10 +549,10 @@ namespace feayy {
 	class Mark2BaseRule : public LookupStatement {
 	public:
 		GlyphSet* baseGlyphSet;
-		vector<Mark2BaseClass*>* mark2baseclasses;
+    std::vector<Mark2BaseClass*>* mark2baseclasses;
 		Lookup::Type type;
 
-		explicit Mark2BaseRule(GlyphSet* baseGlyphSet, vector<Mark2BaseClass*>* mark2baseclasses, Lookup::Type type)
+		explicit Mark2BaseRule(GlyphSet* baseGlyphSet, std::vector<Mark2BaseClass*>* mark2baseclasses, Lookup::Type type)
 			:baseGlyphSet{ baseGlyphSet }, mark2baseclasses{ mark2baseclasses }, type{ type } {}
 
 		void accept(Visitor&) override;
@@ -656,7 +656,10 @@ namespace feayy {
 			:firstglyph{ firstglyph }, secondglyph{ secondglyph }, format{ format }, expansion{ expansion }, startEndLig{ startEndLig }{}
 
 		explicit SingleSubstituionRule(Glyph* firstglyph, float lefttatweel, float righttatweel)
-			:firstglyph{ firstglyph }, secondglyph{ nullptr }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel }, startEndLig{ StartEndLig::StartEnd }{}
+			:firstglyph{ firstglyph }, secondglyph{ firstglyph }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel }, startEndLig{ StartEndLig::StartEnd }{}
+
+    explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, float lefttatweel, float righttatweel)
+      :firstglyph{ firstglyph }, secondglyph{ secondglyph }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel }, startEndLig{ StartEndLig::StartEnd }{}
 
 		explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, float lefttatweel, float righttatweel)
 			:firstGlyphSet{ firstGlyphSet }, firstType{ FirstType::GLYPHSET }, secondglyph{ nullptr }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel },
@@ -895,6 +898,7 @@ namespace feayy {
 		featuremap_type		features;
 		std::map<std::string, TableDefinition*> tables;
 		const QJsonObject* json;
+    JustTable jusTable;
 
 		FeaRoot* root;
 
@@ -907,8 +911,6 @@ namespace feayy {
 		{
 			delete root;
 		}
-
-		void useLookup(QString lookupName);
 
 		void populateFeatures();
 
@@ -933,6 +935,7 @@ namespace feayy {
 		virtual void accept(LookupReference&) = 0;
 		virtual void accept(LigatureSubstitutionRule&) = 0;
 		virtual void accept(TableDefinition&) = 0;
+    virtual void accept(JustTable&) = 0;
 	};
 
 	class LookupDefinitionVisitor : public Visitor {
@@ -954,6 +957,8 @@ namespace feayy {
 		void accept(LookupReference&) override;
 		void accept(LigatureSubstitutionRule&) override;
 		void accept(TableDefinition&) override;
+    void accept(JustTable&) override;
+
 
 		Lookup* lookup;
 		std::string currentFeature;

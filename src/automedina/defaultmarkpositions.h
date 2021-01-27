@@ -206,11 +206,21 @@ public:
   Defaullowmarkanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-    GlyphVis& curr = _y.glyphs[glyphName];
+    GlyphVis* curr = &_y.glyphs[glyphName];
+
+    if (lefttatweel != 0.0 || righttatweel != 0.0) {
+      GlyphParameters parameters{};
+
+      parameters.lefttatweel = lefttatweel;
+      parameters.righttatweel = righttatweel;
+
+      curr = curr->getAlternate(parameters);
+    }
 
 
-    int width = curr.width * 0.5;
-    int height = curr.height;
+
+    int width = curr->width * 0.5;
+    int height = curr->height;
 
     width = width + adjust.x();
     height = height + adjust.y();

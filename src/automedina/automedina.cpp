@@ -30,7 +30,7 @@
 #include "qdebug.h"
 
 
-
+using namespace std;
 
 CalcAnchor  Automedina::getanchorCalcFunctions(QString functionName, Subtable* subtable) {
   if (functionName == "defaultmarkabovemark") {
@@ -294,6 +294,48 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["feh.fina.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["qaf.isol.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["qaf.fina.expa"] = { 5,0,0,0 };
+  /*
+  layout->expandableGlyphs["behshape.init"] = { 5,-1.0,0,0 };
+  layout->expandableGlyphs["hah.init"] = { 5,-1.0,0,0 };
+  layout->expandableGlyphs["seen.init"] = { 5,-1.0,0,0 };
+  layout->expandableGlyphs["sad.init"] = { 5,-1.0,0,0 };
+  layout->expandableGlyphs["tah.init"] = { 5,-1.0,0,0 };
+  layout->expandableGlyphs["ain.init"] = { 5,-1.0,0,0 };
+  layout->expandableGlyphs["fehshape.init"] = { 5,-1.0,0,0 };
+  layout->expandableGlyphs["kaf.init"] = { 5,-1.2,0,0 };
+  layout->expandableGlyphs["kaf.init.ii"] = { 5,-1.0,0,0 };
+  layout->expandableGlyphs["lam.init"] = { 5,-1.0,0,0 };
+  layout->expandableGlyphs["meem.init"] = { 5,-1.0,0,0 };
+  layout->expandableGlyphs["heh.init"] = { 5,-1.0,0,0 };
+  layout->expandableGlyphs["kaf.init.ii"] = { 5,-1.0,0.0,0.0 };
+
+  layout->expandableGlyphs["heh.medi"] = { 5,-1.0,0,0 };
+  layout->expandableGlyphs["behshape.medi"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["behshape.medi.beforeseen"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["behshape.medi.beforenoon"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["hah.medi"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["hah.medi.afterbeh"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["hah.medi.lam_hah"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["hah.medi.beforemeem"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["seen.medi"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["sad.medi"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["tah.medi"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["ain.medi"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["fehshape.medi"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["kaf.medi"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["lam.medi"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["lam.medi.afterkaf"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["meem.medi"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["meem.medi.afterhah"] = { 5,-1.0,5,-1.0 };
+  layout->expandableGlyphs["seen.medi.basmala"] = { 20,0,0,0 };
+
+  layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,5,-1.0 };
+  layout->expandableGlyphs["hah.fina"] = { 0.0,0.0,5,-1.0 };
+  layout->expandableGlyphs["feh.fina"] = { 0.0,0.0,5,-1.0 };
+  layout->expandableGlyphs["meem.fina"] = { 0.0,0.0,5,-1.0 };
+  layout->expandableGlyphs["behshape.fina"] = { 0.0,0.0,5,-1.0 };
+  layout->expandableGlyphs["qaf.fina"] = { 0.0,0.0,5,-1.0 };
+  layout->expandableGlyphs["noon.fina.basmala"] = { 10.0,0.0,0,-1.0 };*/
 
   layout->expandableGlyphs["behshape.init"] = { 5,-0.5,0,0 };
   layout->expandableGlyphs["hah.init"] = { 5,-0.5,0,0 };
@@ -302,7 +344,7 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["tah.init"] = { 5,-0.5,0,0 };
   layout->expandableGlyphs["ain.init"] = { 5,-0.5,0,0 };
   layout->expandableGlyphs["fehshape.init"] = { 5,-0.5,0,0 };
-  layout->expandableGlyphs["kaf.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["kaf.init"] = { 5,-1.2,0,0 };
   layout->expandableGlyphs["kaf.init.ii"] = { 5,-0.5,0,0 };
   layout->expandableGlyphs["lam.init"] = { 5,-0.5,0,0 };
   layout->expandableGlyphs["meem.init"] = { 5,-0.5,0,0 };
@@ -325,7 +367,10 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["lam.medi"] = { 5,-0.5,5,-0.5 };
   layout->expandableGlyphs["lam.medi.afterkaf"] = { 5,-0.5,5,-0.5 };
   layout->expandableGlyphs["meem.medi"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["meem.medi.afterhah"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["meem.medi.afterhah"] = { 5,-1.0,5,-0.5 };
+  layout->expandableGlyphs["behshape.medi.beforenoon"] = { 0,0,0,-0.4 };
+  layout->expandableGlyphs["seen.medi.basmala"] = { 20,0,0,0 };
+  
 
   layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["hah.fina"] = { 0.0,0.0,5,-0.5 };
@@ -333,6 +378,10 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["meem.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["behshape.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["qaf.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["noon.fina.basmala"] = { 10.0,0.0,0,-0.5 };
+
+  layout->expandableGlyphs["fatha"] = { 1.5,-1.0,0,0 };
+  layout->expandableGlyphs["kasra"] = { 1,-1.0,0,0 };
   
 }
 

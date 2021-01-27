@@ -30,6 +30,7 @@
 #include <hb-ot-layout-common.hh>
 #include <iostream>
 
+using namespace std;
 
 QDataStream& operator<<(QDataStream& s, const QVector<quint16>& v)
 {
@@ -171,13 +172,15 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
   coverage << (quint16)glyphCount;
 
   QMapIterator<quint16, GlyphExpansion>i(expansion);
+  QMapIterator<quint16, quint16>substIter(subst);
 
-  while (i.hasNext()) {
+  while (substIter.hasNext()) {
     i.next();
+    substIter.next();
 
     GlyphExpansion expan = i.value();
 
-    quint16 substGlyph = i.key();
+    quint16 substGlyph = substIter.value();
 
     if (expan.MinLeftTatweel != 0 || expan.MinRightTatweel != 0) {
       GlyphParameters parameters{};
@@ -189,7 +192,7 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
       substGlyph = glyph->charcode;
     }
     root << substGlyph;
-    coverage << (quint16)i.key();
+    coverage << (quint16)substIter.key();
 
   }
 
@@ -260,7 +263,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
 
 
   quint16 glyphCount = expansion.size();
-  quint16 coverage_offset = 2 + 2 + 2 + 8 * glyphCount;
+  quint16 coverage_offset = 2 + 2 + 2 + 10 * glyphCount;
 
 
   root << (quint16)format;
@@ -276,15 +279,194 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
   while (i.hasNext()) {
     i.next();
 
+    root << (uint16_t)subst[i.key()];
+
     GlyphExpansion expan = i.value();
 
-    OT::HBFixed lefttatweel;
-    lefttatweel.set_float(expan.MinLeftTatweel);
+    if (!m_layout->useNormAxisValues) {
+      OT::HBFixed lefttatweel;
+      lefttatweel.set_float(expan.MinLeftTatweel);
 
-    OT::HBFixed righttatweel;
-    righttatweel.set_float(expan.MinRightTatweel);
+      OT::HBFixed righttatweel;
+      righttatweel.set_float(expan.MinRightTatweel);
 
-    root << lefttatweel << righttatweel;
+      root << lefttatweel << righttatweel;
+    }
+    else {
+      OT::HBFixed value;
+
+      ValueLimits limits;
+
+      auto& name = m_layout->glyphNamePerCode.value(subst[i.key()]);     
+
+      auto& find = m_layout->expandableGlyphs.find(name);
+
+      if (find != m_layout->expandableGlyphs.end()) {
+        limits = find->second;
+      }      
+
+      if ((expan.MinLeftTatweel < 0 && expan.MinLeftTatweel < limits.minLeft) || (expan.MinLeftTatweel > 0 && expan.MinLeftTatweel > limits.maxLeft)) {
+        throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+      }
+      else if (expan.MinLeftTatweel < 0.0) {
+        value.set_float(-expan.MinLeftTatweel / limits.minLeft);
+        root << value;
+      }
+      else if (expan.MinLeftTatweel > 0.0) {
+        value.set_float(expan.MinLeftTatweel / limits.maxLeft);
+        root << value;
+      }
+      else {
+        value.set_float(0.0);
+        root << value;
+      }
+
+      if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
+        throw new runtime_error("MinRightTatweel error for glyph " + name.toStdString());
+      }
+      else if (expan.MinRightTatweel < 0.0) {
+        value.set_float(-expan.MinRightTatweel / limits.minRight);
+        root << value;
+      }
+      else if (expan.MinRightTatweel > 0.0) {
+        value.set_float(expan.MinRightTatweel / limits.maxRight);
+        root << value;
+      }
+      else {
+        value.set_float(0.0);
+        root << value;
+      }
+    }
+
+   
+    coverage << (quint16)i.key();
+
+  }
+
+  root.append(coverage);
+
+  return root;
+};
+
+QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
+
+  QByteArray root;
+  QByteArray coverage;
+  QByteArray substituteGlyphIDs;
+
+
+
+  quint16 glyphCount = expansion.size();
+  quint16 coverage_offset = 2 + 2 + 2 + 24 * glyphCount;
+
+
+  root << (quint16)format;
+  root << coverage_offset;
+  root << glyphCount;
+
+
+  coverage << (quint16)1;
+  coverage << (quint16)glyphCount;
+
+  QMapIterator<quint16, GlyphExpansion>i(expansion);
+
+  while (i.hasNext()) {
+    i.next();
+
+    root << (uint16_t)subst[i.key()];
+
+    GlyphExpansion expan = i.value();
+
+    if (!m_layout->useNormAxisValues) {
+      OT::HBFixed minLeftTatweel;
+      minLeftTatweel.set_float(expan.MinLeftTatweel);
+      root << minLeftTatweel;
+
+      OT::HBFixed maxLeftTatweel;
+      maxLeftTatweel.set_float(expan.MaxLeftTatweel);
+      root << maxLeftTatweel;
+
+      OT::HBFixed minRightTatweel;
+      minRightTatweel.set_float(expan.MinRightTatweel);
+      root << minRightTatweel;
+
+      OT::HBFixed maxRightTatweel;
+      maxRightTatweel.set_float(expan.MaxRightTatweel);
+      root << maxRightTatweel;
+    }
+    else {
+      OT::HBFixed value;
+      ValueLimits limits;
+
+      auto& name = m_layout->glyphNamePerCode.value(subst[i.key()]);      
+
+      auto& find = m_layout->expandableGlyphs.find(name);
+
+      if (find != m_layout->expandableGlyphs.end()) {
+        limits = find->second;
+      }      
+
+      if (expan.MinLeftTatweel < limits.minLeft || expan.MinLeftTatweel > 0) {
+        throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+      }
+      else if (expan.MinLeftTatweel != 0.0) {
+        value.set_float(-expan.MinLeftTatweel / limits.minLeft);
+        root << value;
+      }
+      else {
+        
+        value.set_float(0.0);
+        root << value;
+      }
+
+      if (expan.MaxLeftTatweel > limits.maxLeft || expan.MaxLeftTatweel < 0) {
+        throw new runtime_error("MaxLeftTatweel error for glyph " + name.toStdString());
+      }
+      else if (expan.MaxLeftTatweel != 0.0) {
+        value.set_float(expan.MaxLeftTatweel / limits.maxLeft);
+        root << value;
+      }
+      else {
+        value.set_float(0.0);
+        root << value;
+      }
+
+      if (expan.MinRightTatweel < limits.minRight || expan.MinRightTatweel > 0) {
+        throw new runtime_error("MinRightTatweel error for glyph " + name.toStdString());
+      }
+      else if (expan.MinRightTatweel != 0.0) {
+        value.set_float(-expan.MinRightTatweel / limits.minRight);
+        root << value;
+      }
+      else {
+        value.set_float(0.0);
+        root << value;
+      }
+
+      if (expan.MaxRightTatweel > limits.maxRight || expan.MaxRightTatweel < 0) {
+        throw new runtime_error("MaxRightTatweel error for glyph " + name.toStdString());
+      }
+      else if (expan.MaxRightTatweel != 0.0) {
+        value.set_float(expan.MaxRightTatweel / limits.maxRight);
+        root << value;
+      }
+      else {
+        value.set_float(0.0);
+        root << value;
+      }
+    }
+
+   
+
+    root << (uint16_t)expan.weight;
+    uint32_t flags = 0;
+
+    flags = flags | (uint32_t)(expan.startEndLig);
+    flags = flags | (expan.stretchIsAbsolute << 3);
+    flags = flags | (expan.shrinkIsAbsolute << 4);
+
+    root << flags;
+
     coverage << (quint16)i.key();
 
   }
@@ -1370,7 +1552,7 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
     }
 
     bool done = false;
-    if (m_layout->isOTVar && !markClass.markanchors.contains(markglyphName) && markClass.markfunction != nullptr && false) {
+    if (m_layout->isOTVar && !markClass.markanchors.contains(markglyphName) && markClass.markfunction != nullptr) {
       const auto& ff = m_layout->expandableGlyphs.find(m_layout->glyphNamePerCode[charcode]);
 
       if (ff != m_layout->expandableGlyphs.end()) {

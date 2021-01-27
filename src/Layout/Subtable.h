@@ -29,9 +29,6 @@
 #include "JustificationContext.h"
 
 
-using namespace std;
-
-
 struct Lookup;
 class QJsonObject;
 class AnchorCalc;
@@ -102,7 +99,7 @@ struct SingleSubtable : Subtable {
 struct SingleSubtableWithExpansion : SingleSubtable {
 
 	SingleSubtableWithExpansion(Lookup* lookup);
-	//QByteArray getOpenTypeTable() override;
+	QByteArray getOpenTypeTable(bool extended) override;
 	//void readJson(const QJsonObject &json) override;
 
 	QMap<quint16, GlyphExpansion > expansion;
@@ -194,10 +191,10 @@ struct SingleAdjustmentSubtable : Subtable {
 struct CursiveSubtable : Subtable {
 
 	struct EntryExit {
-		optional<QPoint> entry;
+		std::optional<QPoint> entry;
 		CalcAnchor entryFunction;
 		QString entryName;
-		optional<QPoint> exit;
+		std::optional<QPoint> exit;
 		CalcAnchor exitFunction;
 		QString exitName;
 	};
@@ -212,12 +209,12 @@ struct CursiveSubtable : Subtable {
 	QMap<quint16, QPoint> exitParameters;
 	QMap<quint16, QPoint> entryParameters;
 
-	virtual optional<QPoint> getEntry(quint16 glyph_id, double lefttatweel, double righttatweel);
+	virtual std::optional<QPoint> getEntry(quint16 glyph_id, double lefttatweel, double righttatweel);
 
 
 	virtual QPoint calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint entry);
 
-	virtual optional<QPoint> getExit(quint16 glyph_id, double lefttatweel, double righttatweel);
+	virtual std::optional<QPoint> getExit(quint16 glyph_id, double lefttatweel, double righttatweel);
 
 
 
@@ -256,8 +253,8 @@ struct MarkBaseSubtable : Subtable {
 	QMap<quint16, quint16> markCodes;
 	QMap<quint16, QString> classNamebyIndex;
 
-	virtual optional<QPoint> getBaseAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel);
-	virtual optional<QPoint> getMarkAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel);
+	virtual std::optional<QPoint> getBaseAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel);
+	virtual std::optional<QPoint> getMarkAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel);
 };
 
 struct ChainingSubtable : Subtable {

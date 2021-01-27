@@ -23,6 +23,8 @@
 #include <iostream>
 #include "Subtable.h"
 
+using namespace std;
+
 namespace feayy {
 
 

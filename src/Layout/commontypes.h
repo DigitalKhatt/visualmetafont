@@ -23,10 +23,10 @@
 #include <math.h>
 
 struct ValueLimits {
-  double maxLeft = 0.0;
-  double minLeft = 0.0;
-  double maxRight = 0.0;
-  double minRight = 0.0;
+  float maxLeft = 0.0;
+  float minLeft = 0.0;
+  float maxRight = 0.0;
+  float minRight = 0.0;
 };
 
 struct DefaultDelta {
@@ -46,6 +46,13 @@ inline int32_t getFixed(float val) {
 }
 inline  int16_t getF2DOT14(float val) {
   return  roundf(val * 16384.f);
+}
+
+inline int toInt(double value) {
+  if (value < 0)
+    return floor(value);
+  else
+    return ceil(value);
 }
 
 namespace std

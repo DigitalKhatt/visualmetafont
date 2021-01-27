@@ -51,6 +51,7 @@ set(SRC_FILES
     harfbuzz/src/hb-ot-metrics.cc
     harfbuzz/src/hb-number.cc
     harfbuzz/src/hb-ot-name.cc
+    harfbuzz/src/hb-ot-layout-jtst-context.cc
 )
 
 # Add library to build.

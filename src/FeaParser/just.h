@@ -44,12 +44,12 @@ namespace feayy {
 	
 
 	struct BackupSequence {
-		std::vector<shared_ptr<RuleRegExpLeaf>> sequence;
+		std::vector<std::shared_ptr<RuleRegExpLeaf>> sequence;
 		int glyphSetNumber = 0;
 	};
 
 	//using UP_RuleRegExp = unique_ptr<RuleRegExp>;
-	using PRuleRegExp = shared_ptr<RuleRegExp>;
+	using PRuleRegExp = std::shared_ptr<RuleRegExp>;
 
 
 	class Pass {
@@ -235,13 +235,13 @@ namespace feayy {
 
 	class RuleRegExpEndMarker : public RuleRegExpLeaf {
 		std::shared_ptr<RuleRegExp> clone() override {
-			return make_shared<RuleRegExpEndMarker>();
+			return std::make_shared<RuleRegExpEndMarker>();
 		}
 	};
 
 	class RuleRegExpANY : public RuleRegExpLeaf {
 		std::shared_ptr<RuleRegExp> clone() override {
-			return make_shared<RuleRegExpANY>();
+			return std::make_shared<RuleRegExpANY>();
 		}
 		
 	};
@@ -264,7 +264,7 @@ namespace feayy {
 		bool disabled() { return disabled_; }
 
 		std::shared_ptr<RuleRegExp> clone() override {
-			return make_shared<RuleRegExpAction>(_name);
+			return std::make_shared<RuleRegExpAction>(_name);
 		}
 
 	private:
@@ -280,7 +280,7 @@ namespace feayy {
 		}
 
 		std::shared_ptr<RuleRegExp> clone() override {
-			return make_shared<RuleRegExpPosition>();
+			return std::make_shared<RuleRegExpPosition>();
 		}
 	};
 
@@ -360,7 +360,7 @@ namespace feayy {
 		}
 
 		std::shared_ptr<RuleRegExp> clone() override {
-			return make_shared<RuleRegExpConcat>(left->clone(),right->clone());
+			return std::make_shared<RuleRegExpConcat>(left->clone(),right->clone());
 		}
 
 	protected:
@@ -398,7 +398,7 @@ namespace feayy {
 		virtual void setBackupSequence(std::vector<BackupSequence>& sequences) override {
 
 
-			vector<BackupSequence> copy2 = sequences;
+      std::vector<BackupSequence> copy2 = sequences;
 
 			right->setBackupSequence(copy2);
 
@@ -420,7 +420,7 @@ namespace feayy {
 		}
 
 		std::shared_ptr<RuleRegExp> clone() override {
-			return make_shared<RuleRegExpOr>(left->clone(), right->clone());
+			return std::make_shared<RuleRegExpOr>(left->clone(), right->clone());
 		}
 
 	protected:
@@ -465,7 +465,7 @@ namespace feayy {
 				throw std::runtime_error("Backup sequence cannot contain Kleene star");
 			}
 			else {
-				vector<BackupSequence> copy2 = sequences;
+        std::vector<BackupSequence> copy2 = sequences;
 				regex->setBackupSequence(sequences);
 				if (!copy2.empty()) {
 					for (auto& seq : copy2) {
@@ -486,7 +486,7 @@ namespace feayy {
 		}
 
 		std::shared_ptr<RuleRegExp> clone() override {
-			return make_shared<RuleRegExpRepeat>(regex->clone(), repeatition);
+			return std::make_shared<RuleRegExpRepeat>(regex->clone(), repeatition);
 		}
 
 	protected:
@@ -494,6 +494,22 @@ namespace feayy {
 		RuleRegExpRepeatType repeatition;
 
 	};
+
+  struct JustTable : Statement{
+    struct JustStep {
+      std::vector<std::string> lookupNames;
+      JustStep() = default;
+      JustStep(std::vector<std::string> lookupNames) : lookupNames{ lookupNames } {};
+    };
+
+    JustTable() = default;
+    JustTable(std::vector<JustStep> stretchRules, std::vector<JustStep> shrinkRules) : stretchRules{ stretchRules }, shrinkRules{ shrinkRules }{}
+    
+    std::vector<JustStep> stretchRules;
+    std::vector<JustStep> shrinkRules;
+
+    void accept(Visitor&) override;
+  };
 
 
 

@@ -58,41 +58,46 @@
 %token<double> DOUBLE_LITERAL
 %token<std::string> IDENTIFIANT REGEXP GLYPHNAME
 
-%token LOOKUP FEATURE POSITION SUBSTITUTE BASE ANCHOR MARK MARKCLASS CURSIVE T_NULL NOTDEF FUNCTION BY FROM COLOR CALLBACK EXPANSION ADD STARTLIG ENDLIG ENDKASHIDA
+%token LOOKUP FEATURE POSITION SUBSTITUTE BASE ANCHOR MARK MARKCLASS CURSIVE T_NULL NOTDEF FUNCTION BY FROM
+%token COLOR CALLBACK EXPANSION ADD STARTLIG ENDLIG ENDKASHIDA JUST
 %token LOOKUPFLAG RightToLeft IgnoreBaseGlyphs IgnoreLigatures IgnoreMarks MarkAttachmentType UseMarkFilteringSet
-%token TABLE ENDTABLE PASS ENDPASS ANY
+%token TABLE ENDTABLE PASS ENDPASS ANY STRETCH SHRINK END STEP
 
 %type <FeaRoot*> root
-%type <vector<Statement *> *> statements
+%type <std::vector<Statement *> *> statements
 %type <Statement*> statement 
 %type <Glyph*> glyph
 %type <ClassName*> classname
 %type <ClassComponent*> classcomponent
 %type <GlyphClass*> glyphclass
-%type <vector<ClassComponent *>> classcomponents
+%type <std::vector<ClassComponent *>> classcomponents
 %type <GlyphSet*> glyphset glyphsetwithoutglyph
 %type <std::string> lookupreference explicitlookup featurereference identifier featuretag
 %type <ValueRecord> valuerecord
 %type <LookupFlag*> flag flags lookupflag
 %type <LookupStatement*> feature_statement lookup_statement lookup_definition markclassdefinition gsubrule gposrule singlesub multiplesub alternatesub classdefinition contextualligagsub
 %type <LookupStatement*> singleadjustment cursiverule mark2base mark2mark 
-%type <vector<LookupStatement *> *> lookup_statements feature_statements
+%type <std::vector<LookupStatement *> *> lookup_statements feature_statements
 %type <MarkedGlyphSetRegExp*> markedglyphsetregexp
-%type <vector<MarkedGlyphSetRegExp *>*> inputseq
+%type <std::vector<MarkedGlyphSetRegExp *>*> inputseq
 %type <GlyphSetRegExp*> glyphsetregexp  glyphsetregexpwithoutglyph
 %type <ChainingContextualRule*> contextualexplicit contextualgpos
 %type <Anchor*> anchor anchorformat
 %type <Mark2BaseClass*> mark2baseclass
-%type <vector<Mark2BaseClass *>*> mark2baseclasses
+%type <std::vector<Mark2BaseClass *>*> mark2baseclasses
 %type <double> doubleorint
 %type <GlyphExpansion> expafactor
 %type <FeatureDefenition*> feature_definition;
-%type <vector<Glyph *>*> glyphseq;
+%type <std::vector<Glyph *>*> glyphseq;
 %type <StartEndLig> startendlig;
 %type <PRuleRegExp> rule_regex term factor  base  rule_lhs rule_rhs rule_context ; //factorcaret
 %type <GraphiteRule> rule openttype_regexp;
 %type <Pass>  rules pass_definition;
 %type <TableDefinition*>  table_definition passes;
+%type <std::vector<std::string>> lookupreferences;
+%type <JustTable::JustStep> juststep;
+%type <JustTable> justrules;
+%type <std::vector<JustTable::JustStep>> juststeps stretch shrink;
 
 //%destructor { delete $$; } <std::string>
 
@@ -105,7 +110,7 @@ root
 	;
 
 statements
-	:  { $$ = new vector<Statement *>(); }  /* empty */
+	:  { $$ = new std::vector<Statement *>(); }  /* empty */
 	| statements statement ';'
 		{
 			$$ = $1;
@@ -136,7 +141,7 @@ feature_definition
 	;
 
 feature_statements
-	: feature_statement ';' { $$ = new vector<LookupStatement *>(); $$->push_back($1); }
+	: feature_statement ';' { $$ = new std::vector<LookupStatement *>(); $$->push_back($1); }
 	| feature_statements feature_statement ';'
 		{
 			$$ = $1;
@@ -176,7 +181,7 @@ lookup_definition
 	;
 
 lookup_statements
-	: lookup_statement ';' { $$ = new vector<LookupStatement *>(); $$->push_back($1); }
+	: lookup_statement ';' { $$ = new std::vector<LookupStatement *>(); $$->push_back($1); }
 	| lookup_statements lookup_statement ';'
 		{
 			$$ = $1;
@@ -226,6 +231,7 @@ singlesub
 	| SUBSTITUTE CALLBACK glyph {$$ = new SingleSubstituionRule($glyph,$glyph,10);}
 	| SUBSTITUTE glyphclass ADD doubleorint[lefttatweel] doubleorint[righttatweel]  {$$ = new SingleSubstituionRule(new GlyphSet($glyphclass),$lefttatweel,$righttatweel);}
 	| SUBSTITUTE glyph ADD doubleorint[lefttatweel] doubleorint[righttatweel]  {$$ = new SingleSubstituionRule(new GlyphSet($glyph),$lefttatweel,$righttatweel);}
+	| SUBSTITUTE glyph[glyph1] BY glyph[glyph2] ADD doubleorint[lefttatweel] doubleorint[righttatweel]  {$$ = new SingleSubstituionRule($glyph1,$glyph2,$lefttatweel,$righttatweel);}
 	| SUBSTITUTE CALLBACK glyph[glyph1] BY glyph[glyph2] {$$ = new SingleSubstituionRule($glyph1,$glyph2,10);}
 	| SUBSTITUTE CALLBACK glyph startendlig expafactor[factor] {$$ = new SingleSubstituionRule($glyph,$glyph,10,$factor,$startendlig);}
 	| SUBSTITUTE CALLBACK glyph[glyph1] BY glyph[glyph2] startendlig expafactor[factor] {$$ = new SingleSubstituionRule($glyph1,$glyph2,10,$factor,$startendlig);}
@@ -260,7 +266,7 @@ doubleorint
 	;
 
 glyphseq
-	: glyph glyph { $$ = new vector<Glyph *>{$1,$2}; }
+	: glyph glyph { $$ = new std::vector<Glyph *>{$1,$2}; }
 	| glyphseq glyph {$$ = $1; $$->push_back($glyph);}
 	;
 
@@ -350,7 +356,7 @@ glyphsetregexp
 
 
 inputseq
-	: markedglyphsetregexp  { $$ = new vector<MarkedGlyphSetRegExp *>();$$->push_back($1); } 		
+	: markedglyphsetregexp  { $$ = new std::vector<MarkedGlyphSetRegExp *>();$$->push_back($1); } 		
 	| inputseq markedglyphsetregexp	
 		{
 			$$ = $1;
@@ -470,6 +476,35 @@ identifier
 
 table_definition
 	: TABLE '(' identifier ')' passes ENDTABLE { $$ = $passes;driver.context.tables[$identifier] = $$;$$->name = std::move($identifier); }
+	| TABLE '(' JUST ')' '{' justrules '}' { driver.context.jusTable = $justrules; }
+	;
+
+justrules
+	: stretch shrink {$$=JustTable{$stretch,$shrink};}
+	| shrink stretch {$$=JustTable{$stretch,$shrink};}
+	| shrink {$$=JustTable{{},$shrink};}
+	| stretch {$$=JustTable{$stretch,{}};}
+	;
+
+stretch
+	: STRETCH '{' juststeps '}' {$$=$juststeps;}
+	;
+shrink
+	:  SHRINK '{' juststeps '}' {$$=$juststeps;}
+	;
+
+juststeps
+	: juststeps juststep { $$ = $1; $$.push_back($juststep);}
+	| juststep { $$ = std::vector<JustTable::JustStep>({$juststep});}
+	;
+
+juststep
+	: STEP '{'  lookupreferences '}' {$$ = JustTable::JustStep($lookupreferences);}
+	| lookupreference ';' {$$ = JustTable::JustStep(std::vector<std::string>{$lookupreference});}
+	;
+lookupreferences
+	: lookupreferences lookupreference ';' { $$ = $1; $$.push_back($lookupreference);}
+	| lookupreference ';' { $$ = std::vector<std::string>({$lookupreference});}
 	;
 
 passes
@@ -520,35 +555,35 @@ rule_context
 	;
 
 rule_regex   
-	: term '|' rule_regex { $$ = make_shared<RuleRegExpOr>($term,$3);}	
+	: term '|' rule_regex { $$ = std::make_shared<RuleRegExpOr>($term,$3);}	
 	| term	{ $$ = $term;}	
 	;
 
 term 
-	: term factor  { $$ = make_shared<RuleRegExpConcat>($1,$factor);}	
+	: term factor  { $$ = std::make_shared<RuleRegExpConcat>($1,$factor);}	
 	| factor	{ $$ = $factor;}		
 	;
 
 	/*
 factorcaret
 	: factor	{ $$ = $factor;}	
-	| '^' factor 			{ $$ = make_shared<RuleRegExpConcat>(make_shared<RuleRegExpPosition>(),$factor);}	
-	|  factor 	'^'		{ $$ = make_shared<RuleRegExpConcat>($factor, make_shared<RuleRegExpPosition>());}	
+	| '^' factor 			{ $$ = std::make_shared<RuleRegExpConcat>(make_shared<RuleRegExpPosition>(),$factor);}	
+	|  factor 	'^'		{ $$ = std::make_shared<RuleRegExpConcat>($factor, make_shared<RuleRegExpPosition>());}	
 	;*/
 	
 factor
-	: base '*'					{ $$ = make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::STAR);}
-	| base '?'					{ $$ = make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::OPT);}
-	| base '+'					{ $$ = make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::PLUS);}
-	| base '{' identifier '}'	{ $$ = make_shared<RuleRegExpConcat>($base,make_shared<RuleRegExpAction>($identifier));}	
-	| base '^'					{ $$ = make_shared<RuleRegExpConcat>($base, make_shared<RuleRegExpPosition>());}
+	: base '*'					{ $$ = std::make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::STAR);}
+	| base '?'					{ $$ = std::make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::OPT);}
+	| base '+'					{ $$ = std::make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::PLUS);}
+	| base '{' identifier '}'	{ $$ = std::make_shared<RuleRegExpConcat>($base,std::make_shared<RuleRegExpAction>($identifier));}	
+	| base '^'					{ $$ = std::make_shared<RuleRegExpConcat>($base, std::make_shared<RuleRegExpPosition>());}
 	| base						{ $$ = $base;}	
 	;
 
 base 
 	: '(' rule_regex ')' { $$ = $rule_regex;}	
-	| glyphset { $$ = make_shared<RuleRegExpGlyphSet>($1);}		
-	| ANY {$$ = make_shared<RuleRegExpANY>();}	
+	| glyphset { $$ = std::make_shared<RuleRegExpGlyphSet>($1);}		
+	| ANY {$$ = std::make_shared<RuleRegExpANY>();}	
 	;
 
 %%

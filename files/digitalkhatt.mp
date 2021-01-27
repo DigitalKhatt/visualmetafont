@@ -262,7 +262,7 @@ beginchar(cgj,847,-1,-1,-1);
 %847
 charwd := 0;
 endchar;
-beginchar(space,32,500,0,0);
+beginchar(space,32,75,0,0);
 %%beginbody
 % glyphname:space
 %%begincomponents
@@ -807,13 +807,13 @@ rightbearing := 0;
 
 savepicture:=1;
 enddefchar;
-beginchar(kasra,1616,-1,-1,-1);
+defchar(kasra,1616,-1,-1,-1);
 %%beginbody
 
-drawcomp(fatha,identity);
+fatha_(lefttatweel,0);
 leftbearing := 0;
 rightbearing := 0;
-endchar;
+enddefchar;
 beginchar(fathatan,1611,-1,-1,-1);
 %%backgroundimage:images/kastratan.jpg,-388,-876,1,0,0,1
 %%beginbody
@@ -9387,9 +9387,17 @@ noonshape.expa_(lefttatweel,0);
 points1 := z1;
 endgroup;
 
-currentpicture := currentpicture shifted - (points1 - z11 + (30,45)) ;
+draw pic shifted  (points1 - z11 + (30,45)) ;
 
-draw pic; % shifted (points1 - z11 + (30,45));
+currentpicture := currentpicture shifted (0,-100);
+
+rightanchor := rightanchor + (points1 - z11 + (30,45)) + (0,-100);
+
+tr_ := tr_ shifted (0,-90);
+
+%currentpicture := currentpicture shifted - (points1 - z11 + (30,45)) ;
+
+%draw pic; % shifted (points1 - z11 + (30,45));
 
 
 

@@ -31,13 +31,13 @@ FSMDriver::FSMDriver(OtLayout& layout) : layout{ layout } {
 		
 		auto bufferIndex = match_positions[pos].pos - 1;
 		buffer.info[bufferIndex].lefttatweel = 7;
-		cout << "action1 from lammbda at position " << pos << " and index " << bufferIndex << " at glyph " << layout.glyphNamePerCode.value(buffer.info[bufferIndex].codepoint).toStdString() << '\n';
+		std::cout << "action1 from lammbda at position " << pos << " and index " << bufferIndex << " at glyph " << layout.glyphNamePerCode.value(buffer.info[bufferIndex].codepoint).toStdString() << '\n';
 	};
 
 	auto action2 = [&layout = layout](hb_buffer_t& buffer, std::vector<Pos> match_positions, int pos, std::unordered_map<std::string, int>  aliases) {
 
 		auto bufferIndex = match_positions[pos].pos - 1;		
-		cout << "action2 from lammbda at position " << pos << " and index " << bufferIndex << " at glyph " << layout.glyphNamePerCode.value(buffer.info[bufferIndex].codepoint).toStdString() << '\n';
+    std::cout << "action2 from lammbda at position " << pos << " and index " << bufferIndex << " at glyph " << layout.glyphNamePerCode.value(buffer.info[bufferIndex].codepoint).toStdString() << '\n';
 	};
 
 	actions.insert({ "action1",action1 });

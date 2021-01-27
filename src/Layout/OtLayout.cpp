@@ -20,6 +20,7 @@
 
 
 #include "hb-ot-layout-gsub-table.hh"
+#include "hb-ot-hmtx-table.hh"
 #undef max
 #include "OtLayout.h"
 #include "Lookup.h"
@@ -114,6 +115,27 @@ static hb_blob_t* harfbuzzGetTables(hb_face_t* face, hb_tag_t tag, void* userDat
     data = layout->toOpenType.name();
     mode = HB_MEMORY_MODE_DUPLICATE;
     break;
+  case HB_TAG('f', 'v', 'a', 'r'):
+    data = layout->fvar();
+    mode = HB_MEMORY_MODE_DUPLICATE;
+    break;
+  case HB_TAG('H', 'V', 'A', 'R'):
+    data = layout->HVAR();
+    mode = HB_MEMORY_MODE_DUPLICATE;
+    break;
+  case HB_TAG('J', 'T', 'S', 'T'):
+    data = layout->JTST();
+    mode = HB_MEMORY_MODE_DUPLICATE;
+    break;
+  case  HB_TAG('h', 'm', 't', 'x'):
+    data = layout->toOpenType.hmtx();
+    mode = HB_MEMORY_MODE_DUPLICATE;
+    break;
+  case  HB_TAG('h', 'h', 'e', 'a'):
+    data = layout->toOpenType.hhea();
+    mode = HB_MEMORY_MODE_DUPLICATE;
+    break;
+
   }
 
   return hb_blob_create(data.constData(), data.size(), mode, NULL, NULL);
@@ -219,7 +241,61 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
 
 }
 
-static void get_glyph_h_advances(hb_font_t* font, void* font_data,
+static void
+hb_ot_get_glyph_h_advances(hb_font_t* font, void* font_data,
+  unsigned count,
+  const hb_codepoint_t* first_glyph,
+  unsigned glyph_stride,
+  hb_position_t* first_advance,
+  unsigned advance_stride,
+  void* user_data HB_UNUSED)
+{
+
+  OtLayout* layout = reinterpret_cast<OtLayout*>(font_data);
+
+  auto ot_face = layout->face;
+
+  //const hb_ot_face_t* ot_face = (const hb_ot_face_t*)font_data;
+  //const OT::hmtx_accelerator_t& hmtx = *ot_face->hmtx;
+
+  //const OT::hmtx_accelerator_t& hmtx = ot_face->table.hmtx;
+
+  //return ot_face->table.cmap->
+
+  int coords[2];
+
+  auto glyphs = (hb_glyph_info_t*)(first_glyph);
+  auto positions = (hb_glyph_position_t*)(first_advance);
+  for (unsigned int i = 0; i < count; i++)
+  {
+
+
+
+    //double leftTatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].lefttatweel, true);
+    //double righttatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].righttatweel, false);
+
+    /*
+    *first_advance = font->em_scale_x(ot_face->table.hmtx->get_advance(*first_glyph, font));
+    first_glyph = &StructAtOffsetUnaligned<hb_codepoint_t>(first_glyph, glyph_stride);
+    first_advance = &StructAtOffsetUnaligned<hb_position_t>(first_advance, advance_stride);*/
+    if (glyphs[i].lefttatweel != 0.0 || glyphs[i].righttatweel != 0.0) {
+      coords[0] = roundf(glyphs[i].lefttatweel * 16384.f);
+      coords[1] = roundf(glyphs[i].righttatweel * 16384.f);
+      font->num_coords = 2;
+      font->coords = &coords[0];
+      positions[i].x_advance = font->em_scale_x(ot_face->table.hmtx->get_advance(glyphs[i].codepoint, font));
+      font->num_coords = 0;
+      font->coords = nullptr;
+    }
+    else {
+      positions[i].x_advance = font->em_scale_x(ot_face->table.hmtx->get_advance(glyphs[i].codepoint, font));
+    }
+
+
+  }
+}
+
+static void get_glyph_h_advances_custom(hb_font_t* font, void* font_data,
   unsigned count,
   const hb_codepoint_t* first_glyph,
   unsigned glyph_stride,
@@ -246,7 +322,14 @@ static void get_glyph_h_advances(hb_font_t* font, void* font_data,
               glyphs[i].righttatweel = 6;
           }*/
 
-    positions[i].x_advance = getGlyphHorizontalAdvance(font, font_data, glyphs[i].codepoint, glyphs[i].lefttatweel, glyphs[i].righttatweel, user_data);
+          //positions[i].x_advance = getGlyphHorizontalAdvance(font, font_data, glyphs[i].codepoint, glyphs[i].lefttatweel, glyphs[i].righttatweel, user_data);
+
+    double leftTatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].lefttatweel, true);
+    double righttatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].righttatweel, false);
+
+    positions[i].x_advance = getGlyphHorizontalAdvance(font, font_data, glyphs[i].codepoint, leftTatweel, righttatweel, user_data);
+
+
   }
 
 }
@@ -266,8 +349,11 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
   if (lookupTable->type == Lookup::cursive) {
     CursiveSubtable* subtableTable = static_cast<CursiveSubtable*>(subtable);
 
+    double lefttatweel = layout->normalToParameter(context->glyph_id, context->lefttatweel, true);
+    double righttatweel = layout->normalToParameter(context->glyph_id, context->righttatweel, false);
+
     if (context->type == hb_cursive_anchor_context_t::entry) {
-      auto anchor = subtableTable->getEntry(context->glyph_id, context->lefttatweel, context->righttatweel);
+      auto anchor = subtableTable->getEntry(context->glyph_id, lefttatweel, righttatweel);
       if (anchor) {
 
         *x = anchor->x();
@@ -281,7 +367,7 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
       }
     }
     else if (context->type == hb_cursive_anchor_context_t::exit) {
-      auto anchor = subtableTable->getExit(context->glyph_id, context->lefttatweel, context->righttatweel);
+      auto anchor = subtableTable->getExit(context->glyph_id, lefttatweel, righttatweel);
       if (anchor) {
 
         *x = anchor->x();
@@ -304,7 +390,8 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
 
     QString className = subtableTable->classNamebyIndex[classIndex];
 
-
+    double lefttatweel = layout->normalToParameter(context->base_glyph_id, context->lefttatweel, true);
+    double righttatweel = layout->normalToParameter(context->base_glyph_id, context->righttatweel, false);
 
     if (context->type == hb_cursive_anchor_context_t::base) {
 
@@ -312,7 +399,7 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
 
       GlyphVis& curr = layout->glyphs[baseGlyphName];
 
-      auto anchor = subtableTable->getBaseAnchor(context->glyph_id, context->base_glyph_id, context->lefttatweel, context->righttatweel);
+      auto anchor = subtableTable->getBaseAnchor(context->glyph_id, context->base_glyph_id, lefttatweel, righttatweel);
       if (anchor) {
 
         *x = anchor->x();
@@ -332,7 +419,7 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
 
       GlyphVis& curr = layout->glyphs[markGlyphName];
 
-      auto anchor = subtableTable->getMarkAnchor(context->glyph_id, context->base_glyph_id, context->lefttatweel, context->righttatweel);
+      auto anchor = subtableTable->getMarkAnchor(context->glyph_id, context->base_glyph_id, lefttatweel, righttatweel);
       if (anchor) {
 
         *x = anchor->x();
@@ -484,7 +571,7 @@ static hb_bool_t apply_lookup(hb_font_t* font, void* font_data,
 
 }
 
-static hb_font_funcs_t* getFontFunctions()
+static hb_font_funcs_t* getFontFunctions(bool otVar)
 {
   static hb_font_funcs_t* harfbuzzCoreTextFontFuncs = 0;
 
@@ -493,7 +580,14 @@ static hb_font_funcs_t* getFontFunctions()
     hb_font_funcs_set_nominal_glyph_func(harfbuzzCoreTextFontFuncs, getNominalGlyph, NULL, NULL);
     //hb_font_funcs_set_nominal_glyphs_func(harfbuzzCoreTextFontFuncs, getNominalGlyphs, NULL, NULL);
     //hb_font_funcs_set_glyph_h_advance_func(harfbuzzCoreTextFontFuncs, getGlyphHorizontalAdvance, 0, 0);
-    hb_font_funcs_set_glyph_h_advances_func(harfbuzzCoreTextFontFuncs, get_glyph_h_advances, 0, 0);
+    if (!otVar) {
+      hb_font_funcs_set_glyph_h_advances_func(harfbuzzCoreTextFontFuncs, get_glyph_h_advances_custom, 0, 0);
+    }
+    else {
+      hb_font_funcs_set_glyph_h_advances_func(harfbuzzCoreTextFontFuncs, hb_ot_get_glyph_h_advances, nullptr, nullptr);
+
+    }
+
     hb_font_funcs_set_cursive_anchor_func(harfbuzzCoreTextFontFuncs, get_cursive_anchor, 0, 0);
     hb_font_funcs_set_substitution_func(harfbuzzCoreTextFontFuncs, get_substitution, 0, 0);
     hb_font_funcs_set_apply_lookup_func(harfbuzzCoreTextFontFuncs, apply_lookup, 0, 0);
@@ -673,14 +767,14 @@ QByteArray OtLayout::getGDEF() {
     for (int i = 0; i < 4; i++) {
       itemVariationData << (uint16_t)i; //regionIndexes
     }
-    std::map<int,DefaultDelta> delatSets;
-    for(auto& it : defaultDeltaSets){
+    std::map<int, DefaultDelta> delatSets;
+    for (auto& it : defaultDeltaSets) {
       delatSets.insert({ it.second,it.first });
     }
     for (auto& it : delatSets) {
       itemVariationData << (uint16_t)it.second.maxLeft << (uint16_t)it.second.minLeft << (uint16_t)it.second.maxRight << (uint16_t)it.second.minRight;
     }
-    
+
 
     QByteArray variationRegionList = getVariationRegionList();
 
@@ -693,7 +787,7 @@ QByteArray OtLayout::getGDEF() {
     itemVariationStore << (uint32_t)(startOffset + variationRegionList.size()); //itemVariationDataOffsets[0]    
     itemVariationStore.append(variationRegionList);
     itemVariationStore.append(itemVariationData);
-    
+
   }
 
   gdef_array << (quint16)1 << (quint16)3 << glyphClassDefOffset << (quint16)0 << (quint16)0 << (quint16)0 << markGlyphSetsDefOffset << itemVarStoreOffset;
@@ -1026,7 +1120,7 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub) {
 #if DIGITALKHATT_WEBLIB
 OtLayout::OtLayout(MP mp, bool extended) : fsmDriver{ *this } {
 #else
-OtLayout::OtLayout(MP mp, bool extended, QObject * parent) :QObject(parent), fsmDriver{ *this } {
+OtLayout::OtLayout(MP mp, bool extended, QObject * parent) :QObject(parent), fsmDriver{ *this }, justTable{ this }{
 #endif
 
   this->extended = extended;
@@ -1069,6 +1163,8 @@ OtLayout::OtLayout(MP mp, bool extended, QObject * parent) :QObject(parent), fsm
 
 
   }
+
+  toOpenType.populateGlyphs();
 
 }
 OtLayout::~OtLayout() {
@@ -1452,10 +1548,11 @@ hb_font_t* OtLayout::createFont(int emScale, bool newFace)
   }
 
   hb_font_t* font = hb_font_create(face);
-  hb_font_set_funcs(font, getFontFunctions(), this, 0);
+  hb_font_set_funcs(font, getFontFunctions(useNormAxisValues), this, 0);
   hb_font_set_ppem(font, upem, upem);
   const int scale = emScale * upem; // // (1 << OtLayout::SCALEBY) * static_cast<int>(size);
   hb_font_set_scale(font, scale, scale);
+
   return font;
 }
 
@@ -1684,7 +1781,7 @@ void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableI
 }
 #endif
 
-void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, int emScale) {
+void OtLayout::applyJustFeature(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, int emScale) {
 
   if (!this->allGsubFeatures.contains(feature))
     return;
@@ -1730,6 +1827,11 @@ void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& dif
     needgpos = true;
     justificationContext.clear();
 
+    /*
+    OT::JustificationContext justContext{ shapefont };
+    buffer->justContext = &justContext;*/
+
+
     hb_ot_layout_substitute_lookup(&c,
       shapefont->face->table.GSUB->table->get_lookup(lookup_index),
       shapefont->face->table.GSUB->accels[lookup_index]);
@@ -1762,7 +1864,7 @@ void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& dif
       QVector<int> group;
       remaining = false;
       remainingWidth = 0.0;
-      
+
 
       for (int i = 0; i < justificationContext.GlyphsToExtend.size(); i++) {
 
@@ -1807,7 +1909,7 @@ void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& dif
           continue;
         }
 
-        if (groupExpa.weight == 0) continue;
+        if (groupExpa.weight == 0) goto next;
 
         int widthDiff = newWidth - oldWidth;
 
@@ -1817,9 +1919,9 @@ void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& dif
           totalWeight += groupExpa.weight;
           remainingWidth = tatweel;
         }
-        else {          
+        else {
 
-          diff -= widthDiff;          
+          diff -= widthDiff;
           tatweel -= widthDiff;
 
           for (int i : group) {
@@ -1839,7 +1941,7 @@ void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& dif
 
                 if (tatweel > maxStretch) {
                   remainingWidth = tatweel - maxStretch;
-                  tatweel = maxStretch;                  
+                  tatweel = maxStretch;
                 }
                 else {
                   remainingWidth = 0;
@@ -1878,7 +1980,7 @@ void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& dif
 
                 if (tatweel < minShrink) {
                   remainingWidth = tatweel - minShrink;
-                  tatweel = minShrink;                  
+                  tatweel = minShrink;
                 }
                 else {
                   remainingWidth = 0;
@@ -1907,15 +2009,16 @@ void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& dif
               }
             }
           }
-        }        
+        }
 
+      next:
         insideGroup = false;
         oldWidth = 0.0;
         newWidth = 0.0;
         groupExpa = {};
         groupExpa.weight = 0;
         group.clear();
-      }      
+      }
     }
   }
   buffer->reverse();
@@ -1924,7 +2027,7 @@ void OtLayout::applyJustLookup(hb_buffer_t * buffer, bool& needgpos, double& dif
 
 }
 
-void OtLayout::applyJustLookup_old(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, int emScale) {
+void OtLayout::applyJustFeature_old(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, int emScale) {
 
   if (!this->allGsubFeatures.contains(feature))
     return;
@@ -1943,7 +2046,7 @@ void OtLayout::applyJustLookup_old(hb_buffer_t * buffer, bool& needgpos, double&
   OT::hb_ot_apply_context_t c(table_index, shapefont, buffer);
   c.set_recurse_func(OT::SubstLookup::apply_recurse_func);
   auto list = this->allGsubFeatures[feature].values();
-  std::sort(list.begin(), list.end());  
+  std::sort(list.begin(), list.end());
   bool stretch = diff > 0;
 
   /*
@@ -2158,13 +2261,165 @@ void OtLayout::applyJustLookup_old(hb_buffer_t * buffer, bool& needgpos, double&
 
 }
 
+void OtLayout::jutifyLine_old(hb_font_t * shapefont, hb_buffer_t * text_buffer, int lineWidth, int emScale, bool tajweedColor) {
+
+  const int minSpace = OtLayout::MINSPACEWIDTH * emScale;
+  const int  defaultSpace = OtLayout::SPACEWIDTH * emScale;
+  double nuqta = this->nuqta() * emScale;
+
+  auto  copy_buffer_properties = [](hb_buffer_t* dst, hb_buffer_t* src)
+  {
+    hb_segment_properties_t props;
+    hb_buffer_get_segment_properties(src, &props);
+    hb_buffer_set_segment_properties(dst, &props);
+    hb_buffer_set_flags(dst, hb_buffer_get_flags(src));
+    hb_buffer_set_cluster_level(dst, hb_buffer_get_cluster_level(src));
+  };
+
+
+  auto copyBuffer = [&](hb_buffer_t* des_buffer, hb_buffer_t* source_buffer)
+  {
+    hb_buffer_clear_contents(des_buffer);
+    copy_buffer_properties(des_buffer, source_buffer);
+    hb_buffer_append(des_buffer, source_buffer, 0, -1);
+  };
+
+  hb_feature_t color_fea{ HB_TAG('t', 'j', 'w', 'd'),0,0,(uint)-1 };
+  if (tajweedColor) {
+    color_fea.value = 1;
+  }
+
+  hb_feature_t gpos_features[] = {
+    {HB_TAG('i', 'n', 'i', 't'),0,0,(uint)-1},
+    {HB_TAG('m', 'e', 'd', 'i'),0,0,(uint)-1},
+    {HB_TAG('f', 'i', 'n', 'a'),0,0,(uint)-1},
+    {HB_TAG('r', 'l', 'i', 'g'),0,0,(uint)-1},
+    {HB_TAG('l', 'i', 'g', 'a'),0,0,(uint)-1},
+    {HB_TAG('c', 'a', 'l', 't'),0,0,(uint)-1},
+    {HB_TAG('s', 'c', 'h', 'm'),1,0,(uint)-1},
+    {HB_TAG('s', 'h', 'r', '1'),0,0,(uint)-1},
+    color_fea
+  };
+
+  int num_gpos_features = sizeof(gpos_features) / sizeof(*gpos_features);
+
+  uint glyph_count;
+
+  hb_segment_properties_t savedprops;
+
+  hb_buffer_get_segment_properties(text_buffer, &savedprops);
+
+
+  hb_buffer_t* buffer = hb_buffer_create();
+  copyBuffer(buffer, text_buffer);
+
+  /*buffer->justifyLine = true;
+  buffer->lineWidth = lineWidth;*/
+
+  hb_shape(shapefont, buffer, &color_fea, 1);
+
+
+  if (applyJustification && lineWidth != 0) {
+
+    JustificationInProgress = true;
+    bool continueJustification = true;
+    bool schr1applied = false;
+    while (continueJustification) {
+
+      continueJustification = false;
+
+      hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
+      hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
+      QVector<quint32> spaces;
+      int currentlineWidth = 0;
+
+
+      for (int i = glyph_count - 1; i >= 0; i--) {
+        if (glyph_info[i].codepoint == 32) {
+          glyph_pos[i].x_advance = minSpace;
+          spaces.append(i);
+        }
+        else {
+          currentlineWidth += glyph_pos[i].x_advance;
+        }
+      }
+
+      double diff = (double)lineWidth - currentlineWidth - spaces.size() * (double)defaultSpace;
+
+      bool needgpos = false;
+      if (diff > 0) {
+        applyJustFeature(buffer, needgpos, diff, "sch1", shapefont, nuqta, emScale);
+      }
+      //shrink
+      else {
+
+        if (!schr1applied) {
+          hb_feature_t festures2[2];
+          festures2[0].tag = HB_TAG('s', 'h', 'r', '1');
+          festures2[0].value = 1;
+          festures2[0].start = 0;
+          festures2[0].end = -1;
+
+          festures2[1] = color_fea;
+
+          copyBuffer(buffer, text_buffer);
+
+          hb_shape(shapefont, buffer, festures2, 2);
+
+          continueJustification = true;
+          schr1applied = true;
+        }
+        else {
+          applyJustFeature(buffer, needgpos, diff, "shr2", shapefont, nuqta, emScale);
+        }
+      }
+
+      if (needgpos) {
+        buffer->reverse();
+        buffer->justContext = nullptr;
+        gpos_features[7].value = schr1applied ? 1 : 0;;
+
+        hb_shape(shapefont, buffer, gpos_features, num_gpos_features);
+        //hb_shape(shapefont, buffer, nullptr, 0);
+      }
+    }
+    JustificationInProgress = false;
+  }
+  copyBuffer(text_buffer, buffer);
+
+  hb_buffer_destroy(buffer);
+}
+
+void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int lineWidth, int emScale, bool tajweedColor) {  
+
+  if (applyJustification && lineWidth != 0) {
+    hb_buffer_set_justify(text_buffer, lineWidth);
+    //text_buffer->justifyLine = true;    
+    //text_buffer->lineWidth = lineWidth;
+  }
+
+  text_buffer->justContext = nullptr;
+
+  JustificationInProgress = true;
+  if (tajweedColor) {
+    hb_feature_t color_fea{ HB_TAG('t', 'j', 'w', 'd'),0,0,(uint)-1 };
+    color_fea.value = 1;
+
+    hb_shape(shapefont, text_buffer, &color_fea, 1);
+  }
+  else {
+    hb_shape(shapefont, text_buffer, nullptr, 0);
+  }
+  JustificationInProgress = false;
+
+}
+
 QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor) {
 
   QList<LineLayoutInfo> page;
 
   hb_buffer_t* buffer = buffer = hb_buffer_create();
   hb_font_t* shapefont = this->createFont(emScale, newFace);
-
 
   const int minSpace = OtLayout::MINSPACEWIDTH * emScale;
   const int  defaultSpace = OtLayout::SPACEWIDTH * emScale;
@@ -2216,10 +2471,6 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 
   int num_gpos_features = sizeof(gpos_features) / sizeof(*gpos_features);
 
-
-
-
-
   auto initializeBuffer = [&](hb_buffer_t* buffer, hb_segment_properties_t* savedprops, QString& line)
   {
     hb_buffer_clear_contents(buffer);
@@ -2233,6 +2484,8 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
     //hb_buffer_set_cluster_level(buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
     // hb_buffer_set_message_func(buffer, setMessage, this, NULL);
 
+    buffer->useCallback = !useNormAxisValues;
+
     uint glyph_count;
 
     /*
@@ -2243,93 +2496,87 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
           if (res)
               buffer->content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS;*/
 
-    hb_shape(shapefont, buffer, &color_fea, 1);
-
-
-    if (applyJustification && lineWidth != 0) {
-
-
-
-
-      JustificationInProgress = true;
-      bool continueJustification = true;
-      bool schr1applied = false;
-      while (continueJustification) {
-
-        continueJustification = false;
-
-        hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-        hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
-        QVector<quint32> spaces;
-        int currentlineWidth = 0;
-        int lastGlyph;
-
-
-        for (int i = glyph_count - 1; i >= 0; i--) {
-          //auto name = this->glyphs[this->glyphNamePerCode[glyph_info[i].codepoint]];
-          if (glyph_info[i].codepoint == 32) {
-            glyph_pos[i].x_advance = minSpace;
-            spaces.append(i);
-          }
-          else {
-            currentlineWidth += glyph_pos[i].x_advance;
-            if (this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::BaseGlyph || this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::LigatureGlyph) {
-              lastGlyph = glyph_info[i].codepoint;
-            }
-
-          }
-        }
-
-        GlyphVis& llglyph = this->glyphs[this->glyphNamePerCode[lastGlyph]];
-
-        if (!llglyph.isAyaNumber()) {
-          currentlineWidth = currentlineWidth - this->glyphs[this->glyphNamePerCode[lastGlyph]].bbox.llx;
-        }
-
-
-        double diff = (double)lineWidth - currentlineWidth - spaces.size() * defaultSpace;
-
-        bool needgpos = false;
-        if (diff > 0) {
-          applyJustLookup(buffer, needgpos, diff, "sch1", shapefont, nuqta, emScale);
-        }
-        //shrink
-        else {
-
-          if (!schr1applied) {
-            hb_feature_t festures2[2];
-            festures2[0].tag = HB_TAG('s', 'h', 'r', '1');
-            festures2[0].value = 1;
-            festures2[0].start = 0;
-            festures2[0].end = -1;
-
-            festures2[1] = color_fea;
-
-
-            //buffer->reverse();
-            initializeBuffer(buffer, &savedprops, line);
-
-            hb_shape(shapefont, buffer, festures2, 2);
-
-            continueJustification = true;
-            schr1applied = true;
-          }
-          else {
-            applyJustLookup(buffer, needgpos, diff, "shr2", shapefont, nuqta, emScale);
-          }
-        }
-
-        if (needgpos) {
-          buffer->reverse();
-
-          gpos_features[7].value = schr1applied ? 1 : 0;;
-
-          hb_shape(shapefont, buffer, gpos_features, num_gpos_features);
-          //hb_shape(shapefont, buffer, nullptr, 0);
-        }
-      }
-      JustificationInProgress = false;
+    if (whichJust == WhichJust::HarfBuzz) {
+      jutifyLine(shapefont, buffer, lineWidth, emScale, tajweedColor);
     }
+    else if(whichJust == WhichJust::Second) {
+      jutifyLine_old(shapefont, buffer, lineWidth, emScale, tajweedColor);
+    }
+    else {
+
+      hb_shape(shapefont, buffer, &color_fea, 1);
+
+
+      if (applyJustification && lineWidth != 0) {
+
+        JustificationInProgress = true;
+        bool continueJustification = true;
+        bool schr1applied = false;
+        while (continueJustification) {
+
+          continueJustification = false;
+
+          hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
+          hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
+          QVector<quint32> spaces;
+          int currentlineWidth = 0;
+
+
+          for (int i = glyph_count - 1; i >= 0; i--) {
+            if (glyph_info[i].codepoint == 32) {
+              glyph_pos[i].x_advance = minSpace;
+              spaces.append(i);
+            }
+            else {
+              currentlineWidth += glyph_pos[i].x_advance;
+            }
+          }
+
+          double diff = (double)lineWidth - currentlineWidth - spaces.size() * (double)defaultSpace;
+
+          bool needgpos = false;
+          if (diff > 0) {
+            applyJustFeature(buffer, needgpos, diff, "sch1", shapefont, nuqta, emScale);
+          }
+          //shrink
+          else {
+
+            if (!schr1applied) {
+              hb_feature_t festures2[2];
+              festures2[0].tag = HB_TAG('s', 'h', 'r', '1');
+              festures2[0].value = 1;
+              festures2[0].start = 0;
+              festures2[0].end = -1;
+
+              festures2[1] = color_fea;
+
+              initializeBuffer(buffer, &savedprops, line);
+
+              hb_shape(shapefont, buffer, festures2, 2);
+
+              continueJustification = true;
+              schr1applied = true;
+            }
+            else {
+              applyJustFeature(buffer, needgpos, diff, "shr2", shapefont, nuqta, emScale);
+            }
+          }
+
+          if (needgpos) {
+            buffer->reverse();
+
+            gpos_features[7].value = schr1applied ? 1 : 0;;
+
+            hb_shape(shapefont, buffer, gpos_features, num_gpos_features);
+            //hb_shape(shapefont, buffer, nullptr, 0);
+          }
+        }
+        JustificationInProgress = false;
+      }
+    }
+
+
+
 
 
     hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
@@ -2337,20 +2584,16 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
     QVector<quint32> spaces;
     int currentlineWidth = 0;
 
-    int lastGlyph;
+
     LineLayoutInfo lineLayout;
 
     for (int i = glyph_count - 1; i >= 0; i--) {
 
       GlyphLayoutInfo glyphLayout;
 
-      //if (glyph_info[i].lefttatweel != 0) {
-      //	int t = 0;
-      //}
-
       glyphLayout.codepoint = glyph_info[i].codepoint;
-      glyphLayout.lefttatweel = glyph_info[i].lefttatweel;
-      glyphLayout.righttatweel = glyph_info[i].righttatweel;
+      glyphLayout.lefttatweel = normalToParameter(glyph_info[i].codepoint, glyph_info[i].lefttatweel, true); //glyph_info[i].lefttatweel;
+      glyphLayout.righttatweel = normalToParameter(glyph_info[i].codepoint, glyph_info[i].righttatweel, false); // glyph_info[i].righttatweel;
       glyphLayout.cluster = glyph_info[i].cluster;
       glyphLayout.x_advance = glyph_pos[i].x_advance;
       glyphLayout.y_advance = glyph_pos[i].y_advance;
@@ -2377,22 +2620,11 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
       }
       else {
         currentlineWidth += glyphLayout.x_advance;
-        if (this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::BaseGlyph || this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::LigatureGlyph) {
-          lastGlyph = glyph_info[i].codepoint;
-        }
       }
 
       lineLayout.glyphs.push_back(glyphLayout);
 
     }
-
-    GlyphVis& llglyph = this->glyphs[this->glyphNamePerCode[lastGlyph]];
-
-    if (!llglyph.isAyaNumber()) {
-      currentlineWidth = currentlineWidth - llglyph.bbox.llx;
-    }
-
-
 
     lineLayout.underfull = 0;
 
@@ -2849,12 +3081,6 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
         glyphLayout.x_advance = spaceaverage;
         glyphLayout.codepoint = 32;
       }
-      else {
-        //currentlineWidth += glyphLayout.x_advance;
-        if (this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::BaseGlyph || this->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::LigatureGlyph) {
-          //	lastGlyph = glyph_info[i].codepoint;
-        }
-      }
 
       lineLayout.glyphs.push_back(glyphLayout);
 
@@ -3118,7 +3344,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
       return paths->at(parameters);
     }
 
-    
+
   }
 
 
@@ -3264,4 +3490,279 @@ QByteArray OtLayout::getVariationRegionList() {
   variationRegionList << getF2DOT14(0); // endCoord
 
   return variationRegionList;
+}
+
+QByteArray OtLayout::fvar() {
+  QByteArray data;
+
+  int axisCount = 2;
+
+  data << (uint16_t)1; // majorVersion
+  data << (uint16_t)0; // minorVersion
+  data << (uint16_t)16; // axesArrayOffset
+  data << (uint16_t)2; // This field is permanently reserved. Set to 2.
+  data << (uint16_t)axisCount; // axisCount
+  data << (uint16_t)20; // axisSize
+  data << (uint16_t)0; // instanceCount
+  data << (uint16_t)12; // instanceSize : axisCount * sizeof(Fixed) + 4
+
+  //VariationAxisRecord[0]
+  data << (uint32_t)HB_TAG('L', 'T', 'A', 'T');
+  data << getFixed(-2); // minValue
+  data << getFixed(0); // defaultValue
+  data << getFixed(12); // maxValue
+  data << (uint16_t)0; // flags
+  data << (uint16_t)LTATNameId; // axisNameID
+
+  //VariationAxisRecord[1]
+  data << (uint32_t)HB_TAG('R', 'T', 'A', 'T');
+  data << getFixed(-2); // minValue
+  data << getFixed(0); // defaultValue
+  data << getFixed(12); // maxValue
+  data << (uint16_t)0; // flags
+  data << (uint16_t)RTATNameId; // axisNameID
+
+
+
+  return data;
+}
+QByteArray OtLayout::JTST() {
+  return justTable.getOpenTypeTable();
+}
+QByteArray OtLayout::HVAR() {
+
+  struct EntryValue {
+    int32_t value1 = 0;
+    int32_t value2 = 0;
+    int32_t value3 = 0;
+    int32_t value4 = 0;
+  };
+
+  std::unordered_map<uint32_t, EntryValue> lsbs;
+
+  QByteArray variationRegionList = getVariationRegionList();
+  QByteArray aWidthVariationData;
+  QByteArray lsbVariationData;
+
+  int glyphCount = glyphNamePerCode.lastKey() + 1; //   glyphs.lastKey() + 1;
+
+  //subtable 0
+  aWidthVariationData << (uint16_t)glyphCount; //itemCount
+  aWidthVariationData << (uint16_t)4; //shortDeltaCount
+  aWidthVariationData << (uint16_t)4; //regionIndexCount
+  for (int i = 0; i < 4; i++) {
+    aWidthVariationData << (uint16_t)i; //regionIndexes
+  }
+  //subtable 1
+  lsbVariationData << (uint16_t)glyphCount; //itemCount
+  lsbVariationData << (uint16_t)4; //shortDeltaCount
+  lsbVariationData << (uint16_t)4; //regionIndexCount
+  for (int i = 0; i < 4; i++) {
+    lsbVariationData << (uint16_t)i; //regionIndexes
+  }
+
+  for (int i = 0; i < glyphCount; i++) {
+    QByteArray glyphArray;
+
+    bool entryExist = false;
+
+    if (glyphNamePerCode.contains(i)) {
+      auto& glyph = glyphs[glyphNamePerCode.value(i)];
+      /*
+      if (!ot_layout->glyphs.contains(it.first)) {
+        throw new std::runtime_error("Glyph name "+ it.first.toStdString() + " does not exist");
+      }*/
+
+      const auto& ff = expandableGlyphs.find(glyph.name);
+
+      if (ff != expandableGlyphs.end()) {
+        entryExist = true;
+        auto& jj = ff->second;
+        if (jj.maxLeft != 0) {
+          GlyphParameters parameters{};
+
+          parameters.lefttatweel = jj.maxLeft;
+          parameters.righttatweel = 0.0;
+
+          auto alternate = glyph.getAlternate(parameters);
+          aWidthVariationData << (uint16_t)(toInt(alternate->width) - toInt(glyph.width));
+          lsbVariationData << (uint16_t)(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
+
+        }
+        else {
+          aWidthVariationData << (uint16_t)0;
+          lsbVariationData << (uint16_t)0;
+        }
+        if (jj.minLeft != 0) {
+          GlyphParameters parameters{};
+
+          parameters.lefttatweel = jj.minLeft;
+          parameters.righttatweel = 0.0;
+
+          auto alternate = glyph.getAlternate(parameters);
+          aWidthVariationData << (uint16_t)(toInt(alternate->width) - toInt(glyph.width));
+          lsbVariationData << (uint16_t)(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
+
+        }
+        else {
+          aWidthVariationData << (uint16_t)0;
+          lsbVariationData << (uint16_t)0;
+        }
+        if (jj.maxRight != 0) {
+          GlyphParameters parameters{};
+
+          parameters.lefttatweel = 0.0;
+          parameters.righttatweel = jj.maxRight;
+
+          auto alternate = glyph.getAlternate(parameters);
+          aWidthVariationData << (uint16_t)(toInt(alternate->width) - toInt(glyph.width));
+          lsbVariationData << (uint16_t)(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
+
+        }
+        else {
+          aWidthVariationData << (uint16_t)0;
+          lsbVariationData << (uint16_t)0;
+        }
+        if (jj.minRight != 0) {
+          GlyphParameters parameters{};
+
+          parameters.lefttatweel = 0.0;
+          parameters.righttatweel = jj.minRight;
+
+          auto alternate = glyph.getAlternate(parameters);
+          aWidthVariationData << (uint16_t)(toInt(alternate->width) - toInt(glyph.width));
+          lsbVariationData << (uint16_t)(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
+
+        }
+        else {
+          aWidthVariationData << (uint16_t)0;
+          lsbVariationData << (uint16_t)0;
+        }
+      }
+    }
+
+    if (!entryExist) {
+      aWidthVariationData << (uint16_t)0;
+      aWidthVariationData << (uint16_t)0;
+      aWidthVariationData << (uint16_t)0;
+      aWidthVariationData << (uint16_t)0;
+
+      lsbVariationData << (uint16_t)0;
+      lsbVariationData << (uint16_t)0;
+      lsbVariationData << (uint16_t)0;
+      lsbVariationData << (uint16_t)0;
+    }
+  }
+
+  QByteArray itemVariationStore;
+
+  auto itemVariationDataCount = 2;
+  auto startOffset = 8 + 4 * itemVariationDataCount;
+
+  itemVariationStore << (uint16_t)1; //format
+  itemVariationStore << (uint32_t)startOffset; //variationRegionListOffset
+  itemVariationStore << (uint16_t)itemVariationDataCount; //itemVariationDataCount
+  itemVariationStore << (uint32_t)(startOffset + variationRegionList.size()); //itemVariationDataOffsets[0]
+  itemVariationStore << (uint32_t)(startOffset + variationRegionList.size() + aWidthVariationData.size()); //itemVariationDataOffsets[1]  
+  itemVariationStore.append(variationRegionList);
+  itemVariationStore.append(aWidthVariationData);
+  itemVariationStore.append(lsbVariationData);
+
+  QByteArray advanceMapping;
+  advanceMapping << (uint16_t)0x3F; //entryFormat : 2 byte for outer, 2 byte for inner
+  advanceMapping << (uint16_t)glyphCount; //entryFormat : 1 byte for outer, 2 byte for inner
+  for (int i = 0; i < glyphCount; i++) {
+    advanceMapping << (uint16_t)0;
+    advanceMapping << (uint16_t)i;
+  }
+
+  QByteArray lsbMapping;
+  lsbMapping << (uint16_t)0x3F; //entryFormat : 2 byte for outer, 2 byte for inner
+  lsbMapping << (uint16_t)glyphCount; //entryFormat : 1 byte for outer, 2 byte for inner
+  for (int i = 0; i < glyphCount; i++) {
+    lsbMapping << (uint16_t)1;
+    lsbMapping << (uint16_t)i;
+  }
+
+
+  //hvar
+  QByteArray data;
+
+  data << (uint16_t)1; //majorVersion
+  data << (uint16_t)0; //minorVersion
+  data << (uint32_t)20; //itemVariationStoreOffset
+  data << (uint32_t)(20 + itemVariationStore.size()); //advanceWidthMappingOffset
+  data << (uint32_t)(20 + itemVariationStore.size() + advanceMapping.size()); //lsbMappingOffset
+  data << (uint32_t)(20 + itemVariationStore.size() + advanceMapping.size() + lsbMapping.size()); //rsbMappingOffset
+  data.append(itemVariationStore);
+  data.append(advanceMapping);
+  data.append(lsbMapping);
+  data.append(lsbMapping);
+
+  return data;
+
+}
+QByteArray Just::getOpenTypeTable() {
+
+
+  QByteArray stretchStepsData;
+  QByteArray shrinkStepsData;
+
+  QByteArray stretchStepOffsets;
+  QByteArray shrinkStepOffsets;
+
+  int stretchStepsCount = 0;
+  int shrinkStepsCount = 0;
+
+  for (int i = 0; i < 2; i++) {
+    auto& StepsData = i == 0 ? stretchStepsData : shrinkStepsData;
+    auto& Steps = i == 0 ? stretchSteps : shrinkSteps;
+    auto& stepsCount = i == 0 ? stretchStepsCount : shrinkStepsCount;
+    auto& stepOffsets = i == 0 ? stretchStepOffsets : shrinkStepOffsets;
+    uint16_t currentOffset = 2 + 2 * Steps.size();
+
+    for (auto& step : Steps) {
+      std::vector<int> lookups;
+      for (auto lookup : step.lookups) {
+        int index = -1;
+        if (step.gsub && layout->gsublookupsIndexByName.contains(lookup->name)) {
+          index = layout->gsublookupsIndexByName.value(lookup->name, -1);
+        }
+        if (!step.gsub && layout->gposlookupsIndexByName.contains(lookup->name)) {
+          index = layout->gposlookupsIndexByName.value(lookup->name, -1);
+        }
+        if (index != -1) {
+          lookups.push_back(index);
+        }
+      }
+      QByteArray StepData;
+      //if (lookups.size() != 0) {
+      stepsCount++;
+      StepData << (uint32_t)(step.gsub);
+      StepData << (uint16_t)lookups.size();
+      for (auto i : lookups) {
+        StepData << (uint16_t)i;
+      }
+      stepOffsets << (uint16_t)currentOffset;
+      currentOffset += StepData.size();
+      StepsData.append(StepData);
+      //}
+    }
+  }
+
+  QByteArray data;
+
+  data << (uint16_t)1; // majorVersion
+  data << (uint16_t)0; // minorVersion
+  data << (uint16_t)8; // stretchSteps Offset
+  data << (uint16_t)(8 + 2 + stretchStepOffsets.size() + stretchStepsData.size());
+  data << (uint16_t)stretchStepsCount;
+  data.append(stretchStepOffsets);
+  data.append(stretchStepsData);
+  data << (uint16_t)shrinkStepsCount;
+  data.append(shrinkStepOffsets);
+  data.append(shrinkStepsData);
+
+  return data;
+
 }

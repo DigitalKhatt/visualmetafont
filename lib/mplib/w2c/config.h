@@ -31,7 +31,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/.  */
 #define xstrdup _strdup
 
 #ifndef HAVE_BOOLEAN
-typedef bool boolean;
+typedef unsigned char boolean;
 #endif
 
 /* How to open a binary file.  */

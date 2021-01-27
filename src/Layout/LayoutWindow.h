@@ -64,13 +64,15 @@ private slots :
 	void serializeMedinaPages();
 
 private:
-	void calculateMinimumSize_old();
+	
 	void createActions();
 	void createDockWindows();
 	void loadLookupFile(QString fileName);
 	bool save();
 	bool generateOpenType();
-  bool generateOpenTypeCff2();
+  bool generateOpenTypeCff2Standard();
+  bool generateOpenTypeCff2Extended();
+  bool generateOpenTypeCff2(bool extended);
 	bool exportpdf();
 	bool generateAllQuranTexBreaking();
 	bool generateAllQuranTexMedina();

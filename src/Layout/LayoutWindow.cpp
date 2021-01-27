@@ -169,11 +169,18 @@ void LayoutWindow::createActions()
 	//fileToolBar->addAction(otfAct);
 
   const QIcon otfcff2Icon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
-  QAction* otfcff2Act = new QAction(otfcff2Icon, tr("&Generate OpenType CFF2"), this);
+  QAction* otfcff2Act = new QAction(otfcff2Icon, tr("&Generate OpenType CFF2 Standard"), this);
   //otfcff2Act->setShortcuts(QKeySequence::Save);
-  otfcff2Act->setStatusTip(tr("Generate OpenTpe CFF2"));
-  connect(otfcff2Act, &QAction::triggered, this, &LayoutWindow::generateOpenTypeCff2);
+  otfcff2Act->setStatusTip(tr("Generate OpenTpe CFF2 Standard"));
+  connect(otfcff2Act, &QAction::triggered, this, &LayoutWindow::generateOpenTypeCff2Standard);
   fileMenu->addAction(otfcff2Act);
+
+  otfcff2Act = new QAction(otfcff2Icon, tr("&Generate OpenType CFF2 Extended"), this);
+  //otfcff2Act->setShortcuts(QKeySequence::Save);
+  otfcff2Act->setStatusTip(tr("Generate OpenTpe CFF2 Extended"));
+  connect(otfcff2Act, &QAction::triggered, this, &LayoutWindow::generateOpenTypeCff2Extended);
+  fileMenu->addAction(otfcff2Act);
+
   
 
 
@@ -260,12 +267,18 @@ void LayoutWindow::createActions()
 	fileToolBar->addWidget(toggleButton);
 
 }
-bool LayoutWindow::generateOpenTypeCff2() {
+bool LayoutWindow::generateOpenTypeCff2Standard() {
+  return generateOpenTypeCff2(false);
+}
+bool LayoutWindow::generateOpenTypeCff2Extended() {
+  return generateOpenTypeCff2(true);
+}
+bool LayoutWindow::generateOpenTypeCff2(bool extended) {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
   QString otfFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + "-cff2.otf";
 
-  OtLayout layout = OtLayout(m_otlayout->mp, false);
+  OtLayout layout = OtLayout(m_otlayout->mp, extended);
 
   layout.isOTVar = true;
 
@@ -839,6 +852,7 @@ void LayoutWindow::createDockWindows()
 
 
 	m_otlayout = new OtLayout(m_font->mp,true, this);
+  m_otlayout->isOTVar = true;
 
 	connect(m_otlayout, &OtLayout::parameterChanged, this, &LayoutWindow::layoutParameterChanged);
 
@@ -885,131 +899,7 @@ void LayoutWindow::createDockWindows()
 	this->setCentralWidget(m_graphicsView);
 }
 
-void LayoutWindow::calculateMinimumSize_old() {
-	loadLookupFile("lookups.json");
 
-
-	int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
-
-	hb_buffer_t* buffer = buffer = hb_buffer_create();
-
-	double scale = 0.75;
-
-	//bool conti = true;
-
-	struct Line {
-		int pageNumber;
-		int lineNumber;
-		double overflow;
-	};
-
-	QMap<double, QVector<Line>> alloverflows;
-
-	while (scale < 0.80) {
-
-		scale = scale + 0.05;
-
-		int emScale = (1 << OtLayout::SCALEBY) * scale;
-
-		const int minSpace = OtLayout::MINSPACEWIDTH * emScale;
-		//const int  defaultSpace = OtLayout::SPACEWIDTH * emScale;
-
-		QVector<Line> overflows;
-
-		hb_font_t* shapefont = m_otlayout->createFont(emScale, true);
-
-		for (int pagenum = 0; pagenum <= 603; pagenum++) {
-
-			QString textt = QString::fromUtf8(qurantext[pagenum] + 1);
-
-			auto lines = textt.split(char(10), Qt::SkipEmptyParts);
-
-
-			for (int linenum = 0; linenum < lines.length(); linenum++) {
-
-				auto line = lines[linenum];
-
-				hb_buffer_clear_contents(buffer);
-				hb_buffer_set_direction(buffer, HB_DIRECTION_RTL);
-				hb_buffer_set_script(buffer, HB_SCRIPT_ARABIC);
-				hb_buffer_set_language(buffer, hb_language_from_string("ar", strlen("ar")));
-				hb_buffer_add_utf16(buffer, line.utf16(), -1, 0, -1);
-
-
-				uint glyph_count;
-
-				hb_shape(shapefont, buffer, NULL, 0);
-
-
-				hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-				hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
-				QVector<quint32> spaces;
-				int currentlineWidth = 0;
-				int lastGlyph;
-
-				for (int i = glyph_count - 1; i >= 0; i--) {
-					//auto name = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[glyph_info[i].codepoint]];
-					if (glyph_info[i].codepoint == 32) {
-						glyph_pos[i].x_advance = minSpace;
-						spaces.append(i);
-					}
-					else {
-						currentlineWidth += glyph_pos[i].x_advance;
-						if (m_otlayout->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::BaseGlyph || m_otlayout->glyphGlobalClasses[glyph_info[i].codepoint] == OtLayout::LigatureGlyph) {
-							lastGlyph = glyph_info[i].codepoint;
-						}
-
-					}
-				}
-
-				GlyphVis& llglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[lastGlyph]];
-
-				if (!llglyph.isAyaNumber()) {
-					currentlineWidth = currentlineWidth - m_otlayout->glyphs[m_otlayout->glyphNamePerCode[lastGlyph]].bbox.llx;
-				}
-
-				double spaceaverage = 0;
-
-				if (spaces.size() != 0) {
-					spaceaverage = (lineWidth - currentlineWidth) / spaces.size();
-				}
-
-				if (spaceaverage < minSpace) {
-					overflows.append({ pagenum + 1,linenum + 1, (((double)minSpace - spaceaverage) * spaces.size()) / emScale });
-				}
-
-
-
-			}
-		}
-
-		if (overflows.count() > 0) {
-			alloverflows[scale] = overflows;
-		}
-
-		hb_font_destroy(shapefont);
-	}
-
-	hb_buffer_destroy(buffer);
-
-	QFile file("overflows.csv");
-	file.open(QIODevice::WriteOnly | QIODevice::Text);
-	QTextStream out(&file);   // we will serialize the data into the file
-	out.setCodec("ISO 8859-1");
-  //out.setEncoding(QStringConverter::Latin1);
-
-	for (auto key : alloverflows.keys()) {
-		auto overflow = alloverflows.value(key);
-		for (auto line : overflow) {
-			out << key << "," << line.pageNumber << "," << line.lineNumber << "," << (std::round)(line.overflow) << "\n";
-		}
-	}
-
-	file.close();
-
-
-
-}
 void LayoutWindow::serializeTexPages() {
 
 	int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;

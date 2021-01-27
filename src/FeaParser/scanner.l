@@ -45,6 +45,11 @@ using token = feayy::Parser::token;
 "lookup"													{return(token::LOOKUP);}
 "feature"													{return(token::FEATURE);}
 "pos"														{return(token::POSITION);}
+"just"														{return(token::JUST);}
+"stretch"													{return(token::STRETCH);}
+"shrink"													{return(token::SHRINK);}
+"end"													    {return(token::END);}
+"step"													    {return(token::STEP);}
 "position"													{return(token::POSITION);}
 "substitute"												{return(token::SUBSTITUTE);}
 "sub"														{return(token::SUBSTITUTE);}

@@ -10,7 +10,7 @@ typedef struct psout_data_struct*psout_data;
 typedef struct svgout_data_struct*svgout_data;
 typedef struct pngout_data_struct*pngout_data;
 #ifndef HAVE_BOOLEAN
-typedef bool boolean;
+typedef unsigned char boolean;
 #endif
 #ifndef INTEGER_TYPE
 typedef int integer;
