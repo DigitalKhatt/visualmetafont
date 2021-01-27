@@ -1,0 +1,2 @@
+Il faut forcer le Referer avec le plugin Chrome
+http://tanzil.net/tanzil/php/get-aya.php?type=uthmani&transType=en.sahih&pageNum=285&startAya=0&endAya=6239&version=1.5
