@@ -304,7 +304,7 @@ public:
 
   QByteArray getCmap();
 
-  ToOpenType toOpenType = ToOpenType{ this };
+  ToOpenType* toOpenType = nullptr;
 
   void setDisabled(Lookup* lookup) {
     disabledLookups.insert(lookup);
@@ -316,9 +316,9 @@ public:
 
   JustificationContext justificationContext;
 
-  bool isOTVar = false;
+  bool isOTVar = true;
 
-  bool useNormAxisValues = false;
+  bool useNormAxisValues = true;
 
   enum class WhichJust {
     First,
@@ -326,66 +326,28 @@ public:
     HarfBuzz
   };
 
-  WhichJust whichJust = WhichJust::First;
+  WhichJust whichJust = WhichJust::HarfBuzz;
 
   std::unordered_map<QString, ValueLimits> expandableGlyphs;
 
-  int getDeltaSetEntry(DefaultDelta delta) {
+  std::pair<int,int> getDeltaSetEntry(DefaultDelta delta, const ValueLimits& limits) {
+    return toOpenType->getDeltaSetEntry(delta, limits);
+    /*
     const auto& it = defaultDeltaSets.find(delta);
     if (it != defaultDeltaSets.end()) {
-      return it->second;
+      return { 0,it->second };
     }
     else {
       int val = defaultDeltaSets.size();
       defaultDeltaSets.insert({ delta ,val });
-      return val;
-    }
-  }
-
-  const uint16_t LTATNameId = 256;
-  const uint16_t RTATNameId = 257;
-
-  QByteArray getVariationRegionList();
-  QByteArray fvar();
-  QByteArray HVAR();
+      return { 0,val };
+    }*/
+    
+  } 
+  
   QByteArray JTST();
 
-  Just justTable;
-
-  double parameterToNormal(unsigned int code, double tatweel, bool left) {
-
-    if (!useNormAxisValues || tatweel == 0.0)
-      return tatweel;
-
-    ValueLimits limits;
-
-    auto& name = glyphNamePerCode.value(code);
-
-    auto& find = expandableGlyphs.find(name);
-
-    if (find == expandableGlyphs.end()) {
-      throw new std::runtime_error("tatweel error for glyph " + name.toStdString());
-    }
-
-    limits = find->second;
-
-    double min = left ? limits.minLeft : limits.minRight;
-    double max = left ? limits.maxLeft : limits.maxRight;
-
-
-    if ((tatweel < 0 && tatweel < min) || (tatweel > 0 && tatweel > max)) {
-      throw new std::runtime_error("tatweel error for glyph " + name.toStdString());
-    }
-    else if (tatweel < 0.0) {
-      return (-tatweel / min);
-    }
-    else if (tatweel > 0.0) {
-      return(tatweel / max);
-    }
-    else {
-      return 0.0;
-    }
-  }
+  Just justTable;  
 
   double normalToParameter(unsigned int code, float tatweel, bool left) {
 
@@ -424,6 +386,11 @@ public:
 
     double min = left ? limits.minLeft : limits.minRight;
     double max = left ? limits.maxLeft : limits.maxRight;
+
+    if (toOpenType->isUniformAxis()) {
+      min = left ? toOpenType->axisLimits.minLeft : toOpenType->axisLimits.minRight;
+      max = left ? toOpenType->axisLimits.maxLeft : toOpenType->axisLimits.maxRight;
+    }
 
     if (tatweel < 0) {
       return (-tatweel * min);
@@ -481,7 +448,7 @@ private:
   FSMDriver fsmDriver;
 
 
-  std::unordered_map<DefaultDelta, int> defaultDeltaSets;
+  //std::unordered_map<DefaultDelta, int> defaultDeltaSets;
 
 
 

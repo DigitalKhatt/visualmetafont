@@ -142,18 +142,50 @@ public:
     }
   };
 
-  QByteArray blend(DeltaValues delta) {
+  QByteArray blend(DeltaValues delta, ValueLimits limits) {
     QByteArray data;
     bool isEmpty = true;
-    for (int i = 0; i < delta.deltas.size(); i++) {
-      if (delta.active[i] && delta.deltas[i] != 0.0) {
-        isEmpty = false;
-        fixed_to_cff2(data, delta.deltas[i]);
-      }
-      else {
-        int_to_cff2(data, 0);
+    if (!uniformAxis) {
+      for (int i = 0; i < delta.deltas.size(); i++) {
+        if (delta.active[i] && delta.deltas[i] != 0.0) {
+          isEmpty = false;
+          fixed_to_cff2(data, delta.deltas[i]);
+        }
+        else {
+          int_to_cff2(data, 0);
+        }
       }
     }
+    else {
+      std::vector<bool> onlyOne;
+      delta.active[0] = limits.maxLeft != 0.0; onlyOne.push_back(limits.maxLeft == axisLimits.maxLeft);
+      delta.active[1] = limits.minLeft != 0.0; onlyOne.push_back(limits.minLeft == axisLimits.minLeft);
+      delta.active[2] = limits.maxRight != 0.0; onlyOne.push_back(limits.maxRight == axisLimits.maxRight);
+      delta.active[3] = limits.minRight != 0.0; onlyOne.push_back(limits.minRight == axisLimits.minRight);
+      
+      for (int i = 0; i < delta.deltas.size(); i++) {
+        if (delta.active[i]) {
+          isEmpty = false; 
+          if (delta.deltas[i] != 0.0) {            
+            fixed_to_cff2(data, delta.deltas[i]);
+            if (!onlyOne[i]) {
+              fixed_to_cff2(data, delta.deltas[i]);
+              fixed_to_cff2(data, delta.deltas[i]);
+            }
+            
+          }
+          else {
+            int_to_cff2(data, 0);
+            if (!onlyOne[i]) {
+              int_to_cff2(data, 0);
+              int_to_cff2(data, 0);
+            }           
+          }
+        }
+        
+      }
+    }
+    
     if (isEmpty) {
       data.clear();
     }
@@ -169,11 +201,13 @@ public:
     mp_graphic_object* minLeft = nullptr;
     mp_graphic_object* maxRight = nullptr;
     mp_graphic_object* minRight = nullptr;
+    ValueLimits limits;
   };
 
 
 
   struct PathLimits {
+    ValueLimits limits;
     DeltaValues currentx;
     DeltaValues currenty;
     mp_gr_knot maxLeft = nullptr;
@@ -189,8 +223,6 @@ public:
     inline DeltaValues right_x();
     inline DeltaValues right_y();
   };
-
-  std::unordered_map<QString, ValueLimits> expandableGlyphs;
 
   struct Color {
     uint8_t blue = 0;
@@ -241,6 +273,7 @@ public:
   QByteArray dsig();
   QByteArray fvar();
   QByteArray HVAR();
+  QByteArray HVAR_Old();
   QByteArray STAT();
   QByteArray MVAR();
   QByteArray JTST();
@@ -252,6 +285,31 @@ public:
   QByteArray CFF2VariationStore();
 
   void populateGlyphs();
+  QByteArray getVariationRegionList();
+
+  
+
+
+  const uint16_t LTATNameId = 256;
+  const uint16_t RTATNameId = 257;
+
+  ValueLimits axisLimits;
+
+  void setUniformAxis(bool uniform);
+
+  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const ValueLimits& limits, std::vector<std::map<std::vector<int>, int>>& delatSets);
+  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const ValueLimits& limits) {
+    return getDeltaSetEntry(delta, limits, GDEFDeltaSets);
+  }
+
+  QByteArray getGDEFItemVariationStore() {
+    return getItemVariationStore(GDEFDeltaSets);
+  }
+  QByteArray getItemVariationStore(const std::vector<std::map<std::vector<int>, int>>& delatSets);
+
+  bool isUniformAxis() {
+    return uniformAxis;
+  }
 
 private:
   OtLayout* ot_layout;
@@ -279,6 +337,13 @@ private:
 
   QByteArray getSubrs();
   QByteArray getAyaMono();
+
+  bool uniformAxis;
+  std::unordered_map<ValueLimits, int> regionSubtables;
+  std::vector<VariationRegion> regions;
+  std::vector<std::vector<int>> subRegions;
+
+  std::vector<std::map<std::vector<int>, int>> GDEFDeltaSets;
 };
 
 inline bool operator<(const ToOpenType::Color& a, const ToOpenType::Color& b)

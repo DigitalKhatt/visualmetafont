@@ -282,15 +282,11 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended) {
 
   layout.isOTVar = true;
 
-  layout.loadLookupFile("lookups.json");
+  layout.loadLookupFile("lookups.json");  
 
-  ToOpenType otf{ &layout };
+  layout.toOpenType->isCff2 = true;
 
-  otf.isCff2 = true;
-
-  otf.expandableGlyphs = m_otlayout->expandableGlyphs;
-
-  return otf.GenerateFile(otfFileName);
+  return layout.toOpenType->GenerateFile(otfFileName);
 
 }
 bool LayoutWindow::generateOpenType() {
@@ -300,11 +296,9 @@ bool LayoutWindow::generateOpenType() {
 
   OtLayout layout = OtLayout(m_otlayout->mp, false);
 
-  layout.loadLookupFile("lookups.json");
+  layout.loadLookupFile("lookups.json");  
 
-  ToOpenType otf{&layout};
-
-  return otf.GenerateFile(otfFileName);
+  return layout.toOpenType->GenerateFile(otfFileName);
 
 }
 

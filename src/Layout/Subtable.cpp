@@ -309,11 +309,23 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
         throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
       }
       else if (expan.MinLeftTatweel < 0.0) {
-        value.set_float(-expan.MinLeftTatweel / limits.minLeft);
+        if (m_layout->toOpenType->isUniformAxis()) {
+          value.set_float(-expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.minLeft);
+        }
+        else {
+          value.set_float(-expan.MinLeftTatweel / limits.minLeft);
+        }
+        
         root << value;
       }
       else if (expan.MinLeftTatweel > 0.0) {
-        value.set_float(expan.MinLeftTatweel / limits.maxLeft);
+        if (m_layout->toOpenType->isUniformAxis()) {
+          value.set_float(expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.maxLeft);
+        }
+        else {
+          value.set_float(expan.MinLeftTatweel / limits.maxLeft);
+        }
+        
         root << value;
       }
       else {
@@ -324,12 +336,23 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
       if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
         throw new runtime_error("MinRightTatweel error for glyph " + name.toStdString());
       }
-      else if (expan.MinRightTatweel < 0.0) {
-        value.set_float(-expan.MinRightTatweel / limits.minRight);
+      else if (expan.MinRightTatweel < 0.0) {        
+        if (m_layout->toOpenType->isUniformAxis()) {
+          value.set_float(-expan.MinRightTatweel / m_layout->toOpenType->axisLimits.minRight);
+        }
+        else {
+          value.set_float(-expan.MinRightTatweel / limits.minRight);
+        }
         root << value;
       }
       else if (expan.MinRightTatweel > 0.0) {
-        value.set_float(expan.MinRightTatweel / limits.maxRight);
+        
+        if (m_layout->toOpenType->isUniformAxis()) {
+          value.set_float(expan.MinRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
+        }
+        else {
+          value.set_float(expan.MinRightTatweel / limits.maxRight);
+        }
         root << value;
       }
       else {
@@ -409,8 +432,13 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       if (expan.MinLeftTatweel < limits.minLeft || expan.MinLeftTatweel > 0) {
         throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
       }
-      else if (expan.MinLeftTatweel != 0.0) {
-        value.set_float(-expan.MinLeftTatweel / limits.minLeft);
+      else if (expan.MinLeftTatweel != 0.0) {        
+        if (m_layout->toOpenType->isUniformAxis()) {
+          value.set_float(-expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.minLeft);
+        }
+        else {
+          value.set_float(-expan.MinLeftTatweel / limits.minLeft);
+        }
         root << value;
       }
       else {
@@ -422,8 +450,13 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       if (expan.MaxLeftTatweel > limits.maxLeft || expan.MaxLeftTatweel < 0) {
         throw new runtime_error("MaxLeftTatweel error for glyph " + name.toStdString());
       }
-      else if (expan.MaxLeftTatweel != 0.0) {
-        value.set_float(expan.MaxLeftTatweel / limits.maxLeft);
+      else if (expan.MaxLeftTatweel != 0.0) {        
+        if (m_layout->toOpenType->isUniformAxis()) {
+          value.set_float(expan.MaxLeftTatweel / m_layout->toOpenType->axisLimits.maxLeft);
+        }
+        else {
+          value.set_float(expan.MaxLeftTatweel / limits.maxLeft);
+        }
         root << value;
       }
       else {
@@ -434,8 +467,13 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       if (expan.MinRightTatweel < limits.minRight || expan.MinRightTatweel > 0) {
         throw new runtime_error("MinRightTatweel error for glyph " + name.toStdString());
       }
-      else if (expan.MinRightTatweel != 0.0) {
-        value.set_float(-expan.MinRightTatweel / limits.minRight);
+      else if (expan.MinRightTatweel != 0.0) {        
+        if (m_layout->toOpenType->isUniformAxis()) {
+          value.set_float(-expan.MinRightTatweel / m_layout->toOpenType->axisLimits.minRight);
+        }
+        else {
+          value.set_float(-expan.MinRightTatweel / limits.minRight);
+        }
         root << value;
       }
       else {
@@ -446,8 +484,13 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       if (expan.MaxRightTatweel > limits.maxRight || expan.MaxRightTatweel < 0) {
         throw new runtime_error("MaxRightTatweel error for glyph " + name.toStdString());
       }
-      else if (expan.MaxRightTatweel != 0.0) {
-        value.set_float(expan.MaxRightTatweel / limits.maxRight);
+      else if (expan.MaxRightTatweel != 0.0) {        
+        if (m_layout->toOpenType->isUniformAxis()) {
+          value.set_float(expan.MaxRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
+        }
+        else {
+          value.set_float(expan.MaxRightTatweel / limits.maxRight);
+        }
         root << value;
       }
       else {
@@ -1100,8 +1143,8 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
           DefaultDelta delatX{ val1->x() - entry.x(),val2->x() - entry.x(),val3->x() - entry.x() ,val4->x() - entry.x() };
           DefaultDelta delatY{ val1->y() - entry.y(),val2->y() - entry.y(),val3->y() - entry.y() ,val4->y() - entry.y() };
 
-          auto index_x = m_layout->getDeltaSetEntry(delatX);
-          auto index_y = m_layout->getDeltaSetEntry(delatY);
+          auto index_x = m_layout->getDeltaSetEntry(delatX, ff->second);
+          auto index_y = m_layout->getDeltaSetEntry(delatY, ff->second);
 
           entryExitRecords << (quint16)3;
           entryExitRecords << (quint16)entry.x();
@@ -1109,12 +1152,12 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
           entryExitRecords << (quint16)10; // xDeviceOffset
           entryExitRecords << (quint16)16; // yDeviceOffset
           //VariationIndex x
-          entryExitRecords << (quint16)0;
-          entryExitRecords << (quint16)index_x;
+          entryExitRecords << (quint16)index_x.first;
+          entryExitRecords << (quint16)index_x.second;
           entryExitRecords << (quint16)0x8000;
           //VariationIndex y
-          entryExitRecords << (quint16)0;
-          entryExitRecords << (quint16)index_y;
+          entryExitRecords << (quint16)index_y.first;
+          entryExitRecords << (quint16)index_y.second;
           entryExitRecords << (quint16)0x8000;
           done = true;
 
@@ -1172,8 +1215,8 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
           DefaultDelta delatX{ val1->x() - exit.x(),val2->x() - exit.x(),val3->x() - exit.x() ,val4->x() - exit.x() };
           DefaultDelta delatY{ val1->y() - exit.y(),val2->y() - exit.y(),val3->y() - exit.y() ,val4->y() - exit.y() };
 
-          auto index_x = m_layout->getDeltaSetEntry(delatX);
-          auto index_y = m_layout->getDeltaSetEntry(delatY);
+          auto index_x = m_layout->getDeltaSetEntry(delatX, ff->second);
+          auto index_y = m_layout->getDeltaSetEntry(delatY, ff->second);
 
           entryExitRecords << (quint16)3;
           entryExitRecords << (quint16)exit.x();
@@ -1181,12 +1224,12 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
           entryExitRecords << (quint16)10; // xDeviceOffset
           entryExitRecords << (quint16)16; // yDeviceOffset
           //VariationIndex x
-          entryExitRecords << (quint16)0;
-          entryExitRecords << (quint16)index_x;
+          entryExitRecords << (quint16)index_x.first;
+          entryExitRecords << (quint16)index_x.second;
           entryExitRecords << (quint16)0x8000;
           //VariationIndex y
-          entryExitRecords << (quint16)0;
-          entryExitRecords << (quint16)index_y;
+          entryExitRecords << (quint16)index_y.first;
+          entryExitRecords << (quint16)index_y.second;
           entryExitRecords << (quint16)0x8000;
           done = true;
 
@@ -1470,8 +1513,8 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
           DefaultDelta delatX{ val1.x() - coordinate.x(),val2.x() - coordinate.x(),val3.x() - coordinate.x() ,val4.x() - coordinate.x() };
           DefaultDelta delatY{ val1.y() - coordinate.y(),val2.y() - coordinate.y(),val3.y() - coordinate.y() ,val4.y() - coordinate.y() };
 
-          auto index_x = m_layout->getDeltaSetEntry(delatX);
-          auto index_y = m_layout->getDeltaSetEntry(delatY);
+          auto index_x = m_layout->getDeltaSetEntry(delatX, ff->second);
+          auto index_y = m_layout->getDeltaSetEntry(delatY, ff->second);
 
           baseAnchorTables << (quint16)3;
           baseAnchorTables << (quint16)coordinate.x();
@@ -1479,12 +1522,12 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
           baseAnchorTables << (quint16)10; // xDeviceOffset
           baseAnchorTables << (quint16)16; // yDeviceOffset
           //VariationIndex x
-          baseAnchorTables << (quint16)0;
-          baseAnchorTables << (quint16)index_x;
+          baseAnchorTables << (quint16)index_x.first;
+          baseAnchorTables << (quint16)index_x.second;
           baseAnchorTables << (quint16)0x8000;
           //VariationIndex y
-          baseAnchorTables << (quint16)0;
-          baseAnchorTables << (quint16)index_y;
+          baseAnchorTables << (quint16)index_y.first;
+          baseAnchorTables << (quint16)index_y.second;
           baseAnchorTables << (quint16)0x8000;
           done = true;
 
@@ -1564,8 +1607,8 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
         DefaultDelta delatX{ val1.x() - coordinate.x(),val2.x() - coordinate.x(),val3.x() - coordinate.x() ,val4.x() - coordinate.x() };
         DefaultDelta delatY{ val1.y() - coordinate.y(),val2.y() - coordinate.y(),val3.y() - coordinate.y() ,val4.y() - coordinate.y() };
 
-        auto index_x = m_layout->getDeltaSetEntry(delatX);
-        auto index_y = m_layout->getDeltaSetEntry(delatY);
+        auto index_x = m_layout->getDeltaSetEntry(delatX, ff->second);
+        auto index_y = m_layout->getDeltaSetEntry(delatY, ff->second);
 
         markAnchorTables << (quint16)3;
         markAnchorTables << (quint16)coordinate.x();
@@ -1573,12 +1616,12 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
         markAnchorTables << (quint16)10; // xDeviceOffset
         markAnchorTables << (quint16)16; // yDeviceOffset
         //VariationIndex x
-        markAnchorTables << (quint16)0;
-        markAnchorTables << (quint16)index_x;
+        markAnchorTables << (quint16)index_x.first;;
+        markAnchorTables << (quint16)index_x.second;
         markAnchorTables << (quint16)0x8000;
         //VariationIndex y
-        markAnchorTables << (quint16)0;
-        markAnchorTables << (quint16)index_y;
+        markAnchorTables << (quint16)index_y.first;
+        markAnchorTables << (quint16)index_y.second;
         markAnchorTables << (quint16)0x8000;
         done = true;
 

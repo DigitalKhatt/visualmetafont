@@ -22,11 +22,27 @@
 
 #include <math.h>
 
+struct RegionAxisCoordinate {
+  int16_t startCoord = 0;
+  int16_t peakCoord = 0;
+  int16_t endCoord = 0;
+
+  bool operator==(const RegionAxisCoordinate& r) const {
+    return r.startCoord == startCoord && r.peakCoord == peakCoord && r.endCoord == endCoord;
+  }
+};
+
+using VariationRegion = std::vector<RegionAxisCoordinate>;
+
 struct ValueLimits {
   float maxLeft = 0.0;
   float minLeft = 0.0;
   float maxRight = 0.0;
   float minRight = 0.0;
+
+  bool operator==(const ValueLimits& r) const {
+    return r.maxLeft == maxLeft && r.minLeft == minLeft && r.maxRight == maxRight && r.minRight == minRight;
+  }
 };
 
 struct DefaultDelta {
@@ -72,6 +88,45 @@ namespace std
   template<>
   struct equal_to<DefaultDelta> {
     bool operator()(const DefaultDelta& r, const DefaultDelta& r2) const
+    {
+      return r == r2;
+    }
+  };
+
+  template<> struct hash<ValueLimits>
+  {
+    std::size_t operator()(ValueLimits const& s) const noexcept
+    {
+      return hash<int>{}(s.maxLeft)
+        ^ hash<int>{}(s.minLeft)
+        ^ hash<int>{}(s.maxRight)
+        ^ hash<int>{}(s.minRight);
+    }
+  };
+
+
+  template<>
+  struct equal_to<ValueLimits> {
+    bool operator()(const ValueLimits& r, const ValueLimits& r2) const
+    {
+      return r == r2;
+    }
+  };
+
+  template<> struct hash<RegionAxisCoordinate>
+  {
+    std::size_t operator()(RegionAxisCoordinate const& s) const noexcept
+    {
+      return hash<int>{}(s.startCoord)
+        ^ hash<int>{}(s.peakCoord)
+        ^ hash<int>{}(s.endCoord);
+    }
+  };
+
+
+  template<>
+  struct equal_to<RegionAxisCoordinate> {
+    bool operator()(const RegionAxisCoordinate& r, const RegionAxisCoordinate& r2) const
     {
       return r == r2;
     }
