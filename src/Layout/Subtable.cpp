@@ -188,7 +188,7 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
       parameters.lefttatweel = (double)expan.MinLeftTatweel;
       parameters.righttatweel = (double)expan.MinRightTatweel;
 
-      GlyphVis* glyph = m_layout->getAlternate(i.key(), parameters,true);
+      GlyphVis* glyph = m_layout->getAlternate(substGlyph, parameters,true);
       substGlyph = glyph->charcode;
     }
     root << substGlyph;
