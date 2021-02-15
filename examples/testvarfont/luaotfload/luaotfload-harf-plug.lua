@@ -933,14 +933,14 @@ local function tonodes(head, node, run, glyphs)
             if glyph.lefttatweel ~= 0 or glyph.righttatweel ~= 0 then
               local ltat,rtat
               if glyph.lefttatweel <0 then
-                ltat = glyph.lefttatweel * 2
+                ltat = (glyph.lefttatweel - (2/16384.0) )* 20 
               else
-                ltat = glyph.lefttatweel * 12
+                ltat = (glyph.lefttatweel  + (2/16384.0)) * 20
               end
               if glyph.righttatweel <0 then
-                rtat = glyph.righttatweel * 2
+                rtat = (glyph.righttatweel  - (2/16384.0)) * 20
               else
-                rtat = glyph.righttatweel * 12
+                rtat = (glyph.righttatweel + (2/16384.0)) * 20
               end
               
               local instance = "ltat=" .. ltat .. ",rtat=".. rtat
