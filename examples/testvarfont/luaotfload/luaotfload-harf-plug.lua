@@ -932,7 +932,8 @@ local function tonodes(head, node, run, glyphs)
           elseif character.commands or character.index ~= oldcharacter.index then
             if glyph.lefttatweel ~= 0 or glyph.righttatweel ~= 0 then
               local ltat,rtat
-              if glyph.lefttatweel <0 then
+              -- TODO DigitalKhatt get max value from fvar
+              if glyph.lefttatweel <0 then                
                 ltat = (glyph.lefttatweel - (2/16384.0) )* 20 
               else
                 ltat = (glyph.lefttatweel  + (2/16384.0)) * 20
