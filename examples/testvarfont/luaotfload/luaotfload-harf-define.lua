@@ -29,8 +29,6 @@ harf_settings.default_buf_flags = hb.Buffer.FLAGS_DEFAULT or 0
 
 local hbfonts = {}
 
-amine = amine or {}
-
 local cfftag  = hb.Tag.new("CFF ")
 local cff2tag = hb.Tag.new("CFF2")
 local os2tag  = hb.Tag.new("OS/2")
@@ -272,48 +270,18 @@ local function scalefont(data, spec)
   -- We shape in font units (at UPEM) and then scale output with the desired
   -- sfont size.
   local scale = size / upem
-  
-  
-  --hbfont:set_variations
   hbfont:set_scale(upem, upem)
-  
-  local variations = {}
-  --[[
-  local ltat = hb.Variation.new()
-  ltat.tag = hb.Tag.new("LTAT")
-  ltat.value = 5 --*2/3 --/ (7200/7227)
-  
-  local rtat = hb.Variation.new()
-  rtat.tag = hb.Tag.new("RTAT")
-  rtat.value = 5 --0.42 --(7200/7227)
-
-  
-  variations[#variations + 1] = ltat
-  variations[#variations + 1] = rtat
-  
-  local tt = variations[1].value
-  local kk = variations[1].tag
-  
-  local hhh = variations[2].value
-  local nnn = variations[2].tag
-  
-  
-  --local test = hbfont:set_variations(variations)
-  
-  local coords = hbfont:get_var_coords_normalized()
-  --]]
 
   -- Populate font’s characters table.
   local glyphs = data.glyphs
   local characters = {}
   for gid, glyph in next, glyphs do
     characters[gid_offset + gid] = {
-      --index  = gid,
-      gid  = gid,
+      index  = gid,
       width  = glyph.width  * scale,
       height = glyph.height * scale,
       depth  = glyph.depth  * scale,
-      italic = glyph.italic * scale
+      italic = glyph.italic * scale,
     }
   end
 
@@ -343,7 +311,7 @@ local function scalefont(data, spec)
     psname = sanitize(data.psname),
     fullname = data.fullname,
     index = spec.index,
-    size = size,   
+    size = size,
     units_per_em = upem,
     embedding = "subset",
     tounicode = 1,
@@ -360,8 +328,6 @@ local function scalefont(data, spec)
       quad = size,
       extra_space = space * scale / 3,
       [8] = data.capheight * scale, -- for XeTeX compatibility.
-      hfactor=scale,
-      vfactor=scale,
     },
     hb = {
       scale = scale,
@@ -384,146 +350,6 @@ local function scalefont(data, spec)
   fonts.constructors.applymanipulators("otf", tfmdata, features, false)
   return tfmdata
 end
-
-local formatters = string.formatters
-
-local f_c = formatters["%.6N %.6N %.6N %.6N %.6N %.6N c"]
-local f_l = formatters["%.6N %.6N l"]
-local f_m = formatters["%.6N %.6N m"]
-local concat = table.concat
-local function segmentstopdf(segments,factor,bt,et)
-    local t = { }
-    local m = 0
-    local n = #segments
-    local d = false
-    for i=1,n do
-        local s = segments[i]
-        local w = s[#s]
-        if w == "c" then
-            m = m + 1
-            t[m] = f_c(s[1]*factor,s[2]*factor,s[3]*factor,s[4]*factor,s[5]*factor,s[6]*factor)
-        elseif w == "l" then
-            m = m + 1
-            t[m] = f_l(s[1]*factor,s[2]*factor)
-        elseif w == "m" then
-            m = m + 1
-            t[m] = f_m(s[1]*factor,s[2]*factor)
-        elseif w == "q" then
-            local p = segments[i-1]
-            local n = #p
-            local l_x = factor*p[n-2]
-            local l_y = factor*p[n-1]
-            local m_x = factor*s[1]
-            local m_y = factor*s[2]
-            local r_x = factor*s[3]
-            local r_y = factor*s[4]
-            m = m + 1
-            t[m] = f_c (
-                l_x + 2/3 * (m_x-l_x), l_y + 2/3 * (m_y-l_y),
-                r_x + 2/3 * (m_x-r_x), r_y + 2/3 * (m_y-r_y),
-                r_x, r_y
-            )
-        end
-    end
-    m = m + 1
-    t[m] = "h f" -- B*
-    if bt and et then
-        t[0]   = bt
-        t[m+1] = et
-        return concat(t,"\n",0,m+1)
-    else
-        return concat(t,"\n")
-    end
-end
-
-amine.generatechar = function(tfmdata,instance,char)  
-  local spec = {}
-  spec.properties = {}
-  spec.properties.filename = tfmdata.specification.filename
-  spec.properties.instance = instance
-  local shapes = fonts.handlers.otf.loadoutlinedata(spec)
-  
-  local characters = tfmdata.characters
-  local parameters = tfmdata.parameters
-  local hfactor    = parameters.hfactor * (7200/7227)
-  local factor     = hfactor / 65536
-  local getactualtext = fonts.handlers.otf.getactualtext
-  local character = characters[char]
-  if character then
-    local shape = shapes.glyphs[character.gid]
-    if shape then
-        local segments = shape.segments
-        if segments then
-         -- we need inline in order to support color
-            --local bt, et = getactualtext(character.tounicode or character.unicode or unicode)
-            
-            local commands = {
-                { "pdf", "origin", segmentstopdf(segments,factor,bt,et) }
-            }
-            local lastkey = 0
-            for key in pairs(characters) do
-              if key > lastkey then
-                lastkey = key
-              end
-            end
-            lastkey = lastkey + 1
-            characters[lastkey] = {
-              index  = character.index,
-              width  = character.width,
-              height = character.height,
-              depth  = character.depth,
-              italic = character.italic,
-              commands = commands
-            }
-            return lastkey
-            
-        end
-    end
-  end
-  
-  return char
-  
-end
-
-amine.variableshapes = function(tfmdata,instance)  
-  tfmdata.properties.filename = tfmdata.specification.filename 
-  local ins = tfmdata.properties.instance
-  if instance then
-    tfmdata.properties.instance = instance
-  end
-  local shapes = fonts.handlers.otf.loadoutlinedata(tfmdata)
-  tfmdata.properties.instance = ins
-  if not shapes then
-      return
-  end
-  local glyphs = shapes.glyphs
-  if not glyphs then
-      return
-  end
-  local characters = tfmdata.characters
-  local parameters = tfmdata.parameters
-  local hfactor    = parameters.hfactor * (7200/7227)
-  local factor     = hfactor / 65536
-  local getactualtext = fonts.handlers.otf.getactualtext
-  for unicode, char in next, characters do
-      if char.commands then
-          -- can't happen as we're doing this before other messing around
-      else
-          local shape = glyphs[char.gid]
-          if shape then
-              local segments = shape.segments
-              if segments then
-               -- we need inline in order to support color
-                  local bt, et = getactualtext(char.tounicode or char.unicode or unicode)
-                  char.commands = {
-                      { "pdf", "origin", segmentstopdf(segments,factor,bt,et) }
-                  }
-              end
-          end
-      end
-  end    
-end
-
 
 -- Register a reader for `harf` mode (`mode=harf` font option) so that we only
 -- load fonts when explicitly requested. Fonts we load will be shaped by the
@@ -566,11 +392,7 @@ fonts.readers.harf = function(spec)
       end
     end
   end
-  
-  local tt = scalefont(loadfont(spec), spec)
-  amine.variableshapes(tt)
-  
-  return tt
+  return scalefont(loadfont(spec), spec)
 end
 
 local find_file = kpse.find_file

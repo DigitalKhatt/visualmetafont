@@ -2,3 +2,7 @@
 # output files
 output/testvarfont.log
 output/testvarfont.aux
+testbox.tex
+*.aux
+*.log
+*.pdf

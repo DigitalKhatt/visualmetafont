@@ -2370,7 +2370,26 @@ void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int 
 
   text_buffer->justContext = nullptr;
 
+  hb_feature_t features[2];
+
+  features[0].tag = HB_TAG('s', 'h', 'r', '1');
+  features[0].value = 10;
+  features[0].start = -1;
+  features[0].end = 0;
+
+  features[1].tag = HB_TAG('t', 'j', 'w', 'd');
+  if (tajweedColor) {
+    features[1].value = 1;
+  }
+  else {
+    features[1].value = 0;
+  }
+  features[1].start = 0;
+  features[1].end = -1;
+
   JustificationInProgress = true;
+  hb_shape(shapefont, text_buffer, features, 2);
+  /*
   if (tajweedColor) {
     hb_feature_t color_fea{ HB_TAG('t', 'j', 'w', 'd'),0,0,(uint)-1 };
     color_fea.value = 1;
@@ -2379,7 +2398,7 @@ void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int 
   }
   else {
     hb_shape(shapefont, text_buffer, nullptr, 0);
-  }
+  }*/
   JustificationInProgress = false;
 
 }

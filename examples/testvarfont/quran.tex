@@ -1,0 +1,37 @@
+\edef\pdfcompresslevel{\pdfvariable compresslevel}
+\edef\pdfobjcompresslevel{\pdfvariable objcompresslevel}
+\newattribute{\tajweedatt}
+\newattribute{\sajdaatt}
+
+\directlua{require('digitalkhatt')}
+\directlua{require('quran')}
+
+
+\newbox\ayaframe
+\newcount\suranum
+
+
+\def\suraline#1{%
+\global\advance\suranum by1%
+\raise40pt\hbox to 0pt{\pdfbookmark{\the\suranum. #1}{sura\the\suranum}}%
+\hbox to 0pt{\copy\ayaframe\hss}\centerline{#1}%
+}%
+\def\bismline#1{\centerline{#1}}
+
+
+
+\def\sajdabar#1{\setattribute{\sajdaatt}{1}#1\unsetattribute{\sajdaatt}\directlua{addsajdacallback()}%
+}
+
+%\font\medinafont={file:digitalkhatt.otf:mode=harf;shaper=ot;script=arab}
+%\font\medinafontnode={file:digitalkhatt.otf:script=arab}
+%\font\medinafontvar={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes;axis={ltat=5,rtat=5}}
+\font\medinafontvar={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes;colr;tjwd} at 28pt
+\font\medinafontvarnode={file:digitalkhatt-cff2.otf:mode=node;shaper=ot;script=arab;variableshapes}
+%\font\medinafontvarnode={file:digitalkhatt-cff2.otf:mode=node;script=arab;axis={ltat=5,rtat=5};variableshapes}
+
+\renewcommand{\baselinestretch}{5}
+\parindent=0pt
+\parfillskip=0pt
+
+\def\topglue{\nointerlineskip \vglue-\topskip \vglue}

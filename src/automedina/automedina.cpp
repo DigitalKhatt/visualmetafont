@@ -382,6 +382,7 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
 
   layout->expandableGlyphs["fatha"] = { 1.5,-1.0,0,0 };
   layout->expandableGlyphs["kasra"] = { 1,-1.0,0,0 };
+  layout->expandableGlyphs["space"] = { 4.0,-0.5,0.0,0.0 };
   
 }
 

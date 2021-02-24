@@ -1174,7 +1174,7 @@ lookup justification {
 			sub callback meem.medi expfactors -0.5 0 0 0;
 			sub callback heh.init expfactors -0.5 0 0 0;
 			sub callback heh.medi expfactors -0.5 0 0 0;
-			sub callback alef.fina expfactors 0 0 -0.4 0;
+			#sub callback alef.fina expfactors 0 0 -0.1 0;
 			sub callback behshape.medi.beforenoon expfactors 0 0 -0.4 0;
 			sub callback hah.medi.lam_hah expfactors -0.5 0 0 0;
 		} expa.shrink.l1;
@@ -1526,24 +1526,24 @@ feature sch1 {
 } sch1;
 
 feature shr1 {
-	lookup shr1.alefcursive {	
+	lookup shrr.alefcursive {	
 	
-		# feature curs;
+		feature shrr;
 
 		lookupflag IgnoreMarks;
 
 		pos cursive [alef.fina alef.isol] <anchor 0 0> <anchor 0 0> ;
 		pos cursive [meem.init qaf.isol dal.isol behshape.init.beforehah /lam.init/ /behshape.isol/] <anchor 0 0 > <anchor NULL>;		
 		
-	} shr1.alefcursive;
+	} shrr.alefcursive;
 
 	lookup shr1.kern {	
 	
-		feature shrr;
+		feature shr1;
 
 		lookupflag IgnoreMarks;
 
-		pos [alef.fina alef.isol]  @bases'<0 0 -100 0>;
+		pos [alef.fina alef.isol]  @bases'<0 0 -50 0>;
 
 		pos /dal.fina/ kaf.init'<0 0 -150 0>;
 		
@@ -1552,18 +1552,18 @@ feature shr1 {
 
 	lookup shr1.dalcursive {	
 	
-		feature shrr;
+		feature shr1;
 
 		lookupflag IgnoreMarks;
 
 		pos cursive /dal.fina/ <anchor NULL> <anchor 0 0> ;
-		pos cursive [/behshape.init/] <anchor 0 0 > <anchor NULL>;		
+		pos cursive [/behshape.init.beforenoon/] <anchor 0 0 > <anchor NULL>;		
 		
 	} shr1.dalcursive;
 
 	lookup shr1.kaf {
 		
-		feature shrr;
+		feature shr1;
 
 		lookupflag IgnoreMarks;
 
@@ -1578,6 +1578,18 @@ feature shr1 {
 feature shr2 {
   lookup expa.shrink;
 	# lookup expa.shrink2;
+
+	lookup expa.shrinkspace {
+
+		feature shr2;
+
+		lookupflag IgnoreMarks;
+
+		sub callback space by space expfactors -0.5 0 0 0;
+
+		
+
+	} expa.shrinkspace;
 } shr2;
 
 feature schm {
@@ -1639,13 +1651,17 @@ table(just) {
 		#lookup expa.joining;		
 	}
 	shrink {
-		step {
-			lookup shr1.alefcursive;
-			lookup shr1.kern;
-			lookup shr1.dalcursive;
-			lookup shr1.kaf;
-		}
+		#step {
+		#	lookup shr1.alefcursive;
+		#	lookup shr1.kern;
+		#	lookup shr1.dalcursive;
+		#	lookup shr1.kaf;
+		#}
+		lookup expa.shrinkspace;
+		lookup shr1.kaf;
 		lookup expa.shrink;
+		lookup shr1.kern;
+		lookup shr1.dalcursive;
 	}
 };
 	

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
@@ -44,11 +44,14 @@ namespace GenerateTexFromTanzil
         {
             Console.OutputEncoding = Encoding.UTF8;
 
-            string arg = "xml";
+            string arg = "";
             if (args.Length > 0)
             {
                 arg = args[0];
             }
+
+            string fileName = "xml\\UthmanicHafs1Ver13.xml";
+
 
             if (arg == "xml")
             {
@@ -64,24 +67,30 @@ namespace GenerateTexFromTanzil
             {
                 string currentDir = Directory.GetCurrentDirectory();
 
-                string ver9 = currentDir + "\\files\\UthmanicHafs1 Ver09.doc";
+                string ver16 = currentDir + "\\files\\UthmanicHafs1 Ver16.doc";
                 string ver13 = currentDir + "\\files\\UthmanicHafs1 Ver13.doc";
 
-                compareHafsDocs(ver9, ver13);
+                compareHafsDocs(ver13, ver16);
             }
             else if (arg == "cpp")
             {
-                GenerateCPPFromUthmanicHafs(false, "xml\\UthmanicHafs1Ver13.xml");
-                GenerateCPPFromUthmanicHafs(true, "xml\\UthmanicHafs1Ver13.xml");
+                GenerateCPPFromUthmanicHafs(false, fileName);
+                GenerateCPPFromUthmanicHafs(true, fileName);
             }
             else if (arg == "tex")
             {
-                GenerateTexFileFromXMLTanzil(arg);
-                GenerateTexFileFromDocFile(arg);
+                GenerateContextFileFromDocFile(fileName, "par");
             }
             else
             {
-                Console.WriteLine("Invalid argument");
+
+                GenerateCPPFromUthmanicHafs(false, fileName);
+                GenerateCPPFromUthmanicHafs(true, fileName);
+                GenerateContextFileFromDocFile(fileName, "par");
+                GenerateContextFileFromDocFile(fileName, "exact");
+                GenerateContextFileFromDocFile(fileName, "page");
+                GenerateLatexFileFromDocFile(fileName);
+
             }
 
         }
@@ -129,9 +138,9 @@ namespace GenerateTexFromTanzil
             //var text1 = string.Join(" ", pages1.Select(a => string.Join(" ", a.ToArray())).ToArray());
             //var text2 = string.Join(" ", pages2.Select(a => string.Join(" ", a.ToArray())).ToArray());
 
-            text1 = text1.Replace('\u200D', '\u0640');
-            text1 = text1.Replace('\u06E2', '\u06ED');
-            text2 = text2.Replace('\u06E2', '\u06ED');
+            //text1 = text1.Replace('\u200D', '\u0640');
+            //text1 = text1.Replace('\u06E2', '\u06ED');
+            //text2 = text2.Replace('\u06E2', '\u06ED');
 
             diff_match_patch dmp = new diff_match_patch();
             dmp.Diff_Timeout = 0;
@@ -316,11 +325,11 @@ namespace GenerateTexFromTanzil
         {
 
             List<List<string>> UthmanicHafsDocPages = readXML(fileName);
-           
-            string outputfile = @"D:\projects\Fonts\src\visualmetafont\MPGUI\qurantext\quran.cpp";
+
+            string outputfile = @"output/quran.cpp";
             if (quranComplex)
             {
-                outputfile = @"D:\projects\Fonts\src\visualmetafont\MPGUI\qurantext\qurancomplex.cpp";
+                outputfile = @"D:output/qurancomplex.cpp";
             }
             //string suraWord = "سُورَةُ";
             //string bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"; // "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ";
@@ -345,10 +354,19 @@ namespace GenerateTexFromTanzil
                         string line = page[i];
                         if (!quranComplex)
                         {
-                            line = replaceCharcatersFromUthmanicHafsDoc(page[i]);                                                                                       
-                        }                     
+                            line = replaceCharcatersFromUthmanicHafsDoc(page[i]);
+                        }
+                        else
+                        {
+                            line = line.Replace("\u06E4", ""); // Small Madda for Sajda Rule above used to add line above. We dont need this.
+                        }
+                        /*
+                        if (line.Contains("\u06E4"))
+                        {
+                            Console.WriteLine("Small Madda for Sajda Rule above, page=" + (nopage + 1).ToString() + ",line=" + (i + 1).ToString());
+                        }*/
 
-                        line = line.Replace("\u06E4", ""); // Small Madda for Sajda Rule above
+
 
                         //int indexbism = line.IndexOf(bism);
 
@@ -381,355 +399,235 @@ namespace GenerateTexFromTanzil
 
             }
         }
-
-        static void GenerateTexFileFromDocFile(string arg)
+        static void GenerateLatexFileFromDocFile(string fileName)
         {
-            List<List<string>> UthmanicHafsDocPages = new List<List<string>>();
-            List<string> lines = null;
+            List<List<string>> UthmanicHafsDocPages = readXML(fileName);
+            string outputfile = @"output/quran_latex" + ".tex";
 
-            using (XmlReader reader = XmlReader.Create("input\\UthmanicHafs1Ex1Ver12.xml"))
+            string bismPattern = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" + "|" + "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
+            string sajdapatterns = @"(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)"; // sajdapatterns.replace("\u0657", "\u08F0").replace("\u065E", "\u08F1").replace("\u0656", "\u08F2");
+
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter(outputfile))
             {
-                while (reader.Read())
-                {
-                    if ((reader.NodeType == XmlNodeType.Element) && (reader.Name == "Page"))
-                    {
-                        lines = new List<string>();
-                    }
-                    else if ((reader.NodeType == XmlNodeType.Element) && (reader.Name == "Line"))
-                    {
-                        lines.Add(reader.ReadElementContentAsString());
-                    }
-                    else if ((reader.NodeType == XmlNodeType.EndElement) && (reader.Name == "Page"))
-                    {
-                        UthmanicHafsDocPages.Add(lines);
-                    }
-                }
-
-                string outputfile = @"D:\projects\Fonts\texexamples\quran.tex";
-                string suraWord = "سُورَةُ";
-                string bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"; // "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ";
-                string bism2 = "بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ";
-                using (System.IO.StreamWriter file = new System.IO.StreamWriter(outputfile))
+                for (int nopage = 0; nopage < UthmanicHafsDocPages.Count; nopage++)
                 {
 
+                    //if (nopage > 1 && nopage < 550) continue;
 
-                    file.WriteLine(@"\environment ara-sty");
-                    file.WriteLine(@"\setarabic");
-                    file.WriteLine(@"\starttext");
-                    file.WriteLine(@"\testnaksh");
-                    file.WriteLine();
-                    file.WriteLine(@"\baselineskip =9.44mm plus 0pt minus 0pt");
-                    file.WriteLine(@"\lineskip=4.2pt plus 0pt minus 0pt");
-                    file.WriteLine(@"\lineskiplimit=-100pt");
-                    file.WriteLine(@"\hbadness=10000");
-                    file.WriteLine(@"\clubpenalty=0%");
-                    file.WriteLine(@"\widowpenalty=0%");
-                    file.WriteLine(@"\displaywidowpenalty=0%");
-                    file.WriteLine(@"\brokenpenalty=0%");
-                    file.WriteLine();
-
-                    int currentpage = 1;
-
-
-                    for (int nopage = 0; nopage < UthmanicHafsDocPages.Count; nopage++)
+                    var page = UthmanicHafsDocPages[nopage];
+                    if (nopage == 0 || nopage == 1)
                     {
-                        var page = UthmanicHafsDocPages[nopage];
-
-                        if (nopage == 0 || nopage == 1)
+                        file.Write("\\topglue 50pt\n"); //%\topglue 0pt plus 1fill
+                    }
+                    for (int i = 0; i < page.Count; i++)
+                    {
+                        var mm = 80;
+                        if (i == 1 || i == 7)
                         {
-                            file.WriteLine(@"\leavevmode\vfill");
+                            mm = 80;
+                        }
+                        else if (i == 2 || i == 3 || i == 4)
+                        {
+                            mm = 130 + (i - 2) * 35;
+                        }
+                        else
+                        {
+                            mm = 200 - (i - 4) * 35;
                         }
 
-                        for (int i = 0; i < page.Count; i++)
+                        string line = replaceCharcatersFromUthmanicHafsDoc(page[i]);
+                        if (nopage == 0 || nopage == 1)
                         {
-                            string line = page[i]; // replaceCharcatersFromUthmanicHafsDoc(page[i]);
-                            line = setSajdahBar(line);
-                            //int indexbism = line.IndexOf(bism);
                             if (line.StartsWith("سُورَةُ "))
                             {
-                                file.WriteLine(@"\sura{" + line + @"}");
-                                //file.WriteLine(@"\startlinealignment[middle]");
-                                //file.WriteLine(@"\ArabicGlobalDir ");
-                                //file.WriteLine(line);
-                                //file.WriteLine(@"\stoplinealignment\par");
-                            }
-                            //else if (indexbism >= 0 && currentpage != 1)
-                            else if (line.Trim() == bism2)
-                            {
-                                file.WriteLine(@"\centerpars{" + bism2 + "}");
+                                file.WriteLine(@"\leavevmode\suraline{" + line + @"}\vskip80pt");
                             }
                             else
                             {
-                                if ((i == 1 && currentpage == 1) || (i == 2 && currentpage == 2))
+                                file.WriteLine(@"\centerline{\hbox to" + mm + "mm{" + line + @"}}");
+                            }
+                                
+                        }
+                        else
+                        {
+                            if (line.StartsWith("سُورَةُ "))
+                            {
+                                file.WriteLine(@"\suraline{" + line + @"}");
+                            }
+                            else
+                            {
+                                var match = Regex.Match(line.Trim(), bismPattern);
+                                if (match.Success)
                                 {
-                                    file.WriteLine(@"\startcenter");
-                                }
-
-
-                                if (i == (page.Count - 1))
-                                {
-                                    if (arg == "exact")
-                                    {
-                                        file.WriteLine(line.Replace(" ", "~") + "\\par");
-                                    }
-                                    else
-                                    {
-                                        file.WriteLine(line);
-                                    }
-
-
-                                    if (currentpage == 1 || currentpage == 2)
-                                    {
-                                        file.WriteLine(@"\stopcenter");
-                                    }
+                                    file.WriteLine(@"\bismline{" + match.Value + @"}");
                                 }
                                 else
                                 {
+                                    
+                                    line = Regex.Replace(line.Trim(), sajdapatterns, delegate (Match m) {
+                                        return "\\sajdabar{" + m.Value + "}";
+                                    });                               
 
-
-                                    if ((nopage + 1) == 567 && (i + 1) == 12)
-                                    {
-                                        line = line.Replace("٢٩", "").Trim();
-
-                                    }
-                                    else if ((nopage + 1) == 567 && (i + 1) == 13)
-                                    {
-                                        line = "٢٩" + " " + line;
-                                    }
-
-                                    if (currentpage == 1 || currentpage == 2)
-                                    {
-                                        file.WriteLine(line + "\\par");
-                                    }
-                                    else
-                                    {
-                                        if (arg == "exact")
-                                        {
-                                            //file.WriteLine(line.Replace(" ", "\\char983040{}") + "\\par");
-                                            file.WriteLine(line.Replace(" ", "~") + "\\par");
-                                        }
-                                        else
-                                        {
-                                            file.WriteLine(line);
-                                        }
-                                    }
-
-
+                                    file.WriteLine(line);
                                 }
-
                             }
 
+
                         }
-
-
-                        if (nopage == 0 || nopage == 1)
-                        {
-                            file.WriteLine(@"\leavevmode\vfill\page[yes]");
-                        }
-                        else if (arg == "page" || arg == "exact")
-                        {
-                            file.WriteLine(@"\par");
-                            file.WriteLine(@"\page[yes]");
-                        }
-
-
-                        if (currentpage > 1000)
-                            break;
-                        currentpage++;
                     }
-
-                    file.WriteLine("\\stoptext");
-
-                    file.Close();
-
+                    if (nopage == 0 || nopage == 1)
+                    {
+                        file.Write(@"\vfill
+\newpage
+");
+                    }
                 }
-
-
             }
         }
-
-        static void GenerateTexFileFromXMLTanzil(string arg)
+        static void GenerateContextFileFromDocFile(string fileName, string arg)
         {
-            List<List<string>> UthmanicHafsDocPages = new List<List<string>>();
-            List<string> lines = null;
+            List<List<string>> UthmanicHafsDocPages = readXML(fileName);
 
-            using (XmlReader reader = XmlReader.Create("input\\UthmanicHafs1Ver09.xml"))
+            string outputfile = @"output/quran_context_" + arg + ".tex";
+            string suraWord = "سُورَةُ";
+            string bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"; // "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ";
+            string bism2 = "بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ";
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter(outputfile))
             {
-                while (reader.Read())
+
+
+                file.WriteLine(@"\environment ara-sty");
+                file.WriteLine(@"\setarabic");
+                file.WriteLine(@"\starttext");
+                file.WriteLine(@"\testnaksh");
+                file.WriteLine();
+                file.WriteLine(@"\baselineskip =9.44mm plus 0pt minus 0pt");
+                file.WriteLine(@"\lineskip=4.2pt plus 0pt minus 0pt");
+                file.WriteLine(@"\lineskiplimit=-100pt");
+                file.WriteLine(@"\hbadness=10000");
+                file.WriteLine(@"\clubpenalty=0%");
+                file.WriteLine(@"\widowpenalty=0%");
+                file.WriteLine(@"\displaywidowpenalty=0%");
+                file.WriteLine(@"\brokenpenalty=0%");
+                file.WriteLine();
+
+                int currentpage = 1;
+
+
+                for (int nopage = 0; nopage < UthmanicHafsDocPages.Count; nopage++)
                 {
-                    if ((reader.NodeType == XmlNodeType.Element) && (reader.Name == "Page"))
+                    var page = UthmanicHafsDocPages[nopage];
+
+                    if (nopage == 0 || nopage == 1)
                     {
-                        lines = new List<string>();
+                        file.WriteLine(@"\leavevmode\vfill");
                     }
-                    else if ((reader.NodeType == XmlNodeType.Element) && (reader.Name == "Line"))
+
+                    for (int i = 0; i < page.Count; i++)
                     {
-                        lines.Add(reader.ReadElementContentAsString());
-                    }
-                    else if ((reader.NodeType == XmlNodeType.EndElement) && (reader.Name == "Page"))
-                    {
-                        UthmanicHafsDocPages.Add(lines);
-                    }
-                }
-
-                string outputfile = @"D:\projects\Fonts\quranbook\quran.tex";
-                string suraWord = "سُورَةُ";
-                string bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"; // "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ";
-                using (System.IO.StreamWriter file = new System.IO.StreamWriter(outputfile))
-                {
-
-
-                    file.WriteLine(@"\environment ara-sty");
-
-                    file.WriteLine(@"\directlua{ require('mobdebug').start()}");
-                    file.WriteLine(@"%\directlua{require('debugger')()}");
-                    file.WriteLine(@"\directlua{require('automedina')}");
-                    file.WriteLine(@"\usemodule[myfont-otc]");
-                    file.WriteLine(@"\input frame");
-                    file.WriteLine();
-                    file.WriteLine(@"\starttext");
-                    file.WriteLine();
-                    file.WriteLine(@"\enabletrackers[builders.paragraphs.solutions.splitters.colors]");
-                    file.WriteLine(@"\enabletrackers[builders.hpack.overflow]");
-                    file.WriteLine(@"\enabletrackers[builders.hpack.quality]");
-                    file.WriteLine();
-                    file.WriteLine(@"\ArabicGlobalDir\automedina");
-                    file.WriteLine();
-                    file.WriteLine(@"\definefontsolution");
-                    file.WriteLine(@"[solutionforautomedinafont]");
-                    file.WriteLine(@"[goodies=automediangoodies.lua,");
-                    file.WriteLine(@"solution=experimental,");
-                    file.WriteLine(@"method={normal},");
-                    file.WriteLine(@"criterium=1]");
-                    file.WriteLine();
-                    file.WriteLine(@"%\setfontsolution[solutionforautomedinafont]");
-                    file.WriteLine();
-                    file.WriteLine(@"\baselineskip =9.44mm plus 0pt minus 0pt");
-                    file.WriteLine(@"\lineskip=4.2pt plus 0pt minus 0pt");
-                    file.WriteLine(@"\lineskiplimit=-100pt");
-                    file.WriteLine(@"\hbadness=10000");
-                    file.WriteLine(@"\clubpenalty=0%");
-                    file.WriteLine(@"\widowpenalty=0%");
-                    file.WriteLine(@"\displaywidowpenalty=0%");
-                    file.WriteLine(@"\brokenpenalty=0%");
-                    file.WriteLine();
-                    int currentpage = 1;
-
-
-                    for (int nopage = 0; nopage < UthmanicHafsDocPages.Count; nopage++)
-                    {
-                        var page = UthmanicHafsDocPages[nopage];
-
-                        if (nopage == 0 || nopage == 1)
+                        string line = page[i]; // replaceCharcatersFromUthmanicHafsDoc(page[i]);
+                        line = setSajdahBar(line);
+                        //int indexbism = line.IndexOf(bism);
+                        if (line.StartsWith("سُورَةُ "))
                         {
-                            file.WriteLine(@"\hspace{0pt}\vfill");
+                            file.WriteLine(@"\sura{" + line + @"}");
+                            //file.WriteLine(@"\startlinealignment[middle]");
+                            //file.WriteLine(@"\ArabicGlobalDir ");
+                            //file.WriteLine(line);
+                            //file.WriteLine(@"\stoplinealignment\par");
                         }
-
-                        for (int i = 0; i < page.Count; i++)
+                        //else if (indexbism >= 0 && currentpage != 1)
+                        else if (line.Trim() == bism2)
                         {
-                            string line = replaceCharcatersFromUthmanicHafsDoc(page[i]);
-                            line = setSajdahBar(line);
-                            //int indexbism = line.IndexOf(bism);
-                            if (line.StartsWith("سُورَةُ "))
+                            file.WriteLine(@"\centerpars{" + bism2 + "}");
+                        }
+                        else
+                        {
+                            if ((i == 1 && currentpage == 1) || (i == 2 && currentpage == 2))
                             {
-                                file.WriteLine(@"\sura{" + line + @"}\centerpars{" + line + "}");
-                                //file.WriteLine(@"\startlinealignment[middle]");
-                                //file.WriteLine(@"\ArabicGlobalDir ");
-                                //file.WriteLine(line);
-                                //file.WriteLine(@"\stoplinealignment\par");
+                                file.WriteLine(@"\startcenter");
                             }
-                            //else if (indexbism >= 0 && currentpage != 1)
-                            else if (line.Trim() == bism)
+
+
+                            if (i == (page.Count - 1))
                             {
-                                file.WriteLine(@"\centerpars{" + bism + "}");
-                            }
-                            else
-                            {
-                                if ((i == 1 && currentpage == 1) || (i == 2 && currentpage == 2))
+                                if (arg == "exact")
                                 {
-                                    file.WriteLine(@"\startcenter");
+                                    file.WriteLine(line.Replace(" ", "~") + "\\par");
+                                }
+                                else
+                                {
+                                    file.WriteLine(line);
                                 }
 
 
-                                if (i == (page.Count - 1))
+                                if (currentpage == 1 || currentpage == 2)
+                                {
+                                    file.WriteLine(@"\stopcenter");
+                                }
+                            }
+                            else
+                            {
+
+
+                                if ((nopage + 1) == 567 && (i + 1) == 12)
+                                {
+                                    line = line.Replace("٢٩", "").Trim();
+
+                                }
+                                else if ((nopage + 1) == 567 && (i + 1) == 13)
+                                {
+                                    line = "٢٩" + " " + line;
+                                }
+
+                                if (currentpage == 1 || currentpage == 2)
+                                {
+                                    file.WriteLine(line + "\\par");
+                                }
+                                else
                                 {
                                     if (arg == "exact")
                                     {
+                                        //file.WriteLine(line.Replace(" ", "\\char983040{}") + "\\par");
                                         file.WriteLine(line.Replace(" ", "~") + "\\par");
                                     }
                                     else
                                     {
                                         file.WriteLine(line);
                                     }
-
-
-                                    if (currentpage == 1 || currentpage == 2)
-                                    {
-                                        file.WriteLine(@"\stopcenter");
-                                    }
                                 }
-                                else
-                                {
 
-
-                                    if ((nopage + 1) == 567 && (i + 1) == 12)
-                                    {
-                                        line = line.Replace("٢٩", "").Trim();
-
-                                    }
-                                    else if ((nopage + 1) == 567 && (i + 1) == 13)
-                                    {
-                                        line = "٢٩" + " " + line;
-                                    }
-
-                                    if (currentpage == 1 || currentpage == 2)
-                                    {
-                                        file.WriteLine(line + "\\par");
-                                    }
-                                    else
-                                    {
-                                        if (arg == "exact")
-                                        {
-                                            //file.WriteLine(line.Replace(" ", "\\char983040{}") + "\\par");
-                                            file.WriteLine(line.Replace(" ", "~") + "\\par");
-                                        }
-                                        else
-                                        {
-                                            file.WriteLine(line);
-                                        }
-                                    }
-
-
-                                }
 
                             }
 
                         }
 
-
-                        if (nopage == 0 || nopage == 1)
-                        {
-                            file.WriteLine(@"\hspace{0pt}\vfill\page[yes]");
-                        }
-                        else if (arg == "page")
-                        {
-                            file.WriteLine(@"\par");
-                            file.WriteLine(@"\page[yes]");
-                        }
-
-
-                        if (currentpage > 1000)
-                            break;
-                        currentpage++;
                     }
 
-                    file.WriteLine("\\stoptext");
 
-                    file.Close();
+                    if (nopage == 0 || nopage == 1)
+                    {
+                        file.WriteLine(@"\leavevmode\vfill\page[yes]");
+                    }
+                    else if (arg == "page" || arg == "exact")
+                    {
+                        file.WriteLine(@"\par");
+                        file.WriteLine(@"\page[yes]");
+                    }
 
+
+                    if (currentpage > 1000)
+                        break;
+                    currentpage++;
                 }
 
+                file.WriteLine("\\stoptext");
+
+                file.Close();
 
             }
+
+
         }
         static string replaceCharcatersFromUthmanicHafsDoc(string line)
         {
@@ -761,7 +659,7 @@ namespace GenerateTexFromTanzil
             newline = newline.Replace("\u0633\u064F\u0640\u0654\u064F", "\u0633\u064F\u034F\u08F3\u0653\u0640\u0654\u064F");
 
             // 0648  ARABIC LETTER WAW + ‎0655  ARABIC HAMZA BELOW -> 0624  ARABIC LETTER WAW WITH HAMZA ABOVE
-            newline = newline.Replace("\u0648\u0655", "\u0624"); 
+            newline = newline.Replace("\u0648\u0655", "\u0624");
 
             //ARABIC LETTER YEH WITH HAMZA ABOVE
             newline = newline.Replace("\u064A\u0655", "\u0626");
@@ -770,10 +668,17 @@ namespace GenerateTexFromTanzil
             newline = newline.Replace("\u0626\u0640", "\u0626");
 
             // ARABIC SMALL HIGH SEEN + FATHA -> ARABIC SMALL LOW SEEN + FATHA
-            newline = newline.Replace("\u06DC\u064E", "\u06E3\u064E"); 
-            
+            newline = newline.Replace("\u06DC\u064E", "\u06E3\u064E");
+
             //Dont reorder  marks        
             newline = newline.Replace("\u0652\u06DC", "\u0652\u034F\u06DC");
+
+            // change space position after hizb symbol
+            string pattern = "\\s*" + "۞" + "\\s*";
+            newline = Regex.Replace(newline, pattern, "۞" + " ");
+
+            // Small Madda for Sajda Rule above used to add line above. We dont need this.
+            newline = newline.Replace("\u06E4", "");
 
             /* 0623 : ARABIC LETTER ALEF WITH HAMZA ABOVE + 0653 : ARABIC MADDAH ABOVE 
              * -> 0640 : ARABIC TATWEEL 

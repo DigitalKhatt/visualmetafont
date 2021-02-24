@@ -3009,6 +3009,16 @@
             }
         }
     },
+    "shr1.dalcursive": {
+        "subtable1": {
+            "entryParameters": {
+                "behshape.init.beforenoon": [
+                    0,
+                    -199
+                ]
+            }
+        }
+    },
     "smallalefjoined": {
         "smallalefjoined": {
             "smallalef.joined": {

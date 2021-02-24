@@ -167,6 +167,7 @@ local function loadoutlines(cache,filename,sub,instance)
     local size = attr and attr.size or 0
     local time = attr and attr.modification or 0
     local sub  = tonumber(sub)
+    local data
 
     -- fonts.formats
 
@@ -321,7 +322,7 @@ end
 local loadedshapes  = { }
 local loadedstreams = { }
 
-local function loadoutlinedata(fontdata,streams)
+local function loadoutlinedata(fontdata,streams, notcache)
     local properties = fontdata.properties
     local filename   = properties.filename
     local subindex   = fontdata.subindex
@@ -330,7 +331,10 @@ local function loadoutlinedata(fontdata,streams)
     local loaded     = loadedshapes[hash]
     if not loaded then
         loaded = loadoutlines(shapescache,filename,subindex,instance)
-        loadedshapes[hash] = loaded
+        -- digitalkhatt for out of memory
+        if not notcache then
+          loadedshapes[hash] = loaded
+        end
     end
     return loaded
 end

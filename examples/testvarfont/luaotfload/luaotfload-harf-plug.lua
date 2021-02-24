@@ -77,10 +77,13 @@ local setsubtype        = direct.setsubtype
 local getwidth          = direct.getwidth
 local setwidth          = direct.setwidth
 local setlist           = direct.setlist
+local getlist           = direct.getlist
 local is_char           = direct.is_char
 local tail              = direct.tail
 local getboth           = direct.getboth
 local setlink           = direct.setlink
+local hpack             = direct.hpack
+local flush_list        = direct.flush_list
 
 local properties        = direct.get_properties_table()
 
@@ -109,6 +112,8 @@ local fl_unsafe         = hb.Buffer.GLYPH_FLAG_UNSAFE_TO_BREAK
 
 local startactual_p     = "luaotfload_startactualtext"
 local endactual_p       = "luaotfload_endactualtext"
+local startnode_p       = "digitalkhatt_startnode"
+local endnode_p         = "digitalkhatt_endnode"
 
 local empty_table       = {}
 
@@ -406,7 +411,7 @@ function shape(head, firstnode, run)
     end
   end
   
-  if run.linewidth and amine.justify then
+  if run.linewidth and digitalkhatt.justify then
     local width = run.linewidth / fontdata.hb.scale
     buf:set_justify(width)
   end  
@@ -747,6 +752,11 @@ local nop_cmd = { "nop" }
 local save_cmd = { "pdf", "text", "q" }
 local restore_cmd = { "pdf", "text", "Q" }
 
+local function round(num, numDecimalPlaces)
+  local mult = 10^(numDecimalPlaces or 0)
+  return math.floor(num * mult + 0.5) / mult
+end
+
 -- Convert glyphs to nodes and collect font characters.
 local function tonodes(head, node, run, glyphs)
   local nodeindex = run.start
@@ -773,6 +783,8 @@ local function tonodes(head, node, run, glyphs)
   local fonttype = hbshared.fonttype
 
   local nextcluster
+  
+  local tajweedatt = luatexbase.attributes["tajweedatt"]
 
   for i, glyph in ipairs(glyphs) do
     if glyph.cluster + 1 >= nodeindex then -- Reached a new cluster
@@ -783,6 +795,11 @@ local function tonodes(head, node, run, glyphs)
         head, node = removenode(head, node)
         freenode(oldnode)
       end
+      
+      setprop(node,startnode_p,{run.index,nodeindex})
+      setprop(node,endnode_p,{run.index,glyph.cluster + 1})
+     
+      
       lastprops = getproperty(node)
       nodeindex = glyph.cluster + 1
     elseif nextcluster + 1 == nodeindex then -- Oops, we went too far
@@ -790,10 +807,22 @@ local function tonodes(head, node, run, glyphs)
       local new = inherit(glyph_t, getprev(node), lastprops)
       setfont(new, fontid)
       head, node = insertbefore(head, node, new)
+      setprop(node,startnode_p,{run.index,nodeindex})
+      setprop(node,endnode_p,{run.index,nodeindex})
+    else
+      setprop(node,startnode_p,{run.index,nodeindex})
+      setprop(node,endnode_p,{run.index,nodeindex})
     end
     local gid = glyph.codepoint
     local char = nominals[gid] or gid_offset + gid
     local orig_char, id = is_char(node, fontid)
+    
+    local glyphcolor = glyph.color
+    
+    if glyphcolor > 1000 then
+     direct.set_attribute(node,tajweedatt,glyphcolor)     
+    --  print("glyphcolor=" .. glyphcolor)
+    end
 
     if glyph.replace then
       -- For discretionary the glyph itself is skipped and a discretionary node
@@ -815,7 +844,8 @@ local function tonodes(head, node, run, glyphs)
           local test = 5
         end
 
-        if not character.commands then
+        --if not character.commands then
+        if not character.addedtocolor then
           if palette then
             local layers = fontglyph.layers
             if layers == nil then
@@ -857,16 +887,20 @@ local function tonodes(head, node, run, glyphs)
                   coloredcharacter[k] = v
                 end
                 coloredcharacter.commands = cmds
-                local newcharacters = {[gid + 0x130000] = coloredcharacter}
+                coloredcharacter.addedtocolor = true
+                local newcharacters = {[gid + 0x130000] = coloredcharacter}                
                 characters[gid + 0x130000] = coloredcharacter
                 if char ~= gid + gid_offset then
                   newcharacters[char] = coloredcharacter
                   characters[char] = coloredcharacter
-                  character.colored = char
+                  character.colored = char                  
                 else
                   character.colored = gid + 0x130000
                 end
-                font.addcharacters(fontid, {characters = newcharacters})
+                
+                --digitalkhatt.converttotype3char(fontdata,gid + 0x130000,cmds)
+                
+                font.addcharacters(fontid, {characters = newcharacters})                
               end
               char = character.colored
               character = characters[char]
@@ -894,6 +928,7 @@ local function tonodes(head, node, run, glyphs)
                 if not nominals[gid] then
                   char = 0x130000 + gid
                 end
+                pngchar.addedtocolor = true
                 characters[char] = pngchar
                 pngglyph = char
                 font.addcharacters(fontid, {characters = {[char] = pngchar}})
@@ -931,22 +966,30 @@ local function tonodes(head, node, run, glyphs)
             setchar(node, char)
           elseif character.commands or character.index ~= oldcharacter.index then
             if glyph.lefttatweel ~= 0 or glyph.righttatweel ~= 0 then
+              local rounddecimal = 2
               local ltat,rtat
               -- TODO DigitalKhatt get max value from fvar
               if glyph.lefttatweel <0 then                
-                ltat = (glyph.lefttatweel - (2/16384.0) )* 20 
+                ltat = round((glyph.lefttatweel - (2/16384.0) )* 20 ,rounddecimal)
               else
-                ltat = (glyph.lefttatweel  + (2/16384.0)) * 20
+                ltat = round((glyph.lefttatweel  + (2/16384.0)) * 20,rounddecimal)
               end
               if glyph.righttatweel <0 then
-                rtat = (glyph.righttatweel  - (2/16384.0)) * 20
+                rtat = round((glyph.righttatweel  - (2/16384.0)) * 20,rounddecimal)
               else
-                rtat = (glyph.righttatweel + (2/16384.0)) * 20
+                rtat = round((glyph.righttatweel + (2/16384.0)) * 20,rounddecimal)
               end
               
               local instance = "ltat=" .. ltat .. ",rtat=".. rtat
-              char = amine.generatechar(fontdata,instance,char)              
-              font.setfont(fontid, fontdata)
+              
+              local oldchar = char
+              char = digitalkhatt.generatechar(fontdata,instance,oldchar)    
+              if char then
+                local newcharacters = {[char] = characters[char]} 
+                
+                font.addcharacters(fontid, {characters = newcharacters, fonts = fontdata.fonts})
+                
+              end                            
             end
             setchar(node, char)
           end
@@ -1017,9 +1060,11 @@ local function tonodes(head, node, run, glyphs)
           if width == 0 then
             setfield(node, "stretch", 0)
             setfield(node, "shrink", 0)
+          else
+            --setfield(node, "stretch", width / 2)
+            --setfield(node, "shrink", width / 3)
           end
-          -- setfield(node, "stretch", width / 2)
-          -- setfield(node, "shrink", width / 3)
+          
         end
       elseif id == kern_t and getsubtype(node) == italiccorr_t then
         -- If this is an italic correction node and the previous node is a
@@ -1045,11 +1090,17 @@ local function tonodes(head, node, run, glyphs)
   return head, node
 end
 
-local function shape_run(head, current, run)
+local cache
+
+local function shape_run(head, current, run, justify)
   if not run.skip then
     -- Font loaded with our loader and an HarfBuzz face is present, do our
     -- shaping.
     local glyphs, offset
+    if not run.discs and not justify then      
+      run.copylist = copynodelist(current, run.after)      
+    end
+
     head, current, glyphs, offset = shape(head, current, run)
     if glyphs then
       return offset, tonodes(head, current, run, glyphs)
@@ -1061,14 +1112,33 @@ end
 local currentfontid
 local currentdirection
 
-function process(head, fontid, _attr, direction,linewidth)
-  local newhead, runs = itemize(head, fontid, direction,_attr)
+
+
+function process(head, fontid, _attr, direction,linewidth)  
+  -- TODO flush nodes
+  cache = {}
+  local linewid = _attr
+  if linewid then
+    local line = hpack(head,linewid,'exactly',direction)
+    local order = getfield(line, "glue_order") 
+    local glue_set = getfield(line, "glue_set") 
+    local glue_sign = getfield(line, "glue_sign") 
+    local width = getwidth(line)
+    
+    if order ~= 0 then
+      linewid = nil
+    end
+  end
+  
+  local newhead, runs = itemize(head, fontid, direction,linewid)
+  cache.runs = runs
   local current = newhead
   currentfontid = fontid
   currentdirection = direction
   local offset = 0
   for i = 1,#runs do
     local run = runs[i]
+    run.index = i
     run.start = run.start - offset
     local new_offset
     new_offset, newhead, current = shape_run(newhead, current, run)
@@ -1077,6 +1147,113 @@ function process(head, fontid, _attr, direction,linewidth)
 
   return newhead or head
 end
+
+local debugmemory = 0
+
+local function justifyline(line)
+  
+  -- TODO just for test : suppose one run by line 
+  -- TODO we have to concatenate multiple runs within same line
+  -- TODO Implement cluster many to many : validate startnode_p and endnode_p in tonodes()
+  -- TODO use  dimensions(glue_set,glue_sign,glue_order,list) to get the width of the run if it does not span whole line
+  -- check badness as context\tex\texmf-context\tex\context\base\mkiv\font-sol.lua?  
+  -- use rehpack context\tex\texmf-context\tex\context\base\mkiv\node-aux.lua in the calling function otherwise nest list for tajweed and sajda  
+  -- Copy last harfbuzz (just algo)
+  -- check scripts/luatex.txt for script
+  -- test if glue_order != 0 (infinity) dont justify
+  -- flush copylist in cache.runs in harf-plug
+  -- verify out of memory (harfbuzz just proc  ? ) : Come from digitalkhatt.generatechar  a lot of new generated characters -> round left and right tatweel
+  -- verify round axis now 2 decimals ? used to avoid out of memory -> profile memory usage in digitalkhatt.generatechar 
+  
+ 
+  
+  
+  
+  local head = getlist(line)
+  
+  
+  local order = getfield(line, "glue_order") 
+  
+  if order ~= 0 then
+    return head
+  end
+  
+  local linewidth = getwidth(line)  
+  
+  
+  local currentrun
+  local start
+  local endl
+  for n, id, subtype in traverse(head) do
+    local props = properties[n]
+    local startpro = props and props[startnode_p]
+    local endprop = props and props[endnode_p]
+    if not start and startpro then
+      start = startpro
+      endl = endprop    
+    elseif start and endprop and endprop[1] == start[1] then
+      endl = endprop
+    elseif start and endprop and endprop[1] ~= start[1] then
+      break         
+    end    
+  end
+  if start and endl then
+    
+    local oldrun = cache.runs[start[1]] 
+    
+    local newrun = {
+      start = start[2],
+      len = endl[2] - start[2] + 1,
+      font = oldrun.font,
+      dir = oldrun.dir,
+      skip = false,
+      codes = oldrun.codes,      
+      linewidth = linewidth
+    }
+    
+    local current, new_offset,lastnode
+    
+    local locallist = oldrun.copylist --copynodelist(oldrun.copylist)
+    
+    for l = oldrun.start,endl[2] do
+      if l == newrun.start then
+        current = locallist      
+      end
+      if l == endl[2] then
+        lastnode = locallist
+      end  
+      locallist = getnext(locallist)          
+    end
+    
+    current = copynodelist(current,locallist)   
+    
+    
+    new_offset, current, current = shape_run(current, current, newrun, true)
+    -- or use rehpack context\tex\texmf-context\tex\context\base\mkiv\node-aux.lua in the calling function
+    flush_list(head)
+    head = hpack(current,linewidth,'exactly',newrun.dir)
+    
+    
+    
+    if (debugmemory % 130)  == 0 then
+      print("debugmemory = ".. debugmemory)
+      print("memory=" .. collectgarbage("count"))
+      --collectgarbage("collect") 
+      --print("memory=" .. collectgarbage("count"))
+      --print("status=".. status.node_mem_usage)
+    end
+    
+    debugmemory = debugmemory + 1
+    
+    --collectgarbage("collect") 
+    --print("memory=" .. collectgarbage("count"))
+       
+      
+  end
+  return head
+end
+
+
 
 local function pageliteral(data)
   local n = newnode(whatsit_t, pdfliteral_t)
@@ -1129,17 +1306,25 @@ end
 
 local function justify_lines(head)
   for n, id, subtype, list in traverse_list(head) do
-    if id == hlist_t and subtype == line_t then
-      local width = getwidth(n)
-      --TODO justification
-      
+    if id == hlist_t and subtype == line_t then      
+      setlist(n, justifyline(n))      
     end
-  end
-  return true
+  end  
 end
 
 local function post_process_vlist_nodes(head)
-  justify_lines(todirect(head))
+  if digitalkhatt.justify then     
+    local nc = #cache.runs
+    if nc ~= 0 then
+        justify_lines(todirect(head))
+    end
+    local runs = cache.runs
+    for i=1,nc do
+      local run = runs[i]
+      flush_list(run.copylist)      
+    end
+    cache = { }
+  end
   return tonode(post_process_vlist(todirect(head)))
 end
 

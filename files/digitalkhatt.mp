@@ -262,12 +262,12 @@ beginchar(cgj,847,-1,-1,-1);
 %847
 charwd := 0;
 endchar;
-beginchar(space,32,75,0,0);
+defchar(space,32,-1,0,0);
 %%beginbody
-% glyphname:space
-%%begincomponents
-%%endcomponents
-endchar;
+
+
+charwd := 75 + lefttatweel  *nuqta ;
+enddefchar;
 beginchar(space.ii,-1,-1,-1,-1);
 %%beginbody
 charwd := 0;
