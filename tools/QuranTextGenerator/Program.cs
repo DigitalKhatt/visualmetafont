@@ -412,27 +412,34 @@ namespace GenerateTexFromTanzil
                 for (int nopage = 0; nopage < UthmanicHafsDocPages.Count; nopage++)
                 {
 
+                    //if (nopage < 581) continue;
+
                     //if (nopage > 1 && nopage < 550) continue;
 
-                    var page = UthmanicHafsDocPages[nopage];
+                        var page = UthmanicHafsDocPages[nopage];
                     if (nopage == 0 || nopage == 1)
                     {
-                        file.Write("\\topglue 50pt\n"); //%\topglue 0pt plus 1fill
+                        file.Write("\\topglue0.1\\pageheight\n"); //%\topglue 0pt plus 1fill
+                        file.Write("{\\fatiha\\textdir TRT\n"); //%\topglue 0pt plus 1fill
                     }
                     for (int i = 0; i < page.Count; i++)
                     {
-                        var mm = 80;
+                        var mm = 45;
                         if (i == 1 || i == 7)
                         {
-                            mm = 80;
+                            mm = 45;
                         }
-                        else if (i == 2 || i == 3 || i == 4)
+                        else if (i == 2 || i == 6)
                         {
-                            mm = 130 + (i - 2) * 35;
+                            mm = 65;
+                        }
+                        else if (i == 3 || i == 5)
+                        {
+                            mm = 85;
                         }
                         else
                         {
-                            mm = 200 - (i - 4) * 35;
+                            mm = 9999;
                         }
 
                         string line = replaceCharcatersFromUthmanicHafsDoc(page[i]);
@@ -440,11 +447,11 @@ namespace GenerateTexFromTanzil
                         {
                             if (line.StartsWith("سُورَةُ "))
                             {
-                                file.WriteLine(@"\leavevmode\suraline{" + line + @"}\vskip80pt");
+                                file.WriteLine(@"\leavevmode\suraline{" + line + @"}\vskip0.1\pageheight");
                             }
                             else
                             {
-                                file.WriteLine(@"\centerline{\hbox to" + mm + "mm{" + line + @"}}");
+                                file.WriteLine(@"\centerline{\hbox to0." + mm + @"\textwidth{" + line + @"}}");
                             }
                                 
                         }
@@ -477,6 +484,7 @@ namespace GenerateTexFromTanzil
                     }
                     if (nopage == 0 || nopage == 1)
                     {
+                        file.Write("}\n"); //{\\fatiha\\textdir TRT\n
                         file.Write(@"\vfill
 \newpage
 ");

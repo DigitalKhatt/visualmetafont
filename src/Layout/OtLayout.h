@@ -378,7 +378,7 @@ public:
 
     if (find == expandableGlyphs.end()) {
       //throw new std::runtime_error("tatweel error for glyph " + name.toStdString());
-      std::cout << "No expandable glyph " + name.toStdString();
+      std::cout << "No expandable glyph " + name.toStdString() + "\n";
       return tatweel;
     }
 

@@ -4193,14 +4193,14 @@ function otf.plugininitializer(tfmdata,value)
     end
 end
 
-function otf.pluginprocessor(head,font,attr,direction) -- n
+function otf.pluginprocessor(head,font,attr,direction, nofused, groupcode,size,packtype) -- n
     local s = fontdata[font].shared
     local p = s and s.plugin
     if p then
         if trace_plugins then
             report_process("applying plugin %a",p[1])
         end
-        return p[2](head,font,attr,direction)
+        return p[2](head,font,attr,direction, nofused, groupcode,size,packtype)
     else
         return head, false
     end

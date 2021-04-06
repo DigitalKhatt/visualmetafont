@@ -370,6 +370,7 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["meem.medi.afterhah"] = { 5,-1.0,5,-0.5 };
   layout->expandableGlyphs["behshape.medi.beforenoon"] = { 0,0,0,-0.4 };
   layout->expandableGlyphs["seen.medi.basmala"] = { 20,0,0,0 };
+  layout->expandableGlyphs["kaf.medi.ii"] = { 5,-0.5,5,-0.5 };
   
 
   layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,5,-0.5 };

@@ -84,6 +84,7 @@ local getboth           = direct.getboth
 local setlink           = direct.setlink
 local hpack             = direct.hpack
 local flush_list        = direct.flush_list
+local dimensions        = direct.dimensions
 
 local properties        = direct.get_properties_table()
 
@@ -966,7 +967,7 @@ local function tonodes(head, node, run, glyphs)
             setchar(node, char)
           elseif character.commands or character.index ~= oldcharacter.index then
             if glyph.lefttatweel ~= 0 or glyph.righttatweel ~= 0 then
-              local rounddecimal = 2
+              local rounddecimal = 10
               local ltat,rtat
               -- TODO DigitalKhatt get max value from fvar
               if glyph.lefttatweel <0 then                
@@ -1090,7 +1091,7 @@ local function tonodes(head, node, run, glyphs)
   return head, node
 end
 
-local cache
+local cache = {}
 
 local function shape_run(head, current, run, justify)
   if not run.skip then
@@ -1114,23 +1115,38 @@ local currentdirection
 
 
 
-function process(head, fontid, _attr, direction,linewidth)  
+function process(head, fontid, _attr, direction,nofused, groupcode,linewidth,packtype)  
   -- TODO flush nodes
-  cache = {}
-  local linewid = _attr
-  if linewid then
-    local line = hpack(head,linewid,'exactly',direction)
-    local order = getfield(line, "glue_order") 
-    local glue_set = getfield(line, "glue_set") 
-    local glue_sign = getfield(line, "glue_sign") 
-    local width = getwidth(line)
-    
-    if order ~= 0 then
-      linewid = nil
-    end
+  cache = {}  
+  local line
+  if linewidth ~= 0 then      
+      line = hpack(head,linewidth,packtype,direction)
+      local glue_order = getfield(line, "glue_order") 
+      local glue_set = getfield(line, "glue_set") 
+      local glue_sign = getfield(line, "glue_sign") 
+      --local widthdim = dimensions(glue_set,glue_sign,glue_order,getlist(line))
+      local width = getwidth(line)
+      
+      if glue_order ~= 0 then
+        linewidth = nil
+      elseif packtype == 'exactly' and width > 0 then 
+        -- TODO here for test : we suppose one run which take all the width
+        linewidth = width
+      else
+        -- TODO
+        -- if additional (i.e \hbox spread) we can justify based on natural width * spread (i.e  width value). 
+        -- However this function is called during hpack_filter callback. So, after this callback, luatex will call hpack with new natural width 
+        -- of the already justified line and spread again
+        -- we have to call this function after the hpack but there is no callback (contact LuaTex for the reason. infinite recursivity?)
+        -- do the pack ourselve and put the packed list in the outer list and adjust the width to the original natural width
+        -- For now we do not justify
+        linewidth = nil
+      end
+      --setlist(line,nil)
+      --freenode(line)
   end
   
-  local newhead, runs = itemize(head, fontid, direction,linewid)
+  local newhead, runs = itemize(head, fontid, direction,linewidth)
   cache.runs = runs
   local current = newhead
   currentfontid = fontid
@@ -1313,7 +1329,7 @@ local function justify_lines(head)
 end
 
 local function post_process_vlist_nodes(head)
-  if digitalkhatt.justify then     
+  if digitalkhatt.justify and cache.runs then     
     local nc = #cache.runs
     if nc ~= 0 then
         justify_lines(todirect(head))

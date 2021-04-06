@@ -587,6 +587,18 @@
             }
         }
     },
+    "defaultkasrameemiqlab.l5": {
+        "subtable1": {
+            "smalllowmeemhhhh": {
+                "baseparameters": {
+                    "lam.isol": [
+                        28,
+                        -304
+                    ]
+                }
+            }
+        }
+    },
     "defaultmarkdotmarksbottom": {
         "defaultmarkdotmarksbottom": {
             "lowmarks": {
@@ -832,11 +844,11 @@
                         57
                     ],
                     "noon.isol.expa": [
-                        -140,
-                        -40
+                        -311,
+                        -61
                     ],
                     "qaf.fina.expa": [
-                        -60,
+                        -157,
                         40
                     ],
                     "reh.fina": [
@@ -2315,6 +2327,10 @@
                         -120,
                         0
                     ],
+                    "alefmaksura.isol.expa": [
+                        -286,
+                        -40
+                    ],
                     "dal.isol": [
                         -65,
                         0
@@ -2346,6 +2362,10 @@
                     "noon.isol": [
                         -68,
                         22
+                    ],
+                    "noon.isol.expa": [
+                        -418,
+                        -32
                     ],
                     "reh.isol": [
                         -228,
@@ -2446,6 +2466,10 @@
                     "meem.isol.ii": [
                         138,
                         552
+                    ],
+                    "noon.isol.expa": [
+                        -352,
+                        -92
                     ],
                     "reh.isol": [
                         -170,
@@ -2698,6 +2722,10 @@
                     "qaf.isol": [
                         -45,
                         0
+                    ],
+                    "qaf.isol.expa": [
+                        -349,
+                        -67
                     ],
                     "reh.isol": [
                         44,

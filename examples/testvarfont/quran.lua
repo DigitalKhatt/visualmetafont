@@ -155,9 +155,10 @@ local function sajdaline(head, order, ratio, sign)
   while item do
 
     if node.has_attribute(item, SAJDAATTR)  and good_item(item) then
-        local item_line = node.new(RULE)
-        item_line.depth = tex.sp("-34.5pt")
-        item_line.height = tex.sp("36pt")
+        local item_line = node.new(RULE)        
+        item_line.height = tex.sp("1.15em")
+        --item_line.depth = tex.sp("-34.5pt")
+        item_line.depth = -item_line.height + tex.sp("1pt")
         local end_node = item
         while end_node.next and
           good_item(end_node.next) and

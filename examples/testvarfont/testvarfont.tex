@@ -1,49 +1,66 @@
 \directlua{require('mobdebug').start()}
 \documentclass{article}
-\usepackage[letterpaper, portrait, left=5mm,right=5mm,top=2mm,bottom=2mm]{geometry}
+\usepackage[paperwidth=90mm,paperheight=145.62297mm, left=2.108mm,right=2.108mm,top=2mm,bottom=2mm]{geometry}
 \usepackage{graphicx}
-\usepackage{luacolor}
+\usepackage{graphicx}
+\usepackage{bookmark}
+
+%\paperwidth=\dimexpr170in/48in\relax
 
 \input{quran}
 
 \pdfcompresslevel=0
 \pdfobjcompresslevel=0
+%\pdfgentounicode=0
 
 
-\renewcommand{\baselinestretch}{6}
+\renewcommand{\baselinestretch}{2.25}
+
+%\baselineskip =39.44mm plus 0pt minus 0pt
+%\lineskip=14.2pt plus 0pt minus 0pt
+\lineskiplimit=-100pt
+
+
+
 \parindent=0pt
 \parfillskip=0pt
 
 \begin{document}
+\setbox\ayaframe=\ayagraphic
 \medinafontvar\pagedir TRT\pardir TRT\bodydir TRT\textdir TRT
 \directlua{digitalkhatt.justify=true}
-\topglue 0pt plus 1fill
-\leavevmode
-\centerline{\hbox to80mm{بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ}}
-\centerline{\hbox to130mm{الٓمٓ ١ ذَٰلِكَ ٱلْكِتَٰبُ لَا رَيْبَۛ فِيهِۛ هُدࣰى}}
-\centerline{\hbox to165mm{لِّلْمُتَّقِينَ ٢ ٱلَّذِينَ يُؤْمِنُونَ بِٱلْغَيْبِ وَيُقِيمُونَ ٱلصَّلَوٰةَ}}
-\centerline{\hbox to200mm{وَمِمَّا رَزَقْنَٰهُمْ يُنفِقُونَ ٣ وَٱلَّذِينَ يُؤْمِنُونَ بِمَآ أُنزِلَ}}
-\centerline{\hbox to165mm{إِلَيْكَ وَمَآ أُنزِلَ مِن قَبْلِكَ وَبِٱلْأٓخِرَةِ هُمْ يُوقِنُونَ ٤}}
-\centerline{\hbox to130mm{أُو۟لَٰٓئِكَ عَلَىٰ هُدࣰى مِّن رَّبِّهِمْۖ وَأُو۟لَٰٓئِكَ}}
-\centerline{\hbox to80mm{هُمُ ٱلْمُفْلِحُونَ ٥}}
+
+\topglue0.1\pageheight
+{\fatiha\textdir TRT
+\leavevmode\suraline{سُورَةُ البَقَرَةِ}\vskip0.1\pageheight
+\centerline{\hbox to0.45\textwidth{بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ}}
+\centerline{\hbox to0.65\textwidth{الٓمٓ ١ ذَٰلِكَ ٱلْكِتَٰبُ لَا رَيْبَۛ فِيهِۛ هُدࣰى}}
+\centerline{\hbox to0.85\textwidth{لِّلْمُتَّقِينَ ٢ ٱلَّذِينَ يُؤْمِنُونَ بِٱلْغَيْبِ وَيُقِيمُونَ ٱلصَّلَوٰةَ}}
+\centerline{\hbox to0.9999\textwidth{وَمِمَّا رَزَقْنَٰهُمْ يُنفِقُونَ ٣ وَٱلَّذِينَ يُؤْمِنُونَ بِمَآ أُنزِلَ}}
+\centerline{\hbox to0.85\textwidth{إِلَيْكَ وَمَآ أُنزِلَ مِن قَبْلِكَ وَبِٱلْأٓخِرَةِ هُمْ يُوقِنُونَ ٤}}
+\centerline{\hbox to0.65\textwidth{أُو۟لَٰٓئِكَ عَلَىٰ هُدࣰى مِّن رَّبِّهِمْۖ وَأُو۟لَٰٓئِكَ}}
+\centerline{\hbox to0.45\textwidth{هُمُ ٱلْمُفْلِحُونَ ٥}}
+}
 \vfill
-\newpage\topglue 0pt plus 1fill
+\newpage
 \directlua{digitalkhatt.justify=false}
-\leavevmode
-\centerline{\hbox to80mm{بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ}}
-\centerline{\hbox to130mm{الٓمٓ ١ ذَٰلِكَ ٱلْكِتَٰبُ لَا رَيْبَۛ فِيهِۛ هُدࣰى}}
-\centerline{\hbox to165mm{لِّلْمُتَّقِينَ ٢ ٱلَّذِينَ يُؤْمِنُونَ بِٱلْغَيْبِ وَيُقِيمُونَ ٱلصَّلَوٰةَ}}
-\centerline{\hbox to200mm{وَمِمَّا رَزَقْنَٰهُمْ يُنفِقُونَ ٣ وَٱلَّذِينَ يُؤْمِنُونَ بِمَآ أُنزِلَ}}
-\centerline{\hbox to165mm{إِلَيْكَ وَمَآ أُنزِلَ مِن قَبْلِكَ وَبِٱلْأٓخِرَةِ هُمْ يُوقِنُونَ ٤}}
-\centerline{\hbox to130mm{أُو۟لَٰٓئِكَ عَلَىٰ هُدࣰى مِّن رَّبِّهِمْۖ وَأُو۟لَٰٓئِكَ}}
-\centerline{\hbox to80mm{هُمُ ٱلْمُفْلِحُونَ ٥}}
-%\par{\normalfont\the\prevgraf}
+\topglue0.1\pageheight
+{\fatiha\textdir TRT
+\leavevmode\suraline{سُورَةُ البَقَرَةِ}\vskip0.1\pageheight
+\centerline{\hbox to0.45\textwidth{بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ}}
+\centerline{\hbox to0.65\textwidth{الٓمٓ ١ ذَٰلِكَ ٱلْكِتَٰبُ لَا رَيْبَۛ فِيهِۛ هُدࣰى}}
+\centerline{\hbox to0.85\textwidth{لِّلْمُتَّقِينَ ٢ ٱلَّذِينَ يُؤْمِنُونَ بِٱلْغَيْبِ وَيُقِيمُونَ ٱلصَّلَوٰةَ}}
+\centerline{\hbox to0.9999\textwidth{وَمِمَّا رَزَقْنَٰهُمْ يُنفِقُونَ ٣ وَٱلَّذِينَ يُؤْمِنُونَ بِمَآ أُنزِلَ}}
+\centerline{\hbox to0.85\textwidth{إِلَيْكَ وَمَآ أُنزِلَ مِن قَبْلِكَ وَبِٱلْأٓخِرَةِ هُمْ يُوقِنُونَ ٤}}
+\centerline{\hbox to0.65\textwidth{أُو۟لَٰٓئِكَ عَلَىٰ هُدࣰى مِّن رَّبِّهِمْۖ وَأُو۟لَٰٓئِكَ}}
+\centerline{\hbox to0.45\textwidth{هُمُ ٱلْمُفْلِحُونَ ٥}}
+}
 \vfill
 \newpage
 \directlua{digitalkhatt.justify=false}
 %\tolerance10000
 \sloppy
-\looseness8%add 8 lines
+%\looseness8%add 8 lines
 إِنَّ ٱلَّذِينَ كَفَرُوا۟ سَوَآءٌ عَلَيْهِمْ ءَأَنذَرْتَهُمْ أَمْ لَمْ تُنذِرْهُمْ
 لَا يُؤْمِنُونَ ٦ خَتَمَ ٱللَّهُ عَلَىٰ قُلُوبِهِمْ وَعَلَىٰ سَمْعِهِمْۖ وَعَلَىٰٓ
 أَبْصَٰرِهِمْ غِشَٰوَةࣱۖ وَلَهُمْ عَذَابٌ عَظِيمࣱ ٧ وَمِنَ ٱلنَّاسِ

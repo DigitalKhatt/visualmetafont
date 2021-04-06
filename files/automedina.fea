@@ -283,6 +283,10 @@ lookup defaultkasrameemiqlab{
 		pos mark  kasra <anchor  0 0> markClass [meemiqlab smalllowmeem] <anchor 0 0> @smalllowmeem ;	
 	} defaultkasrameemiqlab.l4;
 
+	lookup defaultkasrameemiqlab.l5 {			
+		pos base  lam.isol <anchor  0 0> markClass kasra <anchor 0 0> @smalllowmeemhhhh ;	
+	} defaultkasrameemiqlab.l5;
+
 	pos /^hah.fina/ kasra' [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l1;
 
 	pos alef.isol meem.isol.ii kasra'<50 -50 0 0>  [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l1;
@@ -291,7 +295,9 @@ lookup defaultkasrameemiqlab{
 
 	pos waw.isol sukun hah.isol onedotdown kasra'lookup defaultkasrameemiqlab.l2 [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l4; 
 
-	pos waw.fina sukun meem.isol.ii'<0 0 50 0> kasra'<50 -30 0 0> [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l1; 
+	pos waw.fina sukun meem.isol.ii'<0 0 50 0> kasra'<50 -30 0 0> [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l1;
+
+	pos waw.fina lam.isol kasra'lookup defaultkasrameemiqlab.l5  [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l1;
 
 	pos kasra'<0 -150 0 0> [meemiqlab smalllowmeem]'lookup defaultkasrameemiqlab.l1;
 
@@ -781,6 +787,7 @@ lookup tajweedcolor {
 	pos /^behshape/'lookup lgray onedotup'lookup lgray [meemiqlab smalllowmeem]'lookup green;
 	pos /^meem|^noon/'lookup green shadda'lookup green @marks'lookup green;
 	pos /^behshape/'lookup green onedotup'lookup green shadda'lookup green @marks'lookup green;
+	pos [meemiqlab smalllowmeem]'lookup green space /^behshape/;
 
 	pos /^meem/'lookup green space /^behshape/ onedotdown;
 
@@ -961,10 +968,14 @@ lookup justification {
 
 		lookup expa.aleffina.1 {
 			sub callback behshape.medi expfactors 0 3.5 0 0 3 0;
-			sub callback alef.fina expfactors 0 0 0 3.5 3 0 ;
+			sub callback heh.medi expfactors 0 3.5 0 0 3 0;
+			sub callback heh.init expfactors 0 3.5 0 0 3 0;
+			sub callback hah.medi expfactors 0 3.5 0 0 3 0;
+			sub callback meem.medi expfactors 0 3.5 0 0 3 0;
+			sub callback alef.fina expfactors 0 0 0 3.5 3 0 ;			
 		} expa.aleffina.1;		
 
-		sub (behshape.medi  alef.fina)'lookup expa.aleffina.1;		
+		sub [meem.medi heh.medi behshape.medi heh.medi heh.init]'lookup expa.aleffina.1  alef.fina'lookup expa.aleffina.1;		
 
 	} expa.aleffina;
 

@@ -209,7 +209,7 @@ local function nodepass(head,groupcode,size,packtype,direction)
         if next(usedfonts) then
             for font, processors in next, usedfonts do
                 for i=1,#processors do
-                    head = processors[i](head,font,size,direction,nofused) or head
+                    head = processors[i](head,font,0,direction,nofused, groupcode,size,packtype) or head
                 end
             end
         end
