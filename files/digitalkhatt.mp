@@ -3398,7 +3398,7 @@ setCursiveAnchor(yehcursive1,z1,ExitAnchor);
 
 enddefchar;
 defchar(lam.init.lam_hah,-1,-1,-1,-1);
-%%backgroundimage:images/lam_hah.jpg,-2532.89,-1323.26,1,0,0,1
+%%backgroundimage:images/lam_hah.jpg,-2276.89,-1323.26,1,0,0,1
 %%beginparams
 lefttatweel := 1.14; % numeric
 z1 = (113,295);
@@ -3746,7 +3746,7 @@ tr_:= tr_ shifted (0,-54);
 
 
 enddefchar;
-beginchar(lam.fina,-1,-1,-1,-1);
+defchar(lam.fina,-1,-1,-1,-1);
 %%backgroundimage:images/lam.fina.jpg,-727.528,-997,1,0,0,1
 %%beginparams
 z1 = (610.294,25.6982);
@@ -3754,11 +3754,7 @@ z11 = (723.958,-1.15741);
 z3 = (85.5103,13.3402);
 
 %%beginverbatim
-
-
-%charlt := 4; % numeric
-
-righttatweel := charrt  + 0;
+righttatweel := righttatweel  + 0;
 if right_verticalextratio = 0 : right_verticalextratio := 10; fi
 left_tatweeltension := 1 + charlt * 0.115  ;
 if left_tatweeltension > 1.7 : left_tatweeltension := 1.7; fi
@@ -3795,7 +3791,7 @@ z1 ..
 ;
 
 %%endpaths
-endchar;
+enddefchar;
 beginchar(lam.fina.afterkaf,-1,-1,-1,-1);
 %%backgroundimage:images/kaflam.jpg,-1331,-1271,1,0,0,1
 %%beginparams
@@ -4218,6 +4214,8 @@ z2 = (426.335,72.5811);
 z3 = (473.958,-14.4676);
 
 %%beginverbatim
+
+righttatweel := righttatweel - 0.0;
 
 %z2 = z1 + (0,penwidth ) rotated 20;
 righttatweel_const := (x3 - x1,y3 - y1);
@@ -4677,6 +4675,50 @@ fill
 %%beginbody
 
 enddefchar;
+defchar(fehshape.init.beforehah,-1,-1,-1,-1);
+%%backgroundimage:images/fehhah.jpg,-3618.58,-1218.42,1,0,0,1
+%%beginparams
+z1 = (-19.505,74.0501);
+
+%%beginverbatim
+%charlt := 4; % numeric
+lefttatweel := charlt + 0.7;
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(119.145,45.5748) .. tension 1 and 1 ..
+(39.9306,28.3565) .. tension 1 and 1 ..
+z1 .. tension 2.21929 and 1.41503 ..
+ {up}(153.458,146.701) .. tension 3.75901 and 3.3084 ..
+ {left}(139.757,208.882) .. tension 4.28107 and 0.75 ..
+ {left}(46.3511,155.894) .. tension 0.831576 and 2.08491 ..
+ {up}(-31.9183,222.575) .. tension 0.90666 and 2.70287 ..
+ {right}(71.0108,412.447) .. tension 1.69552 and 0.924395 ..
+ {down}(193.037,185.147) .. tension 1.18307 and 1.36164 ..
+ cycle
+;
+fill
+(18.2137,276.507) .. tension 1 and 1.46882 ..
+ {right}(74.4429,237.289) .. tension 1.38247 and 1.19098 ..
+ {up}(113.818,265.289) .. tension 2.96303 and 2.54524 ..
+ {left}(53.2493,318.456) .. tension 1.60243 and 1 ..
+ {down} cycle
+;
+
+%%endpaths
+%%beginbody
+
+rightbearing :=  380 + rightbearing;
+leftbearing := -190;
+
+%leftanchor := z1;
+
+setCursiveAnchor(fehhah,z1, ExitAnchorRTL);
+
+enddefchar;
 defchar(fehshape.init.beforeyeh,-1,-1,-1,-1);
 %%backgroundimage:images/fi.jpg,-417.778,-1448.53,1,0,0,1
 %%beginparams
@@ -4815,7 +4857,7 @@ fill
 setCursiveAnchor(yehcursive1,z3,ExitAnchor);
 enddefchar;
 defchar(feh.fina,-1,-1,-1,-1);
-%%backgroundimage:images/feh.fina.jpg,-8.88889,-1206.69,1,0,0,1
+%%backgroundimage:images/feh.fina.jpg,-2.88889,-1208.69,1,0,0,1
 %%beginparams
 z1 = (889.348,1.02336);
 z11 = (618,384);
@@ -5172,6 +5214,67 @@ z1 ..
 %%beginbody
 
 enddefchar;
+defchar(hah.medi.ii,-1,-1,-1,-1);
+%%backgroundimage:images/fehhah.jpg,-9177.96,-1420.37,1,0,0,1
+%%beginparams
+righttatweel_const := (15.9722,-44.4445);
+z1 = (391.043,52.2665);
+z2 = (444.091,96.4731);
+z3 = (41.6827,3.15393);
+
+%%beginverbatim
+
+
+%charlt := 4; % numeric
+lefttatweel := charlt + 0.3;
+%which_in_baseline := 2;
+righttatweel := righttatweel + 1;
+if left_verticalextratio = 0 : left_verticalextratio := 10; fi
+if right_verticalextratio = 0 : right_verticalextratio := 10; fi
+left_tatweeltension := 1 + charlt * 0.115  ;
+if left_tatweeltension > 1.7 : left_tatweeltension := 1.7; fi
+
+
+%y1 := y1 + righttatweel*2;
+%x1 := x1 + righttatweel*30;
+
+
+z4 = z3 + (penwidth,0) rotated 70;
+%y11 := 0;
+%righttatweel_const := (x11 - x1,y11 - y1);
+%%endverbatim
+
+%%beginpaths
+
+fill
+z3 join
+z4 ..
+(139.345,112.185) .. tension 1 and 13.1755 ..
+ {up}(241.018,163.905) .. tension 22.9827 and 1.48323 ..
+ {left}(26.6452,204.013) .. tension 1.16913 and 1.50936 ..
+(-56.9832,165.143) .. tension 1 and 4.81383 ..
+ {left}(-106.707,107.312) .. tension 1 and 1 ..
+ {up}(-115.111,115.707) .. tension 1.43151 and 1.48305 ..
+ {right}(49.5801,280.815) .. tension 0.75 and 1 ..
+(223.414,251.106) .. tension 1 and 1.49835 ..
+ {right}(443.861,216.794) .. tension 1 and 1.92009 ..
+ {right}(487.115,227.027) .. tension 1 and 1 ..
+ {down}(497.183,213.274) .. tension 1.19648 and 2.3702 ..
+(465.469,146.269) .. tension 1.91897 and 1.46177 ..
+ {down}(438.609,114.602) .. tension 1 and 0.75 ..
+z2 join
+z1 ..
+ {up}(388.753,89.891) .. tension 0.75 and 4.4481 ..
+ {up}(395.411,129.365) .. tension 2.90264 and 1 ..
+ {left}(358.721,136.464) .. tension 1 and 0.880849 ..
+(212.601,81.6402) .. tension 1 and 1 ..
+ cycle
+;
+
+%%endpaths
+%%beginbody
+
+enddefchar;
 defchar(hah.medi.afterbeh,-1,-1,-1,-1);
 %%backgroundimage:images/yeh_hah.init.jpg,-2402,-1310,1,0,0,1
 %%beginbody
@@ -5314,6 +5417,51 @@ z3 {dir 23} .. tension 1.57381 and 1.71452 ..
 rightbearing := -400;
 
 setCursiveAnchor(lamhah,z3, EntryAnchorRTL);
+
+enddefchar;
+defchar(hah.medi.afterfeh,-1,-1,-1,-1);
+%%backgroundimage:images/fehhah.jpg,-3472,-1434,1,0,0,1
+%%beginparams
+z1 = (120.521,22.7438);
+z3 = (99.2837,288.729);
+z4 = (312.09,276.392);
+z5 = (643.65,229.071);
+
+%%beginverbatim
+
+if left_verticalextratio = 0 : left_verticalextratio := 12; fi
+ 
+lefttatweel := lefttatweel -0.0 ;
+z2 = z1 + (lineheight,0) rotated 75;
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+z1 join
+z2 .. tension 1 and 7.16575 ..
+ {up}(340.455,185.141) .. tension 10.8298 and 1.79081 ..
+(229.926,211.323) .. tension 0.815564 and 3.20171 ..
+ {left}(113.343,219.514) .. tension 0.75 and 6.35213 ..
+ {left}(59.8623,197.764) .. tension 1.39544 and 1 ..
+ {up}(53.7016,206.034) .. tension 1.74599 ..
+z3 {dir 23} .. tension 1.57381 and 1.71452 ..
+(415,246) .. tension 1 and 6.46414 ..
+ {right}(638.508,235.235) .. tension 2.71262 and 0.75 ..
+ {down}z5 .. tension 7.62288 ..
+ {left}(589.319,146.203) .. tension 2.71262 and 0.75 ..
+ {left}(479.209,163.152) .. tension 1.01367 and 0.75 ..
+(294.472,95.6429) .. tension 1 and 1 ..
+ cycle
+;
+
+%%endpaths
+%%beginbody
+
+rightbearing := -400;
+
+setCursiveAnchor(fehhah,z3, EntryAnchorRTL);
 
 enddefchar;
 defchar(hah.medi.beforeyeh,-1,-1,-1,-1);
@@ -5938,11 +6086,12 @@ charwd:= xpart (urcorner currentpicture) - x1;
 setCursiveAnchor(yehcursive1,z1,ExitAnchor);
 enddefchar;
 defchar(heh.medi,-1,-1,-1,-1);
-%%backgroundimage:images/heh.medi.2.jpg,-755.119,-1278.83,1,0,0,1
+%%backgroundimage:images/heh.medi.2.jpg,-754.886,-1279.3,1,0,0,1
 %%beginparams
 z.mark1 = (267,-262);
-z1 = (63.3974,2.20693);
+z1 = (74.4664,6.02274);
 z1.5 = (-2.27022,-41.0371);
+z2 = (134.652,92.78);
 z3 = (142.888,-38.1838);
 z4 = (375.112,-71.397);
 
@@ -5951,7 +6100,7 @@ z4 = (375.112,-71.397);
 
 
 if left_verticalextratio = 0 : left_verticalextratio := 10; fi
-lefttatweel := charlt  +x1.5/nuqta;
+lefttatweel := lefttatweel  +x1.5/nuqta  ;
 
 
 left_tatweeltension := 1 + lefttatweel * 0.0  ;
@@ -5961,7 +6110,7 @@ left_tatweeltension := 1 + lefttatweel * 0.0  ;
 
 
 
-z2 = z1 + (0,penwidth ) rotated (-10 -lefttatweel) ;
+
 
 %%endverbatim
 
@@ -5981,8 +6130,8 @@ z2 ..
  {down}z4 .. tension 0.75 and 1.68374 ..
  {left}(302.964,-181.282) .. tension 0.754039 and 2.25827 ..
  {dir 94.1982}(168.9,-22.7806) {dir 162.525} .. tension 1.21186 and 2.01438 ..
-(103.793,-16.1095) .. tension 1 and 1.11722 ..
- {dir -160.772}(93.189,8.15238) .. tension 1.1619 and 1 ..
+(103.793,-16.1095) .. tension 1 and 3.29305 ..
+ {dir -174.713}(90.9279,9.44442) .. tension 1.46451 and 1.62342 ..
  cycle
 ;
 fill
@@ -9598,6 +9747,78 @@ leftbearing :=- 50;
 setMarkAnchor(buttonmark,z.mark1);
 
 enddefchar;
+defchar(behshape.fina.expa,-1,-1,-1,-1);
+%%backgroundimage:images/behshape.fina.expa.ii.jpg,-2739,-1324,1,0,0,1
+%%beginparams
+z1 = (-57.1139,358.285);
+z2 = (193.597,-83.1458);
+
+%%beginverbatim
+
+
+
+
+righttatweel_const := (10,0);
+
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(-25.5694,313.282) .. tension 1 and 1.05645 ..
+ {dir 112.833}z1 {dir 36.4847} .. tension 0.886502 and 1 ..
+(9.25926,420.139) .. tension 1 and 2.11294 ..
+ {right}(36.4861,460.259) .. tension 1 and 1.46819 ..
+ {down}(43.8565,445.736) .. tension 1 and 2.31366 ..
+ {down}(8.48611,363.545) .. tension 2.82467 and 1 ..
+(63.932,331.967) join
+(126.834,237.5) .. tension 1 and 1 ..
+ cycle
+;
+
+%%endpaths
+%%beginbody
+
+
+
+path sinna;
+sinna := pathpart currentpicture;
+
+currentpicture:= nullpicture;
+
+lefttatweel := lefttatweel - 2;
+
+expaform.ii_(lefttatweel,0);
+
+pair shift;
+
+shift := (z35-z1);
+
+currentpicture := currentpicture shifted  - shift;
+
+path p;
+
+p := pathpart currentpicture;
+
+currentpicture:= nullpicture;
+
+%sinna := sinna  shifted shift;
+fill  subpath(0,4) of p .. tension 1.2 .. subpath(1,11) of sinna {curl1}  .. subpath(7,length p) of p ..  cycle;
+
+%fill subpath(0,4) of p .. z35 ..  subpath(6,length p ) of p .. cycle;
+
+%rightanchor := rightanchor +  shift;
+
+tr_  := tr_ shifted (0,-240);
+
+
+
+setAnchor(dotbelow, z37 shifted -shift + z2 +  (lefttatweel*nuqta*0.2,0));
+
+showAnchors :=1;
+
+enddefchar;
 defchar(twoseen,-1,-1,-1,-1);
 %%backgroundimage:images/basmala_naml.jpeg,-5961.72,-1373.48,1,0,0,1
 %%beginparams
@@ -9689,6 +9910,57 @@ fill
 leftanchor := (-250.446,85.2003)+ z101;
 
 enddefchar;
+defchar(expasinna.iii,-1,-1,-1,-1);
+%%backgroundimage:images/expasinna.iii.jpg,-1086,-1274,1,0,0,1
+%%beginparams
+t1 := 1.41232; % numeric
+z10 = dir 35;
+z11 = dir -26;
+z33 = (-156.468,215.59);
+z34 = (1442.57,193.242);
+z35 = (1536.67,356.764);
+
+%%beginverbatim
+
+%lefttatweel := lefttatweel -2;
+
+z33p = z33 rotatepen 105;
+z34p = z34 rotatepen 72;
+
+z101 = (-(lefttatweel - 2)*nuqta,0 );
+z102 = (-(lefttatweel)*nuqta / 1.5, -(lefttatweel) *7 );
+
+
+z10r = -z10;
+z11r = -z11;
+
+
+
+
+
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+((-99.165,270.297)+ z101) {z11} .. tension atleast 0.935851 ..
+((504.566,145.68)+ z102) {right} .. tension atleast 1.17628 ..
+ {z10}z34p ..
+ {curl1}z35 {down} ..
+ {z10r}z34 .. tension atleast t1 ..
+((494.079,40.282)+ z102) {left} .. tension atleast 1.17293 ..
+ {z11r}z33 + z101 .. tension 1.36037 and 0.760965 ..
+ {up} cycle
+;
+
+%%endpaths
+%%beginbody
+
+
+leftanchor := (-250.446,85.2003)+ z101;
+
+enddefchar;
 defchar(seen.medi.basmala,-1,-1,-1,-1);
 %%backgroundimage:images/basmala_naml.jpeg,-5961.72,-1373.48,1,0,0,1
 
@@ -9717,77 +9989,5 @@ draw pic shifted (z.expasinna.1 - z.twoseen.1);
 
 rightanchor := z.twoseen.2 shifted (z.expasinna.1 - z.twoseen.1);
 
-
-enddefchar;
-defchar(behshape.fina.expa,-1,-1,-1,-1);
-%%backgroundimage:images/behshape.fina.expa.ii.jpg,-2739,-1324,1,0,0,1
-%%beginparams
-z1 = (-57.1139,358.285);
-z2 = (193.597,-83.1458);
-
-%%beginverbatim
-
-
-
-
-righttatweel_const := (10,0);
-
-
-%%endverbatim
-
-%%beginpaths
-
-fill
-(-25.5694,313.282) .. tension 1 and 1.05645 ..
- {dir 112.833}z1 {dir 36.4847} .. tension 0.886502 and 1 ..
-(9.25926,420.139) .. tension 1 and 2.11294 ..
- {right}(36.4861,460.259) .. tension 1 and 1.46819 ..
- {down}(43.8565,445.736) .. tension 1 and 2.31366 ..
- {down}(8.48611,363.545) .. tension 2.82467 and 1 ..
-(63.932,331.967) join
-(126.834,237.5) .. tension 1 and 1 ..
- cycle
-;
-
-%%endpaths
-%%beginbody
-
-
-
-path sinna;
-sinna := pathpart currentpicture;
-
-currentpicture:= nullpicture;
-
-lefttatweel := lefttatweel - 2;
-
-expaform.ii_(lefttatweel,0);
-
-pair shift;
-
-shift := (z35-z1);
-
-currentpicture := currentpicture shifted  - shift;
-
-path p;
-
-p := pathpart currentpicture;
-
-currentpicture:= nullpicture;
-
-%sinna := sinna  shifted shift;
-fill  subpath(0,4) of p .. tension 1.2 .. subpath(1,11) of sinna {curl1}  .. subpath(7,length p) of p ..  cycle;
-
-%fill subpath(0,4) of p .. z35 ..  subpath(6,length p ) of p .. cycle;
-
-%rightanchor := rightanchor +  shift;
-
-tr_  := tr_ shifted (0,-240);
-
-
-
-setAnchor(dotbelow, z37 shifted -shift + z2 +  (lefttatweel*nuqta*0.2,0));
-
-showAnchors :=1;
 
 enddefchar;

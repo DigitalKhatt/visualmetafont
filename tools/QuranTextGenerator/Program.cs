@@ -40,6 +40,46 @@ namespace GenerateTexFromTanzil
 
     static class Program
     {
+
+        static Dictionary<int, decimal> lineWidths = new Dictionary<int, decimal>
+        {
+            { 600 * 2, 1 },
+            { 600 * 3, 1 },
+            { 600 * 6, 1 },
+            { 600 * 7, 1 },
+            { 600 * 8, 1 },
+            { 600 * 9, 1 },
+            { 600 * 12, 1 },
+            { 600 * 13, 1 },
+            { 600 * 14, 1 },
+            { 601 * 4, 0.63M },
+            { 601 * 10, 0.9M },
+            { 601 * 14, 0.53M },
+            { 602 * 9, 0.66M },
+            { 602 * 12, 1 },
+            { 602 * 14, 0.66M },
+            { 603 * 2, 1 },
+            { 603 * 3, 0.55M },
+            { 603 * 6, 1 },
+            { 603 * 7, 1 },
+            { 603 * 8, 0.55M },
+            { 603 * 11, 1 },
+            { 603 * 12, 1 },
+            { 603 * 13, 0.675M },
+            { 603 * 14, 0.5M },
+        };
+        static decimal getWidth(int pageNo, int lineNo)
+        {
+            decimal width = 0;
+            if (lineWidths.TryGetValue(pageNo * lineNo, out width))
+            {
+                return width;
+            }
+            else
+            {
+                return width;
+            }
+        }
         static void Main(string[] args)
         {
             Console.OutputEncoding = Encoding.UTF8;
@@ -412,11 +452,11 @@ namespace GenerateTexFromTanzil
                 for (int nopage = 0; nopage < UthmanicHafsDocPages.Count; nopage++)
                 {
 
-                    //if (nopage < 581) continue;
+                    if (nopage < 581) continue;
 
                     //if (nopage > 1 && nopage < 550) continue;
 
-                        var page = UthmanicHafsDocPages[nopage];
+                    var page = UthmanicHafsDocPages[nopage];
                     if (nopage == 0 || nopage == 1)
                     {
                         file.Write("\\topglue0.1\\pageheight\n"); //%\topglue 0pt plus 1fill
@@ -453,7 +493,7 @@ namespace GenerateTexFromTanzil
                             {
                                 file.WriteLine(@"\centerline{\hbox to0." + mm + @"\textwidth{" + line + @"}}");
                             }
-                                
+
                         }
                         else
                         {
@@ -470,12 +510,24 @@ namespace GenerateTexFromTanzil
                                 }
                                 else
                                 {
-                                    
-                                    line = Regex.Replace(line.Trim(), sajdapatterns, delegate (Match m) {
-                                        return "\\sajdabar{" + m.Value + "}";
-                                    });                               
 
-                                    file.WriteLine(line);
+                                    line = Regex.Replace(line.Trim(), sajdapatterns, delegate (Match m)
+                                    {
+                                        return "\\sajdabar{" + m.Value + "}";
+                                    });
+
+                                    decimal width = getWidth(nopage, i);
+
+                                    if (width == 0)
+                                    {
+                                        file.WriteLine(line);
+                                    }
+                                    else
+                                    {
+                                        file.WriteLine(@"\centerline{\hbox to" + width + @"\textwidth{" + line + @"}}");
+                                    }
+
+
                                 }
                             }
 
@@ -489,6 +541,10 @@ namespace GenerateTexFromTanzil
 \newpage
 ");
                     }
+                    else if (nopage == 602 || nopage == 601 || nopage == 600 || nopage == 599)
+                    {
+                        file.Write("\\newpage\n");
+                    }
                 }
             }
         }
@@ -496,7 +552,7 @@ namespace GenerateTexFromTanzil
         {
             List<List<string>> UthmanicHafsDocPages = readXML(fileName);
 
-            string outputfile = @"output/quran_context_" + arg + ".tex";
+            string outputfile = @"output /quran_context_" + arg + ".tex";
             string suraWord = "سُورَةُ";
             string bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"; // "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ";
             string bism2 = "بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ";

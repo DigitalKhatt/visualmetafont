@@ -243,6 +243,10 @@
                         116,
                         7
                     ],
+                    "hah.medi.afterfeh": [
+                        133,
+                        33
+                    ],
                     "hah.medi.afterlam.beforeyeh": [
                         205,
                         37
@@ -305,6 +309,10 @@
                         -4,
                         4
                     ],
+                    "fehshape.init.beforehah": [
+                        -353,
+                        8
+                    ],
                     "fehshape.init.beforeyeh": [
                         -69,
                         14
@@ -324,6 +332,10 @@
                     "hah.medi.afterbeh": [
                         83,
                         116
+                    ],
+                    "hah.medi.afterfeh": [
+                        -99,
+                        -33
                     ],
                     "hah.medi.beforemeem": [
                         22,
@@ -508,6 +520,10 @@
                     "behshape.medi.beforeyeh": [
                         -146,
                         88
+                    ],
+                    "fehshape.init.beforehah": [
+                        -300,
+                        -33
                     ],
                     "fehshape.init.beforeyeh": [
                         -57,
@@ -727,6 +743,10 @@
                         -54,
                         -40
                     ],
+                    "fehshape.init.beforehah": [
+                        33,
+                        -33
+                    ],
                     "fehshape.init.beforeyeh": [
                         -1,
                         -110
@@ -742,6 +762,10 @@
                     "hah.isol": [
                         126,
                         595
+                    ],
+                    "hah.medi.afterfeh": [
+                        83,
+                        0
                     ],
                     "hah.medi.beforeyeh": [
                         60,
@@ -1069,9 +1093,17 @@
                         -56,
                         0
                     ],
+                    "hah.medi.afterfeh": [
+                        -145,
+                        -59
+                    ],
                     "hah.medi.afterlam.beforeyeh": [
                         -110,
                         153
+                    ],
+                    "hah.medi.ii": [
+                        -57,
+                        -23
                     ],
                     "hah.medi.lam_hah": [
                         6,
@@ -3007,8 +3039,8 @@
                     92
                 ],
                 "heh.isol": [
-                    -11,
-                    23
+                    -127,
+                    56
                 ],
                 "lam.init": [
                     49,
