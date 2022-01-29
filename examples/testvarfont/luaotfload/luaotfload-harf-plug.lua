@@ -415,6 +415,10 @@ function shape(head, firstnode, run)
   if run.linewidth and digitalkhatt.justify then
     local width = run.linewidth / fontdata.hb.scale
     buf:set_justify(width)
+    local feat = hb.Feature.new("shr1")
+    feat.value = 1
+    feat.start = 1
+    features[#features + 1] = feat
   end  
 
   if hb.shape_full(hbfont, buf, features, shapers) then

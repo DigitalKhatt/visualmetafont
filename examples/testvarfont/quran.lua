@@ -81,8 +81,14 @@ local RULE = node.id("rule")
 local GLUE = node.id("glue")
 local KERN = node.id("kern")
 
-local SAJDAATTR = luatexbase.attributes["sajdaatt"]  
+local SAJDAATTR = luatexbase.attributes["sajdaatt"] 
+if not SAJDAATTR then
+  SAJDAATTR = luatexbase.new_attribute("sajdaatt")
+end 
 local tajweedatt = luatexbase.attributes["tajweedatt"]
+if not tajweedatt then
+  tajweedatt = luatexbase.new_attribute("tajweedatt")
+end
 
 local stringformat            = string.format
 
@@ -212,7 +218,7 @@ function tajweed(head)
   
   local item =  headlist
   while item do      
-    local colatt = node.has_attribute(item, tajweedatt)
+    local colatt = node.get_attribute(item, tajweedatt)      
     if  item.id == glyph_t and colatt then
       push.data = get_colortaj(colatt)
       local before, after = copynode(push), copynode(pop)
@@ -358,7 +364,7 @@ add_to_callback("post_linebreak_filter",cal, desc)
 
 
 add_to_callback('hpack_filter', tajweedcolorhpack, 'quran.tajweedcolorlist')
---add_to_callback('contribute_filter', contribute_filter, 'quran.contribute_filter')
+--add_to_callback('contribute_filter', contribute_filter, 'q-uran.contribute_filter')
 
 add_to_callback('post_linebreak_filter', post_process_vlist_nodes, 'quran.finalize_vlist')
 --add_to_callback('hpack_filter', post_process_hlist, 'quran.finalize_hlist')

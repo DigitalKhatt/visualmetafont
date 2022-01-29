@@ -2211,8 +2211,12 @@ do
 
         if charstrings then
             startparsing(fontdata,data,streams)
-            for index=1,#charstrings do
-                processshape(charstrings[index],index-1)
+            if data.digitalkhatt_gid then
+              processshape(charstrings[data.digitalkhatt_gid],data.digitalkhatt_gid-1)
+            else
+              for index=1,#charstrings do
+                  processshape(charstrings[index],index-1)
+              end
             end
             if justpass and next(seacs) then
                 -- old type 1 stuff ... seacs
@@ -2628,6 +2632,7 @@ function readers.cff2(f,fontdata,specification)
             data.regions  = { }
             data.deltas   = { }
         end
+        
         data.factors  = specification.factors
         --
         local cid = data.dictionaries[1].cid
@@ -2637,7 +2642,11 @@ function readers.cff2(f,fontdata,specification)
         else
             readnoselect(f,fontdata,data,glyphs,all,"cff2",specification.streams)
         end
-        cleanup(data,dictionaries)
+        if specification.digitalkhatt then
+          return data
+        else
+          cleanup(data,dictionaries)
+        end        
     end
 end
 

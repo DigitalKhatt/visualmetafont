@@ -1,14 +1,51 @@
-require('lpdf-ini')
+require('lpdf-ini-local')
+require('charstrings')
 
 local oldharf = fonts.readers.harf
 
+local hashinstane = {"default"}
+
 fonts.readers.harf = function(spec)
-    return  digitalkhatt.variableshapes(oldharf(spec))
+  local features=spec.features.normal
+  local instance=spec.instance or (features and features.axis)
+  local sub = 1
+  if instance then
+    if not hashinstane[instance] then     
+      hashinstane[instance] = #hashinstane + 1
+      hashinstane[#hashinstane + 1] = instance
+    end
+    sub = hashinstane[instance]
+  end
+  spec.sub = spec.sub or sub
+  return  digitalkhatt.variableshapes(oldharf(spec),instance)
 end
 
 digitalkhatt = digitalkhatt or { }
+
 digitalkhatt.usetype3 = true
 digitalkhatt.type3manualgen = false
+
+digitalkhatt.get_substitution = function(subst)
+  if subst.lookup_index ~= 99 then
+    return false
+  end
+  
+  local prevIndex = subst.curr - 1
+  while prevIndex >= 0 and subst.info[prevIndex + 1].isMark  do
+    prevIndex = prevIndex - 1
+  end
+  
+  if prevIndex < 0 then
+    return false;
+  end
+  
+  local curr_info = subst.info[subst.curr + 1]
+  local prev_info = subst.info[prevIndex + 1]
+  
+  subst.setInfoField(subst.infouserdata,subst.curr,"lefttatweel",0.1 + 0.5 * prev_info.lefttatweel)
+  
+  return false
+end
 
 local type3fontbyfontid = {}
 
@@ -91,8 +128,12 @@ digitalkhatt.getNewKey = function(table,gid)
   end
 end
 
-testvariation = function()
-    --[[
+local function setvariation(instance)
+    
+  if not instance then
+    return
+  end
+
     local variations = {}
     local ltat = hb.Variation.new()
     ltat.tag = hb.Tag.new("LTAT")
@@ -116,7 +157,7 @@ testvariation = function()
     --local test = hbfont:set_variations(variations)
     
     local coords = hbfont:get_var_coords_normalized()
-  --]]
+  
 end
 
 digitalkhatt.generatechar = function(tfmdata,instance,char)  
@@ -138,7 +179,7 @@ digitalkhatt.generatechar = function(tfmdata,instance,char)
             instance =  instance
         }
     }  
-    local shapes = fonts.handlers.otf.loadoutlinedata(spec,nil,true)
+    
     
     local characters = tfmdata.characters
     local parameters = tfmdata.parameters
@@ -146,8 +187,12 @@ digitalkhatt.generatechar = function(tfmdata,instance,char)
     local factor     = hfactor / 65536
     local getactualtext = fonts.handlers.otf.getactualtext
     local character = characters[char]
-    if character then
-        local shape = shapes.glyphs[character.gid]
+    if character and character.gid then
+        local shape = digitalkhatt.readVarGlyph(spec,character.gid)
+        if not shape then
+          local shapes = fonts.handlers.otf.loadoutlinedata(spec,nil,true)
+          shape = shapes.glyphs[character.gid]
+        end
         if shape then
             local segments = shape.segments
             if segments then

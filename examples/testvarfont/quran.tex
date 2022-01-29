@@ -1,46 +1,47 @@
-\edef\pdfcompresslevel{\pdfvariable compresslevel}
-\edef\pdfobjcompresslevel{\pdfvariable objcompresslevel}
-\edef\pdfgentounicode{\pdfvariable gentounicode}
-\newattribute{\tajweedatt}
-\newattribute{\sajdaatt}
-
-\directlua{require('digitalkhatt')}
-\directlua{require('quran')}
-
-
-\newbox\ayaframe
-\newcount\suranum
-
-
-\def\suraline#1{%
-\global\advance\suranum by1%
-\leavevmode\raise1.2em\hbox to 0pt{\pdfbookmark{\the\suranum. #1}{sura\the\suranum}}%
-\hbox to 0pt{\copy\ayaframe\hss}\centerline{\medinasura\textdir TRT#1}%
-}%
-\def\bismline#1{\centerline{#1}}
+%\directlua{require('mobdebug').start()}
 
 
 
-\def\sajdabar#1{\setattribute{\sajdaatt}{1}#1\unsetattribute{\sajdaatt}\directlua{addsajdacallback()}%
+\documentclass{article}
+
+%\usepackage[letterpaper, portrait, left=5mm,right=5mm,top=2mm,bottom=2mm]{geometry}
+\usepackage[paperwidth=90mm,paperheight=145.62297mm, left=2.108mm,right=2.108mm,top=2mm,bottom=2mm]{geometry}
+\usepackage{graphicx}
+\usepackage{bookmark}
+
+
+\input{quran_style}
+
+%\pdfcompresslevel=0
+%\pdfobjcompresslevel=0
+
+\begin{document}
+\newif\ifmadina
+%
+\directlua{
+digitalkhatt.justify=false
+if arg then
+    for i,v in ipairs(arg) do
+        if v == "-just" then
+            digitalkhatt.justify=true
+        elseif v == "-madina" then
+            tex.print("\\madinatrue")  
+        end
+    end
+end
 }
 
-%\font\medinafont={file:digitalkhatt.otf:mode=harf;shaper=ot;script=arab}
-%\font\medinafontnode={file:digitalkhatt.otf:script=arab}
-%\font\medinafontvar={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes;axis={ltat=5,rtat=5}}
-\font\medinafontvar={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes;colr;tjwd} at 5.27mm
-\font\medinasura={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes;colr;tjwd} at 4.8mm
-\font\fatiha={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes;colr;tjwd} at 4.5mm
-\font\medinafontvarnode={file:digitalkhatt-cff2.otf:mode=node;shaper=ot;script=arab;variableshapes}
-%\font\medinafontvarnode={file:digitalkhatt-cff2.otf:mode=node;script=arab;axis={ltat=5,rtat=5};variableshapes}
+\setbox\ayaframe=\ayagraphic
+\ifmadina
+\medinafontvarmadina\pagedir TRT\pardir TRT\bodydir TRT\textdir TRT
+\else
+\medinafontvar\pagedir TRT\pardir TRT\bodydir TRT\textdir TRT
+\fi
 
-%\renewcommand{\baselinestretch}{5}
-\renewcommand{\baselinestretch}{2.25}
-\lineskiplimit=-100pt
-
-\parindent=0pt
-\parfillskip=0pt
-
-\def\topglue{\nointerlineskip \vglue-\topskip \vglue}
-
-\def\ayagraphic{\centerline{\lower1em\hbox{\includegraphics[width=1\textwidth,height=2.75em]{ayaframe.pdf}}}}
-
+%\tolerance10000
+%add looseness at the start of the third page = 13 - number lines in last page or (- number lines in last page)
+%\looseness8
+\sloppy
+\ifmadina\input{quran_text_madina}\else\input{quran_text}\fi
+%\par{\bodydir TLT\textdir TLT\normalfont\the\prevgraf}
+\end{document} 

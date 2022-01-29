@@ -14,6 +14,8 @@ do -- block to avoid to many local variables error
  }
 end
 
+texio.write_nl("Use of digitalkhatt luaotfload-harf-define file")
+
 local unpack = string.unpack
 local stringlower = string.lower
 local stringupper = string.upper
@@ -74,10 +76,34 @@ local containers = luaotfload.fontloader.containers
 local hbcacheversion = 1.1
 local facecache = containers.define("fonts", "hb", hbcacheversion, true)
 
+-- DigitalKhatt Test Variation
+local function setvariation(hbfont,spec)
+  local features=spec.features.normal
+  local instance=spec.instance or (features and features.axis)
+
+  if not instance then
+    return
+  end
+  local variations = {}
+  for k, v in string.gmatch(instance, "(-?%w+)=(-?%w+)") do
+    local axis = hb.Variation.new()
+    axis.tag = hb.Tag.new(string.upper(k))
+    axis.value = v
+    variations[#variations + 1] = axis
+  end
+  
+  local test = hbfont:set_variations(variations)
+  
+  local coords = hbfont:get_var_coords_normalized()
+  
+end
+
 local function loadfont(spec)
   local path, sub = spec.resolved, spec.sub or 1
 
-  local key = string.format("%s:%d", gsub(path, "[/\\]", ":"), sub)
+  --Bug on windows : in file name not permitted
+  --local key = string.format("%s:%d", gsub(path, "[/\\]", ":"), sub)
+  local key = string.format("%s_%d", gsub(path, "[/\\]", "_"), sub)
 
   local attributes = lfs.attributes(path)
   if not attributes then return end
@@ -91,9 +117,10 @@ local function loadfont(spec)
   -- If the face has no table tags then it isn’t a valid SFNT font that
   -- HarfBuzz can handle.
   if not tags then return end
-  local hbfont = iscached and cached.font or hb.Font.new(hbface)
+  local hbfont = iscached and cached.font or hb.Font.new(hbface) 
 
-  if not iscached then
+  if not iscached then    
+
     local upem = hbface:get_upem()
 
     -- The engine seems to use the font type to tell whether there is a CFF
@@ -229,6 +256,8 @@ local function loadfont(spec)
 
     containers.write(facecache, key, cached)
   end
+   -- DigitalKhatt Test Variation
+  setvariation(hbfont,spec)
   cached.face = hbface
   cached.font = hbfont
   do
