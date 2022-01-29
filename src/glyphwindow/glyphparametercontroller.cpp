@@ -28,6 +28,10 @@ GlyphParameterController::GlyphParameterController(Glyph* glyph, QWidget * paren
 	m_browser = new QtGroupBoxPropertyBrowser(this);
 	//m_browser->setRootIsDecorated(true);
 
+  QFont textEditFont("DejaVu Sans Mono");
+
+  //textEditFont.setPointSize(20);
+  m_browser->setFont(textEditFont);
 
 	QVBoxLayout *layout = new QVBoxLayout(this);
 	layout->getContentsMargins(0,0,0,0);
@@ -36,6 +40,7 @@ GlyphParameterController::GlyphParameterController(Glyph* glyph, QWidget * paren
 	m_readOnlyManager = new QtVariantPropertyManager(this);
 	m_manager = new QtVariantPropertyManager(this);
 	m_variantfactory = new QtVariantEditorFactory(this);
+
 
 	//TEST
 	m_sliderManager = new QtIntPropertyManager(this);

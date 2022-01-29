@@ -43,33 +43,42 @@ namespace GenerateTexFromTanzil
 
         static Dictionary<int, decimal> lineWidths = new Dictionary<int, decimal>
         {
-            { 600 * 2, 1 },
-            { 600 * 3, 1 },
-            { 600 * 6, 1 },
-            { 600 * 7, 1 },
-            { 600 * 8, 1 },
-            { 600 * 9, 1 },
-            { 600 * 12, 1 },
-            { 600 * 13, 1 },
-            { 600 * 14, 1 },
-            { 601 * 4, 0.63M },
-            { 601 * 10, 0.9M },
-            { 601 * 14, 0.53M },
-            { 602 * 9, 0.66M },
-            { 602 * 12, 1 },
-            { 602 * 14, 0.66M },
-            { 603 * 2, 1 },
-            { 603 * 3, 0.55M },
-            { 603 * 6, 1 },
-            { 603 * 7, 1 },
-            { 603 * 8, 0.55M },
-            { 603 * 11, 1 },
-            { 603 * 12, 1 },
-            { 603 * 13, 0.675M },
-            { 603 * 14, 0.5M },
+            { 601 * 3, 1 },
+            { 601 * 4, 1 },
+            { 601 * 7, 1 },
+            { 601 * 8, 1 },
+            { 601 * 9, 1 },
+            { 601 * 10, 1 },
+            { 601 * 13, 1 },
+            { 601 * 14, 1 },
+            { 601 * 15, 1 },
+            { 602 * 5, 0.63M },
+            { 602 * 11, 0.9M },
+            { 602 * 15, 0.53M },
+            { 603 * 10, 0.66M },
+            { 603 * 13, 1 },
+            { 603 * 15, 0.66M },
+            { 604 * 3, 1 },
+            { 604 * 4, 0.55M },
+            { 604 * 7, 1 },
+            { 604 * 8, 1 },
+            { 604 * 9, 0.55M },
+            { 604 * 12, 1 },
+            { 604 * 13, 1 },
+            { 604 * 14, 0.675M },
+            { 604 * 15, 0.5M },
         };
-        static decimal getWidth(int pageNo, int lineNo)
+
+        static Dictionary<int, decimal> madinaLineWidths = new Dictionary<int, decimal>
         {
+           { 586 * 1, 0.81M},
+           { 593 * 2, 0.81M},
+           { 594 * 5, 0.63M},
+        };
+        static decimal getWidth(int pageNo, int lineNo, bool madinaFormat)
+        {
+            pageNo++;
+            lineNo++;
             decimal width = 0;
             if (lineWidths.TryGetValue(pageNo * lineNo, out width))
             {
@@ -77,7 +86,14 @@ namespace GenerateTexFromTanzil
             }
             else
             {
-                return width;
+                if (madinaFormat && madinaLineWidths.TryGetValue(pageNo * lineNo, out width))
+                {
+                    return width;
+                }
+                else
+                {
+                    return width;
+                }
             }
         }
         static void Main(string[] args)
@@ -129,7 +145,8 @@ namespace GenerateTexFromTanzil
                 GenerateContextFileFromDocFile(fileName, "par");
                 GenerateContextFileFromDocFile(fileName, "exact");
                 GenerateContextFileFromDocFile(fileName, "page");
-                GenerateLatexFileFromDocFile(fileName);
+                GenerateLatexFileFromDocFile(fileName, false);
+                GenerateLatexFileFromDocFile(fileName, true);
 
             }
 
@@ -439,10 +456,15 @@ namespace GenerateTexFromTanzil
 
             }
         }
-        static void GenerateLatexFileFromDocFile(string fileName)
+        static void GenerateLatexFileFromDocFile(string fileName, bool madinaFormat)
         {
             List<List<string>> UthmanicHafsDocPages = readXML(fileName);
-            string outputfile = @"output/quran_latex" + ".tex";
+            string outputfile = @"output/quran_text" + ".tex";
+
+            if (madinaFormat)
+            {
+                outputfile = @"output/quran_text_madina" + ".tex";
+            }
 
             string bismPattern = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" + "|" + "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
             string sajdapatterns = @"(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)"; // sajdapatterns.replace("\u0657", "\u08F0").replace("\u065E", "\u08F1").replace("\u0656", "\u08F2");
@@ -516,11 +538,19 @@ namespace GenerateTexFromTanzil
                                         return "\\sajdabar{" + m.Value + "}";
                                     });
 
-                                    decimal width = getWidth(nopage, i);
+                                    decimal width = getWidth(nopage, i, madinaFormat);
 
                                     if (width == 0)
                                     {
-                                        file.WriteLine(line);
+                                        if (madinaFormat)
+                                        {
+                                            file.WriteLine(@"\hbox to\textwidth{" + line + @"}");
+                                        }
+                                        else
+                                        {
+                                            file.WriteLine(line);
+                                        }
+
                                     }
                                     else
                                     {
@@ -542,6 +572,10 @@ namespace GenerateTexFromTanzil
 ");
                     }
                     else if (nopage == 602 || nopage == 601 || nopage == 600 || nopage == 599)
+                    {
+                        file.Write("\\newpage\n");
+                    }
+                    else if (madinaFormat)
                     {
                         file.Write("\\newpage\n");
                     }

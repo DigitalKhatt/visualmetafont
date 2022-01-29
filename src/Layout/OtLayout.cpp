@@ -30,6 +30,7 @@
 #include "qjsonarray.h"
 #include "hb-ot.h"
 #include "hb-ot-cmap-table.hh"
+#include "hb-ot-post-table.hh"
 #include <qmap.h>
 #include <qset.h>
 //#include <QFile>
@@ -135,7 +136,10 @@ static hb_blob_t* harfbuzzGetTables(hb_face_t* face, hb_tag_t tag, void* userDat
     data = layout->toOpenType->hhea();
     mode = HB_MEMORY_MODE_DUPLICATE;
     break;
-
+  case  HB_TAG('p', 'o', 's', 't'):
+    data = layout->toOpenType->post();
+    mode = HB_MEMORY_MODE_DUPLICATE;
+    break;
   }
 
   return hb_blob_create(data.constData(), data.size(), mode, NULL, NULL);
@@ -448,35 +452,46 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
 
   OtLayout* layout = reinterpret_cast<OtLayout*>(font_data);
 
-  Lookup* lookupTable = layout->gsublookups.at(context->ot_context->lookup_index);
+  Lookup* lookupTable = layout->gsublookups.at(context->lookup_index);
 
   if (lookupTable->name == "markexpansion.l1") {
-    auto buffer = context->ot_context->buffer;
+    auto buffer = context->buffer;
+    unsigned int glyph_count;
 
-    auto& curr_info = buffer->cur();
-    auto& prev_info = buffer->cur(-1);
+    hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
+
+    unsigned int prevIndex = context->curr - 1;
+
+    while (prevIndex >= 0 && glyph_info[prevIndex].var1.u16[0] & HB_OT_LAYOUT_GLYPH_PROPS_MARK) prevIndex--;
+
+    if (prevIndex < 0) return false;
+
+    auto& curr_info = glyph_info[context->curr];
+    
+    auto& prev_info = glyph_info[prevIndex];
+
+    char			buf[64];    
+
+    hb_font_get_glyph_name(font, curr_info.codepoint, buf, sizeof(buf));
+
+    char			prevName[64];
+    hb_font_get_glyph_name(font, prev_info.codepoint, prevName, sizeof(prevName));
+    if (QString(prevName).contains(".expa")) {
+      curr_info.lefttatweel = 0.1 + 0.9 * prev_info.lefttatweel;
+      
+    }
+    else {
+      curr_info.lefttatweel = prev_info.lefttatweel;
+    }
 
     auto& curr_glyph = *layout->getGlyph(curr_info.codepoint);
-    auto& prev_glyph = *layout->getGlyph(prev_info.codepoint);
 
-
-    curr_info.lefttatweel = prev_info.lefttatweel / 2;
-
-    /*
-
-
-          auto& curr_glyph = *layout->getGlyph(curr_info.codepoint);
-          auto& prev_glyph = *layout->getGlyph(prev_info.codepoint);
-
-          if (prev_glyph.name == "noon.isol.expa" && prev_info.lefttatweel != 0) {
-              curr_info.lefttatweel = prev_info.lefttatweel / 2;
-          }*/
-
+    
 
   }
   else if (lookupTable->name.startsWith("expa.")) {
 
-    auto buffer = context->ot_context->buffer;
+    auto buffer = context->buffer;
 
     auto& curr_info = buffer->cur();
 
@@ -485,7 +500,7 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
     layout->justificationContext.GlyphsToExtend.push_back(buffer->idx);
     layout->justificationContext.Substitutes.push_back(context->substitute);
 
-    auto subtable = lookupTable->subtables.at(context->ot_context->subtable_index);
+    auto subtable = lookupTable->subtables.at(context->subtable_index);
 
     if (lookupTable->type == Lookup::single) {
       SingleSubtable* subtableTable = static_cast<SingleSubtable*>(subtable);
@@ -505,7 +520,7 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
   }
   else if (lookupTable->name.contains("test")) {
 
-    auto buffer = context->ot_context->buffer;
+    auto buffer = context->buffer;
 
     auto& curr_info = buffer->cur();
 
@@ -520,7 +535,7 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
 
   }
   else {
-    auto buffer = context->ot_context->buffer;
+    auto buffer = context->buffer;
 
     auto& curr_info = buffer->cur();
 
@@ -529,7 +544,7 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
     //JustificationContext::GlyphsToExtend.append(buffer->idx);
     //JustificationContext::Substitutes.append(context->substitute);
 
-    auto subtable = lookupTable->subtables.at(context->ot_context->subtable_index);
+    auto subtable = lookupTable->subtables.at(context->subtable_index);
 
     if (lookupTable->type == Lookup::single) {
       SingleSubtable* subtableTable = static_cast<SingleSubtable*>(subtable);
@@ -570,10 +585,26 @@ static hb_bool_t apply_lookup(hb_font_t* font, void* font_data,
   return true;
 
 }
+static hb_bool_t
+hb_ot_get_glyph_name(hb_font_t* font HB_UNUSED,
+  void* font_data,
+  hb_codepoint_t glyph,
+  char* name, unsigned int size,
+  void* user_data HB_UNUSED)
+{
+  OtLayout* layout = reinterpret_cast<OtLayout*>(font_data);
 
-static hb_font_funcs_t* getFontFunctions(bool otVar)
+  auto ot_face = layout->face;
+
+  if (ot_face->table.post->get_glyph_name(glyph, name, size)) return true;
+
+  return false;
+}
+static hb_font_funcs_t* getFontFunctions(hb_font_t* font, bool otVar)
 {
   static hb_font_funcs_t* harfbuzzCoreTextFontFuncs = 0;
+
+  //auto& ffunctions = hb_font_get_font_funcs(*font);
 
   if (!harfbuzzCoreTextFontFuncs) {
     harfbuzzCoreTextFontFuncs = hb_font_funcs_create();
@@ -594,6 +625,8 @@ static hb_font_funcs_t* getFontFunctions(bool otVar)
 
     //hb_font_funcs_set_glyph_h_origin_func(harfbuzzCoreTextFontFuncs, getGlyphHorizontalOrigin, 0, 0);
     //hb_font_funcs_set_glyph_extents_func(harfbuzzCoreTextFontFuncs, getGlyphExtents, 0, 0);
+
+    //hb_font_funcs_set_glyph_name_func(harfbuzzCoreTextFontFuncs, hb_ot_get_glyph_name, nullptr, nullptr);
 
     hb_font_funcs_make_immutable(harfbuzzCoreTextFontFuncs);
 
@@ -1518,12 +1551,23 @@ hb_font_t* OtLayout::createFont(int emScale, bool newFace)
   }
 
   hb_font_t* font = hb_font_create(face);
-  hb_font_set_funcs(font, getFontFunctions(useNormAxisValues), this, 0);
   hb_font_set_ppem(font, upem, upem);
   const int scale = emScale * upem; // // (1 << OtLayout::SCALEBY) * static_cast<int>(size);
   hb_font_set_scale(font, scale, scale);
 
-  return font;
+  hb_font_t* subfont = hb_font_create_sub_font(font);
+
+  /*
+
+    hb_font_funcs_t * ffunctions = hb_font_funcs_create();
+  hb_font_funcs_set_nominal_glyph_func(ffunctions, func, user_data, destroy);
+  hb_font_set_funcs(subfont, ffunctions, font_data, destroy);
+  hb_font_funcs_destroy(ffunctions);*/
+
+  hb_font_set_funcs(subfont, getFontFunctions(font, useNormAxisValues), this, 0);
+
+
+  return subfont;
 }
 
 
@@ -2360,7 +2404,7 @@ void OtLayout::jutifyLine_old(hb_font_t * shapefont, hb_buffer_t * text_buffer, 
   hb_buffer_destroy(buffer);
 }
 
-void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int lineWidth, int emScale, bool tajweedColor) {  
+void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int lineWidth, int emScale, bool tajweedColor) {
 
   if (applyJustification && lineWidth != 0) {
     hb_buffer_set_justify(text_buffer, lineWidth);
@@ -2488,7 +2532,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
     if (whichJust == WhichJust::HarfBuzz) {
       jutifyLine(shapefont, buffer, lineWidth, emScale, tajweedColor);
     }
-    else if(whichJust == WhichJust::Second) {
+    else if (whichJust == WhichJust::Second) {
       jutifyLine_old(shapefont, buffer, lineWidth, emScale, tajweedColor);
     }
     else {
@@ -3447,6 +3491,20 @@ QByteArray Just::getOpenTypeTable() {
 
   QByteArray stretchStepOffsets;
   QByteArray shrinkStepOffsets;
+  QByteArray afterGsubArray;
+
+  afterGsubArray << (uint16_t)this->lastGsubLookups.size();
+
+  for (auto lookup : this->lastGsubLookups) {
+    int index = -1;
+    if (layout->gsublookupsIndexByName.contains(lookup->name)) {
+      index = layout->gsublookupsIndexByName.value(lookup->name, -1);
+    }
+    if (index != -1) {
+      afterGsubArray << (uint16_t)index;
+    }
+  }
+
 
   int stretchStepsCount = 0;
   int shrinkStepsCount = 0;
@@ -3491,14 +3549,16 @@ QByteArray Just::getOpenTypeTable() {
 
   data << (uint16_t)1; // majorVersion
   data << (uint16_t)0; // minorVersion
-  data << (uint16_t)8; // stretchSteps Offset
-  data << (uint16_t)(8 + 2 + stretchStepOffsets.size() + stretchStepsData.size());
+  data << (uint16_t)10; // stretchSteps Offset
+  data << (uint16_t)(10 + 2 + stretchStepOffsets.size() + stretchStepsData.size());
+  data << (uint16_t)(10 + 2 + stretchStepOffsets.size() + stretchStepsData.size() + 2 + shrinkStepOffsets.size() + shrinkStepsData.size());
   data << (uint16_t)stretchStepsCount;
   data.append(stretchStepOffsets);
   data.append(stretchStepsData);
   data << (uint16_t)shrinkStepsCount;
   data.append(shrinkStepOffsets);
   data.append(shrinkStepsData);
+  data.append(afterGsubArray);
 
   return data;
 

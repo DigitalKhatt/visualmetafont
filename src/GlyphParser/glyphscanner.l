@@ -46,6 +46,7 @@ using token = glyphparser::Parser::token;
 "%%endpaths"												{return token::T_ENDPATHS_SECTION;}
 "controlledPath"											{return token::T_CONTROLLEDPATH;}
 "fill"														{return token::T_FILL;}
+"fillc"														{return token::T_FILLC;}
 "dir"														{return token::T_DIR;}
 "controls"													{return token::T_CONTROLS;}
 "tension"													{return token::T_TENSION;}

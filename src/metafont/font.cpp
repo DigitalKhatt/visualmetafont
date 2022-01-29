@@ -157,7 +157,25 @@ bool Font::saveFile() {
 			outunicode << "  [\"" << glyphs[i]->name() << "\"] = " << glyphs[i]->charcode() << ",\n";
 		}
 
-		outunicode << "}";
+    outunicode << "}";
+
+    /*
+    QMap<int, int> testMap;
+
+    for (int i = 0; i < glyphs.length(); i++) {
+      if (glyphs[i]->unicode() != -1) {
+        testMap.insert(glyphs[i]->unicode(), glyphs[i]->unicode());        
+      }
+    }
+
+    for (int i = 0; i < glyphs.length(); i++) {
+      if (glyphs[i]->unicode() != -1) {
+        auto value = testMap[glyphs[i]->unicode()];
+        outunicode << "\ncharProps[" << QString("0x%1").arg(value, 4, 16, QLatin1Char('0')).toUpper() << "] = {"<< glyphs[i]->getPath().toSubpathPolygons().count() << "}; // " << glyphs[i]->name();
+      }
+
+    }*/
+		
 
 
 		file.close();

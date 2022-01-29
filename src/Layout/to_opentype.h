@@ -279,7 +279,7 @@ public:
   QByteArray JTST();
 
   bool colrcpal(QByteArray& colr, QByteArray& cpal);
-  bool isCff2 = false;
+  bool isCff2 = true;
   QByteArray getPrivateDictCff2(int* size);  
 
   QByteArray CFF2VariationStore();

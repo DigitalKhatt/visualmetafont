@@ -297,6 +297,10 @@
                         -120,
                         66
                     ],
+                    "behshape.medi.ii": [
+                        -135,
+                        52
+                    ],
                     "dal.fina": [
                         13,
                         -11
@@ -1588,8 +1592,8 @@
                         -32
                     ],
                     "behshape.isol.expa": [
-                        231,
-                        -69
+                        158,
+                        -117
                     ],
                     "feh.isol": [
                         193,
@@ -3065,6 +3069,26 @@
                 "waw.isol": [
                     85,
                     -18
+                ]
+            }
+        }
+    },
+    "shr1.cursive.l1": {
+        "subtable1": {
+            "entryParameters": {
+                "waw.isol": [
+                    304,
+                    -28
+                ]
+            }
+        }
+    },
+    "shr1.cursive.l2": {
+        "subtable1": {
+            "entryParameters": {
+                "heh.init": [
+                    263,
+                    0
                 ]
             }
         }

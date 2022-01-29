@@ -48,6 +48,7 @@ using token = feayy::Parser::token;
 "just"														{return(token::JUST);}
 "stretch"													{return(token::STRETCH);}
 "shrink"													{return(token::SHRINK);}
+"aftergsub"													{return(token::AFTERGSUB);}
 "end"													    {return(token::END);}
 "step"													    {return(token::STEP);}
 "position"													{return(token::POSITION);}

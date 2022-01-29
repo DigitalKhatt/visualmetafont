@@ -28,7 +28,7 @@
 #include <QMenu>
 
 
-KnotControlledItem::KnotControlledItem(int numsubpath, int numpoint, mp_gr_knot knot, Glyph* glyph, QGraphicsItem* parent)
+KnotControlledItem::KnotControlledItem(int numsubpath, int numpoint, int num_static_point, mp_gr_knot knot, Glyph* glyph, QGraphicsItem* parent)
 	: QGraphicsObject(parent) {
 
 	this->m_numsubpath = numsubpath;
@@ -54,8 +54,8 @@ KnotControlledItem::KnotControlledItem(int numsubpath, int numpoint, mp_gr_knot 
 
 	incurve = new KnotItem(KnotItem::InCurve, this);
 
-	if (m_glyph->controlledPaths.contains(numsubpath) && m_glyph->controlledPaths[numsubpath].contains(numpoint)) {
-		m_glyphknot = m_glyph->controlledPaths[numsubpath][numpoint];
+	if (m_glyph->controlledPaths.contains(numsubpath) && m_glyph->controlledPaths[numsubpath].contains(num_static_point)) {
+		m_glyphknot = m_glyph->controlledPaths[numsubpath][num_static_point];
 		if (m_glyphknot->isConstant || m_glyph->params.contains(m_glyphknot->paramName)) {
 			incurve->setFlags(ItemIsMovable | ItemIsSelectable);
 		}

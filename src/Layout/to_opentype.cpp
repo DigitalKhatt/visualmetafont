@@ -883,8 +883,14 @@ QByteArray ToOpenType::os2() {
 }
 QByteArray ToOpenType::post() {
   QByteArray data;
+  if (!isCff2) {
+    data << (uint32_t)0x00030000; // version
+  }
+  else {
+    data << (uint32_t)0x00020000; // version
+  }
 
-  data << (uint32_t)0x00030000; // version
+  
   data << (uint32_t)0; // italicAngle
   data << (int16_t)-200; // underlinePosition
   data << (int16_t)globalValues.yStrikeoutSize; // underlineThickness
@@ -893,6 +899,32 @@ QByteArray ToOpenType::post() {
   data << (uint32_t)0; // maxMemType42
   data << (uint32_t)0; // minMemType1
   data << (uint32_t)0; // maxMemType1
+
+  if (isCff2) {
+    int glyphCount = glyphs.lastKey() + 1;
+
+    data << (int16_t)glyphCount;
+
+    int index = 0;
+
+    for (int i = 0; i < glyphCount; i++) {
+      QByteArray glyphArray;
+
+      if (glyphs.contains(i)) {
+        data << (uint16_t)(index + 258);
+        index++;
+      }
+      else {
+        data << (uint16_t)(258);//  .notdef;
+      }
+    }
+    
+    for (auto& glyph : glyphs) {
+      auto name = glyph->name.toLatin1();
+      data << (uint8_t)name.size();
+      data.append(name);
+    }
+  }
 
   return data;
 }

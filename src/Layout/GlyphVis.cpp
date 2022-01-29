@@ -278,10 +278,16 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
   }
 
   if (!std::isnan(m_edge->xleftanchor)) {
-    leftAnchor = QPoint(m_edge->xleftanchor, m_edge->yleftanchor);
+    if (!isdigit(m_edge->xleftanchor) || !isdigit(m_edge->yleftanchor)) {
+      int stop = 5;
+    }
+    leftAnchor = QPoint(round(m_edge->xleftanchor), round(m_edge->yleftanchor));
   }
   if (!std::isnan(m_edge->xrightanchor)) {
-    rightAnchor = QPoint(m_edge->xrightanchor, m_edge->yrightanchor);
+    if (!isdigit(m_edge->xrightanchor) || !isdigit(m_edge->xrightanchor)) {
+      int stop = 5;
+    }
+    rightAnchor = QPoint(round(m_edge->xrightanchor), round(m_edge->yrightanchor));
   }
 
   //matrix = getMatrix(m_otLayout->mp, charcode);

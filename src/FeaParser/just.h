@@ -503,10 +503,11 @@ namespace feayy {
     };
 
     JustTable() = default;
-    JustTable(std::vector<JustStep> stretchRules, std::vector<JustStep> shrinkRules) : stretchRules{ stretchRules }, shrinkRules{ shrinkRules }{}
+    JustTable(std::vector<JustStep> stretchRules, std::vector<JustStep> shrinkRules, std::vector<std::string> aftergsub) : stretchRules{ stretchRules }, shrinkRules{ shrinkRules }, aftergsub{ aftergsub }{}
     
     std::vector<JustStep> stretchRules;
     std::vector<JustStep> shrinkRules;
+    std::vector<std::string> aftergsub;
 
     void accept(Visitor&) override;
   };

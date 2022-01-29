@@ -168,6 +168,7 @@ struct Just {
 
   std::vector<JustStep> stretchSteps;
   std::vector<JustStep> shrinkSteps;
+  std::vector<Lookup*> lastGsubLookups;
   QByteArray getOpenTypeTable();
 
 private:
@@ -356,7 +357,7 @@ public:
 
     if (tatweel < -1) {
       //throw new std::runtime_error("tatweel error for glyph " + code);
-      auto& name = glyphNamePerCode.value(code);
+      const auto& name = glyphNamePerCode.value(code);
       std::cout.precision(17);
       std::cout << "min tatweel " << std::fixed << tatweel << " error for glyph " << name.toStdString() << '\n';
       tatweel = -1;
@@ -364,7 +365,7 @@ public:
 
     if (tatweel > 1) {
       //throw new std::runtime_error("tatweel error for glyph " + code);
-      auto& name = glyphNamePerCode.value(code);
+      const auto& name = glyphNamePerCode.value(code);
       std::cout.precision(17);
       std::cout << "max tatweel " << std::fixed << tatweel << " error for glyph " << name.toStdString() << '\n';
       tatweel = 1;
@@ -372,9 +373,9 @@ public:
 
     ValueLimits limits;
 
-    auto& name = glyphNamePerCode.value(code);
+    const auto& name = glyphNamePerCode.value(code);
 
-    auto& find = expandableGlyphs.find(name);
+    const auto& find = expandableGlyphs.find(name);
 
     if (find == expandableGlyphs.end()) {
       //throw new std::runtime_error("tatweel error for glyph " + name.toStdString());

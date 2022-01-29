@@ -61,7 +61,7 @@
 %token LOOKUP FEATURE POSITION SUBSTITUTE BASE ANCHOR MARK MARKCLASS CURSIVE T_NULL NOTDEF FUNCTION BY FROM
 %token COLOR CALLBACK EXPANSION ADD STARTLIG ENDLIG ENDKASHIDA JUST
 %token LOOKUPFLAG RightToLeft IgnoreBaseGlyphs IgnoreLigatures IgnoreMarks MarkAttachmentType UseMarkFilteringSet
-%token TABLE ENDTABLE PASS ENDPASS ANY STRETCH SHRINK END STEP
+%token TABLE ENDTABLE PASS ENDPASS ANY STRETCH SHRINK END STEP AFTERGSUB
 
 %type <FeaRoot*> root
 %type <std::vector<Statement *> *> statements
@@ -94,7 +94,7 @@
 %type <GraphiteRule> rule openttype_regexp;
 %type <Pass>  rules pass_definition;
 %type <TableDefinition*>  table_definition passes;
-%type <std::vector<std::string>> lookupreferences;
+%type <std::vector<std::string>> lookupreferences aftergsub;
 %type <JustTable::JustStep> juststep;
 %type <JustTable> justrules;
 %type <std::vector<JustTable::JustStep>> juststeps stretch shrink;
@@ -480,10 +480,7 @@ table_definition
 	;
 
 justrules
-	: stretch shrink {$$=JustTable{$stretch,$shrink};}
-	| shrink stretch {$$=JustTable{$stretch,$shrink};}
-	| shrink {$$=JustTable{{},$shrink};}
-	| stretch {$$=JustTable{$stretch,{}};}
+	: stretch shrink aftergsub {$$=JustTable{$stretch,$shrink,$aftergsub};}	
 	;
 
 stretch
@@ -492,10 +489,15 @@ stretch
 shrink
 	:  SHRINK '{' juststeps '}' {$$=$juststeps;}
 	;
+aftergsub
+	: { $$ = {};}
+	| AFTERGSUB '{' lookupreferences '}' { $$ = $lookupreferences;}
+	;
+
 
 juststeps
 	: juststeps juststep { $$ = $1; $$.push_back($juststep);}
-	| juststep { $$ = std::vector<JustTable::JustStep>({$juststep});}
+	| { $$ = {};}
 	;
 
 juststep

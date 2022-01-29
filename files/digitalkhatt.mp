@@ -257,6 +257,11 @@ beginchar(linefeed,10,-1,-1,-1);
 %%beginbody
 charwd := 0;
 endchar;
+beginchar(zwj,8205,-1,-1,-1);
+%%beginbody
+%847
+charwd := 0;
+endchar;
 beginchar(cgj,847,-1,-1,-1);
 %%beginbody
 %847
@@ -743,7 +748,7 @@ interim rightbearing := 0;
 drawcomp(two_dots,identity);
 endchar;
 defchar(fatha,1614,-1,-1,-1);
-%%backgroundimage:images/shadda.jpg,-1598.98,-850.892,1,0,0,1
+%%backgroundimage:images/shadda.jpg,-1594.98,-851.892,1,0,0,1
 %%beginparams
 z1 = (0,0);
 
@@ -761,6 +766,7 @@ _angle2 := _angle1;
 numeric lefttatweel_;
 
 lefttatweel_ := lefttatweel*nuqta + 2.3*nuqta;
+_height := _height + (lefttatweel_ - 2.3*nuqta)* 0.015;
 
 z2 = z1 + (-lefttatweel_,0 );
 z3 = z2 + (0,_height ) rotated -_angle2;
@@ -803,7 +809,7 @@ currentpicture := currentpicture shifted (0,-ypart llcorner currentpicture);
 leftbearing := 0;
 rightbearing := 0;
 
-%labels(1,2,3,4);
+labels(1,2,3,4);
 
 savepicture:=1;
 enddefchar;
@@ -1990,6 +1996,120 @@ currentpicture := currentpicture shifted (-x2,0);
 
 
 endchar;
+beginchar(kashida_iii_min,-1,1,-1,-1);
+%%backgroundimage:images/alef.fina.jpg,-707.844,-1596.91,1,0,0,1
+%%beginparams
+z1 = (104.192,84.7825);
+z3 = (271.116,82.3993);
+
+%%beginverbatim
+
+z2 = z1 rotatepen 70;
+z4 = z3 rotatepen 70;
+
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(234.652,13.1375) ..
+(144.463,14.7293) ..
+ {dir 114.162}z1 --
+z2 {dir -73.5446} ..
+(148.808,99.5283) ..
+(231.702,97.0691) ..
+ {dir 67.95}z4 --
+z3 .. tension 1.06453 and 1.04733 ..
+ cycle
+;
+
+%%endpaths
+%%beginbody
+savepicture := 1;
+endchar;
+beginchar(kashida_iii_default,-1,1,-1,-1);
+%%backgroundimage:images/alef.fina.jpg,-713.829,-1657.25,1,0,0,1
+%%beginparams
+z1 = (141.637,85.2025);
+z3 = (416.497,84.5622);
+
+%%beginverbatim
+
+z2 = z1 rotatepen 70;
+z4 = z3 rotatepen 70;
+
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(315.916,4.7088) ..
+(239.795,4.58611) ..
+ {dir 114.162}z1 {dir -277.388} ..
+ {dir 73.4795}z2 {dir -65.6948} ..
+(250.007,84.2186) ..
+(307.287,79.1153) ..
+z4 --
+z3 .. tension 1 and 1 ..
+ cycle
+;
+
+%%endpaths
+%%beginbody
+savepicture := 1;
+endchar;
+beginchar(kashida_iii_max,-1,1,-1,-1);
+%%backgroundimage:images/expasinna.iii.jpg,-1052.88,-1115.6,1,0,0,1
+%%beginparams
+z1 = (101.572,82.6869);
+z3 = (1557.19,81.672);
+
+%%beginverbatim
+
+z2 = z1 rotatepen 70;
+z4 = z3 rotatepen 70;
+
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(1030.39,-90.1333) .. tension 1.20931 ..
+(368.276,-99.5853) .. tension 0.895213 ..
+z1 --
+z2 {dir -63.395} .. tension 1.06525 ..
+(428.435,-24.276) .. tension 1.44311 ..
+(1107.37,3.005) .. tension 0.94724 and 5.23359 ..
+z4 --
+z3 .. tension 1.07849 and 0.75 ..
+ cycle
+;
+
+%%endpaths
+%%beginbody
+savepicture := 1;
+endchar;
+defchar(kashida.iii,-1,-1,-1,-1);
+%%beginbody
+
+%draw interpolate(
+%kashida_iii_default.pic,
+%interpolatepic(kashida_iii_default.pic,kashida_iii_max.pic,1),
+%kashida_iii_max.pic,
+%lefttatweel
+%);
+
+draw interpolate(
+kashida_iii_min.pic,
+kashida_iii_default.pic,
+kashida_iii_max.pic,
+lefttatweel
+);
+
+enddefchar;
 beginchar(hamza.isol,1569,-1,-1,-1);
 %%backgroundimage:images/hamza.jpg,-1969.7,-1615.21,1,0,0,1
 
@@ -2062,7 +2182,7 @@ enddefchar;
 defchar(alef.fina,-1,-1,-1,-1);
 %%backgroundimage:images/testheight.jpg,-12360.3,-1476.82,1,0,0,1
 %%beginparams
-z1 = (227.307,8.175);
+z1 = (199.307,15.175);
 z2 = (214.577,102.4);
 z3 = (308.106,1.11633);
 
@@ -2070,6 +2190,7 @@ z3 = (308.106,1.11633);
 righttatweel := righttatweel -0.2 ;
 
 righttatweel_const := (x3 - x1,y3 - y1);
+right_verticalextratio := 4;
 
 %which_in_baseline := 3;
 
@@ -2094,6 +2215,7 @@ z1 ..
 %%endpaths
 %%beginbody
 leftbearing := leftbearing ; %- 50;
+show which_in_baseline;
 enddefchar;
 defchar(alef.fina.afterkaf,-1,-1,-1,-1);
 %%backgroundimage:images/kafinitaleffina.jpg,-1985.62,-1287.62,1,0,0,1
@@ -2445,7 +2567,7 @@ z2 .. tension 1 and 2.69891 ..
 %%beginbody
 
 
-
+show which_in_baseline;
 enddefchar;
 defchar(behshape.init.beforeyeh,-1,-1,-1,-1);
 %%backgroundimage:images/behshape.init.yeh.jpg,-885.528,-1239.69,1,0,0,1
@@ -2649,7 +2771,7 @@ defchar(behshape.medi,-1,-1,-1,-1);
 %%backgroundimage:images/behshape.medi.2.jpg,-836.499,-1438.96,1,0,0,1
 %%beginparams
 z1 = (219.986,47.4628);
-z3 = (132.906,38.769);
+z3 = (134.906,31.769);
 
 %%beginverbatim
 
@@ -2657,7 +2779,7 @@ z3 = (132.906,38.769);
 %charlt := 4; % numeric
 lefttatweel := lefttatweel + 0;
 righttatweel := righttatweel - 0.0;
-if left_verticalextratio = 0 : left_verticalextratio := 10; fi
+if left_verticalextratio = 0 : left_verticalextratio := 8; fi
 if right_verticalextratio = 0 : right_verticalextratio := 10; fi
 left_tatweeltension := 1 + charlt * 0.115  ;
 if left_tatweeltension > 1.7 : left_tatweeltension := 1.7; fi
@@ -9065,7 +9187,7 @@ enddefchar;
 defchar(noon.isol.expa,-1,-1,-1,-1);
 %%backgroundimage:images/noon.taweel.jpg,-12.828,-1062.14,1,0,0,1
 %%beginparams
-z11 = (622.824,216.666);
+z11 = (387.824,272.666);
 %%beginbody
 
 
@@ -9858,15 +9980,15 @@ fill
 leftbearing:=0;
 enddefchar;
 defchar(expasinna.ii,-1,-1,-1,-1);
-%%backgroundimage:images/basmala_naml.jpeg,-5088.32,-1403.25,1,0,0,1
+%%backgroundimage:images/basmala_naml.jpeg,-5080.32,-1465.25,1,0,0,1
 %%beginparams
 t1 := 1.41232; % numeric
-z.expasinna.1 = (907.165,130.673);
-z10 = dir 35;
+z.expasinna.1 = (915.165,192.673);
+z10 = dir 32.5043;
 z11 = dir -26;
-z33 = (-221.468,29.5899);
-z34 = (879.573,76.2418);
-z35 = (977.667,217.764);
+z33 = (-213.468,91.5899);
+z34 = (887.573,138.242);
+z35 = (985.667,279.764);
 
 %%beginverbatim
 
@@ -9892,13 +10014,13 @@ z11r = -z11;
 %%beginpaths
 
 fill
-((-250.446,85.2003)+ z101) .. tension 2.10634 and 1.81544 ..
-((-240.165,131.297)+ z101) {z11} .. tension atleast 0.935851 ..
-((382.566,46.6803)+ z102) {right} .. tension atleast 1.17628 ..
+((-242.446,147.2)+ z101) .. tension 2.10634 and 1.81544 ..
+((-232.165,193.297)+ z101) {z11} .. tension atleast 0.935851 ..
+((390.566,108.68)+ z102) {right} .. tension atleast 1.17628 ..
  {z10}z34p ..
  {curl1}z35 {down} ..
  {z10r}z34 .. tension atleast t1 ..
-((349.079,-29.718)+ z102) {left} .. tension atleast 1.0232 ..
+((357.079,32.282)+ z102) {left} .. tension atleast 1.0232 ..
  {z11r}z33 + z101 .. tension 0.791804 and 3.02182 ..
  {up} cycle
 ;
@@ -9910,59 +10032,8 @@ fill
 leftanchor := (-250.446,85.2003)+ z101;
 
 enddefchar;
-defchar(expasinna.iii,-1,-1,-1,-1);
-%%backgroundimage:images/expasinna.iii.jpg,-1086,-1274,1,0,0,1
-%%beginparams
-t1 := 1.41232; % numeric
-z10 = dir 35;
-z11 = dir -26;
-z33 = (-156.468,215.59);
-z34 = (1442.57,193.242);
-z35 = (1536.67,356.764);
-
-%%beginverbatim
-
-%lefttatweel := lefttatweel -2;
-
-z33p = z33 rotatepen 105;
-z34p = z34 rotatepen 72;
-
-z101 = (-(lefttatweel - 2)*nuqta,0 );
-z102 = (-(lefttatweel)*nuqta / 1.5, -(lefttatweel) *7 );
-
-
-z10r = -z10;
-z11r = -z11;
-
-
-
-
-
-
-%%endverbatim
-
-%%beginpaths
-
-fill
-((-99.165,270.297)+ z101) {z11} .. tension atleast 0.935851 ..
-((504.566,145.68)+ z102) {right} .. tension atleast 1.17628 ..
- {z10}z34p ..
- {curl1}z35 {down} ..
- {z10r}z34 .. tension atleast t1 ..
-((494.079,40.282)+ z102) {left} .. tension atleast 1.17293 ..
- {z11r}z33 + z101 .. tension 1.36037 and 0.760965 ..
- {up} cycle
-;
-
-%%endpaths
-%%beginbody
-
-
-leftanchor := (-250.446,85.2003)+ z101;
-
-enddefchar;
 defchar(seen.medi.basmala,-1,-1,-1,-1);
-%%backgroundimage:images/basmala_naml.jpeg,-5961.72,-1373.48,1,0,0,1
+%%backgroundimage:images/basmala_naml.jpeg,-5082.72,-1467.48,1,0,0,1
 
 %%beginverbatim
 
@@ -9988,6 +10059,285 @@ draw pic shifted (z.expasinna.1 - z.twoseen.1);
 
 
 rightanchor := z.twoseen.2 shifted (z.expasinna.1 - z.twoseen.1);
+
+
+enddefchar;
+defchar(behshape.medi.ii,-1,-1,-1,-1);
+%%backgroundimage:images/behshape.medi.2.jpg,-819.443,-1443.07,1,0,0,1
+%%beginparams
+z1 = (213.86,56.83);
+z2 = (237.649,146.604);
+z3 = (165.905,77.6493);
+z4 = (185.159,164.753);
+
+%%beginverbatim
+
+
+
+lefttatweel := lefttatweel  ;
+righttatweel := righttatweel ;
+
+
+righttatweel_const := (120,-y1);
+if right_verticalextratio = 0 : right_verticalextratio := 4; fi
+
+
+
+
+%%endverbatim
+
+%%beginpaths
+
+fillc
+(185.127,100.254) {dir -116.055} ..
+z3 kashida_i
+z4 .. tension 0.830216 and 2.98102 ..
+(193.61,173.602) .. tension 1.7264 and 1.23542 ..
+ {right}(206.94,180.062) .. tension 1.7264 and 1 ..
+z2 join
+z1 ..
+ {curl1} cycle
+;
+
+%%endpaths
+%%beginbody
+%labels(1,2,3,4);
+
+
+enddefchar;
+defchar(sad.init.kii,-1,-1,-1,-1);
+%%backgroundimage:images/sad.init.jpg,-2302.75,-1465.38,1,0,0,1
+%%beginparams
+z.mark1 = (500,-99);
+z1 = (144.461,77.3435);
+z2 = (170.103,156.484);
+
+%%beginverbatim
+
+
+
+
+
+
+
+%%endverbatim
+
+%%beginpaths
+
+fillc
+z1 kashida_i
+z2 {dir -313.018} ..
+(182.712,172.701) .. tension 1 and 2.59952 ..
+ {right}(187.943,177.375) .. tension 1 and 1 ..
+ {down}(190.645,167.236) .. tension 1 and 1 ..
+ {down}(183.25,131.375) .. tension 3.13519 and 1.85081 ..
+ {right}(292.25,84.0495) .. tension 3.98412 and 1.23768 ..
+ {right}(625.25,302.375) .. tension 1 and 1 ..
+ {down}(736.564,234.532) .. tension 1 and 1 ..
+(657.25,83.375) .. tension 1.72016 and 0.7597 ..
+ {left}(367.827,-4.76368) .. tension 0.75 and 3.66495 ..
+ {left}(256.599,3.33275) .. tension 2.28243 and 6.8879 ..
+ {left}(142.915,-208.965) .. tension 1 and 1 ..
+ {up}(137.642,-202.613) .. tension 2.77619 and 1 ..
+(180.844,-69.3239) .. tension 0.75 and 4.93396 ..
+ {up}(213.575,15.7099) .. tension 2.08196 and 1 ..
+(181.514,46.8857) .. tension 1 and 6.32267 ..
+ {left}(156.25,84.375) .. tension 13.1865 and 1.32084 ..
+ {dir -138.221} cycle
+;
+fill
+(580.277,230.556) .. tension 1.56433 and 13.2272 ..
+ {down}(360.858,83.7668) .. tension 1.29937 and 1 ..
+ {right}(399.027,75.6944) .. tension 1 and 5.06535 ..
+ {up}(689.305,177.778) .. tension 1.4777 and 1 ..
+ {left} cycle
+;
+
+%%endpaths
+%%beginbody
+
+setMarkAnchor(buttonmark,z.mark1);
+enddefchar;
+defchar(seen.init.kii,-1,-1,-1,-1);
+%%backgroundimage:images/seen.init.jpg,-2132.16,-1301.28,1,0,0,1
+%%beginparams
+z1 = (13.4975,-0.6233);
+z2 = (91.498,101.377);
+
+%%beginverbatim
+
+%%endverbatim
+
+%%beginpaths
+
+fillc
+(238.202,24.8446) .. tension 0.75 and 1.73694 ..
+ {left}(150.851,31.2291) .. tension 1.67481 and 0.75 ..
+z1 kashida_i
+z2 .. tension 1.65623 and 1 ..
+(232.405,157.715) .. tension 0.770994 and 8.65667 ..
+ {right}(273.518,223.817) .. tension 1 and 1 ..
+ {down}(277.778,210.745) .. tension 1.23162 and 6.14294 ..
+ {down}(235.212,96.4261) .. tension 8.99697 and 1.71558 ..
+(408.951,146.174) .. tension 1.66726 and 9.44034 ..
+ {right}(489.563,267.168) .. tension 1 and 1 ..
+ {down}(493.827,254.63) .. tension 1 and 2.57963 ..
+ {down}(470.679,188.561) .. tension 5.9891 and 1 ..
+ {right}(578.704,140.818) .. tension 1 and 1 ..
+ {up}(591.242,150.945) .. tension 0.75 and 7.69413 ..
+ {up}(579.641,250.086) .. tension 1.43597 and 9.78838 ..
+ {right}(606.674,326.968) .. tension 4.54313 and 1 ..
+ {down}(623.553,220.872) .. tension 1 and 3.87789 ..
+ {left}(564.718,59.7994) .. tension 0.75 and 8.89694 ..
+ {left}(434.894,120.257) .. tension 3.61835 and 1 ..
+(365.326,55.6225) .. tension 1.64816 and 0.75 ..
+ {left} cycle
+;
+
+%%endpaths
+%%beginbody
+
+enddefchar;
+defchar(hah.init.iii,-1,-1,-1,-1);
+%%backgroundimage:images/jeem.init.jpg,-1524.1,-1041.26,1,0,0,1
+%%beginparams
+z1 = (333.352,134.633);
+z2 = (304.797,180.108);
+
+%%beginverbatim
+
+
+lefttatweel := lefttatweel ;
+
+%%endverbatim
+
+%%beginpaths
+
+fillc
+z1 kashida_i
+z2 .. tension 0.982496 and 3.1366 ..
+(330.746,198.027) {up} .. tension 13.0439 and 1.63017 ..
+ {left}(169.824,249.324) .. tension 0.93697 and 2.31909 ..
+(77.7784,231.606) .. tension 1 and 2.50292 ..
+ {left}(41.4548,203.233) .. tension 0.882523 and 1 ..
+ {up}(37.3118,213.235) .. tension 1.45052 and 1.3939 ..
+ {right}(177.975,344.714) .. tension 1.91368 and 0.841609 ..
+(325.913,279.015) .. tension 1 and 2.30651 ..
+ {right}(551.866,239.183) .. tension 1 and 2.3242 ..
+ {right}(634.823,245.015) .. tension 1 and 1 ..
+ {down}(639.731,240.065) .. tension 5.83816 and 4.05417 ..
+ {left}(595.75,154.995) .. tension 1.26894 and 1 ..
+ {left}(449.803,173.616) .. tension 1.15877 ..
+ cycle
+;
+
+%%endpaths
+enddefchar;
+defchar(heh.fina.ii,-1,-1,-1,-1);
+%%backgroundimage:images/tehmarbouta.fina.jpg,-30.9002,-1351.9,1,0,0,1
+
+%%beginverbatim
+
+
+
+%%endverbatim
+
+%%beginpaths
+
+fillc
+(90.2778,91.6667) .. tension 1 and 1 ..
+(182.937,264.726) .. tension 1 and 8.57661 ..
+ {up}(293.75,343.056) .. tension 0.910087 and 3.11944 ..
+ {right}(313.759,473.754) .. tension 0.985899 and 1 ..
+ {down}(322.222,460.417) .. tension 1 and 2.20226 ..
+(348.684,277.125) .. tension 1 and 1 ..
+(389.48,170.932) kashida_i
+(337.658,145.244) .. tension 1 and 4.23371 ..
+ {left}(328.877,165.863) .. tension 6.79971 and 1 ..
+(288.57,104.377) .. tension 1.13506 and 0.75 ..
+ {left}(174.519,71.8004) .. tension 1 and 2.69002 ..
+ {up} cycle
+;
+fill
+(219.444,152.778) .. tension 1 and 1 ..
+ {up}(320.833,208.333) .. tension 3.47055 and 12.31 ..
+ {left}(300.694,288.194) .. tension 20.1423 and 3.43297 ..
+ {down}(143.042,166.919) .. tension 1.68523 and 1 ..
+ {right} cycle
+;
+
+%%endpaths
+enddefchar;
+defchar(dal.fina.kii,-1,-1,-1,-1);
+%%backgroundimage:images/dal.fina.jpg,-794.703,-1091.66,1,0,0,1
+%%beginparams
+z1 = (393.293,186.049);
+z2 = (439.033,203.313);
+
+%%beginverbatim
+
+
+%%endverbatim
+
+%%beginpaths
+
+fillc
+(69.1712,104.617) .. tension 1 and 5.58004 ..
+ {right}(81.5257,156.054) .. tension 5.11224 and 1 ..
+(109.713,139.452) .. tension 1 and 1 ..
+ {right}(168.403,131.366) .. tension 1 and 2.45586 ..
+ {up}(375,236.867) .. tension 10.598 and 1 ..
+(336.773,351.241) .. tension 1 and 1 ..
+ {up}(321.759,455.44) .. tension 1 and 4.56942 ..
+ {right}(334.587,506.993) .. tension 10.1375 and 1 ..
+(367.316,388.616) .. tension 1.94655 and 2.41325 ..
+(407.8,271.022) .. tension 1 and 1 ..
+z2 kashida_i
+z1 .. tension 0.928459 and 29.0369 ..
+ {left}(387.761,200.716) .. tension 24.4711 and 1 ..
+(363.194,143.805) .. tension 1 and 1.35948 ..
+ {left}(149.267,43.4028) .. tension 0.885773 and 1 ..
+ {up} cycle
+;
+
+%%endpaths
+enddefchar;
+defchar(alef.fina.ii,-1,-1,-1,-1);
+%%backgroundimage:images/testheight.jpg,-12405.3,-1475.68,1,0,0,1
+%%beginparams
+z1 = (170.302,164.04);
+z2 = (147.5,88.4567);
+
+%%beginverbatim
+
+
+
+
+
+
+%%endverbatim
+
+%%beginpaths
+
+fillc
+(51.5151,712.864) .. tension 1.29322 and 10.6712 ..
+ {right}(80.5787,772.824) .. tension 3.6286 and 1.61658 ..
+(109.946,663.456) .. tension 3.28624 and 2.76364 ..
+(145.833,337.384) .. tension 1.51205 and 0.864513 ..
+ {dir -79.1701}z1 kashida_i
+z2 .. tension 2.00581 and 1 ..
+(87.1528,550.517) .. tension 1 and 1.50214 ..
+(60.0605,685.157) .. tension 1 and 1.57007 ..
+ {up} cycle
+;
+
+%%endpaths
+%%beginbody
+
+
+
+
+
 
 
 enddefchar;

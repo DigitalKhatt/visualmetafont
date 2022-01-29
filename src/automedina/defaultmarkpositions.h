@@ -173,6 +173,7 @@ public:
   QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
     GlyphVis* curr = &_y.glyphs[glyphName];
 
+    auto ori_width = curr->width;
 
     if (lefttatweel != 0.0 || righttatweel != 0.0) {
       GlyphParameters parameters{};
@@ -182,10 +183,15 @@ public:
 
       curr = curr->getAlternate(parameters);
     }
-
-
     int width = curr->width * 0.5;
     int height = 1;
+
+    if (glyphName == "fatha") {
+      height+=  (curr->width - ori_width )/ 7;
+    }
+
+
+   
 
 
 

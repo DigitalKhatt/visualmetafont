@@ -31,7 +31,7 @@
 
 
 
-Glyph::Glyph(QString code, MP mp, Font * parent) : QObject((QObject*)parent) {
+Glyph::Glyph(QString code, MP mp, Font* parent) : QObject((QObject*)parent) {
   edge = NULL;
   this->mp = mp;
   this->font = parent;
@@ -70,16 +70,16 @@ void Glyph::setSource(QString source, bool structureChanged) {
 
   QList<QByteArray> dynamicProperties = dynamicPropertyNames();
   for (int i = 0; i < dynamicProperties.length(); i++) {
-      QByteArray propname = dynamicProperties[i];
-      QVariant variant;
-      setProperty(propname, variant);
-    }
+    QByteArray propname = dynamicProperties[i];
+    QVariant variant;
+    setProperty(propname, variant);
+  }
 
   QHash<Glyph*, ComponentInfo>::iterator comp;
   for (comp = m_components.begin(); comp != m_components.end(); ++comp) {
-      Glyph* glyph = comp.key();
-      disconnect(glyph, &Glyph::valueChanged, this, &Glyph::componentChanged);
-    }
+    Glyph* glyph = comp.key();
+    disconnect(glyph, &Glyph::valueChanged, this, &Glyph::componentChanged);
+  }
 
   m_components.clear();
   controlledPaths.clear();
@@ -89,7 +89,7 @@ void Glyph::setSource(QString source, bool structureChanged) {
 
   glyphparser::Driver driver(*this);
 
-  driver.parse_string(source.toStdString(),name().toStdString());
+  driver.parse_string(source.toStdString(), name().toStdString());
 
   edge = NULL;
   isDirty = true;
@@ -107,384 +107,391 @@ void Glyph::setSource(QString source, bool structureChanged) {
 QString Glyph::source() {
 
   if (isDirty) {
-      edge = NULL;
-      QString source;
+    edge = NULL;
+    QString source;
 
-      //source = QString("%1(%2,%3,%4,%5,%6,%7,%8);\n").arg(beginMacroName()).arg(name()).arg(unicode()).arg(width()).arg(height()).arg(depth()).arg(leftTatweel()).arg(rightTatweel());
-      source = QString("%1(%2,%3,%4,%5,%6);\n").arg(beginMacroName()).arg(name()).arg(unicode()).arg(width()).arg(height()).arg(depth());
-      //source = source % QString("%%glyphname:%1\n").arg(name());
-      if (!image().path.isEmpty()) {
-          Glyph::ImageInfo imageInfo = image();
-          QTransform transform = imageInfo.transform;
-          source = source % QString("%%backgroundimage:%1,%2,%3,%4,%5,%6,%7\n")
-              .arg(imageInfo.path)
-              .arg(imageInfo.pos.x())
-              .arg(imageInfo.pos.y())
-              .arg(transform.m11())
-              .arg(transform.m12())
-              .arg(transform.m21())
-              .arg(transform.m22());
+    //source = QString("%1(%2,%3,%4,%5,%6,%7,%8);\n").arg(beginMacroName()).arg(name()).arg(unicode()).arg(width()).arg(height()).arg(depth()).arg(leftTatweel()).arg(rightTatweel());
+    source = QString("%1(%2,%3,%4,%5,%6);\n").arg(beginMacroName()).arg(name()).arg(unicode()).arg(width()).arg(height()).arg(depth());
+    //source = source % QString("%%glyphname:%1\n").arg(name());
+    if (!image().path.isEmpty()) {
+      Glyph::ImageInfo imageInfo = image();
+      QTransform transform = imageInfo.transform;
+      source = source % QString("%%backgroundimage:%1,%2,%3,%4,%5,%6,%7\n")
+        .arg(imageInfo.path)
+        .arg(imageInfo.pos.x())
+        .arg(imageInfo.pos.y())
+        .arg(transform.m11())
+        .arg(transform.m12())
+        .arg(transform.m21())
+        .arg(transform.m22());
+    }
+
+    if (!m_components.isEmpty()) {
+      source = source % "%%begincomponents\n";
+      QHash<Glyph*, ComponentInfo>::iterator i;
+      for (i = m_components.begin(); i != m_components.end(); ++i) {
+        ComponentInfo component = i.value();
+        QTransform transform = component.transform;
+        source = source % QString("drawcomponent(%1,%2,%3,%4,%5,%6,%7);\n").arg(i.key()->name())
+          .arg(component.pos.x())
+          .arg(component.pos.y())
+          .arg(transform.m11())
+          .arg(transform.m12())
+          .arg(transform.m21())
+          .arg(transform.m22());
+      }
+      source = source % "%%endcomponents\n";
+    }
+
+    if (params.count() > 0) {
+      source = source % "%%beginparams\n";
+      QPointF valpoint;
+      QString typepoint;
+      double valdouble;
+      QMapIterator<QString, Param> i(params);
+      while (i.hasNext()) {
+        i.next();
+        Param param = i.value();
+        QString propname = param.name;
+        QString affect = param.isEquation ? "=" : ":=";
+        switch (param.type) {
+          /*case point:
+            valpoint = property(propname.toLatin1()).toPointF();
+            source = source % QString("%1 %2 (%3,%4);\n").arg(QString(propname)).arg(affect).arg(valpoint.x()).arg(valpoint.y());
+            break;*/
+        case direction:
+          valdouble = property(propname.toLatin1()).toDouble();
+          typepoint = param.position == left ? "ldir" : "rdir";
+          source = source % QString("%1 %2 %3; % %4 (%5,%6)\n").arg(QString(propname)).arg(affect).arg(valdouble).arg(typepoint).arg(param.applytosubpath).arg(param.applytopoint);
+          break;
+        case tension:
+          valdouble = property(propname.toLatin1()).toDouble();
+          typepoint = param.position == left ? "ltens" : "rtens";
+          source = source % QString("%1 %2 %3; % %4 (%5,%6)\n").arg(QString(propname)).arg(affect).arg(valdouble).arg(typepoint).arg(param.applytosubpath).arg(param.applytopoint);
+          break;
+        case control:
+          valpoint = property(propname.toLatin1()).toPointF();
+          typepoint = param.position == left ? "lcont" : "rcont";
+          source = source % QString("%1 %2 (%3,%4); % %5 (%6,%7)\n").arg(QString(propname)).arg(affect).arg(valpoint.x()).arg(valpoint.y()).arg(typepoint).arg(param.applytosubpath).arg(param.applytopoint);
+          break;
+          /*case numeric:
+            valdouble = property(propname.toLatin1()).toDouble();
+            typepoint = param.position == left ? "lcont" : "rcont";
+            source = source % QString("%1 %2 %3; % numeric\n").arg(QString(propname)).arg(affect).arg(valdouble);
+            break;*/
+        case expression:
+
+          auto value = property(propname.toLatin1());
+
+          auto exp = expressions.value(propname);
+
+          exp->setConstantValue(value);
+
+          auto expString = exp->toString();
+
+          QString comment = "";
+
+          QSharedPointer<LitNumber> res = exp.dynamicCast<LitNumber>();
+
+          if (res != nullptr) {
+            comment = " % numeric";
+          }
+
+          source = source % QString("%1 %2 %3;%4\n").arg(QString(propname)).arg(affect).arg(expString).arg(comment);
+          break;
+        }
+      }
+    }
+
+    if (verbatim() != "") {
+      source = source % "\n%%beginverbatim\n";
+      source = source % verbatim();
+      source = source % "%%endverbatim\n";
+    }
+
+    if (!controlledPaths.isEmpty()) {
+      source = source % "\n%%beginpaths\n\n";
+      QMapIterator<int, QMap<int, Glyph::Knot*> > j(controlledPaths);
+      while (j.hasNext()) {
+        j.next();
+        QMap<int, Knot*> path = j.value();
+        const Knot* firstpoint = path.first();
+        const Knot* previouspoint = firstpoint;
+        if (controlledPathNames[j.key()] == "fill") {
+          source = source % QString("fill\n");
+        }
+        else if (controlledPathNames[j.key()] == "fillc") {
+          source = source % QString("fillc\n");
+        }
+        else {
+          source = source % QString("controlledPath (%1,%2)(%3)(\n").arg(j.key()).arg(path.firstKey()).arg(controlledPathNames[j.key()]);
         }
 
-      if (!m_components.isEmpty()) {
-          source = source % "%%begincomponents\n";
-          QHash<Glyph*, ComponentInfo>::iterator i;
-          for (i = m_components.begin(); i != m_components.end(); ++i) {
-              ComponentInfo component = i.value();
-              QTransform transform = component.transform;
-              source = source % QString("drawcomponent(%1,%2,%3,%4,%5,%6,%7);\n").arg(i.key()->name())
-                  .arg(component.pos.x())
-                  .arg(component.pos.y())
-                  .arg(transform.m11())
-                  .arg(transform.m12())
-                  .arg(transform.m21())
-                  .arg(transform.m22());
+        QMapIterator<int, Glyph::Knot*> h(path);
+        h.next();
+        while (h.hasNext()) {
+          h.next();
+          const Knot* currentpoint;
+          currentpoint = h.value();
+
+          if (previouspoint->isConstant) {
+            if (!previouspoint->value.isEmpty()) {
+              source = source % QString("((%1,%2)%3)").arg(previouspoint->x).arg(previouspoint->y).arg(previouspoint->value);
             }
-          source = source % "%%endcomponents\n";
-        }
+            else {
+              source = source % QString("(%1,%2)").arg(previouspoint->x).arg(previouspoint->y);
+            }
 
-      if (params.count() > 0) {
-          source = source % "%%beginparams\n";
-          QPointF valpoint;
-          QString typepoint;
-          double valdouble;
-          QMapIterator<QString, Param> i(params);
-          while (i.hasNext()) {
-              i.next();
-              Param param = i.value();
-              QString propname = param.name;
-              QString affect = param.isEquation ? "=" : ":=";
-              switch (param.type) {
-                /*case point:
-                  valpoint = property(propname.toLatin1()).toPointF();
-                  source = source % QString("%1 %2 (%3,%4);\n").arg(QString(propname)).arg(affect).arg(valpoint.x()).arg(valpoint.y());
-                  break;*/
-                case direction:
-                  valdouble = property(propname.toLatin1()).toDouble();
-                  typepoint = param.position == left ? "ldir" : "rdir";
-                  source = source % QString("%1 %2 %3; % %4 (%5,%6)\n").arg(QString(propname)).arg(affect).arg(valdouble).arg(typepoint).arg(param.applytosubpath).arg(param.applytopoint);
-                  break;
-                case tension:
-                  valdouble = property(propname.toLatin1()).toDouble();
-                  typepoint = param.position == left ? "ltens" : "rtens";
-                  source = source % QString("%1 %2 %3; % %4 (%5,%6)\n").arg(QString(propname)).arg(affect).arg(valdouble).arg(typepoint).arg(param.applytosubpath).arg(param.applytopoint);
-                  break;
-                case control:
-                  valpoint = property(propname.toLatin1()).toPointF();
-                  typepoint = param.position == left ? "lcont" : "rcont";
-                  source = source % QString("%1 %2 (%3,%4); % %5 (%6,%7)\n").arg(QString(propname)).arg(affect).arg(valpoint.x()).arg(valpoint.y()).arg(typepoint).arg(param.applytosubpath).arg(param.applytopoint);
-                  break;
-                /*case numeric:
-                  valdouble = property(propname.toLatin1()).toDouble();
-                  typepoint = param.position == left ? "lcont" : "rcont";
-                  source = source % QString("%1 %2 %3; % numeric\n").arg(QString(propname)).arg(affect).arg(valdouble);
-                  break;*/
-                case expression:
+          }
+          else {
+            source = source % QString("%1").arg(previouspoint->value);
+          }
 
-                  auto value = property(propname.toLatin1());
 
-                  auto exp = expressions.value(propname);
+          if (previouspoint->rightValue.jointtype == path_join_control) {
+            source = source % QString(" .. controls ");
+            if (previouspoint->rightValue.isControlConstant) {
+              source = source % QString("(%1,%2) ").arg(previouspoint->rightValue.x).arg(previouspoint->rightValue.y);
+            }
+            else {
+              source = source % QString("%1 ").arg(previouspoint->rightValue.controlValue);
+            }
+            if (!previouspoint->rightValue.isEqualAfter) {
+              source = source % QString("and ");
+              if (currentpoint->leftValue.isControlConstant) {
+                source = source % QString("(%1,%2) ").arg(currentpoint->leftValue.x).arg(currentpoint->leftValue.y);
+              }
+              else {
+                source = source % QString("%1 ").arg(currentpoint->leftValue.controlValue);
+              }
+            }
+            source = source % QString(" ..\n");
+          }
+          /*else if (previouspoint->rightValue.type == mpgui_curl) {
+            source = source % QString(" %1\n").arg(previouspoint->rightValue.value);
+          }*/
+          else {
+            if (previouspoint->rightValue.type == mpgui_given) {
+              if (previouspoint->rightValue.isDirConstant) {
+                source = source % QString(" {dir %1}").arg(previouspoint->rightValue.x);
+              }
+              else {
+                source = source % QString(" {%1}").arg(previouspoint->rightValue.value);
+              }
+            }
+            if (previouspoint->rightValue.jointtype == path_join_macro) {
+              source = source % QString(" %1\n").arg(previouspoint->rightValue.macrovalue);
+            }
+            else {
+              if (previouspoint->rightValue.y == 1 && currentpoint->leftValue.y == 1 && !previouspoint->rightValue.isControlConstant && !currentpoint->leftValue.isControlConstant) {
 
-                  exp->setConstantValue(value);
-
-                  auto expString = exp->toString();
-
-                  QString comment = "";
-
-                  QSharedPointer<LitNumber> res =  exp.dynamicCast<LitNumber>();
-
-                  if(res != nullptr){
-                    comment = " % numeric";
+                source = source % QString(" ..\n");
+              }
+              else {
+                if (previouspoint->rightValue.isControlConstant) {
+                  if (previouspoint->rightValue.isAtleast) {
+                    source = source % QString(" .. tension atleast %1").arg(previouspoint->rightValue.y);
+                  }
+                  else {
+                    source = source % QString(" .. tension %1").arg(previouspoint->rightValue.y);
                   }
 
-                  source = source % QString("%1 %2 %3;%4\n").arg(QString(propname)).arg(affect).arg(expString).arg(comment);
-                  break;
                 }
-            }
-        }
-
-      if (verbatim() != "") {
-          source = source % "\n%%beginverbatim\n";
-          source = source % verbatim();
-          source = source % "%%endverbatim\n";
-        }
-
-      if (!controlledPaths.isEmpty()) {
-          source = source % "\n%%beginpaths\n\n";
-          QMapIterator<int, QMap<int, Glyph::Knot*> > j(controlledPaths);
-          while (j.hasNext()) {
-              j.next();
-              QMap<int, Knot*> path = j.value();
-              const Knot * firstpoint = path.first();
-              const Knot * previouspoint = firstpoint;
-              if (controlledPathNames[j.key()] == "fill") {
-                  source = source % QString("fill\n");
-                }
-              else {
-                  source = source % QString("controlledPath (%1,%2)(%3)(\n").arg(j.key()).arg(path.firstKey()).arg(controlledPathNames[j.key()]);
-                }
-
-              QMapIterator<int, Glyph::Knot*> h(path);
-              h.next();
-              while (h.hasNext()) {
-                  h.next();
-                  const Knot * currentpoint;
-                  currentpoint = h.value();
-
-                  if (previouspoint->isConstant) {
-                      if (!previouspoint->value.isEmpty()) {
-                          source = source % QString("((%1,%2)%3)").arg(previouspoint->x).arg(previouspoint->y).arg(previouspoint->value);
-                        }
-                      else {
-                          source = source % QString("(%1,%2)").arg(previouspoint->x).arg(previouspoint->y);
-                        }
-
-                    }
+                else {
+                  if (previouspoint->rightValue.isAtleast) {
+                    source = source % QString(" .. tension atleast %1").arg(previouspoint->rightValue.controlValue);
+                  }
                   else {
-                      source = source % QString("%1").arg(previouspoint->value);
-                    }
+                    source = source % QString(" .. tension %1").arg(previouspoint->rightValue.controlValue);
+                  }
+                }
 
-
-                  if (previouspoint->rightValue.type == mpgui_explicit) {
-                      source = source % QString(" .. controls ");
-                      if (previouspoint->rightValue.isControlConstant) {
-                          source = source % QString("(%1,%2) ").arg(previouspoint->rightValue.x).arg(previouspoint->rightValue.y);
-                        }
-                      else {
-                          source = source % QString("%1 ").arg(previouspoint->rightValue.controlValue);
-                        }
-                      if (!previouspoint->rightValue.isEqualAfter) {
-                          source = source % QString("and ");
-                          if (currentpoint->leftValue.isControlConstant) {
-                              source = source % QString("(%1,%2) ").arg(currentpoint->leftValue.x).arg(currentpoint->leftValue.y);
-                            }
-                          else {
-                              source = source % QString("%1 ").arg(currentpoint->leftValue.controlValue);
-                            }
-                        }
-                      source = source % QString(" ..\n");
+                if (!previouspoint->rightValue.isEqualAfter) {
+                  if (currentpoint->leftValue.isControlConstant) {
+                    if (currentpoint->leftValue.isAtleast) {
+                      source = source % QString(" and atleast %1").arg(currentpoint->leftValue.y);
                     }
-                  else if (previouspoint->rightValue.type == mpgui_curl) {
-                      source = source % QString(" %1\n").arg(previouspoint->rightValue.value);
+                    else {
+                      source = source % QString(" and %1").arg(currentpoint->leftValue.y);
                     }
+                  }
                   else {
-                      if (previouspoint->rightValue.type == mpgui_given) {
-                          if (previouspoint->rightValue.isDirConstant) {
-                              source = source % QString(" {dir %1}").arg(previouspoint->rightValue.x);
-                            }
-                          else {
-                              source = source % QString(" {%1}").arg(previouspoint->rightValue.value);
-                            }
-                        }
-                      if (previouspoint->rightValue.y == 1 && currentpoint->leftValue.y == 1 && !previouspoint->rightValue.isControlConstant && !currentpoint->leftValue.isControlConstant) {
-
-                          source = source % QString(" ..\n");
-                        }
-                      else {
-                          if (previouspoint->rightValue.isControlConstant) {
-                              if (previouspoint->rightValue.isAtleast) {
-                                  source = source % QString(" .. tension atleast %1").arg(previouspoint->rightValue.y);
-                                }
-                              else {
-                                  source = source % QString(" .. tension %1").arg(previouspoint->rightValue.y);
-                                }
-
-                            }
-                          else {
-                              if (previouspoint->rightValue.isAtleast) {
-                                  source = source % QString(" .. tension atleast %1").arg(previouspoint->rightValue.controlValue);
-                                }
-                              else {
-                                  source = source % QString(" .. tension %1").arg(previouspoint->rightValue.controlValue);
-                                }
-                            }
-
-                          if (!previouspoint->rightValue.isEqualAfter) {
-                              if (currentpoint->leftValue.isControlConstant) {
-                                  if (currentpoint->leftValue.isAtleast) {
-                                      source = source % QString(" and atleast %1").arg(currentpoint->leftValue.y);
-                                    }
-                                  else {
-                                      source = source % QString(" and %1").arg(currentpoint->leftValue.y);
-                                    }
-                                }
-                              else {
-                                  if (currentpoint->leftValue.isAtleast) {
-                                      source = source % QString(" and atleast %1").arg(currentpoint->leftValue.controlValue);
-                                    }
-                                  else {
-                                      source = source % QString(" and %1").arg(currentpoint->leftValue.controlValue);
-                                    }
-                                }
-                            }
-                          source = source % QString(" ..\n");
-                        }
-
-                      if (currentpoint->leftValue.type == mpgui_given) {
-                          if (currentpoint->leftValue.isDirConstant) {
-                              source = source % QString(" {dir %1}").arg(currentpoint->leftValue.x);
-                            }
-                          else {
-                              source = source % QString(" {%1}").arg(currentpoint->leftValue.value);
-                            }
-                        }
+                    if (currentpoint->leftValue.isAtleast) {
+                      source = source % QString(" and atleast %1").arg(currentpoint->leftValue.controlValue);
                     }
-                  previouspoint = h.value();
+                    else {
+                      source = source % QString(" and %1").arg(currentpoint->leftValue.controlValue);
+                    }
+                  }
                 }
-              source = source % QString(" cycle\n");
-              if (controlledPathNames[j.key()] != "fill"){
-                  source = source % QString(");\n");
-                }
-              else {
-                  source = source % QString(";\n");
-                }
-
+                source = source % QString(" ..\n");
+              }
             }
-          /*
-                        for (int i = 0; i < controlledPaths.size(); ++i) {
-                                QVector<Knot*> path = controlledPaths.at(i);
-                                const Knot * firstpoint = path.constFirst();
-                                const Knot * previouspoint = firstpoint;
-                                source = source % QString("fill\n");
-                                for (int j = 1; j < path.size(); ++j) {
-                                        const Knot * currentpoint;
-                                        currentpoint = path.at(j);
-
-                                        if (previouspoint->isConstant) {
-                                                source = source % QString("(%1,%2)").arg(previouspoint->x).arg(previouspoint->y);
-                                        }
-                                        else {
-                                                source = source % QString("%1").arg(previouspoint->x).arg(previouspoint->value);
-                                        }
-
-
-                                        if (previouspoint->rightValue.type == mpgui_explicit) {
-                                                source = source % QString(" .. controls ");
-                                                if (previouspoint->rightValue.isControlConstant) {
-                                                        source = source % QString("(%1,%2) ").arg(previouspoint->rightValue.x).arg(previouspoint->rightValue.y);
-                                                }
-                                                else {
-                                                        source = source % QString("%1 ").arg(previouspoint->rightValue.value);
-                                                }
-                                                if (!previouspoint->rightValue.isEqualAfter) {
-                                                        source = source % QString("and ");
-                                                        if (currentpoint->leftValue.isControlConstant) {
-                                                                source = source % QString("(%1,%2) ").arg(currentpoint->leftValue.x).arg(currentpoint->leftValue.y);
-                                                        }
-                                                        else {
-                                                                source = source % QString("%1 ").arg(currentpoint->leftValue.value);
-                                                        }
-                                                }
-                                                source = source % QString(" ..\n");
-                                        }
-                                        else if (previouspoint->rightValue.type == mpgui_curl) {
-                                                source = source % QString(" --\n");
-                                        }
-                                        else {
-                                                if (previouspoint->rightValue.type == mpgui_given) {
-                                                        if (previouspoint->rightValue.isDirConstant) {
-                                                                source = source % QString(" {dir %1}").arg(previouspoint->rightValue.x);
-                                                        }
-                                                        else {
-                                                                source = source % QString(" {%1}").arg(previouspoint->rightValue.value);
-                                                        }
-                                                }
-                                                if (previouspoint->rightValue.y == 1 && currentpoint->leftValue.y == 1 && !previouspoint->rightValue.isControlConstant && !currentpoint->leftValue.isControlConstant) {
-
-                                                        source = source % QString(" ..\n");
-                                                }
-                                                else{
-                                                        if (previouspoint->rightValue.isControlConstant) {
-                                                                if (previouspoint->rightValue.isAtleast) {
-                                                                        source = source % QString(" .. tension atleast %1").arg(previouspoint->rightValue.y);
-                                                                }
-                                                                else {
-                                                                        source = source % QString(" .. tension %1").arg(previouspoint->rightValue.y);
-                                                                }
-
-                                                        }
-                                                        else {
-                                                                if (previouspoint->rightValue.isAtleast) {
-                                                                        source = source % QString(" .. tension atleast %1").arg(previouspoint->rightValue.value);
-                                                                }
-                                                                else {
-                                                                        source = source % QString(" .. tension %1").arg(previouspoint->rightValue.value);
-                                                                }
-                                                        }
-
-                                                        if (!previouspoint->rightValue.isEqualAfter) {
-                                                                if (currentpoint->leftValue.isControlConstant) {
-                                                                        if (currentpoint->leftValue.isAtleast) {
-                                                                                source = source % QString(" and atleast %1").arg(currentpoint->leftValue.y);
-                                                                        }
-                                                                        else {
-                                                                                source = source % QString(" and %1").arg(currentpoint->leftValue.y);
-                                                                        }
-                                                                }
-                                                                else {
-                                                                        if (currentpoint->leftValue.isAtleast) {
-                                                                                source = source % QString(" and atleast %1").arg(currentpoint->leftValue.value);
-                                                                        }
-                                                                        else {
-                                                                                source = source % QString(" and %1").arg(currentpoint->leftValue.value);
-                                                                        }
-                                                                }
-                                                        }
-                                                        source = source % QString(" ..\n");
-                                                }
-
-                                                if (currentpoint->leftValue.type == mpgui_given) {
-                                                        if (currentpoint->leftValue.isDirConstant) {
-                                                                source = source % QString(" {dir %1}").arg(currentpoint->leftValue.x);
-                                                        }
-                                                        else {
-                                                                source = source % QString(" {%1}").arg(currentpoint->leftValue.value);
-                                                        }
-                                                }
-                                        }
-                                        previouspoint = path.at(j);
-
-                                }
-
-
-                                source = source % QString("cycle;\n");
-
-
-
-
-                        }*/
-          source = source % "\n%%endpaths\n";
+            if (currentpoint->leftValue.type == mpgui_given) {
+              if (currentpoint->leftValue.isDirConstant) {
+                source = source % QString(" {dir %1}").arg(currentpoint->leftValue.x);
+              }
+              else {
+                source = source % QString(" {%1}").arg(currentpoint->leftValue.value);
+              }
+            }
+          }
+          previouspoint = h.value();
+        }
+        source = source % QString(" cycle\n");
+        if (controlledPathNames[j.key()] != "fill" && controlledPathNames[j.key()] != "fillc") {
+          source = source % QString(");\n");
+        }
+        else {
+          source = source % QString(";\n");
         }
 
-
+      }
       /*
-                QList<QByteArray> dynamicProperties = dynamicPropertyNames();
-                for (int i = 0; i < dynamicProperties.length(); i++) {
-                        QByteArray propname = dynamicProperties[i];
-                        QVariant val = property(propname);
-                        if (QMetaType::QPoint == val.type()) {
-                                QPointF point = val.toPointF();
-                                source = source % QString("%1 := (%2,%3);\n").arg(QString(propname)).arg(point.x()).arg(point.y());
-                        }
+                    for (int i = 0; i < controlledPaths.size(); ++i) {
+                            QVector<Knot*> path = controlledPaths.at(i);
+                            const Knot * firstpoint = path.constFirst();
+                            const Knot * previouspoint = firstpoint;
+                            source = source % QString("fill\n");
+                            for (int j = 1; j < path.size(); ++j) {
+                                    const Knot * currentpoint;
+                                    currentpoint = path.at(j);
 
-                }*/
-
-      if (body() != "") {
-          source = source % "%%beginbody\n";
-          source = source % body();
-        }
-
-      if (m_beginmacroname == "beginchar") {
-          source = source % "endchar;\n";
-        }
-      else {
-          source = source % "enddefchar;\n";
-        }
+                                    if (previouspoint->isConstant) {
+                                            source = source % QString("(%1,%2)").arg(previouspoint->x).arg(previouspoint->y);
+                                    }
+                                    else {
+                                            source = source % QString("%1").arg(previouspoint->x).arg(previouspoint->value);
+                                    }
 
 
-      m_source = source;
-      isDirty = false;
+                                    if (previouspoint->rightValue.type == mpgui_explicit) {
+                                            source = source % QString(" .. controls ");
+                                            if (previouspoint->rightValue.isControlConstant) {
+                                                    source = source % QString("(%1,%2) ").arg(previouspoint->rightValue.x).arg(previouspoint->rightValue.y);
+                                            }
+                                            else {
+                                                    source = source % QString("%1 ").arg(previouspoint->rightValue.value);
+                                            }
+                                            if (!previouspoint->rightValue.isEqualAfter) {
+                                                    source = source % QString("and ");
+                                                    if (currentpoint->leftValue.isControlConstant) {
+                                                            source = source % QString("(%1,%2) ").arg(currentpoint->leftValue.x).arg(currentpoint->leftValue.y);
+                                                    }
+                                                    else {
+                                                            source = source % QString("%1 ").arg(currentpoint->leftValue.value);
+                                                    }
+                                            }
+                                            source = source % QString(" ..\n");
+                                    }
+                                    else if (previouspoint->rightValue.type == mpgui_curl) {
+                                            source = source % QString(" --\n");
+                                    }
+                                    else {
+                                            if (previouspoint->rightValue.type == mpgui_given) {
+                                                    if (previouspoint->rightValue.isDirConstant) {
+                                                            source = source % QString(" {dir %1}").arg(previouspoint->rightValue.x);
+                                                    }
+                                                    else {
+                                                            source = source % QString(" {%1}").arg(previouspoint->rightValue.value);
+                                                    }
+                                            }
+                                            if (previouspoint->rightValue.y == 1 && currentpoint->leftValue.y == 1 && !previouspoint->rightValue.isControlConstant && !currentpoint->leftValue.isControlConstant) {
+
+                                                    source = source % QString(" ..\n");
+                                            }
+                                            else{
+                                                    if (previouspoint->rightValue.isControlConstant) {
+                                                            if (previouspoint->rightValue.isAtleast) {
+                                                                    source = source % QString(" .. tension atleast %1").arg(previouspoint->rightValue.y);
+                                                            }
+                                                            else {
+                                                                    source = source % QString(" .. tension %1").arg(previouspoint->rightValue.y);
+                                                            }
+
+                                                    }
+                                                    else {
+                                                            if (previouspoint->rightValue.isAtleast) {
+                                                                    source = source % QString(" .. tension atleast %1").arg(previouspoint->rightValue.value);
+                                                            }
+                                                            else {
+                                                                    source = source % QString(" .. tension %1").arg(previouspoint->rightValue.value);
+                                                            }
+                                                    }
+
+                                                    if (!previouspoint->rightValue.isEqualAfter) {
+                                                            if (currentpoint->leftValue.isControlConstant) {
+                                                                    if (currentpoint->leftValue.isAtleast) {
+                                                                            source = source % QString(" and atleast %1").arg(currentpoint->leftValue.y);
+                                                                    }
+                                                                    else {
+                                                                            source = source % QString(" and %1").arg(currentpoint->leftValue.y);
+                                                                    }
+                                                            }
+                                                            else {
+                                                                    if (currentpoint->leftValue.isAtleast) {
+                                                                            source = source % QString(" and atleast %1").arg(currentpoint->leftValue.value);
+                                                                    }
+                                                                    else {
+                                                                            source = source % QString(" and %1").arg(currentpoint->leftValue.value);
+                                                                    }
+                                                            }
+                                                    }
+                                                    source = source % QString(" ..\n");
+                                            }
+
+                                            if (currentpoint->leftValue.type == mpgui_given) {
+                                                    if (currentpoint->leftValue.isDirConstant) {
+                                                            source = source % QString(" {dir %1}").arg(currentpoint->leftValue.x);
+                                                    }
+                                                    else {
+                                                            source = source % QString(" {%1}").arg(currentpoint->leftValue.value);
+                                                    }
+                                            }
+                                    }
+                                    previouspoint = path.at(j);
+
+                            }
+
+
+                            source = source % QString("cycle;\n");
+
+
+
+
+                    }*/
+      source = source % "\n%%endpaths\n";
     }
+
+
+    /*
+              QList<QByteArray> dynamicProperties = dynamicPropertyNames();
+              for (int i = 0; i < dynamicProperties.length(); i++) {
+                      QByteArray propname = dynamicProperties[i];
+                      QVariant val = property(propname);
+                      if (QMetaType::QPoint == val.type()) {
+                              QPointF point = val.toPointF();
+                              source = source % QString("%1 := (%2,%3);\n").arg(QString(propname)).arg(point.x()).arg(point.y());
+                      }
+
+              }*/
+
+    if (body() != "") {
+      source = source % "%%beginbody\n";
+      source = source % body();
+    }
+
+    if (m_beginmacroname == "beginchar") {
+      source = source % "endchar;\n";
+    }
+    else {
+      source = source % "enddefchar;\n";
+    }
+
+
+    m_source = source;
+    isDirty = false;
+  }
   return m_source;
 }
 void Glyph::setName(QString name) {
@@ -497,8 +504,8 @@ void Glyph::setName(QString name) {
   isDirty = true;
   font->glyphperName.insert(m_name, this);
   if (m_unicode == -1) {
-      m_charcode = -1;
-    }
+    m_charcode = -1;
+  }
   emit valueChanged("name");
 }
 QString Glyph::name() const {
@@ -506,35 +513,35 @@ QString Glyph::name() const {
 }
 void Glyph::setUnicode(int unicode) {
   if (unicode != m_unicode) {
-      m_unicode = unicode;
-      m_charcode = unicode;
-      isDirty = true;
-      if (edge) {
-          edge->charcode = charcode();
-        }
-      emit valueChanged("unicode");
+    m_unicode = unicode;
+    m_charcode = unicode;
+    isDirty = true;
+    if (edge) {
+      edge->charcode = charcode();
     }
+    emit valueChanged("unicode");
+  }
 }
 int Glyph::unicode() const {
   return m_unicode;
 }
 int Glyph::charcode() {
   if (m_charcode == -1) {
-      QString command("show " + name() + ";");
+    QString command("show " + name() + ";");
 
-      QByteArray commandBytes = command.toLatin1();
-      //mp->history = mp_spotless;
-      int status = mp_execute(mp, (char *)commandBytes.constData(), commandBytes.size());
-      mp_run_data * results = mp_rundata(mp);
-      QString ret(results->term_out.data);
-      ret.trimmed();
-      if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-          mp_finish(mp);
-          throw "Could not get charcode !\n" + ret;
-        }
-
-      m_charcode = ret.mid(3).toInt();
+    QByteArray commandBytes = command.toLatin1();
+    //mp->history = mp_spotless;
+    int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());
+    mp_run_data* results = mp_rundata(mp);
+    QString ret(results->term_out.data);
+    ret.trimmed();
+    if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
+      mp_finish(mp);
+      throw "Could not get charcode !\n" + ret;
     }
+
+    m_charcode = ret.mid(3).toInt();
+  }
   return m_charcode;
 }
 
@@ -566,7 +573,7 @@ double Glyph::depth() const {
 void Glyph::setleftTatweel(double lefttatweel) {
   m_lefttatweel = lefttatweel;
   isDirty = true;
-  emit valueChanged("leftTatweel");
+  emit valueChanged("leftTatweel",true);
 }
 double Glyph::leftTatweel() const {
   return m_lefttatweel;
@@ -574,7 +581,7 @@ double Glyph::leftTatweel() const {
 void Glyph::setrightTatweel(double righttatweel) {
   m_righttatweel = righttatweel;
   isDirty = true;
-  emit valueChanged("rightTatweel");
+  emit valueChanged("rightTatweel",true);
 }
 double Glyph::rightTatweel() const {
   return m_righttatweel;
@@ -584,11 +591,11 @@ void Glyph::setImage(Glyph::ImageInfo image) {
   m_image = image;
   isDirty = true;
   if (old.path != m_image.path) {
-      emit valueChanged("image");
-    }
+    emit valueChanged("image");
+  }
   else if (old.pos != m_image.pos | old.transform != m_image.transform) {
-      emit valueChanged("imagetransform");
-    }
+    emit valueChanged("imagetransform");
+  }
 }
 Glyph::ImageInfo Glyph::image() const {
   return m_image;
@@ -599,16 +606,16 @@ void Glyph::setComponents(QHashGlyphComponentInfo components) {
 
   QHash<Glyph*, ComponentInfo>::iterator comp;
   for (comp = m_components.begin(); comp != m_components.end(); ++comp) {
-      Glyph* glyph = comp.key();
-      disconnect(glyph, &Glyph::valueChanged, this, &Glyph::componentChanged);
-    }
+    Glyph* glyph = comp.key();
+    disconnect(glyph, &Glyph::valueChanged, this, &Glyph::componentChanged);
+  }
 
   m_components.clear();
 
   for (comp = components.begin(); comp != components.end(); ++comp) {
-      Glyph* glyph = comp.key();
-      connect(glyph, &Glyph::valueChanged, this, &Glyph::componentChanged);
-    }
+    Glyph* glyph = comp.key();
+    connect(glyph, &Glyph::valueChanged, this, &Glyph::componentChanged);
+  }
 
   m_components = components;
 
@@ -743,7 +750,7 @@ void Glyph::parsePaths(QString pathsSource) {
 void Glyph::componentChanged(QString name, bool structureChanged) {
   emit valueChanged("component", false);
 }
-void Glyph::setParameter(QString name, Exp* exp, bool isEquation){
+void Glyph::setParameter(QString name, Exp* exp, bool isEquation) {
   Param param = {};
 
   param.name = name;
@@ -752,9 +759,9 @@ void Glyph::setParameter(QString name, Exp* exp, bool isEquation){
 
   params.insert(param.name, param);
 
-  QSharedPointer<Exp> p{exp};
+  QSharedPointer<Exp> p{ exp };
 
-  expressions.insert(param.name,p);
+  expressions.insert(param.name, p);
 
   setProperty(param.name.toLatin1(), p->constantValue());
 
@@ -773,26 +780,26 @@ void Glyph::setParameter(QString name, Glyph::ParameterType type, double x, doub
   //    setProperty(param.name.toLatin1(), QPointF(x, y));
   //  }
   //else {
-      setProperty(param.name.toLatin1(), x);
+  setProperty(param.name.toLatin1(), x);
   //  }
 
   QString key = QString::number(param.applytosubpath) + "_" + QString::number(param.applytopoint);
   if (param.type == direction) {
-      if (param.position == left) {
-          ldirections[key] = param;
-        }
-      else {
-          rdirections[key] = param;
-        }
+    if (param.position == left) {
+      ldirections[key] = param;
     }
+    else {
+      rdirections[key] = param;
+    }
+  }
   else if (param.type == tension) {
-      if (param.position == left) {
-          ltensions[key] = param;
-        }
-      else {
-          rtensions[key] = param;
-        }
+    if (param.position == left) {
+      ltensions[key] = param;
     }
+    else {
+      rtensions[key] = param;
+    }
+  }
 
   params.insert(param.name, param);
 }
@@ -881,13 +888,13 @@ QString Glyph::parameters() const {
 
 QString Glyph::getError()
 {
-  mp_run_data * results = mp_rundata(mp);
+  mp_run_data* results = mp_rundata(mp);
   QString ret(results->term_out.data);
   return ret.trimmed();
 }
 
 QString Glyph::getLog() {
-  mp_run_data * results = mp_rundata(mp);
+  mp_run_data* results = mp_rundata(mp);
   QString ret(results->log_out.data);
   return ret.trimmed();
 }
@@ -899,21 +906,21 @@ mp_edge_object* Glyph::getEdge(bool resetExpParams)
 
   auto data = source();
 
-  if(expressions.size() > 0){
+  if (expressions.size() > 0) {
     QString end = "enddefchar;\n";
     if (m_beginmacroname == "beginchar") {
-      end =  "endchar;\n";
+      end = "endchar;\n";
     }
     QString addExp;
     for (int i = 0; i < expressions.size(); ++i) {
       auto name = expressions.keys().at(i);
       auto value = expressions.value(name);
-      if(value->type() == QVariant::PointF){
+      if (value->type() == QVariant::PointF) {
         addExp = addExp % QString("tmp_pair_params_%1:=%2;").arg(i).arg(name);
       }
     }
     addExp = addExp % end;
-    data.replace(data.size()-end.size(),end.size(),addExp);
+    data.replace(data.size() - end.size(), end.size(), addExp);
 
   }
 
@@ -921,42 +928,42 @@ mp_edge_object* Glyph::getEdge(bool resetExpParams)
 
 
   if (!resetExpParams) {
-      data = QString("ignore_exp_parameters:=1;lefttatweel:=%1;righttatweel:=%2;").arg(leftTatweel()).arg(rightTatweel()) % data;
-    }
+    data = QString("ignore_exp_parameters:=1;lefttatweel:=%1;righttatweel:=%2;").arg(leftTatweel()).arg(rightTatweel()) % data;
+  }
 
 
 
   QByteArray commandBytes = data.toLatin1();
   mp->history = mp_spotless;
-  int status = mp_execute(mp, (char *)commandBytes.constData(), commandBytes.size());
+  int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());
   mp_run_data* _mp_results = mp_rundata(mp);
   if (status >= mp_error_message_issued) {
-      //QString error = getError();
-      edge = NULL;
-      return edge;
-    }
-  mp_edge_object * p = _mp_results->edges;
+    QString error = getError();
+    edge = NULL;
+    return edge;
+  }
+  mp_edge_object* p = _mp_results->edges;
   while (p) {
-      if (p->charcode == charcode()) {
-          edge = p;
-          break;
-        }
-      p = p->next;
+    if (p->charcode == charcode()) {
+      edge = p;
+      break;
     }
+    p = p->next;
+  }
 
   //int res = mp_svg_gr_ship_out(edge, 0, false);
 
   //auto svg = _mp_results->ship_out.data;
 
-  if(expressions.size() > 0){
+  if (expressions.size() > 0) {
     for (int i = 0; i < expressions.size(); ++i) {
       auto name = expressions.keys().at(i);
       auto value = expressions.value(name);
-      if(value->type() == QVariant::PointF){
+      if (value->type() == QVariant::PointF) {
         double x = 0;
         double y = 0;
-        getPointParam(mp,i,&x,&y);
-        value->setValue(QPointF(x,y));
+        getPointParam(mp, i, &x, &y);
+        value->setValue(QPointF(x, y));
       }
     }
 
@@ -971,73 +978,73 @@ Glyph::ComputedValues Glyph::getComputedValues() {
   ComputedValues values;
 
   if (mp_edge) {
-      values.charcode = mp_edge->charcode;
-      values.width = mp_edge->width;
-      values.height = mp_edge->height;
-      values.depth = mp_edge->depth;
-      values.bbox.llx = mp_edge->minx;
-      values.bbox.urx = mp_edge->maxx;
-      values.bbox.lly = mp_edge->miny;
-      values.bbox.ury = mp_edge->maxy;
+    values.charcode = mp_edge->charcode;
+    values.width = mp_edge->width;
+    values.height = mp_edge->height;
+    values.depth = mp_edge->depth;
+    values.bbox.llx = mp_edge->minx;
+    values.bbox.urx = mp_edge->maxx;
+    values.bbox.lly = mp_edge->miny;
+    values.bbox.ury = mp_edge->maxy;
 
-      if (!std::isnan(mp_edge->xleftanchor)) {
-          values.leftAnchor = QPoint(mp_edge->xleftanchor, mp_edge->yleftanchor);
-        }
-      if (!std::isnan(mp_edge->xrightanchor)) {
-          values.rightAnchor = QPoint(mp_edge->xrightanchor, mp_edge->yrightanchor);
-        }
+    if (!std::isnan(mp_edge->xleftanchor)) {
+      values.leftAnchor = QPoint(mp_edge->xleftanchor, mp_edge->yleftanchor);
     }
+    if (!std::isnan(mp_edge->xrightanchor)) {
+      values.rightAnchor = QPoint(mp_edge->xrightanchor, mp_edge->yrightanchor);
+    }
+  }
 
 
   return values;
 }
 
-bool Glyph::event(QEvent *e) {
+bool Glyph::event(QEvent* e) {
   if (e->type() == QEvent::DynamicPropertyChange) {
-      QDynamicPropertyChangeEvent *pe = static_cast<QDynamicPropertyChangeEvent *>(e);
-      if (!isSetSource) {
-          isDirty = true;
-          emit valueChanged(pe->propertyName());
-        }
+    QDynamicPropertyChangeEvent* pe = static_cast<QDynamicPropertyChangeEvent*>(e);
+    if (!isSetSource) {
+      isDirty = true;
+      emit valueChanged(pe->propertyName());
     }
+  }
   return QObject::event(e); // don't forget this
 }
 QUndoStack* Glyph::undoStack() const
 {
   return m_undoStack;
 }
-void Glyph::setPropertyWithUndo(const QString &name, const QVariant &value) {
+void Glyph::setPropertyWithUndo(const QString& name, const QVariant& value) {
   ChangeGlyphPropertyCommand* command = new ChangeGlyphPropertyCommand(this, name, value);
   m_undoStack->push(command);
 
 }
-QPainterPath Glyph::getPathFromEdge(mp_edge_object*  h) {
+QPainterPath Glyph::getPathFromEdge(mp_edge_object* h) {
 
   QPainterPath localpath;
 
 
   if (h) {
-      mp_graphic_object* body = h->body;
+    mp_graphic_object* body = h->body;
 
 
-      if (body) {
+    if (body) {
 
-          do {
-              switch (body->type)
-                {
-                case mp_fill_code: {
-                    QPainterPath subpath = mp_dump_solved_path(((mp_fill_object *)body)->path_p);
-                    localpath.addPath(subpath);
+      do {
+        switch (body->type)
+        {
+        case mp_fill_code: {
+          QPainterPath subpath = mp_dump_solved_path(((mp_fill_object*)body)->path_p);
+          localpath.addPath(subpath);
 
-                    break;
-                  }
-                default:
-                  break;
-                }
-
-            } while (body = body->next);
+          break;
         }
+        default:
+          break;
+        }
+
+      } while (body = body->next);
     }
+  }
 
   return localpath;
 }
@@ -1050,11 +1057,11 @@ QPainterPath Glyph::mp_dump_solved_path(mp_gr_knot h) {
   path.moveTo(h->x_coord, h->y_coord);
   p = h;
   do {
-      q = p->next;
-      path.cubicTo(p->right_x, p->right_y, q->left_x, q->left_y, q->x_coord, q->y_coord);
+    q = p->next;
+    path.cubicTo(p->right_x, p->right_y, q->left_x, q->left_y, q->x_coord, q->y_coord);
 
-      p = q;
-    } while (p != h);
+    p = q;
+  } while (p != h);
   if (h->data.types.left_type != mp_endpoint)
     path.closeSubpath();
 
@@ -1064,12 +1071,12 @@ QPainterPath Glyph::getPath() {
   QPainterPath localpath;
   QHash<Glyph*, Glyph::ComponentInfo>::iterator comp;
   for (comp = m_components.begin(); comp != m_components.end(); ++comp) {
-      Glyph* compglyph = comp.key();
-      QPainterPath compath = compglyph->getPath();
-      compath.translate(comp.value().pos);
-      compath = comp.value().transform.map(compath);
-      localpath.addPath(compath);
-    }
+    Glyph* compglyph = comp.key();
+    QPainterPath compath = compglyph->getPath();
+    compath.translate(comp.value().pos);
+    compath = comp.value().transform.map(compath);
+    localpath.addPath(compath);
+  }
 
   localpath.addPath(getPathFromEdge(getEdge()));
 

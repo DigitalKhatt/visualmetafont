@@ -634,6 +634,30 @@ namespace feayy {
     std::set<std::string> localrefLookups;
     Just ot_justTable{ otlayout };
 
+    for (auto& lname : jusTable.aftergsub) {
+      QString name = QString::fromStdString(lname);
+      auto lookupsIndex = otlayout->lookupsIndexByName.value(name, -1);
+      if (lookupsIndex == -1) {
+        auto liter = context.lookups.find(lname);
+
+        if (liter == context.lookups.end()) {
+          throw new std::runtime_error("Lookup " + lname + " not found");
+        }
+
+        LookupDefinition* lookupDefinition = liter->second;
+
+        lookupDefinition->accept(*this);
+
+        lookupsIndex = otlayout->lookupsIndexByName.value(name, -1);
+      }
+      auto* lookup = otlayout->lookups[lookupsIndex];
+      if (!lookup->isGsubLookup()) {
+        throw new std::runtime_error("Cannot have gpos lookup for aftergsub");
+      }
+      
+      ot_justTable.lastGsubLookups.push_back(lookup);
+    }
+
     for (int i = 0; i < 2; i++) {
       auto& rules = i == 0 ? jusTable.stretchRules : jusTable.shrinkRules;
       auto& ot_rules = i == 0 ? ot_justTable.stretchSteps : ot_justTable.shrinkSteps;

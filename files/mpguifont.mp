@@ -24,6 +24,20 @@
 	input mfplain.mp;
 %fi
 
+def drawoptions(text t) =
+  def _op_ = t enddef;
+enddef;
+
+drawoptions();
+
+def fill expr c = addto currentpicture contour c enddef;
+def fillc expr c = addto currentpicture contour c if _addedpostscript <> "" : withpostscript  _addedpostscript fi enddef;
+
+newinternal string _addedpostscript;
+def addwithpostscript(expr t) =
+  _addedpostscript := _addedpostscript  & t & ";";  
+enddef;
+
 vardef round primary u =
  if numeric u: floor(u+.5)
  elseif pair u: (round xpart u, round ypart u)
@@ -54,10 +68,13 @@ def makechardef(suffix name)(expr c,w_sharp)(text t) =
   charmacroname:=str name & "_";  
   expandafter vardef scantokens charmacroname(expr lt,rt) = %endgroup gobbled true  5 = x.12345678255; x.12345678255 := whatever;
 	if(ignore_exp_parameters <> 0) :
-    ignore_exp_parameters := 0; 
+        ignore_exp_parameters := 0;
+        charlt := lefttatweel;
+        charrt := righttatweel;  
 	else:
+        save lefttatweel,righttatweel;
 		charlt := lefttatweel := lt;
-    charrt := righttatweel :=rt;   
+        charrt := righttatweel :=rt;   
 	fi
     %if charwd = -1: charwd := w_sharp; fi;
     t         
@@ -105,6 +122,7 @@ def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
  left_verticalextratio := 0;
  right_verticalextratio := 0;
  which_in_baseline := 3;
+ _addedpostscript := "";
  savepicture := 0; 
 
  string anchors[]anchorname;
@@ -123,7 +141,13 @@ def endchar =
 	chardx:=w;     % desired width of the character in pixels
   
   if which_in_baseline <> 3 :
-    if (known rightanchor) and (known leftanchor) :      
+    if (which_in_baseline = 4) :
+        if known leftanchor :
+            tr_ := tr_ shifted (- xpart leftanchor,floor ypart leftanchor - ypart leftanchor);        
+        elseif known rightanchor :
+            tr_ := tr_ shifted (floor xpart rightanchor - xpart rightanchor,floor ypart rightanchor - ypart rightanchor);            
+        fi       
+    elseif (known rightanchor) and (known leftanchor) :      
       tr_ := tr_ shifted -leftanchor;
     elseif  (known leftanchor)  :      
       tr_ := tr_ shifted -leftanchor;
@@ -133,6 +157,8 @@ def endchar =
   elseif known leftanchor :
     %tr_ := tr_ shifted (- xpart leftanchor,0); 
     tr_ := tr_ shifted -leftanchor;
+  elseif known rightanchor :
+  %   tr_ := tr_ shifted (floor xpart rightanchor - xpart rightanchor,ypart tr_ - floor ypart tr_ + ypart rightanchor - floor ypart rightanchor);   
   fi;
   %elseif which_in_baseline = 2 :
   %  if (known leftanchor) :      
@@ -149,7 +175,7 @@ def endchar =
       %charwd:= xpart (urcorner currentpicture) - xpart (ulcorner currentpicture) + leftbearing - residu;   
       charwd:= xpart (rightanchor) - xpart (ulcorner currentpicture) + leftbearing;
       %currentpicture := currentpicture shifted (-xpart (ulcorner currentpicture) + leftbearing,0);
-      tr_ := tr_ shifted (-xpart (ulcorner currentpicture) + leftbearing,0);
+      tr_ := tr_ shifted round (-xpart (ulcorner currentpicture) + leftbearing,0);
     else:
       charwd:= xpart (urcorner currentpicture) - xpart (ulcorner currentpicture) + leftbearing + rightbearing; 
       %currentpicture := currentpicture shifted (-xpart (ulcorner currentpicture) + leftbearing,0);
@@ -168,6 +194,8 @@ def endchar =
   
   leftanchor := leftanchor transformed tr_;
   rightanchor := rightanchor transformed tr_;
+
+  %show leftanchor,rightanchor;
 
   if savepicture = 1 :
 	expandafter picture scantokens charname pic; 
@@ -333,7 +361,7 @@ hide(
   if left_tatweeltension = 0: left_tatweeltension := 1;fi;
   if right_tatweeltension = 0: right_tatweeltension := 1;fi;
   if left_verticalextratio = 0: left_verticalextratio := 12;fi;
-  if right_verticalextratio = 0: right_verticalextratio := 12;fi;
+  if right_verticalextratio = 0: right_verticalextratio := 6;fi;
 )
 if ypart p < ypart q :
   hide(
@@ -349,9 +377,7 @@ if ypart p < ypart q :
 else:
 	hide(
     right_elongation := righttatweel * nuqta;
-    z_4:= q + righttatweel_const + (right_elongation, -right_elongation/right_verticalextratio); 
-    z_5 := p;
-    z_6 := q;
+    z_4:= q + righttatweel_const + (right_elongation, -right_elongation/right_verticalextratio);  
     if (known leftanchor) :
       if which_in_baseline = 1 :
         z_4 := (xpart z_4, ypart leftanchor);  
@@ -365,11 +391,110 @@ else:
     z_3 := z_4 + (0,lineheight); % pendirection; 
     rightanchor := z_4;
   )
-	z_5 .. tension atleast right_tatweeltension .. z_3
+	p .. tension atleast right_tatweeltension .. z_3
 	.. controls  (z_3 + (residu,0)) ..  (1/2[z_4,z_3] + (residu,0)) % (xpart z_3 +residu, 1/2[ypart z_3,ypart z_4]) 
-	.. controls  (z_4 + (residu,0)) .. z_4 .. tension atleast right_tatweeltension .. z_6
+	.. controls  (z_4 + (residu,0)) .. z_4 .. tension atleast right_tatweeltension .. q
 fi
 enddef;
+vardef definekashida(text kashida_macro)(expr p,q, upTimeBegin, bottomTimeBegin, rightPath,topLeft,topRight ) =
+path ret_;
+which_in_baseline := 4;
+path sinna__;
+pair shift__;
+
+if rightPath :  
+    sinna__ := pathpart image(kashida_macro(righttatweel,0));     
+    length_ := length   sinna__;   
+    sinna__ := cutKashida(sinna__,upTimeBegin,bottomTimeBegin,true,_bottomTime,_upTime);        
+    finalPoint := if (_bottomTime < topLeft) : topLeft else : length_ - floor(_bottomTime) + topLeft fi;       
+    shift__ := p - point finalPoint of sinna__;
+    sinna__ := sinna__ shifted shift__;     
+    rightanchor := rightanchor shifted shift__;
+    %rightanchor := point  0 of sinna__ ;
+    %rightanchor := rightanchor + (0,-5);
+    sinna__ := subpath(finalPoint, finalPoint + length sinna__  - 2 ) of sinna__;
+else:
+    sinna__ := pathpart image(kashida_macro(lefttatweel,0));      
+    length_ := length   sinna__;
+    sinna__ := cutKashida(sinna__,upTimeBegin,bottomTimeBegin,false,_bottomTime,_upTime); 
+    finalPoint := if (_upTime < topRight) : topRight - floor(_upTime) else : length_ - floor(_upTime) + topRight fi;
+    shift__ := p - point finalPoint of sinna__;                
+    sinna__ := sinna__ shifted shift__;
+    leftanchor := leftanchor shifted shift__;
+    %leftanchor := point  length sinna__ - 2 of sinna__;    
+    sinna__ := subpath(finalPoint, finalPoint + length sinna__  - 2 ) of sinna__;
+fi
+ret_ := subpath(1,infinity) of sinna__;
+ret_
+enddef;
+
+secondarydef p kashida_i q =
+
+hide(
+path kashida_;
+boolean rightPath_;
+
+if ypart p < ypart q :
+    rightPath_:= false;
+else :
+    rightPath_ := true;
+fi
+kashida_ := definekashida(kashida.iii_)(p,q,3, 0, rightPath_,3,7 );
+addwithpostscript( "kashida_i="  & decimal length kashida_ );
+)
+
+p ..  kashida_ .. q
+enddef;
+vardef cutKashida(expr kashida, upTimeBegin, bottomTimeBegin, rightPath)(suffix bottomTime,upTime) =
+    path p, ret;
+    pair bottomDispl, upDispl, bottomPoint, upPoint;
+    
+    l_ := 1residu ;
+
+    p := kashida;
+
+    upTime := upTimeBegin  + directiontime right of subpath(upTimeBegin,infinity) of p;
+    bottomTime := bottomTimeBegin  + directiontime left of subpath(bottomTimeBegin,infinity) of p;	
+
+
+    upPoint := point upTime of  p;
+    bottomPoint := point bottomTime of  p;
+
+   
+
+    if rightPath :
+
+        
+
+        bottomDispl := bottomPoint - l_* unitvector direction bottomTime of p;
+        upDispl := upPoint +  l_* unitvector direction upTime of p;
+
+        if bottomTime > upTime : upTime := upTime + length p; fi
+          
+
+        ret:= subpath(bottomTime,upTime) of p  .. controls   upDispl .. 1/2[upDispl,bottomDispl] .. controls bottomDispl ..   cycle ;
+        %ret:= subpath(bottomTime,upTime) of p  -- 1/2[upPoint,upDispl] ..   1/2[bottomPoint,bottomDispl] --   cycle ;
+        
+        rightanchor := bottomPoint;
+
+        %draw ret;
+    else:        
+
+        bottomDispl := bottomPoint + l_* unitvector direction bottomTime of p;
+        upDispl := upPoint -   l_* unitvector direction upTime of p;
+
+        if upTime > bottomTime : bottomTime := bottomTime + length p; fi
+           
+
+        ret:= subpath(upTime,bottomTime) of p .. controls   bottomDispl .. 1/2[bottomDispl,upDispl] .. controls upDispl ..   cycle ;
+        %ret:= subpath(upTime,bottomTime) of p --  1/2[bottomPoint,bottomDispl] ..    1/2[upPoint,upDispl] --  cycle ;
+        
+        
+        leftanchor := bottomPoint;
+    fi;
+    ret
+enddef;
+
 def cutGlyph(expr bottomPoint, upPoint, rightPath) =
 
 path p;
@@ -439,6 +564,84 @@ nuqta := 1.4penwidth;
 
 %pendirection := (lineheight/2,lineheight);
 %penangle := angle pendirection;
+
+vardef component expr index of pic =
+save i_,p;
+i_ := 1;
+path p;
+for item within pic:
+p := pathpart item;
+exitif i_ = index;
+
+i_ := i_ + 1;
+
+endfor
+p
+enddef;
+
+vardef interpolatepoint(expr min,max,factor_) =
+factor := if factor_ > 1 : 1 else :  factor_ fi; 
+xdelta_ := xpart max - xpart min;
+ydelta_ := ypart max - ypart min;
+(xpart min + xdelta_ * factor ,ypart min + ydelta_ * factor)
+enddef;
+
+vardef interpolatepath(expr minpath,maxpath,factor_) =
+path out;
+
+out := interpolatepoint(point 0 of minpath,point 0 of maxpath,factor_);
+
+
+for j=0 upto length minpath - 1 :
+out := out & interpolatepoint(point j of minpath,point j of maxpath,factor_)
+ ..  controls interpolatepoint(postcontrol j of minpath,postcontrol j of maxpath,factor_)
+ and  interpolatepoint(precontrol j + 1 of minpath,precontrol j + 1 of maxpath,factor_) 
+..   interpolatepoint(point j + 1 of minpath, point j + 1  of maxpath,factor_);
+endfor
+out
+
+enddef;
+
+vardef interpolatepic(expr minpic,maxpic,tatweel) =
+save currentpicture;
+picture currentpicture;
+currentpicture := nullpicture;
+wd_max := xpart (urcorner maxpic) - xpart (ulcorner maxpic);
+wd_min := xpart (urcorner minpic) - xpart (ulcorner minpic);
+
+
+factor := tatweel * nuqta /(wd_max - wd_min);
+
+
+path minpath, maxpath;
+picture out;
+
+i_ := 1;
+
+for item within minpic:
+minpath := pathpart item;
+maxpath := component i_ of maxpic;
+
+fill interpolatepath(minpath,maxpath,factor) & cycle ;
+
+i_ := i_ + 1;
+endfor
+currentpicture
+enddef;
+
+vardef interpolate(expr minpic,defaultpic, maxpic,tatweel) =
+save defaultpic_;
+picture result;
+
+if tatweel >= 0 :
+result:=  interpolatepic(defaultpic,maxpic,tatweel);
+else:
+result:=  interpolatepic(defaultpic,minpic, tatweel);
+fi
+result
+enddef;
+
+
 
 input myfontbase.mp;
 input ayah.mp;

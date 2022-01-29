@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -53,7 +53,7 @@ public:
 private:
 
 	
-	QPainterPath mp_dump_solved_path(mp_gr_knot h,int numsubpath, bool newelement = true);
+	QPainterPath mp_dump_solved_path(mp_fill_object* fill,int numsubpath, bool newelement = true);
 
 	Glyph* glyph;
 	QGraphicsPathItem* path;

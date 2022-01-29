@@ -53,6 +53,11 @@ public:
 		mpgui_end_cycle,
 		mpgui_formula
 	};
+	enum path_join_type {
+		path_join_control = 0,
+		path_join_tension,
+		path_join_macro
+	};
 	enum ParameterType {
 		None,
 		direction,
@@ -83,12 +88,14 @@ public:
 
 	struct KnotEntryExit {
 		QString value;
+		QString macrovalue;
 		QString controlValue;
 		bool isDirConstant;		
 		bool isControlConstant;
 		double x;
 		double y;
 		mpgui_knot_type type;
+		path_join_type jointtype;
 		bool isEqualAfter;
 		bool isEqualBefore;
 		bool isAtleast;

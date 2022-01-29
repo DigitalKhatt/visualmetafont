@@ -93,6 +93,8 @@ void GlyphWindow::createDockWindows()
 	
 	QFont textEditFont("DejaVu Sans Mono");
 
+  //textEditFont.setPointSize(20);
+
 	mpostEdit = new QPlainTextEdit(metapostCode);
 	mpostEdit->setFont(textEditFont);
 

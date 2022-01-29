@@ -21,6 +21,7 @@
 #include "pairitem.hpp"
 #include "knotitem.hpp"
 #include "tensiondirectionitem.hpp"
+#include <iostream>
 
 
 
@@ -206,6 +207,7 @@ void ContourItem::generateedge(mp_edge_object *  h, bool newelement) {
 				case mp_fill_code: {
 					mp_fill_object * fill = (mp_fill_object *)body;
 					QString prescript = fill->pre_script;
+          
 					/*
 					if (prescript.contains("begin component")) {
 						while (body = body->next) {
@@ -214,7 +216,7 @@ void ContourItem::generateedge(mp_edge_object *  h, bool newelement) {
 						}
 					}				*/					
 					//if (numsubpath > glyph->controlledPaths.count() - 1) {
-						QPainterPath subpath = mp_dump_solved_path(fill->path_p, numsubpath++, newelement);
+						QPainterPath subpath = mp_dump_solved_path(fill, numsubpath++, newelement);
 						localpath.addPath(subpath);
 					//}
 					
@@ -244,12 +246,42 @@ void ContourItem::generateedge(mp_edge_object *  h, bool newelement) {
 
 
 }
-QPainterPath ContourItem::mp_dump_solved_path(mp_gr_knot h, int numsubpath, bool newelement) {
+QPainterPath ContourItem::mp_dump_solved_path(mp_fill_object* fill, int numsubpath, bool newelement) {
 	mp_gr_knot p, q;
 	QPainterPath path;
-	if (h == NULL) return path;
+
+  struct Variable {
+    QString name;
+    int totalPoint;
+  };
+
+  struct CurrentPoint {
+    int index;
+    int point;
+  };
+
+  QVector<Variable> customLinks;
+
+  QString post_script = fill->post_script;
+  if (!post_script.isEmpty()) {
+    auto split = post_script.split(';', Qt::SkipEmptyParts);
+    for (auto value : split) {
+      auto temp = value.split('=', Qt::SkipEmptyParts);
+      if (temp.length() == 2) {
+        customLinks.append({ temp[0],temp[1].toInt() });
+      }
+    }
+  }
+
+  CurrentPoint currentPoint{};
+
+  auto h = fill->path_p;
+
+	if (h == nullptr) return path;
 
 	int numpoint = 0;
+  int numstaticpoint = 0;
+  int laststaticpoint = 0;
 
 	path.moveTo(h->x_coord, h->y_coord);
 	p = h;
@@ -260,7 +292,7 @@ QPainterPath ContourItem::mp_dump_solved_path(mp_gr_knot h, int numsubpath, bool
 		}
 
 		if (newelement) {
-			knotControlledItems[numsubpath][numpoint] = new KnotControlledItem(numsubpath, numpoint, p, glyph, this->path);
+			knotControlledItems[numsubpath][numpoint] = new KnotControlledItem(numsubpath, numpoint, numstaticpoint, p, glyph, this->path);
 			
 		}
 		else {
@@ -277,6 +309,32 @@ QPainterPath ContourItem::mp_dump_solved_path(mp_gr_knot h, int numsubpath, bool
 		path.cubicTo(p->right_x, p->right_y, q->left_x, q->left_y, q->x_coord, q->y_coord);
 
 		numpoint++;
+
+    if (!customLinks.isEmpty()) {
+      if (glyph->controlledPaths.contains(numsubpath) && glyph->controlledPaths[numsubpath].contains(laststaticpoint)) {
+        auto m_glyphknot = glyph->controlledPaths[numsubpath][laststaticpoint];
+        if (currentPoint.index < customLinks.length() && m_glyphknot->rightValue.macrovalue == customLinks[currentPoint.index].name) {
+          if (currentPoint.point <= customLinks[currentPoint.index].totalPoint) {
+            numstaticpoint = -1;
+            currentPoint.point++;
+          }
+          else {
+            numstaticpoint = laststaticpoint + 1;
+            laststaticpoint = numstaticpoint;
+            currentPoint.index++;
+            currentPoint.point = 0;
+          }
+        }
+        else {
+          numstaticpoint++;
+          laststaticpoint++;
+        }
+      }
+    }
+    else {
+      numstaticpoint++;
+      laststaticpoint++;
+    }
 
 		p = q;
 		

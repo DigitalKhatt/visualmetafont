@@ -60,7 +60,7 @@
 %token T_ENDCHAR T_SEMICOLON T_GLYPHSECTION T_BIMAGESECTION T_BEGINCOMP_SECTION T_ENDCOMP_SECTION T_DRAWCOMPONENT T_BEGINPARA_SECTION T_AFFECT
 %token T_PARAM_NUMERIC T_PARAM_LTENS T_PARAM_RTENS T_PARAM_LDIR T_PARAM_RDIR T_BEGINBODY_SECTION T_BEGINPATHS_SECTION T_ENDPATHS_SECTION
 %token T_BEGINVERBATIM_SECTION T_ENDVERBATIM_SECTION
-%token T_FILL "fill" T_CYCLE "cycle" T_CONTROLS "controls" T_AND "and" T_TENSION "tension"
+%token T_FILL "fill" T_CYCLE "cycle" T_CONTROLS "controls" T_AND "and" T_TENSION "tension" T_FILLC "fillc"
 %token T_PP ".." T_DIR "dir" T_ATLEAST "atleast" T_CONTROLLEDPATH "controlledPath"
 
 %token <QString> T_BEGINCHAR T_BODYCONTENT T_VERBATIM
@@ -174,6 +174,12 @@ controlledpath : "controlledPath" '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] {
 	parsingglyph->controlledPaths.insert(count,$fillpath);
 	parsingglyph->controlledPathNames.insert(count,"fill");
 }
+| T_FILLC {driver.numpoint = 0;} fillpath ';' 
+{
+	int count = parsingglyph->controlledPaths.count();
+	parsingglyph->controlledPaths.insert(count,$fillpath);
+	parsingglyph->controlledPathNames.insert(count,"fillc");
+}
 ;
 
 fillpath : subpath 
@@ -195,9 +201,11 @@ subpath : point {$$.insert(driver.numpoint,$point);}
 	}
 	$point->leftValue = $pathjoin->rightValue; 
 	delete $pathjoin;
-	if($point->leftValue.value == "join"){
+	if($point->leftValue.macrovalue == "join"){
 		$1.insert($1.lastKey() + 4,$point);
-	}else if($point->leftValue.value == "endlink"){
+	}else if($point->leftValue.macrovalue == "kashida_i"){
+		$1.insert($1.lastKey() + 1,$point);
+	}else if($point->leftValue.macrovalue == "endlink"){
 		$1.insert($1.lastKey() + 2,$point);
 	}
 	else{
@@ -210,7 +218,7 @@ subpath : point {$$.insert(driver.numpoint,$point);}
 
 pathjoin : direction[d1] link direction[d2] {
 	$$ = $link;
-	if($link->leftValue.type != Glyph::mpgui_explicit && $link->leftValue.type != Glyph::mpgui_curl){
+	if($link->leftValue.type != Glyph::mpgui_explicit){
 		$link->leftValue.type = $d1.type;
 		$link->leftValue.isDirConstant = $d1.isDirConstant;
 		$link->leftValue.value = $d1.value;
@@ -254,20 +262,22 @@ link : ".." "controls" controlpoint[c] ".." {
 | ".." "controls"  controlpoint[c1] "and" controlpoint[c2] ".." {$$ = new Glyph::Knot(); $$->leftValue = $c1; $$->rightValue = $c2;}
 | ".." "tension" tensionpoint[c] ".." {$$ = new Glyph::Knot();$$->leftValue = $c; $$->rightValue = $c; $$->rightValue.isControlConstant = false; $$->leftValue.isEqualAfter = true; $$->rightValue.isEqualBefore = true;}
 | ".." "tension"  tensionpoint[c1] "and" tensionpoint[c2] ".." {$$ = new Glyph::Knot(); $$->leftValue = $c1; $$->rightValue = $c2;}
-| ".." {$$ = new Glyph::Knot(); $$->leftValue.y = 1; $$->rightValue.y = 1;}
+| ".." {$$ = new Glyph::Knot(); $$->leftValue.y = 1; $$->rightValue.y = 1;$$->leftValue.jointtype = $$->rightValue.jointtype = Glyph::path_join_tension;}
 | T_TT[value] {
 	$$ = new Glyph::Knot(); 
 	$$->leftValue.type = Glyph::mpgui_curl;
-	$$->leftValue.value = $value; 
+	$$->leftValue.macrovalue = $value; 
 	$$->rightValue.type = Glyph::mpgui_curl;
-	$$->rightValue.value = $value;  
+	$$->rightValue.macrovalue = $value;
+	$$->leftValue.jointtype = $$->rightValue.jointtype = Glyph::path_join_macro;
 }
 | T_EALPHA[value] {
 	$$ = new Glyph::Knot(); 
 	$$->leftValue.type = Glyph::mpgui_curl;
-	$$->leftValue.value = $value; 
+	$$->leftValue.macrovalue = $value; 
 	$$->rightValue.type = Glyph::mpgui_curl;
-	$$->rightValue.value = $value; 
+	$$->rightValue.macrovalue = $value;
+	$$->leftValue.jointtype = $$->rightValue.jointtype = Glyph::path_join_macro;
 }
 ;
 
@@ -307,14 +317,14 @@ opinsidepoint : '+' {$$ = "+";}
 | '-' {$$ = "-";}
 ;
 
-controlpoint : '(' T_NUMBER[x] ',' T_NUMBER[y] ')' {$$ = {}; $$.isControlConstant = true; $$.x = $x; $$.y = $y;$$.type = Glyph::mpgui_explicit;}
-| T_EALPHA {$$ = {}; $$.isControlConstant = false; $$.controlValue = $T_EALPHA;$$.type = Glyph::mpgui_explicit;}
+controlpoint : '(' T_NUMBER[x] ',' T_NUMBER[y] ')' {$$ = {}; $$.isControlConstant = true; $$.x = $x; $$.y = $y;$$.type = Glyph::mpgui_explicit;$$.jointtype = Glyph::path_join_control;}
+| T_EALPHA {$$ = {}; $$.isControlConstant = false; $$.controlValue = $T_EALPHA;$$.type = Glyph::mpgui_explicit;$$.jointtype = Glyph::path_join_control;}
 ;
 
-tensionpoint : T_NUMBER[y] {$$ = {}; $$.isControlConstant = true; $$.y = $y;}
-| T_EALPHA {$$ = {}; $$.isControlConstant = false; $$.controlValue = $T_EALPHA;}
-| T_ATLEAST T_NUMBER[y] {$$ = {}; $$.isControlConstant = true; $$.y = $y;$$.isAtleast = true;}
-| T_ATLEAST T_EALPHA {$$ = {}; $$.isControlConstant = false; $$.controlValue = $T_EALPHA; $$.isAtleast = true;}
+tensionpoint : T_NUMBER[y] {$$ = {}; $$.isControlConstant = true; $$.y = $y;$$.jointtype = Glyph::path_join_tension;}
+| T_EALPHA {$$ = {}; $$.isControlConstant = false; $$.controlValue = $T_EALPHA;$$.jointtype = Glyph::path_join_tension;}
+| T_ATLEAST T_NUMBER[y] {$$ = {}; $$.isControlConstant = true; $$.y = $y;$$.isAtleast = true;$$.jointtype = Glyph::path_join_tension;}
+| T_ATLEAST T_EALPHA {$$ = {}; $$.isControlConstant = false; $$.controlValue = $T_EALPHA; $$.isAtleast = true;$$.jointtype = Glyph::path_join_tension;}
 ;
 
 verbatimsection : | T_BEGINVERBATIM_SECTION T_VERBATIM T_ENDVERBATIM_SECTION

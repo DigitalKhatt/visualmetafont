@@ -351,7 +351,8 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["heh.init"] = { 5,-0.5,0,0 };
 
   layout->expandableGlyphs["heh.medi"] = { 5,-0.5,0,0 };
-  layout->expandableGlyphs["behshape.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["behshape.medi"] = { 12,-0.5,12,-0.5 };
+  layout->expandableGlyphs["behshape.medi.ii"] = { 9,-1,9,-1 };
   layout->expandableGlyphs["behshape.medi.beforeseen"] = { 5,-0.5,5,-0.5 };
   layout->expandableGlyphs["hah.medi"] = { 5,-0.5,5,-0.5 };
   layout->expandableGlyphs["hah.medi.afterbeh"] = { 5,-0.5,5,-0.5 };
@@ -372,7 +373,9 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["kaf.medi.ii"] = { 5,-0.5,5,-0.5 };
   
 
-  layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,5,-0.3 };
+  layout->expandableGlyphs["dal.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["heh.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["hah.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["feh.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["meem.fina"] = { 0.0,0.0,5,-0.3 };
@@ -380,11 +383,19 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["behshape.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["qaf.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["lam.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["kaf.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["noon.fina.basmala"] = { 10.0,0.0,0,-0.5 };
+
+  layout->expandableGlyphs["hah.init.iii"] = { 9.0,0.0,0,0 };
+  layout->expandableGlyphs["seen.init.kii"] = { 9.0,0.0,0,0 };
+  layout->expandableGlyphs["sad.init.kii"] = { 9.0,0.0,0,0 };
+  layout->expandableGlyphs["alef.fina.ii"] = { 0.0,0.0,9,-1 };
+  layout->expandableGlyphs["heh.fina.ii"] = { 0.0,0.0,9,-1 };
+  layout->expandableGlyphs["dal.fina.kii"] = { 0.0,0.0,9,-1 };
   
 
-  layout->expandableGlyphs["fatha"] = { 1.5,-1.0,0,0 };
-  layout->expandableGlyphs["kasra"] = { 1,-1.0,0,0 };
+  layout->expandableGlyphs["fatha"] = { 12,-1.0,0,0 };
+  layout->expandableGlyphs["kasra"] = { 12,-1.0,0,0 };
   layout->expandableGlyphs["space"] = { 4.0,-0.5,0.0,0.0 };
   
 }
@@ -457,7 +468,7 @@ void Automedina::generateGlyphs() {
   }
 
 
-  auto& ayaGlyph = glyphs["endofaya"];
+  auto ayaGlyph = glyphs["endofaya"];
 
   int ayacharcode = AyaNumberCode;
 

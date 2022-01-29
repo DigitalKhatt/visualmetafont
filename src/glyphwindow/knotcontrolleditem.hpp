@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -45,7 +45,7 @@ public:
 	bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) Q_DECL_OVERRIDE;
 
 public:	
-	KnotControlledItem(int m_numsubpath, int m_numpoint, mp_gr_knot knot, Glyph* glyph, QGraphicsItem * parent = Q_NULLPTR);
+	KnotControlledItem(int m_numsubpath, int m_numpoint,int num_static_point, mp_gr_knot knot, Glyph* glyph, QGraphicsItem * parent = Q_NULLPTR);
 	~KnotControlledItem();
 
 	void setPositions(mp_gr_knot knot);	
