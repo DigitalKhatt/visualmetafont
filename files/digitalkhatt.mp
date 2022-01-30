@@ -3871,20 +3871,21 @@ enddefchar;
 defchar(lam.fina,-1,-1,-1,-1);
 %%backgroundimage:images/lam.fina.jpg,-727.528,-997,1,0,0,1
 %%beginparams
-z1 = (610.294,25.6982);
+z1 = (585.78,47.3996);
 z11 = (723.958,-1.15741);
+z2 = (605.069,127.774);
 z3 = (85.5103,13.3402);
 
 %%beginverbatim
-righttatweel := righttatweel  + 0;
+righttatweel := righttatweel  - 0.0;
 if right_verticalextratio = 0 : right_verticalextratio := 10; fi
 left_tatweeltension := 1 + charlt * 0.115  ;
 if left_tatweeltension > 1.7 : left_tatweeltension := 1.7; fi
 
 
-y1 := y1 + righttatweel*2;
-x1 := x1 + righttatweel*30;
-z2 = z1 + (penwidth,0) rotated 65;
+%y1 := y1 + righttatweel*2;
+%x1 := x1 + righttatweel*30;
+%z2 = z1 + (penwidth,0) rotated 65;
 
 y11 := 0;
 righttatweel_const := (x11 - x1,y11 - y1);

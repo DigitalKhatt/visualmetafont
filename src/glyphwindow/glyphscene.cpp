@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -558,6 +558,7 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
 				Glyph::KnotEntryExit left = {};
 				Glyph::KnotEntryExit right = {};
 				left.isControlConstant = true;
+        left.jointtype = Glyph::path_join_tension;
 				left.x = 0;
 				left.y = 1;
 				if (!dir.isNull()) {
@@ -569,6 +570,7 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
 				}
 
 				right.isControlConstant = true;
+        right.jointtype = Glyph::path_join_tension;
 				right.x = 0;
 				right.y = 1;
 				right.type = Glyph::mpgui_open;
