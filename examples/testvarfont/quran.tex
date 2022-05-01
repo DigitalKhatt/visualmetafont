@@ -14,7 +14,7 @@
 
 %\pdfcompresslevel=0
 %\pdfobjcompresslevel=0
-
+\hbadness=100000
 \begin{document}
 \newif\ifmadina
 %
@@ -32,9 +32,13 @@ end
 }
 
 \setbox\ayaframe=\ayagraphic
-\ifmadina
-\medinafontvarmadina\pagedir TRT\pardir TRT\bodydir TRT\textdir TRT
+\ifmadina%
+%\medinafontvarmadina\pagedir TRT\pardir TRT\bodydir TRT\textdir TRT
+\font\medinafontvarmadinaii={file:digitalkhatt-cff2.otf:mode=digitalkhatt;shaper=ot;script=arab;variableshapes;colr;tjwd} at 4.77mm
+\medinafontvarmadinaii\pagedir TRT\pardir TRT\bodydir TRT\textdir TRT
+\directlua{digitalkhatt.enableFontSizing=true}
 \else
+\directlua{digitalkhatt.enableFontSizing=true}
 \medinafontvar\pagedir TRT\pardir TRT\bodydir TRT\textdir TRT
 \fi
 
@@ -43,5 +47,6 @@ end
 %\looseness8
 \sloppy
 \ifmadina\input{quran_text_madina}\else\input{quran_text}\fi
+
 %\par{\bodydir TLT\textdir TLT\normalfont\the\prevgraf}
 \end{document} 

@@ -7,8 +7,8 @@
 
 assert(luaotfload_module, "This is a part of luaotfload and should not be loaded independently") {
     name          = "luaotfload-init",
-    version       = "3.17",       --TAGVERSION
-    date          = "2021-01-08", --TAGDATE
+    version       = "3.18",       --TAGVERSION
+    date          = "2021-05-21", --TAGDATE
     description   = "luaotfload submodule / initialization",
     license       = "GPL v2.0"
 }
@@ -394,7 +394,7 @@ local function init_main(early_hook)
   ---load_fontloader_module "font-odv.lua" --- <= Devanagari support from Context
 
   logreport ("log", 0, "init",
-             "Context OpenType loader version %q",
+             "Context OpenType loader version %.3f",
              fonts.handlers.otf.version)
   callback.register = trapped_register
   nodes = context_environment.nodes

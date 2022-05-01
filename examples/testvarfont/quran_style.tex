@@ -17,21 +17,22 @@
 \leavevmode\raise1.2em\hbox to 0pt{\pdfbookmark{\the\suranum. #1}{sura\the\suranum}}%
 \hbox to 0pt{\copy\ayaframe\hss}\centerline{\medinasura\textdir TRT#1}%
 }%
-\def\bismline#1{\centerline{#1}}
+\def\bismline#1{\centerline{\medinasura\textdir TRT#1}}
 
 
 
 \def\sajdabar#1{\setattribute{\sajdaatt}{1}#1\unsetattribute{\sajdaatt}\directlua{addsajdacallback()}%
 }
 
-%\font\medinafont={file:digitalkhatt.otf:mode=harf;shaper=ot;script=arab}
+%\font\medinafont={file:digitalkhatt.otf:mode=digitalkhatt;shaper=ot;script=arab}
 %\font\medinafontnode={file:digitalkhatt.otf:script=arab}
-%\font\medinafontvar={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes;axis={ltat=5,rtat=5}}
-\font\medinafontvar={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes;colr;tjwd} at 5.27mm
-\font\medinafontvarmadina={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes;colr;tjwd} at 4.27mm
+%\font\medinafontvar={file:digitalkhatt-cff2.otf:mode=digitalkhatt;shaper=ot;script=arab;variableshapes;axis={ltat=5,rtat=5}}
+\font\medinafontvar={file:digitalkhatt-cff2.otf:mode=digitalkhatt;shaper=ot;script=arab;variableshapes;colr;tjwd} at 5.27mm
+\font\medinafontvarmadina={file:digitalkhatt-cff2.otf:mode=digitalkhatt;shaper=ot;script=arab;variableshapes;colr;tjwd} at 4.27mm
 
-\font\medinasura={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes;colr;tjwd} at 4.8mm
-\font\fatiha={file:digitalkhatt-cff2.otf:mode=harf;shaper=ot;script=arab;variableshapes;colr;tjwd} at 4.5mm
+
+\font\medinasura={file:digitalkhatt-cff2.otf:mode=digitalkhatt;shaper=ot;script=arab;variableshapes;colr;tjwd} at 4.8mm
+\font\fatiha={file:digitalkhatt-cff2.otf:mode=digitalkhatt;shaper=ot;script=arab;variableshapes;colr;tjwd} at 4.5mm
 \font\medinafontvarnode={file:digitalkhatt-cff2.otf:mode=node;shaper=ot;script=arab;variableshapes}
 %\font\medinafontvarnode={file:digitalkhatt-cff2.otf:mode=node;script=arab;axis={ltat=5,rtat=5};variableshapes}
 

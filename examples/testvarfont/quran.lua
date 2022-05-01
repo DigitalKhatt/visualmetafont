@@ -352,12 +352,12 @@ function contribute_filter(groupcode)
 end
 
 function addsajdacallback()
-  local cal, desc = luatexbase.remove_from_callback("post_linebreak_filter",'luaotfload.harf.finalize_vlist')
+  local cal, desc = luatexbase.remove_from_callback("post_linebreak_filter",'luaotfload.digitalkhatt.finalize_vlist')
   add_to_callback("post_linebreak_filter",set_sajdabar, "set_sajdabar")
   add_to_callback("post_linebreak_filter",cal, desc)
 end
 
-local cal, desc = luatexbase.remove_from_callback("post_linebreak_filter",'luaotfload.harf.finalize_vlist')
+local cal, desc = luatexbase.remove_from_callback("post_linebreak_filter",'luaotfload.digitalkhatt.finalize_vlist')
 
 add_to_callback("post_linebreak_filter",tajweedcolor, "quran.tajweedcolor")
 add_to_callback("post_linebreak_filter",cal, desc)
