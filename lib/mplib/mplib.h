@@ -5,7 +5,7 @@
 #define MPLIB_H 1
 #include <stdlib.h> 
 #if !defined HAVE_BOOLEAN && !defined WIN32 && !defined EMSCRIPTEN
-typedef bool boolean;
+//typedef bool boolean;
 #endif
 /*2:*/
 // #line 80 "../../../source/texk/web2c/mplibdir/mp.w"
