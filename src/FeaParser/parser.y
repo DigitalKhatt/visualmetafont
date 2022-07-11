@@ -241,7 +241,7 @@ singlesub
 
 expafactor:
 	EXPANSION doubleorint[minleft] doubleorint[maxleft] doubleorint[minright] doubleorint[maxright] {$$ = {(float)$minleft,(float)$maxleft,(float)$minright,(float)$maxright};}
-	| EXPANSION doubleorint[minleft] doubleorint[maxleft] doubleorint[minright] doubleorint[maxright] INT_LITERAL[weight] INT_LITERAL[level] {$$ = {(float)$minleft,(float)$maxleft,(float)$minright,(float)$maxright,$weight,$level};}
+	| EXPANSION doubleorint[minleft] doubleorint[maxleft] doubleorint[minright] doubleorint[maxright] INT_LITERAL[absolute] {$$ = {(float)$minleft,(float)$maxleft,(float)$minright,(float)$maxright,1,0,StartEndLig::StartEnd,(bool)$absolute};}
 
 	;
 

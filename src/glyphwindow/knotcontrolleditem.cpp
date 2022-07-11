@@ -24,95 +24,80 @@
 #include <QStyleOption>
 #include <QGraphicsView>
 #include "glyph.hpp"
+#include "font.hpp"
 #include "tensiondirectionitem.hpp"
 #include <QMenu>
+#include <iostream>
+#include "glyphscene.hpp"
+#include "qmessagebox.h"
+#include <commands.h>
 
 
-KnotControlledItem::KnotControlledItem(int numsubpath, int numpoint, int num_static_point, mp_gr_knot knot, Glyph* glyph, QGraphicsItem* parent)
-	: QGraphicsObject(parent) {
+KnotControlledItem::KnotControlledItem(int numsubpath, int numpoint, mp_gr_knot knot, int numpointpath, Glyph* glyph, QGraphicsItem* parent)
+  : QGraphicsObject(parent) {
 
-	this->m_numsubpath = numsubpath;
-	this->m_numpoint = numpoint;
-	this->m_knot = knot;
-	this->m_glyph = glyph;
-	left = NULL;
-	right = NULL;
-	lefttd = NULL;
-	righttd = NULL;
+  this->m_numsubpath = numsubpath;
+  this->m_numpoint = numpoint;
+  this->m_numpointpath = numpointpath;
+  this->m_knot = knot;
+  this->m_glyph = glyph;
+  this->m_isInControlledPath = m_glyph->controlledPaths.contains(numsubpath) && m_glyph->controlledPaths[numsubpath].contains(numpoint);
+  left = NULL;
+  right = NULL;
+  lefttd = NULL;
+  righttd = NULL;
 
-	QPen penline(Qt::gray);
-	penline.setWidth(0);
-	penline.setCosmetic(true);
+  QPen penline(Qt::gray);
+  penline.setWidth(0);
+  penline.setCosmetic(true);
 
-	setFlags(ItemIsMovable | ItemHasNoContents);
-
-
-	QString rightkey = QString::number(numsubpath) + "_" + QString::number(numpoint);
-	QString leftkey = QString::number(numsubpath) + "_" + QString::number(numpoint);
-
-	setFiltersChildEvents(true);
-
-	incurve = new KnotItem(KnotItem::InCurve, this);
-
-	if (m_glyph->controlledPaths.contains(numsubpath) && m_glyph->controlledPaths[numsubpath].contains(num_static_point)) {
-		m_glyphknot = m_glyph->controlledPaths[numsubpath][num_static_point];
-		if (m_glyphknot->isConstant || m_glyph->params.contains(m_glyphknot->paramName)) {
-			incurve->setFlags(ItemIsMovable | ItemIsSelectable);
-		}
-
-		leftline = new QGraphicsLineItem(this);
-		leftline->setPen(penline);
-		leftline->setZValue(-1);
-		left = new KnotItem(KnotItem::LeftControl, this);
-
-		if (m_glyphknot->leftValue.isDirConstant || m_glyphknot->leftValue.isControlConstant
-				|| m_glyph->params.contains(m_glyphknot->leftValue.controlValue)
-				|| m_glyph->params.contains(m_glyphknot->leftValue.value)
-				) { // || m_glyph->params.contains(m_glyphknot->leftValue.value)) {
-
-			left->setFlags(ItemIsMovable | ItemIsSelectable);
-
-		}
-
-		rightline = new QGraphicsLineItem(this);
-		rightline->setPen(penline);
-		rightline->setZValue(-1);
-		right = new KnotItem(KnotItem::RightControl, this);
-		if (m_glyphknot->rightValue.isDirConstant || m_glyphknot->rightValue.isControlConstant
-				|| m_glyph->params.contains(m_glyphknot->rightValue.controlValue)
-				|| m_glyph->params.contains(m_glyphknot->rightValue.value)
-				) {// || m_glyph->params.contains(m_glyphknot->rightValue.value)) {
-
-			right->setFlags(ItemIsMovable | ItemIsSelectable);
-
-		}
-	}
+  setFlags(ItemIsMovable | ItemHasNoContents);
 
 
+  QString rightkey = QString::number(numsubpath) + "_" + QString::number(numpoint);
+  QString leftkey = QString::number(numsubpath) + "_" + QString::number(numpoint);
+
+  setFiltersChildEvents(true);
+
+  incurve = new KnotItem(KnotItem::InCurve, this);
 
 
+  if (m_isInControlledPath) {
+    m_glyphknot = m_glyph->controlledPaths[numsubpath][numpoint];
+    if (m_glyphknot->expr->containsConstant() || m_glyphknot->expr->containsParam()) {
+      incurve->setFlags(ItemIsMovable | ItemIsSelectable);
+    }
 
-	//left = new KnotItem(KnotItem::LeftControl, this);
-	//right = new KnotItem(KnotItem::RightControl, this);
+    leftline = new QGraphicsLineItem(this);
+    leftline->setPen(penline);
+    leftline->setZValue(-1);
+    left = new KnotItem(KnotItem::LeftControl, this);
 
-	if (m_glyph->ldirections[leftkey].type == Glyph::direction || m_glyph->ltensions[leftkey].type == Glyph::tension) {
+    bool isControlEqualBefore = m_glyphknot->leftValue.type == Glyph::mpgui_explicit && m_glyphknot->leftValue.isEqualBefore;
+    if (isControlEqualBefore) {
+      left->setVisible(false);
+    }
+    else if (m_glyphknot->leftValue.isControllable()) {
+      left->setFlags(ItemIsMovable | ItemIsSelectable);
+    }
 
-		lefttd = new TensionDirectionItem(m_glyph->ldirections[leftkey], m_glyph->ltensions[leftkey], glyph, incurve);
+    rightline = new QGraphicsLineItem(this);
+    rightline->setPen(penline);
+    rightline->setZValue(-1);
+    right = new KnotItem(KnotItem::RightControl, this);
+    if (m_glyphknot->rightValue.isControllable()) {
+      right->setFlags(ItemIsMovable | ItemIsSelectable);
+    }
+    //incurve->setFlags(ItemIsMovable | ItemIsSelectable);
+    //left->setFlags(ItemIsMovable | ItemIsSelectable);
+    //right->setFlags(ItemIsMovable | ItemIsSelectable);
+  }
+  else {
+    m_glyphknot = nullptr;
+  }
 
-		leftline = new QGraphicsLineItem(incurve);
-		leftline->setPen(penline);
-	}
-	if (m_glyph->rdirections[rightkey].type == Glyph::direction || m_glyph->rtensions[rightkey].type == Glyph::tension) {
 
-		righttd = new TensionDirectionItem(m_glyph->rdirections[rightkey], m_glyph->rtensions[rightkey], m_glyph, incurve);
-
-
-		rightline = new QGraphicsLineItem(incurve);
-		rightline->setPen(penline);
-
-	}
-
-	setPositions(knot);
+  setPositions(knot);
 
 }
 
@@ -121,384 +106,1117 @@ KnotControlledItem::~KnotControlledItem() {
 }
 
 void KnotControlledItem::setPositions(mp_gr_knot knot) {
-	this->m_knot = knot;
+  this->m_knot = knot;
 
-	if (incurve) {
-		incurve->setPos(m_knot->x_coord, m_knot->y_coord);
-	}
-	if (left) {
-		//left->setPos(m_knot->left_x - m_knot->x_coord, m_knot->left_y - m_knot->y_coord);
-		left->setPos(m_knot->left_x, m_knot->left_y);
-		leftline->setLine(m_knot->x_coord, m_knot->y_coord, left->pos().x(), left->pos().y());
-	}
+  if (incurve) {
+    incurve->setPos(m_knot->x_coord, m_knot->y_coord);
+  }
+  if (left) {
+    //left->setPos(m_knot->left_x - m_knot->x_coord, m_knot->left_y - m_knot->y_coord);
+    left->setPos(m_knot->left_x, m_knot->left_y);
+    leftline->setLine(m_knot->x_coord, m_knot->y_coord, left->pos().x(), left->pos().y());
+  }
 
-	if (right) {
-		//right->setPos(m_knot->right_x - m_knot->x_coord, m_knot->right_y - m_knot->y_coord);
-		right->setPos(m_knot->right_x, m_knot->right_y);
-		rightline->setLine(m_knot->x_coord, m_knot->y_coord, right->pos().x(), right->pos().y());
-	}
-	if (lefttd) {
-		lefttd->calculatePosition(-QLineF(m_knot->left_x, m_knot->left_y, m_knot->x_coord, m_knot->y_coord).angle());
-		leftline->setLine(0, 0, lefttd->pos().x(), lefttd->pos().y());
-	}
-	if (righttd) {
-		righttd->calculatePosition(-QLineF(m_knot->right_x, m_knot->right_y, m_knot->x_coord, m_knot->y_coord).angle());
-		rightline->setLine(0, 0, righttd->pos().x(), righttd->pos().y());
-	}
+  if (right) {
+    //right->setPos(m_knot->right_x - m_knot->x_coord, m_knot->right_y - m_knot->y_coord);
+    right->setPos(m_knot->right_x, m_knot->right_y);
+    rightline->setLine(m_knot->x_coord, m_knot->y_coord, right->pos().x(), right->pos().y());
+  }
+  if (lefttd) {
+    lefttd->calculatePosition(-QLineF(m_knot->left_x, m_knot->left_y, m_knot->x_coord, m_knot->y_coord).angle());
+    leftline->setLine(0, 0, lefttd->pos().x(), lefttd->pos().y());
+  }
+  if (righttd) {
+    righttd->calculatePosition(-QLineF(m_knot->right_x, m_knot->right_y, m_knot->x_coord, m_knot->y_coord).angle());
+    rightline->setLine(0, 0, righttd->pos().x(), righttd->pos().y());
+  }
 
 }
 QRectF KnotControlledItem::boundingRect() const
 {
-	return QRectF();
+  return QRectF();
 }
 void KnotControlledItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget*)
 {
 
 
 }
-bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event) {
-	if (!isEnabled()) {
-		return false;
-	}
-	if (event->type() == QEvent::GraphicsSceneMouseMove) {
+bool KnotControlledItem::moveMinMaxDeltas(QGraphicsItem* watched, QGraphicsSceneMouseEvent* event) {
 
-		QGraphicsSceneMouseEvent* me = static_cast<QGraphicsSceneMouseEvent*>(event);
+  bool alt = event->modifiers() & Qt::AltModifier;
 
-		Qt::KeyboardModifiers modifiers = me->modifiers();
+  if (!alt) {
+    return false;
+  }
 
-		bool shift = false;
-		bool ctrl = false;
+  auto scene = (GlyphScene*)watched->scene();
 
-		if (modifiers & Qt::ShiftModifier) {
-			shift = true;
-		}
-		if (modifiers & Qt::ControlModifier) {
-			ctrl = true;
-		}
+  auto F1 = scene->currentPressdKeys.contains(Qt::Key_F1);
+  auto F2 = scene->currentPressdKeys.contains(Qt::Key_F2);
+  auto F3 = scene->currentPressdKeys.contains(Qt::Key_F3);
 
+  if (!F1 && !F2 && !F3) {
+    return false;
+  }
 
+  QPointF diff = event->pos() - event->lastPos();
 
-		//QPointF currentParentPos = watched->mapToParent(watched->mapFromScene(me->scenePos()));
-		//QPointF currentParentPos = watched->mapToParent(me->pos());
-		//QPointF diff = currentParentPos - watched->pos();
-		QPointF diff = me->pos() - me->lastPos();
-		QPointF pair = incurve->mapFromScene(me->scenePos());
-		QLineF line(QPointF(), pair);
+  Qt::KeyboardModifiers modifiers = event->modifiers();
 
-		if (watched == incurve) {
+  auto paramName = F1 ? "defdeltas" : F2 ? "leftdeltas" : "rightdeltas";
+  auto index = watched == incurve ? 0 : watched == left ? 1 : 2;
 
-			if (m_glyphknot->isConstant) {
-				m_glyphknot->x = m_glyphknot->x + diff.x();
-				m_glyphknot->y = m_glyphknot->y + diff.y();
-			}
-			else {
-				QVariant val = m_glyph->property(m_glyphknot->paramName.toLatin1());
-				if (QVariant::PointF == val.type()) {
-					QPointF point = val.toPointF();
-					point.setX(point.x() + diff.x());
-					point.setY(point.y() + diff.y());
-					m_glyph->setProperty(m_glyphknot->paramName.toLatin1(), point);
-				}
+  auto adjustPoint = [this, paramName](int index, QPointF diff) {
+    auto propName = QString("%1[%2][%3][%4]").arg(paramName).arg(m_numsubpath).arg(m_numpointpath).arg(index);
+    QByteArray ba = propName.toLocal8Bit();
+    QVariant val = m_glyph->property(ba.data());
+    if (!val.isValid()) {
+      auto point = QPointF(0, 0);
+      m_glyph->setParameter(propName, new LitPoint(point), false);
+      auto& param = m_glyph->params[propName];
+      param.isInControllePath = true;
+      val = point;
+    }
+    if (QVariant::PointF == val.type()) {
+      QPointF point = val.toPointF();
+      point.setX(point.x() + diff.x());
+      point.setY(point.y() + diff.y());
+      m_glyph->setProperty(ba.data(), point);
+    }
+  };
+  if (index == 0) {
+    adjustPoint(0, diff);
+    adjustPoint(1, diff);
+    adjustPoint(2, diff);
+  }
+  else {
+    //bool shift = modifiers & Qt::ShiftModifier;
+    bool ctrl = modifiers & Qt::ControlModifier;
+    //preserve slope
+    if (!ctrl) {
+      QGraphicsItem* other = index == 1 ? right : left;
+      QPointF leftPoint{ m_knot->left_x,m_knot->left_y };
+      QPointF rightPoint{ m_knot->right_x,m_knot->right_y };
+      QPointF inCurvePoint{ m_knot->x_coord,m_knot->y_coord };
+      //currentPoint = currentPoint + diff;
+      QPointF currControl = index == 1 ? leftPoint : rightPoint;
+      currControl = currControl + diff;
+      QPointF otherControl = index == 1 ? rightPoint : leftPoint;
+      auto a = std::atan2(inCurvePoint.y() - currControl.y(), inCurvePoint.x() - currControl.x());
+      auto d = QLineF(inCurvePoint, otherControl).length();
+      QPointF newPoint(inCurvePoint.x() + d * std::cos(a), inCurvePoint.y() + d * std::sin(a));
+      QPointF otherDiff = newPoint - otherControl;
+      auto otherIndex = index == 1 ? 2 : 1;
+      adjustPoint(otherIndex, otherDiff);
+    }
+    adjustPoint(index, diff);
+  }
 
-			}
+  return true;
 
-			if (m_glyphknot->leftValue.isControlConstant && m_glyphknot->leftValue.type == Glyph::mpgui_explicit) {
-				m_glyphknot->leftValue.x = m_glyphknot->leftValue.x + diff.x();
-				m_glyphknot->leftValue.y = m_glyphknot->leftValue.y + diff.y();
-			}
+}
+int KnotControlledItem::getControlledPosition(QGraphicsSceneMouseEvent* event) {
 
-			if (m_glyphknot->rightValue.isControlConstant && m_glyphknot->rightValue.type == Glyph::mpgui_explicit) {
-				m_glyphknot->rightValue.x = m_glyphknot->rightValue.x + diff.x();
-				m_glyphknot->rightValue.y = m_glyphknot->rightValue.y + diff.y();
-			}
+  auto scene = (GlyphScene*)this->scene();
 
-			//m_glyph->setWidth(m_glyph->width());
+  //bool alt = event->modifiers() & Qt::AltModifier;
 
-			return true;
-		}
-		else if (watched == left) {
+  //if (!alt) {
+  //  return 0;
+  //}
 
-			return updateControlPoint(true, diff, shift, ctrl, line);
-
-			/*
-			if (incurve && !incurve->isSelected()) {
-
-				if (m_glyphknot->leftValue.isControlConstant && m_glyphknot->leftValue.type == Glyph::mpgui_explicit) {
-
-					m_glyphknot->leftValue.x = m_glyphknot->leftValue.x + diff.x();
-					m_glyphknot->leftValue.y = m_glyphknot->leftValue.y + diff.y();
-
-					if (m_glyphknot->leftValue.isEqualBefore) {
-						Glyph::Knot* knot = m_glyph->controlledPaths[m_numsubpath][m_numpoint - 1];
-						knot->rightValue.x = m_glyphknot->leftValue.x;
-						knot->rightValue.y = m_glyphknot->leftValue.y;
-					}
-				}
-
-				if (m_glyphknot->leftValue.isDirConstant && m_glyphknot->leftValue.type == Glyph::mpgui_given) {
-					if (!shift) {
-
-						double angle = -line.angle() + 180;
-						m_glyphknot->leftValue.x = angle; // < 0 ? 360 + angle : angle;
-					}
-				}
-
-				if (m_glyphknot->leftValue.type != Glyph::mpgui_explicit && !ctrl) {
-					QPointF currentpos = incurve->mapFromScene(left->scenePos());
-					QLineF currentline(QPointF(), currentpos);
-					double ang = currentline.angleTo(line);
-					double cos = qCos(qDegreesToRadians(ang));
-					double length = line.length() * cos;
-					double newtension;
-					double oldtension = 1;
-					bool canmodify = true;
-					if (m_glyphknot->leftValue.isControlConstant) {
-						oldtension = m_glyphknot->leftValue.y;
-					}
-					else {
-						QVariant val = m_glyph->property(m_glyphknot->leftValue.controlValue.toLatin1());
-						if (QMetaType::Double == val.type()) {
-							oldtension = val.toDouble();
-						}
-						else {
-							canmodify = false;
-						}
-					}
-					if (canmodify) {
-						if (length < 0) {
-							newtension = 10000;
-						}
-						else {
-							newtension = (oldtension / length) * currentline.length();
-							if (newtension < 0.75) {
-								newtension = 0.75;
-							}
-							if (newtension > 10000) {
-								newtension = 10000;
-							}
-						}
-						if (m_glyphknot->leftValue.isControlConstant) {
-							m_glyphknot->leftValue.y = newtension;
-						}
-						else {
-							m_glyph->setProperty(m_glyphknot->leftValue.controlValue.toLatin1(), newtension);
-						}
-
-					}
+  auto F1 = scene->currentPressdKeys.contains(Qt::Key_F1);
+  auto F2 = scene->currentPressdKeys.contains(Qt::Key_F2);
+  auto F3 = scene->currentPressdKeys.contains(Qt::Key_F3);
 
 
-				}
+  int expIndex = F1 ? 1 : F2 ? 2 : F3 ? 3 : 0;
 
-				//m_glyph->setWidth(m_glyph->width());
-			}
+  return expIndex;
 
-			return true;*/
-
-		}
-		else if (watched == right) {
-
-			return updateControlPoint(false, diff, shift, ctrl, line);
-			/*
-			if (incurve && !incurve->isSelected()) {
-
-				if (m_glyphknot->rightValue.isControlConstant && m_glyphknot->rightValue.type == Glyph::mpgui_explicit) {
-					m_glyphknot->rightValue.x = m_glyphknot->rightValue.x + diff.x();
-					m_glyphknot->rightValue.y = m_glyphknot->rightValue.y + diff.y();
-				}
-
-				if (m_glyphknot->rightValue.isDirConstant && m_glyphknot->rightValue.type == Glyph::mpgui_given) {
-					if (!shift) {
-						QPointF pair = incurve->mapFromScene(me->scenePos());
-						QLineF line(pair, QPointF());
-						double angle = -line.angle() + 180;
-						m_glyphknot->rightValue.x = angle; // < 0 ? 360 + angle : angle;
-					}
-				}
-
-				if (m_glyphknot->rightValue.isControlConstant && m_glyphknot->rightValue.type != Glyph::mpgui_explicit && !ctrl) {
-					QPointF currentpos = incurve->mapFromScene(right->scenePos());
-					QLineF currentline(QPointF(), currentpos);
-					double ang = currentline.angleTo(line);
-					double cos = qCos(qDegreesToRadians(ang));
-					double length = line.length() * cos;
-					if (length < 0) {
-						m_glyphknot->rightValue.y = 10000;
-					}
-					else {
-						m_glyphknot->rightValue.y = (m_glyphknot->rightValue.y / length) * currentline.length();
-						if (m_glyphknot->rightValue.y < 0.75) {
-							m_glyphknot->rightValue.y = 0.75;
-						}
-						if (m_glyphknot->rightValue.y > 10000) {
-							m_glyphknot->rightValue.y = 10000;
-						}
-					}
-				}
-
-				//m_glyph->setWidth(m_glyph->width());
-			}*/
-
-
-
-			return true;
-		}
-
-	}
-	else if (event->type() == QEvent::GraphicsSceneContextMenu) {
-		QGraphicsSceneContextMenuEvent* me = static_cast<QGraphicsSceneContextMenuEvent*>(event);
-
-		if (watched == incurve) {
-			QMenu menu;
-			//QAction * scaleAct = new QAction("&Scale", this);	
-			//connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
-
-			menu.addAction("Left");
-			menu.addAction("Right");
-			menu.addAction("Up");
-			menu.addAction("Down");
-			menu.addAction("dir");
-			menu.addAction("dir-dir");
-			QAction* a = menu.exec(me->screenPos());
-			if (a != NULL) {
-				if (a->text() == "Left") {
-					m_glyphknot->leftValue.type = Glyph::mpgui_given;
-					m_glyphknot->leftValue.value = "left";
-					m_glyphknot->leftValue.isDirConstant = false;
-					m_glyphknot->rightValue.type = Glyph::mpgui_open;
-					m_glyph->setWidth(m_glyph->width());
-				}
-				else if (a->text() == "Right") {
-					m_glyphknot->leftValue.type = Glyph::mpgui_given;
-					m_glyphknot->leftValue.value = "right";
-					m_glyphknot->leftValue.isDirConstant = false;
-					m_glyphknot->rightValue.type = Glyph::mpgui_open;
-					m_glyph->setWidth(m_glyph->width());
-				}
-				else if (a->text() == "Up") {
-					m_glyphknot->leftValue.type = Glyph::mpgui_given;
-					m_glyphknot->leftValue.value = "up";
-					m_glyphknot->leftValue.isDirConstant = false;
-					m_glyphknot->rightValue.type = Glyph::mpgui_open;
-					m_glyph->setWidth(m_glyph->width());
-				}
-				else if (a->text() == "Down") {
-					m_glyphknot->leftValue.type = Glyph::mpgui_given;
-					m_glyphknot->leftValue.value = "down";
-					m_glyphknot->leftValue.isDirConstant = false;
-					m_glyphknot->rightValue.type = Glyph::mpgui_open;
-					m_glyph->setWidth(m_glyph->width());
-				}
-				else if (a->text() == "dir") {
-					m_glyphknot->leftValue.type = Glyph::mpgui_given;
-					m_glyphknot->leftValue.value = "";
-					m_glyphknot->leftValue.isDirConstant = true;
-					m_glyphknot->leftValue.x = 45;
-					m_glyphknot->rightValue.type = Glyph::mpgui_open;
-					m_glyph->setWidth(m_glyph->width());
-				}
-				else if (a->text() == "dir-dir") {
-					m_glyphknot->leftValue.type = Glyph::mpgui_given;
-					m_glyphknot->leftValue.value = "";
-					m_glyphknot->leftValue.isDirConstant = true;
-					m_glyphknot->leftValue.x = 45;
-					m_glyphknot->rightValue.type = Glyph::mpgui_given;
-					m_glyphknot->rightValue.value = "";
-					m_glyphknot->rightValue.isDirConstant = true;
-					m_glyphknot->rightValue.x = -45;
-					m_glyph->setWidth(m_glyph->width());
-				}
-			}
-
-			return true;
-		}
-	}
-
-	return QGraphicsItem::sceneEventFilter(watched, event);
 }
 
-bool KnotControlledItem::updateControlPoint(bool leftControl, QPointF diff, bool shift, bool ctrl, QLineF line) {
+bool KnotControlledItem::updateControlledPoint(MFExpr* expr, int position, QPointF diff) {
+  bool ret = false;
+  if (expr->isConstant(position)) {
+    expr->setConstantValue(position, expr->constantValue(position).toPointF() + diff);
+    ret = true;
+  }
+  else {
+    auto parmName = expr->paramName(position);
+    if (m_glyph->dependents.contains(parmName)) {
+      auto param = m_glyph->dependents.value(parmName);
+      parmName = param->name;
+    }
+    if (!parmName.isEmpty()) {
+      auto latinName = parmName.toLatin1();
+      QVariant val = m_glyph->property(latinName);
+      if (QVariant::PointF == val.type()) {
+        QPointF point = val.toPointF();
+        m_glyph->setProperty(latinName, point + diff);
+        ret = true;
+      }
+    }
+  }
+  return ret;
+}
+bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event) {
+  if (!isEnabled()) {
+    return false;
+  }
+  if (event->type() == QEvent::GraphicsSceneMouseMove) {
 
-	Glyph::KnotEntryExit& controlValue = leftControl ? m_glyphknot->leftValue : m_glyphknot->rightValue;
-	KnotItem* item = leftControl ? left : right;
+    auto scene = (GlyphScene*)watched->scene();
 
-	bool canmodify = false;
-
-	if (incurve && !incurve->isSelected()) {
-
-		canmodify = true;
-
-		if (controlValue.isControlConstant && controlValue.type == Glyph::mpgui_explicit) {
-
-			controlValue.x = controlValue.x + diff.x();
-			controlValue.y = controlValue.y + diff.y();
-
-			if (controlValue.isEqualBefore && leftControl) {
-				Glyph::Knot* knot = m_glyph->controlledPaths[m_numsubpath][m_numpoint - 1];
-				knot->rightValue.x = m_glyphknot->leftValue.x;
-				knot->rightValue.y = m_glyphknot->leftValue.y;
-			}
-		}
-
-		if (!shift && controlValue.type == Glyph::mpgui_given) {
-			double newValue = -line.angle() + (leftControl ? 180 : 0);
-			if (controlValue.isDirConstant) {
-					controlValue.x = newValue;
-			}else{
-					m_glyph->setProperty(controlValue.value.toLatin1(), newValue);
-			}
-		}
-
-
-
-
-		if (controlValue.type != Glyph::mpgui_explicit && !ctrl) {
-			QPointF currentpos = incurve->mapFromScene(item->scenePos());
-			QLineF currentline(QPointF(), currentpos);
-			double ang = currentline.angleTo(line);
-			double cos = qCos(qDegreesToRadians(ang));
-			double length = line.length() * cos;
-			double newtension;
-			double oldtension = 1;
-			
-			if (controlValue.isControlConstant) {
-				oldtension = controlValue.y;
-			}
-			else {
-				QVariant val = m_glyph->property(controlValue.controlValue.toLatin1());
-				if (QMetaType::Double == val.type()) {
-					oldtension = val.toDouble();
-				}
-				else {
-					canmodify = false;
-				}
-			}
-			if (canmodify) {
-				if (length < 0) {
-					newtension = 10000;
-				}
-				else {
-					newtension = (oldtension / length) * currentline.length();
-					if (newtension < 0.75) {
-						newtension = 0.75;
-					}
-					if (newtension > 10000) {
-						newtension = 10000;
-					}
-				}
-				if (controlValue.isControlConstant) {
-					controlValue.y = newtension;
-				}
-				else {
-					m_glyph->setProperty(controlValue.controlValue.toLatin1(), newtension);
-				}
-
-			}
+    QGraphicsSceneMouseEvent* me = static_cast<QGraphicsSceneMouseEvent*>(event);
 
 
-		}
+    Qt::KeyboardModifiers modifiers = me->modifiers();
 
-		return canmodify;
+    bool shift = modifiers & Qt::ShiftModifier;
+    bool ctrl = modifiers & Qt::ControlModifier;
 
-		//m_glyph->setWidth(m_glyph->width());
-	}
+    QPointF diff = me->pos() - me->lastPos();
+
+    if (moveMinMaxDeltas(watched, me)) {
+      return true;
+    }
+
+    if (watched == incurve) {
+
+      int expIndex = getControlledPosition(me);
+
+      updateControlledPoint(m_glyphknot->expr.get(), expIndex, diff);
+
+      if (m_glyphknot->leftValue.type == Glyph::mpgui_explicit) {
+
+        //if (m_glyphknot->leftValue.isEqualBefore) {
+        //  Glyph::Knot* knot = m_glyph->controlledPaths[m_numsubpath][m_numpoint - 1];
+          //knot->rightValue.dirExpr = m_glyphknot->leftValue.dirExpr->clone();
+        //  updateControlledPoint(knot->rightValue.dirExpr.get(), expIndex, diff);
+        //}
+        //else {
+        updateControlledPoint(m_glyphknot->leftValue.dirExpr.get(), expIndex, diff);
+        //}
+      }
+
+      if (m_glyphknot->rightValue.type == Glyph::mpgui_explicit) {
+        updateControlledPoint(m_glyphknot->rightValue.dirExpr.get(), expIndex, diff);
+      }
+
+      return true;
+    }
+    else if (watched == left || watched == right) {
+      return updateControlPoint(me, watched == left, diff, shift, ctrl);
+    }
+  }
+  else if (event->type() == QEvent::GraphicsSceneContextMenu) {
+    QGraphicsSceneContextMenuEvent* me = static_cast<QGraphicsSceneContextMenuEvent*>(event);
+
+    if (watched == incurve) {
+      QMenu menu;
+      //QAction * scaleAct = new QAction("&Scale", this);	
+      //connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
+
+      menu.addAction("Left");
+      menu.addAction("Right");
+      menu.addAction("Up");
+      menu.addAction("Down");
+      menu.addAction("dir");
+      menu.addAction("dir-dir");
+      //menu.addAction("Left Kashida");      
+      //menu.addAction("Right Kashida");
+
+      /** add submenu */
+      QMenu* lksubMenu = menu.addMenu(tr("Left Kashida"));
+      lksubMenu->addAction("0");
+      lksubMenu->addAction("1");
+      lksubMenu->addAction("2");
+
+      QMenu* rksubMenu = menu.addMenu(tr("Right Kashida"));
+      rksubMenu->addAction("0");
+      rksubMenu->addAction("1");
+      rksubMenu->addAction("2");
+
+      QAction* a = menu.exec(me->screenPos());
+      if (a != NULL) {
+        if (a->parentWidget() == lksubMenu) {
+          int knots = a->text().toInt();
+          addKashida(true, knots);
+        }
+        else if (a->parentWidget() == rksubMenu) {
+          int knots = a->text().toInt();
+          addKashida(false, knots);
+        }
+        else if (a->text() == "Left") {
+          m_glyphknot->leftValue.type = Glyph::mpgui_given;
+          m_glyphknot->leftValue.dirExpr = std::make_unique<VarMFExpr>("left", false);
+          m_glyphknot->rightValue.type = Glyph::mpgui_open;
+          m_glyph->setWidth(m_glyph->width());
+        }
+        else if (a->text() == "Right") {
+          m_glyphknot->leftValue.type = Glyph::mpgui_given;
+          m_glyphknot->leftValue.dirExpr = std::make_unique<VarMFExpr>("right", false);
+          m_glyphknot->rightValue.type = Glyph::mpgui_open;
+          m_glyph->setWidth(m_glyph->width());
+        }
+        else if (a->text() == "Up") {
+          m_glyphknot->leftValue.type = Glyph::mpgui_given;
+          m_glyphknot->leftValue.dirExpr = std::make_unique<VarMFExpr>("up", false);
+          m_glyphknot->rightValue.type = Glyph::mpgui_open;
+          m_glyph->setWidth(m_glyph->width());
+        }
+        else if (a->text() == "Down") {
+          m_glyphknot->leftValue.type = Glyph::mpgui_given;
+          m_glyphknot->leftValue.dirExpr = std::make_unique<VarMFExpr>("down", false);
+          m_glyphknot->rightValue.type = Glyph::mpgui_open;
+          m_glyph->setWidth(m_glyph->width());
+        }
+        else if (a->text() == "dir") {
+          m_glyphknot->leftValue.type = Glyph::mpgui_given;
+          auto numExp = new LitPathNumericExp(45);
+          m_glyphknot->leftValue.dirExpr = std::make_unique<DirPathPointExp>(numExp);
+
+
+          m_glyphknot->rightValue.type = Glyph::mpgui_open;
+          m_glyph->setWidth(m_glyph->width());
+        }
+        else if (a->text() == "dir-dir") {
+          m_glyphknot->leftValue.type = Glyph::mpgui_given;
+          auto numExp = new LitPathNumericExp(45);
+          m_glyphknot->leftValue.dirExpr = std::make_unique<DirPathPointExp>(numExp);
+
+          m_glyphknot->rightValue.type = Glyph::mpgui_given;
+          numExp = new LitPathNumericExp(-45);
+          m_glyphknot->rightValue.dirExpr = std::make_unique<DirPathPointExp>(numExp);
+
+          m_glyph->setWidth(m_glyph->width());
+        }
+      }
+
+      return true;
+    }
+  }
+
+  return QGraphicsItem::sceneEventFilter(watched, event);
+}
+
+bool KnotControlledItem::addKashida_old(bool left, int nbKnots) {
+
+  auto scene = (GlyphScene*)this->scene();
+
+  auto selectItems = scene->selectedItems();
+
+  if (selectItems.size() != 2) {
+    QMessageBox msgBox;
+    msgBox.setText("Two incurve points should be selected.");
+    return msgBox.exec();
+  }
+
+  auto topPoint = dynamic_cast<KnotItem*>(selectItems.at(0));
+  auto bottomPoint = dynamic_cast<KnotItem*>(selectItems.at(1));
+
+  if (!topPoint || !bottomPoint || topPoint->knottype != KnotItem::InCurve || bottomPoint->knottype != KnotItem::InCurve) {
+    QMessageBox msgBox;
+    msgBox.setText("Two incurve points should be selected.");
+    return msgBox.exec();
+  }
+
+  auto parentTop = (KnotControlledItem*)topPoint->parentItem();
+  auto parentBottom = (KnotControlledItem*)bottomPoint->parentItem();
+
+  if (parentTop->m_numsubpath != parentBottom->m_numsubpath || !parentTop->m_isInControlledPath || !parentBottom->m_isInControlledPath) {
+    QMessageBox msgBox;
+    msgBox.setText("The two points should belong to the same path.");
+    return msgBox.exec();
+  }
+
+  if (topPoint->scenePos().y() * -1 < bottomPoint->scenePos().y() * -1) {
+    auto temp = topPoint;
+    auto tempParent = parentTop;
+    topPoint = bottomPoint;
+    bottomPoint = temp;
+    parentTop = parentBottom;
+    parentBottom = tempParent;
+  }
+
+  //TODO : Detect orientation. For now we suppose clockwise orientation
+
+  KnotItem* first, * second;
+
+
+  if (left) {
+    first = bottomPoint;
+    second = topPoint;
+  }
+  else {
+    first = topPoint;
+    second = bottomPoint;
+  }
+
+  KnotControlledItem* parentFirst, * parentSecond;
+
+  parentFirst = (KnotControlledItem*)first->parentItem();
+  parentSecond = (KnotControlledItem*)second->parentItem();
+
+  auto firstKnot = m_glyph->controlledPaths.value(parentFirst->m_numsubpath).value(parentFirst->m_numpoint);
+  auto secondKnot = m_glyph->controlledPaths.value(parentSecond->m_numsubpath).value(parentSecond->m_numpoint);
+
+  auto bottomKnot = left ? firstKnot : secondKnot;
+  auto topKnot = left ? secondKnot : firstKnot;
+
+  auto controlledPath = m_glyph->controlledPaths[parentFirst->m_numsubpath];
+  auto lastKey = controlledPath.lastKey();
+
+  auto startPoint = parentFirst->m_numpoint < parentSecond->m_numpoint ? controlledPath.firstKey() : parentSecond->m_numpoint;
+  auto firstPoint = parentFirst->m_numpoint;
+  auto secondPoint = parentFirst->m_numpoint < parentSecond->m_numpoint ? parentSecond->m_numpoint : lastKey + parentSecond->m_numpoint;
+
+
+  //firstKnot->expr->constantValue
+
+  m_glyph->blockSignals(true);
+  auto oldSource = m_glyph->source();
+
+
+  QMap<int, Glyph::Knot*>  newcontrolledPaths;
+  int keyoffset = 0;
+  bool secondPointDone = false;
+  for (auto i = controlledPath.begin(); i != controlledPath.end(); ++i) {
+    if (i.key() < startPoint) {
+      delete i.value();
+      continue;
+    }
+
+    if (i.key() == startPoint && parentFirst->m_numpoint >= parentSecond->m_numpoint) {
+      continue;
+    }
+
+    if (i.key() <= firstPoint) {
+      newcontrolledPaths.insert(i.key(), controlledPath.value(i.key()));
+      continue;
+    }
+
+    if (i.key() < secondPoint) {
+      if (i.key() < lastKey) {
+        delete i.value();
+        continue;
+      }
+    }
+
+    if (!secondPointDone && (i.key() == secondPoint || i.key() == lastKey)) {
+
+      auto edge = m_glyph->getEdge();
+      QPointF matrix;
+      if (edge) {
+        matrix = { edge->xpart,edge->ypart };
+      }
+
+      double nuqta = m_glyph->font->getNumericVariable("nuqta");
+
+      auto verbatim = m_glyph->verbatim();
+
+      QString minVarName, maxDeltaVarName, dirVar1, delataDirVar1, varRationVarName;
+
+      if (left) {
+        //verbatim.append("numeric x.left.maxDelta,y.left.maxDelta;\n");
+        verbatim.append("z.left.maxDelta = (maxLeft - minLeft) * nuqta * (-1,-1/leftVerticalRatio);\n");
+        minVarName = "z.left.min";
+        maxDeltaVarName = "z.left.maxDelta";
+        dirVar1 = "left.dir1";
+        delataDirVar1 = "left.dir1.delta";
+        varRationVarName = "leftVerticalRatio";
+      }
+      else {
+        //verbatim.append("numeric x.right.maxDelta,y.right.maxDelta;\n");
+        verbatim.append("z.right.maxDelta = (maxRight - minRight) * nuqta * (1, -1 / rightVerticalRatio);\n");
+        //verbatim.append("z.right.1.min = z.right.ori + (xpart z.right.min/(xpart rightFirstRatio/100),ypart z.right.min/(ypart rightFirstRatio/100));\n");
+        minVarName = "z.right.min";
+        maxDeltaVarName = "z.right.maxDelta";
+        dirVar1 = "right.dir1";
+        delataDirVar1 = "right.dir1.delta";
+        varRationVarName = "rightVerticalRatio";
+      }
+
+      auto dirVar1Value = left ? -145 : 145;
+      auto delataDirVar1Value = new LitNumber(0);
+      auto varRatioValue = left ? 12 : 8;
+      auto minValue = left ? QPointF{ -5, -5 } : QPointF{ 5, -5 };      
+
+      m_glyph->setParameter(QString(minVarName), new LitPoint(minValue), true, true);
+      //m_glyph->setParameter(QString(dirVar1), new LitNumber(dirVar1Value), false, true);
+      //m_glyph->setParameter(QString(delataDirVar1), delataDirVar1Value, false, true);
+      m_glyph->setParameter(QString(varRationVarName), new LitNumber(varRatioValue), false, true);
+
+
+      m_glyph->setVerbatim(verbatim);
+
+
+      int maxTatweel = 20;
+      int minTatweel = -1;
+      double verticalRatio = left ? 12 : 8;
+
+      double maxWidth = nuqta * (maxTatweel - minTatweel);
+
+      auto maxPoint = left ? QPointF{ -maxWidth,-maxWidth / verticalRatio } : QPointF{ maxWidth,-maxWidth / verticalRatio };
+
+      QPointF origin{ parentBottom->m_knot->x_coord  ,parentBottom->m_knot->y_coord };
+
+      origin = origin - matrix;
+
+      QString oriName;
+
+
+      MFExpr* bottomexpr = dynamic_cast<PairPathPointExp*>(bottomKnot->expr.get());
+      if (!bottomKnot->expr->isLiteral()) {
+        bottomexpr = dynamic_cast<VarMFExpr*>(bottomKnot->expr.get());
+        if (bottomexpr) {
+          oriName = bottomexpr->toString();
+        }
+      }
+      else {
+        // Add parameter if not exists
+        origin = bottomKnot->expr->constantValue(0).toPointF();
+        oriName = left ? QString("z.left.ori") : QString("z.right.ori");
+        QByteArray ba = oriName.toLocal8Bit();
+        QVariant val = m_glyph->property(ba.data());
+        if (!val.isValid()) {
+          auto point = QPointF(0, 0);
+          m_glyph->setParameter(oriName, new LitPoint(origin), true);
+          auto& param = m_glyph->params[oriName];
+          param.isInControllePath = true;
+          val = point;
+        }
+        m_glyph->setProperty(ba.data(), origin);
+      }
+
+      if (!left) {
+
+        firstKnot->leftValue.type = Glyph::mpgui_given;
+        /*
+        firstKnot->leftValue.dirExpr = std::make_unique<FunctionMFExp>("brdm",
+          new ScalarMultiMFExp(new DirPathPointExp(new VarMFExpr(dirVar1, true)), MFExprOperator::MINUS),
+          new ScalarMultiMFExp(new DirPathPointExp(new VarMFExpr(delataDirVar1, true)), MFExprOperator::MINUS)
+          );
+          */
+
+        firstKnot->leftValue.dirExpr = std::make_unique<ScalarMultiMFExp>(
+          new DirPathPointExp(
+            new FunctionMFExp("brdm",
+              new LitPathNumericExp(dirVar1Value),
+              new LitPathNumericExp(0))), MFExprOperator::MINUS
+          );
+
+
+
+        firstKnot->expr = std::make_unique<FunctionMFExp>("brdm",
+          firstKnot->expr.release(),
+          new LitPointPathPointExp({ 0,0 })
+          );
+
+
+        Glyph::Knot* z_r1_top = nullptr;
+        Glyph::Knot* z_r1_bottom = nullptr;
+
+        if (nbKnots == 0) {
+          firstKnot->rightValue = {};
+          firstKnot->rightValue.type = Glyph::mpgui_curl;
+          firstKnot->rightValue.macrovalue = "link";
+          firstKnot->rightValue.jointtype = Glyph::path_join_macro;
+        }
+        else {
+          firstKnot->rightValue = {};
+          firstKnot->rightValue.jointtype = Glyph::path_join_tension;
+
+          auto z_r1_top = new Glyph::Knot();
+          z_r1_top->leftValue = {};
+          z_r1_top->leftValue.type = Glyph::mpgui_open;
+          z_r1_top->leftValue.jointtype = Glyph::path_join_macro;
+
+          z_r1_top->rightValue = {};
+          z_r1_top->rightValue.type = Glyph::mpgui_curl;
+          z_r1_top->rightValue.macrovalue = "link";
+          z_r1_top->rightValue.jointtype = Glyph::path_join_macro;
+
+          auto temp = new LitPointPathPointExp({ 16,88 });
+          auto temp2 = new BinOpMFExp(new LitPathNumericExp(2.0 / 3), MFExprOperator::TIMES, new VarMFExpr(minVarName, true));
+          auto temp3 = new BinOpMFExp(temp, MFExprOperator::PLUS, temp2);
+          auto temp4 = new BinOpMFExp(temp3, MFExprOperator::PLUS, new VarMFExpr(oriName, true));
+
+
+          z_r1_top->expr = std::make_unique<FunctionMFExp>("brdm", temp4, new LitPointPathPointExp({ 0,0 }));
+
+          keyoffset++;
+
+          newcontrolledPaths.insert(i.key() + keyoffset, z_r1_top);
+        }
+
+        auto z_r3 = new Glyph::Knot();
+        z_r3->expr = std::make_unique<FunctionMFExp>("brdm",
+          new BinOpMFExp(new VarMFExpr(minVarName, true), MFExprOperator::PLUS, new VarMFExpr(oriName, true)),
+          new VarMFExpr(maxDeltaVarName, false)
+          );
+        z_r3->leftValue = {};
+        z_r3->leftValue.type = Glyph::mpgui_curl;
+        z_r3->leftValue.macrovalue = "link";
+        z_r3->leftValue.jointtype = Glyph::path_join_macro;
+
+        z_r3->rightValue = {};
+        z_r3->rightValue.jointtype = Glyph::path_join_tension;
+        //z_r3->rightValue.tensionExpr = std::make_unique<LitPathNumericExp>(1);    
+
+
+
+        keyoffset += 3;
+
+        newcontrolledPaths.insert(i.key() + keyoffset, z_r3);
+
+        secondKnot->leftValue.type = Glyph::mpgui_given;
+
+        /*
+        secondKnot->leftValue.dirExpr = std::make_unique<FunctionMFExp>("brdm",
+          new DirPathPointExp(new VarMFExpr(dirVar1, true)),
+          new DirPathPointExp(new VarMFExpr(delataDirVar1, true))
+          );*/
+
+        secondKnot->leftValue.dirExpr = std::make_unique<DirPathPointExp>(
+          new FunctionMFExp("brdm",
+            new LitPathNumericExp(dirVar1Value),
+            new LitPathNumericExp(0))
+          );
+
+        if (!oriName.isEmpty()) {
+          secondKnot->expr = std::make_unique<FunctionMFExp>("brdm",
+            new VarMFExpr(oriName, true),
+            new LitPointPathPointExp({ 0,0 })
+            );
+        }
+
+        keyoffset++;
+
+        newcontrolledPaths.insert(i.key() + keyoffset, secondKnot);
+
+        if (i.key() == lastKey) {
+          newcontrolledPaths.insert(i.key() + ++keyoffset, newcontrolledPaths.first());
+        }
+
+      }
+      else {
+        firstKnot->rightValue = {};
+        firstKnot->rightValue.type = Glyph::mpgui_curl;
+        firstKnot->rightValue.macrovalue = "link";
+        firstKnot->rightValue.jointtype = Glyph::path_join_macro;
+
+        secondKnot->leftValue = {};
+        secondKnot->leftValue.type = Glyph::mpgui_curl;
+        secondKnot->leftValue.macrovalue = "link";
+        secondKnot->leftValue.jointtype = Glyph::path_join_macro;
+
+        keyoffset = 3;
+
+        newcontrolledPaths.insert(i.key() + keyoffset, secondKnot);
+
+        if (i.key() == lastKey) {
+          newcontrolledPaths.insert(i.key() + keyoffset + 1, newcontrolledPaths.first());
+        }
+
+      }
+
+      secondPointDone = true;
+
+      continue;
+    }
+
+    newcontrolledPaths.insert(i.key() + keyoffset, controlledPath.value(i.key()));
+  }
+
+  m_glyph->blockSignals(false);
+
+
+
+  m_glyph->controlledPaths[parentFirst->m_numsubpath] = newcontrolledPaths;
+
+  m_glyph->isDirty = true;
+
+  auto newSource = m_glyph->source();
+
+  GlyphSourceChangeCommand* command = new GlyphSourceChangeCommand(m_glyph, "Source Changed", oldSource, newSource, true);
+  m_glyph->undoStack()->push(command);
+
+
+
+  return true;
+
+
+}
+
+bool KnotControlledItem::addKashida(bool left, int nbKnots) {
+
+  auto scene = (GlyphScene*)this->scene();
+
+  auto selectItems = scene->selectedItems();
+
+  if (selectItems.size() != 2) {
+    QMessageBox msgBox;
+    msgBox.setText("Two incurve points should be selected.");
+    return msgBox.exec();
+  }
+
+  auto topPoint = dynamic_cast<KnotItem*>(selectItems.at(0));
+  auto bottomPoint = dynamic_cast<KnotItem*>(selectItems.at(1));
+
+  if (!topPoint || !bottomPoint || topPoint->knottype != KnotItem::InCurve || bottomPoint->knottype != KnotItem::InCurve) {
+    QMessageBox msgBox;
+    msgBox.setText("Two incurve points should be selected.");
+    return msgBox.exec();
+  }
+
+  auto parentTop = (KnotControlledItem*)topPoint->parentItem();
+  auto parentBottom = (KnotControlledItem*)bottomPoint->parentItem();
+
+  if (parentTop->m_numsubpath != parentBottom->m_numsubpath || !parentTop->m_isInControlledPath || !parentBottom->m_isInControlledPath) {
+    QMessageBox msgBox;
+    msgBox.setText("The two points should belong to the same path.");
+    return msgBox.exec();
+  }
+
+  if (topPoint->scenePos().y() * -1 < bottomPoint->scenePos().y() * -1) {
+    auto temp = topPoint;
+    auto tempParent = parentTop;
+    topPoint = bottomPoint;
+    bottomPoint = temp;
+    parentTop = parentBottom;
+    parentBottom = tempParent;
+  }
+
+  //TODO : Detect orientation. For now we suppose clockwise orientation
+
+  KnotItem* first, * second;
+
+
+  if (left) {
+    first = bottomPoint;
+    second = topPoint;
+  }
+  else {
+    first = topPoint;
+    second = bottomPoint;
+  }
+
+  KnotControlledItem* parentFirst, * parentSecond;
+
+  parentFirst = (KnotControlledItem*)first->parentItem();
+  parentSecond = (KnotControlledItem*)second->parentItem();
+
+  auto firstKnot = m_glyph->controlledPaths.value(parentFirst->m_numsubpath).value(parentFirst->m_numpoint);
+  auto secondKnot = m_glyph->controlledPaths.value(parentSecond->m_numsubpath).value(parentSecond->m_numpoint);
+
+  auto bottomKnot = left ? firstKnot : secondKnot;
+  auto topKnot = left ? secondKnot : firstKnot;
+
+  auto controlledPath = m_glyph->controlledPaths[parentFirst->m_numsubpath];
+  auto lastKey = controlledPath.lastKey();
+
+  auto startPoint = parentFirst->m_numpoint < parentSecond->m_numpoint ? controlledPath.firstKey() : parentSecond->m_numpoint;
+  auto firstPoint = parentFirst->m_numpoint;
+  auto secondPoint = parentFirst->m_numpoint < parentSecond->m_numpoint ? parentSecond->m_numpoint : lastKey + parentSecond->m_numpoint;
+
+
+  //firstKnot->expr->constantValue
+
+  m_glyph->blockSignals(true);
+  auto oldSource = m_glyph->source();
+
+
+  QMap<int, Glyph::Knot*>  newcontrolledPaths;
+  int keyoffset = 0;
+  bool secondPointDone = false;
+  for (auto i = controlledPath.begin(); i != controlledPath.end(); ++i) {
+    if (i.key() < startPoint) {
+      delete i.value();
+      continue;
+    }
+
+    if (i.key() == startPoint && parentFirst->m_numpoint >= parentSecond->m_numpoint) {
+      continue;
+    }
+
+    if (i.key() <= firstPoint) {
+      newcontrolledPaths.insert(i.key(), controlledPath.value(i.key()));
+      continue;
+    }
+
+    if (i.key() < secondPoint) {
+      if (i.key() < lastKey) {
+        delete i.value();
+        continue;
+      }
+    }
+
+    if (!secondPointDone && (i.key() == secondPoint || i.key() == lastKey)) {
+
+      auto edge = m_glyph->getEdge();
+      QPointF matrix;
+      if (edge) {
+        matrix = { edge->xpart,edge->ypart };
+      }
+
+      double nuqta = m_glyph->font->getNumericVariable("nuqta");
+
+      QString vertRatioVarName = left ? "leftVerticalRatio" : "rightVerticalRatio";
+      auto dirVar1Value = left ? 25 : 155;
+      auto vertRatioValue = left ? 6 : 3;
+      auto minValue = left ? QPointF{ -5, -5 } : QPointF{ 5, -5 };
+      // TODO : get value from font
+      QPointF joinvector{ 16,88 };
+      auto firstPointRatio = 1.0 / 3;
+      auto secondPointRatio = 2.0 / 3;
+      auto maxLength = (1 + 6);
+
+      m_glyph->setParameter(QString(vertRatioVarName), new LitNumber(vertRatioValue), false, true);
+
+
+      int maxTatweel = 20;
+      int minTatweel = -1;
+      double verticalRatio = left ? 12 : 6;
+      double maxDeltaWidth = nuqta * (maxTatweel - minTatweel);
+      auto maxDelta = left ? QPointF{ -maxDeltaWidth,-maxDeltaWidth / verticalRatio } : QPointF{ maxDeltaWidth,-maxDeltaWidth / verticalRatio };
+      QPointF origin{ parentBottom->m_knot->x_coord  ,parentBottom->m_knot->y_coord };
+      origin = origin - matrix;
+      QString bendFuncName = left ? "bldmvi" : "brdmvi";
+
+      /*
+      firstKnot->leftValue.type = Glyph::mpgui_given;
+
+      firstKnot->leftValue.dirExpr = std::make_unique<ScalarMultiMFExp>(
+        new DirPathPointExp(
+          new FunctionMFExp(bendFuncName,
+            new LitPathNumericExp(dirVar1Value),
+            new LitPathNumericExp(0))), MFExprOperator::MINUS
+        );*/
+
+      firstKnot->expr = std::make_unique<FunctionMFExp>(bendFuncName,
+        firstKnot->expr.release(),
+        new LitPointPathPointExp({ 0,0 })
+        );
+
+      if (nbKnots == 0) {
+        firstKnot->rightValue = {};
+        firstKnot->rightValue.macrovalue = left ? "" : "link";
+        firstKnot->rightValue.jointtype = left ? Glyph::path_join_tension : Glyph::path_join_macro;
+      }
+      else {
+        firstKnot->rightValue = {};
+        firstKnot->rightValue.jointtype = Glyph::path_join_tension;
+
+        auto z_r1 = new Glyph::Knot();
+        z_r1->leftValue = {};
+        z_r1->leftValue.jointtype = Glyph::path_join_tension;
+
+        if (nbKnots == 1) {
+          z_r1->rightValue = {};
+          z_r1->rightValue.macrovalue = left ? "" : "link";
+          z_r1->rightValue.jointtype = left ? Glyph::path_join_tension : Glyph::path_join_macro;
+        }
+        else {
+          z_r1->rightValue = {};
+          z_r1->rightValue.jointtype = Glyph::path_join_tension;
+        }
+
+        z_r1->expr = std::make_unique<FunctionMFExp>(bendFuncName,
+          new LitPointPathPointExp(origin + firstPointRatio * minValue + (left ? QPointF() : joinvector)),
+          //new LitPointPathPointExp({ firstPointRatio * maxDelta.x(),firstPointRatio * maxDelta.y() })
+          new LitPointPathPointExp({ 0,0 })
+          );
+
+        keyoffset++;
+
+        newcontrolledPaths.insert(i.key() + keyoffset, z_r1);
+
+        if (nbKnots > 1) {
+
+          auto z_r2 = new Glyph::Knot();
+          z_r2->leftValue = {};
+          z_r2->leftValue.type = Glyph::mpgui_open;
+          z_r2->leftValue.jointtype = Glyph::path_join_tension;
+
+          z_r2->rightValue = {};
+          z_r2->rightValue.type = Glyph::mpgui_curl;
+          z_r2->rightValue.macrovalue = left ? "" : "link";
+          z_r2->rightValue.jointtype = left ? Glyph::path_join_tension : Glyph::path_join_macro;
+
+          z_r2->expr = std::make_unique<FunctionMFExp>(bendFuncName,
+            new LitPointPathPointExp(origin + secondPointRatio * minValue + (left ? QPointF() : joinvector)),
+            //new LitPointPathPointExp({ secondPointRatio * maxDelta.x(),secondPointRatio * maxDelta.y() })
+            new LitPointPathPointExp({ 0,0 })
+            );
+
+          keyoffset++;
+
+          newcontrolledPaths.insert(i.key() + keyoffset, z_r2);
+
+        }
+      }
+
+      auto z_r3 = new Glyph::Knot();
+      z_r3->expr = std::make_unique<FunctionMFExp>(bendFuncName,
+        new LitPointPathPointExp(origin + minValue),
+        new BinOpMFExp(new VarMFExpr("nuqta", false), MFExprOperator::TIMES,
+          new PairPathPointExp(new LitPathNumericExp(left ? -maxLength : maxLength), new BinOpMFExp(new LitPathNumericExp(-maxLength), MFExprOperator::OVER, new VarMFExpr(vertRatioVarName, true))))
+        );
+
+      if (!left) {
+        z_r3->leftValue = {};
+        z_r3->leftValue.macrovalue = "link";
+        z_r3->leftValue.jointtype = Glyph::path_join_macro;
+
+        z_r3->rightValue = {};
+        z_r3->rightValue.jointtype = Glyph::path_join_tension;
+      }
+      else {
+        z_r3->rightValue = {};
+        z_r3->rightValue.macrovalue = "link";
+        z_r3->rightValue.jointtype = Glyph::path_join_macro;
+
+        z_r3->leftValue = {};
+        z_r3->leftValue.jointtype = Glyph::path_join_tension;
+      }
+
+      keyoffset += 3;
+
+      newcontrolledPaths.insert(i.key() + keyoffset, z_r3);
+
+      if (nbKnots > 1) {
+
+        auto z_r2_bottom = new Glyph::Knot();
+        z_r2_bottom->leftValue = {};
+        z_r2_bottom->leftValue.jointtype = Glyph::path_join_tension;
+
+        z_r2_bottom->rightValue = {};
+        z_r2_bottom->rightValue.jointtype = Glyph::path_join_tension;
+
+        z_r2_bottom->expr = std::make_unique<FunctionMFExp>(bendFuncName,
+          new LitPointPathPointExp(origin + secondPointRatio * minValue + (left ? joinvector : QPointF())),
+          //new LitPointPathPointExp({ secondPointRatio * maxDelta.x(),secondPointRatio * maxDelta.y() })
+          new LitPointPathPointExp({ 0,0 })
+          );
+
+        keyoffset++;
+        newcontrolledPaths.insert(i.key() + keyoffset, z_r2_bottom);
+      }
+
+      if (nbKnots > 0) {
+
+        auto z_r1_bottom = new Glyph::Knot();
+        z_r1_bottom->leftValue = {};
+        z_r1_bottom->leftValue.jointtype = Glyph::path_join_tension;
+
+        z_r1_bottom->rightValue = {};
+        z_r1_bottom->rightValue.jointtype = Glyph::path_join_tension;
+
+        z_r1_bottom->expr = std::make_unique<FunctionMFExp>(bendFuncName,
+          new LitPointPathPointExp(origin + firstPointRatio * minValue + (left ? joinvector : QPointF())),
+          //new LitPointPathPointExp({ firstPointRatio * maxDelta.x(),firstPointRatio * maxDelta.y() })
+          new LitPointPathPointExp({ 0,0 })
+          );
+
+        keyoffset++;
+        newcontrolledPaths.insert(i.key() + keyoffset, z_r1_bottom);
+      }
+
+      if (!left) {
+        secondKnot->leftValue.type = Glyph::mpgui_given;
+
+        secondKnot->leftValue.dirExpr = std::make_unique<DirPathPointExp>(
+          new FunctionMFExp(bendFuncName,
+            new LitPathNumericExp(dirVar1Value),
+            new LitPathNumericExp(0))
+          );
+
+        secondKnot->leftValue.jointtype = Glyph::path_join_tension;
+        secondKnot->leftValue.tensionExpr = nullptr;
+      }
+      else {
+
+        /*
+        secondKnot->rightValue.type = Glyph::mpgui_given;
+
+        secondKnot->rightValue.dirExpr = std::make_unique<DirPathPointExp>(
+          new FunctionMFExp(bendFuncName,
+            new LitPathNumericExp(dirVar1Value),
+            new LitPathNumericExp(0))
+          );*/
+
+        secondKnot->leftValue.jointtype = Glyph::path_join_tension;
+        secondKnot->leftValue.tensionExpr = nullptr;
+      }
+
+     
+
+
+      secondKnot->expr = std::make_unique<FunctionMFExp>(bendFuncName,
+        secondKnot->expr.release(),
+        new LitPointPathPointExp({ 0,0 })
+        );
+
+
+      keyoffset++;
+
+      newcontrolledPaths.insert(i.key() + keyoffset, secondKnot);
+
+
+
+      if (i.key() == lastKey) {
+        newcontrolledPaths.insert(i.key() + ++keyoffset, newcontrolledPaths.first());
+      }
+
+      secondPointDone = true;
+
+      continue;
+    }
+
+    newcontrolledPaths.insert(i.key() + keyoffset, controlledPath.value(i.key()));
+  }
+
+  m_glyph->blockSignals(false);
+
+
+
+  m_glyph->controlledPaths[parentFirst->m_numsubpath] = newcontrolledPaths;
+
+  m_glyph->isDirty = true;
+
+  auto newSource = m_glyph->source();
+
+  GlyphSourceChangeCommand* command = new GlyphSourceChangeCommand(m_glyph, "Source Changed", oldSource, newSource, true);
+  m_glyph->undoStack()->push(command);
+
+
+
+  return true;
+
+
+}
+
+bool KnotControlledItem::updateControlPoint(QGraphicsSceneMouseEvent* event, bool leftControl, QPointF diff, bool shift, bool ctrl) {
+
+  if (!incurve || incurve->isSelected()) {
+    return false;
+  }
+
+  Glyph::KnotEntryExit& controlValue = leftControl ? m_glyphknot->leftValue : m_glyphknot->rightValue;
+  KnotItem* item = leftControl ? left : right;
+
+  bool canmodify = false;
+
+  QLineF line(QPointF(), incurve->mapFromScene(event->scenePos()));
+  QLineF currentline(QPointF(), incurve->mapFromScene(item->scenePos()));
+  double ang = currentline.angleTo(line);
+  double radianAngle = qDegreesToRadians(ang);
+  int expIndex = getControlledPosition(event);
+
+  //Controls
+  if (controlValue.type == Glyph::mpgui_explicit) {
+
+    updateControlledPoint(controlValue.dirExpr.get(), expIndex, diff);
+
+    /*
+    if (controlValue.isEqualBefore && leftControl) {
+      Glyph::Knot* knot = m_glyph->controlledPaths[m_numsubpath][m_numpoint - 1];
+      knot->rightValue.dirExpr = m_glyphknot->leftValue.dirExpr->clone();
+    }*/
+
+    return true;
+  }
+
+  //Direction
+  if (!shift && controlValue.type == Glyph::mpgui_given) {
+    auto expr = controlValue.dirExpr.get();
+
+    double deltaAng = line.angleTo(currentline);
+    double radianDeltaAngle = qDegreesToRadians(deltaAng);
+    // Vector having angle equal deltaAng
+    auto vectorAngle = QPointF(qCos(radianDeltaAngle), qSin(radianDeltaAngle));
+    if (expr->isConstant(expIndex)) {
+      auto oldValue = expr->constantValue(expIndex).toPointF();
+      //complex multiplication = rotation
+      auto newValue = QPointF(oldValue.x() * vectorAngle.x() - oldValue.y() * vectorAngle.y(), oldValue.x() * vectorAngle.y() + oldValue.y() * vectorAngle.x());
+      expr->setConstantValue(expIndex, newValue);
+      canmodify = true;
+    }
+    else {
+      auto parmName = expr->paramName(expIndex);
+      if (!parmName.isEmpty()) {
+        auto latinName = parmName.toLatin1();
+        QVariant val = m_glyph->property(latinName);
+        if (QVariant::PointF == val.type()) {
+          QPointF oldValue = val.toPointF();
+          auto newValue = QPointF(oldValue.x() * vectorAngle.x() - oldValue.y() * vectorAngle.y(), oldValue.x() * vectorAngle.y() + oldValue.y() * vectorAngle.x());
+          m_glyph->setProperty(latinName, newValue);
+          canmodify = true;
+        }
+        else if (QVariant::Double == val.type()) {
+          double angleDegree = val.toDouble();
+          m_glyph->setProperty(latinName, std::fmod(deltaAng + angleDegree, 360));
+          canmodify = true;
+        }
+      }
+    }
+  }
+
+  //Tensions
+  auto expr = controlValue.tensionExpr.get();
+  if (!ctrl && expr) {
+
+    QByteArray latinName;
+
+
+    double oldtension = 1;
+    bool found = false;
+
+    if (expr->isConstant(expIndex)) {
+      oldtension = expr->constantValue(expIndex).toDouble();
+      found = true;
+    }
+    else {
+      auto parmName = expr->paramName(expIndex);
+      if (!parmName.isEmpty()) {
+        latinName = parmName.toLatin1();
+        QVariant val = m_glyph->property(latinName);
+        if (QVariant::Double == val.type()) {
+          oldtension = val.toDouble();
+          found = true;
+        }
+      }
+    }
+
+    if (found) {
+      canmodify = true;
+      double cos = qCos(radianAngle);
+      double length = line.length() * cos;
+      double newtension;
+
+      if (length < 0) {
+        newtension = 10000;
+      }
+      else {
+        newtension = (oldtension / length) * currentline.length();
+        if (newtension < 0.75) {
+          newtension = 0.75;
+        }
+        if (newtension > 10000) {
+          newtension = 10000;
+        }
+      }
+      if (!latinName.isEmpty()) {
+        m_glyph->setProperty(latinName, newtension);
+      }
+      else {
+        expr->setConstantValue(expIndex, newtension);
+      }
+
+    }
+
+    return canmodify;
+  }
 }

@@ -245,6 +245,10 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
 
 }
 
+hb_position_t OtLayout::gethHorizontalAdvance(hb_font_t* hbFont, hb_codepoint_t glyph, double lefttatweel, double righttatweel, void* userData) {
+  return getGlyphHorizontalAdvance(hbFont, this, glyph, lefttatweel, righttatweel, userData);
+}
+
 static void
 hb_ot_get_glyph_h_advances(hb_font_t* font, void* font_data,
   unsigned count,
@@ -467,18 +471,18 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
     if (prevIndex < 0) return false;
 
     auto& curr_info = glyph_info[context->curr];
-    
+
     auto& prev_info = glyph_info[prevIndex];
 
-    char			buf[64];    
+    char			buf[64];
 
     hb_font_get_glyph_name(font, curr_info.codepoint, buf, sizeof(buf));
 
     char			prevName[64];
     hb_font_get_glyph_name(font, prev_info.codepoint, prevName, sizeof(prevName));
     if (QString(prevName).contains(".expa")) {
-      curr_info.lefttatweel = 0.1 + 0.9 * prev_info.lefttatweel;
-      
+      curr_info.lefttatweel = 0.1 + 0.3 * prev_info.lefttatweel;
+
     }
     else {
       curr_info.lefttatweel = prev_info.lefttatweel;
@@ -486,7 +490,7 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
 
     auto& curr_glyph = *layout->getGlyph(curr_info.codepoint);
 
-    
+
 
   }
   else if (lookupTable->name.startsWith("expa.")) {
@@ -660,43 +664,7 @@ QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, Glyp
     }
   }
 
-  /*
-    if (curr->name != "alternatechar" && (!curr->originalglyph.isEmpty() && (curr->charlt != 0 || curr->charrt != 0))) {
-    originalglyph = &y.glyphs[curr->originalglyph];
-    adjustoriginal = subtable.classes[className].baseparameters[curr->originalglyph];
-
-    if (originalglyph != curr) {
-      if (curr->leftAnchor) {
-      double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
-      double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
-
-      adjustoriginal += QPoint(xshift, yshift);
-      }
-      else {
-      //adjustoriginal += QPoint(curr->width - originalglyph->width, curr->height - originalglyph->height);
-      }
-
-    }
-    }
-
-    if (curr->name == "alternatechar") {
-    //if (curr->expanded) {
-    originalglyph = &y.glyphs[curr->originalglyph];
-    //adjustoriginal = subtable.classes[className].baseparameters[curr->originalglyph];
-    if (curr->leftAnchor) {
-      double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
-      double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
-
-      adjustoriginal += QPoint(xshift, yshift);
-    }else if (curr->rightAnchor) {
-
-    }
-    else {
-      originalglyph = curr;
-    }
-    }*/
-
-  * poriginalglyph = originalglyph;
+  *poriginalglyph = originalglyph;
 
   return adjustoriginal;
 
@@ -762,9 +730,9 @@ QByteArray OtLayout::getGDEF() {
   quint16 glyphCount = glyphGlobalClasses.size();
   quint16 markGlyphSetCount = markGlyphSets.size();
 
-  if (markGlyphSetCount > 0) {
-    markGlyphSetsDefOffset = glyphClassDefOffset + 2 + 2 + glyphCount * 6;
-  }
+  //if (markGlyphSetCount > 0) {
+  markGlyphSetsDefOffset = glyphClassDefOffset + 2 + 2 + glyphCount * 6;
+  //}
 
   uint32_t itemVarStoreOffset = 0;
 
@@ -1118,9 +1086,9 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub) {
 }*/
 
 #if DIGITALKHATT_WEBLIB
-OtLayout::OtLayout(MP mp, bool extended) : fsmDriver{ *this } {
+OtLayout::OtLayout(MP mp, bool extended) : fsmDriver{ *this }, justTable{ this } {
 #else
-OtLayout::OtLayout(MP mp, bool extended, QObject * parent) :QObject(parent), fsmDriver{ *this }, justTable{ this }{
+OtLayout::OtLayout(MP mp, bool extended, QObject* parent) :QObject(parent), fsmDriver{ *this }, justTable{ this }{
 #endif
 
   this->extended = extended;
@@ -1190,7 +1158,7 @@ void OtLayout::clearAlternates() {
   alternatePaths.clear();
 }
 
-CalcAnchor OtLayout::getanchorCalcFunctions(QString functionName, Subtable * subtable) {
+CalcAnchor OtLayout::getanchorCalcFunctions(QString functionName, Subtable* subtable) {
   return automedina->getanchorCalcFunctions(functionName, subtable);
 }
 /*
@@ -1286,7 +1254,7 @@ void OtLayout::evaluateImport() {
   }
 
 }*/
-void OtLayout::addLookup(Lookup * lookup) {
+void OtLayout::addLookup(Lookup* lookup) {
   if (lookup->type == Lookup::none) {
     throw "Lookup Type not defined";
   }
@@ -1364,7 +1332,7 @@ void OtLayout::loadLookupFile(std::string fileName) {
   }
 }
 
-void OtLayout::readJson(const QJsonObject & json)
+void OtLayout::readJson(const QJsonObject& json)
 {
 
   for (auto lookup : lookups) {
@@ -1380,6 +1348,7 @@ void OtLayout::readJson(const QJsonObject & json)
   gsublookupsIndexByName.clear();
   gposlookupsIndexByName.clear();
   automedina->cachedClasstoUnicode.clear();
+  //automedina->cvxxfeatures.clear();
   allFeatures.clear();
   disabledLookups.clear();
   tables.clear();
@@ -1467,7 +1436,7 @@ void OtLayout::readJson(const QJsonObject & json)
           std::cout << "} " << iter.key().toStdString() << ";" << endl << endl;
       }*/
 }
-void OtLayout::parseCppJsonLookup(QString lookupName, const QJsonObject & lookups) {
+void OtLayout::parseCppJsonLookup(QString lookupName, const QJsonObject& lookups) {
 
   Lookup* newlookup = automedina->getLookup(lookupName);
   if (newlookup) {
@@ -1505,7 +1474,7 @@ void OtLayout::parseCppJsonLookup(QString lookupName, const QJsonObject & lookup
 
 
 }
-void OtLayout::saveParameters(QJsonObject & json) const {
+void OtLayout::saveParameters(QJsonObject& json) const {
   for (auto lookup : lookups) {
     if (!lookup->isGsubLookup()) {
       QJsonObject lookupObject;
@@ -1517,7 +1486,7 @@ void OtLayout::saveParameters(QJsonObject & json) const {
 
   }
 }
-void OtLayout::readParameters(const QJsonObject & json) {
+void OtLayout::readParameters(const QJsonObject& json) {
   for (auto lookup : lookups) {
     if (!lookup->isGsubLookup()) {
       if (!json[lookup->name].toObject().isEmpty()) {
@@ -1795,7 +1764,7 @@ void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableI
 }
 #endif
 
-void OtLayout::applyJustFeature(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, int emScale) {
+void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, int emScale) {
 
   if (!this->allGsubFeatures.contains(feature))
     return;
@@ -1923,11 +1892,12 @@ void OtLayout::applyJustFeature(hb_buffer_t * buffer, bool& needgpos, double& di
           continue;
         }
 
-        if (groupExpa.weight == 0) goto next;
-
         int widthDiff = newWidth - oldWidth;
 
         auto tatweel = expaUnit * groupExpa.weight + remainingWidth;
+
+        if (groupExpa.weight == 0) goto next;
+
 
         if ((stretch && widthDiff > tatweel) || (!stretch && widthDiff < tatweel)) {
           totalWeight += groupExpa.weight;
@@ -2041,7 +2011,7 @@ void OtLayout::applyJustFeature(hb_buffer_t * buffer, bool& needgpos, double& di
 
 }
 
-void OtLayout::applyJustFeature_old(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, int emScale) {
+void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, int emScale) {
 
   if (!this->allGsubFeatures.contains(feature))
     return;
@@ -2275,7 +2245,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t * buffer, bool& needgpos, double
 
 }
 
-void OtLayout::jutifyLine_old(hb_font_t * shapefont, hb_buffer_t * text_buffer, int lineWidth, int emScale, bool tajweedColor) {
+void OtLayout::jutifyLine_old(hb_font_t* shapefont, hb_buffer_t* text_buffer, int lineWidth, int emScale, bool tajweedColor) {
 
   const int minSpace = OtLayout::MINSPACEWIDTH * emScale;
   const int  defaultSpace = OtLayout::SPACEWIDTH * emScale;
@@ -2404,7 +2374,7 @@ void OtLayout::jutifyLine_old(hb_font_t * shapefont, hb_buffer_t * text_buffer, 
   hb_buffer_destroy(buffer);
 }
 
-void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int lineWidth, int emScale, bool tajweedColor) {
+void OtLayout::jutifyLine(hb_font_t* shapefont, hb_buffer_t* text_buffer, int lineWidth, int emScale, bool tajweedColor) {
 
   if (applyJustification && lineWidth != 0) {
     hb_buffer_set_justify(text_buffer, lineWidth);
@@ -2447,7 +2417,7 @@ void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int 
 
 }
 
-QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor) {
+QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t  cluster_level) {
 
   QList<LineLayoutInfo> page;
 
@@ -2482,6 +2452,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
   savedprops.direction = HB_DIRECTION_RTL;
   savedprops.script = HB_SCRIPT_ARABIC;
   savedprops.language = hb_language_from_string("ar", strlen("ar"));
+
   savedprops.reserved1 = 0;
   savedprops.reserved2 = 0;
 
@@ -2508,6 +2479,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
   {
     hb_buffer_clear_contents(buffer);
     hb_buffer_set_segment_properties(buffer, savedprops);
+    hb_buffer_set_cluster_level(buffer, cluster_level);
     hb_buffer_add_utf16(buffer, line.utf16(), -1, 0, -1);
   };
 
@@ -2531,6 +2503,17 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 
     if (whichJust == WhichJust::HarfBuzz) {
       jutifyLine(shapefont, buffer, lineWidth, emScale, tajweedColor);
+      /*
+      hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
+      int currentlineWidth = 0;
+      for (int i = glyph_count - 1; i >= 0; i--) {
+
+        currentlineWidth += glyph_pos[i].x_advance;
+
+      }
+      currentlineWidth = currentlineWidth >> OtLayout::SCALEBY;
+      int llineWidth = lineWidth >> OtLayout::SCALEBY;
+      std::cout << "llineWidth=" << llineWidth << ",currentlineWidth=" << currentlineWidth << ",diff=" << currentlineWidth - llineWidth << std::endl;*/
     }
     else if (whichJust == WhichJust::Second) {
       jutifyLine_old(shapefont, buffer, lineWidth, emScale, tajweedColor);
@@ -2616,7 +2599,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
     hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
     QVector<quint32> spaces;
     int currentlineWidth = 0;
-
+    int spaceWidth = 0;
 
     LineLayoutInfo lineLayout;
 
@@ -2640,55 +2623,47 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
       glyphLayout.beginsajda = false;
       glyphLayout.endsajda = false;
 
-      if (glyphLayout.codepoint == 32) {
-        if (lineWidth != 0) {
-          glyphLayout.x_advance = minSpace;
-          spaces.append(lineLayout.glyphs.size());
-        }
-        else {
-          glyphLayout.x_advance = defaultSpace;
-          currentlineWidth += glyphLayout.x_advance;
-        }
+      currentlineWidth += glyphLayout.x_advance;
 
-      }
-      else {
-        currentlineWidth += glyphLayout.x_advance;
+      if (glyphLayout.codepoint == 32) {
+        spaces.append(lineLayout.glyphs.size());
+        spaceWidth += glyphLayout.x_advance;
+
       }
 
       lineLayout.glyphs.push_back(glyphLayout);
 
     }
 
-    lineLayout.underfull = 0;
+    lineLayout.overfull = currentlineWidth - lineWidth;
 
-    double spaceaverage = 0;
-    if (lineWidth != 0) {
-
-      if (spaces.size() != 0) {
-        spaceaverage = (lineWidth - currentlineWidth) / spaces.size();
-      }
-
-      if (spaceaverage > minSpace) {
+    if (lineWidth != 0 && spaces.size() != 0) {
+      if (lineLayout.overfull < 0) {        
+        double spaceAdded = -lineLayout.overfull / spaces.size();
         for (auto index : spaces) {
-          lineLayout.glyphs[index].x_advance = spaceaverage;
+          lineLayout.glyphs[index].x_advance += spaceAdded;
+          lineLayout.overfull += spaceAdded;
         }
       }
-      else {
-        lineLayout.underfull = (minSpace - spaceaverage) * spaces.size();
-        spaceaverage = minSpace;
+      else if (lineLayout.overfull > 0) {
+        double spaceRemoved = lineLayout.overfull / spaces.size();
+        for (auto index : spaces) {
+          auto newSpace = lineLayout.glyphs[index].x_advance - spaceRemoved;
+          if (newSpace > minSpace) {
+            lineLayout.glyphs[index].x_advance = newSpace;
+            lineLayout.overfull -= spaceRemoved;
+          }
+        }
+        
       }
+
     }
-
-
-
 
     if (justification == LineJustification::Distribute) {
       lineLayout.xstartposition = 0;
     }
     else {
-      //lineLayout.xstartposition = -(lineWidth - (currentlineWidth + spaces.size() * defaultSpace)) / 2;
-      lineLayout.xstartposition = (pageWidth - (currentlineWidth + spaces.size() * spaceaverage)) / 2;
-      //lineLayout.xstartposition = 0;
+      lineLayout.xstartposition = (pageWidth - currentlineWidth) / 2;
     }
 
     lineLayout.ystartposition = currentyPos;
@@ -2705,7 +2680,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 
 }
 
-LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVerse) {
+LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVerse, hb_buffer_cluster_level_t  cluster_level) {
 
 
   bool isQurancomplex = false;
@@ -2730,7 +2705,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
   hb_buffer_set_direction(buffer, HB_DIRECTION_RTL);
   hb_buffer_set_script(buffer, HB_SCRIPT_ARABIC);
   hb_buffer_set_language(buffer, hb_language_from_string("ar", strlen("ar")));
-  //hb_buffer_set_cluster_level(buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+  hb_buffer_set_cluster_level(buffer, cluster_level);
 
   hb_font_t* font = this->createFont(emScale);
 
@@ -2757,7 +2732,12 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
   }
 
+  QRegularExpression reaya("(\\d+)");
+  reaya.setPatternOptions(QRegularExpression::UseUnicodePropertiesOption);
+
+
   quran = quran.replace(QRegularExpression("\\s*" + QString("۞") + "\\s*"), QString("۞") + " ");
+  quran == quran.replace(reaya, QString("۝") + "\\1");
 
   QSet<int> lineBreaks;
   QSet<int> suraLines;
@@ -2807,6 +2787,8 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
   QString sajdapatterns = "(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)"; // sajdapatterns.replace("\u0657", "\u08F0").replace("\u065E", "\u08F1").replace("\u0656", "\u08F2");
   re = QRegularExpression(sajdapatterns, QRegularExpression::MultilineOption);
   i = re.globalMatch(quran);
+
+
   while (i.hasNext()) {
     QRegularExpressionMatch match = i.next();
     int startOffset = match.capturedStart(match.lastCapturedIndex()); // startOffset == 6
@@ -2926,7 +2908,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
       if (potcandidates.contains(key)) {
         auto& candidate = candidates.at(potcandidates[key]);
         if (candidate.pageNumber != pageNumber && candidate.totalDemerits > totalDemerits) {
-          throw "Should not";
+          //throw "Should not";
         }
       }
 
@@ -3169,6 +3151,8 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
     QString textt = QString::fromUtf8(qurantext[pageNumber] + 1);
 
+    textt == textt.replace(reaya, QString("۝") + "\\1");
+
     auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
     int beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
@@ -3259,8 +3243,6 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 }
 int OtLayout::AlternatelastCode = 0xF0000;
 GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph) {
-
-
 
   auto paths = JustificationInProgress ? &alternatePaths[glyphCode] : &nojustalternatePaths[glyphCode];
 

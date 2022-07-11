@@ -34,76 +34,78 @@
 
 class GlyphWindow : public QMainWindow
 {
-	Q_OBJECT
-	
-public :
-	GlyphWindow(Glyph* glyph) ;
+  Q_OBJECT
+
+public:
+  GlyphWindow(Glyph* glyph);
 
 public slots:
-	void executeCommands () ;	
-	void glyphChanged(QString name);
-	bool loadFile(const QString &);
-	void showEvent(QShowEvent *event) Q_DECL_OVERRIDE;
-	void resizeEvent(QResizeEvent *event) Q_DECL_OVERRIDE;
+  void executeCommands();
+  void glyphChanged(QString name);
+  bool loadFile(const QString&);
+  void showEvent(QShowEvent* event) Q_DECL_OVERRIDE;
+  void resizeEvent(QResizeEvent* event) Q_DECL_OVERRIDE;
 
 private slots:
-	void about();
-	void importImage();
-	void enableImge(bool checked);
-	void enableFill(bool enable);
-	void imageVisible(bool visible);
-	void fillContour(bool fill);
-	void pointerGroupClicked(int id);
+  void about();
+  void importImage();
+  void enableImge(bool checked);
+  void enableFill(bool enable);
+  void imageVisible(bool visible);
+  void fillContour(bool fill);
+  void pointerGroupClicked(int id);
 
-private :
-	MP_options * _mp_options ;
-	MP _mp_instance ;
-	
-	//QSvgWidget * svgWidget ;
-	QScrollArea * scrollArea ;
-	
-	
-	QPlainTextEdit * mpostEdit ;	
-	
-	
-	QPlainTextEdit * logOutput, *termOutput,  * psOutput, * svgOutput ;
-	
-	QTabWidget * tabWidget ;
-	QPushButton * executeButton ;	
-	QVBoxLayout * mainLayout ;
+private:
+  MP_options* _mp_options;
+  MP _mp_instance;
 
-	GlyphView * glyphView;	
-	GlyphScene *scene;
+  //QSvgWidget * svgWidget ;
+  QScrollArea* scrollArea;
 
-	Glyph* glyph;
 
-	void createActions();
-	void createStatusBar();
-	void createDockWindows();
-	void initializeImageFileDialog(QFileDialog &dialog, QFileDialog::AcceptMode acceptMode);
-	bool save();
-	void closeEvent(QCloseEvent *event);
-	bool maybeSave();
-	void writeSettings();
-	void createUndoView();
-	void generatePropertiesView();
+  QPlainTextEdit* mpostEdit;
 
-	QMenu *viewMenu;
-	QMenu *itemMenu;
 
-	QUndoStack *undoStack;
-	QUndoView *undoView;
-	QDockWidget *dockProprties;
-	QDockWidget* dockUndo;
-	QDockWidget* metapostCode;
+  QPlainTextEdit* logOutput, * termOutput, * psOutput, * svgOutput;
 
-	//toolbar
-	QToolBar *fileToolBar;
-	QToolBar *editToolBar;
-	QToolBar *pointerToolbar;
+  QTabWidget* tabWidget;
+  QPushButton* executeButton;
+  QVBoxLayout* mainLayout;
 
-	QButtonGroup *pointerTypeGroup;
+  GlyphView* glyphView;
+  GlyphScene* scene;
 
-} ;
+  Glyph* glyph;
+
+  void createActions();
+  void createStatusBar();
+  void createDockWindows();
+  void initializeImageFileDialog(QFileDialog& dialog, QFileDialog::AcceptMode acceptMode);
+  bool save();
+  void closeEvent(QCloseEvent* event);
+  bool maybeSave();
+  void writeSettings();
+  void createUndoView();
+  void createPathView();
+  void generatePropertiesView();
+
+  QMenu* viewMenu;
+  QMenu* itemMenu;
+
+  QUndoStack* undoStack;
+  QUndoView* undoView;
+  QDockWidget* dockProprties;
+  QDockWidget* dockUndo;
+  QDockWidget* dockPath;
+  QDockWidget* metapostCode;
+
+  //toolbar
+  QToolBar* fileToolBar;
+  QToolBar* editToolBar;
+  QToolBar* pointerToolbar;
+
+  QButtonGroup* pointerTypeGroup;
+
+};
 
 #endif // MAINWINDOWS_H

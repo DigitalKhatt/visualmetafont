@@ -64,13 +64,15 @@ else()
   set(Qt5Core_DIR "${QTBuild}/lib/cmake/Qt5Core")
   set(Qt5OpenGL_DIR "${QTBuild}/lib/cmake/Qt5OpenGL")
   set(Qt5QML_DIR "${QTBuild}/lib/cmake/Qt5QML")
-  set(Qt5SVG_DIR "${QTBuild}/lib/cmake/Qt5SVG")
+  set(Qt5Svg_DIR "${QTBuild}/lib/cmake/QT5Svg")
   set(Qt5PrintSupport_DIR "${QTBuild}/lib/cmake/Qt5PrintSupport")
   set(Qt5Network_DIR "${QTBuild}/lib/cmake/Qt5Network")
   set(Qt5EventDispatcherSupport_DIR "${QTBuild}/lib/cmake/Qt5EventDispatcherSupport")
   set(Qt5FontDatabaseSupport_DIR "${QTBuild}/lib/cmake/Qt5FontDatabaseSupport")
+  set(Qt5Zlib_DIR "${QTBuild}/lib/cmake/Qt5Zlib")
+  set(Qt5EglSupport_DIR "${QTBuild}/lib/cmake/Qt5EglSupport")
 
-  find_package(Qt5 COMPONENTS Core OpenGL Svg PrintSupport Widgets EventDispatcherSupport FontDatabaseSupport REQUIRED)
+  find_package(Qt5 COMPONENTS Core OpenGL Svg PrintSupport Widgets EventDispatcherSupport FontDatabaseSupport Zlib REQUIRED)
 
   get_target_property(
     linked_libs
@@ -135,11 +137,13 @@ set(GlyphParser
 
 source_group("GlyphParser" FILES ${GlyphParser})
 
-set(HTML5
-  HTML5/ExportToHTML.cpp
-  HTML5/ExportToHTML.h
+set(Export
+  Export/ExportToHTML.cpp
+  Export/ExportToHTML.h
+  Export/GenerateLayout.h
+  Export/GenerateLayout.cpp
   )
-source_group("HTML5" FILES ${HTML5})
+source_group("Export" FILES ${Export})
 
 set(Layout_WithoutGUI
   Layout/JustificationContext.cpp
@@ -228,6 +232,8 @@ set(GlyphWindow
   glyphwindow/pairitem.cpp
   glyphwindow/ruleritem.cpp
   glyphwindow/tensiondirectionitem.cpp
+  glyphwindow/pathview.h
+  glyphwindow/pathview.cpp
   )
 source_group("GlyphWindow" FILES ${GlyphWindow})
 
@@ -244,7 +250,7 @@ source_group("MetaFont" FILES ${MetaFont})
 
 
 set(ALL_FILES  ${Automedina} ${GlyphWindow} ${FeaParser} ${MetaFont} ${FontWindow}
-  ${GlyphParser} ${HTML5} ${Layout} ${Main} ${Pdf} ${QuranText} ${Generated_Files} ${Resource_Files})
+  ${GlyphParser} ${Export} ${Layout} ${Main} ${Pdf} ${QuranText} ${Generated_Files} ${Resource_Files})
 
 
 set(WEBLIB_FILES  ${Automedina} ${FeaParser}  
@@ -296,6 +302,7 @@ endif()
 add_dependencies(${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser)
 add_dependencies(${WEBLIB_NAME} harfbuzz mplib)
 
+if (NOT EMSCRIPTEN)
 # Link with other targets.
 target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser     
   Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport Qt5::Widgets
@@ -305,6 +312,14 @@ target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser
   ZLIB::ZLIB
   )
 #Qt5_import_plugins(${PROJECT_NAME} INCLUDE Qt5::QSvgPlugin INCLUDE Qt5::QSvgIconPlugin)
+else()
+target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser     
+  Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport Qt5::Widgets
+  Qt5::QJpegPlugin
+  Qt5::QSvgPlugin
+  Qt5::QSvgIconPlugin
+  )
+endif()
 
 target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib # QtPropertyBrowser     
   Qt5::Core  # Qt5::Widgets Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport
@@ -337,6 +352,8 @@ if (NOT EMSCRIPTEN)
   ]]
 
 else()
+
+  target_compile_options(${WEBLIB_NAME} PUBLIC -w)
 
   target_link_libraries(${PROJECT_NAME} PUBLIC Qt5::QWasmIntegrationPlugin Qt5::EventDispatcherSupport Qt5::FontDatabaseSupport)
 
@@ -390,8 +407,9 @@ else()
     "SHELL:-s \"EXTRA_EXPORTED_RUNTIME_METHODS=['FS','print','printErr']\""
     #"SHELL:-s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=[\\\"$Browser\\\"]"
     "SHELL:-s MODULARIZE=1"
+    "SHELL:-s IMPORTED_MEMORY"    
     #"SHELL:-s TOTAL_MEMORY=1048576000"
-    "SHELL:-s ENVIRONMENT=web"
+    "SHELL:-s ENVIRONMENT=web"    
     #"SHELL:-s \"EXPORTED_FUNCTIONS=['_main']\""
     #--post-js "${CMAKE_CURRENT_SOURCE_DIR}/post-js.js"
     )
@@ -438,6 +456,7 @@ else()
 
   endif()
 
+  #[[
   add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/automedina.fea" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/ayah.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
@@ -448,5 +467,6 @@ else()
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/lookups.json" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/parameters.json" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMENT "Copying to output directory")
+  ]]
 
 endif()

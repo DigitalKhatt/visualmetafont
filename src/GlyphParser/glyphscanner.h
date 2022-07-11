@@ -58,7 +58,7 @@ namespace glyphparser {
 		/** Create a new scanner object. The streams arg_yyin and arg_yyout default
 		 * to cin and cout, but that assignment is only made when initializing in
 		 * yylex(). */
-		Scanner(std::istream* arg_yyin = 0,
+		Scanner(Driver& driver, std::istream* arg_yyin = 0,
 			std::ostream* arg_yyout = 0);
 
 		/** Required for virtual functions */
@@ -78,6 +78,11 @@ namespace glyphparser {
 		void begin_dir_state();
 
 		void end_dir_state();
+
+    bool scanPairVar = false;
+
+  private:
+    Driver& driver;
 
 	};
 

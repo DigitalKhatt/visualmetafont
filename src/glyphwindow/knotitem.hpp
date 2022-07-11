@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -24,10 +24,12 @@
 #include <QPainter>
 #include <QRectF>
 
+class KnotControlledItem;
+
 
 class KnotItem : public QGraphicsObject {
 	Q_OBJECT
-
+		friend KnotControlledItem;
 public:
 	enum KnotType {
 		InCurve,
@@ -55,6 +57,7 @@ private:
 	KnotType knottype;
 	double radius;
 	QBrush brush;
-	QPen pen;	
+	QPen pen;
+	QPen disabledPen;
 };
 #endif // KNOTITEM_H

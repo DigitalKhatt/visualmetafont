@@ -21,6 +21,8 @@
 #define VM_FSMDRIVER_H
 
 #include  <functional>
+#include <unordered_map>
+#include <string>
 
 class OtLayout;
 class FSMSubtable;

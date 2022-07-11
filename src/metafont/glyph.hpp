@@ -30,11 +30,12 @@
 
 #include "qpainterpath.h"
 #include "exp.hpp"
+#include "pathpointexp.hpp"
 
 class Font;
 struct mp_edge_object;
-typedef struct mp_gr_knot_data*mp_gr_knot;
-typedef struct MP_instance*MP;
+typedef struct mp_gr_knot_data* mp_gr_knot;
+typedef struct MP_instance* MP;
 
 class Glyph : public QObject {
 	Q_OBJECT
@@ -73,44 +74,111 @@ public:
 		int applytopoint;
 		bool isEquation;
 		bool isInControllePath;
+		QString affects;
 	};
 	struct ImageInfo
 	{
 		QString path;
 		QPointF pos;
 		QTransform transform;
-	};	
+	};
 	struct ComponentInfo
-	{		
+	{
 		QPointF pos;
 		QTransform transform;
 	};
 
 	struct KnotEntryExit {
-		QString value;
+		//QString value;
 		QString macrovalue;
-		QString controlValue;
-		bool isDirConstant;		
-		bool isControlConstant;
-		double x;
-		double y;
-		mpgui_knot_type type;
-		path_join_type jointtype;
-		bool isEqualAfter;
-		bool isEqualBefore;
-		bool isAtleast;
-		//QVariant firstValue;
-		//QVariant secondValue;
+		//QString controlValue;		
+		//bool isControlConstant = false;
+		//double x = 0;
+		//double y = 0;
+		mpgui_knot_type type = mpgui_endpoint;
+		path_join_type jointtype = path_join_control;
+		bool isEqualAfter = false;
+		bool isEqualBefore = false;
+		bool isAtleast = false;
+		std::unique_ptr<MFExpr> dirExpr = nullptr;
+		std::unique_ptr<MFExpr> tensionExpr = nullptr;
+
+		KnotEntryExit() {}
+
+		~KnotEntryExit() {}
+
+		bool isControllable() {
+			return (dirExpr && (dirExpr->containsConstant() || dirExpr->containsParam())) || (tensionExpr && (tensionExpr->containsConstant() || tensionExpr->containsParam()));
+		}
+
+		KnotEntryExit& operator=(const KnotEntryExit& other)
+		{
+			if (this != &other)
+			{
+				//this->value = other.value;
+				this->macrovalue = other.macrovalue;
+				//this->controlValue = other.controlValue;				
+				//this->isControlConstant = other.isControlConstant;
+				//this->x = other.x;
+				//this->y = other.y;
+				this->type = other.type;
+				this->jointtype = other.jointtype;
+				this->isEqualAfter = other.isEqualAfter;
+				this->isEqualBefore = other.isEqualBefore;
+				this->isAtleast = other.isAtleast;
+
+				if (other.dirExpr) {
+					this->dirExpr = other.dirExpr->clone();
+				}
+				else {
+					this->dirExpr = nullptr;
+				}
+
+				if (other.tensionExpr) {
+					this->tensionExpr = other.tensionExpr->clone();
+				}
+				else {
+					this->tensionExpr = nullptr;
+				}
+			}
+
+
+			return *this;
+		}
+
+		KnotEntryExit(const KnotEntryExit& other)
+		{
+			*this = other;
+		}
 	};
 	struct Knot {
-		QString value;		
-		bool isConstant;
-		double x;
-		double y;		
-		QString paramName;
 		KnotEntryExit leftValue;
 		KnotEntryExit rightValue;
-		
+		std::unique_ptr<MFExpr> expr = nullptr;
+
+		Knot() = default;
+
+		//~Knot() {}
+
+		Knot(const Knot& other) {
+			this->leftValue = other.leftValue;
+			this->rightValue = other.rightValue;
+			if (other.expr) {
+				this->expr = other.expr->clone();
+			}
+
+		}
+
+		Knot& operator=(const Knot& other)
+		{
+			this->leftValue = other.leftValue;
+			this->rightValue = other.rightValue;
+			if (other.expr) {
+				this->expr = other.expr->clone();
+			}
+
+			return *this;
+		}
 	};
 
 	struct BBox {
@@ -129,32 +197,31 @@ public:
 		std::optional<QPoint> leftAnchor;
 		std::optional<QPoint> rightAnchor;
 	};
-	
+
 	typedef QHash<Glyph*, Glyph::ComponentInfo> QHashGlyphComponentInfo;
 	typedef QVector<Knot> GlyphPath;
-	
+
 
 public:
 	friend class GlyphCellItem;
-	Glyph(QString code, MP mp,Font * parent);	
+	Glyph(QString code, MP mp, Font* parent);
 	~Glyph();
 
 	Q_PROPERTY(QString source READ source WRITE setSource NOTIFY valueChanged)
-	Q_PROPERTY(QString name READ name WRITE setName NOTIFY valueChanged)
-	Q_PROPERTY(int unicode READ unicode WRITE setUnicode NOTIFY valueChanged)
-	Q_PROPERTY(double width READ width WRITE setWidth NOTIFY valueChanged)
-	Q_PROPERTY(double height READ height WRITE setHeight NOTIFY valueChanged)
-	Q_PROPERTY(double depth READ depth WRITE setDepth NOTIFY valueChanged)
-	Q_PROPERTY(double leftTatweel READ leftTatweel WRITE setleftTatweel NOTIFY valueChanged)
-	Q_PROPERTY(double rightTatweel READ rightTatweel WRITE setrightTatweel NOTIFY valueChanged) 
-		
-	Q_PROPERTY(QString body READ body WRITE setBody NOTIFY valueChanged)
-	Q_PROPERTY(QString verbatim READ verbatim WRITE setVerbatim NOTIFY valueChanged)
-	Q_PROPERTY(QString parameters READ parameters WRITE setParameters NOTIFY valueChanged)
-	Q_PROPERTY(Glyph::ImageInfo image READ image WRITE setImage NOTIFY valueChanged)
-	Q_PROPERTY(QHashGlyphComponentInfo components READ components WRITE setComponents NOTIFY valueChanged)
+		Q_PROPERTY(QString name READ name WRITE setName NOTIFY valueChanged)
+		Q_PROPERTY(int unicode READ unicode WRITE setUnicode NOTIFY valueChanged)
+		Q_PROPERTY(double width READ width WRITE setWidth NOTIFY valueChanged)
+		Q_PROPERTY(double height READ height WRITE setHeight NOTIFY valueChanged)
+		Q_PROPERTY(double depth READ depth WRITE setDepth NOTIFY valueChanged)
+		Q_PROPERTY(double leftTatweel READ leftTatweel WRITE setleftTatweel NOTIFY valueChanged)
+		Q_PROPERTY(double rightTatweel READ rightTatweel WRITE setrightTatweel NOTIFY valueChanged)
 
-	void setSource(QString source, bool structureChanged = true);
+		Q_PROPERTY(QString body READ body WRITE setBody NOTIFY valueChanged)
+		Q_PROPERTY(QString verbatim READ verbatim WRITE setVerbatim NOTIFY valueChanged)		
+		Q_PROPERTY(Glyph::ImageInfo image READ image WRITE setImage NOTIFY valueChanged)
+		Q_PROPERTY(QHashGlyphComponentInfo components READ components WRITE setComponents NOTIFY valueChanged)
+
+		void setSource(QString source, bool structureChanged = true);
 	QString source();
 	void setBeginMacroName(QString macro);
 	QString beginMacroName();
@@ -173,7 +240,7 @@ public:
 	void setleftTatweel(double lefttatweel);
 	double leftTatweel() const;
 	void setrightTatweel(double righttatweel);
-	double rightTatweel() const;	
+	double rightTatweel() const;
 	void setBody(QString body, bool autoParam = false);
 	QString body() const;
 	void setVerbatim(QString body);
@@ -182,34 +249,33 @@ public:
 	Glyph::ImageInfo image() const;
 	void setComponents(QHashGlyphComponentInfo components);
 	QHashGlyphComponentInfo components() const;
-	
 
-	void setParameters(QString parameters);
-	void parseComponents(QString componentSource);	
-	void setComponent(QString name, double x, double y, double t1, double t2, double t3, double t4);
-	void setParameter(QString name, Glyph::ParameterType type, double x, double y, Glyph::ParameterPosition position, int numsubpath, int numpoint, bool isEquation);
+
+	
+	void parseComponents(QString componentSource);
+	void setComponent(QString name, double x, double y, double t1, double t2, double t3, double t4);	
+	void setParameter(QString name, Exp* exp, bool isEquation,bool isInControllePath, QString affects);
 	void setParameter(QString name, Exp* exp, bool isEquation);
+	void setParameter(QString name, Exp* exp, bool isEquation, bool isInControllePath);
 	void parsePaths(QString pathsSource);
 	QString parameters() const;
 	QString getError();
 	QString getLog();
 
-	mp_edge_object*  getEdge(bool resetExpParams = false);
+	mp_edge_object* getEdge(bool resetExpParams = false);
 	QUndoStack* undoStack() const;
 
-	QHash<QString, Param> ldirections;
-	QHash<QString, Param> rdirections;
-	QHash<QString, Param> ltensions;
-	QHash<QString, Param> rtensions;	
+	
 	QMap<QString, Param> params;
+	QMap<QString, Param*> dependents;
 	QMap<QString, QSharedPointer<Exp>> expressions;
 	QHashGlyphComponentInfo m_components;
 	QMap<int, QMap<int, Knot*> >  controlledPaths;
 	QMap<int, QString >  controlledPathNames;
 
 	Font* font;
-	
-	void setPropertyWithUndo(const QString &name, const QVariant &value);
+
+	void setPropertyWithUndo(const QString& name, const QVariant& value);
 
 	QPainterPath getPath();
 
@@ -218,17 +284,17 @@ public:
 	ComputedValues getComputedValues();
 
 
-signals:	
+signals:
 	void valueChanged(QString name, bool structureChanged = false);
 
 protected:
-	bool event(QEvent *e) Q_DECL_OVERRIDE;
+	bool event(QEvent* e) Q_DECL_OVERRIDE;
 
 private slots:
 	void componentChanged(QString name, bool structureChanged = false);
 
 private:
-	
+
 	QPainterPath getPathFromEdge(mp_edge_object* h);
 	QPainterPath mp_dump_solved_path(mp_gr_knot h);
 
@@ -242,17 +308,16 @@ private:
 	double m_lefttatweel;
 	double m_righttatweel;
 	QString m_body;
-	QString m_verbatim;
-	QString m_parameters;
+	QString m_verbatim;	
 	Glyph::ImageInfo m_image;
 	mp_edge_object* edge;
 	MP mp;
-	
+
 	bool isSetSource;
 	QUndoStack* m_undoStack;
 	QString m_beginmacroname;
-	
-	
+
+
 };
 
 typedef QHash<Glyph*, Glyph::ComponentInfo> QHashGlyphComponentInfo;

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -30,12 +30,14 @@
 #include "guidesitem.hpp"
 #include "componentitem.hpp"
 
+class KnotControlledItem;
 
 class Glyph;
 
 class GlyphScene : public QGraphicsScene {
 	Q_OBJECT
 		friend class GlyphView;
+	friend class KnotControlledItem;
 public:
 
 	enum class ItemFlags {
@@ -45,24 +47,28 @@ public:
 		Fill = 4
 	};
 
-	GlyphScene(QObject * parent = Q_NULLPTR);
+	GlyphScene(QObject* parent = Q_NULLPTR);
 	~GlyphScene();
 	enum Mode { MoveItem, Ruler, AddPoint };
-	QLabel * pointerPosition;
-	void setGlyph(Glyph * glyph);
+	QLabel* pointerPosition;
+	void setGlyph(Glyph* glyph);
 
 	void setImageVisible(bool  visible);
 	void setImageEnable(bool  enable);
 	void setFillEnable(bool  enable);
+
+	QSet<int> currentPressdKeys;
 
 public slots:
 	void setMode(Mode mode);
 
 
 protected:
-	void mouseMoveEvent(QGraphicsSceneMouseEvent *mouseEvent) Q_DECL_OVERRIDE;
-	void mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) Q_DECL_OVERRIDE;
-	void mouseReleaseEvent(QGraphicsSceneMouseEvent *mouseEvent) Q_DECL_OVERRIDE;
+	void mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent) Q_DECL_OVERRIDE;
+	void mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent) Q_DECL_OVERRIDE;
+	void mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent) Q_DECL_OVERRIDE;
+	void keyPressEvent(QKeyEvent* event) override;
+	void keyReleaseEvent(QKeyEvent* event) override;
 
 private slots:
 	void recordGlyphChange(QString name);
@@ -84,13 +90,14 @@ private:
 	bool wasMouseMoveEvent;
 
 	void loadImage(Glyph::ImageInfo imageInfo);
-	ContourItem * contour;
+	ContourItem* contour;
 
-	GuidesItem * guides;
+	GuidesItem* guides;
 	QVector<ComponentItem*> components;
-	ImageItem * image;
+	ImageItem* image;
 
 	ItemFlags itemFlags;
+
 };
 
 constexpr GlyphScene::ItemFlags operator|(GlyphScene::ItemFlags a, GlyphScene::ItemFlags b)
@@ -100,7 +107,7 @@ constexpr GlyphScene::ItemFlags operator|(GlyphScene::ItemFlags a, GlyphScene::I
 
 constexpr GlyphScene::ItemFlags operator&(GlyphScene::ItemFlags a, GlyphScene::ItemFlags b)
 {
-	return static_cast<GlyphScene::ItemFlags>(static_cast<int>(a)&static_cast<int>(b));
+	return static_cast<GlyphScene::ItemFlags>(static_cast<int>(a) & static_cast<int>(b));
 }
 
 constexpr GlyphScene::ItemFlags operator~(GlyphScene::ItemFlags a)

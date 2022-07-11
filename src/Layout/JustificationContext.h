@@ -21,42 +21,43 @@
 
 #include "qvector.h"
 #include "qmap.h"
+#include  <unordered_map>
 
 
 enum class StartEndLig {
-	StartEnd,
-	Start,
-	End,
+  StartEnd,
+  Start,
+  End,
   EndKashida
 };
 
 
 struct GlyphExpansion {
-	float MinLeftTatweel = 0.0;
-	float MaxLeftTatweel = 0.0;
-	float MinRightTatweel = 0.0;
-	float MaxRightTatweel = 0.0;
+  float MinLeftTatweel = 0.0;
+  float MaxLeftTatweel = 0.0;
+  float MinRightTatweel = 0.0;
+  float MaxRightTatweel = 0.0;
   int weight = 1;
   int level = 0;
-	StartEndLig startEndLig;
+  StartEndLig startEndLig;
   bool shrinkIsAbsolute = false;
   bool stretchIsAbsolute = true;
-  
+
 };
 
 
 
 class JustificationContext {
 public:
-	std::vector<unsigned int> GlyphsToExtend;
-	std::vector<unsigned int> Substitutes;
-	std::unordered_map<unsigned int, GlyphExpansion> Expansions;
+  std::vector<unsigned int> GlyphsToExtend;
+  std::vector<unsigned int> Substitutes;
+  std::unordered_map<unsigned int, GlyphExpansion> Expansions;
   int totalWeight = 0;
 
-	void clear() {
-		GlyphsToExtend.clear();
-		Substitutes.clear();
-		Expansions.clear();
+  void clear() {
+    GlyphsToExtend.clear();
+    Substitutes.clear();
+    Expansions.clear();
     totalWeight = 0;
-	}
+  }
 };

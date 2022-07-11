@@ -28,88 +28,91 @@
 class LayoutWindow;
 
 class Automedina {
-	friend class OtLayout;
-	friend class AnchorCalc;
-	friend class LayoutWindow;
-	friend class GlyphVis;
-	friend class ToOpenType;
-
-public : 
-	//static const quint16 AyaNumberCode = 65200;
-	static const quint16 AyaNumberCode = 0xE000;
-	const int markheigh = 500;
-	const int markdepth = 80;
-	const int spacemkmk = 100;
-	const int spacebasetotopmark = 100;
-	const int shaddamarkheight = markheigh - 250;
-	const int spacebasetobottommark = 50;
-	const int minwaqfhigh = 900;
+  friend class OtLayout;
+  friend class AnchorCalc;
+  friend class LayoutWindow;
+  friend class GlyphVis;
+  friend class ToOpenType;
 
 public:
-	Automedina(OtLayout * layout,MP mp, bool extended);
-	Lookup* getLookup(QString lookupName);	
-	QSet<quint16> classtoUnicode(QString className);
-	QSet<quint16> regexptoUnicode(QString regexp);
-	QSet<QString> classtoGlyphName(QString className);
+  //static const quint16 AyaNumberCode = 65200;
+  static const quint16 AyaNumberCode = 0xE000;
+  const int markheigh = 500;
+  const int markdepth = 80;
+  const int spacemkmk = 100;
+  const int spacebasetotopmark = 100;
+  const int shaddamarkheight = markheigh - 250;
+  const int spacebasetobottommark = 50;
+  const int minwaqfhigh = 900;
 
-	QHash<QString, GlyphVis>& glyphs;
-	CalcAnchor  getanchorCalcFunctions(QString functionName, Subtable * subtable);
+public:
+  Automedina(OtLayout* layout, MP mp, bool extended);
+  Lookup* getLookup(QString lookupName);
+  QSet<quint16> classtoUnicode(QString className);
+  QSet<quint16> regexptoUnicode(QString regexp);
+  QSet<QString> classtoGlyphName(QString className);
+
+  QHash<QString, GlyphVis>& glyphs;
+  CalcAnchor  getanchorCalcFunctions(QString functionName, Subtable* subtable);
 
 private:
-	OtLayout * m_layout;
-	
+  OtLayout* m_layout;
 
-	Lookup * defaultmarkposition();
-	Lookup * defaultwaqfmarktobase();
-	Lookup * forsmalllalef();
-	Lookup * forsmallhighwaw();
-	Lookup * forhamza();
-	Lookup * forheh();	
-	Lookup * forwaw();
-	Lookup * leftrightcursive();
-	Lookup * ligaturecursive();
-	Lookup * pointmarks();
-	Lookup * defaultwaqfmarkabovemarkprecise();
-	Lookup * defaultdotmarks();
-	Lookup* defaultmarkdotmarks();
-	Lookup* defaultmkmk();
-	Lookup* ayanumbers();
-	Lookup* ayanumberskern();
-	Lookup * rehwawcursive();
-	Lookup * lowmarkafterwawandreh();
-	Lookup* tajweedcolorcpp();
-	//Justification
-	Lookup* shrinkstretchlt(float lt, QString featureName);
-	Lookup* shrinkstretchlt();
-	QHash<QString, QSet<QString>> classes;
-	//void setAnchorCalcFunctions();
-	void addchar(QString macroname,
-		int charcode,
-		double lefttatweel,
-		double righttatweel,
-		std::optional<double> leftextratio,
-		std::optional<double> rightextratio,
-		std::optional<double> left_tatweeltension,
-		std::optional<double> right_tatweeltension,
-		QString newname,
-		std::optional<int> which_in_baseline);
-	void addchars();
-	void generateGlyphs();
-	QMap<QString, QSet<quint16>> cachedClasstoUnicode;
-	//QMap<QString, AnchorCalc*> anchorCalcFunctions;
-	
 
-	QSet<QString> initchar;
-	QSet<QString> medichar;
-	
-	MP mp;
+  Lookup* defaultmarkposition();
+  Lookup* defaultwaqfmarktobase();
+  Lookup* forsmalllalef();
+  Lookup* forsmallhighwaw();
+  Lookup* forhamza();
+  Lookup* forheh();
+  Lookup* forwaw();
+  Lookup* leftrightcursive();
+  Lookup* ligaturecursive();
+  Lookup* pointmarks();
+  Lookup* defaultwaqfmarkabovemarkprecise();
+  Lookup* defaultdotmarks();
+  Lookup* defaultmarkdotmarks();
+  Lookup* defaultmkmk();
+  Lookup* ayanumbers();
+  Lookup* ayanumberskern();
+  Lookup* rehwawcursive();
+  Lookup* lowmarkafterwawandreh();
+  Lookup* tajweedcolorcpp();
+  Lookup* populatecvxx();
+  //Justification
+  Lookup* shrinkstretchlt(float lt, QString featureName);
+  Lookup* shrinkstretchlt();
+  QHash<QString, QSet<QString>> classes;
+  //void setAnchorCalcFunctions();
+  void addchar(QString macroname,
+    int charcode,
+    double lefttatweel,
+    double righttatweel,
+    std::optional<double> leftextratio,
+    std::optional<double> rightextratio,
+    std::optional<double> left_tatweeltension,
+    std::optional<double> right_tatweeltension,
+    QString newname,
+    std::optional<int> which_in_baseline);
+  void addchars();
+  void generateGlyphs();
+  QMap<QString, QSet<quint16>> cachedClasstoUnicode;
+  //QMap<QString, AnchorCalc*> anchorCalcFunctions;
 
-	QMap <QString, QMap<quint16, QPoint>> markAnchors;
-	QMap <QString, QMap<quint16, QPoint>> entryAnchors;
-	QMap <QString, QMap<quint16, QPoint>> exitAnchors;
-	QMap <QString, QMap<quint16, QPoint>> entryAnchorsRTL;
-	QMap <QString, QMap<quint16, QPoint>> exitAnchorsRTL;
 
-	 bool extended;
+  QSet<QString> initchar;
+  QSet<QString> medichar;
+
+  MP mp;
+
+  QMap <QString, QMap<quint16, QPoint>> markAnchors;
+  QMap <QString, QMap<quint16, QPoint>> entryAnchors;
+  QMap <QString, QMap<quint16, QPoint>> exitAnchors;
+  QMap <QString, QMap<quint16, QPoint>> entryAnchorsRTL;
+  QMap <QString, QMap<quint16, QPoint>> exitAnchorsRTL;
+
+  bool extended;
+
+  QVector< QMap<quint16, QVector<quint16> >> cvxxfeatures;
 
 };

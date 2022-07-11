@@ -36,7 +36,7 @@ namespace glyphparser {
 	{
 		streamname = sname;
 
-		Scanner scanner(&in);
+		Scanner scanner(*this ,&in);
 		scanner.set_debug(trace_scanning);
 		this->lexer = &scanner;
 

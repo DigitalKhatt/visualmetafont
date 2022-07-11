@@ -419,6 +419,11 @@ public:
       curr = curr->getAlternate(parameters);
     }
 
+    if (curr->conatinsAnchor(className)) {
+      QPoint anchor = curr->getAnchor(className) + adjust;
+      return anchor;
+    }
+
     GlyphVis* originalglyph;
 
     QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
@@ -465,7 +470,14 @@ public:
       curr = curr->getAlternate(parameters);
     }
 
-    if ((curr->name == "behshape.fina.expa" || curr->originalglyph == "behshape.fina.expa")&& curr->conatinsAnchor("dotbelow")) {
+    //if (glyphName == "behshape.medi.basmala") {
+    //  std::cout << "test" << std::endl;
+    //}
+    if (curr->conatinsAnchor(className)) {
+      QPoint anchor = curr->getAnchor(className) + adjust;
+      return anchor;
+    }
+    else if ((curr->name == "behshape.fina.expa" || curr->originalglyph == "behshape.fina.expa")&& curr->conatinsAnchor("dotbelow")) {
       QPoint anchor = curr->getAnchor("dotbelow") + adjust;
       return anchor;
     }
@@ -476,41 +488,6 @@ public:
 
       return anchor;
     }
-
-    
-
-
-    /*
-    GlyphVis& curr = _y.glyphs[glyphName];
-
-    int height;
-    int width;
-
-    if (!curr.originalglyph.isEmpty() && (curr.charlt != 0 || curr.charrt != 0)) {
-      QPoint adjustoriginal;
-      if (_subtable.classes[className].baseparameters.contains(curr.originalglyph)) {
-        adjustoriginal = _subtable.classes[className].baseparameters[curr.originalglyph];
-      }
-
-      //QPoint originalAnchor = basefunction(curr.originalglyph, className, adjustoriginal);
-      GlyphVis& original = _y.glyphs[curr.originalglyph];
-      double xshift = curr.matrix.xpart - original.matrix.xpart;
-      double yshift = -curr.matrix.ypart + original.matrix.ypart;
-
-      width = original.width * 0.5 + xshift + adjustoriginal.x();
-      height = (int)-original.depth + 50 + yshift - adjustoriginal.y();
-
-    }
-    else {
-      height = (int)-curr.depth + 50;
-      width = curr.width * 0.5;
-    }
-
-
-    width = width + adjust.x();
-    height = height - adjust.y();
-
-    return QPoint(width, -height);*/
 
   };
 private:
@@ -566,6 +543,14 @@ public:
     }
     else if (className == "beforewaw") {
       int width = 200;
+      int height = 200;
+
+      auto value = QPoint{ width , height };
+
+      return value + adjust;
+    }
+    else if (className == "beforesad") {
+      int width = 500;
       int height = 200;
 
       auto value = QPoint{ width , height };

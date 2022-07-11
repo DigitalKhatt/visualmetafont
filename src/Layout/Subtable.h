@@ -136,6 +136,16 @@ struct MultipleSubtable : Subtable {
 
 };
 
+struct AlternateSubtable : Subtable {
+
+  AlternateSubtable(Lookup* lookup);
+  QByteArray getOpenTypeTable(bool extended) override;
+  void readJson(const QJsonObject& json) override;
+
+  QMap<quint16, QVector<quint16> > alternates;
+
+};
+
 struct LigatureSubtable : Subtable {
 
 	LigatureSubtable(Lookup* lookup);

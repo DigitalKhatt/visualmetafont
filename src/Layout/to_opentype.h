@@ -25,6 +25,7 @@
 #include "qmap.h"
 #include "qstring.h"
 #include "commontypes.h"
+#include <unordered_map>
 
 class OtLayout;
 class GlyphVis;
@@ -36,7 +37,7 @@ class ToOpenType
 {
 public:
   ToOpenType(OtLayout* layout);
-  bool GenerateFile(QString fileName);
+  bool GenerateFile(QString fileName, std::string  lokkupsFileName = "lookups.json");
 
   struct GlobalValues {
     int16_t ascender;

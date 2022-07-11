@@ -273,7 +273,7 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
 
   //setAnchorCalcFunctions();
 
- 
+
   layout->expandableGlyphs["behshape.isol.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["behshape.fina.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["kaf.fina.expa"] = { 5,0,0,0 };
@@ -294,110 +294,97 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["feh.fina.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["qaf.isol.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["qaf.fina.expa"] = { 5,0,0,0 };
-  /*
-  layout->expandableGlyphs["behshape.init"] = { 5,-1.0,0,0 };
-  layout->expandableGlyphs["hah.init"] = { 5,-1.0,0,0 };
-  layout->expandableGlyphs["seen.init"] = { 5,-1.0,0,0 };
-  layout->expandableGlyphs["sad.init"] = { 5,-1.0,0,0 };
-  layout->expandableGlyphs["tah.init"] = { 5,-1.0,0,0 };
-  layout->expandableGlyphs["ain.init"] = { 5,-1.0,0,0 };
-  layout->expandableGlyphs["fehshape.init"] = { 5,-1.0,0,0 };
-  layout->expandableGlyphs["kaf.init"] = { 5,-1.2,0,0 };
-  layout->expandableGlyphs["kaf.init.ii"] = { 5,-1.0,0,0 };
-  layout->expandableGlyphs["lam.init"] = { 5,-1.0,0,0 };
-  layout->expandableGlyphs["meem.init"] = { 5,-1.0,0,0 };
-  layout->expandableGlyphs["heh.init"] = { 5,-1.0,0,0 };
-  layout->expandableGlyphs["kaf.init.ii"] = { 5,-1.0,0.0,0.0 };
 
-  layout->expandableGlyphs["heh.medi"] = { 5,-1.0,0,0 };
-  layout->expandableGlyphs["behshape.medi"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["behshape.medi.beforeseen"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["behshape.medi.beforenoon"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["hah.medi"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["hah.medi.afterbeh"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["hah.medi.lam_hah"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["hah.medi.beforemeem"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["seen.medi"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["sad.medi"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["tah.medi"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["ain.medi"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["fehshape.medi"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["kaf.medi"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["lam.medi"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["lam.medi.afterkaf"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["meem.medi"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["meem.medi.afterhah"] = { 5,-1.0,5,-1.0 };
-  layout->expandableGlyphs["seen.medi.basmala"] = { 20,0,0,0 };
-
-  layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,5,-1.0 };
-  layout->expandableGlyphs["hah.fina"] = { 0.0,0.0,5,-1.0 };
-  layout->expandableGlyphs["feh.fina"] = { 0.0,0.0,5,-1.0 };
-  layout->expandableGlyphs["meem.fina"] = { 0.0,0.0,5,-1.0 };
-  layout->expandableGlyphs["behshape.fina"] = { 0.0,0.0,5,-1.0 };
-  layout->expandableGlyphs["qaf.fina"] = { 0.0,0.0,5,-1.0 };
-  layout->expandableGlyphs["noon.fina.basmala"] = { 10.0,0.0,0,-1.0 };*/
-
-  layout->expandableGlyphs["behshape.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["behshape.init"] = { 6,-1,0,0 };
   layout->expandableGlyphs["hah.init"] = { 5,-0.5,0,0 };
-  layout->expandableGlyphs["seen.init"] = { 5,-0.5,0,0 };
-  layout->expandableGlyphs["sad.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["seen.init"] = { 6.3,-0.7,0,0 };
+  layout->expandableGlyphs["sad.init"] = { 6.5,-0.5,0,0 };
   layout->expandableGlyphs["tah.init"] = { 5,-0.5,0,0 };
-  layout->expandableGlyphs["ain.init"] = { 5,-0.5,0,0 };
-  layout->expandableGlyphs["fehshape.init"] = { 5,-0.5,0,0 };
-  layout->expandableGlyphs["kaf.init"] = { 5,-1.2,0,0 };
-  layout->expandableGlyphs["kaf.init.ii"] = { 5,-1.5,0,0 };
-  layout->expandableGlyphs["lam.init"] = { 5,-0.5,0,0 };
-  layout->expandableGlyphs["meem.init"] = { 5,-0.5,0,0 };
-  layout->expandableGlyphs["heh.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["ain.init"] = { 6.3,-0.7,0,0 };
+  layout->expandableGlyphs["fehshape.init"] = { 6,-1,0,0 };
+  layout->expandableGlyphs["kaf.init"] = { 6,-1.5,0,0 };
+  layout->expandableGlyphs["kaf.init.ii"] = { 6,-1.5,6,-1 };
+  layout->expandableGlyphs["lam.init"] = { 6,-1,0,0 };
+  layout->expandableGlyphs["meem.init"] = { 6.3,-0.7,0,0 };
+  layout->expandableGlyphs["heh.init"] = { 6.5,-0.5,0,0 };
 
-  layout->expandableGlyphs["heh.medi"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["heh.medi"] = { 6.7,-0.3,0,0 };
   layout->expandableGlyphs["behshape.medi"] = { 12,-0.5,12,-0.5 };
   layout->expandableGlyphs["behshape.medi.ii"] = { 9,-1,9,-1 };
-  layout->expandableGlyphs["behshape.medi.beforeseen"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["hah.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["behshape.medi.beforeseen"] = { 6.3,-0.7,6.3,-0.7 };
+  layout->expandableGlyphs["behshape.medi.beforereh"] = {0,0,6.3,-0.7 };
+  layout->expandableGlyphs["behshape.medi.beforenoon"] = { 6.3,-0.7,6.3,-0.7 };
+  
+  layout->expandableGlyphs["hah.medi"] = { 5.7,-1.3,6,-1 };
   layout->expandableGlyphs["hah.medi.afterbeh"] = { 5,-0.5,5,-0.5 };
   layout->expandableGlyphs["hah.medi.lam_hah"] = { 5,-0.5,5,-0.5 };
   layout->expandableGlyphs["hah.medi.beforemeem"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["seen.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["seen.medi"] = { 6.5,-0.5,6.5,-0.5 };
+  layout->expandableGlyphs["seen.medi.beforereh"] = { 0,0,6.5,-0.5 };
   layout->expandableGlyphs["sad.medi"] = { 5,-0.5,5,-0.5 };
   layout->expandableGlyphs["tah.medi"] = { 5,-0.5,5,-0.5 };
   layout->expandableGlyphs["ain.medi"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["fehshape.medi"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["kaf.medi"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["lam.medi"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["lam.medi.afterkaf"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["meem.medi"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["meem.medi.afterhah"] = { 5,-1.0,5,-0.5 };
-  layout->expandableGlyphs["behshape.medi.beforenoon"] = { 0,0,0,-0.4 };
-  layout->expandableGlyphs["seen.medi.basmala"] = { 20,0,0,0 };
+  layout->expandableGlyphs["fehshape.medi"] = { 6.5,-0.5,6.5,-0.5 };
+  layout->expandableGlyphs["kaf.medi"] = { 6,-1.5,6,-1.5 };
   layout->expandableGlyphs["kaf.medi.ii"] = { 5,-0.5,5,-0.5 };
-  
+  layout->expandableGlyphs["lam.medi"] = { 6,-1,6.5,-0.5 };
+  layout->expandableGlyphs["lam.medi.afterkaf"] = { 6,-1,0,0 };
+  layout->expandableGlyphs["meem.medi"] = { 6.5,-0.5,6.5,-0.5 };
+  layout->expandableGlyphs["meem.medi.afterhah"] = { 6.3,-0.7,0,0};
+  layout->expandableGlyphs["meem.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
 
-  layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,5,-0.3 };
-  layout->expandableGlyphs["dal.fina"] = { 0.0,0.0,5,-0.5 };
-  layout->expandableGlyphs["heh.fina"] = { 0.0,0.0,5,-0.5 };
+  
+ 
+
+
+  layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,6.5,-0.5 };
+  layout->expandableGlyphs["lam.medi.laf"] = { 0.0,0.0,6.5,-0.5 };  
+  layout->expandableGlyphs["dal.fina"] = { 0.0,0.0,6.5,-0.5 };
+  layout->expandableGlyphs["heh.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["hah.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["feh.fina"] = { 0.0,0.0,5,-0.5 };
-  layout->expandableGlyphs["meem.fina"] = { 0.0,0.0,5,-0.3 };
-  layout->expandableGlyphs["meem.fina.ii"] = { 0.0,0.0,5,-0.5 };
-  layout->expandableGlyphs["behshape.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["meem.fina"] = { 0.0,0.0,6.3,-0.7 };
+  layout->expandableGlyphs["meem.fina.ii"] = { 0.0,0.0,6.3,-0.7 };
+  layout->expandableGlyphs["behshape.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["qaf.fina"] = { 0.0,0.0,5,-0.5 };
-  layout->expandableGlyphs["lam.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["lam.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["kaf.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["noon.fina.basmala"] = { 10.0,0.0,0,-0.5 };
+  layout->expandableGlyphs["reh.fina"] = { 0.0,0.0,6.5,-0.5 };
+  layout->expandableGlyphs["reh.fina.ii"] = { 0.0,0.0,6.5,-0.5 };
 
   layout->expandableGlyphs["hah.init.iii"] = { 9.0,0.0,0,0 };
   layout->expandableGlyphs["seen.init.kii"] = { 9.0,0.0,0,0 };
-  layout->expandableGlyphs["sad.init.kii"] = { 9.0,0.0,0,0 };
-  layout->expandableGlyphs["alef.fina.ii"] = { 0.0,0.0,9,-1 };
-  layout->expandableGlyphs["heh.fina.ii"] = { 0.0,0.0,9,-1 };
+  layout->expandableGlyphs["sad.init.kii"] = { 20,0.0,0,0 };
+  layout->expandableGlyphs["heh.fina.kii"] = { 0.0,0.0,9,-1 };
   layout->expandableGlyphs["dal.fina.kii"] = { 0.0,0.0,9,-1 };
-  
+
 
   layout->expandableGlyphs["fatha"] = { 12,-1.0,0,0 };
   layout->expandableGlyphs["kasra"] = { 12,-1.0,0,0 };
-  layout->expandableGlyphs["space"] = { 4.0,-0.5,0.0,0.0 };
-  
+  layout->expandableGlyphs["space"] = { 6.0,-2,0.0,0.0 };
+
+  //kashida_ii
+
+  layout->expandableGlyphs["behshape.medi.iii"] = { 12,-1,12,-1 };
+  layout->expandableGlyphs["behshape.medi.expa"] = { 8,-1,0,0 };
+  layout->expandableGlyphs["alef.fina.kii"] = { 12,-1,12,-1 };
+  layout->expandableGlyphs["dal.fina.kii"] = { 12,-1,12,-1 };
+  layout->expandableGlyphs["heh.fina.kii"] = { 12,-1,12,-1 };
+  layout->expandableGlyphs["sad.init.kii"] = { 12,-1,0,0 };
+
+  //Basmala
+  layout->expandableGlyphs["behshape.medi.basmala"] = { 20,0,0,0 };
+  layout->expandableGlyphs["seen.medi.basmala"] = { 20,0,0,0 };
+  layout->expandableGlyphs["seen.medi.basmala.ii"] = { 20,0,0,0 };
+  layout->expandableGlyphs["meem.fina.basmala"] = { 0,0,20,-0.3 };
+
+
+
+
+
+
+
 }
 
 void Automedina::generateGlyphs() {
@@ -611,6 +598,9 @@ Lookup* Automedina::getLookup(QString lookupName) {
   else if (lookupName == "forsmallhighwaw") {
     return forsmallhighwaw();
   }
+  else if (lookupName == "populatecvxx") {
+    return populatecvxx();
+  }
 
 
 
@@ -648,6 +638,10 @@ Lookup* Automedina::rehwawcursive() {
   lookup->subtables.append(rehwawfina);
   rehwawfina->name = "rehwawfina";
 
+  CursiveSubtable* rehwawalef = new CustomCursiveSubtable(lookup);
+  lookup->subtables.append(rehwawalef);
+  rehwawalef->name = "rehwawalef";
+
   CursiveSubtable* rehfinaafterbehshape = new CursiveSubtable(lookup);
   lookup->subtables.append(rehfinaafterbehshape);
   rehfinaafterbehshape->name = "rehfinaafterbehshape";
@@ -657,9 +651,6 @@ Lookup* Automedina::rehwawcursive() {
   lookup->subtables.append(rehfinaafterseen);
   rehfinaafterseen->name = "rehfinaafterseen";
   rehfinaafterseen->anchors[glyphs["reh.fina.afterseen"].charcode].exit = QPoint(0, 0);
-
-
-
 
   auto glyphcodes = m_layout->classtoUnicode("reh.isol|waw.isol");
 
@@ -671,6 +662,12 @@ Lookup* Automedina::rehwawcursive() {
 
   for (auto glyphcode : glyphcodes) {
     rehwawfina->anchors[glyphcode].exit = QPoint(0, 0);
+  }
+
+  glyphcodes = m_layout->classtoUnicode("^reh|^waw");
+
+  for (auto glyphcode : glyphcodes) {
+    rehwawalef->anchors[glyphcode].exit = QPoint(0, 0);
   }
 
 
@@ -695,6 +692,13 @@ Lookup* Automedina::rehwawcursive() {
       rehfinaafterseen->anchors[glyphcode].entry = QPoint(glyph.width, 0);
     }
 
+  }
+
+  glyphcodes = m_layout->classtoUnicode("^alef.isol"); //"((?<!reh|waw)[.]isol)|init"
+  for (auto glyphcode : glyphcodes) {
+    QString glyphName = m_layout->glyphNamePerCode[glyphcode];
+    auto& glyph = glyphs[glyphName];
+    rehwawalef->anchors[glyphcode].entry = QPoint(glyph.width, 0);
   }
 
   return lookup;
@@ -763,6 +767,7 @@ Lookup* Automedina::leftrightcursive() {
 
   for (auto& glyph : glyphs) {
     if (glyph.leftAnchor || glyph.rightAnchor) {
+
       newsubtable->anchors[glyph.charcode].entry = glyph.rightAnchor;
       newsubtable->anchors[glyph.charcode].exit = glyph.leftAnchor;
     }
@@ -833,7 +838,7 @@ Lookup* Automedina::ligaturecursive() {
 
     CursiveSubtable* newsubtable = new CursiveSubtable(lookup);
     lookup->subtables.append(newsubtable);
-    newsubtable->name = "ligaturecursiveRTL";
+    newsubtable->name = cursiveName;
 
     for (auto anchor = entries.constBegin(); anchor != entries.constEnd(); ++anchor) {
       newsubtable->anchors[anchor.key()].entry = anchor.value();
@@ -1847,13 +1852,11 @@ Lookup* Automedina::pointmarks() {
 
 Lookup* Automedina::ayanumberskern() {
 
-  if (extended) {
-    return nullptr;
-  }
+
 
   auto& ayaGlyph = glyphs["endofaya"];
   auto digitySet = classtoUnicode("digits");
-  qint16 yoffset = 150;
+  qint16 yoffset = 120;
 
   // three digits
   Lookup* sublookup = new Lookup(m_layout);
@@ -1868,7 +1871,9 @@ Lookup* Automedina::ayanumberskern() {
   singleadjsubtable->name = sublookup->name;
 
   for (auto digit : digitySet) {
-    singleadjsubtable->singlePos[digit] = { 0,yoffset,-700,0 };
+    auto& onesglyph = glyphs[m_layout->glyphNamePerCode.value(digit)];
+    qint16 kern = -(ayaGlyph.width / 2 - onesglyph.width / 2);
+    singleadjsubtable->singlePos[digit] = { 700,yoffset,0,0 };
   }
 
   // two digits
@@ -1884,7 +1889,7 @@ Lookup* Automedina::ayanumberskern() {
   singleadjsubtable->name = sublookup->name;
 
   for (auto digit : digitySet) {
-    singleadjsubtable->singlePos[digit] = { 0,yoffset,-500,0 };
+    singleadjsubtable->singlePos[digit] = { 500,yoffset,0,0 };
   }
 
   // 1 digit
@@ -1900,7 +1905,10 @@ Lookup* Automedina::ayanumberskern() {
   singleadjsubtable->name = sublookup->name;
 
   for (auto digit : digitySet) {
-    singleadjsubtable->singlePos[digit] = { 0,yoffset,-300,0 };
+    auto& onesglyph = glyphs[m_layout->glyphNamePerCode.value(digit)];
+    int leftBearing = 0;
+    qint16 kern = leftBearing + (ayaGlyph.width - leftBearing) / 2 + onesglyph.width / 2;
+    singleadjsubtable->singlePos[digit] = { kern,yoffset,0,0 };
   }
 
   // up
@@ -1945,8 +1953,8 @@ Lookup* Automedina::ayanumberskern() {
   //subtable->compiledRule.backtrack = {{(int16_t)ayaGlyph.charcode}};
   subtable->compiledRule.input = { {(uint16_t)ayaGlyph.charcode}, digitySet,digitySet,digitySet };
   subtable->compiledRule.lookupRecords.append({ 1,"l1" });
-  subtable->compiledRule.lookupRecords.append({ 2,"up" });
-  subtable->compiledRule.lookupRecords.append({ 3,"up" });
+  subtable->compiledRule.lookupRecords.append({ 2,"l1" });
+  subtable->compiledRule.lookupRecords.append({ 3,"l1" });
 
   subtable = new ChainingSubtable(lookup);
   lookup->subtables.append(subtable);
@@ -1955,11 +1963,12 @@ Lookup* Automedina::ayanumberskern() {
   subtable->compiledRule = ChainingSubtable::CompiledRule();
   subtable->compiledRule.input = { {(uint16_t)ayaGlyph.charcode}, digitySet,digitySet };
   subtable->compiledRule.lookupRecords.append({ 1,"l2" });
-  subtable->compiledRule.lookupRecords.append({ 2,"up" });
+  subtable->compiledRule.lookupRecords.append({ 2,"l2" });
 
   subtable = new ChainingSubtable(lookup);
   lookup->subtables.append(subtable);
   subtable->name = "ayanumbers1digit";
+  //subtable->compiledRule.backtrack = {{(quint16)ayaGlyph.charcode}};
   subtable->compiledRule = ChainingSubtable::CompiledRule();
   subtable->compiledRule.input = { {(uint16_t)ayaGlyph.charcode}, digitySet };
   subtable->compiledRule.lookupRecords.append({ 1,"l3" });
@@ -1991,7 +2000,7 @@ Lookup* Automedina::ayanumbers() {
     int tensdigit = (i / 10) % 10;
     int hundredsdigit = i / 100;
     if (extended) {
-      ligaturesubtable->ligatures.append({ code, { (quint16)(m_layout->unicodeToGlyphCode.value(1632 + hundredsdigit)),
+      ligaturesubtable->ligatures.append({ code, {endofaya, (quint16)(m_layout->unicodeToGlyphCode.value(1632 + hundredsdigit)),
                                                    (quint16)(m_layout->unicodeToGlyphCode.value(1632 + tensdigit)),
                                                    (quint16)(m_layout->unicodeToGlyphCode.value(1632 + onesdigit)) } });
     }
@@ -2023,7 +2032,7 @@ Lookup* Automedina::ayanumbers() {
     int onesdigit = i % 10;
     int tensdigit = i / 10;
     if (extended) {
-      ligaturesubtable->ligatures.append({ code,{ (quint16)(m_layout->unicodeToGlyphCode.value(1632 + tensdigit)),
+      ligaturesubtable->ligatures.append({ code,{endofaya, (quint16)(m_layout->unicodeToGlyphCode.value(1632 + tensdigit)),
                                                   (quint16)(m_layout->unicodeToGlyphCode.value(1632 + onesdigit)) } });
     }
     else {
@@ -2034,7 +2043,7 @@ Lookup* Automedina::ayanumbers() {
     }
 
   }
-  if (extended) {
+  /*if (extended) {
     // Single substitution
     Lookup* single = new Lookup(m_layout);
     single->name = "ayanumbers.l3";
@@ -2051,26 +2060,26 @@ Lookup* Automedina::ayanumbers() {
     }
 
   }
-  else {
+  else {*/
 
-    // ligature
-    ligature = new Lookup(m_layout);
-    ligature->name = "ayanumbers.l3";
-    ligature->feature = "";
-    ligature->type = Lookup::ligature;
-    m_layout->addLookup(ligature);
+  // ligature
+  ligature = new Lookup(m_layout);
+  ligature->name = "ayanumbers.l3";
+  ligature->feature = "";
+  ligature->type = Lookup::ligature;
+  m_layout->addLookup(ligature);
 
-    ligaturesubtable = new LigatureSubtable(ligature);
-    ligature->subtables.append(ligaturesubtable);
-    ligaturesubtable->name = ligature->name;
+  ligaturesubtable = new LigatureSubtable(ligature);
+  ligature->subtables.append(ligaturesubtable);
+  ligaturesubtable->name = ligature->name;
 
-    for (int i = 1; i < 10; i++) {
-      quint16 code = m_layout->glyphCodePerName[QString("aya%1").arg(i)];
-      ligaturesubtable->ligatures.append({ code,{endofaya,(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i))} });
-      ligaturesubtable->ligatures.append({ code,{(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i)),endofaya} });
-    }
-
+  for (int i = 1; i < 10; i++) {
+    quint16 code = m_layout->glyphCodePerName[QString("aya%1").arg(i)];
+    ligaturesubtable->ligatures.append({ code,{endofaya,(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i))} });
+    ligaturesubtable->ligatures.append({ code,{(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i)),endofaya} });
   }
+
+  //}
 
 
   //main lokkup
@@ -2096,7 +2105,7 @@ Lookup* Automedina::ayanumbers() {
   subtable->name = "ayanumbers3digits";
   subtable->compiledRule = ChainingSubtable::CompiledRule();
   if (extended) {
-    subtable->compiledRule.input = { digitySet,digitySet,digitySet };
+    subtable->compiledRule.input = { {endofaya},digitySet,digitySet,digitySet };
   }
   else {
     //subtable->compiledRule.input = {digitySet,digitySet,digitySet,{endofaya} };
@@ -2110,7 +2119,7 @@ Lookup* Automedina::ayanumbers() {
   subtable->name = "ayanumbers2digits";
   subtable->compiledRule = ChainingSubtable::CompiledRule();
   if (extended) {
-    subtable->compiledRule.input = { digitySet,digitySet };
+    subtable->compiledRule.input = { {endofaya},digitySet,digitySet };
   }
   else {
     subtable->compiledRule.input = { digitySetplusendofaya,digitySet,digitySetplusendofaya };
@@ -2122,7 +2131,7 @@ Lookup* Automedina::ayanumbers() {
   subtable->name = "ayanumbers1digit";
   subtable->compiledRule = ChainingSubtable::CompiledRule();
   if (extended) {
-    subtable->compiledRule.input = { digitySet };
+    subtable->compiledRule.input = { {endofaya},digitySet };
   }
   else {
 
@@ -2770,6 +2779,30 @@ QSet<QString> Automedina::classtoGlyphName(QString className) {
   }
 
   return names;
+
+}
+
+Lookup* Automedina::populatecvxx() {
+  int cvNumber = 1;
+
+  for (auto alternates : cvxxfeatures) {
+    Lookup* alternate = new Lookup(m_layout);    
+    alternate->name = QString("cv%1").arg(cvNumber, 2,10, QLatin1Char('0'));
+    alternate->feature = alternate->name;
+    alternate->type = Lookup::alternate;
+
+    m_layout->addLookup(alternate);
+
+    AlternateSubtable* alternateSubtable = new AlternateSubtable(alternate);
+    alternate->subtables.append(alternateSubtable);
+    alternate->name = alternate->name;
+
+    alternateSubtable->alternates = alternates;
+
+    cvNumber++;
+  }
+
+  return nullptr;
 
 }
 void Automedina::addchars() {

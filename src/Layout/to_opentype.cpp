@@ -26,6 +26,7 @@
 #include "GlyphVis.h"
 #include "automedina/automedina.h"
 #include <stdexcept>
+#include <map>
 
 extern "C"
 {
@@ -64,7 +65,7 @@ void ToOpenType::setUniformAxis(bool uniform) {
     axisLimits.maxRight = 20;
 
     for (auto& expandable : ot_layout->expandableGlyphs) {
-      auto& ff = regionSubtables.find(expandable.second);
+      const auto& ff = regionSubtables.find(expandable.second);
       if (ff == regionSubtables.end()) {
         regionSubtables.insert({ expandable.second ,regionSubtables.size() + 1 });
       }
@@ -99,9 +100,9 @@ void ToOpenType::setUniformAxis(bool uniform) {
           int16_t normalLimit = getF2DOT14(limits.maxLeft / axisLimits.maxLeft);
           VariationRegion region1 = { {0,normalLimit,normalLimit},{0,0,0 } };
           subRegion.push_back(getRegionIndex(region1));
-          VariationRegion region2 = { {normalLimit + 1,getF2DOT14(1),getF2DOT14(1)},{0,0,0  } };
+          VariationRegion region2 = { {(short)(normalLimit + 1),getF2DOT14(1),getF2DOT14(1)},{0,0,0  } };
           subRegion.push_back(getRegionIndex(region2));
-          VariationRegion region3 = { {normalLimit + 1,normalLimit + 1,getF2DOT14(1)},{0,0,0 } };
+          VariationRegion region3 = { {(short)(normalLimit + 1),(short)(normalLimit + 1),getF2DOT14(1)},{0,0,0 } };
           subRegion.push_back(getRegionIndex(region3));
         }
       }
@@ -116,9 +117,9 @@ void ToOpenType::setUniformAxis(bool uniform) {
           int16_t normalLimit = getF2DOT14(-limits.minLeft / axisLimits.minLeft);
           VariationRegion region1 = { {normalLimit,normalLimit,0},{0,0,0 } };
           subRegion.push_back(getRegionIndex(region1));
-          VariationRegion region2 = { {getF2DOT14(-1),normalLimit - 1,normalLimit - 1},{0,0,0  } };
+          VariationRegion region2 = { {getF2DOT14(-1),(short)(normalLimit - 1),(short)(normalLimit - 1)},{0,0,0  } };
           subRegion.push_back(getRegionIndex(region2));
-          VariationRegion region3 = { {getF2DOT14(-1),getF2DOT14(-1),normalLimit - 1},{0,0,0  } };
+          VariationRegion region3 = { {getF2DOT14(-1),getF2DOT14(-1),(short)(normalLimit - 1)},{0,0,0  } };
           subRegion.push_back(getRegionIndex(region3));
         }
       }
@@ -133,9 +134,9 @@ void ToOpenType::setUniformAxis(bool uniform) {
           int16_t normalLimit = getF2DOT14(limits.maxRight / axisLimits.maxRight);
           VariationRegion region1 = { {0,0,0  } , {0,normalLimit,normalLimit} };
           subRegion.push_back(getRegionIndex(region1));
-          VariationRegion region2 = { {0,0,0  } , {normalLimit + 1,getF2DOT14(1),getF2DOT14(1)} };
+          VariationRegion region2 = { {0,0,0  } , {(short)(normalLimit + 1),getF2DOT14(1),getF2DOT14(1)} };
           subRegion.push_back(getRegionIndex(region2));
-          VariationRegion region3 = { {0,0,0  } , {normalLimit + 1,normalLimit + 1,getF2DOT14(1)} };
+          VariationRegion region3 = { {0,0,0  } , {(short)(normalLimit + 1),(short)(normalLimit + 1),getF2DOT14(1)} };
           subRegion.push_back(getRegionIndex(region3));
         }
       }
@@ -150,9 +151,9 @@ void ToOpenType::setUniformAxis(bool uniform) {
           int16_t normalLimit = getF2DOT14(-limits.minRight / axisLimits.minRight);
           VariationRegion region1 = { {0,0,0  }, {normalLimit,normalLimit,0} };
           subRegion.push_back(getRegionIndex(region1));
-          VariationRegion region2 = { {0,0,0 } , {getF2DOT14(-1),normalLimit - 1,normalLimit - 1} };
+          VariationRegion region2 = { {0,0,0 } , {getF2DOT14(-1),(short)(normalLimit - 1),(short)(normalLimit - 1)} };
           subRegion.push_back(getRegionIndex(region2));
-          VariationRegion region3 = { {0,0,0 }, {getF2DOT14(-1),getF2DOT14(-1),normalLimit - 1} };
+          VariationRegion region3 = { {0,0,0 }, {getF2DOT14(-1),getF2DOT14(-1),(short)(normalLimit - 1)} };
           subRegion.push_back(getRegionIndex(region3));
         }
       }
@@ -367,9 +368,23 @@ void ToOpenType::setGIds() {
 
 
 
+  for (auto& cvlo : ot_layout->automedina->cvxxfeatures) {
+    QMap<quint16, QVector<quint16>> newalternates;    
+    for (auto iter = cvlo.begin(); iter != cvlo.end(); ++iter) {
+      auto oldid = iter.key();
+      auto newid = newCodes[oldid];
+      for (auto id : iter.value()) {
+        newalternates[newid].append(newCodes[id]);
+      }
+    }
+    cvlo = newalternates;
+  }
+
+
+
 }
 
-bool ToOpenType::GenerateFile(QString fileName) {
+bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
 
   struct Table {
     QByteArray data;
@@ -383,14 +398,14 @@ bool ToOpenType::GenerateFile(QString fileName) {
   if (!file.open(QIODevice::WriteOnly))
     return false;
 
-  ot_layout->loadLookupFile("lookups.json");
+  ot_layout->loadLookupFile(lokkupsFileName);
 
   //And new glyphhs
   auto gsubArray = gsub();
 
   setGIds();
 
-  ot_layout->loadLookupFile("lookups.json");
+  ot_layout->loadLookupFile(lokkupsFileName);
 
 
   glyphs.clear();
@@ -890,7 +905,7 @@ QByteArray ToOpenType::post() {
     data << (uint32_t)0x00020000; // version
   }
 
-  
+
   data << (uint32_t)0; // italicAngle
   data << (int16_t)-200; // underlinePosition
   data << (int16_t)globalValues.yStrikeoutSize; // underlineThickness
@@ -918,7 +933,7 @@ QByteArray ToOpenType::post() {
         data << (uint16_t)(258);//  .notdef;
       }
     }
-    
+
     for (auto& glyph : glyphs) {
       auto name = glyph->name.toLatin1();
       data << (uint8_t)name.size();
@@ -2262,7 +2277,7 @@ QByteArray ToOpenType::HVAR() {
   advanceMapping << (uint16_t)0x3F; //entryFormat : 2 byte for outer, 2 byte for inner
   advanceMapping << (uint16_t)glyphCount; //entryFormat : 1 byte for outer, 2 byte for inner
   for (int i = 0; i < glyphCount; i++) {
-    auto& ff = advaceLookup.find(i);
+    const auto& ff = advaceLookup.find(i);
     if (ff == advaceLookup.end()) {
       advanceMapping << (uint16_t)defaultPos.first;
       advanceMapping << (uint16_t)defaultPos.second;
@@ -2271,14 +2286,14 @@ QByteArray ToOpenType::HVAR() {
       advanceMapping << (uint16_t)ff->second.first;
       advanceMapping << (uint16_t)ff->second.second;
     }
-    
+
   }
 
   QByteArray lsbMapping;
   lsbMapping << (uint16_t)0x3F; //entryFormat : 2 byte for outer, 2 byte for inner
   lsbMapping << (uint16_t)glyphCount; //entryFormat : 1 byte for outer, 2 byte for inner
   for (int i = 0; i < glyphCount; i++) {
-    auto& ff = lsbLookup.find(i);
+    const auto& ff = lsbLookup.find(i);
     if (ff == lsbLookup.end()) {
       lsbMapping << (uint16_t)defaultPos.first;
       lsbMapping << (uint16_t)defaultPos.second;

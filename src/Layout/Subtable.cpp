@@ -29,6 +29,7 @@
 #include "GlyphVis.h"
 #include <hb-ot-layout-common.hh>
 #include <iostream>
+#include <unordered_map>
 
 using namespace std;
 
@@ -299,7 +300,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
 
       auto& name = m_layout->glyphNamePerCode.value(subst[i.key()]);     
 
-      auto& find = m_layout->expandableGlyphs.find(name);
+      const auto& find = m_layout->expandableGlyphs.find(name);
 
       if (find != m_layout->expandableGlyphs.end()) {
         limits = find->second;
@@ -423,34 +424,35 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
 
       auto& name = m_layout->glyphNamePerCode.value(subst[i.key()]);      
 
-      auto& find = m_layout->expandableGlyphs.find(name);
+      const auto& find = m_layout->expandableGlyphs.find(name);
 
       if (find != m_layout->expandableGlyphs.end()) {
         limits = find->second;
       }      
+    
 
-      if (expan.MinLeftTatweel < limits.minLeft || expan.MinLeftTatweel > 0) {
+      if ((expan.MinLeftTatweel < 0 && expan.MinLeftTatweel < limits.minLeft) || ( expan.MinLeftTatweel > 0 && expan.MinLeftTatweel > limits.maxLeft)) {
         throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
       }
-      else if (expan.MinLeftTatweel != 0.0) {        
+      else if (expan.MinLeftTatweel != 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(-expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.minLeft);
+          value.set_float(expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.maxLeft);
         }
         else {
-          value.set_float(-expan.MinLeftTatweel / limits.minLeft);
+          value.set_float(expan.MinLeftTatweel / limits.maxLeft);
         }
         root << value;
       }
       else {
-        
+
         value.set_float(0.0);
         root << value;
       }
 
-      if (expan.MaxLeftTatweel > limits.maxLeft || expan.MaxLeftTatweel < 0) {
-        throw new runtime_error("MaxLeftTatweel error for glyph " + name.toStdString());
+      if ((expan.MaxLeftTatweel < 0 && expan.MaxLeftTatweel < limits.minLeft) || (expan.MaxLeftTatweel > 0 && expan.MaxLeftTatweel > limits.maxLeft)) {
+        throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
       }
-      else if (expan.MaxLeftTatweel != 0.0) {        
+      else if (expan.MaxLeftTatweel != 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(expan.MaxLeftTatweel / m_layout->toOpenType->axisLimits.maxLeft);
         }
@@ -462,17 +464,17 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       else {
         value.set_float(0.0);
         root << value;
-      }
+      }    
 
-      if (expan.MinRightTatweel < limits.minRight || expan.MinRightTatweel > 0) {
-        throw new runtime_error("MinRightTatweel error for glyph " + name.toStdString());
+      if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
+        throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
       }
-      else if (expan.MinRightTatweel != 0.0) {        
+      else if (expan.MinRightTatweel != 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(-expan.MinRightTatweel / m_layout->toOpenType->axisLimits.minRight);
+          value.set_float(expan.MinRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
         }
         else {
-          value.set_float(-expan.MinRightTatweel / limits.minRight);
+          value.set_float(expan.MinRightTatweel / limits.maxRight);
         }
         root << value;
       }
@@ -481,10 +483,10 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
         root << value;
       }
 
-      if (expan.MaxRightTatweel > limits.maxRight || expan.MaxRightTatweel < 0) {
-        throw new runtime_error("MaxRightTatweel error for glyph " + name.toStdString());
+      if ((expan.MaxRightTatweel < 0 && expan.MaxRightTatweel < limits.minRight) || (expan.MaxRightTatweel > 0 && expan.MaxRightTatweel > limits.maxRight)) {
+         throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
       }
-      else if (expan.MaxRightTatweel != 0.0) {        
+      else if (expan.MaxRightTatweel != 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(expan.MaxRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
         }
@@ -697,6 +699,79 @@ void MultipleSubtable::readJson(const QJsonObject& json)
       if (!value) continue;
 
       subst[uniode].append(value);
+    }
+
+  }
+}
+
+AlternateSubtable::AlternateSubtable(Lookup* lookup) : Subtable(lookup) {
+}
+
+QByteArray AlternateSubtable::getOpenTypeTable(bool extended) {
+
+  QByteArray root;
+  QByteArray coverage;
+  QByteArray sequencetables;
+  QDataStream root_stream(&root, QIODevice::WriteOnly);
+  QDataStream coverage_stream(&coverage, QIODevice::WriteOnly);
+  QDataStream seqtable_stream(&sequencetables, QIODevice::WriteOnly);
+
+  quint16 total = alternates.size();
+  uint coverage_size = 2 + 2 + 2 * total;
+  quint16 coverage_offset = 2 + 2 + 2 + 2 * total;
+  quint16 debutsequence = coverage_offset + coverage_size;
+
+  root_stream << (quint16)1;
+  root_stream << coverage_offset;
+  root_stream << total;
+
+
+  coverage_stream << (quint16)1;
+  coverage_stream << (quint16)total;
+
+  QMapIterator<quint16, QVector<quint16> >i(alternates);
+  quint16 seqtables_size = 0;
+  while (i.hasNext()) {
+    i.next();
+
+
+
+    QVector<quint16> seqtable = i.value();
+
+    root_stream << debutsequence;
+    coverage_stream << (quint16)i.key();
+    seqtable_stream << (quint16)seqtable.size();
+    seqtable_stream << seqtable;
+
+    debutsequence += 2 + 2 * seqtable.size();
+  }
+
+  root.append(coverage);
+  root.append(sequencetables);
+
+
+  return root;
+};
+
+void AlternateSubtable::readJson(const QJsonObject& json)
+{
+  alternates.clear();
+  for (int index = 0; index < json.size(); ++index) {
+    QString glyphname = json.keys()[index];
+    uint uniode = getCodeFromName(glyphname);
+    if (!uniode) continue;
+
+
+    QJsonArray dest = json[glyphname].toArray();
+
+    for (int id = 0; id < dest.size(); ++id) {
+      QString name = dest[id].toString();
+
+      uint value = getCodeFromName(name);
+
+      if (!value) continue;
+
+      alternates[uniode].append(value);
     }
 
   }

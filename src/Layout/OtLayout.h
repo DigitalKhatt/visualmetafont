@@ -37,6 +37,7 @@
 #include "commontypes.h"
 #include <stdexcept>
 #include <iostream>
+#include "hb.h"
 
 
 
@@ -124,7 +125,7 @@ struct LineLayoutInfo {
   int xstartposition;
   int ystartposition;
   LineType type = LineType::Line;
-  float underfull;
+  float overfull;
 };
 
 struct LayoutPages {
@@ -292,12 +293,13 @@ public:
 
   int tajweedcolorindex = 0xFFFF;
 
-  QList<LineLayoutInfo> justifyPage(int emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor);
-  LayoutPages pageBreak(int emScale, int lineWidth, bool pageFinishbyaVerse);
+  QList<LineLayoutInfo> justifyPage(int emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
+  LayoutPages pageBreak(int emScale, int lineWidth, bool pageFinishbyaVerse, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
 
   bool applyJustification = true;
 
   GlyphVis* getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph = false);
+  hb_position_t gethHorizontalAdvance(hb_font_t* hbFont, hb_codepoint_t glyph, double lefttatweel, double righttatweel, void* userData);
 
   void clearAlternates();
 
@@ -331,7 +333,7 @@ public:
 
   std::unordered_map<QString, ValueLimits> expandableGlyphs;
 
-  std::pair<int,int> getDeltaSetEntry(DefaultDelta delta, const ValueLimits& limits) {
+  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const ValueLimits& limits) {
     return toOpenType->getDeltaSetEntry(delta, limits);
     /*
     const auto& it = defaultDeltaSets.find(delta);
@@ -343,14 +345,14 @@ public:
       defaultDeltaSets.insert({ delta ,val });
       return { 0,val };
     }*/
-    
-  } 
-  
+
+  }
+
   QByteArray JTST();
 
-  Just justTable;  
+  Just justTable;
 
-  double normalToParameter(unsigned int code, float tatweel, bool left) {
+  float normalToParameter(unsigned int code, float tatweel, bool left) {
 
     if (!useNormAxisValues || tatweel == 0.0)
       return tatweel;

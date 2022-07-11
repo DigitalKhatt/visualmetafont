@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -29,6 +29,7 @@
 
 class QtSliderFactory;
 class QtIntPropertyManager;
+class QtDoublePropertyManager;
 
 class GlyphParameterController : public QWidget {
 	Q_OBJECT
@@ -58,6 +59,8 @@ private:
 	QtVariantPropertyManager *m_readOnlyManager;
 	QtVariantEditorFactory * m_variantfactory;
 	QtSliderFactory * m_sliderFactory;
-	QtIntPropertyManager *m_sliderManager;
+	QtIntPropertyManager *m_sliderManager;	
+
+	const int tatweelRes = 10;
 };
 #endif // GLYPHPARAMETERCONTROLLER_H

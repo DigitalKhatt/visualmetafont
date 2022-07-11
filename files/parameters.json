@@ -149,6 +149,10 @@
                 "hah.init": [
                     0,
                     -138
+                ],
+                "hah.init.basmala": [
+                    222,
+                    -152
                 ]
             }
         }
@@ -211,6 +215,10 @@
                         50,
                         -129
                     ],
+                    "behshape.init.bseen.basmala": [
+                        136,
+                        -24
+                    ],
                     "behshape.init.pluslt_60": [
                         46,
                         -22
@@ -250,6 +258,10 @@
                     "hah.medi.afterlam.beforeyeh": [
                         205,
                         37
+                    ],
+                    "hah.medi.beforemeem": [
+                        125,
+                        27
                     ],
                     "hah.medi.beforeyeh": [
                         72,
@@ -333,6 +345,10 @@
                         -98,
                         55
                     ],
+                    "hah.medi": [
+                        -68,
+                        10
+                    ],
                     "hah.medi.afterbeh": [
                         83,
                         116
@@ -368,6 +384,10 @@
                     "sad.isol.expa": [
                         -264,
                         4
+                    ],
+                    "sad.medi": [
+                        218,
+                        37
                     ],
                     "tah.fina": [
                         278,
@@ -456,6 +476,10 @@
                     "behshape.medi": [
                         160,
                         141
+                    ],
+                    "behshape.medi.basmala": [
+                        96,
+                        201
                     ],
                     "behshape.medi.beforenoon": [
                         67,
@@ -771,6 +795,10 @@
                         83,
                         0
                     ],
+                    "hah.medi.beforemeem": [
+                        154,
+                        57
+                    ],
                     "hah.medi.beforeyeh": [
                         60,
                         -60
@@ -843,6 +871,10 @@
                         86,
                         120
                     ],
+                    "meem.fina.basmala": [
+                        24,
+                        48
+                    ],
                     "meem.fina.ii": [
                         83,
                         554
@@ -896,8 +928,8 @@
                         116
                     ],
                     "sad.medi": [
-                        27,
-                        152
+                        327,
+                        179
                     ],
                     "seen.fina": [
                         228,
@@ -980,8 +1012,8 @@
                         0
                     ],
                     "sad.medi": [
-                        84,
-                        -14
+                        68,
+                        2
                     ]
                 },
                 "markparameters": {
@@ -993,6 +1025,10 @@
             },
             "topmarks": {
                 "baseparameters": {
+                    "ain.init": [
+                        -32,
+                        3
+                    ],
                     "ain.init.finjani": [
                         -42,
                         21
@@ -1057,6 +1093,10 @@
                         -10,
                         -28
                     ],
+                    "behshape.medi.expa": [
+                        -76,
+                        -15
+                    ],
                     "behshape.medi.pluslt_60": [
                         -39,
                         0
@@ -1110,8 +1150,8 @@
                         -23
                     ],
                     "hah.medi.lam_hah": [
-                        6,
-                        -19
+                        -34,
+                        -39
                     ],
                     "hamza.isol": [
                         14,
@@ -1305,6 +1345,10 @@
                         0,
                         -83
                     ],
+                    "noon.isol.expa": [
+                        -40,
+                        -60
+                    ],
                     "qaf.fina": [
                         94,
                         -56
@@ -1325,9 +1369,17 @@
                         45,
                         0
                     ],
+                    "sad.init.kii": [
+                        137,
+                        19
+                    ],
                     "sad.isol": [
                         266,
                         -33
+                    ],
+                    "sad.medi": [
+                        220,
+                        -16
                     ],
                     "seen.fina": [
                         192,
@@ -1398,8 +1450,8 @@
                         -123
                     ],
                     "yehshape.isol.expa": [
-                        72,
-                        -144
+                        170,
+                        -324
                     ]
                 },
                 "markparameters": {
@@ -1457,6 +1509,10 @@
                         46,
                         -209
                     ],
+                    "behshape.medi.expa": [
+                        0,
+                        -190
+                    ],
                     "smallalef.isol": [
                         40,
                         -100
@@ -1496,6 +1552,10 @@
                     "alef.fina": [
                         135,
                         -289
+                    ],
+                    "alef.fina.kii": [
+                        260,
+                        -420
                     ],
                     "alef.fina.laf": [
                         241,
@@ -1598,6 +1658,10 @@
                     "feh.isol": [
                         193,
                         -41
+                    ],
+                    "hah.medi.afterfeh": [
+                        -151,
+                        23
                     ],
                     "hah.medi.afterlam.beforeyeh": [
                         -56,
@@ -1714,6 +1778,10 @@
                     "reh.isol": [
                         98,
                         32
+                    ],
+                    "sad.medi": [
+                        189,
+                        -9
                     ],
                     "seen.isol": [
                         333,
@@ -2455,6 +2523,10 @@
                         -30,
                         66
                     ],
+                    "hah.init.basmala": [
+                        124,
+                        138
+                    ],
                     "hah.init.beforeyeh": [
                         107,
                         143
@@ -2764,8 +2836,8 @@
                         -67
                     ],
                     "reh.isol": [
-                        44,
-                        8
+                        -136,
+                        -72
                     ],
                     "sad.init.beforeyeh": [
                         196,
@@ -2922,6 +2994,12 @@
                     -27,
                     -83
                 ]
+            },
+            "exitParameters": {
+                "reh.fina.afterbehshape": [
+                    88,
+                    -12
+                ]
             }
         },
         "rehfinaafterseen": {
@@ -3002,6 +3080,10 @@
                     -36,
                     -10
                 ],
+                "sad.init.kii": [
+                    -67,
+                    112
+                ],
                 "seen.init.beforeyeh": [
                     -86,
                     0
@@ -3059,8 +3141,8 @@
                     -45
                 ],
                 "reh.isol": [
-                    98,
-                    27
+                    26,
+                    -78
                 ],
                 "sad.init.beforeyeh": [
                     114,
@@ -3099,6 +3181,18 @@
                 "behshape.init.beforenoon": [
                     0,
                     -199
+                ]
+            }
+        }
+    },
+    "shrink1_auto7": {
+        "subtable1": {
+            "parameters": {
+                "alef.isol": [
+                    18,
+                    -92,
+                    0,
+                    0
                 ]
             }
         }

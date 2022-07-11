@@ -4,7 +4,7 @@
 #ifndef MPLIB_H
 #define MPLIB_H 1
 #include <stdlib.h> 
-#if !defined HAVE_BOOLEAN && !defined WIN32
+#if !defined HAVE_BOOLEAN && !defined WIN32 && !defined EMSCRIPTEN
 typedef bool boolean;
 #endif
 /*2:*/

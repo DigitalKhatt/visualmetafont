@@ -23,6 +23,7 @@
 /*%option debug*/
 %{
 #include "glyphscanner.h"
+#include "glyphdriver.h"
 using token = glyphparser::Parser::token;
 #define YY_NO_UNISTD_H
 %}
@@ -35,7 +36,7 @@ using token = glyphparser::Parser::token;
 
 [ \r\n\t]*													; // ignore all whitespace
 [-+]?([0-9]*\.[0-9]+|[0-9]+)								{yylval->build<double>(atof(yytext)); return token::T_NUMBER;}
-[(),{};=+-]													{return yytext[0];}
+[(),{};=+-/*%]													{return yytext[0];}
 ":="														{return token::T_AFFECT;}
 "%%glyphname:"												{return token::T_GLYPHSECTION;}
 "%%backgroundimage:"										{return token::T_BIMAGESECTION;}
@@ -71,19 +72,19 @@ using token = glyphparser::Parser::token;
 <INSIDE_VERBATIM>(.|\n)/"%%endverbatim"						{yylval->build<QString>(yytext); return token::T_VERBATIM;}
 <INSIDE_VERBATIM>.|\n										{yymore();} 
 <INSIDE_VERBATIM>"%%endverbatim"							{BEGIN(INITIAL);return token::T_ENDVERBATIM_SECTION;}
-[a-zA-Z_][a-zA-Z\.0-9\/:_]*									{yylval->build<QString>(yytext); return token::T_EALPHA;}
+[a-zA-Z_][a-zA-Z\.0-9\/:_\[\]]*									{yylval->build<QString>(yytext); return token::T_EALPHA;}
 <INSIDE_DIR>{
 [{}]													{return yytext[0];}
-[^{}]													{yylval->build<QString>(yytext); return token::T_EALPHA;}
+[^{}]													{yylval->build<QString>(yytext);/*auto tt = driver.glyph.params[yylval->as<QString>()];*/ return token::T_EALPHA;}
 }
 
 %% /*** Additional Code ***/
 
 namespace glyphparser {
 
-Scanner::Scanner(std::istream* in,
+Scanner::Scanner(Driver& driver,std::istream* in,
 		 std::ostream* out)
-    : GlyphFlexLexer(in, out)
+    : GlyphFlexLexer(in, out),driver{driver}
 {
 }
 

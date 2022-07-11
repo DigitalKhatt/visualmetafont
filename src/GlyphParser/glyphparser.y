@@ -51,7 +51,7 @@
 
 %token<int> T_INT
 %token<double> T_NUMBER
-%token<QString> T_EALPHA T_TT
+%token<QString> T_EALPHA T_TT T_NUMVAR T_PAIRVAR
 %token T_PLUS T_MINUS T_MULTIPLY T_DIVIDE T_LEFT T_RIGHT T_COMMA 
 %token T_NEWLINE T_QUIT
 %left T_PLUS T_MINUS
@@ -65,13 +65,13 @@
 
 %token <QString> T_BEGINCHAR T_BODYCONTENT T_VERBATIM
 
-%type	<Glyph::KnotEntryExit>				direction	controlpoint tensionpoint
-%type	<Glyph::Knot*>						link pathjoin point constpointwitheq
+%type	<Glyph::KnotEntryExit>				direction	controlpoint tensionamount
+%type	<Glyph::Knot*>						link pathjoin point 
 %type	<QMap<int, Glyph::Knot*> >			subpath	fillpath controlledpath
 %type	<bool>								affect
-%type <QString> opinsidepoint;
+%type <MFExprOperator> plus_minus times_over
 %type <Exp*>  expression;
-
+%type <MFExpr*> constnum constpoint functionexpr varexpr primarymfexpr    secondarymfexpr tertiarymfexpr mfexpr 
 
 
 %start glyphs
@@ -141,18 +141,20 @@ params :
 ;
 
 param : T_EALPHA[name] affect expression ';'	{parsingglyph->setParameter($name, $expression,$affect);}
-	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_NUMERIC	{parsingglyph->setParameter($name, new LitNumber($x),$affect);}
-	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_LTENS '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::tension,$x,0,Glyph::left,$numpath,$numpoint,$affect);}
+  | T_EALPHA[name] affect expression ';' '%' T_EALPHA[dep] {parsingglyph->setParameter($name, $expression,$affect,false,$dep);}
+	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'		{parsingglyph->setParameter($name, new LitNumber($x),$affect);}
+	/*|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_LTENS '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::tension,$x,0,Glyph::left,$numpath,$numpoint,$affect);}
 	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_RTENS '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::tension,$x,0,Glyph::right,$numpath,$numpoint,$affect);}
 	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_LDIR '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::direction,$x,0,Glyph::left,$numpath,$numpoint,$affect);}
-	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_RDIR '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::direction,$x,0,Glyph::left,$numpath,$numpoint,$affect);}
+	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_RDIR '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::direction,$x,0,Glyph::left,$numpath,$numpoint,$affect);}*/
 ;
 
 expression:  '(' T_NUMBER[x] ',' T_NUMBER[y] ')' {$$ =  new LitPoint(QPointF($x,$y));}
   | T_DIR T_NUMBER[x] {$$ =  new DirNumber($x);}
   | T_EALPHA[name] '+' '(' T_NUMBER[x] ',' T_NUMBER[y] ')' { $$ = new BinOp(new Id($name),Oper::ADD, new LitPoint(QPointF($x,$y)));}
-  | '(' T_NUMBER[x] ',' T_NUMBER[y] ')' '+'  T_EALPHA[name]  { $$ = new BinOp( new LitPoint(QPointF($x,$y)),Oper::ADD,new Id($name));}
+  | '(' T_NUMBER[x] ',' T_NUMBER[y] ')' '+'  T_EALPHA[name]  { $$ = new BinOp( new LitPoint(QPointF($x,$y)),Oper::ADD,new Id($name));} 
 ;
+
 
 affect : T_AFFECT {$$ = false;}
 | '=' {$$=true;}
@@ -195,7 +197,7 @@ fillpath : subpath
 subpath : point {$$.insert(driver.numpoint,$point);}
 | subpath pathjoin point {	
 	$1.last()->rightValue = $pathjoin->leftValue; 
-	if($point->value == "cycle" && $1.firstKey() == 0){
+	if($point->expr->toString() == "cycle" && $1.firstKey() == 0){
 		delete $point;
 		$point = $1.first();
 	}
@@ -203,10 +205,14 @@ subpath : point {$$.insert(driver.numpoint,$point);}
 	delete $pathjoin;
 	if($point->leftValue.macrovalue == "join"){
 		$1.insert($1.lastKey() + 4,$point);
-	}else if($point->leftValue.macrovalue == "kashida_i"){
-		$1.insert($1.lastKey() + 1,$point);
+	}else if($point->leftValue.macrovalue == "leftjoin"){
+		$1.insert($1.lastKey() + 8,$point);
+	}else if($point->leftValue.macrovalue == "rightjoin"){
+		$1.insert($1.lastKey() + 8,$point);
 	}else if($point->leftValue.macrovalue == "endlink"){
 		$1.insert($1.lastKey() + 2,$point);
+	}else if($point->leftValue.macrovalue == "link"){
+		$1.insert($1.lastKey() + 3,$point);
 	}
 	else{
 		$1.insert($1.lastKey() + 1,$point);
@@ -219,34 +225,28 @@ subpath : point {$$.insert(driver.numpoint,$point);}
 pathjoin : direction[d1] link direction[d2] {
 	$$ = $link;
 	if($link->leftValue.type != Glyph::mpgui_explicit){
-		$link->leftValue.type = $d1.type;
-		$link->leftValue.isDirConstant = $d1.isDirConstant;
-		$link->leftValue.value = $d1.value;
-		$link->leftValue.x = $d1.x;
+		$link->leftValue.type = $d1.type;		
+		if($d1.dirExpr){
+			$link->leftValue.dirExpr = $d1.dirExpr->clone();
+		}
 
-		$link->rightValue.type = $d2.type;
-		$link->rightValue.isDirConstant = $d2.isDirConstant;
-		$link->rightValue.value = $d2.value;
-		$link->rightValue.x = $d2.x;
+		$link->rightValue.type = $d2.type;		
+		if($d2.dirExpr){
+			$link->rightValue.dirExpr = $d2.dirExpr->clone();
+		}
+		
 	}
 	
 }
 ;
 
 direction : 
-		{$$ = {}; $$.type = Glyph::mpgui_open;/*driver.lexer->begin_dir_state();*/}
-	| '{' T_DIR T_NUMBER '}' {
+	{$$ = {}; $$.type = Glyph::mpgui_open;}	
+	| '{' mfexpr '}' {
 		$$ = {};
-		$$.type = Glyph::mpgui_given;
-		$$.x = $T_NUMBER;
-		$$.isDirConstant = true;
-		}
-	| '{' T_EALPHA '}' {
-		$$ = {};
-		$$.type = Glyph::mpgui_given;
-		$$.value = $T_EALPHA;
-		$$.isDirConstant = false;
-		}
+		$$.type = Glyph::mpgui_given;		
+		$$.dirExpr = std::unique_ptr<MFExpr>($mfexpr);
+	}
 ;
 
 
@@ -254,15 +254,14 @@ direction :
 link : ".." "controls" controlpoint[c] ".." {
 		$$ = new Glyph::Knot();
 		$$->leftValue = $c;
-		$$->rightValue = $c;
-		$$->rightValue.isControlConstant = false;
+		$$->rightValue = $c;		
 		$$->leftValue.isEqualAfter = true;
 		$$->rightValue.isEqualBefore = true;
 	}
 | ".." "controls"  controlpoint[c1] "and" controlpoint[c2] ".." {$$ = new Glyph::Knot(); $$->leftValue = $c1; $$->rightValue = $c2;}
-| ".." "tension" tensionpoint[c] ".." {$$ = new Glyph::Knot();$$->leftValue = $c; $$->rightValue = $c; $$->rightValue.isControlConstant = false; $$->leftValue.isEqualAfter = true; $$->rightValue.isEqualBefore = true;}
-| ".." "tension"  tensionpoint[c1] "and" tensionpoint[c2] ".." {$$ = new Glyph::Knot(); $$->leftValue = $c1; $$->rightValue = $c2;}
-| ".." {$$ = new Glyph::Knot(); $$->leftValue.y = 1; $$->rightValue.y = 1;$$->leftValue.jointtype = $$->rightValue.jointtype = Glyph::path_join_tension;}
+| ".." "tension" tensionamount[c] ".." {$$ = new Glyph::Knot();$$->leftValue = $c; $$->rightValue = $c; $$->leftValue.isEqualAfter = true; $$->rightValue.isEqualBefore = true;}
+| ".." "tension"  tensionamount[c1] "and" tensionamount[c2] ".." {$$ = new Glyph::Knot(); $$->leftValue = $c1; $$->rightValue = $c2;}
+| ".." {$$ = new Glyph::Knot(); $$->leftValue.jointtype = $$->rightValue.jointtype = Glyph::path_join_tension;}
 | T_TT[value] {
 	$$ = new Glyph::Knot(); 
 	$$->leftValue.type = Glyph::mpgui_curl;
@@ -281,50 +280,71 @@ link : ".." "controls" controlpoint[c] ".." {
 }
 ;
 
-point : '(' T_NUMBER[x] ',' T_NUMBER[y] ')' {$$ = new Glyph::Knot(); $$->isConstant = true; $$->x = $x; $$->y = $y;}
-| '(' constpointwitheq ')' {$$ = $constpointwitheq;}
-| constpointwitheq {$$ = $constpointwitheq;}
-| T_EALPHA[left] opinsidepoint T_EALPHA[right] {
-	$$ = new Glyph::Knot(); 
-	$$->isConstant = false; 
-	$$->value = $left + " " + $opinsidepoint + " " + $right;
-	if(parsingglyph->params.contains($left)){
-		Glyph::Param& val = parsingglyph->params[$left];		
-		val.isInControllePath = true;		
-		$$->paramName = $left;
-	}else if(parsingglyph->params.contains($right)){
-		Glyph::Param& val = parsingglyph->params[$right];		
-		val.isInControllePath = true;		
-		$$->paramName = $right;
+point : mfexpr {$$ = new Glyph::Knot(); $$->expr = std::unique_ptr<MFExpr>($mfexpr);}
+;
+
+mfexpr : tertiarymfexpr[expr] {$$ = $expr;}
+;
+
+primarymfexpr :	varexpr {$$ = $varexpr;}
+	| constpoint {$$ = $constpoint;}
+	| functionexpr {$$ = $functionexpr;}
+	| plus_minus primarymfexpr[expr] {$$ = new ScalarMultiMFExp($expr,$plus_minus);}
+	| constnum {$$ = $constnum;}
+	| T_DIR primarymfexpr[expr] {$$ = new DirPathPointExp($expr);}
+	| '(' mfexpr ')' {$$ = new ParenthesesMFExp($mfexpr);}
+;
+
+secondarymfexpr : primarymfexpr {$$ = $primarymfexpr;}
+	| secondarymfexpr[left] times_over primarymfexpr[right] {$$ =  new BinOpMFExp($left,$times_over,$right);}
+	;
+
+
+tertiarymfexpr : secondarymfexpr[expr] {$$ = $expr;}
+	| tertiarymfexpr[left] plus_minus secondarymfexpr[right] {$$ =  new BinOpMFExp($left,$plus_minus,$right);}
+	;
+
+
+varexpr : T_EALPHA[var] {
+	auto isParam = false;
+	if(parsingglyph->params.contains($var)){
+		isParam = true;
+		parsingglyph->params[$var].isInControllePath = true;
+	}else if(parsingglyph->dependents.contains($var)){
+		auto param = parsingglyph->dependents[$var];
+		isParam = true;
+		param->isInControllePath = true;
 	}
-}
-| T_EALPHA {
-	$$ = new Glyph::Knot(); 
-	$$->isConstant = false; 
-	$$->value = $T_EALPHA;
-	if(parsingglyph->params.contains($T_EALPHA)){
-		Glyph::Param val = parsingglyph->params.value($T_EALPHA);		
-		val.isInControllePath = true;
-		parsingglyph->params[$T_EALPHA] = val;
-		$$->paramName = $T_EALPHA;
-	}
-}
+	$$ =  new VarMFExpr($var,isParam);
+	
+};
+
+constpoint : '(' mfexpr[x] ',' mfexpr[y] ')' {	
+	$$ = new PairPathPointExp($x,$y);
+};
+
+functionexpr : T_EALPHA[functionName]'(' mfexpr[left]  ',' mfexpr[right] ')' {		
+	$$ =  new FunctionMFExp($functionName,$left,$right);	
+};
+
+constnum : T_NUMBER[x] {	
+	$$ = new LitPathNumericExp($x);
+};
+
+times_over : '*' {$$ = MFExprOperator::TIMES;}
+| '/' {$$ = MFExprOperator::OVER;}
 ;
 
-constpointwitheq : '(' T_NUMBER[x] ',' T_NUMBER[y] ')' opinsidepoint T_EALPHA[right] {$$ = new Glyph::Knot(); $$->isConstant = true; $$->x = $x; $$->y = $y;$$->value = $opinsidepoint + " " + $right;};
-
-opinsidepoint : '+' {$$ = "+";}
-| '-' {$$ = "-";}
+plus_minus : '+' {$$ = MFExprOperator::PLUS;}
+| '-' {$$ = MFExprOperator::MINUS;}
 ;
 
-controlpoint : '(' T_NUMBER[x] ',' T_NUMBER[y] ')' {$$ = {}; $$.isControlConstant = true; $$.x = $x; $$.y = $y;$$.type = Glyph::mpgui_explicit;$$.jointtype = Glyph::path_join_control;}
-| T_EALPHA {$$ = {}; $$.isControlConstant = false; $$.controlValue = $T_EALPHA;$$.type = Glyph::mpgui_explicit;$$.jointtype = Glyph::path_join_control;}
+
+controlpoint : primarymfexpr {$$ = {};  $$.dirExpr = std::unique_ptr<MFExpr>($primarymfexpr) ;$$.type = Glyph::mpgui_explicit;$$.jointtype = Glyph::path_join_control;}
 ;
 
-tensionpoint : T_NUMBER[y] {$$ = {}; $$.isControlConstant = true; $$.y = $y;$$.jointtype = Glyph::path_join_tension;}
-| T_EALPHA {$$ = {}; $$.isControlConstant = false; $$.controlValue = $T_EALPHA;$$.jointtype = Glyph::path_join_tension;}
-| T_ATLEAST T_NUMBER[y] {$$ = {}; $$.isControlConstant = true; $$.y = $y;$$.isAtleast = true;$$.jointtype = Glyph::path_join_tension;}
-| T_ATLEAST T_EALPHA {$$ = {}; $$.isControlConstant = false; $$.controlValue = $T_EALPHA; $$.isAtleast = true;$$.jointtype = Glyph::path_join_tension;}
+tensionamount : primarymfexpr {$$ = {}; $$.tensionExpr = std::unique_ptr<MFExpr>($primarymfexpr); $$.jointtype = Glyph::path_join_tension;}
+| T_ATLEAST primarymfexpr {$$ = {}; $$.tensionExpr = std::unique_ptr<MFExpr>($primarymfexpr);$$.isAtleast = true;$$.jointtype = Glyph::path_join_tension;}
 ;
 
 verbatimsection : | T_BEGINVERBATIM_SECTION T_VERBATIM T_ENDVERBATIM_SECTION

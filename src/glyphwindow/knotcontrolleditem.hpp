@@ -43,9 +43,10 @@ public:
 	//QPainterPath shape() const Q_DECL_OVERRIDE;
 	void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) Q_DECL_OVERRIDE;
 	bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) Q_DECL_OVERRIDE;
+	
 
 public:	
-	KnotControlledItem(int m_numsubpath, int m_numpoint,int num_static_point, mp_gr_knot knot, Glyph* glyph, QGraphicsItem * parent = Q_NULLPTR);
+	KnotControlledItem(int m_numsubpath, int m_numpoint, mp_gr_knot knot,int numpointpath, Glyph* glyph, QGraphicsItem * parent = Q_NULLPTR);
 	~KnotControlledItem();
 
 	void setPositions(mp_gr_knot knot);	
@@ -58,8 +59,14 @@ public:
 	}
 
 private:
+	bool moveMinMaxDeltas(QGraphicsItem* watched, QGraphicsSceneMouseEvent* event);
+	bool addKashida(bool left, int nbKnots);
+	bool addKashida_old(bool left, int nbKnots);
+
 	int m_numsubpath;
 	int m_numpoint;
+	int m_numpointpath;
+	bool m_isInControlledPath;
 	mp_gr_knot m_knot;
 	Glyph* m_glyph;
 	Glyph::Knot * m_glyphknot;
@@ -96,6 +103,9 @@ private:
 		}
 		return tension;
 	}
-	bool updateControlPoint(bool leftControl, QPointF diff, bool shift, bool ctrl, QLineF line);
+	bool updateControlPoint(QGraphicsSceneMouseEvent* event, bool leftControl, QPointF diff, bool shift, bool ctrl);
+
+	int getControlledPosition(QGraphicsSceneMouseEvent* event);
+	bool updateControlledPoint(MFExpr* expr, int position, QPointF diff);
 };
 #endif // KNOTCONTROLLEDITEM_H

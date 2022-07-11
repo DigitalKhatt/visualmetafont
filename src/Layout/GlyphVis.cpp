@@ -276,15 +276,16 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
     bbox.urx = m_edge->maxx;
     bbox.ury = m_edge->maxy;
   }
-
+  double intpart;
   if (!std::isnan(m_edge->xleftanchor)) {
-    if (!isdigit(m_edge->xleftanchor) || !isdigit(m_edge->yleftanchor)) {
+    if (std::modf(m_edge->xleftanchor, &intpart) != 0.0 || std::modf(m_edge->yleftanchor, &intpart) != 0.0) {
       int stop = 5;
     }
     leftAnchor = QPoint(round(m_edge->xleftanchor), round(m_edge->yleftanchor));
   }
   if (!std::isnan(m_edge->xrightanchor)) {
-    if (!isdigit(m_edge->xrightanchor) || !isdigit(m_edge->xrightanchor)) {
+    //if (!isdigit(m_edge->xrightanchor) || !isdigit(m_edge->xrightanchor)) {
+    if (std::modf(m_edge->xrightanchor, &intpart) != 0.0 || std::modf(m_edge->yrightanchor, &intpart) != 0.0) {
       int stop = 5;
     }
     rightAnchor = QPoint(round(m_edge->xrightanchor), round(m_edge->yrightanchor));

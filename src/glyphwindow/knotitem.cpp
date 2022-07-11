@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -84,6 +84,9 @@ KnotItem::KnotItem(KnotType knottype, QGraphicsItem * parent)
 		radius = 3;
 		break;
 	}
+
+  disabledPen = pen;
+  disabledPen.setColor(Qt::gray);
 	
 }
 
@@ -125,13 +128,13 @@ void KnotItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
 		painter->setPen(this->pen);
 	}
 	else {
-		if (flags() & ItemIsMovable) {
+		if (flags() & ItemIsMovable) {      
 			painter->setBrush(this->brush);
 			painter->setPen(this->pen);
 		}
 		else {
 			painter->setBrush(Qt::gray);
-			painter->setPen(Qt::gray);
+			painter->setPen(disabledPen);
 		}
 		
 	}
