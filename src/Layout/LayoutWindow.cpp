@@ -667,7 +667,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
   layout.automedina->cvxxfeatures.clear();
 
-  layout.automedina->cvxxfeatures.append({});
+  layout.automedina->cvxxfeatures.append(QMap<quint16, QVector<quint16> >());
 
   auto& cv01feature = layout.automedina->cvxxfeatures[0];
 
