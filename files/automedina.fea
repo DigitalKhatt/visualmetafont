@@ -23,7 +23,7 @@ lookup basmala {
 
     lookup basmala.l1.new {
         sub behshape.init.beforeseen by behshape.init.bseen.basmala;
-        sub seen.medi by seen.medi.basmala.ii add 16 0;
+        sub seen.medi by seen.medi.basmala add 16 0;
         sub meem.fina by meem.fina.basmala add 0 6;
         sub behshape.medi by behshape.medi.basmala add 9 0;
 		sub hah.init by hah.init.basmala;
@@ -83,7 +83,7 @@ lookup basmala.curs {
 		pos meem.fina.basmala <0 0 0 0>;			
 	} basmala.curs.l4;
 
-    pos  behshape.init.bseen.basmala seen.medi.basmala.ii'  meem.fina.basmala'
+    pos  behshape.init.bseen.basmala seen.medi.basmala'  meem.fina.basmala'
      space'  alef.isol' lam.init.allah' lam.medi.allah' heh.fina.allah'
      space' alef.isol' lam.init'  reh.fina'  hah.init.beforemeem' meem.medi.afterhah' noon.fina.basmala'
      alef.isol'lookup basmala.curs.l3 lam.init'lookup basmala.curs.l2  reh.fina'   hah.init.basmala'lookup basmala.curs.l1  behshape.medi.basmala'  meem.fina.basmala'lookup basmala.curs.l4;
@@ -221,7 +221,7 @@ lookup variouskern {
 
 	lookup variouskern.l1 {
 		pos /^hamza.isol/ < 0 -50 0 0 >;
-		pos /^alef.isol/ <0 0 50 0 >;
+		pos /^alef.isol/ <0 0 -100 0 >;
 		pos /^dal.isol/ < -100 0 -100 0>;
 		pos shadda <-80 -50 0 0>;
 		pos smallwaw <0 0 50 0>;
@@ -234,7 +234,7 @@ lookup variouskern {
 	feature kern;		
 
 	pos /^alef.isol/ maddahabove /^hamza.isol/'lookup variouskern.l1 dammatan'lookup variouskern.l2;
-	pos fathatanidgham /^alef.isol/'lookup variouskern.l1;
+	#pos fathatanidgham /^alef.isol/'lookup variouskern.l1;
 	pos kasra lam.medi.allah shadda'lookup variouskern.l1;
 	pos /^dal.isol/'lookup variouskern.l1 fatha kaf.init.beforelam;
 	pos smallwaw'lookup variouskern.l1 maddahabove;
@@ -348,7 +348,7 @@ lookup otherkern {
 
 	pos meem.fina.afterkaf'<50 0 50 0> sukun space;
 
-	pos /^waw.fina/ /^alef.isol/'<0 0 -100 0> smallhighroundedzero;
+	pos /^waw.fina/ /^alef.isol/'<0 0 -150 0> smallhighroundedzero;
 
 	pos /^reh.fina/ kasra /^meem.init/'<0 0 -200 0>;
 
@@ -960,6 +960,16 @@ lookup justification {
 
 	feature calt;
 
+	lookup expa.stretchspace {
+
+		feature sch1;
+
+		lookupflag IgnoreMarks;
+
+		sub callback space by space expfactors 0 0.5 0 0;		
+
+	} expa.stretchspace;
+
 	lookup expa.kafalternate {
 
 		feature sch1;
@@ -1014,7 +1024,7 @@ lookup justification {
 
 
 		lookup expa.basmala.1 {
-			sub callback seen.medi.basmala.ii  expfactors 0 20 0 0;
+			sub callback seen.medi.basmala  expfactors 0 20 0 0;
 			sub callback behshape.medi.basmala expfactors 0 13 0 0;
 			sub callback meem.fina.basmala expfactors 0 0 0 9;				
 		} expa.basmala.1;
@@ -1025,7 +1035,7 @@ lookup justification {
 
 		sub behshape.medi.basmala'lookup expa.basmala.1 meem.fina.basmala'lookup expa.basmala.2;		
 
-		sub seen.medi.basmala.ii'lookup expa.basmala.1 meem.fina.basmala'lookup expa.basmala.1;
+		sub seen.medi.basmala'lookup expa.basmala.1 meem.fina.basmala'lookup expa.basmala.1;
 
 		
 
@@ -1057,16 +1067,20 @@ lookup justification {
 		sub hah.init.ii'lookup expa.ligadecomp.1 [dal.fina alef.fina]'lookup expa.ligadecomp.1;
 		sub seen.init.beforereh'lookup expa.ligadecomp.1 reh.fina.afterseen'lookup expa.ligadecomp.1;
 
-	} expa.ligadecomp;
+	} expa.ligadecomp;	
 
 	lookup expa.fina_ascenders {
+
+		@finaexpa = [
+			alef.fina dal.fina heh.fina reh.fina lam.fina behshape.medi.beforenoon behshape.medi.beforereh meem.fina meem.fina.ii kaf.fina kaf.fina.expa
+		];
 
 		feature sch1;
 
 		lookupflag IgnoreMarks;		
 
 		lookup expa.fina_ascenders.2 {			
-			sub callback behshape.medi by behshape.medi.expa expfactors 0 6 0 0;
+			
 			sub callback sad.init by sad.init expfactors 0 6 0 0;
 			sub callback lam.init expfactors 0 6 0 0;
 			sub callback alef.fina by alef.fina expfactors 0 0 0 3;
@@ -1074,15 +1088,57 @@ lookup justification {
 			sub callback heh.fina by heh.fina expfactors 0 0 0 3;
 			sub callback lam.fina by lam.fina expfactors 0 0 0 3;			
 		} expa.fina_ascenders.2;
+		
 
-		lookup expa.fina_ascenders.3 {
-			sub callback behshape.medi by behshape.medi.expa startlig expfactors 0 8 0 0;
-			sub callback alef.fina by alef.fina endlig expfactors 0 0 0 4;			
-		} expa.fina_ascenders.3;
+		lookup expa.fina_ascenders.4 {
+			sub callback /medi/ expfactors 0 4 0 0;
+			sub callback behshape.medi by behshape.medi.expa expfactors 0 4 0 0;
+		} expa.fina_ascenders.4;
 
-		sub [behshape.medi]'lookup expa.fina_ascenders.3 [alef.fina]'lookup expa.fina_ascenders.3;
+		lookup expa.fina_ascenders.44 {
+			sub callback /medi/ expfactors 0 0 0 2;
+		} expa.fina_ascenders.44;
 
-		sub [behshape.medi sad.init lam.init]'lookup expa.fina_ascenders.2 [alef.fina dal.fina heh.fina lam.fina]'lookup expa.fina_ascenders.2;			
+		lookup expa.fina_ascenders.5 {
+			sub callback @haslefttatweel expfactors 0 4 0 0;
+			sub callback behshape.medi by behshape.medi.expa expfactors 0 4 0 0;
+			sub callback @finaexpa expfactors 0 0 0 2;		
+		} expa.fina_ascenders.5;
+
+		lookup expa.fina_ascenders.hehbefore {
+			sub callback @haslefttatweel expfactors 0 2 0 0;
+			sub callback heh.medi expfactors -1 0 0 0;
+		} expa.fina_ascenders.hehbefore;
+
+		lookup expa.fina_ascenders.hehafter {			
+			sub callback @bases expfactors 0 0 0 2;
+		} expa.fina_ascenders.hehafter;	
+
+		sub [/init/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/]'lookup expa.fina_ascenders.4 [/medi/]'lookup expa.fina_ascenders.44 [/medi/]  [/fina/];
+
+		sub [/init/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/]'lookup expa.fina_ascenders.4 [/medi/]'lookup expa.fina_ascenders.44 [/medi/]  [/fina/];
+
+		sub [/init/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/]'lookup expa.fina_ascenders.4 [/medi/]'lookup expa.fina_ascenders.44 [/medi/]  [/fina/];
+
+		sub [/init/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/]'lookup expa.fina_ascenders.4 [/medi/]'lookup expa.fina_ascenders.44 [/medi/]  [/fina/];
+
+		sub [/init/] [/medi/] [/medi/] [/medi/] [/medi/] [/medi/]'lookup expa.fina_ascenders.4 [/medi/]'lookup expa.fina_ascenders.44 [/medi/]  [/fina/];
+
+		sub [/init/] [/medi/] [/medi/] [/medi/] [/medi/]'lookup expa.fina_ascenders.4 [/medi/]'lookup expa.fina_ascenders.44 [/medi/]  [/fina/];
+
+		sub [/init/] [/medi/] [/medi/] [/medi/]'lookup expa.fina_ascenders.4 [/medi/]'lookup expa.fina_ascenders.44 [/medi/]  [/fina/];
+
+		sub [/init/] [/medi/] [/medi/]'lookup expa.fina_ascenders.4 [/medi/]'lookup expa.fina_ascenders.44 [/medi/]  [/fina/]; # sub-word with 6 letters
+
+		sub [/init/] @haslefttatweel'lookup expa.fina_ascenders.hehbefore heh.medi'lookup expa.fina_ascenders.hehbefore [/medi/]'lookup expa.fina_ascenders.hehafter  [/fina/]'; # sub-word with 5 letters expanded heh
+
+		sub [/init/] [/medi/]'lookup expa.fina_ascenders.4 [/^(?!.*seen).*medi/]'lookup expa.fina_ascenders.44 [/medi/]'  [/fina/]'; # sub-word with 5 letters
+
+		sub [/init/] [/medi/]'lookup expa.fina_ascenders.hehbefore heh.medi'lookup expa.fina_ascenders.hehbefore  [/fina/]'lookup expa.fina_ascenders.hehafter;		# sub-word with 4 letters		 expanded heh
+
+		sub [/init/] [/medi/]'lookup expa.fina_ascenders.4 [/^(?!.*seen).*medi/]'lookup expa.fina_ascenders.44  [/fina/]';		# sub-word with 4 letters		
+
+		sub @haslefttatweel'lookup expa.fina_ascenders.5  @finaexpa'lookup expa.fina_ascenders.5;	
 
 	} expa.fina_ascenders;
 
@@ -1090,75 +1146,14 @@ lookup justification {
 
 		feature sch1;
 
-		lookupflag IgnoreMarks;		
+		lookupflag IgnoreMarks;
 
 		lookup expa.fina_ascenders.prio2.1 {
-			sub callback behshape.init expfactors 0 4 0 0;
-			sub callback behshape.medi expfactors 0 4 0 0;
-			sub callback hah.init expfactors 0 4 0 0;
-			sub callback hah.medi expfactors 0 4 0 0;
-			sub callback ain.init expfactors 0 4 0 0;
-			sub callback ain.medi expfactors 0 4 0 0;
-			sub callback fehshape.init expfactors 0 4 0 0;
-			sub callback fehshape.medi expfactors 0 4 0 0;
-			sub callback seen.init expfactors 0 4 0 0;
-			sub callback seen.medi expfactors 0 4 0 0;
-			sub callback sad.init expfactors 0 4 0 0;
-			sub callback sad.medi expfactors 0 4 0 0;
-			sub callback tah.init expfactors 0 4 0 0;
-			sub callback tah.medi expfactors 0 4 0 0;
-			sub callback kaf.init expfactors 0 4 0 0;
-			sub callback kaf.medi expfactors 0 4 0 0;
-			sub callback lam.init expfactors 0 4 0 0;
-			sub callback lam.medi expfactors 0 4 0 0;
-			sub callback meem.init expfactors 0 4 0 0;
-			sub callback meem.medi expfactors 0 4 0 0;
-			sub callback heh.init expfactors 0 4 0 0;
-			sub callback heh.medi expfactors 0 4 0 0;
-			sub callback alef.fina expfactors 0 0 0 2;
-			sub callback dal.fina expfactors 0 0 0 2;
-			sub callback heh.fina expfactors 0 0 0 2;
-			sub callback reh.fina expfactors 0 0 0 2;
-			sub callback lam.fina expfactors 0 0 0 2;
-			sub callback meem.fina expfactors 0 0 0 2;
-			sub callback behshape.medi.beforenoon expfactors 0 0 0 2;
-			sub callback behshape.medi.beforereh expfactors 0 0 0 2;			
+			sub callback behshape.medi.expa startlig expfactors 0 4 0 0;
+			sub callback alef.fina by alef.fina endlig expfactors 0 0 0 2;			
 		} expa.fina_ascenders.prio2.1;
 
-		lookup expa.fina_ascenders.prio2.2 {
-			sub callback behshape.init expfactors 0 3 0 0;
-			sub callback behshape.medi expfactors 0 3 0 0;
-			sub callback hah.init expfactors 0 3 0 0;
-			sub callback hah.medi expfactors 0 3 0 0;
-			sub callback ain.init expfactors 0 3 0 0;
-			sub callback ain.medi expfactors 0 3 0 0;
-			sub callback fehshape.init expfactors 0 3 0 0;
-			sub callback fehshape.medi expfactors 0 3 0 0;
-			sub callback seen.init expfactors 0 3 0 0;
-			sub callback seen.medi expfactors 0 3 0 0;
-			sub callback sad.init expfactors 0 3 0 0;
-			sub callback sad.medi expfactors 0 3 0 0;
-			sub callback tah.init expfactors 0 3 0 0;
-			sub callback tah.medi expfactors 0 3 0 0;
-			sub callback kaf.init expfactors 0 3 0 0;
-			sub callback kaf.medi expfactors 0 3 0 0;
-			sub callback lam.init expfactors 0 3 0 0;
-			sub callback lam.medi expfactors 0 3 0 0;
-			sub callback lam.medi.afterkaf expfactors 0 3 0 0;			
-			sub callback meem.init expfactors 0 3 0 0;
-			sub callback meem.medi expfactors 0 3 0 0;
-			sub callback heh.init expfactors 0 3 0 0;
-			sub callback heh.medi expfactors 0 3 0 0;
-			sub callback meem.fina expfactors 0 0 0 3;
-			sub callback meem.fina.ii expfactors 0 0 0 3;
-			
-		} expa.fina_ascenders.prio2.2;
-
-		
-
-		sub @haslefttatweel'lookup expa.fina_ascenders.prio2.1  [alef.fina dal.fina heh.fina reh.fina lam.fina behshape.medi.beforenoon behshape.medi.beforereh]'lookup expa.fina_ascenders.prio2.1;
-
-		sub @haslefttatweel'lookup expa.fina_ascenders.prio2.2  [meem.fina meem.fina.ii]'lookup expa.fina_ascenders.prio2.2;
+		sub [behshape.medi.expa]'lookup expa.fina_ascenders.prio2.1 [alef.fina]'lookup expa.fina_ascenders.prio2.1;
 
 	} expa.fina_ascenders.prio2;
 
@@ -1338,7 +1333,7 @@ lookup justification {
 		@hasshrink = [
 			behshape.init hah.init seen.init sad.init tah.init ain.init fehshape.init kaf.init lam.init meem.init
 			heh.init heh.medi behshape.medi behshape.medi.beforeseen hah.medi hah.medi.afterbeh hah.medi.lam_hah 
-			hah.medi.beforemeem seen.medi sad.medi tah.medi ain.medi fehshape.medi kaf.medi lam.medi lam.medi.afterkaf
+			hah.medi.aftermeem seen.medi sad.medi tah.medi ain.medi fehshape.medi kaf.medi lam.medi lam.medi.afterkaf
 			meem.medi meem.medi.afterhah kaf.init.ii alef.fina behshape.medi.beforenoon hah.medi.lam_hah
 			meem.fina meem.fina.ii
 		];
@@ -1365,7 +1360,7 @@ lookup justification {
 			sub callback kaf.init expfactors 0 -1.2 0 0;
 			sub callback kaf.medi expfactors 0 -0.5 0 0;
 			sub callback lam.init expfactors 0 -0.5 0 0;
-			sub callback lam.medi expfactors 0 -0.5 0 -0.5;
+			sub callback lam.medi expfactors 0 -0.5 0 0;
 			sub callback meem.init expfactors 0 -0.5 0 0;
 			sub callback meem.medi expfactors 0 -0.5 0 0;
 			sub callback heh.init expfactors 0 -0.5 0 0;
@@ -1403,7 +1398,7 @@ lookup justification {
 		
 
 		lookup expa.shrink.basmala.1 {
-			sub callback seen.medi.basmala.ii  expfactors 20 0 0 0 1;
+			sub callback seen.medi.basmala  expfactors 20 0 0 0 1;
 			sub callback behshape.medi.basmala expfactors 20 0 0 0 1;
 			sub callback meem.fina.basmala expfactors 0 0 20 -0.3 1;				
 		} expa.shrink.basmala.1;
@@ -1414,7 +1409,7 @@ lookup justification {
 
 		sub behshape.medi.basmala'lookup expa.shrink.basmala.1 meem.fina.basmala'lookup expa.shrink.basmala.2;		
 
-		sub seen.medi.basmala.ii'lookup expa.shrink.basmala.1 meem.fina.basmala'lookup expa.shrink.basmala.1;
+		sub seen.medi.basmala'lookup expa.shrink.basmala.1 meem.fina.basmala'lookup expa.shrink.basmala.1;
 		
 	} expa.shrink.basmala;	
 	
@@ -1784,7 +1779,7 @@ lookup leftexpand {
     lookupflag IgnoreMarks;
 
     lookup forwawfea.l1 {
-      sub @haslefttatweel add 1 0;
+      sub @haslefttatweel add 0.5 0;
     } forwawfea.l1;
 
     lookup forwawfea.l2 {
@@ -1795,11 +1790,21 @@ lookup leftexpand {
       sub @haslefttatweel add 3 0;
     } forwawfea.l3;
 
-    sub @haslefttatweel'lookup forwawfea.l1 waw.fina;
+		lookup forwawfea.l4 {
+      sub @haslefttatweel add 1.5 0;
+    } forwawfea.l4;
 
-    sub @haslefttatweel'lookup forwawfea.l2 heh.medi;
+		lookup forwawfea.add1 {
+      sub @haslefttatweel add 1 0;
+    } forwawfea.add1;
 
-		sub @haslefttatweel'lookup forwawfea.l3 sad.medi;
+    sub @haslefttatweel'lookup forwawfea.l1 [waw.fina qaf.fina qaf.fina.expa];
+
+    sub @haslefttatweel'lookup forwawfea.l2 [heh.medi ];
+
+		sub @haslefttatweel'lookup forwawfea.l3 [sad.medi sad.medi.beforereh sad.medi.beforeyeh sad.fina tah.fina];
+
+		sub @haslefttatweel'lookup forwawfea.l4 [tah.medi tah.medi.beforeyeh];
 
   } forwawheh;
 
@@ -1813,8 +1818,8 @@ lookup leftexpand {
     } forsmalllaleffea.smallalef;
 
     sub @haslefttatweel'lookup forwawfea.l2 smallalef'lookup forsmalllaleffea.smallalef maddahabove;
-    sub @haslefttatweel'lookup forwawfea.l1 smallalef'lookup forsmalllaleffea.smallalef;
-    sub @haslefttatweel'lookup forwawfea.l1 maddahabove' smallalef'lookup forsmalllaleffea.smallalef;
+    sub @haslefttatweel'lookup forwawfea.add1 smallalef'lookup forsmalllaleffea.smallalef;
+    sub @haslefttatweel'lookup forwawfea.add1 maddahabove' smallalef'lookup forsmalllaleffea.smallalef;
 
   } forsmalllaleffea;
 
@@ -1844,14 +1849,19 @@ lookup joinedsmallletters {
 		pos base   /init|medi/ <anchor function joinedsmalllettersbaseanchor> markClass [smallalef.joined hamzaabove.joined] <anchor function defaultopmarkanchor> @beforesad;		
 	} joinedsmallletters.l4;
 
+	lookup joinedsmallletters.l5 {					
+		pos base   /init|medi/ <anchor function joinedsmalllettersbaseanchor> markClass [smallalef.joined hamzaabove.joined] <anchor function defaultopmarkanchor> @beforetah;		
+	} joinedsmallletters.l5;
+
 	pos hamzaabove.joined'lookup joinedsmallletters.l1 smallalef.joined;
 
 	pos [smallalef.joined smallhighwaw]'lookup joinedsmallletters.l1 maddahabove hamzaabove.joined;
 
 	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l2 heh.medi;
 	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l3 waw.fina;
-	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l4 maddahabove [sad.medi sad.fina];
-	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l4 [sad.medi sad.fina];
+	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l4 maddahabove [/^sad.medi/ /^sad.fina/];
+	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l4 [/^sad.medi/ /^sad.fina/];
+	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l5 [tah.medi tah.medi.beforeyeh tah.fina];
 	
 } joinedsmallletters;
 
@@ -1874,10 +1884,17 @@ lookup othercalt {
 	feature calt;
 
 	lookup othercalt.l1 {
-		sub behshape.init by behshape.init.minuslt_110;			
-	} othercalt.l1;	
+		sub behshape.init by behshape.init.minuslt_110;
+		sub hamzaabove by hamzaabove.small;			
+	} othercalt.l1;
 
-	sub behshape.init'lookup othercalt.l1 twodotsdown /^reh.fina/;	
+	lookup othercalt.l2 {
+		sub alef.isol add -1.4 0;		
+	} othercalt.l2;		
+
+	sub behshape.init'lookup othercalt.l1 twodotsdown /^reh.fina/;
+
+	sub alef.isol'lookup othercalt.l2 hamzaabove'lookup othercalt.l1 fatha /^kaf.init/;
 
 
 } othercalt;
@@ -1885,7 +1902,7 @@ lookup othercalt {
 feature ccmp {
 	lookup setdecomp;
 	lookup lamhamzaalef;
-	lookup deletespace;
+	#lookup deletespace;
 	lookup miscellaneoussubst;
 
 	# needed to prevent reordering (since 0x034F deleted otherwise space inserted) when applying justification (page 282 line 14)
@@ -1940,12 +1957,12 @@ feature calt {
 	@haslefttatweel = [
 		behshape.init hah.init seen.init sad.init tah.init ain.init fehshape.init kaf.init kaf.init.ii lam.init meem.init
 		heh.init heh.medi behshape.medi behshape.medi.beforeseen hah.medi hah.medi.afterbeh hah.medi.lam_hah 
-		hah.medi.beforemeem seen.medi sad.medi tah.medi ain.medi fehshape.medi kaf.medi lam.medi lam.medi.afterkaf
+		hah.medi.aftermeem hah.medi.afterfeh seen.medi sad.medi tah.medi ain.medi fehshape.medi kaf.medi lam.medi lam.medi.afterkaf
 		meem.medi meem.medi.afterhah kaf.init.ii
 	];
 
 	lookup multiplebehshape;
-	lookup kafsubst;	
+	#lookup kafsubst;	
 	lookup kaflamalef;			
 	lookup kafmeemliga;
 	lookup hahlig;
@@ -1955,6 +1972,7 @@ feature calt {
   lookup convertsmallaleftochar;
   lookup basmala;
   lookup marks.addwidth;
+	
 } calt;
 
 feature curs {
@@ -1968,9 +1986,9 @@ feature curs {
 
 
 feature kern {
-	lookup alefalef;
+	#lookup alefalef;
 	lookup alefadjustment;
-	lookup wawmaddaalef;
+	#lookup wawmaddaalef;
 	lookup alefkern;
 	lookup variouskern;
 	lookup thalkafinit;
@@ -2013,15 +2031,15 @@ feature tjwd {
   lookup tajweedcolor;
 } tjwd;
 
-feature sch1 {  
-  lookup expa.fina_ascenders;
-  lookup expa.ligadecomp;
-  lookup expa.kafalternate;
-  lookup expa.alternates;
-  lookup expa.joining.prio1;
-  lookup expa.joining.prio2;
-  lookup expa.joining.prio3;
-} sch1;
+#feature sch1 {  
+  #lookup expa.fina_ascenders;
+  #lookup expa.ligadecomp;
+  #lookup expa.kafalternate;
+  #lookup expa.alternates;
+  #lookup expa.joining.prio1;
+  #lookup expa.joining.prio2;
+  #lookup expa.joining.prio3;
+#} sch1;
 
 feature shr1 {
 	lookup shrr.alefcursive {	
@@ -2105,17 +2123,20 @@ feature shr1 {
 
 feature shr2 {
   lookup expa.shrink;
+
 	# lookup expa.shrink2;
+
+	lookup expa.shrinkspace.1 {
+		sub callback space by space expfactors 0 -1 0 0;
+	} expa.shrinkspace.1;
 
 	lookup expa.shrinkspace {
 
 		feature shr2;
 
-		lookupflag IgnoreMarks;
+		sub alef.isol' [smallhighroundedzero maddahabove]' space' alef.isol' [wasla hamzaabove]';
 
-		sub callback space by space expfactors 0 -1 0 0;
-
-		
+		sub space'lookup expa.shrinkspace.1;		
 
 	} expa.shrinkspace;
 } shr2;
@@ -2163,8 +2184,7 @@ feature tug1 {
 		lookupflag IgnoreMarks;
 
 		sub  hah.init by hah.init.iii;
-		sub  sad.init by sad.init.kii;
-		#sub  seen.init by seen.init.kii;
+		sub  sad.init by sad.init.kii;		
 
 		sub  alef.fina by alef.fina.kii;
 		sub  heh.fina by heh.fina.kii;
@@ -2224,13 +2244,14 @@ table(just) {
 
 table(just) {
 	stretch {
+		lookup expa.basmala;	
 		lookup expa.kaf.fina.alternate;
-		lookup expa.kafalternate;
-		lookup expa.basmala;
-		lookup expa.ligadecomp;
+		lookup expa.kafalternate;			
 		lookup expa.alternate.prio1;
-		lookup expa.fina_ascenders;				
+		lookup expa.fina_ascenders;
+		lookup expa.ligadecomp;
 		lookup expa.alternates;
+		#lookup expa.stretchspace;
 		lookup expa.fina_ascenders.prio2;	
 		#lookup expa.joining.prio1;
 		#lookup expa.joining.prio2;
@@ -2255,7 +2276,7 @@ table(just) {
 		lookup shr1.cursive;		
 		lookup shr1.kaf;
 		lookup expa.shrink;
-		lookup shr1.kern;
+		#lookup shr1.kern;
 		lookup shr1.dalcursive;
 		lookup expa.shrinkspace;
 	}

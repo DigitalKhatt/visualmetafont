@@ -656,7 +656,7 @@ QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, Glyp
 
       adjustoriginal += QPoint(xshift, yshift);
     }
-    else if (curr->rightAnchor && !curr->originalglyph.contains("fina.expa")) {
+    else if (curr->rightAnchor && !(curr->originalglyph.contains("fina") && curr->originalglyph.contains("expa"))) {
 
     }
     else {
@@ -2374,7 +2374,7 @@ void OtLayout::jutifyLine_old(hb_font_t* shapefont, hb_buffer_t* text_buffer, in
   hb_buffer_destroy(buffer);
 }
 
-void OtLayout::jutifyLine(hb_font_t* shapefont, hb_buffer_t* text_buffer, int lineWidth, int emScale, bool tajweedColor) {
+void OtLayout::jutifyLine(hb_font_t* shapefont, hb_buffer_t* text_buffer, int lineWidth, bool tajweedColor) {
 
   if (applyJustification && lineWidth != 0) {
     hb_buffer_set_justify(text_buffer, lineWidth);
@@ -2417,36 +2417,15 @@ void OtLayout::jutifyLine(hb_font_t* shapefont, hb_buffer_t* text_buffer, int li
 
 }
 
-QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t  cluster_level) {
+QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification,
+  bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level) {
 
   QList<LineLayoutInfo> page;
 
   hb_buffer_t* buffer = buffer = hb_buffer_create();
   hb_font_t* shapefont = this->createFont(emScale, newFace);
 
-  const int minSpace = OtLayout::MINSPACEWIDTH * emScale;
-  const int  defaultSpace = OtLayout::SPACEWIDTH * emScale;
-  double nuqta = this->nuqta() * emScale;
-
   int currentyPos = TopSpace << OtLayout::SCALEBY;
-
-  /*
-      hb_feature_t features[] = {
-          {HB_TAG('c', 'c', 'm', 'p'),0,0,(uint)-1},
-          {HB_TAG('i', 'n', 'i', 't'),0,0,(uint)-1},
-          {HB_TAG('m', 'e', 'd', 'i'),0,0,(uint)-1},
-          {HB_TAG('f', 'i', 'n', 'a'),0,0,(uint)-1},
-          {HB_TAG('r', 'l', 'i', 'g'),0,0,(uint)-1},
-          {HB_TAG('l', 'i', 'g', 'a'),0,0,(uint)-1},
-          {HB_TAG('c', 'a', 'l', 't'),0,0,(uint)-1},
-          {HB_TAG('c', 'u', 'r', 's'),0,0,(uint)-1},
-          {HB_TAG('k', 'e', 'r', 'n'),0,0,(uint)-1},
-          {HB_TAG('m', 'a', 'r', 'k'),0,0,(uint)-1},
-          {HB_TAG('m', 'k', 'm', 'k'),0,0,(uint)-1},
-          {HB_TAG('s', 'c', 'h', '1'),0,0,(uint)-1},
-      };*/
-
-      //int num_features = sizeof(features) / sizeof(*features);
 
   hb_segment_properties_t savedprops;
   savedprops.direction = HB_DIRECTION_RTL;
@@ -2456,25 +2435,6 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
   savedprops.reserved1 = 0;
   savedprops.reserved2 = 0;
 
-  hb_feature_t color_fea{ HB_TAG('t', 'j', 'w', 'd'),0,0,(uint)-1 };
-  if (tajweedColor) {
-    color_fea.value = 1;
-  }
-
-  hb_feature_t gpos_features[] = {
-    {HB_TAG('i', 'n', 'i', 't'),0,0,(uint)-1},
-    {HB_TAG('m', 'e', 'd', 'i'),0,0,(uint)-1},
-    {HB_TAG('f', 'i', 'n', 'a'),0,0,(uint)-1},
-    {HB_TAG('r', 'l', 'i', 'g'),0,0,(uint)-1},
-    {HB_TAG('l', 'i', 'g', 'a'),0,0,(uint)-1},
-    {HB_TAG('c', 'a', 'l', 't'),0,0,(uint)-1},
-    {HB_TAG('s', 'c', 'h', 'm'),1,0,(uint)-1},
-    {HB_TAG('s', 'h', 'r', '1'),0,0,(uint)-1},
-    color_fea
-  };
-
-  int num_gpos_features = sizeof(gpos_features) / sizeof(*gpos_features);
-
   auto initializeBuffer = [&](hb_buffer_t* buffer, hb_segment_properties_t* savedprops, QString& line)
   {
     hb_buffer_clear_contents(buffer);
@@ -2483,194 +2443,131 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
     hb_buffer_add_utf16(buffer, line.utf16(), -1, 0, -1);
   };
 
+  hb_font_t* currentFont = nullptr;
+
   for (auto& line : lines) {
 
-    initializeBuffer(buffer, &savedprops, line);
-    //hb_buffer_set_cluster_level(buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
-    // hb_buffer_set_message_func(buffer, setMessage, this, NULL);
-
-    buffer->useCallback = !useNormAxisValues;
+    bool first = true;
+    bool overfull = false;
+    currentFont = shapefont;
+    int fontSize = emScale;
 
     uint glyph_count;
 
-    /*
-          hb_shape_plan_t* shape_plan = hb_shape_plan_create_cached2(shapefont->face, &buffer->props, nullptr, 0, shapefont->coords, shapefont->num_coords, nullptr);
+    while (first || overfull)
+    {
 
-          hb_bool_t res = hb_shape_plan_execute(shape_plan, shapefont, buffer, nullptr, 0);
-          hb_shape_plan_destroy(shape_plan);
-          if (res)
-              buffer->content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS;*/
+      first = false;
 
-    if (whichJust == WhichJust::HarfBuzz) {
-      jutifyLine(shapefont, buffer, lineWidth, emScale, tajweedColor);
-      /*
+      initializeBuffer(buffer, &savedprops, line);
+
+      buffer->useCallback = !useNormAxisValues;
+
+      if (whichJust == WhichJust::HarfBuzz) {
+        jutifyLine(currentFont, buffer, lineWidth, tajweedColor);
+      }
+      else {
+        jutifyLine_old(currentFont, buffer, lineWidth, fontSize, tajweedColor);
+      }
+
+      hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
       hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
+      QVector<quint32> spaces;
       int currentlineWidth = 0;
+      int spaceWidth = 0;
+
+      LineLayoutInfo lineLayout;
+
       for (int i = glyph_count - 1; i >= 0; i--) {
 
-        currentlineWidth += glyph_pos[i].x_advance;
+        GlyphLayoutInfo glyphLayout;
 
-      }
-      currentlineWidth = currentlineWidth >> OtLayout::SCALEBY;
-      int llineWidth = lineWidth >> OtLayout::SCALEBY;
-      std::cout << "llineWidth=" << llineWidth << ",currentlineWidth=" << currentlineWidth << ",diff=" << currentlineWidth - llineWidth << std::endl;*/
-    }
-    else if (whichJust == WhichJust::Second) {
-      jutifyLine_old(shapefont, buffer, lineWidth, emScale, tajweedColor);
-    }
-    else {
+        glyphLayout.codepoint = glyph_info[i].codepoint;
+        glyphLayout.lefttatweel = normalToParameter(glyph_info[i].codepoint, glyph_info[i].lefttatweel, true); //glyph_info[i].lefttatweel;
+        glyphLayout.righttatweel = normalToParameter(glyph_info[i].codepoint, glyph_info[i].righttatweel, false); // glyph_info[i].righttatweel;
+        glyphLayout.cluster = glyph_info[i].cluster;
+        glyphLayout.x_advance = glyph_pos[i].x_advance;
+        glyphLayout.y_advance = glyph_pos[i].y_advance;
+        glyphLayout.x_offset = glyph_pos[i].x_offset;
+        glyphLayout.y_offset = glyph_pos[i].y_offset;
+        glyphLayout.lookup_index = glyph_pos[i].lookup_index;
+        glyphLayout.color = glyph_pos[i].lookup_index >= this->tajweedcolorindex ? glyph_pos[i].base_codepoint : 0;
+        glyphLayout.subtable_index = glyph_pos[i].subtable_index;
+        glyphLayout.base_codepoint = glyph_pos[i].base_codepoint;
 
-      hb_shape(shapefont, buffer, &color_fea, 1);
+        glyphLayout.beginsajda = false;
+        glyphLayout.endsajda = false;
 
+        currentlineWidth += glyphLayout.x_advance;
 
-      if (applyJustification && lineWidth != 0) {
+        if (glyphLayout.codepoint == 32) {
+          spaces.append(lineLayout.glyphs.size());
+          spaceWidth += glyphLayout.x_advance;
 
-        JustificationInProgress = true;
-        bool continueJustification = true;
-        bool schr1applied = false;
-        while (continueJustification) {
-
-          continueJustification = false;
-
-          hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-          hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
-          QVector<quint32> spaces;
-          int currentlineWidth = 0;
-
-
-          for (int i = glyph_count - 1; i >= 0; i--) {
-            if (glyph_info[i].codepoint == 32) {
-              glyph_pos[i].x_advance = minSpace;
-              spaces.append(i);
-            }
-            else {
-              currentlineWidth += glyph_pos[i].x_advance;
-            }
-          }
-
-          double diff = (double)lineWidth - currentlineWidth - spaces.size() * (double)defaultSpace;
-
-          bool needgpos = false;
-          if (diff > 0) {
-            applyJustFeature(buffer, needgpos, diff, "sch1", shapefont, nuqta, emScale);
-          }
-          //shrink
-          else {
-
-            if (!schr1applied) {
-              hb_feature_t festures2[2];
-              festures2[0].tag = HB_TAG('s', 'h', 'r', '1');
-              festures2[0].value = 1;
-              festures2[0].start = 0;
-              festures2[0].end = -1;
-
-              festures2[1] = color_fea;
-
-              initializeBuffer(buffer, &savedprops, line);
-
-              hb_shape(shapefont, buffer, festures2, 2);
-
-              continueJustification = true;
-              schr1applied = true;
-            }
-            else {
-              applyJustFeature(buffer, needgpos, diff, "shr2", shapefont, nuqta, emScale);
-            }
-          }
-
-          if (needgpos) {
-            buffer->reverse();
-
-            gpos_features[7].value = schr1applied ? 1 : 0;;
-
-            hb_shape(shapefont, buffer, gpos_features, num_gpos_features);
-            //hb_shape(shapefont, buffer, nullptr, 0);
-          }
         }
-        JustificationInProgress = false;
-      }
-    }
 
-
-
-
-
-    hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-    hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
-    QVector<quint32> spaces;
-    int currentlineWidth = 0;
-    int spaceWidth = 0;
-
-    LineLayoutInfo lineLayout;
-
-    for (int i = glyph_count - 1; i >= 0; i--) {
-
-      GlyphLayoutInfo glyphLayout;
-
-      glyphLayout.codepoint = glyph_info[i].codepoint;
-      glyphLayout.lefttatweel = normalToParameter(glyph_info[i].codepoint, glyph_info[i].lefttatweel, true); //glyph_info[i].lefttatweel;
-      glyphLayout.righttatweel = normalToParameter(glyph_info[i].codepoint, glyph_info[i].righttatweel, false); // glyph_info[i].righttatweel;
-      glyphLayout.cluster = glyph_info[i].cluster;
-      glyphLayout.x_advance = glyph_pos[i].x_advance;
-      glyphLayout.y_advance = glyph_pos[i].y_advance;
-      glyphLayout.x_offset = glyph_pos[i].x_offset;
-      glyphLayout.y_offset = glyph_pos[i].y_offset;
-      glyphLayout.lookup_index = glyph_pos[i].lookup_index;
-      glyphLayout.color = glyph_pos[i].lookup_index >= this->tajweedcolorindex ? glyph_pos[i].base_codepoint : 0;
-      glyphLayout.subtable_index = glyph_pos[i].subtable_index;
-      glyphLayout.base_codepoint = glyph_pos[i].base_codepoint;
-
-      glyphLayout.beginsajda = false;
-      glyphLayout.endsajda = false;
-
-      currentlineWidth += glyphLayout.x_advance;
-
-      if (glyphLayout.codepoint == 32) {
-        spaces.append(lineLayout.glyphs.size());
-        spaceWidth += glyphLayout.x_advance;
+        lineLayout.glyphs.push_back(glyphLayout);
 
       }
 
-      lineLayout.glyphs.push_back(glyphLayout);
+      lineLayout.overfull = lineWidth != 0 ? currentlineWidth - lineWidth : 0;
 
-    }
+      const int minSpace = OtLayout::MINSPACEWIDTH * fontSize;
 
-    lineLayout.overfull = currentlineWidth - lineWidth;
 
-    if (lineWidth != 0 && spaces.size() != 0) {
-      if (lineLayout.overfull < 0) {        
-        double spaceAdded = -lineLayout.overfull / spaces.size();
-        for (auto index : spaces) {
-          lineLayout.glyphs[index].x_advance += spaceAdded;
-          lineLayout.overfull += spaceAdded;
+      if (lineWidth != 0 && spaces.size() != 0) {
+        if (lineLayout.overfull < 0) {
+
+          double spaceAdded = -lineLayout.overfull / spaces.size();
+          for (auto index : spaces) {
+            lineLayout.glyphs[index].x_advance += spaceAdded;
+            //lineLayout.overfull += spaceAdded;
+          }
+          lineLayout.overfull = 0;
+          currentlineWidth = lineWidth;
+        }
+        else if (lineLayout.overfull > 0) {
+          /*double spaceRemoved = lineLayout.overfull / spaces.size();
+          for (auto index : spaces) {
+            auto newSpace = lineLayout.glyphs[index].x_advance - spaceRemoved;
+            if (newSpace > minSpace) {
+             lineLayout.glyphs[index].x_advance = newSpace;
+              lineLayout.overfull -= spaceRemoved;
+            }
+          }*/
         }
       }
-      else if (lineLayout.overfull > 0) {
-        double spaceRemoved = lineLayout.overfull / spaces.size();
-        for (auto index : spaces) {
-          auto newSpace = lineLayout.glyphs[index].x_advance - spaceRemoved;
-          if (newSpace > minSpace) {
-            lineLayout.glyphs[index].x_advance = newSpace;
-            lineLayout.overfull -= spaceRemoved;
-          }
-        }
-        
+
+      if (justification == LineJustification::Distribute) {
+        lineLayout.xstartposition = 0;
+      }
+      else {
+        lineLayout.xstartposition = (pageWidth - currentlineWidth) / 2;
       }
 
+      lineLayout.ystartposition = currentyPos;
+      lineLayout.fontSize = fontSize;
+
+      if (overfull) {
+        hb_font_destroy(currentFont);
+        overfull = false;
+      }
+      else if (changeSize) {
+        if (lineLayout.overfull > 0) {
+          double ratio = (double)lineWidth / currentlineWidth; 
+          if (ratio > 0.01) {            
+            fontSize = std::floor((double)emScale * ratio);            
+            currentFont = this->createFont(fontSize, false);
+            overfull = true;
+            continue;
+          }
+        }
+      }
+
+      currentyPos = currentyPos + (InterLineSpacing << OtLayout::SCALEBY);
+
+      page.append(lineLayout);
     }
-
-    if (justification == LineJustification::Distribute) {
-      lineLayout.xstartposition = 0;
-    }
-    else {
-      lineLayout.xstartposition = (pageWidth - currentlineWidth) / 2;
-    }
-
-    lineLayout.ystartposition = currentyPos;
-
-    page.append(lineLayout);
-
-    currentyPos = currentyPos + (InterLineSpacing << OtLayout::SCALEBY);
   }
 
   hb_font_destroy(shapefont);
@@ -2680,7 +2577,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 
 }
 
-LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVerse, hb_buffer_cluster_level_t  cluster_level) {
+LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t  cluster_level) {
 
 
   bool isQurancomplex = false;
@@ -2711,7 +2608,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
   QString quran;
 
-  for (int i = 2; i < 604; i++) {
+  for (int i = 2; i < lastPage; i++) {
     //for (int i = 581; i < 604; i++) {
     //for (int i = 1; i < 2; i++) {
     //const char * text = qurantext[i];
@@ -2732,12 +2629,10 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
   }
 
-  QRegularExpression reaya("(\\d+)");
-  reaya.setPatternOptions(QRegularExpression::UseUnicodePropertiesOption);
 
 
-  quran = quran.replace(QRegularExpression("\\s*" + QString("۞") + "\\s*"), QString("۞") + " ");
-  quran == quran.replace(reaya, QString("۝") + "\\1");
+
+  //quran = quran.replace(QRegularExpression("\\s*" + QString("۞") + "\\s*"), QString("۞") + " ");  
 
   QSet<int> lineBreaks;
   QSet<int> suraLines;
@@ -2754,8 +2649,8 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
   QList<QString> suraNames;
 
-  QRegularExpression re(surapattern, QRegularExpression::MultilineOption);
-  QRegularExpressionMatchIterator i = re.globalMatch(quran);
+  QRegularExpression suraRe(surapattern, QRegularExpression::MultilineOption);
+  QRegularExpressionMatchIterator i = suraRe.globalMatch(quran);
   while (i.hasNext()) {
     QRegularExpressionMatch match = i.next();
     int startOffset = match.capturedStart(); // startOffset == 6
@@ -2785,8 +2680,8 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
   //QString gg = //"يَخِرُّونَ لِلْأَذْقَانِ سُجَّدٗا|يَسْجُدُ لَهُۥ|وَخَرَّ رَاكِعٗا|أَلَّا يَسْجُدُوا۟ لِلَّهِ|وَٱسْجُدُوا۟ لِلَّهِ|فَٱسْجُدُوا۟ لِلَّهِ|يَسْجُدُونَ|وَلِلَّهِ يَسْجُدُ|خَرُّوا۟ سُجَّدٗا";
   //QString sajdapatterns = QString("(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدٗا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعٗا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدٗا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)");
   QString sajdapatterns = "(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)"; // sajdapatterns.replace("\u0657", "\u08F0").replace("\u065E", "\u08F1").replace("\u0656", "\u08F2");
-  re = QRegularExpression(sajdapatterns, QRegularExpression::MultilineOption);
-  i = re.globalMatch(quran);
+  auto sajdaRe = QRegularExpression(sajdapatterns, QRegularExpression::MultilineOption);
+  i = sajdaRe.globalMatch(quran);
 
 
   while (i.hasNext()) {
@@ -3151,8 +3046,6 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
     QString textt = QString::fromUtf8(qurantext[pageNumber] + 1);
 
-    textt == textt.replace(reaya, QString("۝") + "\\1");
-
     auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
     int beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
@@ -3204,6 +3097,41 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
     else {
       suraNamebyPage.prepend("سُورَةُ الفَاتِحَةِ");
     }
+  }
+
+  // Last pages
+
+  currentSuraName = suraNamebyPage.last();
+
+  for (int pageNumber = lastPage; pageNumber < 604; pageNumber++) {
+    QString textt = QString::fromUtf8(qurantext[pageNumber] + 1);
+
+    auto lines = textt.split(char(10), Qt::SkipEmptyParts);
+
+    auto page = this->justifyPage(emScale, lineWidth, lineWidth, lines, LineJustification::Center, false, true);
+
+    bool containsBeginSura = false;
+
+    for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
+
+      auto match = suraRe.match(lines[lineIndex]);
+      if (match.hasMatch()) {
+        if (match.captured(0).startsWith("سُ")) {
+          page[lineIndex].type = LineType::Sura;
+          if (!containsBeginSura) {
+            containsBeginSura = true;
+            currentSuraName = match.captured(0);
+          }
+        }
+        else {
+          page[lineIndex].type = LineType::Bism;
+        }
+      }
+    }
+
+    suraNamebyPage.append(currentSuraName);
+    pages.append(page);
+    originalPages.append(lines);
   }
 
   delete font;

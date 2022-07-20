@@ -235,6 +235,7 @@ singlesub
 	| SUBSTITUTE CALLBACK glyph[glyph1] BY glyph[glyph2] {$$ = new SingleSubstituionRule($glyph1,$glyph2,10);}
 	| SUBSTITUTE CALLBACK glyph startendlig expafactor[factor] {$$ = new SingleSubstituionRule($glyph,$glyph,10,$factor,$startendlig);}
 	| SUBSTITUTE CALLBACK glyph[glyph1] BY glyph[glyph2] startendlig expafactor[factor] {$$ = new SingleSubstituionRule($glyph1,$glyph2,10,$factor,$startendlig);}
+	| SUBSTITUTE CALLBACK glyphclass startendlig expafactor[factor]  {$$ = new SingleSubstituionRule(new GlyphSet($glyphclass),10,$factor,$startendlig);}
 	| SUBSTITUTE glyphclass BY glyph
 	| SUBSTITUTE glyphclass BY glyphclass
 	;

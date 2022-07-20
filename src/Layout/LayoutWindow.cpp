@@ -272,6 +272,17 @@ void LayoutWindow::createActions()
 
   jutifyToolbar->addWidget(toggleButton);
 
+  toggleButton = new QPushButton(tr("&Font Size"));
+  toggleButton->setCheckable(true);
+  toggleButton->setChecked(false);
+
+  connect(toggleButton, &QPushButton::toggled, [&](bool checked) {
+    applyFontSize = checked;
+    executeRunText(true, 1);
+  });
+
+  jutifyToolbar->addWidget(toggleButton);
+
   toggleButton = new QPushButton(tr("&Collision Detection"));
   toggleButton->setCheckable(true);
   toggleButton->setChecked(false);
@@ -513,9 +524,6 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout
   int endsajda = 0;
   int sajdamatched = 0;
 
-  QRegularExpression reaya("(\\d+)");
-  reaya.setPatternOptions(QRegularExpression::UseUnicodePropertiesOption);
-
 
 
 
@@ -527,9 +535,7 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout
 
     QString textt = QString::fromUtf8(qurantext[pagenum] + 1);
 
-    textt = textt.replace(QRegularExpression(" *" + QString("۞") + " *"), QString("۞") + " ");
-
-    textt == textt.replace(reaya, QString("۝") + "\\1");
+    //textt = textt.replace(QRegularExpression(" *" + QString("۞") + " *"), QString("۞") + " ");    
 
     auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
@@ -1093,7 +1099,7 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
 
   int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
-  auto result = m_otlayout->pageBreak(scale, lineWidth, false);
+  auto result = m_otlayout->pageBreak(scale, lineWidth, 604, false);
 
   if (result.pages.count() == 0) {
     QMessageBox msgBox;
@@ -1326,8 +1332,8 @@ void LayoutWindow::createDockWindows()
 
 
   m_otlayout = new OtLayout(m_font->mp, true, this);
-  m_otlayout->isOTVar = true;
-  //m_otlayout->useNormAxisValues = false;
+  //m_otlayout->isOTVar = false;
+  m_otlayout->useNormAxisValues = false;
 
   connect(m_otlayout, &OtLayout::parameterChanged, this, &LayoutWindow::layoutParameterChanged);
 
@@ -1381,7 +1387,7 @@ void LayoutWindow::serializeTexPages() {
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
   int topSpace = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
-  auto result = m_otlayout->pageBreak(scale, lineWidth, false);
+  auto result = m_otlayout->pageBreak(scale, lineWidth, false, 600);
 
   if (result.pages.count() == 0) {
     QMessageBox msgBox;
@@ -1543,30 +1549,27 @@ void LayoutWindow::findOverflows() {
 
   QMap<double, Line> overflows;
 
-  QRegularExpression reaya("(\\d+)");
-  reaya.setPatternOptions(QRegularExpression::UseUnicodePropertiesOption);
+
 
   for (int pagenum = 0; pagenum <= 603; pagenum++) {
 
     QString textt = QString::fromUtf8(qurantext[pagenum] + 1);
-
-    textt == textt.replace(reaya, QString("۝") + "\\1");
 
     auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
     auto page = m_otlayout->justifyPage(emScale, lineWidth, lineWidth, lines, LineJustification::Distribute, false, true);
 
 
-    for (int linenum = 0; linenum < lines.length(); linenum++) {     
+    for (int linenum = 0; linenum < lines.length(); linenum++) {
 
       auto line = page[linenum];
 
       if (line.overfull > 0) {
         auto overflow = line.overfull / emScale;
         //if (overflow > 0.01) {
-          overflows.insert(-line.overfull, { pagenum + 1,linenum + 1, overflow,(line.overfull / lineWidth) * 100 });
-       // }
-        
+        overflows.insert(-line.overfull, { pagenum + 1,linenum + 1, overflow,(line.overfull / lineWidth) * 100 });
+        // }
+
       }
     }
   }
@@ -1700,7 +1703,7 @@ void LayoutWindow::setQutranText(int type) {
 
     int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
     int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
-    auto result = m_otlayout->pageBreak(scale, lineWidth, false);
+    auto result = m_otlayout->pageBreak(scale, lineWidth, false, 604);
 
 
 
@@ -1827,17 +1830,12 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 
   QString textt = textEdit->toPlainText();
 
-  QRegularExpression reaya("(\\d+)");
-  reaya.setPatternOptions(QRegularExpression::UseUnicodePropertiesOption);
-
-  textt == textt.replace(reaya, QString("۝") + "\\1");
-
   auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
   const int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
 
-  auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, newFace, true);
+  auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, newFace, true, applyFontSize);
 
   QVector<int> set;
 
@@ -1885,7 +1883,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 
         GlyphItem* glyphItem = nullptr;
         if (refresh) {
-          glyphItem = new GlyphItem(scale, &glyph, m_otlayout, glyphLayout.lookup_index, glyphLayout.subtable_index, glyphLayout.base_codepoint, glyphLayout.lefttatweel, glyphLayout.righttatweel);
+          glyphItem = new GlyphItem(line.fontSize, &glyph, m_otlayout, glyphLayout.lookup_index, glyphLayout.subtable_index, glyphLayout.base_codepoint, glyphLayout.lefttatweel, glyphLayout.righttatweel);
           glyphItem->setFlag(QGraphicsItem::ItemIsMovable);
           m_graphicsScene->addItem(glyphItem);
 

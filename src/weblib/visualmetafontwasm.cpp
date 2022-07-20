@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -101,8 +101,8 @@ EMSCRIPTEN_BINDINGS(my_module) {
 		.field("xstartposition", &LineLayoutInfo::xstartposition)
 		.field("ystartposition", &LineLayoutInfo::ystartposition)
 		.field("type", &LineLayoutInfo::type)
-		.field("underfull", &LineLayoutInfo::underfull)
-		//.field("nbGlyph", optional_override([](LineLayoutInfo& line) {return line.glyphs.size(); }), nullptr)
+		.field("overfull", &LineLayoutInfo::overfull)
+    .field("fontSize", &LineLayoutInfo::fontSize)  
 		;
 
 	value_object<SuraLocation>("SuraLocation")
@@ -187,8 +187,8 @@ EMSCRIPTEN_BINDINGS(my_module) {
 		.function("getGlyphCode", &QuranShaper::getGlyphCode)		
 		.function("drawPathByName", &QuranShaper::drawPath)
 		.function("getSuraLocations", &QuranShaper::getSuraLocations)
-		.function("shapeText", &QuranShaper::shapeText)
-		
+    .function("getTexNbPages", &QuranShaper::getTexNbPages)    
+		.function("shapeText", &QuranShaper::shapeText)		
 
 		;
 }

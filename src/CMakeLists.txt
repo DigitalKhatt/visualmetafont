@@ -393,7 +393,7 @@ else()
     "SHELL:-s ERROR_ON_UNDEFINED_SYMBOLS=1"
     #"SHELL:-s WASM=1"
     #"SHELL:-s WASM=0 --separate-asm -s \"SEPARATE_ASM_MODULE_NAME='VMetaFont'\""
-    "SHELL:-s ASSERTIONS=1"
+    #"SHELL:-s ASSERTIONS=1"
     #"SHELL:-s FULL_ES2=1"
     #"SHELL:-s USE_WEBGL2=1"
     "SHELL:-s USE_ES6_IMPORT_META=0"
@@ -404,7 +404,7 @@ else()
     "SHELL:-s USE_ZLIB=1"
     #"SHELL:-s USE_SDL=2"
     #"SHELL:-s EXPORT_ES6=1"
-    "SHELL:-s \"EXTRA_EXPORTED_RUNTIME_METHODS=['FS','print','printErr']\""
+    "SHELL:-s \"EXPORTED_RUNTIME_METHODS=['FS','print','printErr']\""
     #"SHELL:-s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=[\\\"$Browser\\\"]"
     "SHELL:-s MODULARIZE=1"
     "SHELL:-s IMPORTED_MEMORY"    
@@ -418,12 +418,13 @@ else()
 
     target_link_options(${PROJECT_NAME} PRIVATE
       "SHELL:-s WASM=1"
-      "SHELL:-s EXPORT_ES6=1"
+      "SHELL:-s EXPORT_ES6=1"      
       )
 
     target_link_options(${WEBLIB_NAME} PRIVATE
       "SHELL:-s WASM=1"
       "SHELL:-s EXPORT_ES6=1"
+      "SHELL:-s DEMANGLE_SUPPORT=1"      
       )
 
     add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
@@ -456,17 +457,17 @@ else()
 
   endif()
 
-  #[[
+  
   add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/automedina.fea" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/ayah.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/mfplain.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/medinafont.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
+    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/digitalkhatt.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/mpguifont.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/myfontbase.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/lookups.json" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/parameters.json" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMENT "Copying to output directory")
-  ]]
+  
 
 endif()

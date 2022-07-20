@@ -92,6 +92,7 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
       "wasla",
       "hamzaabove",
       "hamzaabove.lamalef",
+      "hamzaabove.small",
       "hamzaabove.joined",
       "hamzabelow",
       "smallhighroundedzero",
@@ -274,9 +275,10 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   //setAnchorCalcFunctions();
 
 
+  layout->expandableGlyphs["alef.isol"] = { 1,-3,0,0 };  
   layout->expandableGlyphs["behshape.isol.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["behshape.fina.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["kaf.fina.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["kaf.fina.expa"] = { 6,0,0,0 };
   layout->expandableGlyphs["kaf.fina.afterlam.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["noon.isol.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["noon.fina.expa"] = { 5,0,0,0 };
@@ -290,16 +292,16 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["sad.fina.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["seen.isol.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["seen.fina.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["feh.isol.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["feh.isol.expa"] = { 8,0,0,0 };
   layout->expandableGlyphs["feh.fina.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["qaf.isol.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["qaf.fina.expa"] = { 5,0,0,0 };
+  layout->expandableGlyphs["qaf.fina.expa"] = { 10,0,0,0 };
 
   layout->expandableGlyphs["behshape.init"] = { 6,-1,0,0 };
   layout->expandableGlyphs["hah.init"] = { 5,-0.5,0,0 };
   layout->expandableGlyphs["seen.init"] = { 6.3,-0.7,0,0 };
   layout->expandableGlyphs["sad.init"] = { 6.5,-0.5,0,0 };
-  layout->expandableGlyphs["tah.init"] = { 5,-0.5,0,0 };
+  layout->expandableGlyphs["tah.init"] = { 6.5,-0.5,0,0 };
   layout->expandableGlyphs["ain.init"] = { 6.3,-0.7,0,0 };
   layout->expandableGlyphs["fehshape.init"] = { 6,-1,0,0 };
   layout->expandableGlyphs["kaf.init"] = { 6,-1.5,0,0 };
@@ -309,52 +311,64 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["heh.init"] = { 6.5,-0.5,0,0 };
 
   layout->expandableGlyphs["heh.medi"] = { 6.7,-0.3,0,0 };
-  layout->expandableGlyphs["behshape.medi"] = { 12,-0.5,12,-0.5 };
-  layout->expandableGlyphs["behshape.medi.ii"] = { 9,-1,9,-1 };
+  layout->expandableGlyphs["behshape.medi"] = { 12,-0.5,12,-0.5 };  
   layout->expandableGlyphs["behshape.medi.beforeseen"] = { 6.3,-0.7,6.3,-0.7 };
-  layout->expandableGlyphs["behshape.medi.beforereh"] = {0,0,6.3,-0.7 };
+  layout->expandableGlyphs["behshape.medi.beforereh"] = { 0,0,6.3,-0.7 };
   layout->expandableGlyphs["behshape.medi.beforenoon"] = { 6.3,-0.7,6.3,-0.7 };
-  
+
   layout->expandableGlyphs["hah.medi"] = { 5.7,-1.3,6,-1 };
-  layout->expandableGlyphs["hah.medi.afterbeh"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["hah.medi.lam_hah"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["hah.medi.beforemeem"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["hah.medi.afterbeh"] = { 6,-1,0,0 };
+  layout->expandableGlyphs["hah.medi.lam_hah"] = { 6,-1,0,0 };
+  layout->expandableGlyphs["hah.medi.aftermeem"] = { 6,-1,0,0 };
+  layout->expandableGlyphs["hah.medi.afterfeh"] = { 6,-1,0,0 };
+  layout->expandableGlyphs["hah.medi.ii"] = { 0,0,6.5,-0.5 };
   layout->expandableGlyphs["seen.medi"] = { 6.5,-0.5,6.5,-0.5 };
   layout->expandableGlyphs["seen.medi.beforereh"] = { 0,0,6.5,-0.5 };
+  layout->expandableGlyphs["seen.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
   layout->expandableGlyphs["sad.medi"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["tah.medi"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["ain.medi"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["tah.medi"] = { 6,-0.5,6,-0.5 };
+  layout->expandableGlyphs["ain.medi"] = { 6.5,-0.5,6.5,-0.5 };
+  layout->expandableGlyphs["ain.medi.beforeyeh"] = { 0,0,6.5,-0.5 };  
   layout->expandableGlyphs["fehshape.medi"] = { 6.5,-0.5,6.5,-0.5 };
+  layout->expandableGlyphs["fehshape.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
+
   layout->expandableGlyphs["kaf.medi"] = { 6,-1.5,6,-1.5 };
+  layout->expandableGlyphs["kaf.medi.beforemeem"] = {0,0,6,0};
+  layout->expandableGlyphs["kaf.medi.beforeyeh"] = { 0,0,6,-1 };
+  layout->expandableGlyphs["kaf.medi.beforelam"] = { 0,0,6,-1 };
+  layout->expandableGlyphs["kaf.medi.beforelamalef"] = { 0,0,6,-1 };
+  layout->expandableGlyphs["kaf.medi.beforelamfina"] = { 0,0,6,-1 };
   layout->expandableGlyphs["kaf.medi.ii"] = { 5,-0.5,5,-0.5 };
   layout->expandableGlyphs["lam.medi"] = { 6,-1,6.5,-0.5 };
+  layout->expandableGlyphs["lam.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
   layout->expandableGlyphs["lam.medi.afterkaf"] = { 6,-1,0,0 };
   layout->expandableGlyphs["meem.medi"] = { 6.5,-0.5,6.5,-0.5 };
-  layout->expandableGlyphs["meem.medi.afterhah"] = { 6.3,-0.7,0,0};
+  layout->expandableGlyphs["meem.medi.afterhah"] = { 6.3,-0.7,0,0 };
   layout->expandableGlyphs["meem.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
 
-  
- 
+
+
 
 
   layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,6.5,-0.5 };
-  layout->expandableGlyphs["lam.medi.laf"] = { 0.0,0.0,6.5,-0.5 };  
+  layout->expandableGlyphs["lam.medi.laf"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["dal.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["heh.fina"] = { 0.0,0.0,6.5,-0.5 };
-  layout->expandableGlyphs["hah.fina"] = { 0.0,0.0,5,-0.5 };
-  layout->expandableGlyphs["feh.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["hah.fina"] = { 0.0,0.0,6,-0.5 };
+  layout->expandableGlyphs["seen.fina"] = { 0,0,6.5,-0.5 };
+  layout->expandableGlyphs["feh.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["meem.fina"] = { 0.0,0.0,6.3,-0.7 };
   layout->expandableGlyphs["meem.fina.ii"] = { 0.0,0.0,6.3,-0.7 };
   layout->expandableGlyphs["behshape.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["qaf.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["lam.fina"] = { 0.0,0.0,6.5,-0.5 };
-  layout->expandableGlyphs["kaf.fina"] = { 0.0,0.0,5,-0.5 };
+  layout->expandableGlyphs["kaf.fina"] = { 0.0,0.0,6,-1 };
+  layout->expandableGlyphs["noon.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["noon.fina.basmala"] = { 10.0,0.0,0,-0.5 };
   layout->expandableGlyphs["reh.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["reh.fina.ii"] = { 0.0,0.0,6.5,-0.5 };
 
-  layout->expandableGlyphs["hah.init.iii"] = { 9.0,0.0,0,0 };
-  layout->expandableGlyphs["seen.init.kii"] = { 9.0,0.0,0,0 };
+  layout->expandableGlyphs["hah.init.iii"] = { 9.0,0.0,0,0 }; 
   layout->expandableGlyphs["sad.init.kii"] = { 20,0.0,0,0 };
   layout->expandableGlyphs["heh.fina.kii"] = { 0.0,0.0,9,-1 };
   layout->expandableGlyphs["dal.fina.kii"] = { 0.0,0.0,9,-1 };
@@ -374,10 +388,9 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["sad.init.kii"] = { 12,-1,0,0 };
 
   //Basmala
-  layout->expandableGlyphs["behshape.medi.basmala"] = { 20,0,0,0 };
-  layout->expandableGlyphs["seen.medi.basmala"] = { 20,0,0,0 };
-  layout->expandableGlyphs["seen.medi.basmala.ii"] = { 20,0,0,0 };
-  layout->expandableGlyphs["meem.fina.basmala"] = { 0,0,20,-0.3 };
+  layout->expandableGlyphs["behshape.medi.basmala"] = { 20,-1,0,0 };
+  layout->expandableGlyphs["seen.medi.basmala"] = { 20,-1,0,0 };
+  layout->expandableGlyphs["meem.fina.basmala"] = { 0,0,20,-1 };
 
 
 
@@ -893,6 +906,7 @@ Lookup* Automedina::defaultmarkposition() {
   topmarks.remove("smallhighnoon");
   topmarks.remove("roundedfilledhigh");
   topmarks.remove("hamzaabove");
+  topmarks.remove("hamzaabove.small");
   topmarks.remove("hamzaabove.joined");
   topmarks.remove("wasla");
   topmarks.remove("maddahabove");
@@ -998,7 +1012,7 @@ Lookup* Automedina::defaultmarkposition() {
 
   newsubtable->name = "hamzaabove";
   newsubtable->base = { "alef|waw|yehshape|behshape" };
-  newsubtable->classes["hamzaabove"].mark = { "hamzaabove" };
+  newsubtable->classes["hamzaabove"].mark = { "hamzaabove","hamzaabove.small" };
   newsubtable->classes["hamzaabove"].basefunction = Defaulbaseanchorfortop(*this, *newsubtable);
   newsubtable->classes["hamzaabove"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
 
@@ -1211,7 +1225,7 @@ Lookup* Automedina::defaultmkmk() {
   lookup->subtables.append(subtable);
 
   subtable->name = "defaultmkmktop";
-  subtable->base = { "hamzaabove","hamzaabove.joined","hamzaabove.lamalef", "shadda","smallalef","smallalef.joined","smallalef.replacement","smallhighseen", "smallhighwaw","smallhighyeh" };
+  subtable->base = { "hamzaabove","hamzaabove.small","hamzaabove.joined","hamzaabove.lamalef", "shadda","smallalef","smallalef.joined","smallalef.replacement","smallhighseen", "smallhighwaw","smallhighyeh" };
 
   subtable->classes["topmarks"].mark = { "topmarks" };
   subtable->classes["topmarks"].basefunction = Defaultmarkabovemark(*this, *subtable);
@@ -2786,8 +2800,8 @@ Lookup* Automedina::populatecvxx() {
   int cvNumber = 1;
 
   for (auto alternates : cvxxfeatures) {
-    Lookup* alternate = new Lookup(m_layout);    
-    alternate->name = QString("cv%1").arg(cvNumber, 2,10, QLatin1Char('0'));
+    Lookup* alternate = new Lookup(m_layout);
+    alternate->name = QString("cv%1").arg(cvNumber, 2, 10, QLatin1Char('0'));
     alternate->feature = alternate->name;
     alternate->type = Lookup::alternate;
 

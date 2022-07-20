@@ -41,7 +41,7 @@ struct GlyphExpansion {
   int level = 0;
   StartEndLig startEndLig;
   bool shrinkIsAbsolute = false;
-  bool stretchIsAbsolute = true;
+  bool stretchIsAbsolute = false;
 
 };
 

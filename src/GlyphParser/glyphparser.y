@@ -209,6 +209,8 @@ subpath : point {$$.insert(driver.numpoint,$point);}
 		$1.insert($1.lastKey() + 8,$point);
 	}else if($point->leftValue.macrovalue == "rightjoin"){
 		$1.insert($1.lastKey() + 8,$point);
+	}else if($point->leftValue.macrovalue == "rightjoiniii"){
+		$1.insert($1.lastKey() + 10,$point);
 	}else if($point->leftValue.macrovalue == "endlink"){
 		$1.insert($1.lastKey() + 2,$point);
 	}else if($point->leftValue.macrovalue == "link"){

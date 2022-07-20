@@ -315,29 +315,44 @@ namespace feayy {
 
     if (singleRule.format != 11) {
 
-      auto  firstunicodes = singleRule.firstglyph->getCodes(otlayout);
+      if (singleRule.firstType == SingleSubstituionRule::FirstType::GLYPHSET) {
+        auto  firstunicodes = singleRule.firstGlyphSet->getCodes(otlayout);
 
-      if (firstunicodes.size() != 1) {
-        throw "Single subtitution : first glyph different to 1 matching";
+        for (auto code : firstunicodes) {
+          newsubtable->subst[code] = code;
+
+          if (singleRule.format == 10) {
+            ((SingleSubtableWithExpansion*)newsubtable)->expansion[code] = singleRule.expansion;
+            ((SingleSubtableWithExpansion*)newsubtable)->expansion[code].startEndLig = singleRule.startEndLig;
+          }
+        }
+      }
+      else {
+        auto  firstunicodes = singleRule.firstglyph->getCodes(otlayout);
+
+        if (firstunicodes.size() != 1) {
+          throw "Single subtitution : first glyph different to 1 matching";
+        }
+
+        auto firstunicode = *firstunicodes.begin();
+
+        auto  secondtunicodes = singleRule.secondglyph->getCodes(otlayout);
+
+        if (secondtunicodes.size() != 1) {
+          throw "Single subtitution : second glyph different to 1 matching";
+        }
+
+
+        auto secondunicode = *secondtunicodes.begin();
+
+        newsubtable->subst[firstunicode] = secondunicode;
+
+        if (singleRule.format == 10) {
+          ((SingleSubtableWithExpansion*)newsubtable)->expansion[firstunicode] = singleRule.expansion;
+          ((SingleSubtableWithExpansion*)newsubtable)->expansion[firstunicode].startEndLig = singleRule.startEndLig;
+        }
       }
 
-      auto firstunicode = *firstunicodes.begin();
-
-      auto  secondtunicodes = singleRule.secondglyph->getCodes(otlayout);
-
-      if (secondtunicodes.size() != 1) {
-        throw "Single subtitution : second glyph different to 1 matching";
-      }
-
-
-      auto secondunicode = *secondtunicodes.begin();
-
-      newsubtable->subst[firstunicode] = secondunicode;
-
-      if (singleRule.format == 10) {
-        ((SingleSubtableWithExpansion*)newsubtable)->expansion[firstunicode] = singleRule.expansion;
-        ((SingleSubtableWithExpansion*)newsubtable)->expansion[firstunicode].startEndLig = singleRule.startEndLig;
-      }
     }
     else if (singleRule.format == 11) {
 
@@ -373,7 +388,7 @@ namespace feayy {
         subtable->subst[firstunicode] = secondunicode;
         subtable->expansion[firstunicode] = singleRule.expansion;
       }
-     
+
 
 
     }
@@ -654,7 +669,7 @@ namespace feayy {
       if (!lookup->isGsubLookup()) {
         throw new std::runtime_error("Cannot have gpos lookup for aftergsub");
       }
-      
+
       ot_justTable.lastGsubLookups.push_back(lookup);
     }
 

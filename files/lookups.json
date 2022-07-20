@@ -1332,7 +1332,7 @@
           "flags": [ false, false, false, true ],
           "data": {
             "meem.init": "meem.init.beforehah",
-            "hah.medi": "hah.medi.beforemeem"
+            "hah.medi": "hah.medi.aftermeem"
           }
         },
         "l6": {

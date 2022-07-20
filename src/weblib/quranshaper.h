@@ -57,6 +57,8 @@ public:
 
       layout = new OtLayout(mp, true);
 
+      layout->useNormAxisValues = false;
+
       loadLookupFile("lookups.json");
     }
 
@@ -135,6 +137,14 @@ public:
 
     return layout->glyphCodePerName.value(nn);
 
+  }
+
+  int getTexNbPages() {
+    if (texPages.isEmpty()) {
+      readTexPages();
+    }
+
+    return texPages.size();
   }
 
   QList<SuraLocation> getSuraLocations(bool tex) {
@@ -276,7 +286,7 @@ public:
   }
 
 #endif
-  PageResult  shapePage(int pageNumber, float fontScalePerc, bool applyJustification, int lineIndex, bool texFormat, bool tajweedColor) {
+  PageResult  shapePage(int pageIndex, float fontScalePerc, bool applyJustification, int lineIndex, bool texFormat, bool tajweedColor, bool changeSize) {
 
     //if (cachedPages.find(pageNumber) != cachedPages.end()) {
     //	std::cout << "Cached page number " << pageNumber << "\n";
@@ -294,31 +304,24 @@ public:
         readTexPages();
       }
 
-      if (texPages.size() <= pageNumber) {
-        std::cout << "Out of range Tex pageNumber " << pageNumber << '\n';
+      if (texPages.size() <= pageIndex) {
+        std::cout << "Out of range Tex pageNumber " << pageIndex << '\n';
         return PageResult{};
       }
 
-      lines = texPages[pageNumber];
+      lines = texPages[pageIndex];
     }
     else {
-      /*
-      QString textt = QString::fromUtf8(qurantext[pageNumber] + 1);
-
-      textt = textt.replace(QRegularExpression(" *" + QString("۞") + " *"), QString("۞") + " ");
-
-      lines = textt.split(10, QString::SkipEmptyParts);*/
-
       if (medinaPages.isEmpty()) {
         readMedinaPages();
       }
 
-      if (medinaPages.size() <= pageNumber) {
-        std::cout << "Out of range Medina pageNumber " << pageNumber << '\n';
+      if (medinaPages.size() <= pageIndex) {
+        std::cout << "Out of range Medina pageNumber " << pageIndex << '\n';
         return PageResult{};
       }
 
-      lines = medinaPages[pageNumber];
+      lines = medinaPages[pageIndex];
 
     }
 
@@ -331,36 +334,49 @@ public:
     auto justification = LineJustification::Distribute;
     int beginsura = OtLayout::TopSpace << OtLayout::SCALEBY;
 
-    if (pageNumber == 0 || pageNumber == 1) {
+    if (pageIndex == 0 || pageIndex == 1) {
       justification = LineJustification::Center;
       beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
       if (lineIndex > 0) {
-        double diameter = pageWidth * 1; // 0.9;
-        if (pageNumber == 0) {
-          diameter = pageWidth * 1; // 0.9;
+        double ratio = pageIndex == 0 ? 0.9 : 0.9;
+        double diameter = pageWidth * ratio; // 0.9;
+        if (pageIndex == 0) {
+          diameter = pageWidth * ratio; // 0.9;
         }
-
-        int index = lineIndex - 1;
-        //index = index % 4;
         // 22.5 = 180 / 8
-        double degree = lineIndex * 22.5 * M_PI / 180;
+        double startangle = pageIndex == 0 ? 30 : 30;
+        double endangle = 22.5;
+       
+
+        double degree = (startangle + (lineIndex - 1) * (180 - (startangle + endangle)) / 6) * M_PI / 180;
         lineWidth = diameter * std::sin(degree);
-        //std::cout << "lineIndex=" << lineIndex << ", lineWidth=" << lineWidth << std::endl;
+
       }
       else {
         lineWidth = 0;
       }
 
     }
+    else if (pageIndex > 580) {
+      auto ratio = getWidthRatio(pageIndex, lineIndex, texFormat);      
+      if (ratio < 1) {
+        lineWidth = pageWidth * ratio;
+        justification = LineJustification::Center;
+      }
 
-    auto page = layout->justifyPage(fontScale, lineWidth, pageWidth, lines, justification, false, tajweedColor);
+    }
 
-    if (pageNumber == 0) {
+    auto page = layout->justifyPage(fontScale, lineWidth, pageWidth, lines, justification, false, tajweedColor, changeSize);
+
+
+    if (pageIndex == 0 && lineIndex == 0) {
       page[0].type = LineType::Sura;
     }
-    else if (pageNumber == 1) {
+    else if (pageIndex == 1 && lineIndex == 0) {
       page[0].type = LineType::Sura;
-      page[1].type = LineType::Bism;
+    }
+    else if (pageIndex == 1 && lineIndex == 1) {
+      page[0].type = LineType::Bism;
     }
     else {
       for (int i = 0; i < page.size(); ++i) {
@@ -422,15 +438,15 @@ public:
 
           }
         }
-        if (i == 0 && (pageNumber == 0 || pageNumber == 1)) {
-          page[i].type = LineType::Sura;
+        if (/*i == 0 &&*/ (pageIndex == 0 || pageIndex == 1)) {
+          //page[i].type = LineType::Sura;
           page[i].ystartposition = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1)) << OtLayout::SCALEBY;
         }
-        else {
+        /*else {
           page[i].ystartposition = beginsura;
           beginsura += OtLayout::InterLineSpacing << OtLayout::SCALEBY;
 
-        }
+        }*/
 
 
       }
@@ -762,7 +778,7 @@ private:
       edgetoHTML5Path(glyph.copiedPath, ctx);
     }
 
-}
+  }
 #endif
   void loadLookupFile(std::string fileName) {
 
@@ -869,6 +885,69 @@ private:
 
     return ret;
 
+  }
+
+private:
+  QMap<int, double> lineWidths =
+  {
+    { 601 * 3, 1 },
+    { 601 * 4, 1 },
+    { 601 * 7, 1 },
+    { 601 * 8, 1 },
+    { 601 * 9, 1 },
+    { 601 * 10, 1 },
+    { 601 * 13, 1 },
+    { 601 * 14, 1 },
+    { 601 * 15, 1 },
+    { 602 * 5, 0.63 },
+    { 602 * 11, 0.9 },
+    { 602 * 15, 0.53 },
+    { 603 * 10, 0.66 },
+    { 603 * 13, 1 },
+    { 603 * 15, 0.60 },
+    { 604 * 3, 1 },
+    { 604 * 4, 0.55 },
+    { 604 * 7, 1 },
+    { 604 * 8, 1 },
+    { 604 * 9, 0.55 },
+    { 604 * 12, 1 },
+    { 604 * 13, 1 },
+    { 604 * 14, 0.675 },
+    { 604 * 15, 0.5 },
+  };
+
+  QMap<int, double> madinaLineWidths =
+  {
+    { 586 * 1, 0.81},
+    { 593 * 2, 0.81},
+    { 594 * 5, 0.63},
+    { 600 * 10,0.63 },
+  };
+
+  double getWidthRatio(int pageIndex, int lineIndex, bool texFormat)
+  {
+
+    if (texFormat) {
+      int pageDiff = texPages.size() - 604;
+      pageIndex = pageIndex - pageDiff;
+    }
+     
+
+    int key = (pageIndex + 1) * (lineIndex + 1);
+    double ratio = 1;
+    if (lineWidths.contains(key))
+    {
+      ratio = lineWidths.value(key);
+    }
+    else
+    {
+      if (!texFormat && madinaLineWidths.contains(key))
+      {
+        ratio = madinaLineWidths.value(key);
+      }
+    }
+
+    return ratio;
   }
 
 

@@ -313,8 +313,12 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
   else if (event->type() == QEvent::GraphicsSceneContextMenu) {
     QGraphicsSceneContextMenuEvent* me = static_cast<QGraphicsSceneContextMenuEvent*>(event);
 
+    QMenu menu;
+    QMenu* lksubMenu = nullptr;
+    QMenu* rksubMenu = nullptr;
+    QMenu* axes = nullptr;
     if (watched == incurve) {
-      QMenu menu;
+
       //QAction * scaleAct = new QAction("&Scale", this);	
       //connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
 
@@ -328,74 +332,115 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
       //menu.addAction("Right Kashida");
 
       /** add submenu */
-      QMenu* lksubMenu = menu.addMenu(tr("Left Kashida"));
+      lksubMenu = menu.addMenu(tr("Left Kashida"));
       lksubMenu->addAction("0");
       lksubMenu->addAction("1");
       lksubMenu->addAction("2");
 
-      QMenu* rksubMenu = menu.addMenu(tr("Right Kashida"));
+      rksubMenu = menu.addMenu(tr("Right Kashida"));
       rksubMenu->addAction("0");
       rksubMenu->addAction("1");
       rksubMenu->addAction("2");
 
-      QAction* a = menu.exec(me->screenPos());
-      if (a != NULL) {
-        if (a->parentWidget() == lksubMenu) {
-          int knots = a->text().toInt();
-          addKashida(true, knots);
-        }
-        else if (a->parentWidget() == rksubMenu) {
-          int knots = a->text().toInt();
-          addKashida(false, knots);
-        }
-        else if (a->text() == "Left") {
-          m_glyphknot->leftValue.type = Glyph::mpgui_given;
-          m_glyphknot->leftValue.dirExpr = std::make_unique<VarMFExpr>("left", false);
-          m_glyphknot->rightValue.type = Glyph::mpgui_open;
-          m_glyph->setWidth(m_glyph->width());
-        }
-        else if (a->text() == "Right") {
-          m_glyphknot->leftValue.type = Glyph::mpgui_given;
-          m_glyphknot->leftValue.dirExpr = std::make_unique<VarMFExpr>("right", false);
-          m_glyphknot->rightValue.type = Glyph::mpgui_open;
-          m_glyph->setWidth(m_glyph->width());
-        }
-        else if (a->text() == "Up") {
-          m_glyphknot->leftValue.type = Glyph::mpgui_given;
-          m_glyphknot->leftValue.dirExpr = std::make_unique<VarMFExpr>("up", false);
-          m_glyphknot->rightValue.type = Glyph::mpgui_open;
-          m_glyph->setWidth(m_glyph->width());
-        }
-        else if (a->text() == "Down") {
-          m_glyphknot->leftValue.type = Glyph::mpgui_given;
-          m_glyphknot->leftValue.dirExpr = std::make_unique<VarMFExpr>("down", false);
-          m_glyphknot->rightValue.type = Glyph::mpgui_open;
-          m_glyph->setWidth(m_glyph->width());
-        }
-        else if (a->text() == "dir") {
-          m_glyphknot->leftValue.type = Glyph::mpgui_given;
-          auto numExp = new LitPathNumericExp(45);
-          m_glyphknot->leftValue.dirExpr = std::make_unique<DirPathPointExp>(numExp);
-
-
-          m_glyphknot->rightValue.type = Glyph::mpgui_open;
-          m_glyph->setWidth(m_glyph->width());
-        }
-        else if (a->text() == "dir-dir") {
-          m_glyphknot->leftValue.type = Glyph::mpgui_given;
-          auto numExp = new LitPathNumericExp(45);
-          m_glyphknot->leftValue.dirExpr = std::make_unique<DirPathPointExp>(numExp);
-
-          m_glyphknot->rightValue.type = Glyph::mpgui_given;
-          numExp = new LitPathNumericExp(-45);
-          m_glyphknot->rightValue.dirExpr = std::make_unique<DirPathPointExp>(numExp);
-
-          m_glyph->setWidth(m_glyph->width());
-        }
-      }
-
-      return true;
+      axes = menu.addMenu(tr("Axes"));
+      axes->addAction("Add Left");
+      axes->addAction("Add Right");
+      axes->addAction("Remove Blend");
     }
+    else if (watched == left || watched == right) {
+      QMenu* axes = menu.addMenu(tr("Axes"));
+      axes->addAction("Add Left Tension");
+      axes->addAction("Add Left Dir");
+      axes->addAction("Add Right Tension");
+      axes->addAction("Add Right Dir");
+      axes->addAction("Remove Blend From Tension");
+      axes->addAction("Remove Blend From Dir");
+    }
+
+    QAction* a = menu.exec(me->screenPos());
+    if (a != NULL) {
+      if (a->parentWidget() == lksubMenu) {
+        int knots = a->text().toInt();
+        addKashida(true, knots);
+      }
+      else if (a->parentWidget() == rksubMenu) {
+        int knots = a->text().toInt();
+        addKashida(false, knots);
+      }
+      else if (a->text() == "Add Left") {
+        AddRemoveBlend(true, false, 0);
+      }
+      else if (a->text() == "Add Right") {
+        AddRemoveBlend(false, false, 0);
+      }
+      else if (a->text() == "Remove Blend") {
+        AddRemoveBlend(false, true, 0);
+      }
+      else if (a->text() == "Add Left Dir") {
+        AddRemoveBlend(true, false, 1);
+      }
+      else if (a->text() == "Add Right Dir") {
+        AddRemoveBlend(false, false, 1);
+      }
+      else if (a->text() == "Add Left Tension") {
+        AddRemoveBlend(true, false, 2);
+      }
+      else if (a->text() == "Add Right Tension") {
+        AddRemoveBlend(false, false, 2);
+      }
+      else if (a->text() == "Remove Blend From Dir") {
+        AddRemoveBlend(false, true, 1);
+      }
+      else if (a->text() == "Remove Blend From Tension") {
+        AddRemoveBlend(false, true, 2);
+      }
+      else if (a->text() == "Left") {
+        m_glyphknot->leftValue.type = Glyph::mpgui_given;
+        m_glyphknot->leftValue.dirExpr = std::make_unique<VarMFExpr>("left", false);
+        m_glyphknot->rightValue.type = Glyph::mpgui_open;
+        m_glyph->setWidth(m_glyph->width());
+      }
+      else if (a->text() == "Right") {
+        m_glyphknot->leftValue.type = Glyph::mpgui_given;
+        m_glyphknot->leftValue.dirExpr = std::make_unique<VarMFExpr>("right", false);
+        m_glyphknot->rightValue.type = Glyph::mpgui_open;
+        m_glyph->setWidth(m_glyph->width());
+      }
+      else if (a->text() == "Up") {
+        m_glyphknot->leftValue.type = Glyph::mpgui_given;
+        m_glyphknot->leftValue.dirExpr = std::make_unique<VarMFExpr>("up", false);
+        m_glyphknot->rightValue.type = Glyph::mpgui_open;
+        m_glyph->setWidth(m_glyph->width());
+      }
+      else if (a->text() == "Down") {
+        m_glyphknot->leftValue.type = Glyph::mpgui_given;
+        m_glyphknot->leftValue.dirExpr = std::make_unique<VarMFExpr>("down", false);
+        m_glyphknot->rightValue.type = Glyph::mpgui_open;
+        m_glyph->setWidth(m_glyph->width());
+      }
+      else if (a->text() == "dir") {
+        m_glyphknot->leftValue.type = Glyph::mpgui_given;
+        auto numExp = new LitPathNumericExp(45);
+        m_glyphknot->leftValue.dirExpr = std::make_unique<DirPathPointExp>(numExp);
+
+
+        m_glyphknot->rightValue.type = Glyph::mpgui_open;
+        m_glyph->setWidth(m_glyph->width());
+      }
+      else if (a->text() == "dir-dir") {
+        m_glyphknot->leftValue.type = Glyph::mpgui_given;
+        auto numExp = new LitPathNumericExp(45);
+        m_glyphknot->leftValue.dirExpr = std::make_unique<DirPathPointExp>(numExp);
+
+        m_glyphknot->rightValue.type = Glyph::mpgui_given;
+        numExp = new LitPathNumericExp(-45);
+        m_glyphknot->rightValue.dirExpr = std::make_unique<DirPathPointExp>(numExp);
+
+        m_glyph->setWidth(m_glyph->width());
+      }
+    }
+
+    return true;
   }
 
   return QGraphicsItem::sceneEventFilter(watched, event);
@@ -541,7 +586,7 @@ bool KnotControlledItem::addKashida_old(bool left, int nbKnots) {
       auto dirVar1Value = left ? -145 : 145;
       auto delataDirVar1Value = new LitNumber(0);
       auto varRatioValue = left ? 12 : 8;
-      auto minValue = left ? QPointF{ -5, -5 } : QPointF{ 5, -5 };      
+      auto minValue = left ? QPointF{ -5, -5 } : QPointF{ 5, -5 };
 
       m_glyph->setParameter(QString(minVarName), new LitPoint(minValue), true, true);
       //m_glyph->setParameter(QString(dirVar1), new LitNumber(dirVar1Value), false, true);
@@ -749,7 +794,134 @@ bool KnotControlledItem::addKashida_old(bool left, int nbKnots) {
 
 
 }
+bool KnotControlledItem::AddRemoveBlend(bool left, bool remove, int type) {
 
+  auto scene = (GlyphScene*)this->scene();
+
+  auto selectItems = scene->selectedItems();
+
+  auto oldSource = m_glyph->source();
+
+  bool change = false;
+
+  for (auto item : selectItems) {
+    auto knotItem = dynamic_cast<KnotItem*>(item);
+    if (!knotItem) continue;
+
+    auto parentItem = (KnotControlledItem*)knotItem->parentItem();
+
+    auto knot = parentItem->m_glyphknot;
+
+    if (knotItem == parentItem->incurve) {
+      if (remove) {
+        auto expr = dynamic_cast<FunctionMFExp*>(parentItem->m_glyphknot->expr.get());
+        if (expr) {
+          auto expr2 = expr->getFirst()->clone();
+          parentItem->m_glyphknot->expr = std::unique_ptr<MFExpr>(expr2.release());
+          change = true;
+        }
+      }
+      else {
+        QString bendFuncName = left ? "bldmvi" : "brdmvi";
+
+        parentItem->m_glyphknot->expr = std::make_unique<FunctionMFExp>(bendFuncName,
+          parentItem->m_glyphknot->expr.release(),
+          new LitPointPathPointExp({ 0,0 })
+          );
+        change = true;
+      }
+    }
+    else if (knotItem == parentItem->left || knotItem == parentItem->right) {
+
+      auto& knotentryexit = knotItem == parentItem->left ? parentItem->m_glyphknot->leftValue : parentItem->m_glyphknot->rightValue;
+
+      if (remove) {
+        if (type == 0 || type == 1) {
+          auto expr = dynamic_cast<FunctionMFExp*>(knotentryexit.dirExpr.get());
+          if (expr) {
+            auto expr2 = expr->getFirst()->clone();
+            knotentryexit.dirExpr = std::unique_ptr<MFExpr>(expr2.release());
+            change = true;
+          }
+          else {
+            auto expdir = dynamic_cast<DirPathPointExp*>(knotentryexit.dirExpr.get());
+            if (expdir) {
+              auto expr2 = expdir->getVal();
+              expr = dynamic_cast<FunctionMFExp*>(expr2);
+              if (expr) {
+                expdir->setVal(expr->getFirst()->clone().release());
+                change = true;
+              }
+
+            }
+          }
+        }
+        if (type == 0 || type == 2) {
+          auto expr = dynamic_cast<FunctionMFExp*>(knotentryexit.tensionExpr.get());
+          if (expr) {
+            auto expr2 = expr->getFirst()->clone();
+            knotentryexit.tensionExpr = std::unique_ptr<MFExpr>(expr2.release());
+            change = true;
+          }
+        }
+      }
+      else {
+        QString bendFuncName = left ? "bldmvi" : "brdmvi";
+
+        if (type == 0 || type == 1) {
+          if (knotentryexit.dirExpr) {
+            auto dirExpr = dynamic_cast<DirPathPointExp*>(knotentryexit.dirExpr.get());
+            if (dirExpr) {
+              auto expr2 = dirExpr->getVal()->clone().release();
+              dirExpr->setVal(new FunctionMFExp(bendFuncName,
+                expr2,
+                new LitPathNumericExp(0)
+              ));
+              change = true;
+            }
+            else {
+              knotentryexit.dirExpr = std::make_unique<FunctionMFExp>(bendFuncName,
+                knotentryexit.dirExpr.release(),
+                new LitPointPathPointExp({ 0,0 })
+                );
+              change = true;
+            }
+          }
+          else {
+            knotentryexit.dirExpr = std::make_unique<DirPathPointExp>(new FunctionMFExp(bendFuncName, new LitPathNumericExp(25), new LitPathNumericExp(0)));
+            knotentryexit.type = Glyph::mpgui_given;
+            change = true;
+          }
+        }
+        if (type == 0 || type == 2) {
+          if (knotentryexit.tensionExpr) {
+
+            knotentryexit.tensionExpr = std::make_unique<FunctionMFExp>(bendFuncName,
+              knotentryexit.tensionExpr.release(),
+              new LitPathNumericExp(0)
+              );
+            change = true;
+          }
+        }
+      }
+    }
+
+  }
+
+  if (change) {
+    m_glyph->isDirty = true;
+
+    auto newSource = m_glyph->source();
+
+    GlyphSourceChangeCommand* command = new GlyphSourceChangeCommand(m_glyph, "Source Changed", oldSource, newSource, true);
+    m_glyph->undoStack()->push(command);
+
+
+  }
+
+  return true;
+
+}
 bool KnotControlledItem::addKashida(bool left, int nbKnots) {
 
   auto scene = (GlyphScene*)this->scene();
@@ -865,7 +1037,7 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
 
       QString vertRatioVarName = left ? "leftVerticalRatio" : "rightVerticalRatio";
       auto dirVar1Value = left ? 25 : 155;
-      auto vertRatioValue = left ? 6 : 3;
+      auto vertRatioValue = left ? 6 : 6;
       auto minValue = left ? QPointF{ -5, -5 } : QPointF{ 5, -5 };
       // TODO : get value from font
       QPointF joinvector{ 16,88 };
@@ -1025,13 +1197,14 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
       }
 
       if (!left) {
+        /*
         secondKnot->leftValue.type = Glyph::mpgui_given;
 
         secondKnot->leftValue.dirExpr = std::make_unique<DirPathPointExp>(
           new FunctionMFExp(bendFuncName,
             new LitPathNumericExp(dirVar1Value),
             new LitPathNumericExp(0))
-          );
+          );*/
 
         secondKnot->leftValue.jointtype = Glyph::path_join_tension;
         secondKnot->leftValue.tensionExpr = nullptr;
@@ -1051,7 +1224,7 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
         secondKnot->leftValue.tensionExpr = nullptr;
       }
 
-     
+
 
 
       secondKnot->expr = std::make_unique<FunctionMFExp>(bendFuncName,

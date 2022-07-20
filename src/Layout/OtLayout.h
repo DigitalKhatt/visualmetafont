@@ -126,6 +126,7 @@ struct LineLayoutInfo {
   int ystartposition;
   LineType type = LineType::Line;
   float overfull;
+  int fontSize;
 };
 
 struct LayoutPages {
@@ -293,8 +294,8 @@ public:
 
   int tajweedcolorindex = 0xFFFF;
 
-  QList<LineLayoutInfo> justifyPage(int emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
-  LayoutPages pageBreak(int emScale, int lineWidth, bool pageFinishbyaVerse, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
+  QList<LineLayoutInfo> justifyPage(int emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, bool changeSize = false, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
+  LayoutPages pageBreak(int emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
 
   bool applyJustification = true;
 
@@ -324,8 +325,7 @@ public:
   bool useNormAxisValues = true;
 
   enum class WhichJust {
-    First,
-    Second,
+    Local,
     HarfBuzz
   };
 
@@ -441,7 +441,7 @@ private:
   void applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, int emScale);
   void applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, int emScale);
 
-  void jutifyLine(hb_font_t* shapefont, hb_buffer_t* buffer, int lineWidth, int emScale, bool tajweedColor);
+  void jutifyLine(hb_font_t* shapefont, hb_buffer_t* buffer, int lineWidth, bool tajweedColor);
   void jutifyLine_old(hb_font_t* shapefont, hb_buffer_t* buffer, int lineWidth, int emScale, bool tajweedColor);
 
   bool extended = true;

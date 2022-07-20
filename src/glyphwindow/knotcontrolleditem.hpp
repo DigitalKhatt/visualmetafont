@@ -61,6 +61,7 @@ public:
 private:
 	bool moveMinMaxDeltas(QGraphicsItem* watched, QGraphicsSceneMouseEvent* event);
 	bool addKashida(bool left, int nbKnots);
+	bool AddRemoveBlend(bool left, bool remove, int type);
 	bool addKashida_old(bool left, int nbKnots);
 
 	int m_numsubpath;

@@ -200,13 +200,12 @@ def endchar =
     elseif  (known leftanchor)  :
       charwd:= xpart (urcorner currentpicture) - xpart (leftanchor) + rightbearing; % - residu;      
     elseif  (known rightanchor) :
-      %charwd:= xpart (urcorner currentpicture) - xpart (ulcorner currentpicture) + leftbearing - residu;   
-      charwd:= xpart (rightanchor) - xpart (ulcorner currentpicture) + leftbearing;
-      %currentpicture := currentpicture shifted (-xpart (ulcorner currentpicture) + leftbearing,0);
-      tr_ := tr_ shifted round (-xpart (ulcorner currentpicture) + leftbearing,0);
+      numeric tnum_;
+      tnum_ = round (- xpart(ulcorner currentpicture) + leftbearing);
+      charwd:= xpart (rightanchor) + tnum_;      
+      tr_ := tr_ shifted (tnum_,0);
     else:
-      charwd:= xpart (urcorner currentpicture) - xpart (ulcorner currentpicture) + leftbearing + rightbearing; 
-      %currentpicture := currentpicture shifted (-xpart (ulcorner currentpicture) + leftbearing,0);
+      charwd:= xpart (urcorner currentpicture) - xpart (ulcorner currentpicture) + leftbearing + rightbearing;       
       tr_ := tr_ shifted (-xpart (ulcorner currentpicture) + leftbearing,0);
     fi;
   fi;	
@@ -464,7 +463,65 @@ secondarydef p rightjoin q =
   )
   p {z.dirr2} .. z_r5 .. z_r4  link z_r3 .. z_r2 .. z_r1 .. {z.dirr1} q
 enddef;
+vardef tpoint(expr p,q,r,s,t) =
+  points12 := t[p,q];
+  points23 := t[q,r];
+  points34 := t[r,s];
+  points123 := t[points12,points23];
+  points234 := t[points23,points34];
+  t[points123,points234]
+enddef;
 pair z_l[],z_r[];
+secondarydef p rightjoiniii q =
+   hide(
+
+    z.rtat.botdist =  (rightMinWidth,-rightMinHeight);
+    z.rtat.bot4.min = q + z.rtat.botdist;
+    z.rtat.top4.min = z.rtat.bot4.min + joinvector;
+    z.rtat.topdist =  z.rtat.top4.min - p;  
+
+    z.rtat.top5.min = p + (9/10x.rtat.topdist,y.rtat.topdist) + if known x.rtat.top5.adj : z.rtat.top5.adj else : (0,0) fi ;
+    z.rtat.top55.min = 1/5[p + (1/20x.rtat.topdist,y.rtat.topdist),z.rtat.top5.min] + if known x.rtat.top55.adj : z.rtat.top55.adj else : (0,0) fi ;
+
+    z.rtat.top2.min = tpoint(p,z.rtat.top55.min,z.rtat.top5.min,z.rtat.top4.min,1/2);
+    points344 := points34;
+    points2344 := points234;
+    z.rtat.top1.min = tpoint(p,points12,points123,z.rtat.top2.min,1/2);
+    z.rtat.top3.min = tpoint(z.rtat.top2.min,points2344,points344,z.rtat.top4.min,1/2);
+
+
+    z.rtat.bot5.min = q + (9/10x.rtat.botdist,y.rtat.botdist) + if known x.rtat.bot5.adj : z.rtat.bot5.adj else : (0,0) fi ;
+    z.rtat.bot55.min = 1/5[q + (1/20x.rtat.botdist,y.rtat.botdist),z.rtat.bot5.min] + if known x.rtat.bot55.adj : z.rtat.bot55.adj else : (0,0) fi ;
+
+
+    z.rtat.bot2.min = tpoint(q,z.rtat.bot55.min,z.rtat.bot5.min,z.rtat.bot4.min,1/2);
+    points344 := points34;
+    points2344 := points234;
+    z.rtat.bot1.min = tpoint(q,points12,points123,z.rtat.bot2.min,1/2);
+    z.rtat.bot3.min = tpoint(z.rtat.bot2.min,points2344,points344,z.rtat.bot4.min,1/2);   
+
+
+    z.rtat.bot4.dta = nuqta * (7,-7 / rightVerticalRatio);
+
+    z.rtat.bot3.dta = z.rtat.bot4.dta - (nuqta,-1/20nuqta);
+    z.rtat.top3.dta = z.rtat.bot3.min +  z.rtat.bot3.dta + joinvector - z.rtat.top3.min;
+
+    z.rtat.bot2.dta = z.rtat.bot4.dta - (4*nuqta,-5/10nuqta);
+    z.rtat.top2.dta = z.rtat.bot2.min +  z.rtat.bot2.dta + joinvector - z.rtat.top2.min;
+
+    z.rtat.bot1.dta = (1/20nuqta,-1/20nuqta);
+    z.rtat.top1.dta = (1/20nuqta,-1/20nuqta); %z.rtat.bot1.min +  z.rtat.bot1.dta + joinvector - z.rtat.top1.min;
+   
+    
+    %{brdmvi(q - z.rtat.bot55.min,(0,0))}
+      
+  )
+  p {brdmvi(z.rtat.top55.min - p,(0,0))} .. brdmvi(z.rtat.top1.min,z.rtat.top1.dta) .. brdmvi(z.rtat.top2.min,z.rtat.top2.dta) .. brdmvi(z.rtat.top3.min,z.rtat.top3.dta)
+       link brdmvi(z.rtat.bot4.min,z.rtat.bot4.dta) ..
+       brdmvi(z.rtat.bot3.min,z.rtat.bot3.dta) .. brdmvi(z.rtat.bot2.min,z.rtat.bot2.dta) .. brdmvi(z.rtat.bot1.min,z.rtat.bot1.dta)
+    ..   q
+enddef;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 secondarydef p link q =
 hide(
@@ -740,7 +797,7 @@ def + factor_ * delta
 enddef;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 vardef bldmvi(expr def,delta) =
-factor_ := (1 + lefttatweel) / (maxLeft - minLeft);
+factor_ := (lefttatweel - minLeft) / (maxLeft - minLeft);
 def + factor_ * delta
 enddef;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

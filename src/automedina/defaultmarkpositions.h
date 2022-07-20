@@ -31,6 +31,8 @@ public:
 
     GlyphVis* curr = &_y.glyphs[glyphName];
 
+
+
     if (lefttatweel != 0.0 || righttatweel != 0.0) {
       GlyphParameters parameters{};
 
@@ -40,13 +42,21 @@ public:
       curr = curr->getAlternate(parameters);
     }
 
-    GlyphVis* originalglyph;
 
-    QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
-    QPoint anchor = caclAnchor(*originalglyph, className) + adjustoriginal + adjust;
+    if (curr->conatinsAnchor(className)) {
+      QPoint anchor = curr->getAnchor(className) + adjust;
+      return anchor;
+    }
+    else {
+      GlyphVis* originalglyph;
 
-    return anchor;
+      QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
+
+      QPoint anchor = caclAnchor(*originalglyph, className) + adjustoriginal + adjust;    
+
+      return anchor;
+    }
 
   };
 private:
@@ -187,11 +197,11 @@ public:
     int height = 1;
 
     if (glyphName == "fatha") {
-      height+=  (curr->width - ori_width )/ 7;
+      height += (curr->width - ori_width) / 7;
     }
 
 
-   
+
 
 
 
@@ -477,7 +487,7 @@ public:
       QPoint anchor = curr->getAnchor(className) + adjust;
       return anchor;
     }
-    else if ((curr->name == "behshape.fina.expa" || curr->originalglyph == "behshape.fina.expa")&& curr->conatinsAnchor("dotbelow")) {
+    else if ((curr->name == "behshape.fina.expa" || curr->originalglyph == "behshape.fina.expa") && curr->conatinsAnchor("dotbelow")) {
       QPoint anchor = curr->getAnchor("dotbelow") + adjust;
       return anchor;
     }
@@ -542,7 +552,7 @@ public:
       return value + adjust;
     }
     else if (className == "beforewaw") {
-      int width = 200;
+      int width = 100;
       int height = 200;
 
       auto value = QPoint{ width , height };
@@ -550,13 +560,23 @@ public:
       return value + adjust;
     }
     else if (className == "beforesad") {
-      int width = 500;
+      int width = 420;
       int height = 200;
 
       auto value = QPoint{ width , height };
 
       return value + adjust;
     }
+    else if (className == "beforetah") {
+      int width = 225;
+      int height = 200;
+
+      auto value = QPoint{ width , height };
+
+      return value + adjust;
+    }
+
+
 
 
     return adjust;

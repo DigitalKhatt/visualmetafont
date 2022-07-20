@@ -21,7 +21,8 @@ PathView::PathView(Glyph* glyph, QWidget* parent)
   //auto box = this->path.boundingRect();
   //this->path = this->path.translated(-box.left(), box.top());
 
-  this->path = glyph->getPath();;
+  this->path = glyph->getPath();
+  path.setFillRule(Qt::WindingFill);
 
 }
 void PathView::glyphChanged(QString name) {

@@ -126,4 +126,5 @@ private:
 
 	bool applyJustification = true;
 	bool applyCollisionDetection = false;
+  bool applyFontSize = false;
 };

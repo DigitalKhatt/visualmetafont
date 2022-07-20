@@ -156,6 +156,14 @@ public:
 
 	DirPathPointExp(MFExpr* v) :val{ v } { }
 
+	MFExpr* getVal() {
+		return val.get();
+	}
+
+	void setVal(MFExpr* expr) {
+		val = std::unique_ptr<MFExpr>(expr);
+	}
+
 	// Returns a reference to the stored string value.
 	QString toString() override {
 		return QString("dir %1").arg(val->toString());
@@ -176,19 +184,19 @@ public:
 	QVariant constantValue(int i) override {
 		QVariant ret;
 		//if (val && val->type() == QVariant::Double) {
-			auto angleDegree = val->constantValue(i).toDouble();
-			auto angleRadian = qDegreesToRadians(angleDegree);
-			ret = QPointF{ qCos(angleRadian),qSin(angleRadian) };
+		auto angleDegree = val->constantValue(i).toDouble();
+		auto angleRadian = qDegreesToRadians(angleDegree);
+		ret = QPointF{ qCos(angleRadian),qSin(angleRadian) };
 		//}
 		return ret;
 	}
 
 	void setConstantValue(int i, QVariant value) override {
 		//if (val && val->type() == QVariant::Double && value.type() == QVariant::PointF) {
-			auto point = value.toPointF();
-			auto angleRadian = qAtan2(point.y(), point.x());
-			auto angleDegree = qRadiansToDegrees(angleRadian);
-			val->setConstantValue(i, angleDegree);
+		auto point = value.toPointF();
+		auto angleRadian = qAtan2(point.y(), point.x());
+		auto angleDegree = qRadiansToDegrees(angleRadian);
+		val->setConstantValue(i, angleDegree);
 		//}
 	}
 
@@ -406,6 +414,14 @@ public:
 
 	}
 
+	MFExpr* getFirst() {
+		return args[0].get();
+	}
+
+	MFExpr* getSecond() {
+		return args[1].get();
+	}
+
 	// Returns a reference to the stored string value.
 	QString toString() override {
 		return QString("%1(%2,%3)").arg(functionName).arg(args[0]->toString()).arg(args[1]->toString());
@@ -563,7 +579,7 @@ public:
 
 	std::unique_ptr<MFExpr> clone() override {
 		auto exp1 = child->clone();
-		return std::make_unique<ScalarMultiMFExp>(exp1.release(),op);
+		return std::make_unique<ScalarMultiMFExp>(exp1.release(), op);
 	}
 };
 

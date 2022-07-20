@@ -75,10 +75,9 @@ void ExportToHTML::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int li
         out << " class = 'line";
       }
       out << "'>" << '\n';
-      QRegularExpression re("(\\d+)");
-      re.setPatternOptions(QRegularExpression::UseUnicodePropertiesOption);
+     
 
-      out << lineText.replace(re, QString("۝") + "\\1") << '\n';
+      out << lineText << '\n';
       out << "</div>" << '\n';
     }
     out << "</div>" << '\n';
