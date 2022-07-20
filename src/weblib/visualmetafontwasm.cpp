@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
 	shaper.clearAlternates();
 
 	for (int i = 0; i < 100; i++) {
-		auto result = shaper.shapePage(i, 0.8, true,0,true,true);
+		auto result = shaper.shapePage(i, 0.8, true,0,true,true,true);
 		shaper.clearAlternates();
 	}
 
