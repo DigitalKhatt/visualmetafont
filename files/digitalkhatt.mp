@@ -4467,6 +4467,62 @@ fill
 %%beginbody
 %show penangle;
 enddefchar;
+defchar(meem.medi.ii,-1,-1,-1,-1);
+%%backgroundimage:images/meem.medi.jpg,-1050.07,-1542.82,1,0,0,1
+%%beginparams
+leftVerticalRatio := 6;
+rightVerticalRatio := 3;
+
+%%beginverbatim
+
+
+
+righttatweel := righttatweel - 0.5;
+lefttatweel := lefttatweel - 0.5;
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(165.217,56.0008) .. tension 1 and 1 ..
+bldmvi((140.407,34.1559),(-70.5154,-40.7577)) ..
+bldmvi((124.01,22.0236),(-207.917,-88.3588)) ..
+bldmvi((112.073,13.38),(-458.992,-130.427)) ..
+bldmvi((98.971,9),nuqta * (-7,-7 / leftVerticalRatio)) link
+bldmvi((127.685,97.8915),(-448.359,-127.285)) ..
+bldmvi((142.917,101.883),(-216.195,-88.2786)) ..
+bldmvi((153.545,107.799),(-105.741,-61.0123)) .. tension 1 and 1 ..
+(171.942,122.402) .. tension 1 and 1 ..
+(201.341,157.938) .. tension 1 and 2.03022 ..
+ {right}(302.262,253.392) .. tension 1.08595 and 1.58165 ..
+brdmvi((376.744,187.843),(20.8333,-9.83796)) .. tension 1.21643 and 1 ..
+brdmvi((410.533,154.625),(125.408,-88.329)) ..
+brdmvi((444.197,129.545),(362.505,-203.034)) ..
+brdmvi((480.133,114.464),(596.667,-259.198)) link
+brdmvi((474.807,24.57),nuqta * (7,-7 / rightVerticalRatio)) ..
+brdmvi((469.503,25.5305),(581.045,-260.68)) ..
+brdmvi((456.809,30.7926),(313.593,-182.402)) ..
+brdmvi((448.606,37.7),(31.0018,-22.3222)) .. tension 2.34693 and 10000 ..
+(447.049,39.5448) {left} .. tension 10.4171 and 10.4171 ..
+ {left}(428.177,-5.01878) .. tension 1 and 2.79227 ..
+(221.747,55.3964) .. tension 1 and 1.6801 ..
+ {curl1}(198.66,91.1446) .. tension 2.77486 and 1 ..
+ cycle
+;
+fill
+(230,157) .. tension 1.40371 and 6.54598 ..
+ {right}(347.646,87.9381) .. tension 1 and 0.873124 ..
+ {up}(364,94.3849) .. tension 10000 and 0.75 ..
+(323.158,158.058) .. tension 1.4282 and 10.3996 ..
+ {left}(294,205) .. tension 1.56086 and 4.27536 ..
+ {down} cycle
+;
+
+%%endpaths
+%%beginbody
+%show penangle;
+enddefchar;
 defchar(meem.medi.afterhah,-1,-1,-1,-1);
 %%backgroundimage:images/hahmeem.jpg,-2089,-1386,1,0,0,1
 %%beginparams
@@ -6033,6 +6089,48 @@ z2 .. tension 1 and 4.21397 ..
 leftbearing := -180; %4*50 - (x2-x1);
 enddefchar;
 defchar(reh.fina,-1,-1,-1,-1);
+%%backgroundimage:images/reh.fina.jpg,-496.214,-1172.07,1,0,0,1
+%%beginparams
+rightVerticalRatio := 6;
+
+%%beginverbatim
+righttatweel := righttatweel - 0.5;
+
+
+
+%%backgroundimage:images/reh.fina.jpg,-495,-1174,1,0,0,1
+%%endverbatim
+
+%%beginpaths
+
+fill
+(-241.826,-235.569) .. tension 1 and 1 ..
+ {right}(-222.072,-218.642) .. tension 2.92944 and 1.23772 ..
+ {right}(-112.705,-236.832) .. tension 1.20626 and 1 ..
+(215.961,-101.237) .. tension 1 and 3.12081 ..
+ {up}(298.611,22.2222) .. tension 10000 and 0.792016 ..
+ {up}(234.722,102.778) .. tension 1 and 5.22376 ..
+ {right}(257.475,168.275) .. tension 1.77596 and 1 ..
+(269.353,150.219) .. tension 1.22707 and 1.22707 ..
+(291.413,124.656) .. tension 0.869847 and 0.869847 ..
+brdmvi((321.628,103.986),(39.1991,-26.8843)) ..
+brdmvi((334.795,98.324),(198.676,-81.1574)) ..
+brdmvi((346.346,94.7908),(682.431,-138.171)) link
+brdmvi((335.777,6.13983),nuqta * (7,-7 / rightVerticalRatio)) ..
+brdmvi((335.098,6.09639),(660.44,-133.866)) ..
+brdmvi((329.895,8.15366),(155.718,-61.9213)) ..
+brdmvi((326.236,10.178),(16.3889,-8.86574)) ..
+ {dir 149.825}(323.985,11.5106) {dir -103.249} .. tension 1.88922 and 1 ..
+(274.281,-115.205) .. tension 1 and 1 ..
+ {left}(-9.47417,-276.354) .. tension 1.46627 and 4.98242 ..
+ {up} cycle
+;
+
+%%endpaths
+%%beginbody
+leftbearing := -180; % 230- (x4-x5);
+enddefchar;
+defchar(reh.fina.ii,-1,-1,-1,-1);
 %%backgroundimage:images/reh.fina.jpg,-496.136,-1172.07,1,0,0,1
 %%beginparams
 rightVerticalRatio := 3;
@@ -6069,48 +6167,6 @@ fill
 (215.961,-101.237) .. tension 1 and 5.24099 ..
  {up}(300.007,29.4318) .. tension 1.7439 and 2.05309 ..
 (326.638,22.6047) {dir -93.0271} .. tension 6.80679 and 1 ..
-(274.281,-115.205) .. tension 1 and 1 ..
- {left}(-9.47417,-276.354) .. tension 1.46627 and 4.98242 ..
- {up} cycle
-;
-
-%%endpaths
-%%beginbody
-leftbearing := -180; % 230- (x4-x5);
-enddefchar;
-defchar(reh.fina.ii,-1,-1,-1,-1);
-%%backgroundimage:images/reh.fina.jpg,-496.214,-1172.07,1,0,0,1
-%%beginparams
-rightVerticalRatio := 6;
-
-%%beginverbatim
-righttatweel := righttatweel - 0.5;
-
-
-
-%%backgroundimage:images/reh.fina.jpg,-495,-1174,1,0,0,1
-%%endverbatim
-
-%%beginpaths
-
-fill
-(-241.826,-235.569) .. tension 1 and 1 ..
- {right}(-222.072,-218.642) .. tension 2.92944 and 1.23772 ..
- {right}(-112.705,-236.832) .. tension 1.20626 and 1 ..
-(215.961,-101.237) .. tension 1 and 3.12081 ..
- {up}(298.611,22.2222) .. tension 10000 and 0.792016 ..
- {up}(234.722,102.778) .. tension 1 and 5.22376 ..
- {right}(257.475,168.275) .. tension 1.77596 and 1 ..
-(269.353,150.219) .. tension 1.22707 and 1.22707 ..
-(291.413,124.656) .. tension 0.869847 and 0.869847 ..
-brdmvi((321.628,103.986),(2.19907,-4.88426)) ..
-brdmvi((334.795,98.324),(204.676,-86.1574)) ..
-brdmvi((346.346,94.7908),(682.431,-138.171)) link
-brdmvi((335.777,6.13983),nuqta * (7,-7 / rightVerticalRatio)) ..
-brdmvi((335.098,6.09639),(660.44,-133.866)) ..
-brdmvi((329.895,8.15366),(155.718,-61.9213)) ..
-brdmvi((326.236,10.178),(16.3889,-8.86574)) ..
- {dir 149.825}(323.985,11.5106) {dir -103.249} .. tension 1.88922 and 1 ..
 (274.281,-115.205) .. tension 1 and 1 ..
  {left}(-9.47417,-276.354) .. tension 1.46627 and 4.98242 ..
  {up} cycle
@@ -9049,6 +9105,26 @@ setMarkAnchor(topmarks,z.mark1  + z101/2);
 
 enddefchar;
 defchar(noon.isol.expa,-1,-1,-1,-1);
+%%backgroundimage:images/noon.taweel.jpg,-12.828,-1062.14,1,0,0,1
+%%beginparams
+z11 = (398.824,200.666);
+%%beginbody
+
+
+
+noonshape.expa_(lefttatweel,0);
+
+x11 := x11 + lefttatweel *  nuqta / 2;
+
+draw one_dot.pic  shifted z11;
+
+setCursiveAnchor(behnoon,(15,26.0528)+ z1, EntryAnchorRTL);
+setCursiveAnchor(behmedinoon,(15,26.0528)+ z1, EntryAnchor);
+
+
+
+enddefchar;
+defchar(noon.fina.expa.afterbeh,-1,-1,-1,-1);
 %%backgroundimage:images/noon.taweel.jpg,-12.828,-1062.14,1,0,0,1
 %%beginparams
 z11 = (398.824,200.666);

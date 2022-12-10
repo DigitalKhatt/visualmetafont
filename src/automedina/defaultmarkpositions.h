@@ -181,6 +181,7 @@ class Defaultopmarkanchor : public AnchorCalc {
 public:
   Defaultopmarkanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
+
     GlyphVis* curr = &_y.glyphs[glyphName];
 
     auto ori_width = curr->width;

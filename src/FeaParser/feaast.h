@@ -291,13 +291,7 @@ namespace feayy {
   };
 
   class GlyphSet {
-    enum class Tag { glyphclass, glyph, empty };
 
-    union {
-      GlyphClass* _glyphClass;
-      Glyph* _glyph;
-    };
-    Tag type;
   public:
     struct Bad_entry { }; // used for exceptions
     explicit GlyphSet(GlyphClass* _glyphClass) :_glyphClass(_glyphClass), type{ Tag::glyphclass } {}
@@ -345,6 +339,15 @@ namespace feayy {
       }
     }
 
+    QSet<quint16> getCachedCodes(OtLayout* otlayout) {
+      if (!isCached) {
+        cached = getCodes(otlayout);
+        isCached = true;
+      }
+
+      return cached;
+    }
+
     QList<quint16> getSortedCodes(OtLayout* otlayout) {
 
       auto set = getCodes(otlayout);
@@ -357,6 +360,18 @@ namespace feayy {
     bool isEmpty() {
       return type == Tag::empty;
     }
+
+  private:
+    enum class Tag { glyphclass, glyph, empty };
+
+    union {
+      GlyphClass* _glyphClass;
+      Glyph* _glyph;
+    };
+    Tag type;
+
+    bool isCached = false;
+    QSet<quint16> cached;
 
   };
 
@@ -653,21 +668,21 @@ namespace feayy {
       :SingleSubstituionRule{ firstglyph ,secondglyph ,format ,{},StartEndLig::StartEnd } {}
 
     explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, int format, GlyphExpansion expansion, StartEndLig startEndLig)
-      :firstglyph{ firstglyph }, secondglyph{ secondglyph }, format{ format }, expansion{ expansion }, startEndLig{ startEndLig }{}
+      :firstglyph{ firstglyph }, secondglyph{ secondglyph }, format{ format }, expansion{ expansion }, startEndLig{ startEndLig } {}
 
     explicit SingleSubstituionRule(Glyph* firstglyph, float lefttatweel, float righttatweel)
-      :firstglyph{ firstglyph }, secondglyph{ firstglyph }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel }, startEndLig{ StartEndLig::StartEnd }{}
+      :firstglyph{ firstglyph }, secondglyph{ firstglyph }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel }, startEndLig{ StartEndLig::StartEnd } {}
 
     explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, float lefttatweel, float righttatweel)
-      :firstglyph{ firstglyph }, secondglyph{ secondglyph }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel }, startEndLig{ StartEndLig::StartEnd }{}
+      :firstglyph{ firstglyph }, secondglyph{ secondglyph }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel }, startEndLig{ StartEndLig::StartEnd } {}
 
     explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, float lefttatweel, float righttatweel)
       :firstGlyphSet{ firstGlyphSet }, firstType{ FirstType::GLYPHSET }, secondglyph{ nullptr }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel },
-      startEndLig{ StartEndLig::StartEnd }{}
+      startEndLig{ StartEndLig::StartEnd } {}
 
     explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, int format, GlyphExpansion expansion, StartEndLig startEndLig)
       :firstGlyphSet{ firstGlyphSet }, firstType{ FirstType::GLYPHSET }, secondglyph{ nullptr }, format{ format }, expansion{ expansion },
-      startEndLig{ startEndLig }{}
+      startEndLig{ startEndLig } {}
 
     void accept(Visitor&) override;
 
@@ -696,7 +711,7 @@ namespace feayy {
     int format;
 
     explicit LigatureSubstitutionRule(std::vector<Glyph*>* sequence, Glyph* ligature)
-      :sequence{ sequence }, ligature{ ligature }, format{ 1 }{}
+      :sequence{ sequence }, ligature{ ligature }, format{ 1 } {}
 
     ~LigatureSubstitutionRule() {
       for (auto glyph : *sequence) {

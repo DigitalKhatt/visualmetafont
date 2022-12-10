@@ -25,7 +25,7 @@
 #include <string>
 
 class OtLayout;
-class FSMSubtable;
+struct FSMSubtable;
 struct hb_buffer_t;
 namespace OT {
   struct hb_ot_apply_context_t;

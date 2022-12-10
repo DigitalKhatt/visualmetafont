@@ -140,7 +140,7 @@ QByteArray SingleSubtableWithExpansion::getConvertedOpenTypeTable() {
       parameters.lefttatweel = (double)expan.MaxLeftTatweel;
       parameters.righttatweel = (double)expan.MaxRightTatweel;
 
-      GlyphVis* glyph = m_layout->getAlternate(substIter.value(), parameters,true);
+      GlyphVis* glyph = m_layout->getAlternate(substIter.value(), parameters, true);
       substGlyph = glyph->charcode;
     }
     root << substGlyph;
@@ -154,13 +154,65 @@ QByteArray SingleSubtableWithExpansion::getConvertedOpenTypeTable() {
 }
 
 QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
+
+  QMapIterator<quint16, GlyphExpansion>oldExpaIter(expansion);
+  QMapIterator<quint16, quint16>oldSubstIter(subst);
+
+  QMap<quint16, GlyphExpansion > newexpansion;
+  QMap<quint16, quint16 > newsubst;
+
+  while (oldSubstIter.hasNext()) {
+    oldExpaIter.next();
+    oldSubstIter.next();
+
+    GlyphExpansion expan = oldExpaIter.value();
+
+    quint16 glyphCode = oldSubstIter.key();
+
+    quint16 substGlyph = oldSubstIter.value();
+
+    std::unordered_map<GlyphParameters, GlyphVis*> addedGlyphs;
+
+    if (glyphCode == substGlyph && (this->m_lookup->name == "forwawfea.add1" || this->m_lookup->name == "forwawfea.add2")) {
+      addedGlyphs = m_layout->getAddedGlyphs(glyphCode);
+    }
+
+    addedGlyphs.insert({ {}, m_layout->getGlyph(glyphCode) });
+
+    if (addedGlyphs.size() > 1) {
+      int stop = 5;
+    }
+
+    for (auto& addedGlyph : addedGlyphs) {
+      quint16 newSubstGlyph = substGlyph;
+      if (expan.MinLeftTatweel != 0 || expan.MinRightTatweel != 0) {
+        GlyphParameters parameters = addedGlyph.first;
+
+        parameters.lefttatweel += (double)expan.MinLeftTatweel;
+        parameters.righttatweel += (double)expan.MinRightTatweel;
+
+        GlyphVis* glyph = m_layout->getAlternate(substGlyph, parameters, true);
+        newSubstGlyph = glyph->charcode;
+      }
+
+      newexpansion.insert(addedGlyph.second->charcode, oldExpaIter.value());
+      newsubst.insert(addedGlyph.second->charcode, newSubstGlyph);
+
+    }
+  }
+
+
+
   QByteArray root;
   QByteArray coverage;
 
+  //m_layout->nojustalternatePaths
 
 
+  QMapIterator<quint16, GlyphExpansion>i(newexpansion);
+  QMapIterator<quint16, quint16>substIter(newsubst);
 
-  quint16 glyphCount = expansion.size();
+  quint16 glyphCount = newexpansion.size();
   quint16 coverage_offset = 2 + 2 + 2 + 2 * glyphCount;
 
 
@@ -172,9 +224,6 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
   coverage << (quint16)1;
   coverage << (quint16)glyphCount;
 
-  QMapIterator<quint16, GlyphExpansion>i(expansion);
-  QMapIterator<quint16, quint16>substIter(subst);
-
   while (substIter.hasNext()) {
     i.next();
     substIter.next();
@@ -183,15 +232,6 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
 
     quint16 substGlyph = substIter.value();
 
-    if (expan.MinLeftTatweel != 0 || expan.MinRightTatweel != 0) {
-      GlyphParameters parameters{};
-
-      parameters.lefttatweel = (double)expan.MinLeftTatweel;
-      parameters.righttatweel = (double)expan.MinRightTatweel;
-
-      GlyphVis* glyph = m_layout->getAlternate(substGlyph, parameters,true);
-      substGlyph = glyph->charcode;
-    }
     root << substGlyph;
     coverage << (quint16)substIter.key();
 
@@ -204,9 +244,185 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
 
 QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
 
+  QByteArray coverage;
+
+  QByteArray classDef;
+
   QByteArray root;
 
-  root << (quint16)1;
+  QByteArray header;
+
+  QByteArray chainNodes;
+  std::vector<uint32_t> chainNodesSizes;
+
+  int numNodes = dfa.states.size();
+
+  if (numNodes == 0) {
+    root << (quint16)0;
+    return root;
+  }
+
+  quint16 glyphCount = dfa.glyphToClass.size();
+
+  classDef << (quint16)2; //Format identifier — format = 2
+  classDef << glyphCount; // Number of ClassRangeRecords
+
+  coverage << (quint16)1;
+  coverage << (quint16)glyphCount;
+
+  for (auto it = dfa.glyphToClass.cbegin(); it != dfa.glyphToClass.cend(); it++) {
+
+    classDef << (quint16)it.key();
+    classDef << (quint16)it.key();
+    classDef << (quint16)(it.value() + 1); // Class 0 for not used glyphs
+
+    coverage << (quint16)it.key();
+  }
+
+  if (dfa.backupStates.size() != (dfa.maxBackup - dfa.minBackup + 1)) {
+    throw new std::runtime_error("invalid backupstates number");
+  }
+
+  quint16 startOffsets = 2 + 2 + 2 + 1 + 1 + 1 + 1 + dfa.backupStates.size() * 2 + 2 + numNodes * 4;
+
+
+  quint16 coverageOffset = startOffsets;
+  quint16 classDefOffset = coverageOffset + coverage.size();
+  quint32 nextOffset = classDefOffset + classDef.size();
+
+  header << (quint16)1;
+  header << (quint16)coverageOffset; //  Offset to Coverage;
+  header << (quint16)classDefOffset; //  Offset to ClassDef;
+  header << (uint8_t)dfa.maxBackup;
+  header << (uint8_t)dfa.minBackup;
+  header << (uint8_t)dfa.maxLoop;
+  header << (uint8_t)0; // reserved
+  for (auto it = dfa.backupStates.cbegin(); it != dfa.backupStates.cend(); it++) {
+    header << (quint16)*it;
+  }
+  header << (quint16)numNodes; // Number of ChainNodes
+
+  auto addBackLink = [&m_layout = m_layout, &m_lookup = m_lookup](QByteArray& array,const DFABackTrackInfo& backTrackInfo) {
+    array << (uint16_t)backTrackInfo.prevTransIndex;
+    array << (uint16_t)backTrackInfo.actions.size();
+
+    uint16_t lookupListIndex = 0;
+
+    for (auto action : backTrackInfo.actions) {
+      if (action.type == DFAActionType::LOOKUP) {
+        QString fullname = QString::fromStdString(action.name);
+        if (m_lookup->isGsubLookup()) {
+          if (m_layout->gsublookupsIndexByName.contains(fullname)) {
+            lookupListIndex = m_layout->gsublookupsIndexByName[fullname];
+          }
+          else {
+            throw new std::runtime_error("Invalid lookup");
+          }
+        }
+        else {
+          if (m_layout->gposlookupsIndexByName.contains(fullname)) {
+            lookupListIndex = m_layout->gposlookupsIndexByName[fullname];
+          }
+          else {
+            throw new std::runtime_error("Invalid lookup");
+          }
+        }
+      }
+      else if (action.type == DFAActionType::STARTNEWMATCH) {
+        lookupListIndex = 0xFFFF;
+      }
+      else {
+        throw new std::runtime_error("Not yet implemented");
+      }
+
+
+      array << (uint8_t)action.idRule; // chainid : Action chain number of this action
+      array << (uint8_t)0; // distance : How far back to process
+      array << lookupListIndex; // lookup :	Lookup id to execute
+    }
+  };
+
+  for (auto it = dfa.states.cbegin(); it != dfa.states.cend(); it++) {
+    auto& state = *it;
+
+    int numTransitions = it->transtitions.size();
+
+    uint16_t nextChainNodeOffset = 1 /*actionid*/
+      + 2 /* OffsetTo<BackLink> */
+      + 2 /* numTransitions */
+      + numTransitions * 6 /* ClassNode size*/;
+
+    QByteArray chainNode;
+
+    QByteArray offsets;
+
+    chainNode << (uint8_t)state.final;  // actionid : Action identifier for a final node
+    if (state.final != 0) {
+      QByteArray backlinkArray;
+      addBackLink(backlinkArray, state.backtrackfinal);
+      chainNode << (uint16_t)nextChainNodeOffset; // OffsetTo<BackLink> backLink
+      nextChainNodeOffset += backlinkArray.size();
+      offsets.append(backlinkArray);
+    }
+    else {
+      chainNode << (uint16_t)0; // OffsetTo<BackLink> backLink
+    }
+    chainNode << (uint16_t)numTransitions;  // numTransitions	: Number of transitions
+
+
+    QByteArray classNodes;
+
+
+    for (auto itTransi = it->transtitions.cbegin(); itTransi != it->transtitions.cend(); itTransi++) {
+      numTransitions++;
+
+      classNodes << (uint16_t)(itTransi->first + 1); // classIndex	: class index value to match
+      classNodes << (quint16)(itTransi->second.state); // chainNode	: chainNode index to use on match
+      //OffsetTo<BackLinkArray> backLinks
+      auto& backtracks = itTransi->second.backtracks;
+      if (backtracks.size() > 0) {
+        uint16_t numbacklinks = backtracks.size();
+        QByteArray backLinksArray;
+        QByteArray offsetbackLinksArray;
+        backLinksArray << numbacklinks;
+
+        uint16_t nextbackLinksOffset = 2 + 2 * numbacklinks;        
+
+        for (auto& backtrack : itTransi->second.backtracks) {
+          QByteArray backlinkArray;
+          addBackLink(backlinkArray, backtrack);
+          backLinksArray << nextbackLinksOffset;
+          nextbackLinksOffset += backlinkArray.size();
+          offsetbackLinksArray.append(backlinkArray);
+        }
+
+        backLinksArray.append(offsetbackLinksArray);
+        
+        classNodes << (uint16_t)nextChainNodeOffset; // OffsetTo<BackLink> backLink
+        nextChainNodeOffset += backLinksArray.size();
+        offsets.append(backLinksArray);
+
+      }
+      else {
+        classNodes << (uint16_t)0; 
+      }
+    }
+
+    chainNode.append(classNodes);
+    chainNode.append(offsets);
+
+
+    chainNodes.append(chainNode);
+
+    header << nextOffset;
+    nextOffset += chainNode.size();
+
+  }
+
+  root.append(header);
+  root.append(coverage);
+  root.append(classDef);
+  root.append(chainNodes);
 
   return root;
 }
@@ -298,13 +514,13 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
 
       ValueLimits limits;
 
-      auto& name = m_layout->glyphNamePerCode.value(subst[i.key()]);     
+      auto& name = m_layout->glyphNamePerCode.value(subst[i.key()]);
 
       const auto& find = m_layout->expandableGlyphs.find(name);
 
       if (find != m_layout->expandableGlyphs.end()) {
         limits = find->second;
-      }      
+      }
 
       if ((expan.MinLeftTatweel < 0 && expan.MinLeftTatweel < limits.minLeft) || (expan.MinLeftTatweel > 0 && expan.MinLeftTatweel > limits.maxLeft)) {
         throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
@@ -316,7 +532,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
         else {
           value.set_float(-expan.MinLeftTatweel / limits.minLeft);
         }
-        
+
         root << value;
       }
       else if (expan.MinLeftTatweel > 0.0) {
@@ -326,7 +542,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
         else {
           value.set_float(expan.MinLeftTatweel / limits.maxLeft);
         }
-        
+
         root << value;
       }
       else {
@@ -337,7 +553,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
       if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
         throw new runtime_error("MinRightTatweel error for glyph " + name.toStdString());
       }
-      else if (expan.MinRightTatweel < 0.0) {        
+      else if (expan.MinRightTatweel < 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(-expan.MinRightTatweel / m_layout->toOpenType->axisLimits.minRight);
         }
@@ -347,7 +563,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
         root << value;
       }
       else if (expan.MinRightTatweel > 0.0) {
-        
+
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(expan.MinRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
         }
@@ -362,7 +578,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
       }
     }
 
-   
+
     coverage << (quint16)i.key();
 
   }
@@ -422,17 +638,19 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       OT::HBFixed value;
       ValueLimits limits;
 
-      auto& name = m_layout->glyphNamePerCode.value(subst[i.key()]);      
+      auto& name = m_layout->glyphNamePerCode.value(subst[i.key()]);
 
       const auto& find = m_layout->expandableGlyphs.find(name);
 
       if (find != m_layout->expandableGlyphs.end()) {
         limits = find->second;
-      }      
-    
+      }
 
-      if ((expan.MinLeftTatweel < 0 && expan.MinLeftTatweel < limits.minLeft) || ( expan.MinLeftTatweel > 0 && expan.MinLeftTatweel > limits.maxLeft)) {
-        throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+
+      if ((expan.MinLeftTatweel < 0 && expan.MinLeftTatweel < limits.minLeft) || (expan.MinLeftTatweel > 0 && expan.MinLeftTatweel > limits.maxLeft)) {
+        //throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+        value.set_float(0.0);
+        root << value;
       }
       else if (expan.MinLeftTatweel != 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
@@ -450,7 +668,9 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       }
 
       if ((expan.MaxLeftTatweel < 0 && expan.MaxLeftTatweel < limits.minLeft) || (expan.MaxLeftTatweel > 0 && expan.MaxLeftTatweel > limits.maxLeft)) {
-        throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+        //throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+        value.set_float(0.0);
+        root << value;
       }
       else if (expan.MaxLeftTatweel != 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
@@ -464,7 +684,7 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       else {
         value.set_float(0.0);
         root << value;
-      }    
+      }
 
       if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
         throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
@@ -484,7 +704,9 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       }
 
       if ((expan.MaxRightTatweel < 0 && expan.MaxRightTatweel < limits.minRight) || (expan.MaxRightTatweel > 0 && expan.MaxRightTatweel > limits.maxRight)) {
-         throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+        //throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+        value.set_float(0.0);
+        root << value;
       }
       else if (expan.MaxRightTatweel != 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
@@ -501,7 +723,7 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       }
     }
 
-   
+
 
     root << (uint16_t)expan.weight;
     uint32_t flags = 0;
@@ -1556,17 +1778,13 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
       QPoint coordinate;
       QPoint adjust;
 
-      if (baseglyphName == "kaf.init") {
-        int tt = 6;
-      }
-
       if (markClass.baseparameters.contains(baseglyphName)) {
         adjust = markClass.baseparameters[baseglyphName];
         coordinate = adjust;
       }
 
       if (markClass.baseanchors.contains(baseglyphName)) {
-        coordinate+= markClass.baseanchors[baseglyphName];
+        coordinate += markClass.baseanchors[baseglyphName];
       }
       else {
 
@@ -1659,7 +1877,7 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
     }
 
     if (markClass.markanchors.contains(markglyphName)) {
-      coordinate+= markClass.markanchors[markglyphName];
+      coordinate += markClass.markanchors[markglyphName];
     }
     else {
 

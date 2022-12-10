@@ -939,6 +939,10 @@
                         0,
                         57
                     ],
+                    "noon.fina.expa.afterbeh": [
+                        -241,
+                        -60
+                    ],
                     "noon.isol.expa": [
                         -311,
                         -61
@@ -966,6 +970,10 @@
                     "sad.medi": [
                         327,
                         179
+                    ],
+                    "sad.medi.beforereh": [
+                        391,
+                        57
                     ],
                     "seen.fina": [
                         228,
@@ -1835,6 +1843,10 @@
                         189,
                         -9
                     ],
+                    "sad.medi.beforereh": [
+                        275,
+                        15
+                    ],
                     "seen.isol": [
                         333,
                         -41
@@ -2602,8 +2614,8 @@
                         -21
                     ],
                     "behshape.isol.expa": [
-                        268,
-                        -38
+                        145,
+                        -7
                     ],
                     "dal.isol": [
                         114,
@@ -2710,8 +2722,8 @@
                         -147
                     ],
                     "behshape.isol.expa": [
-                        306,
-                        -191
+                        290,
+                        -113
                     ],
                     "hah.init": [
                         -41,
@@ -3151,8 +3163,12 @@
                     13
                 ],
                 "behshape.isol": [
-                    -144,
-                    19
+                    -79,
+                    124
+                ],
+                "behshape.isol.expa": [
+                    -76,
+                    123
                 ],
                 "fehshape.init": [
                     -55,
@@ -3209,6 +3225,10 @@
                 "seen.isol": [
                     -90,
                     90
+                ],
+                "seen.isol.expa": [
+                    -22,
+                    89
                 ],
                 "waw.isol": [
                     24,

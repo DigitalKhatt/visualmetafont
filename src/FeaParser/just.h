@@ -32,470 +32,582 @@
 namespace feayy {
 
 
-	class GraphiteRule;
-	class RuleRegExp;
-	class GlyphSet;
-	class RuleRegExpConcat;
-	class RuleRegExpLeaf;
-	class RuleRegExpGlyphSet;
+  class GraphiteRule;
+  class RuleRegExp;
+  class GlyphSet;
+  class RuleRegExpConcat;
+  class RuleRegExpLeaf;
+  class RuleRegExpTag;
+  class RuleRegExpGlyphSet;
+  class RuleRegExpSymbol;
 
-	
 
-	
+  class RuleRegExpVisitor;
 
-	struct BackupSequence {
-		std::vector<std::shared_ptr<RuleRegExpLeaf>> sequence;
-		int glyphSetNumber = 0;
-	};
 
-	//using UP_RuleRegExp = unique_ptr<RuleRegExp>;
-	using PRuleRegExp = std::shared_ptr<RuleRegExp>;
+  struct BackupSequence {
+    std::vector<std::shared_ptr<RuleRegExpLeaf>> sequence;
+    int glyphSetNumber = 0;
+  };
 
 
-	class Pass {
-		friend class TableDefinition;
-		friend class LookupDefinitionVisitor;
-	public:
+  using ASTPositions = std::map< RuleRegExpSymbol*, std::vector<RuleRegExpTag*>>;
 
-		Pass()
-			: number_{ 0 } {}
+  //using UP_RuleRegExp = unique_ptr<RuleRegExp>;
+  using PRuleRegExp = std::shared_ptr<RuleRegExp>;
 
-		int number() const {
-			return number_;
-		}
 
-		void setNumber(int number) {
-			number_ = number;
-		}
+  class Pass {
+    friend class TableDefinition;
+    friend class LookupDefinitionVisitor;
+  public:
 
-		void addRule(const GraphiteRule& rule) {
-			rules.push_back(rule);
-		}
+    Pass()
+      : number_{ 0 } {}
 
-		void addRule(GraphiteRule&& rule) {
-			rules.push_back(std::move(rule));
-		}
+    int number() const {
+      return number_;
+    }
 
-		Pass(int number)
-			: number_{ number } {}
+    void setNumber(int number) {
+      number_ = number;
+    }
 
-		DFA computeDFA(OtLayout& layout);
+    void addRule(const GraphiteRule& rule) {
+      rules.push_back(rule);
+    }
 
+    void addRule(GraphiteRule&& rule) {
+      rules.push_back(std::move(rule));
+    }
 
-	protected:
-		int number_;
-		std::vector<GraphiteRule>	rules;
-	};
+    Pass(int number)
+      : number_{ number } {}
 
-	class TableDefinition : public LookupStatement {
-		friend class LookupDefinitionVisitor;
-	public:
-		TableDefinition(std::string name)
-			: name{ name }
-		{}
+    DFA computeDFA(OtLayout& layout);
 
-		Pass& getPass(int passNumber)
-		{
 
-			if (passNumber < 0)
-			{
-				throw std::runtime_error("invalid pass number");
-			}
+  protected:
+    int number_;
+    std::vector<GraphiteRule>	rules;
+  };
 
-			while (passNumber >= passes.size())
-				passes.push_back({});
+  class TableDefinition : public LookupStatement {
+    friend class LookupDefinitionVisitor;
+  public:
+    TableDefinition(std::string name)
+      : name{ name }
+    {}
 
-			if (passes[passNumber].number() != passNumber)
-			{
-				passes[passNumber].setNumber(passNumber);
-			}
 
-			return passes[passNumber];
-		}
 
-		void updatePass(Pass&& pass) {
-			int passNumber = pass.number();
+    void updatePass(Pass&& pass) {
+      int passNumber = pass.number();
 
-			if (passNumber < 0)
-			{
-				throw new std::runtime_error("invalid pass number");
-			}
+      if (passNumber < 0)
+      {
+        throw new std::runtime_error("invalid pass number");
+      }
 
-			while (passNumber >= passes.size())
-				passes.push_back({});
+      passes.push_back(pass);
 
-			if (passes[passNumber].number() != passNumber)
-			{
-				passes[passNumber] = std::move(pass);
-			}
-			else {
-				auto currentPass = passes[passNumber];
-				for (size_t i = 0; i < pass.rules.size(); ++i) {
-					currentPass.addRule(std::move(pass.rules[i]));
-				}
-			}
-		}
 
 
-		void accept(Visitor&) override;
+    }
 
-		std::string name;
 
-	protected:
-		
-		std::vector<Pass> passes;
-	};
+    void accept(Visitor&) override;
 
+    std::string name;
 
+  protected:
 
-	class GraphiteRule {
-		friend class Pass;
-	public:
-		GraphiteRule() {};
-		GraphiteRule(PRuleRegExp lhs, PRuleRegExp rhs, PRuleRegExp ctx);
+    std::vector<Pass> passes;
+  };
 
 
 
-	protected:
-		PRuleRegExp lhs;
-		PRuleRegExp rhs;
-		PRuleRegExp ctx;
-	};
+  class GraphiteRule {
+    friend class Pass;
+  public:
+    GraphiteRule() {};
+    GraphiteRule(PRuleRegExp lhs, PRuleRegExp rhs, PRuleRegExp ctx);
 
-	class RuleRegExpLeaf;
 
 
+  protected:
+    PRuleRegExp lhs;
+    PRuleRegExp rhs;
+    PRuleRegExp ctx;
+  };
 
-	class RuleRegExp  {
-		friend class GraphiteRule;
-	public:
+  class RuleRegExpLeaf;
 
-		virtual ~RuleRegExp()
-		{
-		}
+  class RuleRegExp {
+    friend class GraphiteRule;
+  public:
 
-		virtual std::set<RuleRegExpLeaf*> firstpos() = 0;
-		virtual std::set<RuleRegExpLeaf*> lastpos() = 0;
-		virtual bool nullable() = 0;
-		virtual void computeFollowpos() {};
-		virtual void setBackupSequence(std::vector<BackupSequence>& sequences) = 0;
+    static int LastPosition;
 
-		GraphiteRule* parentRule() {
-			return parentRule_;
-		}
+    virtual ~RuleRegExp()
+    {
+    }
 
-		virtual void setParentRule(GraphiteRule* rule) = 0;
-		virtual std::shared_ptr<RuleRegExp> clone() = 0;
+    virtual ASTPositions firstpos() = 0;
+    virtual ASTPositions lastpos() = 0;
+    virtual std::vector<RuleRegExpTag*> emptymatch() = 0;
 
-	protected:
-		GraphiteRule* parentRule_ = nullptr;
-	};
+    virtual bool nullable() = 0;
+    virtual void computeFollowpos() {};
+    virtual void setBackupSequence(std::vector<BackupSequence>& sequences) = 0;
 
+    GraphiteRule* parentRule() {
+      return parentRule_;
+    }
 
+    virtual void setParentRule(GraphiteRule* rule) = 0;
+    virtual std::shared_ptr<RuleRegExp> clone() = 0;
 
-	class RuleRegExpLeaf : public RuleRegExp , public std::enable_shared_from_this<RuleRegExpLeaf> {
-	public:
-		void addFollowpos(const std::set<RuleRegExpLeaf*>& set) {
-			followpos_.insert(set.begin(), set.end());
-		}
+    virtual void accept(RuleRegExpVisitor& v) = 0;
 
-		const std::set<RuleRegExpLeaf*>& followpos() {
-			return followpos_;
-		}
+    std::shared_ptr<RuleRegExp>  makeRepetition(int min, int max);
 
-		bool nullable() override {
-			return false;
-		}
 
-		virtual GlyphSet* getGlyphSet() {
-			return nullptr;
-		}
+  protected:
+    GraphiteRule* parentRule_ = nullptr;
 
-		std::set<RuleRegExpLeaf*> firstpos() override {
-			std::set<RuleRegExpLeaf*> temp;
-			temp.insert(this);
-			return temp;
-		}
-		std::set<RuleRegExpLeaf*> lastpos() override {
-			std::set<RuleRegExpLeaf*> temp;
-			temp.insert(this);
-			return temp;
-		}
+  };
 
-		void setBackupSequence(std::vector<BackupSequence>& sequences) override;
 
-		void setParentRule(GraphiteRule* rule) override {
-			parentRule_ = rule;
-		}
 
+  class RuleRegExpLeaf : public RuleRegExp, public std::enable_shared_from_this<RuleRegExpLeaf> {
+  public:
 
-	protected:
-		std::set<RuleRegExpLeaf*> followpos_;
-	};
+    void setBackupSequence(std::vector<BackupSequence>& sequences) override;
 
-	class RuleRegExpEndMarker : public RuleRegExpLeaf {
-		std::shared_ptr<RuleRegExp> clone() override {
-			return std::make_shared<RuleRegExpEndMarker>();
-		}
-	};
+    void setParentRule(GraphiteRule* rule) override {
+      parentRule_ = rule;
+    }
 
-	class RuleRegExpANY : public RuleRegExpLeaf {
-		std::shared_ptr<RuleRegExp> clone() override {
-			return std::make_shared<RuleRegExpANY>();
-		}
-		
-	};
 
-	class RuleRegExpAction : public RuleRegExpLeaf {
-	public:
+  protected:
+    std::set<RuleRegExpLeaf*> followpos_;
+  };
 
-		explicit RuleRegExpAction(std::string name) : _name{ name } {}
+  class RuleRegExpSymbol : public RuleRegExpLeaf, public std::enable_shared_from_this<RuleRegExpSymbol> {
+  public:
+    void addFollowpos(const ASTPositions& positions) {
+      followpos_.insert(positions.begin(), positions.end());
+    }
 
-		bool nullable() override {
-			return true;
-		}
+    const ASTPositions& followpos() {
+      return followpos_;
+    }
 
-		std::string name() {
-			return _name;
-		}
+    bool nullable() override {
+      return false;
+    }
 
-		void disable() { disabled_ = true; }
+    virtual GlyphSet* getGlyphSet() {
+      return nullptr;
+    }
 
-		bool disabled() { return disabled_; }
+    ASTPositions firstpos() override {
+      return { {this,{}} };
+    }
+    ASTPositions lastpos() override {
+      return { {this,{}} };
+    }
 
-		std::shared_ptr<RuleRegExp> clone() override {
-			return std::make_shared<RuleRegExpAction>(_name);
-		}
+    void setParentRule(GraphiteRule* rule) override {
+      parentRule_ = rule;
+    }
 
-	private:
-		std::string _name;
-		bool disabled_ = false;
-	};
+    std::vector<RuleRegExpTag*> emptymatch() {
+      return {};
+    }
 
-	class RuleRegExpPosition : public RuleRegExpLeaf {
-	public:
+    int positionNumber = 0;
 
-		bool nullable() override {
-			return true;
-		}
+    void computeFollowpos() override {
+      LastPosition++;
+      positionNumber = LastPosition;
+    }
 
-		std::shared_ptr<RuleRegExp> clone() override {
-			return std::make_shared<RuleRegExpPosition>();
-		}
-	};
 
-	class RuleRegExpGlyphSet : public RuleRegExpLeaf{
-	public:
+  protected:
+    ASTPositions followpos_;
+  };
 
+  class RuleRegExpTag : public RuleRegExpLeaf {
+  public:
 
+    bool nullable() override {
+      return true;
+    }
 
-		explicit RuleRegExpGlyphSet(GlyphSet* element) : element{ element } {
-		}
+    void setParentRule(GraphiteRule* rule) override {
+      parentRule_ = rule;
+    }
 
-		virtual ~RuleRegExpGlyphSet()
-		{
-			delete element;
-		}
+    std::vector<RuleRegExpTag*> emptymatch() {
+      return { this };
+    }
 
-		GlyphSet* getGlyphSet() override {
-			return element;
-		}
-		void setParentRule(GraphiteRule* rule) override {
-			parentRule_ = rule;			
-		}
+    ASTPositions firstpos() override {
+      return {};
+    }
+    ASTPositions lastpos() override {
+      return {};
+    }
+  };
 
-		std::shared_ptr<RuleRegExp> clone() override;
+  class RuleRegExpEndMarker : public RuleRegExpSymbol {
+  public:
+    std::shared_ptr<RuleRegExp> clone() override {
+      return std::make_shared<RuleRegExpEndMarker>();
+    }
+    virtual void accept(RuleRegExpVisitor&);
+  };
 
-	protected:
-		GlyphSet* element;
+  class RuleRegExpANY : public RuleRegExpSymbol {
+  public:
+    std::shared_ptr<RuleRegExp> clone() override {
+      return std::make_shared<RuleRegExpANY>();
+    }
+    virtual void accept(RuleRegExpVisitor&);
 
+  };
 
-	};
+  enum class RuleRegExpActionType {
+    LOOKUP,
+    ACTION,
+    STARTNEWMATCH
+  };
 
-	class RuleRegExpConcat : public RuleRegExp {
-	public:
+  class RuleRegExpAction : public RuleRegExpTag {
+  public:
 
+    explicit RuleRegExpAction(std::string name, RuleRegExpActionType type) : _name{ name }, type{ type }, position{ 0 } {}
 
-		RuleRegExpConcat(PRuleRegExp left, PRuleRegExp right) : left{ left }, right{ right } {
-		}
+    explicit RuleRegExpAction(std::string name, RuleRegExpActionType type, int position) : _name{ name }, type{ type }, position{ position } {}
 
-		virtual void setBackupSequence(std::vector<BackupSequence>& sequences) override {
-			left->setBackupSequence(sequences);
-			right->setBackupSequence(sequences);
-		}
+    virtual void accept(RuleRegExpVisitor&);
 
-		bool nullable() override {
-			return this->left->nullable() && this->right->nullable();
-		}
 
-		std::set<RuleRegExpLeaf*> firstpos() override {
-			auto left = this->left->firstpos();
-			if (this->left->nullable()) {
-				auto right = this->right->firstpos();
-				left.insert(right.begin(), right.end());
-			}
-			return left;
-		}
-		std::set<RuleRegExpLeaf*> lastpos() override {
-			auto right = this->right->lastpos();
-			if (this->right->nullable()) {
-				auto left = this->left->lastpos();
-				right.insert(left.begin(), left.end());
-			}
-			return right;
-		}
+    std::string name() {
+      return _name;
+    }
 
-		void computeFollowpos() override {
-			left->computeFollowpos();
-			right->computeFollowpos();
-			for (auto leaf : left->lastpos()) {
-				leaf->addFollowpos(right->firstpos());
-			}
-		}
+    RuleRegExpActionType getType() {
+      return type;
+    }
 
-		void setParentRule(GraphiteRule* rule) override {
-			parentRule_ = rule;
-			left->setParentRule(rule);
-			right->setParentRule(rule);
-		}
+    void disable() { disabled_ = true; }
 
-		std::shared_ptr<RuleRegExp> clone() override {
-			return std::make_shared<RuleRegExpConcat>(left->clone(),right->clone());
-		}
+    bool disabled() { return disabled_; }
 
-	protected:
-		PRuleRegExp left;
-		PRuleRegExp right;
+    std::shared_ptr<RuleRegExp> clone() override {
+      return std::make_shared<RuleRegExpAction>(_name, type);
+    }
 
-	};
+  private:
+    std::string _name;
+    bool disabled_ = false;
+    RuleRegExpActionType type;
+    int position = 0;
+  };
 
-	class RuleRegExpOr : public RuleRegExp {
-	public:
-		explicit RuleRegExpOr(PRuleRegExp left, PRuleRegExp right) : left{ left }, right{ right } {
-		}
+  class RuleRegExpGlyphSet : public RuleRegExpSymbol {
+  public:
 
-		bool nullable() override {
-			return this->left->nullable() || this->right->nullable();
-		}
+    explicit RuleRegExpGlyphSet(GlyphSet* element) : element{ element } {
+    }
 
-		std::set<RuleRegExpLeaf*> firstpos() override {
-			auto left = this->left->firstpos();
-			auto right = this->right->firstpos();
-			left.insert(right.begin(), right.end());
-			return left;
-		}
-		virtual std::set<RuleRegExpLeaf*> lastpos() override {
-			auto left = this->left->lastpos();
-			auto right = this->right->lastpos();
-			left.insert(right.begin(), right.end());
-			return left;
-		}
-		void computeFollowpos() override {
-			left->computeFollowpos();
-			right->computeFollowpos();
-		}
+    virtual void accept(RuleRegExpVisitor&);
 
-		virtual void setBackupSequence(std::vector<BackupSequence>& sequences) override {
+    virtual ~RuleRegExpGlyphSet()
+    {
+      delete element;
+    }
+
+    GlyphSet* getGlyphSet() override {
+      return element;
+    }
+    void setParentRule(GraphiteRule* rule) override {
+      parentRule_ = rule;
+    }
+
+    std::shared_ptr<RuleRegExp> clone() override;
+
+  protected:
+    GlyphSet* element;
+
+
+  };
+
+  class RuleRegExpConcat : public RuleRegExp {
+  public:
+
+    RuleRegExpConcat(PRuleRegExp left, PRuleRegExp right) : left{ left }, right{ right } {
+    }
+
+
+    virtual void accept(RuleRegExpVisitor&);
+
+    virtual void setBackupSequence(std::vector<BackupSequence>& sequences) override {
+      left->setBackupSequence(sequences);
+      right->setBackupSequence(sequences);
+    }
+
+    bool nullable() override {
+      return this->left->nullable() && this->right->nullable();
+    }
+
+    ASTPositions firstpos() override {
+      auto ret = this->left->firstpos();
+      if (this->left->nullable()) {
+        auto emptymatch = this->left->emptymatch();
+        auto right = this->right->firstpos();
+        for (auto& t : right) {
+          t.second.insert(t.second.begin(), emptymatch.begin(), emptymatch.end());
+          ret.insert(t);
+        }
+      }
+      return ret;
+    }
+    ASTPositions lastpos() override {
+      auto ret = this->right->lastpos();
+      if (this->right->nullable()) {
+        auto emptymatch = this->right->emptymatch();
+        auto left = this->left->lastpos();
+        for (auto& t : left) {
+          t.second.insert(t.second.end(), emptymatch.begin(), emptymatch.end());
+          ret.insert(t);
+        }
+      }
+      return ret;
+    }
+
+    void computeFollowpos() override {
+      left->computeFollowpos();
+      right->computeFollowpos();
+      auto rightPosition = right->firstpos();
+      for (auto leaf : left->lastpos()) {
+
+        if (leaf.second.size() != 0) {
+          ASTPositions newPos;
+          for (auto pos : rightPosition) {
+            std::vector<RuleRegExpTag*> newTags;
+            newTags.insert(newTags.begin(), leaf.second.begin(), leaf.second.end());
+            newTags.insert(newTags.end(), pos.second.begin(), pos.second.end());
+            newPos.insert({ pos.first,newTags });
+          }
+          leaf.first->addFollowpos(std::move(newPos));
+        }
+        else {
+          leaf.first->addFollowpos(rightPosition);
+        }
+      }
+    }
+
+    void setParentRule(GraphiteRule* rule) override {
+      parentRule_ = rule;
+      left->setParentRule(rule);
+      right->setParentRule(rule);
+    }
+
+    std::shared_ptr<RuleRegExp> clone() override {
+      return std::make_shared<RuleRegExpConcat>(left->clone(), right->clone());
+    }
+
+    RuleRegExp& lhs() { return *left; }
+    RuleRegExp& rhs() { return *right; }
+
+    std::vector<RuleRegExpTag*> emptymatch() override {
+      std::set<RuleRegExpTag*> ret;
+      auto left = this->left->emptymatch();
+      auto right = this->right->emptymatch();
+
+      left.insert(left.end(), right.begin(), right.end());
+      return left;
+    }
+
+  protected:
+    PRuleRegExp left;
+    PRuleRegExp right;
+
+  };
+
+  class RuleRegExpOr : public RuleRegExp {
+  public:
+    explicit RuleRegExpOr(PRuleRegExp left, PRuleRegExp right) : left{ left }, right{ right } {
+    }
+
+    virtual void accept(RuleRegExpVisitor&);
+
+    bool nullable() override {
+      return this->left->nullable() || this->right->nullable();
+    }
+
+    ASTPositions firstpos() override {
+      auto left = this->left->firstpos();
+      auto right = this->right->firstpos();
+      left.insert(right.begin(), right.end());
+      return left;
+    }
+    ASTPositions lastpos() override {
+      auto left = this->left->lastpos();
+      auto right = this->right->lastpos();
+      left.insert(right.begin(), right.end());
+      return left;
+    }
+    void computeFollowpos() override {
+      left->computeFollowpos();
+      right->computeFollowpos();
+    }
+
+    virtual void setBackupSequence(std::vector<BackupSequence>& sequences) override {
 
 
       std::vector<BackupSequence> copy2 = sequences;
 
-			right->setBackupSequence(copy2);
+      right->setBackupSequence(copy2);
 
-			left->setBackupSequence(sequences);
+      left->setBackupSequence(sequences);
 
-			if (!copy2.empty()) {
-				for (auto& seq : copy2) {
-					sequences.push_back(seq);
-				}
-			}
-			else {
-				sequences.push_back({ {},0 });
-			}
-		}
-		void setParentRule(GraphiteRule* rule) override {
-			parentRule_ = rule;
-			left->setParentRule(rule);
-			right->setParentRule(rule);
-		}
+      if (!copy2.empty()) {
+        for (auto& seq : copy2) {
+          sequences.push_back(seq);
+        }
+      }
+      else {
+        sequences.push_back({ {},0 });
+      }
+    }
+    void setParentRule(GraphiteRule* rule) override {
+      parentRule_ = rule;
+      left->setParentRule(rule);
+      right->setParentRule(rule);
+    }
 
-		std::shared_ptr<RuleRegExp> clone() override {
-			return std::make_shared<RuleRegExpOr>(left->clone(), right->clone());
-		}
+    std::shared_ptr<RuleRegExp> clone() override {
+      return std::make_shared<RuleRegExpOr>(left->clone(), right->clone());
+    }
 
-	protected:
-		PRuleRegExp left;
-		PRuleRegExp right;
-	};
+    std::vector<RuleRegExpTag*> emptymatch() {
+      if (left->nullable()) {
+        return left->emptymatch();
+      }
+      else {
+        return right->emptymatch();
+      }
+    }
 
-	enum class RuleRegExpRepeatType {
-		STAR,
-		PLUS,
-		OPT,
-	};
+    RuleRegExp& lhs() { return *left; }
+    RuleRegExp& rhs() { return *right; }
 
-	class RuleRegExpRepeat : public RuleRegExp {
+  protected:
+    PRuleRegExp left;
+    PRuleRegExp right;
+  };
 
-	public:
-		explicit RuleRegExpRepeat(PRuleRegExp regex, RuleRegExpRepeatType repeatition) : regex{ regex }, repeatition{ repeatition } {
-		}
+  enum class RuleRegExpRepeatType {
+    STAR,
+    PLUS,
+    OPT,
+  };
 
-		bool nullable() override {
-			return this->repeatition == RuleRegExpRepeatType::STAR || this->repeatition == RuleRegExpRepeatType::OPT;
-		}
+  class RuleRegExpRepeat : public RuleRegExp {
 
-		std::set<RuleRegExpLeaf*> firstpos() override {
-			return this->regex->firstpos();
-		}
-		std::set<RuleRegExpLeaf*> lastpos() override {
-			return this->regex->lastpos();
-		}
-		void computeFollowpos() override {
-			regex->computeFollowpos();
-			if (this->repeatition == RuleRegExpRepeatType::STAR || this->repeatition == RuleRegExpRepeatType::PLUS) {
-				for (auto leaf : this->lastpos()) {
-					leaf->addFollowpos(this->firstpos());
-				}
-			}
-		}
+  public:
+    explicit RuleRegExpRepeat(PRuleRegExp regex, RuleRegExpRepeatType repeatition) : regex{ regex }, repeatition{ repeatition } {
+    }
 
-		virtual void setBackupSequence(std::vector<BackupSequence>& sequences) override {
+    virtual void accept(RuleRegExpVisitor&);
 
-			if (this->repeatition == RuleRegExpRepeatType::STAR || this->repeatition == RuleRegExpRepeatType::PLUS) {
-				throw std::runtime_error("Backup sequence cannot contain Kleene star");
-			}
-			else {
+    bool nullable() override {
+      return this->repeatition == RuleRegExpRepeatType::STAR || this->repeatition == RuleRegExpRepeatType::OPT;
+    }
+
+    ASTPositions firstpos() override {
+      return this->regex->firstpos();
+    }
+    ASTPositions lastpos() override {
+      return this->regex->lastpos();
+    }
+    void computeFollowpos() override {
+      regex->computeFollowpos();
+      if (this->repeatition == RuleRegExpRepeatType::STAR || this->repeatition == RuleRegExpRepeatType::PLUS) {
+        
+        auto rightPosition = this->firstpos();
+        for (auto leaf : this->lastpos()) {
+          if (leaf.second.size() != 0) {
+            ASTPositions newPos;
+            for (auto pos : rightPosition) {
+              std::vector<RuleRegExpTag*> newTags;
+              newTags.insert(newTags.begin(), leaf.second.begin(), leaf.second.end());
+              newTags.insert(newTags.end(), pos.second.begin(), pos.second.end());
+              newPos.insert({ pos.first,newTags });
+            }
+            leaf.first->addFollowpos(std::move(newPos));
+          }
+          else {
+            leaf.first->addFollowpos(rightPosition);
+          }          
+        }
+      }
+    }
+
+    virtual void setBackupSequence(std::vector<BackupSequence>& sequences) override {
+
+      if (this->repeatition == RuleRegExpRepeatType::STAR || this->repeatition == RuleRegExpRepeatType::PLUS) {
+        throw std::runtime_error("Backup sequence cannot contain Kleene star");
+      }
+      else {
         std::vector<BackupSequence> copy2 = sequences;
-				regex->setBackupSequence(sequences);
-				if (!copy2.empty()) {
-					for (auto& seq : copy2) {
-						sequences.push_back(seq);
-					}
-				}
-				else {
-					sequences.push_back({ {},0 });
-				}
+        regex->setBackupSequence(sequences);
+        if (!copy2.empty()) {
+          for (auto& seq : copy2) {
+            sequences.push_back(seq);
+          }
+        }
+        else {
+          sequences.push_back({ {},0 });
+        }
 
-				
-			}
-		}
 
-		void setParentRule(GraphiteRule* rule) override {
-			parentRule_ = rule;
-			regex->setParentRule(rule);
-		}
+      }
+    }
 
-		std::shared_ptr<RuleRegExp> clone() override {
-			return std::make_shared<RuleRegExpRepeat>(regex->clone(), repeatition);
-		}
+    std::vector<RuleRegExpTag*> emptymatch() {
+      if (regex->nullable()) {
+        return regex->emptymatch();
+      }
+      else {
+        return {};
+      }
+    }
 
-	protected:
-		PRuleRegExp regex;
-		RuleRegExpRepeatType repeatition;
+    void setParentRule(GraphiteRule* rule) override {
+      parentRule_ = rule;
+      regex->setParentRule(rule);
+    }
 
-	};
+    std::shared_ptr<RuleRegExp> clone() override {
+      return std::make_shared<RuleRegExpRepeat>(regex->clone(), repeatition);
+    }
 
-  struct JustTable : Statement{
+    RuleRegExp& innerExpr() { return *regex; }
+
+
+  protected:
+    PRuleRegExp regex;
+    RuleRegExpRepeatType repeatition;
+
+  };
+
+  struct JustTable : Statement {
     struct JustStep {
       std::vector<std::string> lookupNames;
       JustStep() = default;
@@ -503,8 +615,8 @@ namespace feayy {
     };
 
     JustTable() = default;
-    JustTable(std::vector<JustStep> stretchRules, std::vector<JustStep> shrinkRules, std::vector<std::string> aftergsub) : stretchRules{ stretchRules }, shrinkRules{ shrinkRules }, aftergsub{ aftergsub }{}
-    
+    JustTable(std::vector<JustStep> stretchRules, std::vector<JustStep> shrinkRules, std::vector<std::string> aftergsub) : stretchRules{ stretchRules }, shrinkRules{ shrinkRules }, aftergsub{ aftergsub } {}
+
     std::vector<JustStep> stretchRules;
     std::vector<JustStep> shrinkRules;
     std::vector<std::string> aftergsub;
@@ -512,7 +624,40 @@ namespace feayy {
     void accept(Visitor&) override;
   };
 
+  class RuleRegExpVisitor {
+  public:
 
+    virtual void accept(RuleRegExpConcat&) = 0;
+    virtual void accept(RuleRegExpRepeat&) = 0;
+    virtual void accept(RuleRegExpOr&) = 0;
+    virtual void accept(RuleRegExpANY&) = 0;
+    virtual void accept(RuleRegExpEndMarker&) = 0;
+    virtual void accept(RuleRegExpAction&) = 0;
+    virtual void accept(RuleRegExpGlyphSet&) = 0;
+  };
+
+  class EqClassesVisitor : public RuleRegExpVisitor {
+  public:
+    friend class Pass;
+    EqClassesVisitor(OtLayout* otlayout) : otlayout{ otlayout } {};
+    void accept(RuleRegExpConcat&) override;
+    void accept(RuleRegExpRepeat&) override;
+    void accept(RuleRegExpOr&) override;
+    void accept(RuleRegExpANY&) override;
+    void accept(RuleRegExpEndMarker&) override;
+    void accept(RuleRegExpAction&) override;
+    void accept(RuleRegExpGlyphSet&) override;
+
+    void generateClasses();
+
+  private:
+
+    OtLayout* otlayout;
+    QVector<QSet<quint16>> eqClasses;
+    QMap<RuleRegExpSymbol*, QSet<int>> eqClassesByGlyphSet;
+    QMap<quint16, quint16> glyphToClass;
+
+  };
 
 }
 #endif // H_FEA_JUST

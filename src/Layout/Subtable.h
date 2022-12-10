@@ -298,15 +298,33 @@ struct ChainingSubtable : Subtable {
 	CompiledRule compiledRule;
 };
 
+enum class DFAActionType {
+  LOOKUP,
+  ACTION,
+  STARTNEWMATCH
+};
+
 struct DFAAction {
+  DFAActionType type;
 	std::string name;
+  int idRule;
+};
+
+struct DFABackTrackInfo {
+  int prevTransIndex;
+  std::vector<DFAAction> actions;
+};
+
+struct DFATransOut {
+  int state;
+  std::vector<DFABackTrackInfo> backtracks;
 };
 
 struct DFASTate {
-	std::map<int, int> transtitions;
-	int final = 0;
-	bool resetPosition = false;
+	std::map<int, DFATransOut> transtitions;
+	int final = 0;	
 	std::map <int, std::vector<DFAAction>> actions;
+  DFABackTrackInfo backtrackfinal;
 };
 
 class DFA {
@@ -316,6 +334,8 @@ public:
 	int maxLoop = 10;
 	std::vector<int> backupStates;
 	std::vector<DFASTate> states;
+  QVector<QSet<quint16>> eqClasses;
+  QMap<quint16, quint16> glyphToClass;
 };
 
 struct FSMSubtable : Subtable {

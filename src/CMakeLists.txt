@@ -114,7 +114,8 @@ set(FeaParser
   FeaParser/feaast.h
   FeaParser/scanner.h
   FeaParser/just.h
-  FeaParser/just.cpp
+  FeaParser/just.cpp  
+  FeaParser/fsm.cpp
   ${BISON_FeaParser_OUTPUTS}
   ${FLEX_FeaScanner_OUTPUTS}
   )

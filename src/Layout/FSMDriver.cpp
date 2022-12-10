@@ -27,146 +27,160 @@
 
 FSMDriver::FSMDriver(OtLayout& layout) : layout{ layout } {
 
-	auto action1 = [&layout= layout](hb_buffer_t& buffer, std::vector<Pos> match_positions, int pos, std::unordered_map<std::string, int>  aliases) {
-		
-		auto bufferIndex = match_positions[pos].pos - 1;
-		buffer.info[bufferIndex].lefttatweel = 7;
-		std::cout << "action1 from lammbda at position " << pos << " and index " << bufferIndex << " at glyph " << layout.glyphNamePerCode.value(buffer.info[bufferIndex].codepoint).toStdString() << '\n';
-	};
+  auto action1 = [&layout = layout](hb_buffer_t& buffer, std::vector<Pos> match_positions, int pos, std::unordered_map<std::string, int>  aliases) {
 
-	auto action2 = [&layout = layout](hb_buffer_t& buffer, std::vector<Pos> match_positions, int pos, std::unordered_map<std::string, int>  aliases) {
+    auto bufferIndex = match_positions[pos].pos - 1;
+    //buffer.info[bufferIndex].lefttatweel = 7;
+    std::cout << "action1 from lammbda at position " << pos << " and index " << bufferIndex << " at glyph " << layout.glyphNamePerCode.value(buffer.info[bufferIndex].codepoint).toStdString() << '\n';
+  };
 
-		auto bufferIndex = match_positions[pos].pos - 1;		
+  auto action2 = [&layout = layout](hb_buffer_t& buffer, std::vector<Pos> match_positions, int pos, std::unordered_map<std::string, int>  aliases) {
+
+    auto bufferIndex = match_positions[pos].pos - 1;
     std::cout << "action2 from lammbda at position " << pos << " and index " << bufferIndex << " at glyph " << layout.glyphNamePerCode.value(buffer.info[bufferIndex].codepoint).toStdString() << '\n';
-	};
+  };
 
-	actions.insert({ "action1",action1 });
-	actions.insert({ "action2",action2 });
+  actions.insert({ "action1",action1 });
+  actions.insert({ "action2",action2 });
 }
 
 void FSMDriver::executeFSM(FSMSubtable& table, OT::hb_ot_apply_context_t* context) {
 
   auto buffer = context->buffer;
 
-	auto& dfa = table.dfa;
+  auto& dfa = table.dfa;
 
-	if (dfa.backupStates.size() == 0) return;
+  if (dfa.states.size() == 0) return;
 
-	//buffer->idx = 0;
-	bool applied = false;
-	//buffer->clear_output();
+  //buffer->idx = 0;
+  bool applied = false;
+  //buffer->clear_output();
 
-	
 
-	std::vector<Pos> accumulatedStates;
-	std::unordered_map<std::string, int> aliases;
-	int lastfinal;
-	bool restart = true;
-	int currentIndex = -1;
-	DFASTate* currentState = nullptr;
-	int currentPos = 0;
 
-	while (currentPos < buffer->len && buffer->successful) {
+  std::vector<Pos> accumulatedStates;
+  std::unordered_map<std::string, int> aliases;
+  int lastfinal;
+  bool restart = true;
+  int currentIndex = -1;
+  DFASTate* currentState = nullptr;
+  int currentPos = 0;
+  int lastPost = 0;
 
-		if (restart) {
+  while (currentPos < buffer->len && buffer->successful) {
 
-			lastfinal = -1;
+    if (restart) {
 
-			if (currentPos < dfa.minBackup) {
-				currentPos++;
-				continue;
-			}
+      lastfinal = -1;
 
-			int max = dfa.maxBackup;
+      if (currentPos < dfa.minBackup) {
+        currentPos++;
+        continue;
+      }
 
-			if (currentPos < dfa.maxBackup) {
-				max = currentPos;
-			}
+      int max = dfa.maxBackup;
 
-			int backup = max - dfa.minBackup;
+      if (currentPos < dfa.maxBackup) {
+        max = currentPos;
+      }
 
-			auto currentIndex = dfa.backupStates[backup];
-			currentState = &dfa.states[currentIndex];
+      int backup = max - dfa.minBackup;
 
-			currentPos-= max;
+      auto currentIndex = dfa.backupStates[backup];
+      currentState = &dfa.states[currentIndex];
 
-			buffer->move_to(currentPos);
+      lastPost = currentPos;
 
-			accumulatedStates.push_back({ currentIndex,currentPos });
-		}
+      currentPos -= max;
 
-		restart = false;
+      buffer->move_to(currentPos);
 
-		int nextIndex = -1;
+      accumulatedStates.push_back({ currentIndex,currentPos });
+    }
 
-		auto codepoint = buffer->info[currentPos].codepoint;
+    restart = false;
 
-		const auto& it = currentState->transtitions.find(codepoint);
-		if (it != currentState->transtitions.end()) {
-			nextIndex = (*it).second;
-		}
-		else {
-			const auto& any = currentState->transtitions.find(0xFFFF);
-			if (any != currentState->transtitions.end()) {
-				nextIndex = (*any).second;
-			}
-		}
+    int nextIndex = -1;
 
-		if (nextIndex != -1) {
-			currentState = &dfa.states[nextIndex];
-			accumulatedStates.push_back({ nextIndex, currentPos + 1 });
-			if (currentState->final != 0) {
-				lastfinal = currentState->final;
-			}
-			currentPos++;
-			if (currentPos < buffer->len) continue;
-		}
-		//current character not matched or end on buffer
-		if (lastfinal != -1) {
-			//take the last sequence matched			
-			int nextposaction = -1;
-			int nextposrest = -1;
-			int posIndex = 0;
-			for (auto pos : accumulatedStates) {
-				auto& state = dfa.states[pos.state];
-				if (state.resetPosition) {
-					nextposrest = pos.pos;
-				}
-				const auto& actions = state.actions.find(lastfinal);
-				if (actions != state.actions.end()) {
-					for (auto& action : (*actions).second) {						
-						const auto& it = this->actions.find(action.name);
-						if (it != this->actions.end()) {
-							(*it).second(*buffer, accumulatedStates, posIndex, aliases);
-						}
-					}
-					
-					nextposaction = pos.pos;
-					
-				}					
-				posIndex++;
-				if (state.final == lastfinal)
-					break;
-			}
-			
+    auto codepoint = buffer->info[currentPos].codepoint;
 
-			currentPos = nextposrest != -1 ? nextposrest : nextposaction != -1 ? nextposaction : currentPos + 1;
+    int classId = -1;
 
-			std::cout << "Current Pos = " << currentPos << '\n';
-		}
-		else {
-			//no match
-			currentPos++;
-		}
+    if (dfa.glyphToClass.contains(codepoint)) {
+      classId = dfa.glyphToClass.value(codepoint);
+    }
 
-		accumulatedStates.clear();
-		restart = true;
+    const auto& it = currentState->transtitions.find(classId);
+    if (it != currentState->transtitions.end()) {
+      nextIndex = (*it).second.state;
+    }
+    else {
+      const auto& any = currentState->transtitions.find(0xFFFF);
+      if (any != currentState->transtitions.end()) {
+        nextIndex = (*any).second.state;
+      }
+    }
 
-	}
+    if (nextIndex != -1) {
+      currentState = &dfa.states[nextIndex];
+      accumulatedStates.push_back({ nextIndex, currentPos + 1 });
+      if (currentState->final != 0) {
+        lastfinal = currentState->final;
+      }
+      currentPos++;
+      if (currentPos < buffer->len) continue;
+    }
+    //current character not matched or end on buffer
+    if (lastfinal != -1) {
+      //take the last sequence matched			
+      int nextposaction = -1;
+      int nextposrest = -1;
+      int posIndex = 0;
+      for (auto pos : accumulatedStates) {
+        auto& state = dfa.states[pos.state];
+        const auto& actions = state.actions.find(lastfinal);
+        if (actions != state.actions.end()) {
+          for (auto& action : (*actions).second) {
+            if (action.type == DFAActionType::STARTNEWMATCH) {
+              nextposrest = pos.pos;
+            }
+            else if (action.type == DFAActionType::ACTION) {
+              const auto& it = this->actions.find(action.name);
+              if (it != this->actions.end()) {
+                (*it).second(*buffer, accumulatedStates, posIndex, aliases);
+              }
+            }
+            else if (action.type == DFAActionType::LOOKUP) {
+              std::cout << "Lookup " << action.name << " executed" << std::endl;
+            }
+          }
+
+          nextposaction = pos.pos;
+
+        }
+        posIndex++;
+        if (state.final == lastfinal)
+          break;
+      }
+
+
+      currentPos = nextposrest != -1 ? nextposrest : nextposaction != -1 ? nextposaction : currentPos + 1;
+
+      std::cout << "Current Pos = " << currentPos << '\n';
+    }
+    else {
+      //no match
+      currentPos = lastPost + 1;
+    }
+
+    accumulatedStates.clear();
+    restart = true;
+
+  }
 
   buffer->next_glyphs(buffer->len - buffer->idx);
 
-	//buffer->swap_buffers();
+  //buffer->swap_buffers();
 
 
 }

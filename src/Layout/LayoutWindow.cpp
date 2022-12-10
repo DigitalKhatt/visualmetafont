@@ -369,6 +369,8 @@ bool LayoutWindow::generateOpenType() {
   QString otfFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + ".otf";
 
   OtLayout layout = OtLayout(m_otlayout->mp, false);
+  layout.useNormAxisValues = false;
+  layout.toOpenType->isCff2 = true;
 
   layout.loadLookupFile("lookups.json");
 
@@ -1331,9 +1333,9 @@ void LayoutWindow::createDockWindows()
   otherMenu->addAction(action);
 
 
-  m_otlayout = new OtLayout(m_font->mp, true, this);
-  //m_otlayout->isOTVar = false;
+  m_otlayout = new OtLayout(m_font->mp, true, this);  
   m_otlayout->useNormAxisValues = false;
+  //m_otlayout->extended = false;
 
   connect(m_otlayout, &OtLayout::parameterChanged, this, &LayoutWindow::layoutParameterChanged);
 
@@ -1916,7 +1918,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 
   }
 
-  m_otlayout->clearAlternates();
+  //m_otlayout->clearAlternates();
 
   if (refresh) {
     m_graphicsView->setScene(m_graphicsScene);

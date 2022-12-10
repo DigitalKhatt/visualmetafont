@@ -278,7 +278,7 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["alef.isol"] = { 1,-3,0,0 };  
   layout->expandableGlyphs["behshape.isol.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["behshape.fina.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["kaf.fina.expa"] = { 6,0,0,0 };
+  layout->expandableGlyphs["kaf.fina.expa"] = { 6,-1,6,-1 };
   layout->expandableGlyphs["kaf.fina.afterlam.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["noon.isol.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["noon.fina.expa"] = { 5,0,0,0 };

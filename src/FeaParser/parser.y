@@ -58,7 +58,7 @@
 %token<double> DOUBLE_LITERAL
 %token<std::string> IDENTIFIANT REGEXP GLYPHNAME
 
-%token LOOKUP FEATURE POSITION SUBSTITUTE BASE ANCHOR MARK MARKCLASS CURSIVE T_NULL NOTDEF FUNCTION BY FROM
+%token LOOKUP FEATURE POSITION SUBSTITUTE BASE ANCHOR MARK MARKCLASS CURSIVE T_NULL NOTDEF FUNCTION BY FROM ACTION
 %token COLOR CALLBACK EXPANSION ADD STARTLIG ENDLIG ENDKASHIDA JUST
 %token LOOKUPFLAG RightToLeft IgnoreBaseGlyphs IgnoreLigatures IgnoreMarks MarkAttachmentType UseMarkFilteringSet
 %token TABLE ENDTABLE PASS ENDPASS ANY STRETCH SHRINK END STEP AFTERGSUB
@@ -90,7 +90,7 @@
 %type <FeatureDefenition*> feature_definition;
 %type <std::vector<Glyph *>*> glyphseq;
 %type <StartEndLig> startendlig;
-%type <PRuleRegExp> rule_regex term factor  base  rule_lhs rule_rhs rule_context ; //factorcaret
+%type <PRuleRegExp> rule_regex prregexp_terc prregexp_sec  prregexp_prim  rule_lhs rule_rhs rule_context prregexp_action; 
 %type <GraphiteRule> rule openttype_regexp;
 %type <Pass>  rules pass_definition;
 %type <TableDefinition*>  table_definition passes;
@@ -242,7 +242,7 @@ singlesub
 
 expafactor:
 	EXPANSION doubleorint[minleft] doubleorint[maxleft] doubleorint[minright] doubleorint[maxright] {$$ = {(float)$minleft,(float)$maxleft,(float)$minright,(float)$maxright};}
-	| EXPANSION doubleorint[minleft] doubleorint[maxleft] doubleorint[minright] doubleorint[maxright] INT_LITERAL[absolute] {$$ = {(float)$minleft,(float)$maxleft,(float)$minright,(float)$maxright,1,0,StartEndLig::StartEnd,(bool)$absolute};}
+	| EXPANSION doubleorint[minleft] doubleorint[maxleft] doubleorint[minright] doubleorint[maxright] INT_LITERAL[absolute] {$$ = {(float)$minleft,(float)$maxleft,(float)$minright,(float)$maxright,1,0,StartEndLig::StartEnd,(bool)$absolute,(bool)$absolute};}
 
 	;
 
@@ -558,35 +558,37 @@ rule_context
 	;
 
 rule_regex   
-	: term '|' rule_regex { $$ = std::make_shared<RuleRegExpOr>($term,$3);}	
-	| term	{ $$ = $term;}	
+	: rule_regex '|' prregexp_terc { $$ = std::make_shared<RuleRegExpOr>($1,$3);}	
+	| prregexp_terc	{ $$ = $prregexp_terc;}	
 	;
 
-term 
-	: term factor  { $$ = std::make_shared<RuleRegExpConcat>($1,$factor);}	
-	| factor	{ $$ = $factor;}		
+prregexp_terc 
+	: prregexp_terc prregexp_sec  { $$ = std::make_shared<RuleRegExpConcat>($1,$prregexp_sec);}	
+	| prregexp_sec	{ $$ = $prregexp_sec;}		
 	;
-
-	/*
-factorcaret
-	: factor	{ $$ = $factor;}	
-	| '^' factor 			{ $$ = std::make_shared<RuleRegExpConcat>(make_shared<RuleRegExpPosition>(),$factor);}	
-	|  factor 	'^'		{ $$ = std::make_shared<RuleRegExpConcat>($factor, make_shared<RuleRegExpPosition>());}	
-	;*/
 	
-factor
-	: base '*'					{ $$ = std::make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::STAR);}
-	| base '?'					{ $$ = std::make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::OPT);}
-	| base '+'					{ $$ = std::make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::PLUS);}
-	| base '{' identifier '}'	{ $$ = std::make_shared<RuleRegExpConcat>($base,std::make_shared<RuleRegExpAction>($identifier));}	
-	| base '^'					{ $$ = std::make_shared<RuleRegExpConcat>($base, std::make_shared<RuleRegExpPosition>());}
-	| base						{ $$ = $base;}	
+prregexp_sec
+	: prregexp_sec '*'					{ $$ = std::make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::STAR);}
+	| prregexp_sec '?'					{ $$ = std::make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::OPT);}
+	| prregexp_sec '+'					{ $$ = std::make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::PLUS);}
+	/*| prregexp_sec prregexp_action	{ $$ = std::make_shared<RuleRegExpConcat>($1,$prregexp_action);}	*/
+	| prregexp_sec '^'					{ $$ = std::make_shared<RuleRegExpConcat>($1, std::make_shared<RuleRegExpAction>("StartMatch", RuleRegExpActionType::STARTNEWMATCH));}
+	| prregexp_sec '{' INT_LITERAL[min] ',' INT_LITERAL[max] '}' {$$ = $1->makeRepetition($min,$max);}
+	| prregexp_sec '{' INT_LITERAL[min] ',' '}' {$$ = $1->makeRepetition($min,-1);}
+	| prregexp_sec '{' INT_LITERAL[val] '}' {$$ = $1->makeRepetition($val,$val);}
+	| prregexp_prim						{ $$ = $prregexp_prim;}	
 	;
 
-base 
+prregexp_prim 
 	: '(' rule_regex ')' { $$ = $rule_regex;}	
-	| glyphset { $$ = std::make_shared<RuleRegExpGlyphSet>($1);}		
-	| ANY {$$ = std::make_shared<RuleRegExpANY>();}	
+	| glyphset { $$ = std::make_shared<RuleRegExpGlyphSet>($1);}
+	| prregexp_action { $$ = $prregexp_action;}
+	/*| ANY {$$ = std::make_shared<RuleRegExpANY>();}	*/
+	;
+
+prregexp_action
+	: LOOKUP identifier {$$ = std::make_shared<RuleRegExpAction>($identifier, RuleRegExpActionType::LOOKUP);}
+	| ACTION identifier {$$ = std::make_shared<RuleRegExpAction>($identifier, RuleRegExpActionType::ACTION);}
 	;
 
 %%

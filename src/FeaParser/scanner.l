@@ -43,6 +43,7 @@ using token = feayy::Parser::token;
 [-+]?[0-9]+													{/*yylval->INT_LITERAL = atoi(yytext); */ yylval->emplace<int>(atoi(yytext)); return token::INT_LITERAL;}
 [-+]?[0-9]+"."[0-9]*										{/*yylval->DOUBLE_LITERAL = atof(yytext); */  yylval->emplace<double>(atof(yytext));return token::DOUBLE_LITERAL;}
 "lookup"													{return(token::LOOKUP);}
+"action"													{return(token::ACTION);}
 "feature"													{return(token::FEATURE);}
 "pos"														{return(token::POSITION);}
 "just"														{return(token::JUST);}

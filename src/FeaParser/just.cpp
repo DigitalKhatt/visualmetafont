@@ -22,12 +22,45 @@
 #include "GlyphVis.h"
 #include <iostream>
 #include "Subtable.h"
+#include <stack>
 
 using namespace std;
 
 namespace feayy {
 
+  std::shared_ptr<RuleRegExp>  RuleRegExp::makeRepetition(int min, int max) {
 
+
+    if (min < 0 || (max != -1 && min > max) || (min == 0 && max <= 0)) {
+      throw new std::runtime_error("bad repetition values");
+    }
+
+    PRuleRegExp ret;
+
+    if (min != 0) {
+      ret = this->clone();
+      for (int i = 1; i < min; i++) {
+        ret = std::make_shared<RuleRegExpConcat>(ret, this->clone());
+      }
+      if (max == -1) {
+        ret = std::make_shared<RuleRegExpConcat>(ret, std::make_shared<RuleRegExpRepeat>(this->clone(), RuleRegExpRepeatType::STAR));
+      }
+      else {
+        for (int i = min; i < max; i++) {
+          ret = std::make_shared<RuleRegExpConcat>(ret, std::make_shared<RuleRegExpRepeat>(this->clone(), RuleRegExpRepeatType::OPT));
+        }
+      }
+    }
+    else {
+      ret = std::make_shared<RuleRegExpRepeat>(this->clone(), RuleRegExpRepeatType::OPT);
+      for (int i = min + 1; i < max; i++) {
+        ret = std::make_shared<RuleRegExpConcat>(ret, std::make_shared<RuleRegExpRepeat>(this->clone(), RuleRegExpRepeatType::OPT));
+      }
+    }
+
+    return ret;
+
+  }
 
   std::shared_ptr<RuleRegExp> RuleRegExpGlyphSet::clone() {
     return make_shared<RuleRegExpGlyphSet>(element->clone());
@@ -82,7 +115,7 @@ namespace feayy {
       Lookup::Type type;
 
       lookup = this->lookup;
-      
+
       if (lookup->type == Lookup::none) {
         if (tableDefinition.name == "sub") {
           lookup->type = Lookup::fsmgsub;
@@ -108,16 +141,12 @@ namespace feayy {
 
 
 
-    int counter = 0;
+
     for (auto pass : tableDefinition.passes) {
-      if (pass.number() == counter++) {
-        FSMSubtable* fsm = new FSMSubtable(lookup);
-        fsm->name = QString::fromStdString(tableDefinition.name) + QString("%1").arg(pass.number());
-        fsm->dfa = pass.computeDFA(*otlayout);
-        lookup->subtables.append(fsm);
-
-
-      }
+      FSMSubtable* fsm = new FSMSubtable(lookup);
+      fsm->name = QString::fromStdString(tableDefinition.name) + QString("%1").arg(pass.number());
+      fsm->dfa = pass.computeDFA(*otlayout);
+      lookup->subtables.append(fsm);
     }
 
     if (!insideLookup && lookup->subtables.count() != 0) {
@@ -127,301 +156,93 @@ namespace feayy {
 
 
 
-  DFA Pass::computeDFA(OtLayout& otlayout) {
+  
 
-    struct State {
-      std::set<RuleRegExpLeaf*> positions;
-      bool marked = false;
-      std::map<uint16_t, int> transtitions;
+  void RuleRegExpConcat::accept(RuleRegExpVisitor& v) { v.accept(*this); }
+  void RuleRegExpRepeat::accept(RuleRegExpVisitor& v) { v.accept(*this); }
+  void RuleRegExpOr::accept(RuleRegExpVisitor& v) { v.accept(*this); }
+  void RuleRegExpANY::accept(RuleRegExpVisitor& v) { v.accept(*this); }
+  void RuleRegExpEndMarker::accept(RuleRegExpVisitor& v) { v.accept(*this); }
+  void RuleRegExpAction::accept(RuleRegExpVisitor& v) { v.accept(*this); }
+  void RuleRegExpGlyphSet::accept(RuleRegExpVisitor& v) { v.accept(*this); }
 
-      int number = 0;
+  void EqClassesVisitor::accept(RuleRegExpConcat& regExp) {
+    regExp.lhs().accept(*this);
+    regExp.rhs().accept(*this);
+  };
+  void EqClassesVisitor::accept(RuleRegExpRepeat& regExp) {
+    regExp.innerExpr().accept(*this);
+  };
+  void EqClassesVisitor::accept(RuleRegExpOr& regExp) {
+    regExp.lhs().accept(*this);
+    regExp.rhs().accept(*this);
+  };
+  void EqClassesVisitor::accept(RuleRegExpANY&) {};
+  void EqClassesVisitor::accept(RuleRegExpEndMarker&) {};
+  void EqClassesVisitor::accept(RuleRegExpAction&) {};
+  void EqClassesVisitor::accept(RuleRegExpGlyphSet& regExp) {
 
-      bool operator <(const State& pt) const
-      {
-        return positions < pt.positions;
-      }
-    };
+    eqClassesByGlyphSet.insert(&regExp, {});
 
-    DFA dfa{};
+    auto glyphSet = regExp.getGlyphSet();
 
-    bool firstBackupsequence = true;
-    std::vector<std::shared_ptr<RuleRegExp>> regexVec;
-    std::vector<int> rulelengths;
-    std::map<GraphiteRule*, int> idRules;
-    int idRule = 1;
-    for (auto& rule : this->rules) {
-      idRules[&rule] = idRule++;
-      std::shared_ptr<RuleRegExp> backupRegExp;
-      int minbackupSize = std::numeric_limits<int>::max();
-      int maxbackupSize = 0;
-      if (rule.lhs != nullptr) {
+    if (glyphSet == nullptr) return;
 
-        std::vector<BackupSequence> sequences;
-        rule.lhs->setBackupSequence(sequences);
+    auto codes = glyphSet->getCachedCodes(otlayout);
 
-        for (auto& seq : sequences) {
-          if (seq.glyphSetNumber > maxbackupSize) {
-            maxbackupSize = seq.glyphSetNumber;
-          }
-          if (seq.glyphSetNumber < minbackupSize) {
-            minbackupSize = seq.glyphSetNumber;
-          }
-        }
-        if (firstBackupsequence) {
-          dfa.minBackup = minbackupSize;
-          firstBackupsequence = false;
-        }
-        else {
-          if (minbackupSize < dfa.minBackup) {
-            dfa.minBackup = minbackupSize;
-          }
-        }
-        if (maxbackupSize > dfa.maxBackup) {
-          dfa.maxBackup = maxbackupSize;
-        }
+    if (codes.isEmpty()) return;
 
-        for (auto& seq : sequences) {
-          std::shared_ptr<RuleRegExp> addedAny;
-          for (auto& elem : seq.sequence) {
-            if (addedAny == nullptr) {
-              //addedAny = elem->clone();
-              addedAny = elem;
-            }
-            else {
-              //addedAny = make_shared<RuleRegExpConcat>(addedAny, elem->clone());
-              addedAny = make_shared<RuleRegExpConcat>(addedAny, elem);
-            }
-          }
+    QMutableVectorIterator<QSet<quint16>> i(eqClasses);
 
-          for (int i = seq.glyphSetNumber; i < maxbackupSize; i++) {
-            if (addedAny == nullptr) {
-              addedAny = make_shared<RuleRegExpANY>();
-            }
-            else {
-              addedAny = make_shared<RuleRegExpConcat>(make_shared<RuleRegExpANY>(), addedAny);
-            }
-          }
-          if (addedAny != nullptr) {
-            if (backupRegExp == nullptr) {
-              backupRegExp = addedAny;
-            }
-            else {
-              backupRegExp = make_shared<RuleRegExpOr>(backupRegExp, addedAny);
-            }
-          }
+    QVector<QSet<quint16>> newSets;
 
+    while (i.hasNext()) {
+      auto set = i.next();
+
+      auto intersect = set & codes;
+
+      if (!intersect.isEmpty()) {
+
+        auto newset = set - intersect;
+
+        if (!newset.isEmpty()) {
+          i.setValue(newset);
+          newSets.append(intersect);
         }
 
+        codes = codes - intersect;
 
-      }
-      if (rule.ctx != nullptr) {
-        rule.ctx->setParentRule(&rule);
-
-        std::shared_ptr<RuleRegExp> newRule = rule.ctx;
-        if (backupRegExp != nullptr) {
-          newRule = make_shared<RuleRegExpConcat>(backupRegExp, rule.ctx);
-        }
-        newRule->setParentRule(&rule);
-        regexVec.push_back(newRule);
-        rulelengths.push_back(maxbackupSize);
-
-      }
-    }
-    std::shared_ptr<RuleRegExp> globalRe;
-    for (std::size_t i = 0; i < regexVec.size(); ++i) {
-      auto marker = make_shared<RuleRegExpEndMarker>();
-      marker->setParentRule(regexVec[i]->parentRule());
-      std::shared_ptr<RuleRegExp> addedAny = make_shared<RuleRegExpConcat>(regexVec[i], marker);
-      for (int j = rulelengths[i]; j < dfa.maxBackup; j++) {
-        addedAny = make_shared<RuleRegExpConcat>(make_shared<RuleRegExpANY>(), addedAny);
-      }
-
-      if (globalRe == nullptr) {
-        globalRe = addedAny;
-      }
-      else {
-        globalRe = make_shared<RuleRegExpOr>(globalRe, addedAny);
-      }
-    }
-
-
-    if (globalRe == nullptr) return dfa;
-
-    globalRe->computeFollowpos();
-
-    int stateNumber = 0;
-
-
-    State initalState{ globalRe->firstpos(),false,{},stateNumber++ };
-    dfa.states.push_back({});
-
-    std::set<State> dstates;
-
-    dstates.insert(initalState);
-
-    auto computeNextSate = [&dfa = dfa, &stateNumber = stateNumber, &dstates = dstates](State& currentState, State& nexSate, uint16_t glyph) {
-
-      if (nexSate.positions.empty()) return;
-
-      // Test if exists multiple actions with the same rule. If yes disable those actions and generate warning (Should stop)			
-      // exampe not yet supported :  (a {Ac_a_1} | b {Ac_b_1} )* a {Ac_a_2} b {Ac_b_2} 			
-      // for input sequence ab the actions are a{Ac_a_2} b{Ac_b_2} 
-      // for input sequence abab the actions are a{Ac_a_1}b{Ac_b_1} a{Ac_a_2} b{Ac_b_2} 
-      // thus for the first characters a  we have to wait for the third character to
-      // know if we should execute Ac_a_1 or Ac_a_2.
-      // To deal with such situation we have to simulate an NFA automaton where the actions are separated in 
-      // different states (probability with empty transation to support such re :  (a {action1} | b)* {action2} c
-
-      std::map<GraphiteRule*, std::set<RuleRegExpAction*>> map;
-
-      for (auto leaf : nexSate.positions) {
-        if (auto dd = dynamic_cast<RuleRegExpAction*>(leaf)) {
-          map[leaf->parentRule()].insert(dd);
-        }
-      }
-
-      for (auto& m : map) {
-        if (m.second.size() > 1) {
-          cout << "many actions in the same state: " << '\n';
-          throw new std::runtime_error("many actions in the same state");
-          for (auto action : m.second) {
-            cout << "action '" << action->name() << "' disabled" << '\n';
-            action->disable();
-          }
-        }
-      }
-
-      const auto& tt = dstates.find(nexSate);
-      if (tt == dstates.end()) {
-        nexSate.number = stateNumber++;
-        dstates.insert(nexSate);
-        dfa.states.push_back({});
-
-        currentState.transtitions.insert({ glyph, nexSate.number });
-        dfa.states[currentState.number].transtitions.insert({ glyph, nexSate.number });
-      }
-      else {
-        currentState.transtitions.insert({ glyph, (*tt).number });
-        dfa.states[currentState.number].transtitions.insert({ glyph, (*tt).number });
-
-      }
-    };
-
-    while (true) {
-      State* currentState = nullptr;
-      for (auto& state : dstates) {
-        if (!state.marked) {
-          currentState = (State*)&state;
-          break;
-        }
-      }
-
-      //All states are marked Terminate
-      if (currentState == nullptr) break;
-
-      currentState->marked = true;
-
-
-      State nextStateAnyPos;
-      for (auto pos : currentState->positions) {
-        if (dynamic_cast<RuleRegExpANY*>(pos)) {
-          auto followpos = pos->followpos();
-          nextStateAnyPos.positions.insert(followpos.begin(), followpos.end());
-        }
-      }
-
-      computeNextSate(*currentState, nextStateAnyPos, 0xFFFF);
-
-      for (auto& glyph : otlayout.glyphs) {
-        State nextState;
-        for (auto pos : currentState->positions) {
-          auto glyphSet = pos->getGlyphSet();
-          if (glyphSet != nullptr) {
-            auto codes = glyphSet->getCodes(&otlayout);
-            if (codes.contains(glyph.charcode)) {
-              auto followpos = pos->followpos();
-              nextState.positions.insert(followpos.begin(), followpos.end());
-              nextState.positions.insert(nextStateAnyPos.positions.begin(), nextStateAnyPos.positions.end());
-            }
-          }
-        }
-        computeNextSate(*currentState, nextState, glyph.charcode);
-      }
-    }
-    int stateIndex = 0;
-    int totalresetPosition = 0;
-    for (auto& state : dstates) {
-      for (auto pos : state.positions) {
-        if (auto d = dynamic_cast<RuleRegExpAction*>(pos)) {
-          std::vector<RuleRegExpAction*> actions;
-
-          dfa.states[state.number].actions[idRules[d->parentRule()]].push_back({ d->name() });
-
-
-
-        }
-        else if (auto d = dynamic_cast<RuleRegExpEndMarker*>(pos)) {
-          if (dfa.states[state.number].final != 0) {
-            cout << "Cannot have two end markers on the same state" << '\n';
-            throw new std::runtime_error("Cannot have two end markers on the same state");
-
-          }
-          dfa.states[state.number].final = idRules[d->parentRule()];
-        }
-        else if (auto d = dynamic_cast<RuleRegExpPosition*>(pos)) {
-          dfa.states[state.number].resetPosition = true;
-          totalresetPosition++;
-        }
-      }
-    }
-
-    if (totalresetPosition > 1) {
-      throw new std::runtime_error("Cannot have more than one reset position");
-    }
-
-    for (int i = dfa.minBackup; i <= dfa.maxBackup; i++) {
-      dfa.backupStates.push_back(dfa.maxBackup - i);
-    }
-
-    std::cout << "*************************************************************************" << '\n';
-    for (auto& state : dstates) {
-      std::cout << state.number << '\n';
-      std::cout << " " << "transitions:" << '\n';
-      for (auto& trans : state.transtitions) {
-        if (trans.first != 0xFFFF) {
-          auto glyphName = otlayout.glyphNamePerCode.value(trans.first);
-          std::cout << "   " << glyphName.toStdString() << " > " << trans.second << '\n';
-        }
-        else {
-          std::cout << "   " << "ANY" << " > " << trans.second << '\n';
-        }
-
-      }
-      std::cout << " " << "positions:" << '\n';
-      for (auto& pos : state.positions) {
-        if (auto d = dynamic_cast<RuleRegExpEndMarker*>(pos)) {
-          std::cout << "    Final state" << '\n';
-        }
-        else if (auto d = dynamic_cast<RuleRegExpAction*>(pos)) {
-          std::cout << "    Action : " << d->name() << '\n';
-        }
-        else if (auto d = dynamic_cast<RuleRegExpPosition*>(pos)) {
-          std::cout << "    setPosition  " << '\n';
-        }
-        else if (auto d = dynamic_cast<RuleRegExpGlyphSet*>(pos)) {
-          auto glyphSet = d->getGlyphSet();
-          auto codes = glyphSet->getCodes(&otlayout);
-          std::cout << "    Glyphset : ";
-          for (auto code : codes) {
-            auto glyphName = otlayout.glyphNamePerCode.value(code);
-            std::cout << "   " << glyphName.toStdString();
-          }
-          std::cout << '\n';
-        }
+        if (codes.isEmpty()) break;
 
       }
     }
 
-    return dfa;
+    if (!newSets.isEmpty()) {
+      eqClasses.append(newSets);
+    }
+
+    if (!codes.isEmpty()) {
+      eqClasses.append(codes);
+    }
+
+
+
+  };
+
+  void EqClassesVisitor::generateClasses() {
+
+    for (int i = 0; i < eqClasses.size(); i++) {
+      auto eqClass = eqClasses[i];
+      for (auto glyphId : eqClass) {
+        glyphToClass.insert(glyphId, i);
+        for (auto iter = eqClassesByGlyphSet.begin(); iter != eqClassesByGlyphSet.end(); iter++) {
+          auto glyphSet = iter.key()->getGlyphSet()->getCachedCodes(otlayout);
+          if (glyphSet.contains(glyphId)) {
+            auto& classes = iter.value();
+            classes.insert(i);
+          }
+        }
+      }
+    }
   }
 }

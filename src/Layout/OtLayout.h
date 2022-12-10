@@ -300,6 +300,7 @@ public:
   bool applyJustification = true;
 
   GlyphVis* getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph = false);
+  std::unordered_map<GlyphParameters, GlyphVis*> getAddedGlyphs(int glyphCode);
   hb_position_t gethHorizontalAdvance(hb_font_t* hbFont, hb_codepoint_t glyph, double lefttatweel, double righttatweel, void* userData);
 
   void clearAlternates();

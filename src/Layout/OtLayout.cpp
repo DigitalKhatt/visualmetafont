@@ -991,7 +991,7 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
 
 
 
-      if (subtableArray.size() > 0xFFFF) {
+      if (lookup->type != Lookup::fsmgsub && subtableArray.size() > 0xFFFF) {
         throw std::runtime_error{ "Subtable exeeded the limit of 64K" };
       }
 
@@ -1088,7 +1088,7 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub) {
 #if DIGITALKHATT_WEBLIB
 OtLayout::OtLayout(MP mp, bool extended) : fsmDriver{ *this }, justTable{ this } {
 #else
-OtLayout::OtLayout(MP mp, bool extended, QObject* parent) :QObject(parent), fsmDriver{ *this }, justTable{ this }{
+OtLayout::OtLayout(MP mp, bool extended, QObject * parent) :QObject(parent), fsmDriver{ *this }, justTable{ this } {
 #endif
 
   this->extended = extended;
@@ -1158,7 +1158,7 @@ void OtLayout::clearAlternates() {
   alternatePaths.clear();
 }
 
-CalcAnchor OtLayout::getanchorCalcFunctions(QString functionName, Subtable* subtable) {
+CalcAnchor OtLayout::getanchorCalcFunctions(QString functionName, Subtable * subtable) {
   return automedina->getanchorCalcFunctions(functionName, subtable);
 }
 /*
@@ -1254,7 +1254,7 @@ void OtLayout::evaluateImport() {
   }
 
 }*/
-void OtLayout::addLookup(Lookup* lookup) {
+void OtLayout::addLookup(Lookup * lookup) {
   if (lookup->type == Lookup::none) {
     throw "Lookup Type not defined";
   }
@@ -1332,7 +1332,7 @@ void OtLayout::loadLookupFile(std::string fileName) {
   }
 }
 
-void OtLayout::readJson(const QJsonObject& json)
+void OtLayout::readJson(const QJsonObject & json)
 {
 
   for (auto lookup : lookups) {
@@ -1436,7 +1436,7 @@ void OtLayout::readJson(const QJsonObject& json)
           std::cout << "} " << iter.key().toStdString() << ";" << endl << endl;
       }*/
 }
-void OtLayout::parseCppJsonLookup(QString lookupName, const QJsonObject& lookups) {
+void OtLayout::parseCppJsonLookup(QString lookupName, const QJsonObject & lookups) {
 
   Lookup* newlookup = automedina->getLookup(lookupName);
   if (newlookup) {
@@ -1474,7 +1474,7 @@ void OtLayout::parseCppJsonLookup(QString lookupName, const QJsonObject& lookups
 
 
 }
-void OtLayout::saveParameters(QJsonObject& json) const {
+void OtLayout::saveParameters(QJsonObject & json) const {
   for (auto lookup : lookups) {
     if (!lookup->isGsubLookup()) {
       QJsonObject lookupObject;
@@ -1486,7 +1486,7 @@ void OtLayout::saveParameters(QJsonObject& json) const {
 
   }
 }
-void OtLayout::readParameters(const QJsonObject& json) {
+void OtLayout::readParameters(const QJsonObject & json) {
   for (auto lookup : lookups) {
     if (!lookup->isGsubLookup()) {
       if (!json[lookup->name].toObject().isEmpty()) {
@@ -1764,7 +1764,7 @@ void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableI
 }
 #endif
 
-void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, int emScale) {
+void OtLayout::applyJustFeature(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, int emScale) {
 
   if (!this->allGsubFeatures.contains(feature))
     return;
@@ -2011,7 +2011,7 @@ void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& dif
 
 }
 
-void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, int emScale) {
+void OtLayout::applyJustFeature_old(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, int emScale) {
 
   if (!this->allGsubFeatures.contains(feature))
     return;
@@ -2245,7 +2245,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
 
 }
 
-void OtLayout::jutifyLine_old(hb_font_t* shapefont, hb_buffer_t* text_buffer, int lineWidth, int emScale, bool tajweedColor) {
+void OtLayout::jutifyLine_old(hb_font_t * shapefont, hb_buffer_t * text_buffer, int lineWidth, int emScale, bool tajweedColor) {
 
   const int minSpace = OtLayout::MINSPACEWIDTH * emScale;
   const int  defaultSpace = OtLayout::SPACEWIDTH * emScale;
@@ -2374,7 +2374,7 @@ void OtLayout::jutifyLine_old(hb_font_t* shapefont, hb_buffer_t* text_buffer, in
   hb_buffer_destroy(buffer);
 }
 
-void OtLayout::jutifyLine(hb_font_t* shapefont, hb_buffer_t* text_buffer, int lineWidth, bool tajweedColor) {
+void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int lineWidth, bool tajweedColor) {
 
   if (applyJustification && lineWidth != 0) {
     hb_buffer_set_justify(text_buffer, lineWidth);
@@ -2401,7 +2401,7 @@ void OtLayout::jutifyLine(hb_font_t* shapefont, hb_buffer_t* text_buffer, int li
   features[1].start = 0;
   features[1].end = -1;
 
-  JustificationInProgress = true;
+  JustificationInProgress = applyJustification; // true;
   hb_shape(shapefont, text_buffer, features, 2);
   /*
   if (tajweedColor) {
@@ -2440,7 +2440,9 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
     hb_buffer_clear_contents(buffer);
     hb_buffer_set_segment_properties(buffer, savedprops);
     hb_buffer_set_cluster_level(buffer, cluster_level);
-    hb_buffer_add_utf16(buffer, line.utf16(), -1, 0, -1);
+    auto newLine = QString("\n") + line + QString("\n");
+    auto lineLength = newLine.length();
+    hb_buffer_add_utf16(buffer, newLine.utf16(), lineLength, 0, lineLength);
   };
 
   hb_font_t* currentFont = nullptr;
@@ -2554,9 +2556,9 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
       }
       else if (changeSize) {
         if (lineLayout.overfull > 0) {
-          double ratio = (double)lineWidth / currentlineWidth; 
-          if (ratio > 0.01) {            
-            fontSize = std::floor((double)emScale * ratio);            
+          double ratio = (double)lineWidth / currentlineWidth;
+          if (ratio > 0.01) {
+            fontSize = std::floor((double)emScale * ratio);
             currentFont = this->createFont(fontSize, false);
             overfull = true;
             continue;
@@ -3170,6 +3172,13 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
 }
 int OtLayout::AlternatelastCode = 0xF0000;
+std::unordered_map<GlyphParameters, GlyphVis*> OtLayout::getAddedGlyphs(int glyphCode) {
+  auto res = nojustalternatePaths.find(glyphCode);
+  if (res != nojustalternatePaths.end()) {
+    return res->second;
+  }
+  return {};
+}
 GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph) {
 
   auto paths = JustificationInProgress ? &alternatePaths[glyphCode] : &nojustalternatePaths[glyphCode];
@@ -3244,12 +3253,28 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
       if (glyphGlobalClasses.contains(glyphCode)) {
         glyphGlobalClasses[newglyph->charcode] = glyphGlobalClasses[glyphCode];
 
+        for (auto& markclass : automedina->classes) {
+          if (markclass.contains(glyph->name)) {
+            markclass.insert(newglyph->name);
+            //automedina->classes["marks"].insert(newglyph->name);
+          }
+
+        }
+
+        /*
         if (glyphGlobalClasses[newglyph->charcode] == OtLayout::BaseGlyph) {
           automedina->classes["bases"].insert(newglyph->name);
         }
         else {
-          automedina->classes["marks"].insert(newglyph->name);
-        }
+          for (auto& markclass : automedina->classes) {
+            if (markclass.contains(glyph->name)) {
+              markclass.insert(newglyph->name);
+              //automedina->classes["marks"].insert(newglyph->name);
+            }
+
+          }
+          //automedina->classes["marks"].insert(newglyph->name);
+        }*/
       }
 
       QMap<QString, GlyphVisAnchor>::iterator i;
