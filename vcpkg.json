@@ -1,0 +1,16 @@
+{
+  "name": "luadigitalkhatt",
+  "dependencies": [
+    {
+      "name": "lua"
+    },
+    "zlib"
+  ],
+  "overrides": [
+    {
+      "name": "lua",
+      "version": "5.3.5-5"
+    }
+  ],
+  "builtin-baseline": "cf1fda5443f2acfa976d5bda70c50fa22c26fe80"
+}

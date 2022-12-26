@@ -1,0 +1,42 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{digitalkhatt}[2022/12/17 DigitalKhatt package]
+\RequirePackage{kvoptions}
+\RequirePackage{ifthen}
+
+\DeclareBoolOption[false]{justify}
+\DeclareBoolOption[false]{fontExpansion}
+\DeclareBoolOption[false]{tajweedColor}
+\DeclareStringOption[1]{maxExpFactor}
+\DeclareStringOption[0.98]{minExpFactor}
+
+\ProcessKeyvalOptions*
+
+
+\newattribute{\tajweedatt}
+\newattribute{\sajdaatt}
+\newattribute{\startnode}
+\newattribute{\endnode}
+
+\newcommand{\enableDKJust}{\setboolean{digitalkhatt@justify}{true}}
+\newcommand{\disableDKJust}{\setboolean{digitalkhatt@justify}{false}}
+
+\newcommand{\enableDKFontExpansion}{\setboolean{digitalkhatt@fontExpansion}{true}}
+\newcommand{\disableDKFontExpansion}{\setboolean{digitalkhatt@fontExpansion}{false}}
+
+\newcommand{\enableDKTajweedColor}{\setboolean{digitalkhatt@tajweedColor}{true}}
+\newcommand{\disableDKTajweedColor}{\setboolean{digitalkhatt@tajweedColor}{false}}
+
+\newcommand{\setDKMaxExpFactor}[1]{\renewcommand*{\digitalkhatt@maxExpFactor}{#1}}
+\newcommand{\setDKMinExpFactor}[1]{\renewcommand*{\digitalkhatt@minExpFactor}{#1}}
+
+
+\directlua{require('digitalkhatt')}
+
+
+\DeclareFontFamily{TU}{digitalkhatt}{}
+\DeclareFontShape{TU}{digitalkhatt}{m}{n}{%
+<-> \UnicodeFontFile{digitalkhatt-cff2.otf}
+{\UnicodeFontTeXLigatures mode=digitalkhatt;shaper=ot;script=arab;variableshapes;colr;-fixedspace}}{}
+\newdimen\dkfdim
+
+\newcommand\digitalkhatt[1]{\dkfdim=#1\fontfamily{digitalkhatt}\fontsize{\dkfdim}{1.8\dkfdim}\selectfont\hyphenchar\font=-1\textdir TRT}

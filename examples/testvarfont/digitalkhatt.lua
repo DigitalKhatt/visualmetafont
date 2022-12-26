@@ -1,7 +1,11 @@
-require('lpdf-ini-local')
+digitalkhatt = digitalkhatt or { }
+
+require('lpdf-ini-digitalkhatt')
+require('fontloader-digitalkhatt-cff2')
 require('charstrings')
 require('digitalkhatt-define')
 require('digitalkhatt-plug')
+require('quran')
 require('digitalkhatt_glyphnames')
 require('digitalkhatt_lookupnames')
 
@@ -32,13 +36,11 @@ fonts.readers.digitalkhatt = function(spec)
   --]]
 
   font.parameters.space_stretch = font.hb.scale * 100  
-  font.parameters.space_shrink = font.hb.scale * 70  
+  font.parameters.space_shrink = font.hb.scale * 50  
   font.parameters.extra_space = font.hb.scale * 50  
     
   return  digitalkhatt.variableshapes(font,instance)
 end
-
-digitalkhatt = digitalkhatt or { }
 
 digitalkhatt.usetype3 = true
 digitalkhatt.type3manualgen = false
@@ -215,7 +217,7 @@ digitalkhatt.generatechar = function(tfmdata,instance,char)
     local factor     = hfactor / 65536
     local getactualtext = fonts.handlers.otf.getactualtext
     local character = characters[char]
-    if character and character.gid then
+    if character and character.gid then        
         local shape = digitalkhatt.readVarGlyph(spec,character.gid)
         if not shape then
           local shapes = fonts.handlers.otf.loadoutlinedata(spec,nil,true)
@@ -362,8 +364,11 @@ function digitalkhatt.converttotype3char(tfmdata,slot, code)
       font.addcharacters(fontid,{characters = newCharacter})
     else
          
+      if tfmdata.size == 986414 and currenttype3font == 1 then
+        --print("local stop = 5")
+      end
           
-      type3font[currenttype3font].name = string.format("digitalkhatttype3font%d",currenttype3font)      
+      type3font[currenttype3font].name = string.format("digitalkhatttype3font_%d_%d",tfmdata.size,currenttype3font)      
       local type3data = {
         type = "real",
         characters     = type3font[currenttype3font].characters,
@@ -371,6 +376,7 @@ function digitalkhatt.converttotype3char(tfmdata,slot, code)
         parameters     = {},            
         resources      = {},
         name          = type3font[currenttype3font].name,
+        fullname =  type3font[currenttype3font].name,
         auto_expand  = true,
         stretch = 30,
         shrink = 20,
@@ -533,9 +539,9 @@ function digitalkhatt.getnewfontid(fontid,char,ratio)
          
           temp2.type3fonts[#temp2.type3fonts + 1] = currentfont
 
-          currentfont.fontid = font.define(currentfont)    
+          --currentfont.fontid = font.define(currentfont)    
           
-          type3fontbyfontid[currentfont.fontid] = {info = {}}
+          --type3fontbyfontid[currentfont.fontid] = {info = {}}
           
         end
         -- existing font
@@ -552,7 +558,13 @@ function digitalkhatt.getnewfontid(fontid,char,ratio)
               }
             } 
         currentfont.characters[charnum] = newCharacter[charnum] 
-        font.addcharacters(currentfont.fontid,{characters = newCharacter})
+        if currentfont.fontid ~= nil then
+          font.addcharacters(currentfont.fontid,{characters = newCharacter})
+        else
+          currentfont.fontid = font.define(currentfont)              
+          type3fontbyfontid[currentfont.fontid] = {info = {}}
+        end
+        
         temp2.fontidbychar[char] = {fondid = currentfont.fontid, charid = charnum}
         type3fontbyfontid[currentfont.fontid].info[charnum] = oldtype3font.info[oldtype3charid]
         return currentfont.fontid, charnum        

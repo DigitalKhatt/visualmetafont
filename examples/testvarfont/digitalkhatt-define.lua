@@ -23,7 +23,7 @@ local stringlower = string.lower
 local stringupper = string.upper
 local gsub = string.gsub
 
-local hb = luaotfload.harfbuzz
+local hb = require('luadigitalkhatt')
 local scriptlang_to_harfbuzz = require'luaotfload-scripts'.to_harfbuzz
 
 local digitalkhatt_settings = luaotfload.digitalkhatt or {}

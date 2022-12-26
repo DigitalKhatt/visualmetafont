@@ -119,14 +119,16 @@ local function readdata(f,offset,specification)
     
     specification.digitalkhatt = true
     
-    prepareglyps(fontdata)
+    prepareglyps(fontdata)    
 
-    local data = readtable("cff2",f,fontdata,specification)
+    local data = readtable("dkcff2",f,fontdata,specification)
     
     if data then    
       return {f = f, specification = specification, data = data, fontdata = fontdata}
     end
 end
+
+local parsecharstrings = digitalkhatt.parsecharstrings
   
 digitalkhatt.readVarGlyph = function(spec, gid)
   local filename = spec.properties.filename
@@ -150,19 +152,19 @@ digitalkhatt.readVarGlyph = function(spec, gid)
   end
   if charstrings then
     local fontdata = charstrings.fontdata
-    local variabledata = fontdata.variabledata
-    local specification = charstrings.specification
+    --local variabledata = fontdata.variabledata
+    --local specification = charstrings.specification
     local data = charstrings.data
     if type(instance) == "string" then
         local factors = helpers.getfactors(fontdata,instance)
         if factors then
-            specification.factors = factors
+            --specification.factors = factors
             fontdata.factors  = factors
             fontdata.instance = instance
             data.digitalkhatt_gid = gid + 1
             local glyphs = {}
-            data.factors = specification.factors
-            fonts.handlers.otf.readers.parsecharstrings(false,data,glyphs,true,"cff",nil)
+            data.factors = factors --specification.factors
+            parsecharstrings(false,data,glyphs,true,"cff",nil)
             return glyphs[gid]
         end
     end

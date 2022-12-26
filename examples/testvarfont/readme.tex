@@ -1,0 +1,107 @@
+%\directlua{require('mobdebug').start()}
+\documentclass{article}
+\usepackage[letterpaper]{geometry}
+\usepackage{graphicx}
+\usepackage{bookmark}
+\usepackage{digitalkhatt}
+\usepackage{luatextra}
+\usepackage{setspace}
+
+
+\newcommand{\DigitalKhatt}{DigitalKhatt}
+\newcommand{\LuaOTFLoad}{\mbox{\texttt{luaotfload}}}
+
+\title{DigitalKhatt \LuaLaTeX{} Package}
+\date{December 2022}
+\author{Amine Anane}
+\begin{document}
+\maketitle
+This \LuaLaTeX{} package enables to use the \DigitalKhatt{} variable font in the \TeX{} system. In the previous version, I have to patch \LuaTeX{} and \LuaOTFLoad{} to use the font.
+In the current version, a new \LuaOTFLoad{} plugin mode, named \mbox{\texttt{digitalkhatt}}, has been defined, which uses its own files as follows.
+\begin{itemize}
+  \item {\bf digitalkhatt.sty}: The \LaTeX{} package style file
+  \item {\bf digitalkhatt.lua}: Main file
+  \item {\bf digitalkhatt-define.lua}: copied from \mbox{\texttt{luaotfload-harf-define.lua}} and adapted to \DigitalKhatt{}
+  \item {\bf digitalkhatt-plug.lua}: copied from \mbox{\texttt{luaotfload-harf-plug.lua}} and adapted to \DigitalKhatt{}
+  \item {\bf digitalkhatt-cff2.otf}: DigitalKhatt OpenType variable font extended with new lookup types (such as finite state machine lookup) and justification table
+  \item {\bf digitalkhatt\_glyphnames.lua and digitalkhatt\_lookupnames.lua}: accompaniments to {\bf digitalkhatt-cff2.otf}. Needed for lookup callbacks.
+    Currently they are used to extend the fatha mark above some stretched glyphs.
+  \item {\bf lpdf-ini-digitalkhatt.lua}: Copy of the Context file {\bf lpdf-ini.lua} Mainly  used to define PDF Type3 fonts.
+  \item {\bf charstrings.lua}: Parsing of charstring by glyph id.
+  \item {\bf fontloader-digitalkhatt-cff2.lua}: Copied from {\bf fontloader-font-cff.lua} and patched to allow only the current extended glyph to be parsed and not the entire file. Used with {\bf charstrings.lua}.
+  \item {\bf luadigitalkhatt.[dll,so]}: The native lua module : HarfBuzz + Justification Algorithm + new OpenType subtables 
+\end{itemize}
+To use the package, all the above files has to be copied in the working directory and in the main tex file you add the command \verb!\usepackage{digitalkhatt}! in the preamble.
+To use the font you call the command \verb!\digitalkhatt{fontsize}! giving the font size as parameter. For example, here the word welcome using a font size of 12pt {\digitalkhatt{12pt}مرحبًا}.
+Since the package uses a Lua native module, you should call \LuaLaTeX{} using the \verb!--shell-escape! command line argument as follows.
+\begin{verbatim}
+lualatex --shell-escape readme.tex
+\end{verbatim}
+The justification is disabled by default. Here an example of a paragraph using 18pt font size without justification.\par
+{\digitalkhatt{18pt}\selectfont\pardir TRT
+الٓمٓ ۝١ ذَٰلِكَ ٱلْكِتَٰبُ لَا رَيْبَۛ فِيهِۛ هُدࣰى
+لِّلْمُتَّقِينَ ۝٢ ٱلَّذِينَ يُؤْمِنُونَ بِٱلْغَيْبِ وَيُقِيمُونَ ٱلصَّلَوٰةَ
+وَمِمَّا رَزَقْنَٰهُمْ يُنفِقُونَ ۝٣ وَٱلَّذِينَ يُؤْمِنُونَ بِمَآ أُنزِلَ
+إِلَيْكَ وَمَآ أُنزِلَ مِن قَبْلِكَ وَبِٱلْأٓخِرَةِ هُمْ يُوقِنُونَ ۝٤
+أُو۟لَٰٓئِكَ عَلَىٰ هُدࣰى مِّن رَّبِّهِمْۖ وَأُو۟لَٰٓئِكَ
+هُمُ ٱلْمُفْلِحُونَ ۝٥
+\par}
+You can enable and disable justification using the commands \verb!\enableDKJust! and \verb!\disableDKJust!. Below is the same paragraph using justification.
+Some alternates are now applied in the first line. Also by using justification the third line is compressed by shrinking the kashida between joining letters.\par
+{\digitalkhatt{18pt}\enableDKJust\pardir TRT
+الٓمٓ ۝١ ذَٰلِكَ ٱلْكِتَٰبُ لَا رَيْبَۛ فِيهِۛ هُدࣰى
+لِّلْمُتَّقِينَ ۝٢ ٱلَّذِينَ يُؤْمِنُونَ بِٱلْغَيْبِ وَيُقِيمُونَ ٱلصَّلَوٰةَ
+وَمِمَّا رَزَقْنَٰهُمْ يُنفِقُونَ ۝٣ وَٱلَّذِينَ يُؤْمِنُونَ بِمَآ أُنزِلَ
+إِلَيْكَ وَمَآ أُنزِلَ مِن قَبْلِكَ وَبِٱلْأٓخِرَةِ هُمْ يُوقِنُونَ ۝٤
+أُو۟لَٰٓئِكَ عَلَىٰ هُدࣰى مِّن رَّبِّهِمْۖ وَأُو۟لَٰٓئِكَ
+هُمُ ٱلْمُفْلِحُونَ ۝٥
+\par}
+
+For now, the justification only applies to lines or paragraphs which are only composed of the same \DigitalKhatt{} font without changing direction.
+
+When there is an overfull or underfull box, you can decrease or increase the font size to limit the overfull or underfull amount.
+The command \verb!\setDKMinExpFactor! sets the minimum ratio (i.e. desired line width / current line width) allowed to decrease the font size and the command \verb!\setDKMaxExpFactor! sets the maximum ratio allowed to increase the font size.
+By default the minimum expansion ration is set to 0.98 and the maximum expansion ratio is set to 1 (i.e. There is no font expansion when the line is loose).
+To use this feature you must first enable font expansion with the command \verb!\enableDKFontExpansion!.
+For instance, the following example does not use justification 
+\def\hline{\hbox to\textwidth}
+\vskip10pt
+\vbox{
+\bodydir TRT
+\digitalkhatt{18pt}
+\hline{\hbox to0.75\textwidth{سَنُقْرِئُكَ فَلَا تَنسَىٰٓ ۝٦ إِلَّا مَا شَآءَ ٱللَّهُۚ إِنَّهُۥ يَعْلَمُ ٱلْجَهْرَ وَمَا يَخْفَىٰ ۝٧}\hfill}
+\hline{\hbox to0.75\textwidth{وَنُيَسِّرُكَ لِلْيُسْرَىٰ ۝٨ فَذَكِّرْ إِن نَّفَعَتِ ٱلذِّكْرَىٰ ۝٩ سَيَذَّكَّرُ مَن يَخْشَىٰ ۝١٠}\hfill}
+\hline{\hbox to0.75\textwidth{وَيَتَجَنَّبُهَا ٱلْأَشْقَى ۝١١ ٱلَّذِي يَصْلَى ٱلنَّارَ ٱلْكُبْرَىٰ ۝١٢ ثُمَّ لَا يَمُوتُ}\hfill}
+}\vskip10pt
+Below is the same example using justification.
+\vskip10pt
+\vbox{
+\bodydir TRT
+\digitalkhatt{18pt}\enableDKJust
+\hline{\hbox to0.75\textwidth{سَنُقْرِئُكَ فَلَا تَنسَىٰٓ ۝٦ إِلَّا مَا شَآءَ ٱللَّهُۚ إِنَّهُۥ يَعْلَمُ ٱلْجَهْرَ وَمَا يَخْفَىٰ ۝٧}\hfill}
+\hline{\hbox to0.75\textwidth{وَنُيَسِّرُكَ لِلْيُسْرَىٰ ۝٨ فَذَكِّرْ إِن نَّفَعَتِ ٱلذِّكْرَىٰ ۝٩ سَيَذَّكَّرُ مَن يَخْشَىٰ ۝١٠}\hfill}
+\hline{\hbox to0.75\textwidth{وَيَتَجَنَّبُهَا ٱلْأَشْقَى ۝١١ ٱلَّذِي يَصْلَى ٱلنَّارَ ٱلْكُبْرَىٰ ۝١٢ ثُمَّ لَا يَمُوتُ}\hfill}
+}\vskip10pt
+Below is the same example using justification and enabling font expansion by calling the commands \verb!\enableDKFontExpansion! and \verb!\setDKMinExpFactor{0.95}!. 
+Notice that the font size of the second line has decreased to fit the width of the line. 
+\vskip10pt
+\vbox{
+\bodydir TRT\enableDKFontExpansion\setDKMinExpFactor{0.95}
+\digitalkhatt{18pt}\enableDKJust
+\hline{\hbox to0.75\textwidth{سَنُقْرِئُكَ فَلَا تَنسَىٰٓ ۝٦ إِلَّا مَا شَآءَ ٱللَّهُۚ إِنَّهُۥ يَعْلَمُ ٱلْجَهْرَ وَمَا يَخْفَىٰ ۝٧}\hfill}
+\hline{\hbox to0.75\textwidth{وَنُيَسِّرُكَ لِلْيُسْرَىٰ ۝٨ فَذَكِّرْ إِن نَّفَعَتِ ٱلذِّكْرَىٰ ۝٩ سَيَذَّكَّرُ مَن يَخْشَىٰ ۝١٠}\hfill}
+\hline{\hbox to0.75\textwidth{وَيَتَجَنَّبُهَا ٱلْأَشْقَى ۝١١ ٱلَّذِي يَصْلَى ٱلنَّارَ ٱلْكُبْرَىٰ ۝١٢ ثُمَّ لَا يَمُوتُ}\hfill}
+}\vskip10pt
+
+There are also two commands \verb!\enableDKTajweedColor! and \verb!\disableDKTajweedColor! to enable and disable Tajweed colors.\par
+\vskip10pt
+\vbox{\bodydir TRT\enableDKTajweedColor\enableDKJust\digitalkhatt{18pt}%
+\centerline{\hbox to0.8\textwidth{قُلْ هُوَ ٱللَّهُ أَحَدٌ ۝١ ٱللَّهُ ٱلصَّمَدُ ۝٢ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝٣}}
+\centerline{\hbox to0.44\textwidth{وَلَمْ يَكُن لَّهُۥ كُفُوًا أَحَدُۢ ۝٤}}
+}
+\vskip10pt
+
+The \DigitalKhatt{} project is still work-in progress. If you encounter a problem, please file an issue on GitHub.
+
+
+\end{document} 

@@ -1,4 +1,5 @@
-if not modules then modules = { } end modules ['lpdf-ini'] = {
+-- digitalkhatt : change name to avoid conflict with the installed lpdf-ini, if any
+if not modules then modules = { } end modules ['lpdf-ini-digitalkhatt'] = {
     version   = 1.001,
     comment   = "companion to lpdf-ini.mkiv",
     author    = "Hans Hagen, PRAGMA-ADE, Hasselt NL",

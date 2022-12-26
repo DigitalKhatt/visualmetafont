@@ -1,29 +1,21 @@
 %\directlua{require('mobdebug').start()}
-
-
-
 \documentclass{article}
-
-%\usepackage[letterpaper, portrait, left=5mm,right=5mm,top=2mm,bottom=2mm]{geometry}
 \usepackage[paperwidth=90mm,paperheight=145.62297mm, left=2.108mm,right=2.108mm,top=2mm,bottom=2mm]{geometry}
 \usepackage{graphicx}
 \usepackage{bookmark}
-
+\usepackage[maxStretchPercentage=0,maxShrinkPercentage=-1,fontExpansion=false]{digitalkhatt}
 
 \input{quran_style}
-
-%\pdfcompresslevel=0
-%\pdfobjcompresslevel=0
 \hbadness=100000
 \begin{document}
 \newif\ifmadina
 %
 \directlua{
-digitalkhatt.justify=false
+tex.print("\\disableDKJust")  
 if arg then
     for i,v in ipairs(arg) do
         if v == "-just" then
-            digitalkhatt.justify=true
+            tex.print("\\enableDKJust")  
         elseif v == "-madina" then
             tex.print("\\madinatrue")  
         end
@@ -34,11 +26,9 @@ end
 \setbox\ayaframe=\ayagraphic
 \ifmadina%
 %\medinafontvarmadina\pagedir TRT\pardir TRT\bodydir TRT\textdir TRT
-\font\medinafontvarmadinaii={file:digitalkhatt-cff2.otf:mode=digitalkhatt;shaper=ot;script=arab;variableshapes;colr;tjwd} at 4.77mm
+\font\medinafontvarmadinaii={file:digitalkhatt-cff2.otf:mode=digitalkhatt;shaper=ot;script=arab;variableshapes;colr;tjwd;-fixedspace} at 4.77mm
 \medinafontvarmadinaii\pagedir TRT\pardir TRT\bodydir TRT\textdir TRT
-\directlua{digitalkhatt.enableFontSizing=true}
 \else
-\directlua{digitalkhatt.enableFontSizing=true}
 \medinafontvar\pagedir TRT\pardir TRT\bodydir TRT\textdir TRT
 \fi
 
@@ -48,6 +38,6 @@ end
 %\sloppy
 \emergencystretch5em
 \ifmadina\input{quran_text_madina}\else\input{quran_text}\fi
-
-%\par{\bodydir TLT\textdir TLT\normalfont\the\prevgraf}
+%\centerline{\hbox to0.5\textwidth{سِ ۝٦}}
+%{\disableDKFontSizing\centerline{\hbox to0.5\textwidth{مِنَ ٱلْجِنَّةِ وَٱلنَّاسِ ۝٦}}}
 \end{document} 

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 
 project(visualmetafont CXX)
 
@@ -21,6 +21,8 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 set(WEBLIB_NAME VisualMetaFontWasm)
+
+set(LUATEX_NAME luadigitalkhatt)
 
 if (NOT EMSCRIPTEN)
 
@@ -257,7 +259,17 @@ set(ALL_FILES  ${Automedina} ${GlyphWindow} ${FeaParser} ${MetaFont} ${FontWindo
 set(WEBLIB_FILES  ${Automedina} ${FeaParser}  
   ${Layout_WithoutGUI} ${QuranText} ${Header_Files} ${Resource_Files} weblib/visualmetafontwasm.cpp weblib/quranshaper.h)
 
+set(LUATEX_FILES
+#${Automedina} ${FeaParser} ${Layout_WithoutGUI} ${QuranText} ${Header_Files} ${Resource_Files}
+  luatex/luadigitalkhatt/blob.c luatex/luadigitalkhatt/buffer.c luatex/luadigitalkhatt/class_utils.c luatex/luadigitalkhatt/class_utils.c
+  luatex/luadigitalkhatt/direction.c luatex/luadigitalkhatt/face.c luatex/luadigitalkhatt/feature.c
+  luatex/luadigitalkhatt/font.c luatex/luadigitalkhatt/language.c luatex/luadigitalkhatt/luadigitalkhatt.c
+  luatex/luadigitalkhatt/luadigitalkhatt.h luatex/luadigitalkhatt/ot.c luatex/luadigitalkhatt/script.c luatex/luadigitalkhatt/tag.c
+  luatex/luadigitalkhatt/unicode.c luatex/luadigitalkhatt/variation.c)
+
 add_executable(${WEBLIB_NAME} ${WEBLIB_FILES})
+
+add_library(${LUATEX_NAME} SHARED  ${LUATEX_FILES})
 
 add_executable(${PROJECT_NAME} ${ALL_FILES})
 
@@ -281,14 +293,41 @@ target_include_directories(${WEBLIB_NAME} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/glyphwindow"
   )
 
+add_library(lualib SHARED IMPORTED)
+
+if (WIN32)
+    set_property(TARGET lualib PROPERTY IMPORTED_IMPLIB  ${IMPLIBLOCATION})
+endif (WIN32)
+
+if (UNIX)
+    set_property(TARGET lualib PROPERTY IMPORTED_LOCATION  ${IMPLIBLOCATION})   
+endif (UNIX)
+
+
+
+target_include_directories(${LUATEX_NAME} PUBLIC 
+  "${CMAKE_CURRENT_SOURCE_DIR}/."
+  "${CMAKE_CURRENT_SOURCE_DIR}/Layout"
+  "${CMAKE_CURRENT_SOURCE_DIR}/FeaParser"
+  "${CMAKE_CURRENT_SOURCE_DIR}/GlyphParser"
+  "${CMAKE_CURRENT_SOURCE_DIR}/metafont"
+  "${CMAKE_CURRENT_SOURCE_DIR}/fontwindow"
+  "${CMAKE_CURRENT_SOURCE_DIR}/glyphwindow"
+  "${CMAKE_CURRENT_SOURCE_DIR}/luatex/luaharfbuzz"
+  ${LUA_INCLUDE_DIR}
+  )
+
 target_include_directories(${PROJECT_NAME} PRIVATE ${FLEX_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/FeaParser ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser)
 target_include_directories(${WEBLIB_NAME} PRIVATE ${FLEX_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/FeaParser ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser)
+target_include_directories(${LUATEX_NAME} PRIVATE ${FLEX_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/FeaParser ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser)
 
 target_compile_options(${PROJECT_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_compile_options(${WEBLIB_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
+target_compile_options(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR)
 target_compile_definitions(${WEBLIB_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR DIGITALKHATT_WEBLIB)
+target_compile_definitions(${LUATEX_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR DIGITALKHATT_WEBLIB)
 
 
 if (NOT EMSCRIPTEN)
@@ -301,7 +340,21 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE ENABLE_PDF_GENERATION)
 endif()
 
 add_dependencies(${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser)
-add_dependencies(${WEBLIB_NAME} harfbuzz mplib)
+add_dependencies(${LUATEX_NAME} harfbuzz mplib)
+
+if (UNIX)
+  set_target_properties(${LUATEX_NAME}  PROPERTIES PREFIX "" IMPORT_PREFIX "")
+endif (UNIX)
+
+
+set_target_properties(${LUATEX_NAME} PROPERTIES CXX_VISIBILITY_PRESET hidden C_VISIBILITY_PRESET hidden)
+target_link_libraries(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wl,--exclude-libs,ALL>)
+#target_link_libraries(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-static-libgcc>)
+#target_link_libraries(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-static-libstdc++>)
+
+
+
+
 
 if (NOT EMSCRIPTEN)
 # Link with other targets.
@@ -327,6 +380,13 @@ target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib # QtPropertyBrowser
   #Qt5::QJpegPlugin Qt5::QSvgPlugin Qt5::QSvgIconPlugin
 
   )
+
+target_link_libraries(${LUATEX_NAME} PUBLIC harfbuzz mplib Qt5::Core)
+#target_link_libraries(${LUATEX_NAME} PRIVATE ${LUA_LIBRARIES})
+target_link_libraries(${LUATEX_NAME} PRIVATE lualib)
+#set_property(TARGET ${LUATEX_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+
 
 if (NOT EMSCRIPTEN)
 

@@ -77,6 +77,7 @@ local regulardisc_t     = 3
 local spaceskip_t       = 13
 
 local HLIST = node.id("hlist")
+local VLIST = node.id("vlist")
 local RULE = node.id("rule")
 local GLUE = node.id("glue")
 local KERN = node.id("kern")
@@ -151,11 +152,8 @@ local function good_item(item)
   end
 end
 
-local function sajdaline(head, order, ratio, sign)
-  
-  if head.id == hlist_t then
-    head = head.list
-  end
+local function sajdaline(head, order, ratio, sign) 
+
 
   local item = head
   while item do
@@ -166,9 +164,11 @@ local function sajdaline(head, order, ratio, sign)
         --item_line.depth = tex.sp("-34.5pt")
         item_line.depth = -item_line.height + tex.sp("1pt")
         local end_node = item
+        node.unset_attribute(item,SAJDAATTR)
         while end_node.next and
           good_item(end_node.next) and
           node.has_attribute(end_node.next, SAJDAATTR) do
+            node.unset_attribute(end_node.next,SAJDAATTR)
             end_node = end_node.next
         end
         item_line.width = node.dimensions(ratio, sign, order, item, end_node.next)
@@ -183,34 +183,32 @@ local function sajdaline(head, order, ratio, sign)
   end
 end
 
-function set_sajdabar(head)  
+function set_sajdabar(head)     
   for line in node.traverse_id(HLIST, head) do
-    sajdaline(line.list, line.glue_order, line.glue_set, line.glue_sign)
-  end 
-  luatexbase.remove_from_callback("post_linebreak_filter","set_sajdabar")
+    set_sajdabar(line.list)
+    sajdaline(line.list,line.glue_order, line.glue_set, line.glue_sign)    
+  end  
   return head
-end
-
-local function tajweedcolorhpack(head)
-  return tajweed(head)  
 end
 
 local function tajweedcolor(head)
   for line in node.traverse_id(HLIST, head) do
-    tajweed(line.list)    
+    tajweedcolor(line.list)
+    local newhead = tajweed(line.list)   
+    setlist(line,newhead) 
   end  
   return head
 end
 
 function tajweed(head)
 
+  if head == nil then
+    return head
+  end
+
   -- TODO verify list head change
   local headlist = head
-  if head.id == hlist_t then
-    headlist = headlist.list
-  else
-    head = nil
-  end
+  
   
   local push, pop = copynode(pdf_literal), copynode(pdf_literal)
   push.mode, push.data = 1, "0 g"
@@ -240,9 +238,11 @@ local function printnode(head, nested, notrecursive)
   if not nested then
     nested = ""
   end
-  local subtypes = node.subtypes(getid(head)) 
+  local id = getid(head)
+  local subtypes = node.subtypes(id) 
   io.write(nested .. "node=" .. head .. ',')  
-  io.write("type=".. node.type(getid(head)).. ',')  
+  local id = 
+  io.write("type=".. node.type(id).. ',')  
   io.write("width = " .. (getwidth(head) or 'nil').. ',')
   io.write("glue_order = " .. (getfield(head, "glue_order") or 'nil').. ',')
   io.write("glue_set = " .. (getfield(head, "glue_set") or 'nil').. ',')
@@ -264,6 +264,8 @@ local function printnode(head, nested, notrecursive)
   end
 end
 
+digitalkhatt.printnode = printnode
+
 local function post_process_print(head, groupcode, size, packtype, direction, attributelist)  
   print("groupcode=" .. (groupcode or "") .. ",size=" .. (size or "") .. ", packtype=" .. (packtype or "") .. ",direction=" .. (direction or ""))     
   for n in traverse(head) do
@@ -282,90 +284,10 @@ local function post_process_print(head, groupcode, size, packtype, direction, at
   return head
 end
 
-local function post_process(head,  width)  
-    
-  --local newhead = digitalkhatt.harfprocess(head,24,width,1,nil,true)
-  
-  return newhead or head
+function addsajdacallback()  
+  --add_to_callback("vpack_filter",set_sajdabar, "set_sajdabar")  
 end
 
-local function post_process_vlist(head,groupcode)
-  for n, id, subtype, list in traverse_list(head) do
-    if id == hlist_t and subtype == line_t then     
-    local natwidth = dimensions(n)
-    local width = getwidth(n)
-  
-    local glue_order = getfield(n, "glue_order")
-    local glue_set = getfield(n, "glue_set")
-    local glue_sign = getfield(n, "glue_sign")
-  
-    local natwidthlist = dimensions(glue_set,glue_sign,glue_order,list)
-    local natwidthlist2 = dimensions(list)
-    --printnode(n,"",true)
-    --print(".natural width hlist=" .. (natwidth or 'nil') .. ",natural width list=" .. (natwidthlist or 'nil') .. ",natural width list without glue=" .. (natwidthlist2  or 'nil'))      
-    
-    setlist(n, post_process(list, width))
-    end
-  end
-  return true
-end
-
-local function post_process_vlist_nodes(head,groupcode)  
-  return tonode(post_process_vlist(todirect(head),groupcode))
-end
-
-local function append_to_vlist(head, locationcode, prevdepth)  
-  print("")
-  print("start append_to_vlist,locationcode=" .. (locationcode or 'nil') .. ",prevdepth=" .. (prevdepth or 'nil')  )
-  printnode(head)  
-  --for node, id, subtype, list in traverse_list(head) do
-  --  if id == hlist_t then
-  --    local natwidth = dimensions(node)
-  --    print("natural width=" .. (natwidth or 'nil')) 
-  --    printnode(list)  
-  --  end
-  --end  
-end
-
-local function append_to_vlist_filter(head, locationcode, prevdepth)  
-  tonode(post_process_vlist(append_to_vlist(todirect(head),locationcode,prevdepth),groupcode))
-  return head, prevdepth
-end
-
-local function post_process_hlist(head,groupcode, size, packtype, direction, attributelist)  
-  return tonode(post_process(todirect(head), groupcode, size, packtype, direction, attributelist))
-end
-
-local texnest       = tex.nest
-
-function contribute_filter(groupcode)
-  if groupcode == "box" then -- "pre_box"
-      local whatever = texnest[texnest.ptr]
-      if whatever then
-          local line = whatever.tail
-          if line then
-              line = todirect(line)
-              printnode(line)
-          end
-      end
-  end
-end
-
-function addsajdacallback()
-  local cal, desc = luatexbase.remove_from_callback("post_linebreak_filter",'luaotfload.digitalkhatt.finalize_vlist')
-  add_to_callback("post_linebreak_filter",set_sajdabar, "set_sajdabar")
-  add_to_callback("post_linebreak_filter",cal, desc)
-end
-
-local cal, desc = luatexbase.remove_from_callback("post_linebreak_filter",'luaotfload.digitalkhatt.finalize_vlist')
-
-add_to_callback("post_linebreak_filter",tajweedcolor, "quran.tajweedcolor")
-add_to_callback("post_linebreak_filter",cal, desc)
-
-
-add_to_callback('hpack_filter', tajweedcolorhpack, 'quran.tajweedcolorlist')
---add_to_callback('contribute_filter', contribute_filter, 'q-uran.contribute_filter')
-
-add_to_callback('post_linebreak_filter', post_process_vlist_nodes, 'quran.finalize_vlist')
---add_to_callback('hpack_filter', post_process_hlist, 'quran.finalize_hlist')
---add_to_callback('append_to_vlist_filter', append_to_vlist_filter, 'quran.append_to_vlist_filter')
+add_to_callback("vpack_filter",tajweedcolor, "quran.tajweedcolor")
+add_to_callback("vpack_filter",set_sajdabar, "set_sajdabar")
+ 
