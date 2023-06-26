@@ -416,7 +416,7 @@ namespace GenerateTexFromTanzil
             string line = page[i];
             if (!quranComplex)
             {
-              line = replaceCharcatersFromUthmanicHafsDoc(page[i]);
+              line = replaceCharcatersFromUthmanicHafsDoc(page[i], nopage + 1, i + 1);
             }
             else
             {
@@ -509,7 +509,7 @@ namespace GenerateTexFromTanzil
               mm = 9999;
             }
 
-            string line = replaceCharcatersFromUthmanicHafsDoc(page[i]);
+            string line = replaceCharcatersFromUthmanicHafsDoc(page[i], nopage + 1, i + 1);
             if (nopage == 0 || nopage == 1)
             {
               if (line.StartsWith("سُورَةُ "))
@@ -628,7 +628,7 @@ namespace GenerateTexFromTanzil
 
           for (int i = 0; i < page.Count; i++)
           {
-            string line = page[i]; // replaceCharcatersFromUthmanicHafsDoc(page[i]);
+            string line = page[i];
             line = setSajdahBar(line);
             //int indexbism = line.IndexOf(bism);
             if (line.StartsWith("سُورَةُ "))
@@ -732,7 +732,7 @@ namespace GenerateTexFromTanzil
 
 
     }
-    static string replaceCharcatersFromUthmanicHafsDoc(string line)
+    static string replaceCharcatersFromUthmanicHafsDoc(string line, int pageNumber, int lineNumber)
     {
       // 0652 : ARABIC SUKUN ->  06DF : ARABIC SMALL HIGH ROUNDED ZERO
       string newline = line.Replace("\u0652", "\u06DF");
@@ -771,7 +771,29 @@ namespace GenerateTexFromTanzil
       newline = newline.Replace("\u0626\u0640", "\u0626");
 
       // ARABIC SMALL HIGH SEEN + FATHA -> ARABIC SMALL LOW SEEN + FATHA
+      if (newline.Contains("\u06DC\u064E"))
+      {
+        Console.WriteLine($"ARABIC SMALL HIGH SEEN + FATHA at {pageNumber}-{lineNumber}");
+      }
+      if (newline.Contains("\u06E3\u064E"))
+      {
+        Console.WriteLine($"ARABIC SMALL LOW SEEN + FATHA at {pageNumber}-{lineNumber}");
+      }
       newline = newline.Replace("\u06DC\u064E", "\u06E3\u064E");
+
+      // ALEF + HAMZA ABOVE + MADDAH ABOVE
+      if (newline.Contains("\u0627\u0654\u0653"))
+      {
+        Console.WriteLine($"Alef + hamza above + madda above at {pageNumber}-{lineNumber}");
+      }
+      // ALEF WITH HAMZA ABOVE + MADDAH ABOVE
+      if (newline.Contains("\u0623\u0653"))
+      {
+        //Console.WriteLine($"ALEF WITH HAMZA ABOVE + MADDAH ABOVE at {pageNumber}-{lineNumber}");
+        newline = newline.Replace("\u0623\u0653", "\u0640\u0654\u064E\u0627");
+      }
+
+
 
       //Dont reorder  marks        
       newline = newline.Replace("\u0652\u06DC", "\u0652\u034F\u06DC");
