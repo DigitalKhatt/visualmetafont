@@ -481,9 +481,7 @@ public:
       curr = curr->getAlternate(parameters);
     }
 
-    //if (glyphName == "behshape.medi.basmala") {
-    //  std::cout << "test" << std::endl;
-    //}
+    
     if (curr->conatinsAnchor(className)) {
       QPoint anchor = curr->getAnchor(className) + adjust;
       return anchor;
@@ -511,7 +509,9 @@ public:
   Joinedsmalllettersbaseanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-    GlyphVis* originalglyph = &_y.glyphs[glyphName];
+   
+
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
     if (lefttatweel != 0.0 || righttatweel != 0.0) {
       GlyphParameters parameters{};
@@ -519,11 +519,19 @@ public:
       parameters.lefttatweel = lefttatweel;
       parameters.righttatweel = righttatweel;
 
-      originalglyph = originalglyph->getAlternate(parameters);
+      curr = curr->getAlternate(parameters);
     }
 
+    //QPoint adjustoriginal = getAdjustment(_y, _subtable, originalglyph, className, adjust, lefttatweel, righttatweel, &originalglyph);
+
+    if (curr->name.contains("added")) {
+      adjust = _subtable.classes[className].baseparameters[curr->originalglyph];
+    }
+
+    
+
     if (className == "jsl") {
-      int width = originalglyph->width * 0.5;
+      int width = curr->width * 0.5;
       int height = 200;
 
       auto value = QPoint{ width , height };
@@ -531,7 +539,7 @@ public:
       return value + adjust;
     }
     else if (className == "smallhighwaw") {
-      auto anchor = originalglyph->getAnchor("smallhighwaw");
+      auto anchor = curr->getAnchor("smallhighwaw");
 
       auto value = anchor + adjust;
 

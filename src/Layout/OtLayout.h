@@ -70,6 +70,12 @@ struct GlyphParameters {
   }
 };
 
+struct ExtendedGlyph {
+  int code;
+  double lefttatweel;
+  double righttatweel;
+};
+
 namespace std {
   template<>
   struct hash<GlyphParameters> {
@@ -184,7 +190,8 @@ class OtLayout {
 class OtLayout : public QObject {
   Q_OBJECT
 #endif
-    friend class Automedia;
+
+    friend class Automedina;
   friend class GlyphVis;
   friend class LayoutWindow;
   friend class ToOpenType;
@@ -204,7 +211,7 @@ public:
     ComponentGlyph = 4
   };
 
-#if DIGITALKHATT_WEBLIB
+#if defined DIGITALKHATT_WEBLIB
   OtLayout(MP mp, bool extended);
 #else
   OtLayout(MP mp, bool extended, QObject* parent = Q_NULLPTR);
@@ -213,7 +220,7 @@ public:
 
   void loadLookupFile(std::string fileName);
 
-  void readJson(const QJsonObject& json);
+  void parseFeatureFile(std::string fileName);
   hb_font_t* createFont(int scale, bool newFace = true);
   QSet<quint16> classtoUnicode(QString className);
   QSet<quint16> regexptoUnicode(QString regexp);
@@ -277,6 +284,8 @@ public:
   quint16 addMarkSet(QList<quint16> list);
   quint16 addMarkSet(QVector<QString> list);
 
+  void generateSubstEquivGlyphs();
+
   void addLookup(Lookup* lookup);
   void addTable(Lookup* lookup) {
     this->addLookup(lookup);
@@ -299,13 +308,13 @@ public:
 
   bool applyJustification = true;
 
-  GlyphVis* getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph = false);
-  std::unordered_map<GlyphParameters, GlyphVis*> getAddedGlyphs(int glyphCode);
+  GlyphVis* getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph = false, bool addToEquivSubst = false);
+  std::unordered_map<GlyphParameters, GlyphVis*>& getSubstEquivGlyphs(int glyphCode);
   hb_position_t gethHorizontalAdvance(hb_font_t* hbFont, hb_codepoint_t glyph, double lefttatweel, double righttatweel, void* userData);
 
   void clearAlternates();
 
-  void parseCppJsonLookup(QString lookupName, const QJsonObject& json);
+  void parseCppLookup(QString lookupName);
 
   QByteArray getCmap();
 
@@ -434,8 +443,10 @@ private:
   QSet<Lookup*> disabledLookups;
 
   static int AlternatelastCode;
-  std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> alternatePaths;
-  std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> nojustalternatePaths;
+  std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> tempGlyphs;
+  std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> addedGlyphs;
+  std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> substEquivGlyphs;
+
 
   bool JustificationInProgress = false;
 

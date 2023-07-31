@@ -52,10 +52,10 @@ namespace feayy {
     int index;
   };
 
-  using StatePositions = std::map < RuleRegExpSymbol*, std::pair<std::vector<RuleRegExpTag*>, RuleRegExpSymbol*>>;
+  //using StatePositions = std::map < RuleRegExpSymbol*, std::vector<RuleRegExpTag*>>;
 
   struct TDFAConstState {
-    StatePositions positions;
+    ASTPositions positions;
     std::map<RuleRegExpSymbol*, StateConfiguration> posStates;
     bool marked = false;
     std::map<uint16_t, Transition> transtitions;
@@ -69,6 +69,7 @@ namespace feayy {
 
     bool operator <(const TDFAConstState& pt) const
     {
+      //TODO test with value also
       return positions < pt.positions;
     }
 
@@ -80,13 +81,12 @@ namespace feayy {
             this->positions.erase(old->first);
             this->posStates.erase(old);
             //TODO : Origin always unique ?
-            this->positions.insert({ pos.first,{pos.second,nullptr} });
+            this->positions.insert({ pos.first,pos.second });
             this->posStates.insert({ pos.first,{currentTags,pos.second,origin } });
           }
         }
-        else {
-          //this->positions.insert(pos);
-          this->positions.insert({ pos.first,{pos.second,nullptr} });
+        else {          
+          this->positions.insert(pos);
           this->posStates.insert({ pos.first,{currentTags,pos.second,origin } });
         }
       }
@@ -199,7 +199,7 @@ namespace feayy {
       }
       std::cout << " " << "positions:" << '\n';
 
-      std::vector<std::pair < RuleRegExpSymbol*, std::pair<std::vector<RuleRegExpTag*>, RuleRegExpSymbol*>>> sortedPositions;
+      std::vector<std::pair < RuleRegExpSymbol*, std::vector<RuleRegExpTag*>>> sortedPositions;
 
       for (auto& posr : state.positions) {
         sortedPositions.push_back(posr);
@@ -213,11 +213,11 @@ namespace feayy {
         auto pos = posr.first;
         std::cout << "    Position No " << pos->positionNumber;
         std::cout << ",tags={";
-        for (auto it = posr.second.first.begin(); it != posr.second.first.end(); ++it) {
+        for (auto it = posr.second.begin(); it != posr.second.end(); ++it) {
           if (auto lookup = dynamic_cast<RuleRegExpAction*>(*it)) {
             std::cout << lookup->name();
           }
-          if (std::next(it) != posr.second.first.end()) {
+          if (std::next(it) != posr.second.end()) {
             std::cout << ", ";
           }
         }
@@ -225,9 +225,7 @@ namespace feayy {
         if (state.posStates[pos].origin) {
           std::cout << ",origin:{posNumber:" << state.posStates[pos].origin->positionNumber << ",index:" << state.origins[state.posStates[pos].origin].index << "}";
         }
-        if (posr.second.second) {
-          std::cout << ",originnullptr:{" << posr.second.second << "}";
-        }
+        
         /*
         if (state.origins[state.posStates[pos].origin].tags.size() > 0) {
           std::cout << ",origintags={";
@@ -544,14 +542,14 @@ namespace feayy {
         for (auto pos : currentState.positions) {
           if (dynamic_cast<RuleRegExpANY*>(pos.first)) {
             auto followPositions = pos.first->followpos();
-            nextStateAnyPos.addPositions(followPositions, pos.second.first, pos.first);
+            nextStateAnyPos.addPositions(followPositions, pos.second, pos.first);
           }
         }
 
         computeNextSate(currentState, nextStateAnyPos, 0xFFFF);
 
         std::set<int> totalClasses;
-        std::map<int, std::vector <StatePositions::value_type >> posByClass;
+        std::map<int, std::vector <ASTPositions::value_type >> posByClass;
         for (auto pos : currentState.positions) {
           auto& classes = eqClassesVisitor.eqClassesByGlyphSet[pos.first];
           //totalClasses.unite(classes);
@@ -566,12 +564,12 @@ namespace feayy {
           auto& positions = posByClass[eqClass];
           for (auto pos : positions) {
             auto followPositions = pos.first->followpos();
-            nextState.addPositions(followPositions, pos.second.first, pos.first);
+            nextState.addPositions(followPositions, pos.second, pos.first);
           }
           for (auto pos : currentState.positions) {
             if (dynamic_cast<RuleRegExpANY*>(pos.first)) {
               auto followPositions = pos.first->followpos();
-              nextState.addPositions(followPositions, pos.second.first, pos.first);
+              nextState.addPositions(followPositions, pos.second, pos.first);
             }
           }
           computeNextSate(currentState, nextState, eqClass);

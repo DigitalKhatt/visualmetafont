@@ -275,7 +275,7 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   //setAnchorCalcFunctions();
 
 
-  layout->expandableGlyphs["alef.isol"] = { 1,-3,0,0 };  
+  layout->expandableGlyphs["alef.isol"] = { 1,-3,0,0 };
   layout->expandableGlyphs["behshape.isol.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["behshape.fina.expa"] = { 5,0,0,0 };
   layout->expandableGlyphs["kaf.fina.expa"] = { 6,-1,6,-1 };
@@ -311,8 +311,8 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["heh.init"] = { 6.5,-0.5,0,0 };
 
   layout->expandableGlyphs["heh.medi"] = { 6.7,-0.3,0,0 };
-  layout->expandableGlyphs["behshape.medi"] = { 12,-0.5,12,-0.5 };  
-  layout->expandableGlyphs["behshape.medi.beforeseen"] = { 6.3,-0.7,6.3,-0.7 };
+  layout->expandableGlyphs["behshape.medi"] = { 12,-0.5,12,-0.5 };
+  layout->expandableGlyphs["behshape.medi.beforeseen"] = { 6,-1,6,-1 };
   layout->expandableGlyphs["behshape.medi.beforereh"] = { 0,0,6.3,-0.7 };
   layout->expandableGlyphs["behshape.medi.beforenoon"] = { 6.3,-0.7,6.3,-0.7 };
 
@@ -328,12 +328,12 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["sad.medi"] = { 5,-0.5,5,-0.5 };
   layout->expandableGlyphs["tah.medi"] = { 6,-0.5,6,-0.5 };
   layout->expandableGlyphs["ain.medi"] = { 6.5,-0.5,6.5,-0.5 };
-  layout->expandableGlyphs["ain.medi.beforeyeh"] = { 0,0,6.5,-0.5 };  
+  layout->expandableGlyphs["ain.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
   layout->expandableGlyphs["fehshape.medi"] = { 6.5,-0.5,6.5,-0.5 };
   layout->expandableGlyphs["fehshape.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
 
   layout->expandableGlyphs["kaf.medi"] = { 6,-1.5,6,-1.5 };
-  layout->expandableGlyphs["kaf.medi.beforemeem"] = {0,0,6,0};
+  layout->expandableGlyphs["kaf.medi.beforemeem"] = { 0,0,6,0 };
   layout->expandableGlyphs["kaf.medi.beforeyeh"] = { 0,0,6,-1 };
   layout->expandableGlyphs["kaf.medi.beforelam"] = { 0,0,6,-1 };
   layout->expandableGlyphs["kaf.medi.beforelamalef"] = { 0,0,6,-1 };
@@ -368,7 +368,7 @@ Automedina::Automedina(OtLayout* layout, MP mp, bool extended) :glyphs{ layout->
   layout->expandableGlyphs["reh.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["reh.fina.ii"] = { 0.0,0.0,6.5,-0.5 };
 
-  layout->expandableGlyphs["hah.init.iii"] = { 9.0,0.0,0,0 }; 
+  layout->expandableGlyphs["hah.init.iii"] = { 9.0,0.0,0,0 };
   layout->expandableGlyphs["sad.init.kii"] = { 20,0.0,0,0 };
   layout->expandableGlyphs["heh.fina.kii"] = { 0.0,0.0,9,-1 };
   layout->expandableGlyphs["dal.fina.kii"] = { 0.0,0.0,9,-1 };
@@ -614,10 +614,11 @@ Lookup* Automedina::getLookup(QString lookupName) {
   else if (lookupName == "populatecvxx") {
     return populatecvxx();
   }
+  else if (lookupName == "glyphalternates") {
+    return glyphalternates();
+  }
 
-
-
-  return NULL;
+  return nullptr;
 }
 
 Lookup* Automedina::rehwawcursive() {
@@ -625,7 +626,7 @@ Lookup* Automedina::rehwawcursive() {
   lookup->name = "rehwawcursive";
   lookup->feature = "curs";
   lookup->type = Lookup::cursive;
-  lookup->flags = Lookup::Flags::IgnoreMarks;
+  lookup->flags = Lookup::Flags::IgnoreMarks; // | Lookup::Flags::RightToLeft;
 
   class CustomCursiveSubtable : public CursiveSubtable {
   public:
@@ -969,9 +970,13 @@ Lookup* Automedina::defaultmarkposition() {
         newsubtable->classes["shadda"].basefunction = new Defaulbaseanchorforsmallalef(*this, *newsubtable);
         newsubtable->classes["shadda"].markfunction = new Defaultopmarkanchor(*this, *newsubtable);*/
 
-  newsubtable->classes["smallletters"].mark = { "smallalef.joined","smallhighwaw","hamzaabove.joined" };
+  newsubtable->classes["smallletters"].mark = { "smallalef.joined","smallhighwaw" };
   newsubtable->classes["smallletters"].basefunction = Defaulbaseanchorforsmallalef(*this, *newsubtable);
   newsubtable->classes["smallletters"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
+
+  newsubtable->classes["hamzaabove"].mark = {"hamzaabove.joined" };
+  newsubtable->classes["hamzaabove"].basefunction = Defaulbaseanchorforsmallalef(*this, *newsubtable);
+  newsubtable->classes["hamzaabove"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
 
   //default
   newsubtable = new MarkBaseSubtable(lookup);
@@ -2659,6 +2664,14 @@ QSet<quint16> Automedina::regexptoUnicode(QString regexp) {
   for (auto& glyph : m_layout->glyphs) {
     if (re.match(glyph.name).hasMatch()) {
       unicodes.insert(glyph.charcode);
+      /*
+      auto t = m_layout->nojustalternatePaths.find(glyph.charcode);
+      if (t != m_layout->nojustalternatePaths.end()) {
+        auto& second = t->second;
+        for (auto& addedGlyph : second) {
+          unicodes.insert(addedGlyph.second->charcode);
+        }
+      }*/
     }
   }
 
@@ -2678,6 +2691,15 @@ QSet<quint16> Automedina::classtoUnicode(QString className) {
     if (m_layout->glyphs.contains(className)) {
       auto& glyph = m_layout->glyphs[className];
       unicodes.insert(glyph.charcode);
+      /*
+      auto t = m_layout->nojustalternatePaths.find(glyph.charcode);
+      if (t != m_layout->nojustalternatePaths.end()) {
+        auto& second = t->second;
+        for (auto& addedGlyph : second) {
+          unicodes.insert(addedGlyph.second->charcode);
+        }
+      }*/
+
     }
     else {
       bool ok;
@@ -2819,6 +2841,102 @@ Lookup* Automedina::populatecvxx() {
   return nullptr;
 
 }
+
+Lookup* Automedina::glyphalternates() {
+
+  if (m_layout->extended) {
+    return nullptr;
+  }
+
+  int cvNumber = 1;
+
+  //cv01
+  Lookup* alternate = new Lookup(m_layout);
+  alternate->name = QString("cv%1").arg(cvNumber++, 2, 10, QLatin1Char('0'));
+  alternate->feature = alternate->name;
+  alternate->type = Lookup::alternate;
+
+  m_layout->addLookup(alternate);
+
+  AlternateSubtable* alternateSubtable = new AlternateSubtable(alternate);
+  alternate->subtables.append(alternateSubtable);
+  alternate->name = alternate->name;
+
+
+
+  unordered_map<QString, QString> mappings;
+
+  mappings.insert({ "noon.isol","noon.isol.expa" });
+  mappings.insert({ "behshape.isol","behshape.isol.expa" });
+  mappings.insert({ "feh.isol","feh.isol.expa" });
+  mappings.insert({ "qaf.isol","qaf.isol.expa" });
+  mappings.insert({ "seen.isol","seen.isol.expa" });
+  mappings.insert({ "sad.isol","sad.isol.expa" });
+  
+
+  mappings.insert({ "noon.fina","noon.fina.expa" });
+  mappings.insert({ "kaf.fina","kaf.fina.expa" });
+  mappings.insert({ "behshape.fina","behshape.fina.expa" });
+  mappings.insert({ "feh.fina","feh.fina.expa" });
+  mappings.insert({ "qaf.fina","qaf.fina.expa" });
+  mappings.insert({ "seen.fina","seen.fina.expa" });
+  mappings.insert({ "sad.fina","sad.fina.expa" });
+  mappings.insert({ "alef.fina","alef.fina" });  
+
+  for (auto mapping : mappings) {
+
+    QVector<ExtendedGlyph> alternates;
+    int code = m_layout->glyphCodePerName[mapping.first];
+    int substcode = m_layout->glyphCodePerName[mapping.second];
+
+    if (code == 0 || substcode == 0) {
+      throw new std::runtime_error("Glyph name invalid");
+    }
+
+    alternates.append({ substcode,2,0 });
+    alternates.append({ substcode,4,0 });
+    alternates.append({ substcode,6,0 });
+    alternateSubtable->alternates[code] = alternates;
+  }
+
+  //cv02
+  alternate = new Lookup(m_layout);
+  alternate->name = QString("cv%1").arg(cvNumber++, 2, 10, QLatin1Char('0'));
+  alternate->feature = alternate->name;
+  alternate->type = Lookup::alternate;
+
+  m_layout->addLookup(alternate);
+
+  alternateSubtable = new AlternateSubtable(alternate);
+  alternate->subtables.append(alternateSubtable);
+  alternate->name = alternate->name;
+
+  mappings.clear();
+
+  mappings.insert({ "fatha","fatha" });
+
+  for (auto mapping : mappings) {
+
+    QVector<ExtendedGlyph> alternates;
+    int code = m_layout->glyphCodePerName[mapping.first];
+    int substcode = m_layout->glyphCodePerName[mapping.second];
+
+    if (code == 0 || substcode == 0) {
+      throw new std::runtime_error("Glyph name invalid");
+    }
+
+    alternates.append({ substcode,2,0 });
+    alternates.append({ substcode,4,0 });
+    alternates.append({ substcode,6,0 });
+    alternateSubtable->alternates[code] = alternates;
+  }
+
+
+  return nullptr;
+
+}
+
+
 void Automedina::addchars() {
 
   /*
@@ -2853,9 +2971,9 @@ void Automedina::addchars() {
                       }
               }*/
 
-              //behshape.init.minuslt_110
+             
               //addchar("lam.medi", -1, {}, -0.2, {}, {}, {}, {}, "lam.medi.afterhah", 2);
-  addchar("behshape.init", -1, -110 / 100.0, {}, {}, {}, {}, {}, "behshape.init.minuslt_110", 2);
+  //addchar("behshape.init", -1, -110 / 100.0, {}, {}, {}, {}, {}, "behshape.init.minuslt_110", 2);
 
 
 

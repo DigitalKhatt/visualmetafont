@@ -1,4 +1,4 @@
 [submodule "harfbuzz"]
 	path = lib/harfbuzz/harfbuzz
 	url = git@github.com:DigitalKhatt/harfbuzz.git
-	branch = visualmetafont
+	branch = justification

@@ -34,63 +34,69 @@ class QJsonObject;
 class AnchorCalc;
 class Font;
 
+using AddedGlyphSet = std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>>;
+
 struct Subtable {
-	friend class OtLayout;
+  friend class OtLayout;
 
-	Subtable(Lookup* lookup);
-	virtual ~Subtable() {};
+  Subtable(Lookup* lookup);
+  virtual ~Subtable() {};
 
-	virtual  void readJson(const QJsonObject& json) {};
-	virtual QByteArray getOptOpenTypeTable(bool extended) {
-		if (isDirty) {
-			return getOpenTypeTable(extended);
-		}
-		else {
-			return openTypeSubTable;
-		}
-	};
-	virtual QByteArray getConvertedOpenTypeTable() {
-		return getOpenTypeTable(false);
-	}
+  virtual  void readJson(const QJsonObject& json) {};
+  virtual QByteArray getOptOpenTypeTable(bool extended) {
+    if (isDirty) {
+      return getOpenTypeTable(extended);
+    }
+    else {
+      return openTypeSubTable;
+    }
+  };
+  virtual QByteArray getConvertedOpenTypeTable() {
+    return getOpenTypeTable(false);
+  }
 
-	virtual QByteArray getOpenTypeTable(bool extended) {
-		return QByteArray();
-	};
-	virtual quint16 getCodeFromName(QString name);
-	virtual QString getNameFromCode(quint16 code);
+  virtual void generateSubstEquivGlyphs() {
 
-	virtual void saveParameters(QJsonObject& json) const {}
-	virtual void readParameters(const QJsonObject& json) {}
+  }
 
-	virtual bool isExtended() { return false; }
+  virtual QByteArray getOpenTypeTable(bool extended) {
+    return QByteArray();
+  };
+  virtual quint16 getCodeFromName(QString name);
+  virtual QString getNameFromCode(quint16 code);
 
-	virtual bool isConvertible() { return false; }
+  virtual void saveParameters(QJsonObject& json) const {}
+  virtual void readParameters(const QJsonObject& json) {}
 
-	Lookup* getLookup() {
-		return m_lookup;
-	}
+  virtual bool isExtended() { return false; }
 
-	QString name;
+  virtual bool isConvertible() { return false; }
+
+  Lookup* getLookup() {
+    return m_lookup;
+  }
+
+  QString name;
 
 protected:
-	Lookup* m_lookup;
-	Font* metafont;
-	OtLayout* m_layout;
-	bool isDirty = true;
-	QByteArray openTypeSubTable;
+  Lookup* m_lookup;
+  Font* metafont;
+  OtLayout* m_layout;
+  bool isDirty = true;
+  QByteArray openTypeSubTable;
 };
 
 struct SingleSubtable : Subtable {
 
-	SingleSubtable(Lookup* lookup, quint16 format = 2);
-	QByteArray getOpenTypeTable(bool extended) override;
-	void readJson(const QJsonObject& json) override;
+  SingleSubtable(Lookup* lookup, quint16 format = 2);
+  QByteArray getOpenTypeTable(bool extended) override;
+  void readJson(const QJsonObject& json) override;
 
-	QMap<quint16, quint16 > subst;
+  QMap<quint16, quint16 > subst;
 
-	bool isExtended() override;
+  bool isExtended() override;
 
-	quint16 format;
+  quint16 format;
 
 
 
@@ -98,41 +104,43 @@ struct SingleSubtable : Subtable {
 
 struct SingleSubtableWithExpansion : SingleSubtable {
 
-	SingleSubtableWithExpansion(Lookup* lookup);
-	QByteArray getOpenTypeTable(bool extended) override;
-	//void readJson(const QJsonObject &json) override;
+  SingleSubtableWithExpansion(Lookup* lookup);
+  QByteArray getOpenTypeTable(bool extended) override;
+  //void readJson(const QJsonObject &json) override;
 
-	QMap<quint16, GlyphExpansion > expansion;
+  QMap<quint16, GlyphExpansion > expansion;
 
-	bool isConvertible() override { return false; }
-
-	QByteArray getConvertedOpenTypeTable() override;
+  bool isConvertible() override { return false; }
 
 };
 
 struct SingleSubtableWithTatweel : SingleSubtable {
 
-	SingleSubtableWithTatweel(Lookup* lookup);
-	//QByteArray getOpenTypeTable() override;
-	//void readJson(const QJsonObject &json) override;
+  SingleSubtableWithTatweel(Lookup* lookup);
+  //QByteArray getOpenTypeTable() override;
+  //void readJson(const QJsonObject &json) override;
 
-	QMap<quint16, GlyphExpansion > expansion;
+  QMap<quint16, GlyphExpansion > expansion;
 
-	QByteArray getOpenTypeTable(bool extended) override;
+  QByteArray getOpenTypeTable(bool extended) override;
 
-	bool isConvertible() override { return true; }
+  bool isConvertible() override { return true; }
 
-	QByteArray getConvertedOpenTypeTable() override;
+  QByteArray getConvertedOpenTypeTable() override;
+
+  virtual void generateSubstEquivGlyphs() override;
 
 };
 
 struct MultipleSubtable : Subtable {
 
-	MultipleSubtable(Lookup* lookup);
-	QByteArray getOpenTypeTable(bool extended) override;
-	void readJson(const QJsonObject& json) override;
+  MultipleSubtable(Lookup* lookup);
+  QByteArray getOpenTypeTable(bool extended) override;
+  void readJson(const QJsonObject& json) override;
 
-	QMap<quint16, QVector<quint16> > subst;
+  QMap<quint16, QVector<quint16> > subst;
+
+  quint16 format = 1;
 
 };
 
@@ -140,91 +148,93 @@ struct AlternateSubtable : Subtable {
 
   AlternateSubtable(Lookup* lookup);
   QByteArray getOpenTypeTable(bool extended) override;
-  void readJson(const QJsonObject& json) override;
+  
 
-  QMap<quint16, QVector<quint16> > alternates;
+  QMap<quint16, QVector<ExtendedGlyph> > alternates;
+
+  virtual void generateSubstEquivGlyphs() override;
 
 };
 
 struct LigatureSubtable : Subtable {
 
-	LigatureSubtable(Lookup* lookup);
-	QByteArray getOpenTypeTable(bool extended) override;
-	void readJson(const QJsonObject& json) override;
+  LigatureSubtable(Lookup* lookup);
+  QByteArray getOpenTypeTable(bool extended) override;
+  void readJson(const QJsonObject& json) override;
 
-	struct Ligature {
-		quint16 ligatureGlyph;
-		QVector<quint16> componentGlyphIDs;
-	};
+  struct Ligature {
+    quint16 ligatureGlyph;
+    QVector<quint16> componentGlyphIDs;
+  };
 
-	QVector<Ligature> ligatures;
+  QVector<Ligature> ligatures;
 
-	quint16 format = 1;
+  quint16 format = 1;
 };
 
 struct ValueRecord {
-	qint16 xPlacement;
-	qint16 yPlacement;
-	qint16 xAdvance;
-	qint16 yAdvance;
+  qint16 xPlacement;
+  qint16 yPlacement;
+  qint16 xAdvance;
+  qint16 yAdvance;
 
-	bool operator==(const ValueRecord& rhs) const
-	{
-		return (this->xAdvance == rhs.xAdvance) && (this->yPlacement == rhs.yPlacement) && (this->xAdvance == rhs.xAdvance) && (this->yAdvance == rhs.yAdvance);
-	}
+  bool operator==(const ValueRecord& rhs) const
+  {
+    return (this->xAdvance == rhs.xAdvance) && (this->yPlacement == rhs.yPlacement) && (this->xAdvance == rhs.xAdvance) && (this->yAdvance == rhs.yAdvance);
+  }
 
-	bool isEmpty() const {
-		ValueRecord empty{};
-		return *this == empty;
-	}
+  bool isEmpty() const {
+    ValueRecord empty{};
+    return *this == empty;
+  }
 };
 
 struct SingleAdjustmentSubtable : Subtable {
 
 
 
-	SingleAdjustmentSubtable(Lookup* lookup, quint16 format = 2);
-	QByteArray getOpenTypeTable(bool extended) override;
-	void readJson(const QJsonObject& json) override;
-	void saveParameters(QJsonObject& json) const override;
-	void readParameters(const QJsonObject& json) override;
+  SingleAdjustmentSubtable(Lookup* lookup, quint16 format = 2);
+  QByteArray getOpenTypeTable(bool extended) override;
+  void readJson(const QJsonObject& json) override;
+  void saveParameters(QJsonObject& json) const override;
+  void readParameters(const QJsonObject& json) override;
 
-	QMap<quint16, ValueRecord> singlePos;
-	QMap<quint16, ValueRecord> parameters;
+  QMap<quint16, ValueRecord> singlePos;
+  QMap<quint16, ValueRecord> parameters;
 
-	bool isExtended() override;
+  bool isExtended() override;
 
-	quint16 format;
+  quint16 format;
 
 };
 
 struct CursiveSubtable : Subtable {
 
-	struct EntryExit {
-		std::optional<QPoint> entry;
-		CalcAnchor entryFunction;
-		QString entryName;
-		std::optional<QPoint> exit;
-		CalcAnchor exitFunction;
-		QString exitName;
-	};
-	CursiveSubtable(Lookup* lookup) : Subtable{ lookup } {}
-	QByteArray getOpenTypeTable(bool extended) override;
-	void readJson(const QJsonObject& json) override;
-	void readParameters(const QJsonObject& json) override;
-	void saveParameters(QJsonObject& json) const override;
+  struct EntryExit {
+    std::optional<QPoint> entry;
+    CalcAnchor entryFunction;
+    QString entryName;
+    std::optional<QPoint> exit;
+    CalcAnchor exitFunction;
+    QString exitName;
+  };
+  CursiveSubtable(Lookup* lookup) : Subtable{ lookup } {}
+  QByteArray getOpenTypeTable(bool extended) override;
+  void readJson(const QJsonObject& json) override;
+  void readParameters(const QJsonObject& json) override;
+  void saveParameters(QJsonObject& json) const override;
 
-	QMap<quint16, EntryExit> anchors;
+  QMap<quint16, EntryExit> anchors;
 
-	QMap<quint16, QPoint> exitParameters;
-	QMap<quint16, QPoint> entryParameters;
+  QMap<quint16, QPoint> exitParameters;
+  QMap<quint16, QPoint> entryParameters;
 
-	virtual std::optional<QPoint> getEntry(quint16 glyph_id, double lefttatweel, double righttatweel);
+  virtual std::optional<QPoint> getEntry(quint16 glyph_id, double lefttatweel, double righttatweel);
 
 
-	virtual QPoint calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint entry);
+  virtual QPoint calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint entry);
 
-	virtual std::optional<QPoint> getExit(quint16 glyph_id, double lefttatweel, double righttatweel);
+  virtual std::optional<QPoint> getExit(quint16 glyph_id, double lefttatweel, double righttatweel);
 
 
 
@@ -232,70 +242,70 @@ struct CursiveSubtable : Subtable {
 
 struct MarkBaseSubtable : Subtable {
 
-	struct MarkClass {
-		QSet<QString> mark;
-		QSet<quint16> markCodes;
-		CalcAnchor  basefunction;
-		CalcAnchor  markfunction;
-		QMap<QString, QPoint> baseparameters;
-		QMap<QString, QPoint> markparameters;
-		QMap<QString, QPoint> baseanchors;
-		QMap<QString, QPoint> markanchors;
-	};
-	MarkBaseSubtable(Lookup* lookup);
-	
-	QByteArray getOpenTypeTable(bool extended) override;
-	void readJson(const QJsonObject& json) override;
-	void saveParameters(QJsonObject& json) const override;
-	void readParameters(const QJsonObject& json) override;
+  struct MarkClass {
+    QSet<QString> mark;
+    QSet<quint16> markCodes;
+    CalcAnchor  basefunction;
+    CalcAnchor  markfunction;
+    QMap<QString, QPoint> baseparameters;
+    QMap<QString, QPoint> markparameters;
+    QMap<QString, QPoint> baseanchors;
+    QMap<QString, QPoint> markanchors;
+  };
+  MarkBaseSubtable(Lookup* lookup);
+
+  QByteArray getOpenTypeTable(bool extended) override;
+  void readJson(const QJsonObject& json) override;
+  void saveParameters(QJsonObject& json) const override;
+  void readParameters(const QJsonObject& json) override;
 
 
 
-	QVector<QString> base;
-	QMap<QString, MarkClass> classes;
+  QVector<QString> base;
+  QMap<QString, MarkClass> classes;
 
-	QList<quint16> sortedBaseCodes;
+  QList<quint16> sortedBaseCodes;
 
-	QVector<quint16> baseCoverage;
-	QMap<quint16, quint16> markCoverage;
+  QVector<quint16> baseCoverage;
+  QMap<quint16, quint16> markCoverage;
 
-	//  Computed during getOpenTypeTable
-	QMap<quint16, quint16> markCodes;
-	QMap<quint16, QString> classNamebyIndex;
+  //  Computed during getOpenTypeTable
+  QMap<quint16, quint16> markCodes;
+  QMap<quint16, QString> classNamebyIndex;
 
-	virtual std::optional<QPoint> getBaseAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel);
-	virtual std::optional<QPoint> getMarkAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel);
+  virtual std::optional<QPoint> getBaseAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel);
+  virtual std::optional<QPoint> getMarkAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel);
 };
 
 struct ChainingSubtable : Subtable {
 
-	struct LookupRecord {
-		quint16 position;
-		QString lookupName;
-	};
-	struct Rule {
-		QVector<QSet<QString>> backtrack;
-		QVector<QSet<QString>> lookahead;
-		QVector<QSet<QString>> input;
-		QVector<LookupRecord> lookupRecords;
-	};
+  struct LookupRecord {
+    quint16 position;
+    QString lookupName;
+  };
+  struct Rule {
+    QVector<QSet<QString>> backtrack;
+    QVector<QSet<QString>> lookahead;
+    QVector<QSet<QString>> input;
+    QVector<LookupRecord> lookupRecords;
+  };
 
-	struct CompiledRule {
-		QVector<QSet<quint16>> backtrack;
-		QVector<QSet<quint16>> lookahead;
-		QVector<QSet<quint16>> input;
-		QVector<LookupRecord> lookupRecords;
-	};
+  struct CompiledRule {
+    QVector<QSet<quint16>> backtrack;
+    QVector<QSet<quint16>> lookahead;
+    QVector<QSet<quint16>> input;
+    QVector<LookupRecord> lookupRecords;
+  };
 
-	ChainingSubtable(Lookup* lookup);
-	QByteArray getOpenTypeTable(bool extended) override;
-	void readJson(const QJsonObject& json) override;
+  ChainingSubtable(Lookup* lookup);
+  QByteArray getOpenTypeTable(bool extended) override;
+  void readJson(const QJsonObject& json) override;
 
 
-	Rule rule;
+  Rule rule;
 
-	//Compiled	
-	CompiledRule compiledRule;
+  //Compiled	
+  CompiledRule compiledRule;
 };
 
 enum class DFAActionType {
@@ -306,7 +316,7 @@ enum class DFAActionType {
 
 struct DFAAction {
   DFAActionType type;
-	std::string name;
+  std::string name;
   int idRule;
 };
 
@@ -321,28 +331,30 @@ struct DFATransOut {
 };
 
 struct DFASTate {
-	std::map<int, DFATransOut> transtitions;
-	int final = 0;	
-	std::map <int, std::vector<DFAAction>> actions;
+  std::map<int, DFATransOut> transtitions;
+  int final = 0;
+  //std::map <int, std::vector<DFAAction>> actions;
   DFABackTrackInfo backtrackfinal;
 };
 
 class DFA {
 public:
-	int minBackup = 0;
-	int maxBackup = 0;
-	int maxLoop = 10;
-	std::vector<int> backupStates;
-	std::vector<DFASTate> states;
+  int minBackup = 0;
+  int maxBackup = 0;
+  int maxLoop = 10;
+  std::vector<int> backupStates;
+  std::vector<DFASTate> states;
   QVector<QSet<quint16>> eqClasses;
   QMap<quint16, quint16> glyphToClass;
 };
 
 struct FSMSubtable : Subtable {
 public:
-	FSMSubtable(Lookup* lookup) : Subtable{ lookup } {}
+  FSMSubtable(Lookup* lookup) : Subtable{ lookup } {}
 
   QByteArray getOpenTypeTable(bool extended) override;
 
-	DFA dfa;
+  bool isExtended() override { return false; }
+
+  DFA dfa;
 };

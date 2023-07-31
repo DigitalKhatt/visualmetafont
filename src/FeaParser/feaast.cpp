@@ -38,6 +38,7 @@ namespace feayy {
   void ClassDefinition::accept(Visitor& v) { v.accept(*this); }
   void MarkedGlyphSetRegExp::accept(Visitor& v) { v.accept(*this); }
   void LigatureSubstitutionRule::accept(Visitor& v) { v.accept(*this); }
+  void MultipleSubstitutionRule::accept(Visitor& v) { v.accept(*this); }
   void TableDefinition::accept(Visitor& v) { v.accept(*this); }
   void JustTable::accept(Visitor& v) { v.accept(*this); }
 
@@ -66,7 +67,7 @@ namespace feayy {
   }
 
   LookupDefinitionVisitor::LookupDefinitionVisitor(OtLayout* otlayout, FeaContext& context) :
-    lookup{ nullptr }, otlayout{ otlayout }, refLookups{ nullptr }, context{ context }{
+    lookup{ nullptr }, otlayout{ otlayout }, refLookups{ nullptr }, context{ context } {
   }
 
   void LookupDefinitionVisitor::accept(LookupFlag& flag) {
@@ -283,15 +284,39 @@ namespace feayy {
 
   void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
 
+    bool multiple = false;
 
     if (lookup->type == Lookup::none) {
       lookup->type = Lookup::single;
+    }
+    else if (lookup->type == Lookup::multiple && singleRule.format != 10 && singleRule.format != 11 && singleRule.firstType != SingleSubstituionRule::FirstType::GLYPHSET) {
+      auto newsubtable = static_cast<MultipleSubtable*>(lookup->subtables.last());
+
+      auto  firstunicodes = singleRule.firstglyph->getCodes(otlayout);
+
+      if (firstunicodes.size() != 1) {
+        throw "Single subtitution : first glyph different to 1 matching";
+      }
+
+      auto firstunicode = *firstunicodes.begin();
+
+      auto  secondtunicodes = singleRule.secondglyph->getCodes(otlayout);
+
+      if (secondtunicodes.size() != 1) {
+        throw "Single subtitution : second glyph different to 1 matching";
+      }
+
+      auto secondunicode = *secondtunicodes.begin();
+
+      newsubtable->subst.insert(firstunicode, { secondunicode });
+
+      return;
     }
     else if (lookup->type != Lookup::single) {
       throw "Lookup with different subtable type";
     }
 
-    int subtableName = lookup->subtables.length() + 1;
+    int subtableIndex = lookup->subtables.length() + 1;
     SingleSubtable* newsubtable = nullptr;
     if (lookup->subtables.length() > 0) {
       newsubtable = static_cast<SingleSubtable*>(lookup->subtables.last());
@@ -309,7 +334,7 @@ namespace feayy {
         newsubtable = new SingleSubtable(lookup, singleRule.format);
       }
 
-      newsubtable->name = QString("subtable%1").arg(subtableName);
+      newsubtable->name = QString("subtable%1").arg(subtableIndex);
       lookup->subtables.append(newsubtable);
     }
 
@@ -329,6 +354,7 @@ namespace feayy {
       }
       else {
         auto  firstunicodes = singleRule.firstglyph->getCodes(otlayout);
+
 
         if (firstunicodes.size() != 1) {
           throw "Single subtitution : first glyph different to 1 matching";
@@ -453,7 +479,7 @@ namespace feayy {
       compiledlookahead.append(compiledseq);
     }
 
-    QVector<QVector<QPair<GlyphSet*, QString>>> compiledinputs = { {} };
+    QVector<QVector<QPair<GlyphSet*, QVector<QString>>>> compiledinputs = { {} };
 
     LookupDefinition* lastautolookup{ nullptr };
     InlineType lastInlineType{ InlineType::None };
@@ -464,7 +490,7 @@ namespace feayy {
         if (lastInlineType == value->inlineType && lastInlineType == InlineType::CursivePos) {
           lastautolookup->getStmts().push_back(value->stmt);
           std::string named = lastautolookup->getName();
-          value->lookupName = std::string(named);
+          value->lookupNames = { named };
         }
         else {
           auto stmts = new vector<LookupStatement*>();
@@ -474,26 +500,28 @@ namespace feayy {
 
           std::string named = name.toStdString();
 
-          value->lookupName = std::string(named);
-          lastautolookup = new LookupDefinition(value->lookupName, stmts);
-          context.lookups[value->lookupName] = lastautolookup;
+          value->lookupNames = { named };
+          lastautolookup = new LookupDefinition(named, stmts);
+          context.lookups[named] = lastautolookup;
         }
       }
       lastInlineType = value->inlineType;
       auto input = value->regexp->getSequences();
-      QString lookupName;
-      if (!value->lookupName.empty()) {
-        lookupName = QString::fromStdString(value->lookupName);
+      QVector<QString> lookupNames;
+      if (value->lookupNames.size() > 0) {
+        for (auto& lookupName : value->lookupNames) {
+          lookupNames.append(QString::fromStdString(lookupName));
+        }
       }
 
-      QVector<QVector<QPair<GlyphSet*, QString>>> result;
+      QVector<QVector<QPair<GlyphSet*, QVector<QString>>>> result;
       for (auto ii : input) {
 
         auto temp = compiledinputs;
 
         for (auto& compiledinput : temp) {
           for (auto jj : ii) {
-            compiledinput.append(QPair<GlyphSet*, QString>{ jj, lookupName });
+            compiledinput.append(QPair<GlyphSet*, QVector<QString>>{ jj, lookupNames });
           }
         }
 
@@ -517,9 +545,10 @@ namespace feayy {
             auto set = pair.first->getCodes(otlayout);
             if (!set.isEmpty()) {
               if (!pair.second.isEmpty()) {
-                QString lookupName = pair.second;
-                refLookups->insert(lookupName);
-                newsubtable->compiledRule.lookupRecords.append({ quint16(newsubtable->compiledRule.input.size()),lookupName });
+                for (auto& lookupName : pair.second) {
+                  refLookups->insert(lookupName);
+                  newsubtable->compiledRule.lookupRecords.append({ quint16(newsubtable->compiledRule.input.size()),lookupName });
+                }
               }
               newsubtable->compiledRule.input.append(set);
             }
@@ -551,9 +580,11 @@ namespace feayy {
 
       QString name = QString("%1_auto%2").arg(lookup->name).arg(nextautolookup++);
 
-      markedGlyphSetRegExp.lookupName = std::string(name.toStdString());
-      auto lookup = new LookupDefinition(markedGlyphSetRegExp.lookupName, stmts);
-      context.lookups[markedGlyphSetRegExp.lookupName] = lookup;
+      auto lookupName = name.toStdString();
+
+      markedGlyphSetRegExp.lookupNames = { lookupName };
+      auto lookup = new LookupDefinition(lookupName, stmts);
+      context.lookups[lookupName] = lookup;
 
     }
   }
@@ -570,7 +601,7 @@ namespace feayy {
       auto liter = context.lookups.find(lookupReference.lookupName.toStdString());
 
       if (liter == context.lookups.end()) {
-        otlayout->parseCppJsonLookup(lookupReference.lookupName, *context.json);
+        otlayout->parseCppLookup(lookupReference.lookupName);
         return;
       }
 
@@ -597,6 +628,65 @@ namespace feayy {
 
     this->currentFeature.clear();
   }
+
+  void LookupDefinitionVisitor::accept(MultipleSubstitutionRule& multipleSubstitutionRule) {
+
+    MultipleSubtable* newsubtable = nullptr;
+
+    if (lookup->type == Lookup::none) {
+      lookup->type = Lookup::multiple;
+    }
+    else if (lookup->type == Lookup::single && lookup->subtables.length() == 1) {
+      lookup->type = Lookup::multiple;
+      newsubtable = new MultipleSubtable(lookup);
+      auto oldsubtable = static_cast<SingleSubtable*>(lookup->subtables.last());
+      for (auto it = oldsubtable->subst.begin(); it != oldsubtable->subst.end(); it++) {
+        newsubtable->subst.insert(it.key(), { it.value() });
+      }
+      delete oldsubtable;
+      lookup->subtables.clear();
+      lookup->subtables.append(newsubtable);
+    }
+    else if (lookup->type != Lookup::multiple) {
+      throw "Lookup with different subtable type";
+    }
+
+    int subtableName = lookup->subtables.length() + 1;
+
+    if (lookup->subtables.length() > 0) {
+      newsubtable = static_cast<MultipleSubtable*>(lookup->subtables.last());
+    }
+
+    if (newsubtable == nullptr || newsubtable->format != multipleSubstitutionRule.format) {
+
+      newsubtable = new MultipleSubtable(lookup);
+
+      newsubtable->name = QString("subtable%1").arg(subtableName);
+      lookup->subtables.append(newsubtable);
+    }
+
+    auto  firstunicodes = multipleSubstitutionRule.glyph->getCodes(otlayout);
+
+    if (firstunicodes.size() != 1) {
+      throw "multiple subtitution : glyph different to 1 matching";
+    }
+
+    auto glyphCode = *firstunicodes.begin();
+
+    QVector<quint16> seq;
+
+    for (auto glyph : *multipleSubstitutionRule.sequence) {
+      auto unicodes = glyph->getCodes(otlayout);
+      if (unicodes.size() != 1) {
+        throw "multiple subtitution : glyph different to 1 matching";
+      }
+
+      seq.append(*unicodes.begin());
+    }
+
+    newsubtable->subst.insert(glyphCode, seq);
+  }
+
   void LookupDefinitionVisitor::accept(LigatureSubstitutionRule& ligatureSubstitutionRule) {
 
     if (lookup->type == Lookup::none) {

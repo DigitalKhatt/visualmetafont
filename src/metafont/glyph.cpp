@@ -641,13 +641,13 @@ mp_edge_object* Glyph::getEdge(bool resetExpParams)
 
   QByteArray commandBytes = data.toLatin1();
   mp->history = mp_spotless;
-  int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());
-  mp_run_data* _mp_results = mp_rundata(mp);
+  int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());  
   if (status >= mp_error_message_issued) {
     QString error = getError();
     edge = NULL;
     return edge;
   }
+  mp_run_data* _mp_results = mp_rundata(mp);
   mp_edge_object* p = _mp_results->edges;
   while (p) {
     if (p->charcode == charcode()) {

@@ -33,6 +33,7 @@
 #include <qdebug.h>
 #include "statement.h"
 #include "just.h"
+#include "GlyphVis.h"
 
 
 class QJsonObject;
@@ -173,7 +174,17 @@ namespace feayy {
     QSet<quint16> getCodes(OtLayout* otlayout) {
       QString lname = QString::fromStdString(name);
       if (otlayout->glyphCodePerName.contains(lname)) {
-        return { otlayout->glyphCodePerName[lname] };
+        auto charcode = otlayout->glyphCodePerName[lname];
+        QSet set{ charcode };
+        /*
+        auto t = otlayout->nojustalternatePaths.find(charcode);
+        if (t != otlayout->nojustalternatePaths.end()) {
+          auto& second = t->second;
+          for (auto& addedGlyph : second) {
+            set.insert(addedGlyph.second->charcode);
+          }
+        }*/
+        return set;
       }
       else {
         qDebug() << "Glyph Name " + lname + " not found";
@@ -584,19 +595,19 @@ namespace feayy {
   class MarkedGlyphSetRegExp {
   public:
     GlyphSetRegExp* regexp = nullptr;
-    std::string lookupName;
+    std::vector<std::string> lookupNames;
     InlineType inlineType = InlineType::None;
     LookupStatement* stmt = nullptr;
 
     virtual void accept(Visitor&);
 
-    explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, std::string lookupName) :regexp{ new GlyphSetRegExpSingle{glyphset} }, lookupName{ lookupName } {}
+    explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, std::vector<std::string> lookupNames) :regexp{ new GlyphSetRegExpSingle{glyphset} }, lookupNames{ lookupNames } {}
     explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, SingleAdjustmentRule* rule) : regexp{ new GlyphSetRegExpSingle{ glyphset } }, inlineType{ InlineType::SinglePos }, stmt{ rule } { };
     explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, CursiveRule* rule) : regexp{ new GlyphSetRegExpSingle{ glyphset } }, inlineType{ InlineType::CursivePos }, stmt{ rule } { };
     explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, ValueRecord valuerecord) : MarkedGlyphSetRegExp{ glyphset, new SingleAdjustmentRule(glyphset, valuerecord, false) } {};
 
-    explicit MarkedGlyphSetRegExp(GlyphSetRegExp* regexp, std::string lookupName)
-      :regexp{ regexp }, lookupName{ lookupName } {}
+    explicit MarkedGlyphSetRegExp(GlyphSetRegExp* regexp, std::vector <std::string> lookupNames)
+      :regexp{ regexp }, lookupNames{ lookupNames } {}
 
     ~MarkedGlyphSetRegExp() {
       delete regexp;
@@ -704,6 +715,27 @@ namespace feayy {
     }
   };
 
+  class MultipleSubstitutionRule : public LookupStatement {
+  public:
+    Glyph* glyph;
+    std::vector<Glyph*>* sequence;
+
+    int format;
+
+    explicit MultipleSubstitutionRule(Glyph* glyph, std::vector<Glyph*>* sequence)
+      : glyph{ glyph }, sequence{ sequence }, format{ 1 } {}
+
+    ~MultipleSubstitutionRule() {
+      for (auto glyph : *sequence) {
+        delete glyph;
+      }
+      delete glyph;
+      delete sequence;
+    }
+
+    void accept(Visitor&) override;
+  };
+
   class LigatureSubstitutionRule : public LookupStatement {
   public:
     std::vector<Glyph*>* sequence;
@@ -797,9 +829,18 @@ namespace feayy {
 
     }
 
-    void operator|(LookupFlag lookupFlag) {
-      flag |= lookupFlag.flag;
-      set_markFilteringSet(lookupFlag.markFilteringSet);
+    LookupFlag operator|(const LookupFlag& b)
+    {
+      LookupFlag obj{ flag };
+      obj.markFilteringSet = this->markFilteringSet;
+      obj.flag = obj.flag | b.flag;
+
+      if (obj.markFilteringSet == nullptr) {
+        obj.markFilteringSet = b.markFilteringSet;
+      }
+
+      //std::cout << "|=" << obj.flag << ";markFilteringSet=" << obj.markFilteringSet << std::endl;
+      return obj;
     }
 
     ~LookupFlag() {
@@ -916,12 +957,11 @@ namespace feayy {
     lookupmap_type		lookups;
     featuremap_type		features;
     std::map<std::string, TableDefinition*> tables;
-    const QJsonObject* json;
     JustTable jusTable;
 
     FeaRoot* root;
 
-    FeaContext(OtLayout* otlayout, const QJsonObject* json) :json{ json }, otlayout{ otlayout } {
+    FeaContext(OtLayout* otlayout) : otlayout{ otlayout } {
       root = nullptr;
     }
 
@@ -946,6 +986,7 @@ namespace feayy {
     virtual void accept(CursiveRule&) = 0;
     virtual void accept(Mark2BaseRule&) = 0;
     virtual void accept(SingleSubstituionRule&) = 0;
+    virtual void accept(MultipleSubstitutionRule&) = 0;
     virtual void accept(LookupStatement&) = 0;
     virtual void accept(FeatureReference&) = 0;
     virtual void accept(FeatureDefenition&) = 0;
@@ -968,6 +1009,7 @@ namespace feayy {
     void accept(CursiveRule&) override;
     void accept(Mark2BaseRule&) override;
     void accept(SingleSubstituionRule&) override;
+    void accept(MultipleSubstitutionRule&) override;
     void accept(LookupStatement&) override;
     void accept(FeatureDefenition&) override;
     void accept(FeatureReference&) override;

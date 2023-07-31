@@ -24,6 +24,7 @@
 #include <sstream>
 
 
+
 #include "metafont.h"
 
 
@@ -63,11 +64,19 @@ int main(int argc, char** argv) {
 }
 #endif
 
-
 #if defined  EMSCRIPTEN
+/*
+extern "C" {
+  float lerp(float a, float b, float t) {
+    return (1 - t) * a + t * b;
+  }
+}
+*/
+
 
 EMSCRIPTEN_BINDINGS(my_module) {
 
+  //function("lerp", &lerp);
 
 	enum_<LineType>("LineType")
 		.value("Line", LineType::Line)
@@ -169,10 +178,9 @@ EMSCRIPTEN_BINDINGS(my_module) {
 	}))
 		;
 
-	class_<PageResult>("PageResult")
-		.property("page", &PageResult::page)
-		.property("originalPage", &PageResult::originalPage)
-		;
+  class_<PageResult>("PageResult")
+    .property("page", &PageResult::page)
+    .property("originalPage", &PageResult::originalPage);
 
 	class_<QuranShaper>("QuranShaper")
 		.constructor<>()
@@ -189,7 +197,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
 		.function("getSuraLocations", &QuranShaper::getSuraLocations)
     .function("getTexNbPages", &QuranShaper::getTexNbPages)    
 		.function("shapeText", &QuranShaper::shapeText)		
-
 		;
+  
 }
 #endif

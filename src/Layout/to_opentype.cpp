@@ -18,6 +18,8 @@
 */
 
 #include "to_opentype.h"
+#include "Lookup.h"
+#include "Subtable.h"
 #include "qfile.h"
 #include <cmath>
 #include "hb.h"
@@ -219,13 +221,98 @@ void ToOpenType::initiliazeGlobals() {
   globalValues.FullName = "DigitalKhatt Madina Quranic";
   globalValues.FamilyName = "DigitalKhatt Madina Quranic";
   globalValues.Weight = "Regular";
-  globalValues.Copyright = "Copyright (c) 2020 Amine Anane";
-  globalValues.License = R"license(This computer font is part of DigitalKhatt. It is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+  globalValues.Copyright = R"copyright(Copyright (c) 2020-2023 Amine Anane (https://github.com/DigitalKhatt))copyright";
+  globalValues.License = R"license(This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+http://scripts.sil.org/OFL
 
-This font is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details. You should have received a copy of the GNU Affero General Public License along with DigitalKhatt. If not, see <https://www.gnu.org/licenses/>.
 
-As a special exception, if you create a document which uses this font, and embed this font or unaltered portions of this font into the document, this font does not by itself cause the resulting document to be covered by the GNU General Public License. This exception does not however invalidate any other reasons why the document might be covered by the GNU General Public License. If you modify this font, you may extend this exception to your version of the font, but you are not obligated to do so. If you do not wish to do so, delete this exception statement from your version.)license";
+-----------------------------------------------------------
+SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
 
+PREAMBLE
+The goals of the Open Font License (OFL) are to stimulate worldwide
+development of collaborative font projects, to support the font creation
+efforts of academic and linguistic communities, and to provide a free and
+open framework in which fonts may be shared and improved in partnership
+with others.
+
+The OFL allows the licensed fonts to be used, studied, modified and
+redistributed freely as long as they are not sold by themselves. The
+fonts, including any derivative works, can be bundled, embedded, 
+redistributed and/or sold with any software provided that any reserved
+names are not used by derivative works. The fonts and derivatives,
+however, cannot be released under any other type of license. The
+requirement for fonts to remain under this license does not apply
+to any document created using the fonts or their derivatives.
+
+DEFINITIONS
+"Font Software" refers to the set of files released by the Copyright
+Holder(s) under this license and clearly marked as such. This may
+include source files, build scripts and documentation.
+
+"Reserved Font Name" refers to any names specified as such after the
+copyright statement(s).
+
+"Original Version" refers to the collection of Font Software components as
+distributed by the Copyright Holder(s).
+
+"Modified Version" refers to any derivative made by adding to, deleting,
+or substituting -- in part or in whole -- any of the components of the
+Original Version, by changing formats or by porting the Font Software to a
+new environment.
+
+"Author" refers to any designer, engineer, programmer, technical
+writer or other person who contributed to the Font Software.
+
+PERMISSION & CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license. These can be
+included either as stand-alone text files, human-readable headers or
+in the appropriate machine-readable metadata fields within text or
+binary files as long as those fields can be easily viewed by the user.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder. This restriction only applies to the primary font name as
+presented to the users.
+
+4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+Software shall not be used to promote, endorse or advertise any
+Modified Version, except to acknowledge the contribution(s) of the
+Copyright Holder(s) and the Author(s) or with their explicit written
+permission.
+
+5) The Font Software, modified or unmodified, in part or in whole,
+must be distributed entirely under this license, and must not be
+distributed under any other license. The requirement for fonts to
+remain under this license does not apply to any document created
+using the Font Software.
+
+TERMINATION
+This license becomes null and void if any of the above conditions are
+not met.
+
+DISCLAIMER
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+OTHER DEALINGS IN THE FONT SOFTWARE.)license";
 }
 
 void ToOpenType::setGIds() {
@@ -237,8 +324,10 @@ void ToOpenType::setGIds() {
   QMap<quint16, QString> glyphNamePerCode;
   QMap<quint16, quint16> unicodeToGlyphCode;
   QMap<quint16, OtLayout::GDEFClasses> glyphGlobalClasses;
-  std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> alternatePaths;
-  std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> nojustalternatePaths;
+  std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> tempGlyphs;
+  std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> addedGlyphs;
+  std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> substEquivGlyphs;
+
 
   if (!ot_layout->glyphs.contains("notdef")) {
     throw new std::runtime_error("notdef glyph not found");
@@ -314,22 +403,31 @@ void ToOpenType::setGIds() {
   }
 
 
-  for (std::pair<int, std::unordered_map<GlyphParameters, GlyphVis*>> element : ot_layout->alternatePaths)
+  for (std::pair<int, std::unordered_map<GlyphParameters, GlyphVis*>> element : ot_layout->tempGlyphs)
   {
     if (!newCodes.contains(element.first)) {
       throw new std::runtime_error(QString("Code %1 not found").arg(element.first).toStdString());
     }
 
-    alternatePaths.insert({ newCodes.value(element.first), element.second });
+    tempGlyphs.insert({ newCodes.value(element.first), element.second });
   }
 
-  for (std::pair<int, std::unordered_map<GlyphParameters, GlyphVis*>> element : ot_layout->nojustalternatePaths)
+  for (std::pair<int, std::unordered_map<GlyphParameters, GlyphVis*>> element : ot_layout->addedGlyphs)
   {
     if (!newCodes.contains(element.first)) {
       throw new std::runtime_error(QString("Code %1 not found").arg(element.first).toStdString());
     }
 
-    nojustalternatePaths.insert({ newCodes.value(element.first), element.second });
+    addedGlyphs.insert({ newCodes.value(element.first), element.second });
+  }
+
+  for (std::pair<int, std::unordered_map<GlyphParameters, GlyphVis*>> element : ot_layout->substEquivGlyphs)
+  {
+    if (!newCodes.contains(element.first)) {
+      throw new std::runtime_error(QString("Code %1 not found").arg(element.first).toStdString());
+    }
+
+    substEquivGlyphs.insert({ newCodes.value(element.first), element.second });
   }
 
   for (int i = 0; i <= 4; i++) {
@@ -362,19 +460,22 @@ void ToOpenType::setGIds() {
   ot_layout->glyphCodePerName = glyphCodePerName;
   ot_layout->glyphNamePerCode = glyphNamePerCode;
   ot_layout->unicodeToGlyphCode = unicodeToGlyphCode;
-  ot_layout->alternatePaths = alternatePaths;
-  ot_layout->nojustalternatePaths = nojustalternatePaths;
+  ot_layout->tempGlyphs = tempGlyphs;
+  ot_layout->addedGlyphs = addedGlyphs;
+  ot_layout->substEquivGlyphs = substEquivGlyphs;
+
   ot_layout->glyphGlobalClasses = glyphGlobalClasses;
 
 
 
   for (auto& cvlo : ot_layout->automedina->cvxxfeatures) {
-    QMap<quint16, QVector<quint16>> newalternates;    
+    QMap<quint16, QVector<ExtendedGlyph>> newalternates;
     for (auto iter = cvlo.begin(); iter != cvlo.end(); ++iter) {
       auto oldid = iter.key();
       auto newid = newCodes[oldid];
-      for (auto id : iter.value()) {
-        newalternates[newid].append(newCodes[id]);
+      for (auto glyph : iter.value()) {
+        ExtendedGlyph extendedGlyph = { newCodes[glyph.code],glyph.lefttatweel,glyph.righttatweel };
+        newalternates[newid].append(extendedGlyph);
       }
     }
     cvlo = newalternates;
@@ -400,8 +501,7 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
 
   ot_layout->loadLookupFile(lokkupsFileName);
 
-  //And new glyphhs
-  auto gsubArray = gsub();
+  ot_layout->generateSubstEquivGlyphs();
 
   setGIds();
 
@@ -772,7 +872,7 @@ QByteArray ToOpenType::name() {
   names.append(Name{ 11,"https://digitalkhatt.org/" });
   names.append(Name{ 12,"https://digitalkhatt.org/" });
   names.append(Name{ 13,globalValues.License });
-  names.append(Name{ 14,"https://www.gnu.org/licenses/agpl-3.0.en.html" });
+  names.append(Name{ 14,"http://scripts.sil.org/OFL" });
 
   names.append(Name{ 16,"DigitalKhatt Madina" });
   names.append(Name{ 17,"Quranic" });
@@ -898,7 +998,10 @@ QByteArray ToOpenType::os2() {
 }
 QByteArray ToOpenType::post() {
   QByteArray data;
-  if (!isCff2) {
+
+  bool useGlyphName = isCff2 && ot_layout->extended;
+
+  if (!useGlyphName) {
     data << (uint32_t)0x00030000; // version
   }
   else {
@@ -915,7 +1018,7 @@ QByteArray ToOpenType::post() {
   data << (uint32_t)0; // minMemType1
   data << (uint32_t)0; // maxMemType1
 
-  if (isCff2) {
+  if (useGlyphName) {
     int glyphCount = glyphs.lastKey() + 1;
 
     data << (int16_t)glyphCount;
@@ -1796,7 +1899,10 @@ void ToOpenType::setAyaGlyphPaths() {
   replacedGlyphs.insert(endofaya.charcode, endofayaMonoArray);
   QByteArray endofayaArraySubr;
   endofayaArraySubr.append(endofayaMonoArray);
-  endofayaArraySubr << (uint8_t)11; // return
+  if (!isCff2) {
+    endofayaArraySubr << (uint8_t)11; // return
+  }
+
 
   subrByGlyph.insert(endofaya.charcode, subrOffsets.size());
   subrOffsets.append(subrs.size() + 1);
@@ -1809,7 +1915,9 @@ void ToOpenType::setAyaGlyphPaths() {
 
     auto digit = glyphs[ot_layout->unicodeToGlyphCode.value(0x0660 + i)];
     QByteArray charStringArray = charString(digit->copiedPath, this->isCff2, layers, currentx, currenty, ContourLimits{});
-    charStringArray << (uint8_t)11; // return
+    if (!isCff2) {
+      charStringArray << (uint8_t)11; // return
+    }
     subrByGlyph.insert(digit->charcode, subrOffsets.size());
     subrOffsets.append(subrs.size() + 1);
     subrs.append(charStringArray);

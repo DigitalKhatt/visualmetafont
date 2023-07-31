@@ -24,18 +24,19 @@ set(SRC_FILES
     harfbuzz/src/hb-ot-font.cc
     harfbuzz/src/hb-ot-layout.cc
     harfbuzz/src/hb-ot-map.cc
-    harfbuzz/src/hb-ot-shape-complex-arabic.cc
-    harfbuzz/src/hb-ot-shape-complex-default.cc
-    harfbuzz/src/hb-ot-shape-complex-hangul.cc
-    harfbuzz/src/hb-ot-shape-complex-hebrew.cc
-    harfbuzz/src/hb-ot-shape-complex-indic-table.cc
-    harfbuzz/src/hb-ot-shape-complex-indic.cc
-    harfbuzz/src/hb-ot-shape-complex-khmer.cc
-    harfbuzz/src/hb-ot-shape-complex-myanmar.cc
-    harfbuzz/src/hb-ot-shape-complex-thai.cc
-    harfbuzz/src/hb-ot-shape-complex-use-table.cc
-    harfbuzz/src/hb-ot-shape-complex-use.cc
-    harfbuzz/src/hb-ot-shape-complex-vowel-constraints.cc
+    harfbuzz/src/hb-ot-shaper-arabic.cc
+    harfbuzz/src/hb-ot-shaper-default.cc
+    harfbuzz/src/hb-ot-shaper-hangul.cc
+    harfbuzz/src/hb-ot-shaper-hebrew.cc
+    harfbuzz/src/hb-ot-shaper-indic-table.cc
+    harfbuzz/src/hb-ot-shaper-indic.cc
+    harfbuzz/src/hb-ot-shaper-khmer.cc
+    harfbuzz/src/hb-ot-shaper-myanmar.cc
+    harfbuzz/src/hb-ot-shaper-thai.cc
+    #harfbuzz/src/hb-ot-shaper-use-table.cc
+    harfbuzz/src/hb-ot-shaper-use.cc
+    harfbuzz/src/hb-ot-shaper-syllabic.cc
+    harfbuzz/src/hb-ot-shaper-vowel-constraints.cc
     harfbuzz/src/hb-ot-shape-fallback.cc
     harfbuzz/src/hb-ot-shape-normalize.cc
     harfbuzz/src/hb-ot-shape.cc
@@ -53,6 +54,12 @@ set(SRC_FILES
     harfbuzz/src/hb-ot-name.cc
     harfbuzz/src/hb-ot-layout-jtst-context.cc
     harfbuzz/src/hb-ot-color.cc
+    harfbuzz/src/hb-paint.cc
+    harfbuzz/src/hb-paint-extents.cc
+    harfbuzz/src/hb-draw.cc
+    harfbuzz/src/hb-outline.cc
+    harfbuzz/src/hb-buffer-verify.cc
+    harfbuzz/src/hb-buffer-serialize.cc
 )
 
 # Add library to build.
@@ -67,6 +74,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC "harfbuzz/src")
 
 if (NOT EMSCRIPTEN)   
   target_compile_definitions(${PROJECT_NAME} PUBLIC HB_MINI)
+  #target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_JUSTIFICATION)
   if (UNIX)
       target_compile_definitions(${PROJECT_NAME} PUBLIC HAVE_PTHREAD)
   endif (UNIX)

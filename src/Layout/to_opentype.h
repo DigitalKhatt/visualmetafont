@@ -37,7 +37,7 @@ class ToOpenType
 {
 public:
   ToOpenType(OtLayout* layout);
-  bool GenerateFile(QString fileName, std::string  lokkupsFileName = "lookups.json");
+  bool GenerateFile(QString fileName, std::string  lokkupsFileName = "automedina.fea");
 
   struct GlobalValues {
     int16_t ascender;

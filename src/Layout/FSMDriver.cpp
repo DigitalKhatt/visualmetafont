@@ -138,6 +138,7 @@ void FSMDriver::executeFSM(FSMSubtable& table, OT::hb_ot_apply_context_t* contex
       int posIndex = 0;
       for (auto pos : accumulatedStates) {
         auto& state = dfa.states[pos.state];
+        /*
         const auto& actions = state.actions.find(lastfinal);
         if (actions != state.actions.end()) {
           for (auto& action : (*actions).second) {
@@ -157,7 +158,7 @@ void FSMDriver::executeFSM(FSMSubtable& table, OT::hb_ot_apply_context_t* contex
 
           nextposaction = pos.pos;
 
-        }
+        }*/
         posIndex++;
         if (state.final == lastfinal)
           break;

@@ -45,6 +45,16 @@ struct PageResult {
   QStringList originalPage;
 };
 
+/*
+struct MyClass {
+  QStringList originalPage;
+  QStringList originalPage;
+
+  //std::string getExceptionMessage(intptr_t exceptionPtr) {
+  //  return std::string(reinterpret_cast<std::exception*>(exceptionPtr)->what());
+  //}
+};*/
+
 class QuranShaper {
 public:
 
@@ -59,7 +69,7 @@ public:
 
       layout->useNormAxisValues = false;
 
-      loadLookupFile("lookups.json");
+      loadLookupFile("automedina.fea");
     }
 
 
@@ -77,7 +87,11 @@ public:
     //_mp_options->mem_name = "automedina";
     //_mp_options -> main_memory = 1000000;
 
+
+
     mp = mp_initialize(_mp_options);
+
+
 
     if (!mp) return 5;
 
@@ -197,7 +211,7 @@ public:
 
   }
 
-  double  shapeText(std::string text, int lineWidth, float fontScalePerc, bool applyJustification, bool tajweedColor, emscripten::val ctx) {
+  double  shapeText(std::string text, int lineWidth, float fontScalePerc, bool applyJustification, bool tajweedColor, bool fontExpansion, emscripten::val ctx) {
 
     layout->applyJustification = applyJustification;
 
@@ -213,11 +227,11 @@ public:
 
     int fontScale = (1 << OtLayout::SCALEBY) * fontScalePerc;
 
-    double scale = 72. / (4800 << OtLayout::SCALEBY);
+    double scale = 72. / ((4800 << OtLayout::SCALEBY) * fontScalePerc);
 
     lineWidth = lineWidth / scale;
 
-    auto page = layout->justifyPage(fontScale, lineWidth, lineWidth, lines, justification, true, tajweedColor);
+    auto page = layout->justifyPage(fontScale, lineWidth, lineWidth, lines, justification, true, tajweedColor, fontExpansion);
 
     int currentyPos = 0;
     int margin = 0;
@@ -346,7 +360,7 @@ public:
         // 22.5 = 180 / 8
         double startangle = pageIndex == 0 ? 30 : 30;
         double endangle = 22.5;
-       
+
 
         double degree = (startangle + (lineIndex - 1) * (180 - (startangle + endangle)) / 6) * M_PI / 180;
         lineWidth = diameter * std::sin(degree);
@@ -358,7 +372,7 @@ public:
 
     }
     else if (pageIndex > 580) {
-      auto ratio = getWidthRatio(pageIndex, lineIndex, texFormat);      
+      auto ratio = getWidthRatio(pageIndex, lineIndex, texFormat);
       if (ratio < 1) {
         lineWidth = pageWidth * ratio;
         justification = LineJustification::Center;
@@ -782,33 +796,7 @@ private:
 #endif
   void loadLookupFile(std::string fileName) {
 
-    //QJsonModel * model = new QJsonModel;
-
-    std::ifstream lookupStream(fileName, std::ios::binary);
-
-    if (lookupStream) {
-      // get length of file:
-      lookupStream.seekg(0, lookupStream.end);
-      int length = lookupStream.tellg();
-      lookupStream.seekg(0, lookupStream.beg);
-
-      char* buffer = new char[length];
-
-      lookupStream.read(buffer, length);
-
-      if (!lookupStream) {
-        std::cout << "Problem reading file." << fileName;
-      }
-      else {
-        QJsonDocument mDocument = QJsonDocument::fromJson(QByteArray::fromRawData(buffer, length));
-        layout->readJson(mDocument.object());
-
-      }
-
-      lookupStream.close();
-      delete[] buffer;
-
-    }
+    layout->parseFeatureFile(fileName);
 
     std::ifstream parametersStream("parameters.json", std::ios::binary);
 
@@ -823,7 +811,7 @@ private:
       parametersStream.read(buffer, length);
 
       if (!parametersStream) {
-        std::cout << "Problem reading file." << fileName;
+        std::cout << "Problem reading file." << "parameters.json";
       }
       else {
         QJsonDocument mDocument = QJsonDocument::fromJson(QByteArray::fromRawData(buffer, length));
@@ -837,22 +825,6 @@ private:
     }
 
 
-    /*
-    QFile file(fileName);
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-      QByteArray myarray = file.readAll();
-      QJsonDocument mDocument = QJsonDocument::fromJson(myarray);
-      //model->loadJson(mDocument);
-      layout->readJson(mDocument.object());
-    }*/
-
-    /*
-    QFile file2("parameters.json");
-    if (file2.open(QIODevice::ReadOnly | QIODevice::Text)) {
-      QByteArray myarray = file2.readAll();
-      QJsonDocument mDocument = QJsonDocument::fromJson(myarray);
-      layout->readParameters(mDocument.object());
-    }*/
   }
 
 
@@ -931,7 +903,7 @@ private:
       int pageDiff = texPages.size() - 604;
       pageIndex = pageIndex - pageDiff;
     }
-     
+
 
     int key = (pageIndex + 1) * (lineIndex + 1);
     double ratio = 1;

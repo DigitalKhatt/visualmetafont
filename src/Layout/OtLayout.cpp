@@ -231,7 +231,11 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
       pglyph = layout->getAlternate(pglyph->charcode, parameters);
     }
 
+    auto xadvance = hbFont->em_scale_x(pglyph->width);
 
+    
+
+    
     double advance = pglyph->width;
     //return advance; // floatToHarfBuzzPosition(advance);
     int upem = 1000;
@@ -240,6 +244,9 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
     int64_t scaled = advance * xscale;
     scaled += scaled >= 0 ? upem / 2 : -upem / 2; /* Round. */
     auto gg = (hb_position_t)(scaled / upem);
+
+    return xadvance;
+
     return gg;
   }
 
@@ -291,12 +298,12 @@ hb_ot_get_glyph_h_advances(hb_font_t* font, void* font_data,
       coords[1] = roundf(glyphs[i].righttatweel * 16384.f);
       font->num_coords = 2;
       font->coords = &coords[0];
-      positions[i].x_advance = font->em_scale_x(ot_face->table.hmtx->get_advance(glyphs[i].codepoint, font));
+      positions[i].x_advance = font->em_scale_x(ot_face->table.hmtx->get_advance_with_var_unscaled(glyphs[i].codepoint, font));
       font->num_coords = 0;
       font->coords = nullptr;
     }
     else {
-      positions[i].x_advance = font->em_scale_x(ot_face->table.hmtx->get_advance(glyphs[i].codepoint, font));
+      positions[i].x_advance = font->em_scale_x(ot_face->table.hmtx->get_advance_with_var_unscaled(glyphs[i].codepoint, font));
     }
 
 
@@ -876,7 +883,7 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
   lookups.clear();
 
   for (auto lookup : this->lookups) {
-    if (!disabledLookups.contains(lookup)) {
+    if (!disabledLookups.contains(lookup) && (extended || (lookup->type != Lookup::fsmgsub))) {
       if (isgsub == lookup->isGsubLookup()) {
         quint16 lookupIndex = lookups.size();
 
@@ -967,16 +974,26 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
     //QByteArray temp = lookup->getSubtables();
     QByteArray exttables_array;
 
+
+    //std::cout << "GSUB=" << isgsub << ";lookupIndex=" << i << ";Lookup=" << lookup->name.toStdString() << std::endl;
+
+
     for (int i = 0; i < nb_subtables; ++i) {
+
 
       auto& subtable = subtables.at(i);
       lookupArray << debutsequence;
 
+
+
+
+
+
+
+
       quint16 lookuptype = (quint16)lookup->type;
 
-
       exttables_array << (quint16)1 << lookuptype << (quint32)(subtablesOffset - (beginoffset + debutsequence));
-
 
 
       QByteArray subtableArray;
@@ -989,7 +1006,7 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
       }
 
 
-
+     
 
       if (lookup->type != Lookup::fsmgsub && subtableArray.size() > 0xFFFF) {
         throw std::runtime_error{ "Subtable exeeded the limit of 64K" };
@@ -1102,9 +1119,10 @@ OtLayout::OtLayout(MP mp, bool extended, QObject * parent) :QObject(parent), fsm
 
   nuqta();
 
+  /*
   if (!extended) {
 
-    loadLookupFile("lookups.json");
+    loadLookupFile("automedina.fea");
 
     QSet<QString> newhaslefttatweel = automedina->classes["haslefttatweel"];
 
@@ -1130,7 +1148,7 @@ OtLayout::OtLayout(MP mp, bool extended, QObject * parent) :QObject(parent), fsm
     automedina->classes["haslefttatweel"] = newhaslefttatweel;
 
 
-  }
+  }*/
 
   toOpenType = new ToOpenType(this);
 
@@ -1148,14 +1166,40 @@ OtLayout::~OtLayout() {
   delete toOpenType;
 }
 
+void OtLayout::generateSubstEquivGlyphs() {
+
+
+  if (!extended && substEquivGlyphs.size() == 0) {
+    for (auto lookup : lookups) {
+      if (!disabledLookups.contains(lookup)) {
+        if (lookup->isGsubLookup() && lookup->type != Lookup::SubType::fsmgsub) {
+          auto subtables = lookup->getSubtables(extended);
+          for (auto subtable : subtables) {
+            subtable->generateSubstEquivGlyphs();
+          }
+        }
+      }
+    }
+  }
+}
+
 void OtLayout::clearAlternates() {
-  for (auto& glyph : alternatePaths) {
+  for (auto& glyph : tempGlyphs) {
     for (auto& path : glyph.second) {
       delete path.second;
     }
     //glyph.second.clear();
   }
-  alternatePaths.clear();
+  /*
+  for (auto& glyph : nojustalternatePaths) {
+    for (auto& path : glyph.second) {
+      delete path.second;
+    }
+    //glyph.second.clear();
+  }*/
+
+  tempGlyphs.clear();
+
 }
 
 CalcAnchor OtLayout::getanchorCalcFunctions(QString functionName, Subtable * subtable) {
@@ -1277,33 +1321,7 @@ void OtLayout::addLookup(Lookup * lookup) {
 
 void OtLayout::loadLookupFile(std::string fileName) {
 
-  //QJsonModel * model = new QJsonModel;
-
-  std::ifstream lookupStream(fileName, std::ios::binary);
-
-  if (lookupStream) {
-    // get length of file:
-    lookupStream.seekg(0, lookupStream.end);
-    int length = lookupStream.tellg();
-    lookupStream.seekg(0, lookupStream.beg);
-
-    char* buffer = new char[length];
-
-    lookupStream.read(buffer, length);
-
-    if (!lookupStream) {
-      std::cout << "Problem reading file." << fileName;
-    }
-    else {
-      QJsonDocument mDocument = QJsonDocument::fromJson(QByteArray::fromRawData(buffer, length));
-      this->readJson(mDocument.object());
-
-    }
-
-    lookupStream.close();
-    delete[] buffer;
-
-  }
+  parseFeatureFile(fileName);
 
   std::ifstream parametersStream("parameters.json", std::ios::binary);
 
@@ -1330,9 +1348,11 @@ void OtLayout::loadLookupFile(std::string fileName) {
     delete[] buffer;
 
   }
+
+  //addGlyphs();
 }
 
-void OtLayout::readJson(const QJsonObject & json)
+void OtLayout::parseFeatureFile(std::string fileName)
 {
 
   for (auto lookup : lookups) {
@@ -1352,72 +1372,16 @@ void OtLayout::readJson(const QJsonObject & json)
   allFeatures.clear();
   disabledLookups.clear();
   tables.clear();
-
-  //import = json["import"].toString();
-
-  QJsonObject lookupsObject = json["lookups"].toObject();
-
-  feayy::FeaContext context{ this, &lookupsObject };
-
-  if (json.contains("featurefile")) {
-    QString featurefile = json["featurefile"].toString();
-    if (!featurefile.isEmpty()) {
-      feayy::Driver driver(context);
-      if (!driver.parse_file(featurefile.toStdString())) {
-        std::cout << "Error in parsing " << featurefile.toStdString() << endl;
-      };
-    }
-
-  }
-
-  //anchorCalcFunctions = automedina->anchorCalcFunctions;
-  /*
-      for (int gi = 0; gi < 2; gi++) {
-
-          QString table = gi ? "gpos" : "gsub";
-
-          QJsonArray lookupsjson = json[table].toArray();
-          for (QJsonArray::iterator it = lookupsjson.begin(); it != lookupsjson.end(); it++) {
-
-              QString lookupName = it->toString();
-
-              QJsonObject jsonsubtable = lookupsObject[lookupName].toObject();
-
-              if (jsonsubtable.isEmpty()) {
-
-                  Lookup* lookup = automedina->getLookup(lookupName);
-                  if (lookup)
-                      addLookup(lookup);
-                  else {
-                      context.useLookup(lookupName);
-                  }
-
-              }
-              else {
-                  QJsonObject lookupsObject = jsonsubtable["lookups"].toObject();
-                  for (int index = 0; index < lookupsObject.size(); ++index) {
-                      QString innerlookupName = lookupsObject.keys()[index];
-                      QJsonObject lookupObject = lookupsObject[innerlookupName].toObject();
-                      Lookup* lookup = new Lookup(this);
-                      lookup->readJson(lookupObject);
-                      lookup->name = lookupName + "." + innerlookupName;
-                      lookup->feature = "";
-                      addLookup(lookup);
-                  }
-
-                  Lookup* lookup = new Lookup(this);
+  //nojustalternatePaths.clear();
 
 
-                  lookup->name = lookupName;
-                  lookup->feature = jsonsubtable["feature"].toString();
 
-                  lookup->readJson(jsonsubtable);
+  feayy::FeaContext context{ this };
 
-                  addLookup(lookup);
-
-              }
-          }
-      }*/
+  feayy::Driver driver(context);
+  if (!driver.parse_file(fileName)) {
+    std::cout << "Error in parsing " << fileName << endl;
+  };
 
   context.populateFeatures();
 
@@ -1426,53 +1390,13 @@ void OtLayout::readJson(const QJsonObject & json)
     face = nullptr;
   }
 
-  /*
-      for (auto iter = allFeatures.constBegin(); iter != allFeatures.constEnd(); ++iter) {
-          std::cout << "feature " << iter.key().toStdString() << " { " << endl;
-          for (auto lookup : iter.value()) {
-              std::cout << '\t' << "lookup " << lookup->name.toStdString() << ";" << endl;
-          }
-
-          std::cout << "} " << iter.key().toStdString() << ";" << endl << endl;
-      }*/
 }
-void OtLayout::parseCppJsonLookup(QString lookupName, const QJsonObject & lookups) {
+void OtLayout::parseCppLookup(QString lookupName) {
 
   Lookup* newlookup = automedina->getLookup(lookupName);
   if (newlookup) {
     addLookup(newlookup);
   }
-  else {
-    QJsonObject jsonsubtable = lookups[lookupName].toObject();
-
-    if (jsonsubtable.isEmpty())
-      return;
-
-    QJsonObject lookupsObject = jsonsubtable["lookups"].toObject();
-    for (int index = 0; index < lookupsObject.size(); ++index) {
-      QString innerlookupName = lookupsObject.keys()[index];
-      QJsonObject lookupObject = lookupsObject[innerlookupName].toObject();
-      Lookup* lookup = new Lookup(this);
-      lookup->readJson(lookupObject);
-      lookup->name = lookupName + "." + innerlookupName;
-      lookup->feature = "";
-      addLookup(lookup);
-    }
-
-    Lookup* lookup = new Lookup(this);
-
-
-    lookup->name = lookupName;
-    lookup->feature = jsonsubtable["feature"].toString();
-
-    lookup->readJson(jsonsubtable);
-
-    addLookup(lookup);
-
-  }
-
-
-
 }
 void OtLayout::saveParameters(QJsonObject & json) const {
   for (auto lookup : lookups) {
@@ -1781,7 +1705,8 @@ void OtLayout::applyJustFeature(hb_buffer_t * buffer, bool& needgpos, double& di
   hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(copy_buffer, &glyph_count);
 
   OT::hb_ot_apply_context_t c(table_index, shapefont, buffer);
-  c.set_recurse_func(OT::SubstLookup::apply_recurse_func);
+  c.set_recurse_func(OT::SubstLookup::template dispatch_recurse_func<
+    OT::hb_ot_apply_context_t>);
   auto list = this->allGsubFeatures[feature].values();
   std::sort(list.begin(), list.end());
 
@@ -1817,7 +1742,7 @@ void OtLayout::applyJustFeature(hb_buffer_t * buffer, bool& needgpos, double& di
 
     hb_ot_layout_substitute_lookup(&c,
       shapefont->face->table.GSUB->table->get_lookup(lookup_index),
-      shapefont->face->table.GSUB->accels[lookup_index]);
+      *shapefont->face->table.GSUB->accels[lookup_index].get_acquire());
 
     hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
 
@@ -2028,7 +1953,8 @@ void OtLayout::applyJustFeature_old(hb_buffer_t * buffer, bool& needgpos, double
   hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(copy_buffer, &glyph_count);
 
   OT::hb_ot_apply_context_t c(table_index, shapefont, buffer);
-  c.set_recurse_func(OT::SubstLookup::apply_recurse_func);
+  c.set_recurse_func(OT::SubstLookup::template dispatch_recurse_func<
+    OT::hb_ot_apply_context_t>);
   auto list = this->allGsubFeatures[feature].values();
   std::sort(list.begin(), list.end());
   bool stretch = diff > 0;
@@ -2056,7 +1982,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t * buffer, bool& needgpos, double
 
       hb_ot_layout_substitute_lookup(&c,
         shapefont->face->table.GSUB->table->get_lookup(lookup_index),
-        shapefont->face->table.GSUB->accels[lookup_index]);
+        *shapefont->face->table.GSUB->accels[lookup_index].get_acquire());
 
       hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
 
@@ -2360,7 +2286,9 @@ void OtLayout::jutifyLine_old(hb_font_t * shapefont, hb_buffer_t * text_buffer, 
 
       if (needgpos) {
         buffer->reverse();
+#ifndef HB_NO_JUSTIFICATION
         buffer->justContext = nullptr;
+#endif
         gpos_features[7].value = schr1applied ? 1 : 0;;
 
         hb_shape(shapefont, buffer, gpos_features, num_gpos_features);
@@ -2376,6 +2304,7 @@ void OtLayout::jutifyLine_old(hb_font_t * shapefont, hb_buffer_t * text_buffer, 
 
 void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int lineWidth, bool tajweedColor) {
 
+#ifndef HB_NO_JUSTIFICATION
   if (applyJustification && lineWidth != 0) {
     hb_buffer_set_justify(text_buffer, lineWidth);
     //text_buffer->justifyLine = true;    
@@ -2383,7 +2312,7 @@ void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int 
   }
 
   text_buffer->justContext = nullptr;
-
+#endif
   hb_feature_t features[2];
 
   features[0].tag = HB_TAG('s', 'h', 'r', '1');
@@ -2440,7 +2369,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
     hb_buffer_clear_contents(buffer);
     hb_buffer_set_segment_properties(buffer, savedprops);
     hb_buffer_set_cluster_level(buffer, cluster_level);
-    auto newLine = QString("\n") + line + QString("\n");
+    auto newLine = line; //QString("\n") + line + QString("\n");
     auto lineLength = newLine.length();
     hb_buffer_add_utf16(buffer, newLine.utf16(), lineLength, 0, lineLength);
   };
@@ -2462,9 +2391,9 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
       first = false;
 
       initializeBuffer(buffer, &savedprops, line);
-
+#ifndef HB_NO_JUSTIFICATION
       buffer->useCallback = !useNormAxisValues;
-
+#endif
       if (whichJust == WhichJust::HarfBuzz) {
         jutifyLine(currentFont, buffer, lineWidth, tajweedColor);
       }
@@ -3172,151 +3101,165 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
 }
 int OtLayout::AlternatelastCode = 0xF0000;
-std::unordered_map<GlyphParameters, GlyphVis*> OtLayout::getAddedGlyphs(int glyphCode) {
-  auto res = nojustalternatePaths.find(glyphCode);
-  if (res != nojustalternatePaths.end()) {
-    return res->second;
-  }
-  return {};
+std::unordered_map<GlyphParameters, GlyphVis*>& OtLayout::getSubstEquivGlyphs(int glyphCode) {
+  return substEquivGlyphs[glyphCode];
 }
-GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph) {
+GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph, bool addToEquivSubst) {
 
-  auto paths = JustificationInProgress ? &alternatePaths[glyphCode] : &nojustalternatePaths[glyphCode];
+  if (addToEquivSubst) {
+    auto find = substEquivGlyphs.find(glyphCode);
+    if (find != substEquivGlyphs.end()) {
+      auto find2 = find->second.find(parameters);
+      if (find2 != find->second.end()) {
+        return find2->second;
+      }
+    }
+  }
 
-  if (paths->find(parameters) != paths->end()) {
-    return paths->at(parameters);
+  auto cachedGlyphs = !generateNewGlyph ? &tempGlyphs[glyphCode] : &addedGlyphs[glyphCode];
+
+  auto tryfind1 = cachedGlyphs->find(parameters);
+
+  if (tryfind1 != cachedGlyphs->end()) {
+    if (addToEquivSubst) {
+      auto& tt = substEquivGlyphs[glyphCode];
+      tt.insert({ parameters, tryfind1->second });
+    }
+    return tryfind1->second;
+  }
+
+  auto glyph = this->getGlyph(glyphCode);
+
+  if (!extended && glyph->name.contains(".added_")) {
+    auto originalGlyph = glyph->originalglyph;
+    parameters.lefttatweel += glyph->charlt;
+    parameters.righttatweel += glyph->charrt;    
+
+    glyph = &glyphs[originalGlyph];
+
+    glyphCode = glyph->charcode;
+  }
+
+  auto& expnadable = expandableGlyphs.find(glyph->name);
+
+  if (expnadable != expandableGlyphs.end()) {
+    if (parameters.lefttatweel < expnadable->second.minLeft) {
+      parameters.lefttatweel = expnadable->second.minLeft;
+    }
+    else if (parameters.lefttatweel > expnadable->second.maxLeft) {
+      parameters.lefttatweel = expnadable->second.maxLeft;
+    }
+    if (parameters.righttatweel < expnadable->second.minRight) {
+      parameters.righttatweel = expnadable->second.minRight;
+    }
+    else if (parameters.righttatweel > expnadable->second.maxRight) {
+      parameters.righttatweel = expnadable->second.maxRight;
+    }
+  }
+
+  cachedGlyphs = !generateNewGlyph ? &tempGlyphs[glyphCode] : &addedGlyphs[glyphCode];
+
+  auto tryfind2 = cachedGlyphs->find(parameters);
+
+  if (tryfind2 != cachedGlyphs->end()) {
+    if (addToEquivSubst) {
+      auto& tt = substEquivGlyphs[glyphCode];
+      tt.insert({ parameters, tryfind2->second });
+    }
+    return tryfind2->second;
+  }
+
+  //generate glyph
+  automedina->addchar(glyph->name, AlternatelastCode, parameters.lefttatweel, parameters.righttatweel, parameters.leftextratio, parameters.rightextratio,
+    parameters.left_tatweeltension, parameters.right_tatweeltension, "alternatechar", parameters.which_in_baseline);
+
+  mp_run_data* _mp_results = mp_rundata(automedina->mp);
+
+
+  mp_edge_object* p = _mp_results->edges;
+
+  mp_edge_object* edge = nullptr;
+  while (p) {
+    if (p->charcode == AlternatelastCode) {
+      edge = p;
+      break;
+    }
+    p = p->next;
+  }
+
+  if (edge == nullptr) {
+    throw "Error";
+  }
+
+  GlyphVis* newglyph = nullptr;
+
+  if (!generateNewGlyph) {
+    newglyph = new	GlyphVis{ this, edge, true };
+    newglyph->expanded = true;
   }
   else {
+    //Add glyph to font
+    quint16 charcode = glyphNamePerCode.keys().last() + 1;
+    QString name = QString("%1.added_%2").arg(glyph->name).arg(charcode);
 
-    auto glyph = this->getGlyph(glyphCode);
+    GlyphVis& temp = *glyphs.insert(name, GlyphVis(this, edge, true));
 
-    if (!extended && glyph->name.contains(".added_")) {
-      auto originalGlyph = glyph->originalglyph;
-      parameters.lefttatweel += glyph->charlt;
-      parameters.righttatweel += glyph->charrt;
+    newglyph = &temp;
 
-      quint16 oldlyphCode = glyphCodePerName[originalGlyph];
+    newglyph->charcode = charcode;
+    newglyph->name = name;
+    newglyph->expanded = true;
 
-      paths = JustificationInProgress ? &alternatePaths[oldlyphCode] : &nojustalternatePaths[oldlyphCode];
+    glyphNamePerCode[newglyph->charcode] = newglyph->name;
+    glyphCodePerName[newglyph->name] = newglyph->charcode;
 
-      if (paths->find(parameters) != paths->end()) {
-        return paths->at(parameters);
+    if (glyphGlobalClasses.contains(glyphCode)) {
+      glyphGlobalClasses[newglyph->charcode] = glyphGlobalClasses[glyphCode];
+
+      for (auto& pclass : automedina->classes) {
+        if (pclass.contains(glyph->name)) {
+          pclass.insert(newglyph->name);
+        }
+
       }
-
-      glyph = &glyphs[originalGlyph];
-
     }
 
-    automedina->addchar(glyph->name, AlternatelastCode, parameters.lefttatweel, parameters.righttatweel, parameters.leftextratio, parameters.rightextratio,
-      parameters.left_tatweeltension, parameters.right_tatweeltension, "alternatechar", parameters.which_in_baseline);
-
-    mp_run_data* _mp_results = mp_rundata(automedina->mp);
-
-
-    mp_edge_object* p = _mp_results->edges;
-
-    mp_edge_object* edge = nullptr;
-    while (p) {
-      if (p->charcode == AlternatelastCode) {
-        edge = p;
+    QMap<QString, GlyphVisAnchor>::iterator i;
+    for (i = newglyph->anchors.begin(); i != newglyph->anchors.end(); ++i) {
+      auto anchor = i.value();
+      auto anchorName = i.key();
+      switch (i.value().type)
+      {
+      case 1:
+        automedina->markAnchors[anchorName][newglyph->charcode] = anchor.anchor;
+        break;
+      case 2:
+        automedina->entryAnchors[anchorName][newglyph->charcode] = anchor.anchor;
+        break;
+      case 3:
+        automedina->exitAnchors[anchorName][newglyph->charcode] = anchor.anchor;
+      case 4:
+        automedina->entryAnchorsRTL[anchorName][newglyph->charcode] = anchor.anchor;
+        break;
+      case 5:
+        automedina->exitAnchorsRTL[anchorName][newglyph->charcode] = anchor.anchor;
+        break;
+      default:
         break;
       }
-      p = p->next;
     }
-
-    if (edge == nullptr) {
-      throw "Error";
-    }
-
-    GlyphVis* newglyph = nullptr;
-
-    if (extended || !generateNewGlyph) {
-      newglyph = new	GlyphVis{ this, edge, true };
-      newglyph->expanded = true;
-    }
-    else {
-
-      quint16 charcode = glyphNamePerCode.keys().last() + 1;
-      QString name = QString("%1.added_%2").arg(glyph->name).arg(charcode);
-
-      GlyphVis& temp = *glyphs.insert(name, GlyphVis(this, edge, true));
-
-      newglyph = &temp;
-
-      newglyph->charcode = charcode;
-      newglyph->name = name;
-      newglyph->expanded = true;
-
-      glyphNamePerCode[newglyph->charcode] = newglyph->name;
-      glyphCodePerName[newglyph->name] = newglyph->charcode;
-
-      if (glyphGlobalClasses.contains(glyphCode)) {
-        glyphGlobalClasses[newglyph->charcode] = glyphGlobalClasses[glyphCode];
-
-        for (auto& markclass : automedina->classes) {
-          if (markclass.contains(glyph->name)) {
-            markclass.insert(newglyph->name);
-            //automedina->classes["marks"].insert(newglyph->name);
-          }
-
-        }
-
-        /*
-        if (glyphGlobalClasses[newglyph->charcode] == OtLayout::BaseGlyph) {
-          automedina->classes["bases"].insert(newglyph->name);
-        }
-        else {
-          for (auto& markclass : automedina->classes) {
-            if (markclass.contains(glyph->name)) {
-              markclass.insert(newglyph->name);
-              //automedina->classes["marks"].insert(newglyph->name);
-            }
-
-          }
-          //automedina->classes["marks"].insert(newglyph->name);
-        }*/
-      }
-
-      QMap<QString, GlyphVisAnchor>::iterator i;
-      for (i = newglyph->anchors.begin(); i != newglyph->anchors.end(); ++i) {
-        auto anchor = i.value();
-        auto anchorName = i.key();
-        switch (i.value().type)
-        {
-        case 1:
-          automedina->markAnchors[anchorName][newglyph->charcode] = anchor.anchor;
-          break;
-        case 2:
-          automedina->entryAnchors[anchorName][newglyph->charcode] = anchor.anchor;
-          break;
-        case 3:
-          automedina->exitAnchors[anchorName][newglyph->charcode] = anchor.anchor;
-        case 4:
-          automedina->entryAnchorsRTL[anchorName][newglyph->charcode] = anchor.anchor;
-          break;
-        case 5:
-          automedina->exitAnchorsRTL[anchorName][newglyph->charcode] = anchor.anchor;
-        default:
-          break;
-        }
-      }
-    }
-
-    if (!extended && !generateNewGlyph) {
-      //TODO: Memeory leak, used during OpenType generation
-      return newglyph;
-    }
-    else {
-      paths->insert({ parameters, newglyph });
-
-      return paths->at(parameters);
-    }
-
-
   }
 
+  cachedGlyphs->insert({ parameters, newglyph });
 
-  return nullptr;
+  if (addToEquivSubst) {
+    auto& tt = substEquivGlyphs[glyphCode];
+    tt.insert({ parameters, newglyph });
+  }
+
+  return newglyph;
+
+
 }
 QByteArray OtLayout::getCmap() {
 

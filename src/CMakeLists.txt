@@ -102,8 +102,8 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/FeaParser)
 
 
-#BISON_TARGET(FeaParser FeaParser/parser.y ${CMAKE_CURRENT_BINARY_DIR}/FeaParser/parser.cpp VERBOSE COMPILE_FLAGS -Wcounterexamples)
-BISON_TARGET(FeaParser FeaParser/parser.y ${CMAKE_CURRENT_BINARY_DIR}/FeaParser/parser.cpp VERBOSE)
+#BISON_TARGET(FeaParser FeaParser/parser.y ${CMAKE_CURRENT_BINARY_DIR}/FeaParser/parser.cpp VERBOSE COMPILE_FLAGS "-Wcounterexamples")
+BISON_TARGET(FeaParser FeaParser/parser.y ${CMAKE_CURRENT_BINARY_DIR}/FeaParser/parser.cpp VERBOSE COMPILE_FLAGS)
 FLEX_TARGET(FeaScanner FeaParser/scanner.l  ${CMAKE_CURRENT_BINARY_DIR}/FeaParser/scanner.cpp)
 ADD_FLEX_BISON_DEPENDENCY(FeaScanner FeaParser)
 
@@ -327,7 +327,7 @@ target_compile_options(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR)
 target_compile_definitions(${WEBLIB_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR DIGITALKHATT_WEBLIB)
-target_compile_definitions(${LUATEX_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR DIGITALKHATT_WEBLIB)
+target_compile_definitions(${LUATEX_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR)
 
 
 if (NOT EMSCRIPTEN)
@@ -354,7 +354,7 @@ target_link_libraries(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wl,--excl
 
 
 
-
+#target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_JUSTIFICATION)
 
 if (NOT EMSCRIPTEN)
 # Link with other targets.
@@ -525,8 +525,7 @@ else()
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/mfplain.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/digitalkhatt.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/mpguifont.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/myfontbase.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/lookups.json" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
+    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/myfontbase.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"    
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/parameters.json" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMENT "Copying to output directory")
   

@@ -304,13 +304,13 @@ bool LayoutWindow::generateOpenTypeCff2Extended() {
 bool LayoutWindow::generateOpenTypeCff2(bool extended) {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
-  QString otfFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + "-cff2.otf";
+  QString otfFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + ".otf";
 
   OtLayout layout = OtLayout(m_otlayout->mp, extended);
 
   //layout.isOTVar = false;
 
-  layout.loadLookupFile("lookups.json");
+  layout.loadLookupFile("automedina.fea");
 
   layout.toOpenType->isCff2 = true;
 
@@ -366,13 +366,13 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended) {
 bool LayoutWindow::generateOpenType() {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
-  QString otfFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + ".otf";
+  QString otfFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + "-cff1.otf";
 
   OtLayout layout = OtLayout(m_otlayout->mp, false);
   layout.useNormAxisValues = false;
   layout.toOpenType->isCff2 = true;
 
-  layout.loadLookupFile("lookups.json");
+  layout.loadLookupFile("automedina.fea");
 
   return layout.toOpenType->GenerateFile(otfFileName);
 
@@ -400,7 +400,7 @@ bool LayoutWindow::exportpdf() {
 
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
-  loadLookupFile("lookups.json");
+  loadLookupFile("automedina.fea");
 
   QString textt = textEdit->toPlainText();
 
@@ -417,7 +417,7 @@ bool LayoutWindow::exportpdf() {
 
   int margin = 0;
 
-  GlyphVis::BBox cropBox{ std::numeric_limits<double>::max(),  std::numeric_limits<double>::max(),std::numeric_limits<double>::min(),std::numeric_limits<double>::min() };
+  GlyphVis::BBox cropBox{ std::numeric_limits<double>::max(), std::numeric_limits<double>::max(), std::numeric_limits<double>::min(), std::numeric_limits<double>::min() };
 
   for (auto& page : pages) {
     double gap = 0;
@@ -499,7 +499,7 @@ bool LayoutWindow::exportpdf() {
 
 LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level) {
 
-  loadLookupFile("lookups.json");
+  loadLookupFile("automedina.fea");
 
   QList<QList<LineLayoutInfo>> pages;
   QStringList originalPage;
@@ -537,6 +537,11 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout
 
     QString textt = QString::fromUtf8(qurantext[pagenum] + 1);
 
+    textt = textt.replace("\u0623", "\u0627\u0654");
+    textt = textt.replace("\u0624", "\u0648\u0654");
+    textt = textt.replace("\u0625", "\u0627\u0655");
+    textt = textt.replace("\u0626", "\u064A\u0654");
+
     //textt = textt.replace(QRegularExpression(" *" + QString("۞") + " *"), QString("۞") + " ");    
 
     auto lines = textt.split(char(10), Qt::SkipEmptyParts);
@@ -549,7 +554,7 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout
       beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
     }
 
-    auto page = layout->justifyPage(scale, lineWidth, lineWidth, lines, justification, newface, true, cluster_level);
+    auto page = layout->justifyPage(scale, lineWidth, lineWidth, lines, justification, newface, true, false, cluster_level);
 
     newface = false;
 
@@ -563,7 +568,7 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout
       auto match = surabism.match(lines[i]);
       if (match.hasMatch()) {
 
-        auto temp = layout->justifyPage(scale, lineWidth, lineWidth, { lines[i] }, LineJustification::Center, false, true, cluster_level);
+        auto temp = layout->justifyPage(scale, lineWidth, lineWidth, { lines[i] }, LineJustification::Center, false, true, false, cluster_level);
 
         if (match.captured(0).startsWith("سُ")) {
           temp[0].type = LineType::Sura;
@@ -648,7 +653,7 @@ bool LayoutWindow::generateLayoutInfo() {
 
   OtLayout layout = OtLayout(m_otlayout->mp, true);
 
-  layout.loadLookupFile("lookups.json");
+  layout.loadLookupFile("automedina.fea");
 
   int calScale = 1 << OtLayout::SCALEBY;
 
@@ -675,7 +680,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
   layout.automedina->cvxxfeatures.clear();
 
-  layout.automedina->cvxxfeatures.append(QMap<quint16, QVector<quint16> >());
+  layout.automedina->cvxxfeatures.append(QMap<quint16, QVector<ExtendedGlyph> >());
 
   auto& cv01feature = layout.automedina->cvxxfeatures[0];
 
@@ -698,14 +703,14 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
   //layout.isOTVar = false;
 
-  layout.loadLookupFile("lookups.json");
+  layout.loadLookupFile("automedina.fea");
 
   int calScale = 1 << OtLayout::SCALEBY;
 
   int scale = calScale * OtLayout::EMSCALE;
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
-  auto result = shapeMedina(scale, lineWidth, &layout, HB_BUFFER_CLUSTER_LEVEL_CHARACTERS);
+  auto result = shapeMedina(scale, lineWidth, &layout, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
   auto htmlFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + "-quran.html";
 
@@ -717,7 +722,9 @@ bool LayoutWindow::generateMadinaVARHTML() {
   auto& originalText = result.originalPages;
   auto& pages = result.pages;
 
-  hb_font_t* hbfont = layout.createFont(scale, false);;
+  hb_font_t* hbfont = layout.createFont(scale, false);
+
+  bool position_relative = true;
 
   out << "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n";
   out << "<head>\n";
@@ -744,15 +751,24 @@ bool LayoutWindow::generateMadinaVARHTML() {
   //out << "direction: ltr;\n";
   //out << "}\n";
   out << ".char {\n";
-  out << "position: relative;\n";
-  out << "display: inline-block;\n";
+  if (position_relative) {
+    out << "position: relative;\n";
+    out << "display: inline-block;\n";
+  }
+  else {
+    out << "position: absolute;\n";
+  }
   //out << "direction: ltr;\n";
   //out << "right: 0px;\n";
   //out << "text-align: 0px;\n";
   out << "}\n";
   //out << ".char::after { content:\"\\00a0\"}\n";
+  out << ".page {\n";
+  out << "width:1200px; margin:0 auto;\n";
+  out << "}\n";
   out << ".line {\n";
   out << "position: relative;\n";
+  out << "height: 200px;\n";
   out << "}\n";
   out << ".linesura {\n";
   out << "position: relative;\n";
@@ -760,6 +776,8 @@ bool LayoutWindow::generateMadinaVARHTML() {
   out << "</style>\n";
   out << "</head>\n";
   out << "<body>\n";
+
+
 
   for (int p = 0; p < originalText.length(); p++) {
     auto& pageText = originalText[p];
@@ -782,7 +800,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
         out << " class = 'linebism";
       }
       else if (line.type == LineType::Sura) {
-        out << " class = 'linesura";
+        out << " class = 'line linesura";
       }
       else {
         out << " class = 'line";
@@ -825,9 +843,38 @@ bool LayoutWindow::generateMadinaVARHTML() {
         univalues = univalues.replace(QChar(0x0640), "");
         value.unicodes = univalues;
 
-        if (value.unicodes.size() == 2 && value.glyphs.size() == 2 && value.unicodes[1].unicode() == value.glyphs[1]->codepoint) {
+
+        // deal with reordering of hamza
+        /*if (value.unicodes.size() == 2 && value.glyphs.size() == 2 && value.unicodes[1].unicode() == value.glyphs[1]->codepoint) {
           unicodes[start + 1] = { {value.glyphs[1]},QString(value.unicodes[1]) };
           value = { {value.glyphs[0]},QString(value.unicodes[0]) };
+        }*/
+
+        if (value.unicodes.size() > 1) {
+          if (value.unicodes[0] == 0x06DD) {
+            // Aya
+          }
+          else if (value.unicodes.size() == 3 && value.glyphs.size() == 3
+            //&& value.unicodes[0].unicode() == value.glyphs[0]->codepoint
+            && value.unicodes[1].unicode() == value.glyphs[1]->codepoint
+            && value.unicodes[2].unicode() == value.glyphs[2]->codepoint
+            ) {
+            unicodes[start + 1] = { {value.glyphs[1]},QString(value.unicodes[1]) };
+            unicodes[start + 2] = { {value.glyphs[2]},QString(value.unicodes[2]) };
+            value = { {value.glyphs[0]},QString(value.unicodes[0]) };
+          }
+          else {
+            std::cout << "page=" << p << ",line=" << l << ",start=" << start << ",unicodes=" << value.unicodes.toStdString() << ",codes=";
+            for (auto charv : value.unicodes) {
+              std::cout << std::hex << charv.unicode() << ";";
+            }
+            std::cout << ",codepoints=";
+            for (auto glyph : value.glyphs) {
+              std::cout << std::hex << glyph->codepoint << ";";
+            }
+
+            std::cout << std::endl;
+          }
         }
       }
 
@@ -836,12 +883,12 @@ bool LayoutWindow::generateMadinaVARHTML() {
         auto& value = iter.value();
         if (value.unicodes.size() > 1) {
           if (value.glyphs.size() != 1) {
-            std::cout << "page=" << p << ",line=" << l << ",start=" << iter.key() << ",unicodes=" << value.unicodes.toStdString() << std::endl;
-            throw new std::runtime_error("Problem");
+            //std::cout << "page=" << p << ",line=" << l << ",start=" << iter.key() << ",unicodes=" << value.unicodes.toStdString() << std::endl;
+             //throw new std::runtime_error("Problem");
           }
           for (auto charv : value.unicodes) {
             if (charv.unicode() != 0x06DD && (charv.unicode() < 0x0660 || charv.unicode() > 0x0669)) {
-              std::cout << "page=" << p << ",line=" << l << ",start=" << iter.key() << ",unicodes=" << value.unicodes.toStdString() << ",unicode=" << charv.unicode() << std::endl;
+              //std::cout << "page=" << p << ",line=" << l << ",start=" << iter.key() << ",unicodes=" << value.unicodes.toStdString() << ",unicode=" << charv.unicode() << std::endl;
               //throw new std::runtime_error("Problem");
             }
 
@@ -853,6 +900,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
       double currentxPos = 0;
       double cumulatedRight = 0.0;
       for (auto iter = unicodes.begin(); iter != unicodes.end(); ++iter) {
+
         auto& value = iter.value();
         if (value.unicodes.size() == 1) {
           if (value.glyphs.size() != 1 && value.glyphs.size() != 2) {
@@ -874,7 +922,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
           int alternateIndex = -1;
           for (int aIndex = 0; aIndex < alternates.size(); aIndex++) {
-            if (alternates[aIndex] == value.glyphs[0]->codepoint) {
+            if (alternates[aIndex].code == value.glyphs[0]->codepoint) {
               alternateIndex = aIndex + 1;
               break;
             }
@@ -882,13 +930,15 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
           if (alternateIndex == -1) {
             //if (value.glyphs[0]->codepoint != unicode) {
-            alternates.append(value.glyphs[0]->codepoint);
+            alternates.append({ value.glyphs[0]->codepoint,0.0,0.0 });
             alternateIndex = alternates.size();
             //}
 
           }
 
           auto glyph = value.glyphs[0];
+
+          //currentxPos += glyph->x_advance / (1000.0 * scale);
 
           QString axes;
           if (glyph->lefttatweel != 0.0 || glyph->righttatweel != 0) {
@@ -974,51 +1024,98 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
           position = "";
 
+          if (position_relative) {
+            auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, glyph->lefttatweel, glyph->righttatweel, nullptr);
 
+            if (defaultAdvance != 0) {
+              position = QString("width:%1em;").arg(defaultAdvance / (scale * 1000.0));
+            }
 
-          auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, glyph->lefttatweel, glyph->righttatweel, nullptr);
+            cumulatedRight += (glyph->x_advance - defaultAdvance) / (1000.0 * scale);
+            auto right = cumulatedRight - glyph->x_offset / (1000.0 * scale);
+            auto top = -glyph->y_offset / (1000.0 * scale);
+            position = position + QString("top:%1em;right:%2em;").arg(top).arg(right);
 
-          if (defaultAdvance != 0) {
-            position = QString("width:%1em;").arg(defaultAdvance / (scale * 1000.0));
+            QString other;
+
+            if (value.unicodes[0].unicode() == 0x20) { // space
+              other = "display:inline;";
+            }
+
+            out << QString("<span class='char' style='%1%2%3%4'>").arg(cv01).arg(axes).arg(position).arg(other);
+            out << value.unicodes;
+            out << "</span>";
           }
+          else {
 
-          cumulatedRight += (glyph->x_advance - defaultAdvance) / (1000.0 * scale);
-          auto right = cumulatedRight - glyph->x_offset / (1000.0 * scale);
-          auto top = -glyph->y_offset / (1000.0 * scale);
-          position = position + QString("top:%1em;right:%2em;").arg(top).arg(right);
+            auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, glyph->lefttatweel, glyph->righttatweel, nullptr);
 
-          QString other;
+            if (defaultAdvance != 0) {
+              position = QString("width:%1em;").arg(defaultAdvance / (scale * 1000.0));
+            }
 
-          if (value.unicodes[0].unicode() == 0x20) { // space
-            other = "display:inline;";
+            cumulatedRight = currentxPos + (glyph->x_advance - defaultAdvance) / (1000.0 * scale);
+            auto right = cumulatedRight - glyph->x_offset / (1000.0 * scale);
+            auto top = -glyph->y_offset / (1000.0 * scale);
+            position = position + QString("top:%1em;right:%2em;").arg(top).arg(right);
+
+            QString other;
+
+            if (value.unicodes[0].unicode() == 0x20) { // space
+              other = "display:inline;";
+            }
+
+            out << QString("<span class='char' style='%1%2%3%4'>").arg(cv01).arg(axes).arg(position).arg(other);
+            out << value.unicodes;
+            out << "</span>";
           }
-
-          out << QString("<span class='char' style='%1%2%3%4'>").arg(cv01).arg(axes).arg(position).arg(other);
-          out << value.unicodes;
-          out << "</span>";
 
           currentxPos += glyph->x_advance / (1000.0 * scale);
+
         }
         else if (value.glyphs.size() >= 1) {
           auto glyph = value.glyphs[0];
 
+          currentxPos += glyph->x_advance / (1000.0 * scale);
+
           QString position = "";
 
-          auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, glyph->lefttatweel, glyph->righttatweel, nullptr);
+          if (position_relative) {
+            auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, glyph->lefttatweel, glyph->righttatweel, nullptr);
 
-          if (defaultAdvance != 0) {
-            position = QString("width:%1em;").arg(defaultAdvance / (scale * 1000.0));
+            if (defaultAdvance != 0) {
+              position = QString("width:%1em;").arg(defaultAdvance / (scale * 1000.0));
+            }
+
+            cumulatedRight += (glyph->x_advance - defaultAdvance) / (1000.0 * scale);
+            auto right = cumulatedRight - glyph->x_offset / (1000.0 * scale);
+            auto top = -glyph->y_offset / (1000.0 * scale);
+            position = position + QString("top:%1em;right:%2em;").arg(top).arg(right);
+
+
+            out << QString("<span class='char' style='%1'>").arg(position);
+            out << value.unicodes;
+            out << "</span>";
           }
-
-          cumulatedRight += (glyph->x_advance - defaultAdvance) / (1000.0 * scale);
-          auto right = cumulatedRight - glyph->x_offset / (1000.0 * scale);
-          auto top = -glyph->y_offset / (1000.0 * scale);
-          position = position + QString("top:%1em;right:%2em;").arg(top).arg(right);
+          else {
 
 
-          out << QString("<span class='char' style='%1'>").arg(position);
-          out << value.unicodes;
-          out << "</span>";
+            auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, glyph->lefttatweel, glyph->righttatweel, nullptr);
+
+            if (defaultAdvance != 0) {
+              position = QString("width:%1em;").arg(defaultAdvance / (scale * 1000.0));
+            }
+
+            cumulatedRight = currentxPos + (glyph->x_advance - defaultAdvance) / (1000.0 * scale);
+            auto right = cumulatedRight - glyph->x_offset / (1000.0 * scale);
+            auto top = -glyph->y_offset / (1000.0 * scale);
+            position = position + QString("top:%1em;right:%2em;").arg(top).arg(right);
+
+
+            out << QString("<span class='char' style='%1'>").arg(position);
+            out << value.unicodes;
+            out << "</span>";
+          }
 
           currentxPos += glyph->x_advance / (1000.0 * scale);
         }
@@ -1040,11 +1137,11 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
   //layout.isOTVar = false;
 
-  layout.loadLookupFile("lookups-html.json");
+  layout.loadLookupFile("automedina-html.fea");
 
   layout.toOpenType->isCff2 = true;
 
-  auto ret = layout.toOpenType->GenerateFile(otfFileName, "lookups-html.json");
+  auto ret = layout.toOpenType->GenerateFile(otfFileName, "automedina-html.fea");
 
   delete hbfont;
 
@@ -1097,7 +1194,7 @@ bool LayoutWindow::generateAllQuranTexMedina() {
 
 bool LayoutWindow::generateAllQuranTexBreaking() {
 
-  loadLookupFile("lookups.json");
+  loadLookupFile("automedina.fea");
 
   int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
@@ -1156,28 +1253,7 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
 
 void LayoutWindow::loadLookupFile(QString fileName) {
 
-  //QJsonModel * model = new QJsonModel;	
-
-  QFile file(fileName);
-  if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    QByteArray myarray = file.readAll();
-    QJsonParseError error;
-    QJsonDocument mDocument = QJsonDocument::fromJson(myarray, &error);
-    if (error.error != error.NoError) {
-      auto errorString = error.errorString();
-      std::cout << errorString.toStdString();
-
-    }
-    //model->loadJson(mDocument);
-    m_otlayout->readJson(mDocument.object());
-  }
-
-  QFile file2("parameters.json");
-  if (file2.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    QByteArray myarray = file2.readAll();
-    QJsonDocument mDocument = QJsonDocument::fromJson(myarray);
-    m_otlayout->readParameters(mDocument.object());
-  }
+  m_otlayout->loadLookupFile(fileName.toStdString());
 
   QSettings settings;
 
@@ -1333,9 +1409,9 @@ void LayoutWindow::createDockWindows()
   otherMenu->addAction(action);
 
 
-  m_otlayout = new OtLayout(m_font->mp, true, this);  
+  m_otlayout = new OtLayout(m_font->mp, true, this);
   m_otlayout->useNormAxisValues = false;
-  //m_otlayout->extended = false;
+  m_otlayout->extended = true;
 
   connect(m_otlayout, &OtLayout::parameterChanged, this, &LayoutWindow::layoutParameterChanged);
 
@@ -1524,7 +1600,7 @@ void LayoutWindow::testKasheda() {
 }
 
 void LayoutWindow::findOverflows() {
-  loadLookupFile("lookups.json");
+  loadLookupFile("automedina.fea");
 
 
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
@@ -1609,7 +1685,7 @@ void LayoutWindow::findOverflows() {
 }
 
 void LayoutWindow::calculateMinimumSize() {
-  loadLookupFile("lookups.json");
+  loadLookupFile("automedina.fea");
 
 
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
@@ -1701,7 +1777,7 @@ void LayoutWindow::setQutranText(int type) {
     }
   }
   else {
-    loadLookupFile("lookups.json");
+    loadLookupFile("automedina.fea");
 
     int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
     int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
@@ -1827,7 +1903,11 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 
   if (refresh == 2) {
     newFace = true;
-    loadLookupFile("lookups.json");
+    loadLookupFile("automedina.fea");
+    if (!m_otlayout->extended) {
+      m_otlayout->generateSubstEquivGlyphs();
+      loadLookupFile("automedina.fea");
+    }
   }
 
   QString textt = textEdit->toPlainText();
@@ -1837,7 +1917,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
   const int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
 
-  auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, newFace, true, applyFontSize);
+  auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, newFace, true, applyFontSize, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
   QVector<int> set;
 
@@ -2170,6 +2250,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
   double scale = (double)emScale / (1 << OtLayout::SCALEBY); //(1 << OtLayout::SCALEBY) * 1; // 0.85;		
   //const int lineWidth = lineWidth; // (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  //scale = scale * 1.05;
 
   QHash<QPainterPath, GlyphLayoutInfo*> dict;
 
@@ -2222,7 +2303,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
         QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
-        if (glyphName.contains("space") || !m_otlayout->glyphs.contains(glyphName)) continue;
+        if (glyphName.contains("space") || glyphName.contains("linefeed") || !m_otlayout->glyphs.contains(glyphName)) continue;
 
         //bool isIsol = glyphName.contains("isol");
 
@@ -2234,10 +2315,6 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
         GlyphVis& currentGlyph = *m_otlayout->getGlyph(glyphName, glyphLayout.lefttatweel, glyphLayout.righttatweel);
         QPoint pos = linePositions[g];
-
-        QRect rect{ QPoint(currentGlyph.bbox.llx,-currentGlyph.bbox.ury),QPoint(currentGlyph.bbox.urx,-currentGlyph.bbox.lly) };
-        rect.translate(pos);
-
         QPainterPath path = pathtransform.map(currentGlyph.path);
         path.translate(pos);
 
@@ -2253,7 +2330,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
             QString prev_glyphName = m_otlayout->glyphNamePerCode[prev_glyphLayout.codepoint];
 
             bool isPrevMark = m_otlayout->automedina->classes["marks"].contains(prev_glyphName);
-            bool isPrevrSpace = prev_glyphName.contains("space");
+            bool isPrevrSpace = prev_glyphName.contains("space") || prev_glyphName.contains("linefeed");
             //bool isPrevIsol = prev_glyphName.contains("isol");
 
 
@@ -2262,32 +2339,19 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
               GlyphVis& otherGlyph = *m_otlayout->getGlyph(prev_glyphName, prev_glyphLayout.lefttatweel, prev_glyphLayout.righttatweel); //m_otlayout->glyphs[prev_glyphName];
               QPoint otherpos = prev_linePositions[prev_g];
 
-              QRect rectother{ QPoint(otherGlyph.bbox.llx,-otherGlyph.bbox.ury),QPoint(otherGlyph.bbox.urx,-otherGlyph.bbox.lly) };
-              rectother.translate(otherpos);
+              QPainterPath otherpath = pathtransform.map(otherGlyph.path);
+              otherpath.translate(otherpos);
+              if (path.intersects(otherpath)) {
 
-              if (rect.intersects(rectother)) {
-
-                QPainterPath otherpath = pathtransform.map(otherGlyph.path);
-                otherpath.translate(otherpos);
-
-                if (path.intersects(otherpath)) {
-
-                  glyphLayout.color = 0xFF000000;
-                  prev_glyphLayout.color = 0xFF000000;
-                  intersection = true;
-
-
-                }
-
-
+                glyphLayout.color = 0xFF000000;
+                prev_glyphLayout.color = 0xFF000000;
+                intersection = true;
               }
-
             }
 
           }
 
         }
-
 
         // verify previous glyphs in the same line
         if (g == 0) continue;
@@ -2300,54 +2364,40 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
           bool isOtherMark = m_otlayout->automedina->classes["marks"].contains(otherglyphName);
           //bool isOtherWaqfMark = m_otlayout->automedina->classes["waqfmarks"].contains(otherglyphName);
-          bool isOtherSpace = otherglyphName.contains("space");
+          bool isOtherSpace = otherglyphName.contains("space") || otherglyphName.contains("linefeed");
           //bool isPrevIsol = otherglyphName.contains("isol");
           //bool isPrevFina = otherglyphName.contains(".fina");
 
           if ((isMark || isOtherMark) && !isOtherSpace) {// || isIsol || isPrevIsol || (isFina && isPrevFina)
 
             GlyphVis& otherGlyph = *m_otlayout->getGlyph(otherglyphName, otherglyphLayout.lefttatweel, otherglyphLayout.righttatweel); //glyphs[otherglyphName];
-            QPoint otherpos = linePositions[gg];
+            QPointF otherpos = linePositions[gg];
 
-            QRect rectother{ QPoint(otherGlyph.bbox.llx,-otherGlyph.bbox.ury),QPoint(otherGlyph.bbox.urx,-otherGlyph.bbox.lly) };
-            rectother.translate(otherpos);
+            QPainterPath otherpath = pathtransform.map(otherGlyph.path);
+            otherpath.translate(otherpos);
 
-            if (rect.intersects(rectother)) {
+            if (path.intersects(otherpath)) {
 
-              QPainterPath otherpath = pathtransform.map(otherGlyph.path);
-              otherpath.translate(otherpos);
+              int adjust = 0;
 
-              if (path.intersects(otherpath)) {
+              if ((glyphName == "kasra" || glyphName.contains("dot")) && (otherglyphName.contains("reh") || otherglyphName.contains("waw") || otherglyphName == "meem.fina" || otherglyphName == "meem.fina.afterkaf" || otherglyphName == "meem.fina.afterheh")) {
 
-                int adjust = 0;
+                //adjust = rectother.bottom() - rect.top();
+                //continue;
+              }
 
-                if ((glyphName == "kasra" || glyphName.contains("dot")) && (otherglyphName.contains("reh") || otherglyphName.contains("waw") || otherglyphName == "meem.fina" || otherglyphName == "meem.fina.afterkaf" || otherglyphName == "meem.fina.afterheh")) {
+              //if (!isWaqfMark) {
 
-                  adjust = rectother.bottom() - rect.top();
-                  continue;
-                }
+              glyphLayout.color = 0xFF000000;
 
-                //if (!isWaqfMark) {
-
-                glyphLayout.color = 0xFF000000;
-
-                if (adjust > 0) {
-                  glyphLayout.y_offset -= adjust << OtLayout::SCALEBY;
-                }
-
-
-                otherglyphLayout.color = 0xFF000000;
-                intersection = true;
-
-                //}
-
-
-
+              if (adjust > 0) {
+                glyphLayout.y_offset -= adjust << OtLayout::SCALEBY;
               }
 
 
+              otherglyphLayout.color = 0xFF000000;
+              intersection = true;
             }
-
           }
         }
 

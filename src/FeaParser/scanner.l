@@ -77,7 +77,8 @@ using token = feayy::Parser::token;
 "mark"														{return(token::MARK);} 
 "markClass"													{return(token::MARKCLASS);} 
 "by"														{return(token::BY);} 
-"add"														{return(token::ADD);} 
+"add"														{return(token::ADD);}
+"coord"                           {return(token::COORD);}
 "from"														{return(token::FROM);} 
 "table"														{return(token::TABLE);} 
 "endtable"													{return(token::ENDTABLE);} 

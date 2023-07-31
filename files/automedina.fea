@@ -16,6 +16,410 @@
  # along with DigitalKhatt.  If not, see <https://www.gnu.org/licenses/>.
 ##
 
+
+lookup setdecomp {
+    feature ccmp;
+
+    sub alef.maddahabove.isol				by alef.isol maddahabove;
+		sub alef.hamzaabove.isol				by alef.isol hamzaabove;
+    sub waw.hamzaabove.isol					by waw.isol hamzaabove;
+    sub alef.hamzabelow.isol				by alef.isol hamzabelow;
+    sub alefmaksura.hamzaabove.isol by alefmaksura.isol hamzaabove;
+    sub behshape.onedotdown.isol		by behshape.isol onedotdown;
+    sub heh.twodotsup.isol					by heh.isol twodotsup;
+    sub behshape.twodotsup.isol			by behshape.isol twodotsup;
+    sub behshape.three_dots.isol		by behshape.isol three_dots;
+    sub hah.onedotdown.isol					by hah.isol onedotdown;
+    sub hah.onedotup.isol						by hah.isol onedotup;
+    sub dal.onedotup.isol						by dal.isol onedotup;
+    sub reh.onedotup.isol						by reh.isol onedotup;
+    sub seen.three_dots.isol				by seen.isol three_dots;
+    sub sad.onedotup.isol						by sad.isol onedotup;
+    sub tah.onedotup.isol						by tah.isol onedotup;
+    sub ain.onedotup.isol						by ain.isol onedotup;
+    sub alef.wasla.isol							by alef.isol wasla;
+
+} setdecomp;
+
+lookup init {
+    feature init;
+
+    sub behshape.isol by behshape.init;
+    sub hah.isol by hah.init;
+    sub seen.isol by seen.init;
+    sub sad.isol by sad.init;
+    sub tah.isol by tah.init;
+    sub ain.isol by ain.init;
+    sub feh.isol by fehshape.init onedotup;
+    sub qaf.isol by fehshape.init twodotsup;
+    sub kaf.isol by kaf.init;
+    sub lam.isol by lam.init;
+    sub meem.isol by meem.init;
+    sub noon.isol by behshape.init onedotup;
+    sub heh.isol by heh.init;
+    sub yehshape.isol by behshape.init twodotsdown;
+    sub alefmaksura.isol by behshape.init;
+
+} init;
+
+lookup medi {
+    feature medi;
+
+    sub behshape.isol by behshape.medi;
+    sub hah.isol by hah.medi;
+    sub seen.isol by seen.medi;
+    sub sad.isol by sad.medi;
+    sub tah.isol by tah.medi;
+    sub ain.isol by ain.medi;
+    sub feh.isol by fehshape.medi onedotup;
+    sub qaf.isol by fehshape.medi twodotsup;
+    sub kaf.isol by kaf.medi;
+    sub lam.isol by lam.medi;
+    sub meem.isol by meem.medi;
+    sub noon.isol by behshape.medi onedotup;
+    sub heh.isol by heh.medi;
+    sub yehshape.isol by behshape.medi twodotsdown;
+    sub alefmaksura.isol by behshape.medi;
+
+} medi;
+
+lookup fina {
+    feature fina;
+
+    sub alef.isol by alef.fina;
+    sub behshape.isol by behshape.fina;
+    sub hah.isol by hah.fina;
+    sub dal.isol by dal.fina;
+    sub reh.isol by reh.fina;
+    sub seen.isol by seen.fina;
+    sub sad.isol by sad.fina;
+    sub tah.isol by tah.fina;
+    sub ain.isol by ain.fina;
+    sub feh.isol by feh.fina;
+    sub qaf.isol by qaf.fina;
+    sub kaf.isol by kaf.fina;
+    sub lam.isol by lam.fina;
+    sub meem.isol by meem.fina;
+    sub noon.isol by noon.fina;
+    sub heh.isol by heh.fina;
+    sub waw.isol by waw.fina;
+    sub yehshape.isol by yehshape.fina;
+    sub alefmaksura.isol by yehshape.fina;
+
+} fina;
+
+lookup smalllalefreplacement {
+    feature rlig;
+
+    lookup smalllalefreplacement.l1 {
+        sub smallalef by smallalef.replacement;       
+    } smalllalefreplacement.l1;   
+
+    sub /waw|yeh|alefmaksura|behshape/ smallalef'lookup smalllalefreplacement.l1 ;
+
+} smalllalefreplacement;
+
+lookup miscellaneoussubst {
+    feature ccmp;
+
+    lookup miscellaneoussubst.l1 {
+        sub cgj hamzaabove by hamzaabove;       
+    } miscellaneoussubst.l1;
+
+		lookup forsmalllaleffea_lig {			
+			sub  tatweel smallalef by smallalef.joined;
+		} forsmalllaleffea_lig;
+		
+
+    sub [smallalef] cgj'lookup miscellaneoussubst.l1 hamzaabove';
+
+		sub tatweel'lookup forsmalllaleffea_lig smallalef;
+		
+
+} miscellaneoussubst;
+
+lookup meemfina {
+
+	 feature rlig;
+
+	 lookupflag UseMarkFilteringSet [@downdotmarks hamzabelow];
+
+    lookup meemfina.l1 {
+        sub meem.fina by meem.fina.ii;
+				sub meem.isol by meem.isol.ii;    
+    } meemfina.l1;
+
+		sub [meem.fina meem.isol]'lookup meemfina.l1 space' /^behshape.init/' @downdotmarks';
+		sub [meem.fina meem.isol]'lookup meemfina.l1 space' /^alef.isol/' hamzabelow';
+		sub waw.fina' meem.isol'lookup meemfina.l1;
+    
+
+} meemfina;
+
+lookup behshapeseen {
+
+	feature rlig;
+
+	lookupflag UseMarkFilteringSet [smallalef smallalef.joined hamzaabove.joined];
+
+	lookup behshapeseen.l1 {
+      sub behshape.init by behshape.init.beforeseen;
+			sub behshape.medi by behshape.medi.beforeseen;    
+  } behshapeseen.l1;
+
+	sub [behshape.init behshape.medi]'lookup behshapeseen.l1   [ /^seen.medi/ /^seen.fina/];
+
+
+} behshapeseen;
+
+lookup multiplebehshape {
+
+	feature calt;
+
+	lookupflag IgnoreMarks;
+
+	lookup multiplebehshape.l1 {
+      sub behshape.init by behshape.init.beforeseen;
+			sub behshape.medi by behshape.medi.beforeseen;    
+  } multiplebehshape.l1;
+
+	sub  [/^behshape.init/ /^behshape.medi/ /^seen.medi/ /^seen.init/ /^sad.medi/ /^sad.init/]'
+		/^behshape.medi/'lookup multiplebehshape.l1 [ /behshape.medi(?![.]beforeseen|[.]beforenoon|[.]beforereh)/ /^behshape.fina/];
+
+} multiplebehshape;
+
+lookup ainfinjani {
+
+	feature calt;
+
+	lookupflag UseMarkFilteringSet [smallalef smallalef.joined];
+
+	lookup ainfinjani.l1 {
+		sub ain.init by ain.init.finjani;			  
+  } ainfinjani.l1;
+
+	sub ain.init'lookup ainfinjani.l1  [ /^lam.medi/ /^dal.fina/ /behshape.medi.beforeseen.*/ /^alef/ ];
+
+} ainfinjani;
+
+lookup kaflamalef {
+
+	feature calt;
+
+	lookupflag UseMarkFilteringSet [smallalef smallalef.joined];
+
+	lookup kaflamalef.l1 {
+		sub kaf.init by kaf.init.beforelam;
+    sub kaf.medi by kaf.medi.beforelam;
+    sub alef.fina by alef.fina.afterkaf;
+    sub lam.fina by lam.fina.afterkaf;
+    sub lam.medi.laf by lam.medi.laf.afterkaf;
+    sub lam.medi by lam.medi.afterkaf;	  
+  } kaflamalef.l1;
+
+	lookup kaflamalef.l2 {
+		sub kaf.init by kaf.init.beforelamfina;
+    sub kaf.medi by kaf.medi.beforelamfina;     
+  } kaflamalef.l2;
+
+	lookup kaflamalef.l3 {
+		sub kaf.init by kaf.init.beforelamalef;
+    sub kaf.medi by kaf.medi.beforelamalef;     
+  } kaflamalef.l3;
+
+	sub  [kaf.init kaf.medi]'lookup  kaflamalef.l2 lam.fina'lookup kaflamalef.l1;
+	sub  [kaf.init kaf.medi]'lookup  kaflamalef.l3 lam.medi.laf'lookup kaflamalef.l1;
+	sub  [kaf.init kaf.medi]'lookup  kaflamalef.l1 [alef.fina lam.medi]'lookup kaflamalef.l1;
+
+} kaflamalef;
+
+
+
+lookup otherliga {
+
+	feature rlig;
+
+	lookupflag UseMarkFilteringSet [smallalef smallalef.joined];
+
+	lookup otherliga.l1 {
+		sub reh.fina by reh.fina.afterseen;
+		sub hah.init by hah.init.beforemeem;
+		sub meem.medi by meem.medi.afterhah;
+		sub seen.init by seen.init.beforereh;
+		sub seen.medi by seen.medi.beforereh;
+		sub sad.init by sad.init.beforereh;
+		sub sad.medi by sad.medi.beforereh;
+	} otherliga.l1;
+
+	sub (hah.init meem.medi)'lookup otherliga.l1;
+	sub ([seen.init sad.init seen.medi sad.medi] reh.fina)'lookup otherliga.l1;
+
+} otherliga;
+
+lookup requiredligature {
+
+	feature rlig;
+
+	lookupflag UseMarkFilteringSet [smallalef smallalef.joined];
+
+	lookup requiredligature.l1 {
+		sub lam.init by lam.init.allah;
+		sub lam.medi by lam.medi.allah;
+		sub heh.fina by heh.fina.allah;
+	} requiredligature.l1;
+
+	lookup requiredligature.l2 {
+		sub lam.init by lam.init.lamalef;
+		sub alef.fina by alef.fina.lamalef;			
+	} requiredligature.l2;
+
+	lookup substyehshapefinaii {
+		sub fehshape.init by fehshape.init.beforeyeh;
+		sub behshape.init by behshape.init.beforeyeh;
+		sub lam.init by lam.init.beforeyeh;
+		sub lam.medi by lam.medi.beforeyeh;
+		sub meem.init by meem.init.beforeyeh;
+		sub meem.medi by meem.medi.beforeyeh;
+		sub hah.init by hah.init.beforeyeh;
+		sub hah.medi by hah.medi.beforeyeh;
+		sub yehshape.fina by yehshape.fina.ii;
+		sub fehshape.medi by fehshape.medi.beforeyeh;
+		sub heh.init by heh.init.beforeyeh;
+		sub heh.medi by heh.medi.beforeyeh;
+		sub ain.init by ain.init.beforeyeh;
+		sub ain.medi by ain.medi.beforeyeh;
+		sub tah.init by tah.init.beforeyeh;
+		sub tah.medi by tah.medi.beforeyeh;
+		sub kaf.medi by kaf.medi.beforeyeh;
+		sub kaf.init by kaf.init.beforeyeh;
+	} substyehshapefinaii;
+
+	lookup substyehshapefinaii.2 {
+		sub behshape.init by behshape.init.beforehahyeh;
+		sub hah.medi by hah.medi.afterbeh.beforeyeh;
+		sub yehshape.fina by yehshape.fina.ii;
+	} substyehshapefinaii.2;
+
+	lookup substyehshapefinaii.3 {		
+		sub lam.init by lam.init.beforehahyeh;
+		sub hah.medi by hah.medi.afterlam.beforeyeh;
+		sub yehshape.fina by yehshape.fina.ii;
+	} substyehshapefinaii.3;
+
+	lookup requiredligature.l4 {
+		sub ain.init by ain.init.finjani;
+    sub lam.medi by lam.medi.beforeyeh;
+    sub yehshape.fina by yehshape.fina.ii;
+	} requiredligature.l4;
+
+	lookup requiredligature.l5 {
+		sub behshape.init by behshape.init.beforehah;
+    sub hah.medi by hah.medi.afterbeh;   
+	} requiredligature.l5;
+
+	lookup requiredligature.lmeemhah {
+		sub meem.init by meem.init.beforehah;
+    sub hah.medi by hah.medi.aftermeem;
+	} requiredligature.lmeemhah;
+
+	lookup requiredligature.l6 {
+		sub lam.medi by lam.medi.laf;
+    sub alef.fina by alef.fina.laf;   
+	} requiredligature.l6;
+
+	lookup requiredligature.l7 {
+		sub lam.init by lam.init.lam_hah;
+    sub hah.medi by hah.medi.lam_hah;
+	} requiredligature.l7;
+
+	lookup requiredligature.l9 {
+		sub behshape.init by behshape.init.beforenoon;
+		sub behshape.medi by behshape.medi.beforenoon;
+		sub noon.fina by noon.fina.afterbeh;
+	} requiredligature.l9;
+
+	lookup requiredligature.l10 {
+		sub lam.init by lam.init.beforedal;
+		sub dal.fina by dal.fina.afterlam;
+		sub lam.medi by lam.medi.beforeheh;
+		sub heh.fina by heh.fina.afterlam;
+		sub kaf.fina by kaf.fina.afterlam;
+	} requiredligature.l10;
+
+	lookup requiredligature.l11 {
+		sub heh.init by heh.init.beforemeem;
+		sub meem.fina by meem.fina.afterheh;
+	} requiredligature.l11;
+
+	lookup requiredligature.l13 {
+		sub behshape.medi by behshape.medi.beforereh;
+		sub reh.fina by reh.fina.afterbehshape;
+	} requiredligature.l13;
+
+	lookup substyehshapefinaafterbeh {
+		sub yehshape.fina by yehshape.fina.afterbeh;
+		sub behshape.medi by behshape.medi.beforeyeh;
+		sub seen.init by seen.init.beforeyeh;
+		sub seen.medi by seen.medi.beforeyeh;
+		sub sad.init by sad.init.beforeyeh;
+		sub sad.medi by sad.medi.beforeyeh;
+	} substyehshapefinaafterbeh;	
+
+	sub (lam.init lam.medi heh.fina)'lookup requiredligature.l1;
+	sub (lam.init alef.fina)'lookup requiredligature.l2;	
+	sub (behshape.init hah.medi yehshape.fina)'lookup substyehshapefinaii.2;
+	sub (lam.init hah.medi yehshape.fina)'lookup substyehshapefinaii.3;
+	sub  [fehshape.init fehshape.medi behshape.init lam.init
+		lam.medi meem.init meem.medi hah.init hah.medi heh.init
+		heh.medi ain.init ain.medi tah.init tah.medi kaf.init kaf.medi]'lookup substyehshapefinaii yehshape.fina'lookup substyehshapefinaii;
+	sub (ain.init lam.medi yehshape.fina)'lookup requiredligature.l4;
+	sub (behshape.init hah.medi)'lookup requiredligature.l5;
+	sub (meem.init hah.medi)'lookup requiredligature.lmeemhah;
+	sub (lam.medi alef.fina)'lookup requiredligature.l6;
+	sub (lam.init hah.medi)'lookup requiredligature.l7;
+	sub ([behshape.init behshape.medi] noon.fina)'lookup requiredligature.l9;
+	sub ([lam.init lam.medi] [dal.fina heh.fina kaf.fina ])'lookup requiredligature.l10;
+	sub (heh.init meem.fina)'lookup requiredligature.l11;
+	sub (behshape.medi reh.fina)'lookup requiredligature.l13;
+	sub ([behshape.medi seen.init seen.medi sad.init sad.medi] yehshape.fina)'lookup substyehshapefinaafterbeh;
+
+	
+	
+} requiredligature;
+
+
+lookup alefadjustmentgsub {
+
+    feature rlig;
+
+		lookupflag UseMarkFilteringSet [hamzabelow];
+		
+
+    lookup alefadjustmentgsub.l1 {
+        sub alef.isol  by alef.isol.ii;			
+    } alefadjustmentgsub.l1;   
+
+    sub [waw.isol] alef.isol'lookup alefadjustmentgsub.l1 hamzabelow;
+
+} alefadjustmentgsub;
+
+
+lookup kafmeemliga {
+
+    feature calt;
+
+		lookupflag IgnoreMarks;
+
+    lookup kafmeemliga.l1 {
+        sub kaf.medi  by kaf.medi.beforemeem;
+				sub meem.fina by meem.fina.afterkaf;
+    } kafmeemliga.l1;   
+
+    sub (kaf.medi meem.fina)'lookup kafmeemliga.l1 ;
+
+} kafmeemliga;
+
+
 lookup leftexpand {
 
   lookup forsmallhighwawfea {
@@ -50,15 +454,26 @@ lookup leftexpand {
     } forhamzafea_lig;
 
 
+		lookup lamhamzaalef.l1 {				
+        sub hamzaabove by hamzaabove.lamalef;       
+    } lamhamzaalef.l1;
 
-    #sub behshape.medi'lookup forhamzafea.l1 [tatweel \0x200D]'lookup forhamzafea_lig hamzaabove meemiqlab;
+		lookup requiredligature.l2.1 {
+			lookupflag IgnoreMarks;			
+			sub lam.init tatweel by lam.init.lamalef;
+		} requiredligature.l2.1;
+
+		#TODO fix lookup index
+		sub [lam.init]'lookup requiredligature.l2.1 tatweel'lookup lamhamzaalef.l1 hamzaabove'lookup requiredligature.l2 alef.fina';    
 
     sub behshape.medi'lookup forhamzafea.l1 [tatweel]'lookup forhamzafea_lig hamzaabove meemiqlab;
 
-    #sub @haslefttatweel'lookup forwawfea.l2 [tatweel \0x200D]'lookup forhamzafea_lig [hamzaabove smallhighyeh smallhighnoon];
+    
     sub @haslefttatweel'lookup forwawfea.l2 [tatweel]'lookup forhamzafea_lig [hamzaabove smallhighyeh smallhighnoon];
 
     sub @haslefttatweel'lookup forwawfea.l2 roundedfilledhigh;
+
+		
 
   } forhamzafea;
 
@@ -93,26 +508,31 @@ lookup leftexpand {
 
     sub @haslefttatweel'lookup forwawfea.l1 [waw.fina qaf.fina qaf.fina.expa];
 
-    sub @haslefttatweel'lookup forwawfea.l2 [heh.medi ];
+    sub @haslefttatweel'lookup forwawfea.l2 [/^heh.medi/ ];
 
 		sub @haslefttatweel'lookup forwawfea.l3 [sad.medi sad.medi.beforereh sad.medi.beforeyeh sad.fina tah.fina];
 
-		sub @haslefttatweel'lookup forwawfea.l4 [tah.medi tah.medi.beforeyeh];
+		sub @haslefttatweel'lookup forwawfea.l4 [/^tah.medi/];
 
   } forwawheh;
 
   lookup forsmalllaleffea {
 
+		
+
     feature calt;
-    lookupflag UseMarkFilteringSet [smallalef maddahabove];
+
+    lookupflag UseMarkFilteringSet [smallalef maddahabove smallalef.joined];
 
     lookup forsmalllaleffea.smallalef {
       sub smallalef by smallalef.joined;
     } forsmalllaleffea.smallalef;
 
-    sub @haslefttatweel'lookup forwawfea.add2 smallalef'lookup forsmalllaleffea.smallalef maddahabove;
-    sub @haslefttatweel'lookup forwawfea.add1 smallalef'lookup forsmalllaleffea.smallalef;
-    sub @haslefttatweel'lookup forwawfea.add1 maddahabove' smallalef'lookup forsmalllaleffea.smallalef;
+		#sub @haslefttatweel'lookup forwawfea.add1 tatweel'lookup forsmalllaleffea_lig lookup forsmalllaleffea.smallalef smallalef';
+
+    sub @haslefttatweel'lookup forwawfea.add2 [smallalef smallalef.joined]'lookup forsmalllaleffea.smallalef maddahabove;
+    sub @haslefttatweel'lookup forwawfea.add1 [smallalef smallalef.joined]'lookup forsmalllaleffea.smallalef;
+    sub @haslefttatweel'lookup forwawfea.add1 maddahabove' [smallalef smallalef.joined]'lookup forsmalllaleffea.smallalef;
 
   } forsmalllaleffea;
 
@@ -129,7 +549,7 @@ lookup basmala {
         sub seen.medi by seen.medi.basmala add 16 0;
         sub meem.fina by meem.fina.basmala add 0 6;
         sub behshape.medi by behshape.medi.basmala add 9 0;
-		sub hah.init by hah.init.basmala;
+				sub hah.init by hah.init.basmala;
     } basmala.l1.new;
 
     lookup basmala.l1 {
@@ -150,10 +570,10 @@ lookup basmala {
     lookup basmala.l4 {
         sub space by space.ii;
     } basmala.l4;
-
+		
     sub  behshape.init.beforeseen'lookup basmala.l1.new seen.medi'lookup basmala.l1.new  meem.fina'lookup basmala.l1.new
          space'  alef.isol' lam.init.allah' lam.medi.allah' heh.fina.allah'
-         space' alef.isol' lam.init'  reh.fina'  hah.init.beforemeem' meem.medi.afterhah'lookup basmala.l1 /^noon.fina/'lookup basmala.l3
+         space' alef.isol' lam.init'  reh.fina'  hah.init.beforemeem' /^meem.medi.afterhah/'lookup basmala.l1 /^noon.fina/'lookup basmala.l3
          space'lookup basmala.l4 alef.isol' lam.init'  reh.fina'  hah.init'lookup basmala.l1.new   behshape.medi'lookup basmala.l1.new  meem.fina'lookup basmala.l2;
 
 } basmala;
@@ -167,32 +587,52 @@ lookup basmala.curs {
     lookup basmala.curs.l1 {
         lookupflag IgnoreMarks ;
         pos cursive reh.fina <anchor 0 0> <anchor 0 0> ;
-        pos cursive hah.init.basmala <anchor 400 100 > <anchor 0 0>;
+        pos cursive /^hah.init.basmala/ <anchor 400 100 > <anchor 0 0>;
     } basmala.curs.l1;
 
     lookup basmala.curs.l2 {
          lookupflag IgnoreMarks RightToLeft;
         pos cursive alef.isol <anchor 0 0> <anchor 0 0> ;
-        pos cursive lam.init <anchor 400 100 > <anchor 0 0>;
+        pos cursive lam.init <anchor 400 100 > <anchor 150 150>;
     } basmala.curs.l2;
 
     lookup basmala.curs.l3 {
          lookupflag IgnoreMarks RightToLeft;
-        pos cursive alef.isol <anchor 0 0> <anchor NULL> ;
-        pos cursive noon.fina.basmala <anchor NULL> <anchor basmala>;
+        pos cursive alef.isol <anchor 560 -49> <anchor NULL> ;
+        pos cursive /^noon.fina.basmala/ <anchor NULL> <anchor basmala>;
     } basmala.curs.l3;
 
-	lookup basmala.curs.l4 {		
-		pos meem.fina.basmala <0 0 0 0>;			
-	} basmala.curs.l4;
+    #pos  /^behshape.init.bseen.basmala/ /^seen.medi.basmala/'  /^meem.fina.basmala/'
+    # space'  alef.isol' lam.init.allah' lam.medi.allah' heh.fina.allah'
+    # space' alef.isol' lam.init'  reh.fina'  [hah.init.beforemeem hah.init]' [/^meem.medi.afterhah/ meem.medi]' /^noon.fina.basmala/'
+    # alef.isol'lookup basmala.curs.l3 lam.init'lookup basmala.curs.l2  reh.fina'   /^hah.init.basmala/'lookup basmala.curs.l1  /^behshape.medi.basmala/'  /^meem.fina.basmala/';
 
-    pos  behshape.init.bseen.basmala seen.medi.basmala'  meem.fina.basmala'
-     space'  alef.isol' lam.init.allah' lam.medi.allah' heh.fina.allah'
-     space' alef.isol' lam.init'  reh.fina'  [hah.init.beforemeem hah.init]' [meem.medi.afterhah meem.medi]' noon.fina.basmala'
-     alef.isol'lookup basmala.curs.l3 lam.init'lookup basmala.curs.l2  reh.fina'   hah.init.basmala'lookup basmala.curs.l1  behshape.medi.basmala'  meem.fina.basmala'lookup basmala.curs.l4;
+		 pos  alef.isol'lookup basmala.curs.l3 lam.init'lookup basmala.curs.l2  reh.fina'   /^hah.init.basmala/'lookup basmala.curs.l1  /^behshape.medi.basmala/'  /^meem.fina.basmala/';
 
 
 } basmala.curs ;
+
+lookup lefttorightcursive{
+
+  feature curs;
+
+  lookupflag IgnoreMarks;
+
+  lookup lefttorightcursive.l1 {
+      lookupflag IgnoreMarks ;
+      pos cursive reh.fina <anchor 0 0> <anchor 0 0> ;
+      pos cursive /^hah.init.basmala/ <anchor 400 100 > <anchor 0 0>;
+  } lefttorightcursive.l1;
+
+ 
+
+  pos  /^behshape.init.bseen.basmala/ /^seen.medi.basmala/'  /^meem.fina.basmala/'
+    space'  alef.isol' lam.init.allah' lam.medi.allah' heh.fina.allah'
+    space' alef.isol' lam.init'  reh.fina'  [hah.init.beforemeem hah.init]' [/^meem.medi.afterhah/ meem.medi]' /^noon.fina.basmala/'
+    alef.isol' lam.init'  reh.fina'   /^hah.init.basmala/'lookup lefttorightcursive.l1  /^behshape.medi.basmala/'  /^meem.fina.basmala/';
+
+
+} lefttorightcursive;
 
 
 
@@ -275,21 +715,11 @@ lookup alefadjustment {
 	pos waw.isol alef.isol.ii'lookup alefadjustment.l1 hamzabelow;
 	pos [meem.fina.afterheh meem.fina.afterkaf] space alef.isol'lookup alefadjustment.l1 hamzabelow;
 
-	pos alef.isol'lookup alefadjustment.l2 hamzaabove /^lam[.]init/;
-
-	pos alef.isol'lookup alefadjustment.lwasla wasla /^lam[.]init/ @topmarks;
-	pos /reh|waw/'lookup alefadjustment.l1 space /alef/ hamzabelow;
+	
+	pos /^(reh|waw)/'lookup alefadjustment.l1 space /alef/ hamzabelow;
 	
 
 } alefadjustment;
-
-lookup wawmaddaalef {
-
-	feature kern;		
-
-	pos /waw.fina/ maddahabove alef.isol'< 0 0 50 0>;	
-
-} wawmaddaalef;
 
 lookup kernlastline {
 
@@ -300,15 +730,29 @@ lookup kernlastline {
 
 } kernlastline;
 
-lookup alefalef {
+lookup kernlastline.standard {
 
-	feature kern;		
+	feature kern;
 
 	lookupflag IgnoreMarks;
 
-	pos alef.isol'<70 0 70 0> (space | NULL) alef.isol;		
+	lookup kernlastline.standard.l1 {
+		pos reh.fina.afterseen   < 200 0 200 0>;
+		pos reh.fina.afterbehshape   < 150 0 150 0>;
+		pos reh.fina.ii < 180 0 180 0>;
+		pos reh.fina < 180 0 180 0>;
+		pos reh.isol < 180 0 180 0>;
+		pos waw.isol < 180 0 180 0>;
+		pos waw.fina < 180 0 180 0>;
+		pos meem.fina < 50 0 50 0>;
+		pos meem.fina.afterheh < 200 0 200 0>;
+	} kernlastline.standard.l1;	
+	
+	pos @bases'lookup  kernlastline.standard.l1 space';
+	pos @bases' @bases;
+	pos @bases'lookup  kernlastline.standard.l1;
 
-} alefalef;
+} kernlastline.standard ;
 
 lookup thalkafinit {
 
@@ -322,19 +766,33 @@ lookup thalkafinit {
 
 lookup variouskern {
 
+	feature kern;		
+
 	lookup variouskern.l1 {
 		pos /^hamza.isol/ < 0 -50 0 0 >;
 		pos /^alef.isol/ <0 0 -100 0 >;
 		pos /^dal.isol/ < -100 0 -100 0>;
 		pos shadda <-80 -50 0 0>;
 		pos smallwaw <0 0 50 0>;
-	} variouskern.l1;
+		pos /^lam.init/ <0 0 70 0>;	
+	} variouskern.l1;	
 
 	lookup variouskern.l2 {					
 		pos base  /^hamza.isol/ <anchor 0 0> markClass dammatan <anchor function defaultopmarkanchor> @dammatan ;
 	} variouskern.l2;
 
-	feature kern;		
+	lookup alefkern.l1 {
+		pos /^alef/ <100 0 100 0>;	
+	} alefkern.l1;
+
+	lookup alefkern.l2 {
+		pos /^alef/ <500 0 500 0>;	
+	} alefkern.l2;
+
+	pos /^alef/'lookup alefkern.l1 (wasla | (hamzaabove [fatha damma]))  [/behshape.init/ /fehshape.init/] /dot/ shadda [fatha fathatan fathatanidgham];	
+	
+	
+	pos /^alef.isol/'<0 0 100 0> hamzabelow;
 
 	pos /^alef.isol/ maddahabove /^hamza.isol/'lookup variouskern.l1 dammatan'lookup variouskern.l2;
 	#pos fathatanidgham /^alef.isol/'lookup variouskern.l1;
@@ -350,7 +808,7 @@ lookup variouskern {
 
 	pos lam.fina'<-100 0 -100 0> space lam.init shadda fatha;
 
-        pos alef.isol'<-100 0 -100 0> hamzabelow kasra /^lam.init/ fatha;
+
 
 } variouskern;
 
@@ -447,13 +905,11 @@ lookup otherkern {
 
 	feature kern;	
 
-	#pos /^waw.isol/'<0 -100 0 0> kasra' /^behshape.init/'<0 100 -50 0> twodotsdown;
-
 	pos meem.fina.afterkaf'<50 0 50 0> sukun space;
 
 	pos /^waw.fina/ /^alef.isol/'<0 0 -150 0> smallhighroundedzero;
 
-	pos /^reh.fina/ kasra /^meem.init/'<0 0 -200 0>;
+	
 
 	pos meem.fina sukun space kaf.init'<0 0 -200 0>;
 
@@ -473,30 +929,9 @@ lookup otherkern {
 
 		pos /^alef.isol/ lam.init.lam_hah'<0 0 -100 0>;
 
-	} otherkern.o2;
-	
-	lookup shrink1 {
+		pos [/^alef[.]isol/ /^alef[.]fina/] [/^alef[.]isol/ /^lam[.]init/]'<0 0 50 0>;
 
-		#feature kern;	
-
-		pos [/^waw.isol/ /^reh.isol/] (NULL | onedotup) /^alef.isol/'<0 0 -150 0>;
-		pos [/^waw.isol/ /^reh.isol/] (NULL | onedotup)  [fatha fathatanidgham fathatan] /^alef.isol/'<0 0 -150 0>;
-		pos [/^waw.fina/ /^reh.fina/] (NULL | onedotup) [fatha fathatanidgham fathatan] /^alef.isol/'<0 0 -100 0>;
-			
-		lookup tighten.o1 {
-
-			feature kern;		
-		
-			lookupflag IgnoreMarks;
-
-			pos [/^behshape/ /^yeh/ /^alef/] space /^kaf.init/'<0 0 -100 0>;
-
-			pos [/^lam.fina/ ] space /^hah.init/'<0 0 -200 0>;
-
-		} tighten.o1;
-
-	} shrink1;
-	
+	} otherkern.o2;	
 
 } otherkern;
 
@@ -534,27 +969,7 @@ lookup kafsubst {
 
 
 
-lookup alefkern {
 
-	feature kern;	
-
-	lookup alefkern.l1 {
-		pos /^alef/ <100 0 100 0>;	
-	} alefkern.l1;
-
-	lookup alefkern.l2 {
-		pos /^alef/ <500 0 500 0>;	
-	} alefkern.l2;
-
-	pos /^alef/'lookup alefkern.l1 (wasla | (hamzaabove [fatha damma]))  [/behshape.init/ /fehshape.init/] /dot/ shadda [fatha fathatan fathatanidgham];	
-	pos /^alef/'lookup alefkern.l1 hamzaabove fatha /^lam.init/ shadda [fatha fathatan fathatanidgham sukun];
-	pos /^alef/'lookup alefkern.l1 hamzaabove fatha /^lam.init/ sukun;
-	pos /^alef/'lookup alefkern.l1 maddahabove /^lam.init/ shadda;
-	pos /^alef.isol/'<0 0 100 0> hamzabelow;
-
-	
-
-} alefkern;
 
 lookup endoflinekern {
 
@@ -567,33 +982,41 @@ lookup endoflinekern {
 
 } endoflinekern;
 
+lookup adjustmarks2 {
+
+	feature mark;
+
+	lookup adjustmarks2.l1 {			
+		pos base  reh.fina <anchor 0 0> markClass [shadda] <anchor 0 0> @shadda ;	
+	} adjustmarks2.l1;
+
+	lookup adjustmarks2.l2 {			
+		pos base  /^lam.init/ <anchor -30 800> markClass [damma] <anchor 0 0> @damma ;	
+	} adjustmarks2.l2;
 
 
 
+	lookup meemiqlabtah.l1 {			
+		pos base  /^tah/ <anchor 700 550> markClass [fatha damma] <anchor 0 0> @fathadamma ;	
+	} meemiqlabtah.l1;
 
+	pos /^tah/ [fatha damma]'lookup meemiqlabtah.l1  meemiqlab;	
+
+	pos reh.fina shadda'lookup adjustmarks2.l1 @topmarks hah.init.beforemeem ;
+
+	pos /^lam.init/ damma'lookup adjustmarks2.l2 waw.fina;
+
+
+} adjustmarks2;
 
 lookup adjustmarks {
 
-	feature mkmk;	
-
-	lookup meemiqlabtah{
-
-		feature mkmk;
-
-		lookup meemiqlabtah.l1 {			
-			pos base  /^tah/ <anchor 700 550> markClass [fatha damma] <anchor 0 0> @fathadamma ;	
-		} meemiqlabtah.l1;
-
-		pos /^tah/ [fatha damma]'lookup meemiqlabtah.l1  meemiqlab;
-
-	
-	} meemiqlabtah;	
+	feature mkmk;		
 
 	lookup adjustmarks.l1 {
 		pos [ dammatan fatha] <0 0 0 0>;	
 		pos [ dammatanidgham] <0 0 0 0>;	
-		pos [ fathatanidgham fathatan] <0 0 0 0>;
-		pos /^lam.init/ <0 0 70 0>;	
+		pos [ fathatanidgham fathatan] <0 0 0 0>;		
 		pos /smallalef/ <0 150 0 0>;		
 		pos maddahabove <0 0 0 0>;			
 	} adjustmarks.l1;
@@ -628,13 +1051,39 @@ lookup adjustmarks {
 		pos base lam.init.beforedal <anchor 0 0> markClass shadda  <anchor 0 0> @shadda;			
 	} adjustmarks.beforedal;
 
+	lookup adjustmarks.aleflam {		
+		pos base [alef.isol alef.fina] <anchor 0 0> markClass hamzaabove  <anchor 0 0> @hamzaabove;			
+	} adjustmarks.aleflam;
+
+	lookup adjustmarks.aleflam.l1 {		
+		pos mark hamzaabove <anchor 0 0> markClass fatha  <anchor 0 0> @hamzaabove;			
+	} adjustmarks.aleflam.l1;
+
+	lookup adjustmarks.aleflam.l2 {		
+		pos mark hamzaabove <anchor 0 0> markClass fatha  <anchor 0 0> @hamzaabove;			
+	} adjustmarks.aleflam.l2;
+
+	lookup adjustmarks.aleflam.l2hamza {		
+		pos base alef.isol <anchor 0 0> markClass hamzaabove  <anchor 0 0> @hamzaabove;			
+	} adjustmarks.aleflam.l2hamza;
+
 	lookup adjustmarks.lam.init.beforedal {
 
 		feature mkmk;	
 
 		pos lam.init.beforedal shadda  [damma]'<0 0 0 0> dal.fina.afterlam shadda;
 
-	} adjustmarks.lam.init.beforedal ;	
+	} adjustmarks.lam.init.beforedal ;
+
+	lookup adjustmarks.alefkaf.l2 {		
+		pos base kaf.init <anchor 0 0> markClass damma  <anchor 0 0> @temp;			
+	} adjustmarks.alefkaf.l2;
+
+	lookup adjustmarks.alefkaf.l1 {		
+		pos mark hamzaabove.small <anchor 0 0> markClass fatha  <anchor 0 0> @temp;			
+	} adjustmarks.alefkaf.l1;
+
+	pos [alef.fina] hamzaabove.small' fatha'lookup adjustmarks.alefkaf.l1 kaf.init'; # damma'lookup adjustmarks.alefkaf.l2;
 
 	pos dal.fina.afterlam onedotup shadda damma'<50 30 0 0> /^kaf.init/;
 
@@ -651,13 +1100,17 @@ lookup adjustmarks {
 	pos /^lam.ini/ shadda fatha /^heh.fina/  twodotsup [dammatanidgham]'lookup adjustmarks.l1;
 	pos /^lam.ini/ fatha /^heh.fina/  twodotsup [fathatanidgham fathatan]'lookup adjustmarks.l1;
 
-	pos /^alef.fina/  hamzaabove fatha /^lam.init/'lookup adjustmarks.l1 damma;	
+	
 
 	pos /^alef.fina/  hamzaabove fatha lam.init.beforedal fatha'lookup adjustmarks.l1;
 
 	pos /^alef.fina/  hamzaabove fatha lam.isol fatha'lookup adjustmarks.l11;
 
-	pos /^alef/  maddahabove /^lam.init/'lookup adjustmarks.l1;
+	pos /^alef.isol/'  hamzaabove'lookup adjustmarks.aleflam fatha'lookup adjustmarks.aleflam.l1 [lam.init lam.init.lamalef]' sukun';
+	pos /^alef.isol/'  hamzaabove'lookup adjustmarks.aleflam.l2hamza fatha'lookup adjustmarks.aleflam.l2 [lam.init lam.init.lamalef]' [fatha shadda]';
+	pos /^alef.isol/'  hamzaabove'lookup adjustmarks.aleflam fatha'lookup adjustmarks.aleflam.l1 [behshape.init]' onedotup' shadda';
+	pos /^alef.fina/'  hamzaabove'lookup adjustmarks.aleflam fatha'lookup adjustmarks.aleflam.l1 [lam.init lam.init.lamalef]' [fatha sukun]';
+	pos /^alef.isol/'  hamzaabove'lookup adjustmarks.aleflam damma' [lam.init lam.init.lamalef]' sukun';
 
 	pos /^alef/  hamzaabove fatha /^heh.isol/ twodotsup dammatan'lookup adjustmarks.l22;
 
@@ -679,7 +1132,7 @@ lookup adjustmarks {
 
 	pos maddahabove hamzaabove.joined'<30 100 0 0> fathatanidgham;
 
-        pos reh.fina shadda'<80 120 0 0> @topmarks hah.init.beforemeem ;
+	
 
 	lookup adjustmarks.l4 {
 
@@ -770,130 +1223,127 @@ lookup adjustmarks {
 
 		pos lam.medi.beforeheh (shadda | NULL) fatha heh.fina.afterlam twodotsup dammatanidgham'<-50 0 0 0>;
 
-		pos lam.init damma'<-70 0 0 0> waw.fina;
-
-		
-
-	} adjustmarks_usingmarktobase;
+	} adjustmarks_usingmarktobase;	
 	
-	lookup adjustwaqf {
 
-		lookup adjustwaqf_kernafterwaqf {
+} adjustmarks;
 
-			feature mkmk;
+lookup adjustwaqf_kernafterwaqf {
 
-			lookupflag UseMarkFilteringSet @waqfmarks;
+	feature kern;
 
-			# pos behshape.fina';
+	lookupflag UseMarkFilteringSet @waqfmarks;
 
-			pos @bases'<200 0 200 0>  @waqfmarks;					
+	# pos behshape.fina';
 
-		} adjustwaqf_kernafterwaqf;	
+	pos @bases'<200 0 200 0>  @waqfmarks;					
+
+} adjustwaqf_kernafterwaqf;	
+
+lookup adjustwaqf {	
 		
-		lookup adjustwaqf.beforekaf {
-
-			feature mkmk;
-
-			pos meem.fina.afterkaf sukun waqf.sad'<0  150 0 0> space /^kaf.init/;
-
-			pos meem.fina.afterkaf sukun waqf.sad'<70  100 0 0> space /^alef.isol/ hamzaabove fatha;
-
-		} adjustwaqf.beforekaf ;
-
-		lookup adjustwaqf_btm {
-
-			feature mkmk;
-
-			lookup adjustwaqf_kafmeem_l1 {									
-				pos base  meem.fina.afterkaf <anchor 50 950> markClass  waqf.jeem <anchor 0 0> @waqf.jeem ;
-				pos base  kaf.isol <anchor 50 1050> markClass  waqf.jeem <anchor 0 0> @waqf.jeem ;
-				pos base  /^kaf.fina/ <anchor -50 1050> markClass  [waqf.jeem waqf.sad] <anchor 0 0> @waqf ;
-				pos base  alef.fina.laf <anchor 50 950> markClass  waqf.jeem <anchor 0 0> @waqf.jeem ;
-				pos base  ain.isol <anchor 0 1000> markClass  [waqf.sad waqf.qaf] <anchor 0 0> @waqf ;
-				pos base  [alef.fina behshape.fina alef.isol] <anchor 150 900> markClass  [waqf.jeem waqf.qaf] <anchor 0 0> @waqf.jeem ;
-				pos base  meem.fina.afterkaf <anchor -50 1000> markClass  waqf.sad <anchor 0 0> @waqf.sad ;
-				pos base  hamza.isol <anchor 50 800> markClass  waqf.jeem <anchor 0 0> @waqf.jeem ;
-			} adjustwaqf_kafmeem_l1;
-
-			pos meem.fina.afterkaf sukun waqf.jeem'lookup adjustwaqf_kafmeem_l1 ;			
-
-			pos kaf.isol dammatanidgham waqf.jeem'lookup adjustwaqf_kafmeem_l1 ;
-
-			pos /^kaf.fina/ dammatan [waqf.jeem waqf.sad]'lookup adjustwaqf_kafmeem_l1 ;
-			
-			pos alef.fina.laf  waqf.jeem'lookup adjustwaqf_kafmeem_l1 ;
-			
-			pos ain.isol [damma dammatanidgham]  [waqf.sad waqf.qaf]'lookup adjustwaqf_kafmeem_l1 ;
-
-			pos waqf.jeem'lookup adjustwaqf_kafmeem_l1 space kaf.init;
-			pos waqf.qaf'<100 0 0 0> space kaf.init;
-
-			pos kaf.medi.beforemeem damma'<100 100 0 0> meem.fina.afterkaf' sukun' waqf.sad'lookup adjustwaqf_kafmeem_l1 space kaf.init;
-
-		} adjustwaqf_btm ;
-
-		lookup adjustwaqf.l1 {
-			pos mark  @topmarks <anchor 0 0> markClass waqf.jeem  <anchor 300 -100> @waqf.jeem ;
-			pos mark  @topmarks <anchor 0 0> markClass @waqfmarks  <anchor 450 -200> @waqfmarks ;	
-		} adjustwaqf.l1;
-
-		lookup adjustwaqf.l2 {
-			pos base  /^dal.fina/ <anchor 0 958> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;	
-			pos base  /^qaf/ <anchor -100 850> markClass waqf.qaf  <anchor 0 0> @waqf.qaf <anchor -300 850> markClass waqf.sad  <anchor 0 0> @waqf.sad <anchor -200 850> markClass waqf.jeem  <anchor 0 0> @waqf.jeem;
-			pos base  alef.fina.laf <anchor -100 1000> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;	
-			pos base  /^alef/ <anchor -150 1000> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;	
-			pos base  /^waw/ <anchor 0 1050> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;
-			pos base  /^lam.isol|lam.fina/ <anchor 0 1050> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;
-			pos base  /^heh.fina/ <anchor 0 1050> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;
-			pos base  yehshape.fina.ii <anchor 0 1250> markClass waqf.sad  <anchor 0 0> @waqf.sad ;			
-		} adjustwaqf.l2;
-
-		lookup adjustwaqf.l3 {			
-			pos base  /^qaf.isol/ <anchor 0 1050> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;			
-			pos base  /^alef.fina/ <anchor 0 1050> markClass  waqf.sad <anchor 0 0> @waqf.sad ;
-		} adjustwaqf.l3;
-
-
+	lookup adjustwaqf.beforekaf {
 
 		feature mkmk;
 
-		pos /^fehshape.medi/ [onedotup twodotsup] shadda fathatanidgham /^alef.fina/ waqf.sad'lookup adjustwaqf.l3;
+		pos meem.fina.afterkaf sukun waqf.sad'<0  150 0 0> space /^kaf.init/;
 
-		pos lam.medi.beforeyeh shadda fathatanidgham yehshape.fina.ii waqf.sad'lookup adjustwaqf.l2;
+		pos meem.fina.afterkaf sukun waqf.sad'<70  100 0 0> space /^alef.isol/ hamzaabove fatha;
 
-		pos smallhighroundedzero /waqf/'<-100 100 0 0 >;
+	} adjustwaqf.beforekaf ;
 
-		pos /^heh/ twodotsup  fatha waqf.jeem'<0 0 0 0>;
+	lookup adjustwaqf_btm {
 
-		pos smallalef.replacement  heh.isol twodotsup kasra waqf.sad'<-100 -200 0 0>;
+		feature mkmk;
 
-		pos /^heh/ twodotsup  @lowmarks @waqfmarks'<0 -150 0 0>;
+		lookup adjustwaqf_kafmeem_l1 {									
+			pos base  meem.fina.afterkaf <anchor 50 950> markClass  waqf.jeem <anchor 0 0> @waqf.jeem ;
+			pos base  kaf.isol <anchor 50 1050> markClass  waqf.jeem <anchor 0 0> @waqf.jeem ;
+			pos base  /^kaf.fina/ <anchor -50 1050> markClass  [waqf.jeem waqf.sad] <anchor 0 0> @waqf ;
+			pos base  alef.fina.laf <anchor 50 950> markClass  waqf.jeem <anchor 0 0> @waqf.jeem ;
+			pos base  ain.isol <anchor 0 1000> markClass  [waqf.sad waqf.qaf] <anchor 0 0> @waqf ;
+			pos base  [alef.fina behshape.fina alef.isol] <anchor 150 900> markClass  [waqf.jeem waqf.qaf] <anchor 0 0> @waqf.jeem ;
+			pos base  meem.fina.afterkaf <anchor -50 1000> markClass  waqf.sad <anchor 0 0> @waqf.sad ;
+			pos base  hamza.isol <anchor 50 800> markClass  waqf.jeem <anchor 0 0> @waqf.jeem ;
+		} adjustwaqf_kafmeem_l1;
 
-		pos heh.fina twodotsup  dammatan waqf.jeem'<-200 -100 0 0>;
+		pos meem.fina.afterkaf sukun waqf.jeem'lookup adjustwaqf_kafmeem_l1 ;			
 
-		pos /^heh/ twodotsup  @topmarks @waqfmarks'<-83 180 0 0>;
+		pos kaf.isol dammatanidgham waqf.jeem'lookup adjustwaqf_kafmeem_l1 ;
 
-		pos /^heh/ twodotsup  @topmarks meemiqlab @waqfmarks'<-83 100 0 0>;		
+		pos /^kaf.fina/ dammatan [waqf.jeem waqf.sad]'lookup adjustwaqf_kafmeem_l1 ;
+			
+		pos alef.fina.laf  waqf.jeem'lookup adjustwaqf_kafmeem_l1 ;
+			
+		pos ain.isol [damma dammatanidgham]  [waqf.sad waqf.qaf]'lookup adjustwaqf_kafmeem_l1 ;
 
-		pos /^lam.isol|lam.fina/ (shadda | NULL) @topmarks  @waqfmarks'lookup adjustwaqf.l1;
+		pos waqf.jeem'lookup adjustwaqf_kafmeem_l1 space kaf.init;
+		pos waqf.qaf'<100 0 0 0> space kaf.init;
 
-		pos /^lam.isol|lam.fina/ shadda kasra  @waqfmarks'lookup adjustwaqf.l2;
+		pos kaf.medi.beforemeem damma'<100 100 0 0> meem.fina.afterkaf' sukun' waqf.sad'lookup adjustwaqf_kafmeem_l1 space kaf.init;
 
-		pos /^dal.fina/ @topmarks  @waqfmarks'lookup adjustwaqf.l2;
+	} adjustwaqf_btm ;
 
-		pos /^qaf/ shadda  @topmarks @waqfmarks'lookup adjustwaqf.l2;
+	lookup adjustwaqf.l1 {
+		pos mark  @topmarks <anchor 0 0> markClass waqf.jeem  <anchor 300 -100> @waqf.jeem ;
+		pos mark  @topmarks <anchor 0 0> markClass @waqfmarks  <anchor 450 -200> @waqfmarks ;	
+	} adjustwaqf.l1;
 
-		pos /^alef/ maddahabove  @waqfmarks'lookup adjustwaqf.l2;
+	lookup adjustwaqf.l2 {
+		pos base  /^dal.fina/ <anchor 0 958> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;	
+		pos base  /^qaf/ <anchor -100 850> markClass waqf.qaf  <anchor 0 0> @waqf.qaf <anchor -300 850> markClass waqf.sad  <anchor 0 0> @waqf.sad <anchor -200 850> markClass waqf.jeem  <anchor 0 0> @waqf.jeem;
+		pos base  alef.fina.laf <anchor -100 1000> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;	
+		pos base  /^alef/ <anchor -150 1000> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;	
+		pos base  /^waw/ <anchor 0 1050> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;
+		pos base  /^lam.isol|lam.fina/ <anchor 0 1050> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;
+		pos base  /^heh.fina/ <anchor 0 1050> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;
+		pos base  yehshape.fina.ii <anchor 0 1250> markClass waqf.sad  <anchor 0 0> @waqf.sad ;			
+	} adjustwaqf.l2;
 
-		pos /^waw/ shadda  @topmarks @waqfmarks'lookup adjustwaqf.l2;
+	lookup adjustwaqf.l3 {			
+		pos base  /^qaf.isol/ <anchor 0 1050> markClass @waqfmarks  <anchor 0 0> @waqfmarks ;			
+		pos base  /^alef.fina/ <anchor 0 1050> markClass  waqf.sad <anchor 0 0> @waqf.sad ;
+	} adjustwaqf.l3;
 
-		pos /^lam.init/ @topmarks /^heh.fina/ @topmarks @waqfmarks'lookup adjustwaqf.l2;
 
-		pos /^qaf.isol/  @topmarks @waqfmarks'lookup adjustwaqf.l3;
 
-	} adjustwaqf;
+	feature mkmk;
 
-} adjustmarks;
+	pos /^fehshape.medi/ [onedotup twodotsup] shadda fathatanidgham /^alef.fina/ waqf.sad'lookup adjustwaqf.l3;
+
+	pos lam.medi.beforeyeh shadda fathatanidgham yehshape.fina.ii waqf.sad'lookup adjustwaqf.l2;
+
+	pos smallhighroundedzero /waqf/'<-100 100 0 0 >;
+
+	pos /^heh/ twodotsup  fatha waqf.jeem'<0 0 0 0>;
+
+	pos smallalef.replacement  heh.isol twodotsup kasra waqf.sad'<-100 -200 0 0>;
+
+	pos /^heh/ twodotsup  @lowmarks @waqfmarks'<0 -150 0 0>;
+
+	pos heh.fina twodotsup  dammatan waqf.jeem'<-200 -100 0 0>;
+
+	pos /^heh/ twodotsup  @topmarks @waqfmarks'<-83 180 0 0>;
+
+	pos /^heh/ twodotsup  @topmarks meemiqlab @waqfmarks'<-83 100 0 0>;		
+
+	pos /^lam.isol|lam.fina/ (shadda | NULL) @topmarks  @waqfmarks'lookup adjustwaqf.l1;
+
+	pos /^lam.isol|lam.fina/ shadda kasra  @waqfmarks'lookup adjustwaqf.l2;
+
+	pos /^dal.fina/ @topmarks  @waqfmarks'lookup adjustwaqf.l2;
+
+	pos /^qaf/ shadda  @topmarks @waqfmarks'lookup adjustwaqf.l2;
+
+	pos /^alef/ maddahabove  @waqfmarks'lookup adjustwaqf.l2;
+
+	pos /^waw/ shadda  @topmarks @waqfmarks'lookup adjustwaqf.l2;
+
+	pos /^lam.init/ @topmarks /^heh.fina/ @topmarks @waqfmarks'lookup adjustwaqf.l2;
+
+	pos /^qaf.isol/  @topmarks @waqfmarks'lookup adjustwaqf.l3;
+
+} adjustwaqf;
 
 lookup tajweedcolor {
 	
@@ -1129,24 +1579,24 @@ lookup othercalt {
 	feature calt;
 
 	lookup othercalt.l1 {
-		sub behshape.init by behshape.init.minuslt_110;
+		sub behshape.init by behshape.init.beforereh;
 		sub hamzaabove by hamzaabove.small;			
 	} othercalt.l1;
 
 	lookup othercalt.l2 {
-		sub alef.isol add -1.4 0;		
+		sub alef.isol add -1.4 0;
+		sub alef.fina add -1.4 0;		
 	} othercalt.l2;		
 
 	sub behshape.init'lookup othercalt.l1 twodotsdown /^reh.fina/;
 
-	sub alef.isol'lookup othercalt.l2 hamzaabove'lookup othercalt.l1 fatha /^kaf.init/;
+	sub [alef.isol alef.fina]'lookup othercalt.l2 hamzaabove'lookup othercalt.l1 fatha /^kaf.init/;
 
 
 } othercalt;
 
-feature ccmp {
-	lookup setdecomp;
-	lookup lamhamzaalef;
+feature ccmp {	
+	lookup setdecomp;	
 	#lookup deletespace;
 	lookup miscellaneoussubst;
 
@@ -1221,26 +1671,27 @@ feature calt {
 } calt;
 
 feature curs {
-  lookup leftrightcursive;
-	lookup ligaturecursive;
+	lookup basmala.curs;  
+	#lookup lefttorightcursive; 
+	lookup rehhehbeforemeem;
 	lookup rehwawcursive;
-  lookup dalhwawcursive;
-  lookup rehhehbeforemeem;
-  lookup basmala.curs;  
+  lookup leftrightcursive;
+	lookup ligaturecursive;	
+  lookup dalhwawcursive;  
+  
 } curs;
 
 
-feature kern {
-	#lookup alefalef;
-	lookup alefadjustment;
-	#lookup wawmaddaalef;
-	lookup alefkern;
+feature kern {	
+	lookup alefadjustment;		
 	lookup variouskern;
 	lookup thalkafinit;
 	lookup otherkern;
 	lookup kernlastline;
+	lookup kernlastline.standard;
 	#lookup ayanumberskern;
 	lookup endoflinekern;
+	lookup adjustwaqf_kernafterwaqf;
 } kern;
 
 feature mark {
@@ -1248,7 +1699,12 @@ feature mark {
 	lookup defaultdotmarks;
 	lookup defaultwaqfmarktobase;
   lookup joinedsmallletters;
+	lookup adjustmarks2;
 } mark;
+
+feature cv01 {
+	lookup glyphalternates;
+} cv01;
 
 lookup smallhighyehshadda {
 
@@ -1269,8 +1725,9 @@ feature mkmk {
 	lookup hamzaabovebelow;	
 	lookup lowmarkafterwawandreh;
 	lookup kafinityehfinesmallalefmaddah;
-	lookup defaultkasrameemiqlab;
-	lookup adjustmarks;        
+	lookup defaultkasrameemiqlab;	
+	lookup adjustmarks;
+	lookup adjustwaqf;
 } mkmk;
 
 feature tjwd {

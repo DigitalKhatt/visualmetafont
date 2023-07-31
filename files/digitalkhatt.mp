@@ -126,13 +126,14 @@ defchar(behmediyehfina,-1,1100,-1,-1);
 z1 = (328.914,133.709);
 z2 = (495,58);
 z3 = (487,127);
-z4 = (678,246);
+z4 = (682,247);
 z6 = (617,79);
 
 %%beginverbatim
 
 righttatweel_const := (52,-3);
-z5 = z4 - (0,lineheight);
+%z5 = z4 - (0,lineheight);
+z4 = z5 + joinvector;
 %%endverbatim
 
 %%beginpaths
@@ -147,8 +148,8 @@ fill
  {left}z2 .. tension 0.75 and 1.23646 ..
  {up}z1 .. tension 0.88586 and 1 ..
 (413.934,303.418) .. tension 1 and 1.31753 ..
- {right}(507.37,355.997) .. tension 1.70457 and 0.784083 ..
- {right}z4 .. tension 1 and 1 ..
+ {right}(507.37,355.997) .. tension 1.65127 and 0.829391 ..
+ {right}z4 .. tension 0.990282 and 1 ..
 (826,294) .. tension 1 and 2.17307 ..
  {right}(886.823,394.929) .. tension 1 and 1 ..
  {down}(890.447,379.447) .. tension 1.77855 and 1 ..
@@ -160,8 +161,8 @@ fill
  {down}(1011.34,315.837) .. tension 5.70435 and 0.84063 ..
  {left}(940.394,192.419) .. tension 1 and 4.1596 ..
  {left}(831.887,240.162) .. tension 5.64608 and 1 ..
-(816.454,220.332) .. tension 1 and 1 ..
- {left}z5 .. tension 1 and 1 ..
+(816.454,220.332) .. tension 1 and 1.31013 ..
+ {left}z5 .. tension 1.24883 and 1 ..
 (562.771,206.155) .. tension 1 and 2.2613 ..
  {left}(482.184,281.911) .. tension 1.93794 and 2.48175 ..
  {down}(364.043,186.878) .. tension 1 and 1.07483 ..
@@ -283,7 +284,7 @@ defchar(space,32,-1,0,0);
 %%beginbody
 
 
-charwd := 100 + lefttatweel  *nuqta ;
+charwd := 200 + lefttatweel  *nuqta ;
 enddefchar;
 beginchar(space.ii,-1,-1,-1,-1);
 %%beginbody
@@ -862,7 +863,7 @@ drawcomp(fathatan,identity);
 
 endchar;
 defchar(fathatanidgham,2288,-1,-1,-1);
-%%backgroundimage:images/kastratanidgham.jpg,-2861,-1448,1,0,0,1
+%%backgroundimage:images/fathatanidgham.jpg,-500.533,-248.08,1,0,0,1
 %%beginbody
 
 lefttatweel := lefttatweel - 0.5;
@@ -873,17 +874,34 @@ fatha_(lefttatweel,righttatweel);
 
 draw _temppic;
 
-z.s = ulcorner _temppic;
+z.ul = ulcorner _temppic;
+z.ur = urcorner _temppic;
+z.lr = lrcorner _temppic;
 
-draw _temppic shifted (-x.s + x.s*0.3, y.s + 20);
+%draw _temppic shifted (1/2(x.ul - x.ur), (y.ur-y.lr));
 
-show z.s;
+draw _temppic shifted (2/3(x.ul - x.ur), 50);
+
+%show z.s;
 
 
 enddefchar;
 defchar(kasratanidgham,2290,-1,-1,-1);
 %%beginbody
-fathatanidgham_(lefttatweel,righttatweel);
+
+lefttatweel := lefttatweel - 0.5;
+picture _temppic;
+_temppic := image(
+fatha_(lefttatweel,righttatweel);
+);
+
+draw _temppic;
+
+z.ul = ulcorner _temppic;
+z.ur = urcorner _temppic;
+z.lr = lrcorner _temppic;
+
+draw _temppic shifted (1/3(x.ul - x.ur), -(y.ur-y.lr));
 
 enddefchar;
 beginchar(damma,1615,-1,-1,-1);
@@ -2833,6 +2851,15 @@ bldmvi((274.887,146.407),(-18.4194,-11.8051)) .. tension 0.856689 and 1.58967 ..
 
 
 enddefchar;
+defchar(behshape.init.beforereh,-1,-1,-1,-1);
+%%backgroundimage:images/beh.init.jpg,-1372.65,-1299.44,1,0,0,1
+%%beginbody
+
+
+behshape.init_(-1,0);
+
+
+enddefchar;
 defchar(behshape.init.beforeyeh,-1,-1,-1,-1);
 %%backgroundimage:images/behshape.init.yeh.jpg,-885.528,-1239.69,1,0,0,1
 %%beginparams
@@ -2963,7 +2990,7 @@ bldmvi((146.668,120.267),(-17.2807,-16.0751)) .. tension 1 and 0.940951 ..
 joinvector := _temp;
 
 
-setCursiveAnchor(behnoon,(0,0), ExitAnchorRTL);
+setCursiveAnchor(behnoon,(10,0), ExitAnchorRTL);
 
 enddefchar;
 defchar(behshape.init.beforehah,-1,-1,-1,-1);
@@ -3183,8 +3210,8 @@ rightVerticalRatio := 3;
 
 %%beginverbatim
 
-righttatweel := righttatweel - 0.3;
-lefttatweel := lefttatweel - 0.3;
+righttatweel := righttatweel; % - 0.3;
+lefttatweel := lefttatweel;% - 0.3;
 
 
 
@@ -3219,22 +3246,6 @@ brdmvi((211.03,34.781),(79.8611,-61.8056)) .. tension 1 and 1 ..
 %%beginbody
 %labels(1,2,3,4);
 
-
-enddefchar;
-defchar(behshape.medi.beforeyeh,-1,-1,-1,-1);
-%%beginbody
-
-behmediyehfina_(charlt,charrt);
-
-cutGlyph(z2,z3,true);
-cutGlyph(z4,z5,false);
-
-rightanchor := z5;
-leftbearing := - x2 + x1;
-
-setCursiveAnchor(behmediyehfina,z2, ExitAnchor);
-
-tr_ := tr_ shifted (0,-164);
 
 enddefchar;
 defchar(behshape.medi.beforereh,-1,-1,-1,-1);
@@ -3339,6 +3350,22 @@ setCursiveAnchor(behmedinoon,leftanchor + (10,0), ExitAnchor);
 
 
 
+
+enddefchar;
+defchar(behshape.medi.beforeyeh,-1,-1,-1,-1);
+%%beginbody
+
+behmediyehfina_(charlt,charrt);
+
+cutGlyph(z2,z3,true);
+cutGlyph(z4,z5,false);
+
+rightanchor := z5;
+leftbearing := - x2 + x1;
+
+setCursiveAnchor(behmediyehfina,z2, ExitAnchor);
+
+tr_ := tr_ shifted (0,-164);
 
 enddefchar;
 defchar(behshape.fina,-1,-1,-1,-1);
@@ -7623,7 +7650,7 @@ fill
  {up}(672.615,-138.262) .. tension 27.3999 and 1 ..
 (569.855,-112.956) .. tension 0.891928 and 3.01261 ..
  {up}z1 .. tension 1.28934 and 2.9362 ..
- {right}z2 endlink
+ {right}z2 link
 z3 .. tension 1 and 4.78479 ..
  {down}(548.878,-38.0463) .. tension 22.0528 and 0.75 ..
 (590.717,-46.5339) .. tension 1 and 0.83062 ..
@@ -10298,7 +10325,7 @@ defchar(behshape.medi.basmala,-1,-1,-1,-1);
 %%backgroundimage:images/basmala.4.jpg,-2859.82,-940.951,1,0,0,1
 %%beginparams
 leftVerticalRatio := 6;
-z.mark1 = (170.509,-122);
+z.mark1 = (256.909,80.176);
 z1 = (172,131);
 
 %%beginverbatim
@@ -10326,7 +10353,7 @@ bldm((126.541,129.963),(-284.709,-137.548)) .. tension 1 and 1 ..
 %%beginbody
 setCursiveAnchor(hahbehshape,z1,EntryAnchorRTL);
 setAnchor(twodotsdown,z.mark1);
-%showAnchors:=1;
+showAnchors:=1;
 enddefchar;
 defchar(meem.fina.basmala,-1,-1,-1,-1);
 %%backgroundimage:images/basmala.4.jpg,-7058.63,-1179.17,1,0,0,1

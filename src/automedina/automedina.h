@@ -79,6 +79,7 @@ private:
   Lookup* lowmarkafterwawandreh();
   Lookup* tajweedcolorcpp();
   Lookup* populatecvxx();
+  Lookup* glyphalternates();
   //Justification
   Lookup* shrinkstretchlt(float lt, QString featureName);
   Lookup* shrinkstretchlt();
@@ -113,6 +114,6 @@ private:
 
   bool extended;
 
-  QVector< QMap<quint16, QVector<quint16> >> cvxxfeatures;
+  QVector< QMap<quint16, QVector<ExtendedGlyph> >> cvxxfeatures;
 
 };

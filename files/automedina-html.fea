@@ -16,6 +16,18 @@
  # along with DigitalKhatt.  If not, see <https://www.gnu.org/licenses/>.
 ##
 
+lookup setdecomp {
+    feature ccmp;
+
+		sub alef.maddahabove.isol				by alef.isol maddahabove;
+    sub alef.wasla.isol							by alef.isol wasla;
+
+} setdecomp;
+
+#feature ccmp {	
+#	lookup setdecomp;
+#} ccmp;
+
 #feature init {
 #	lookup init;
 #} init;
@@ -40,8 +52,22 @@ feature cv01 {
 	lookup populatecvxx;
 } cv01;
 
+lookup defaultmarks {
+	feature mark;
+	pos base  @bases <anchor 0 0> markClass @marks <anchor 0 0> @test ;
+} defaultmarks;
+
+lookup defaultmkmk {
+	feature mkmk;
+	pos base  @marks <anchor 0 0> markClass @marks <anchor 0 0> @test ;
+} defaultmkmk;
+
 #feature mark {	
-#	lookup defaultdotmarks;	
+#	lookup defaultmarks;
 #} mark;
+
+#feature mkmk {	
+#	lookup defaultmkmk;
+#} mkmk;
 
 

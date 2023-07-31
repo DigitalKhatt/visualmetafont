@@ -25,6 +25,10 @@
 #include <set>
 #include<memory>
 
+#include <vector>
+#include <map>
+#include <string>
+
 
 
 
@@ -190,8 +194,6 @@ namespace feayy {
     }
 
 
-  protected:
-    std::set<RuleRegExpLeaf*> followpos_;
   };
 
   class RuleRegExpSymbol : public RuleRegExpLeaf, public std::enable_shared_from_this<RuleRegExpSymbol> {

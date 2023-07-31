@@ -59,20 +59,21 @@
 %token<std::string> IDENTIFIANT REGEXP GLYPHNAME
 
 %token LOOKUP FEATURE POSITION SUBSTITUTE BASE ANCHOR MARK MARKCLASS CURSIVE T_NULL NOTDEF FUNCTION BY FROM ACTION
-%token COLOR CALLBACK EXPANSION ADD STARTLIG ENDLIG ENDKASHIDA JUST
+%token COLOR CALLBACK EXPANSION ADD STARTLIG ENDLIG ENDKASHIDA JUST COORD
 %token LOOKUPFLAG RightToLeft IgnoreBaseGlyphs IgnoreLigatures IgnoreMarks MarkAttachmentType UseMarkFilteringSet
 %token TABLE ENDTABLE PASS ENDPASS ANY STRETCH SHRINK END STEP AFTERGSUB
 
 %type <FeaRoot*> root
 %type <std::vector<Statement *> *> statements
 %type <Statement*> statement 
-%type <Glyph*> glyph
+%type <Glyph*> glyph glyphidentifier
 %type <ClassName*> classname
 %type <ClassComponent*> classcomponent
 %type <GlyphClass*> glyphclass
 %type <std::vector<ClassComponent *>> classcomponents
 %type <GlyphSet*> glyphset glyphsetwithoutglyph
-%type <std::string> lookupreference explicitlookup featurereference identifier featuretag
+%type <std::string> lookupreference featurereference identifier featuretag
+%type <std::vector<std::string>> explicitlookup
 %type <ValueRecord> valuerecord
 %type <LookupFlag*> flag flags lookupflag
 %type <LookupStatement*> feature_statement lookup_statement lookup_definition markclassdefinition gsubrule gposrule singlesub multiplesub alternatesub classdefinition contextualligagsub
@@ -207,7 +208,7 @@ lookupflag
 
 flags
 	: flag			{$$ = $1;}
-	| flags flag	{*$1 | *$2; $$ = $1; /*delete $2;*/}
+	| flags flag	{*$1 = *$1 | *$2; $$ = $1; /*delete $2;*/}
 	;
 
 flag
@@ -255,7 +256,7 @@ startendlig:
 	;
 
 multiplesub
-	: SUBSTITUTE glyph BY glyphseq
+	: SUBSTITUTE glyph BY glyphseq { $$ = new MultipleSubstitutionRule($glyph,$glyphseq);}
 	;
 
 alternatesub
@@ -379,8 +380,8 @@ markedglyphsetregexp
 
 
 explicitlookup
-	: /* empty */	{$$ = std::string{};}
-	| lookupreference {$$ = $1;}	
+	: /* empty */	{$$ = {};}
+	| explicitlookup lookupreference {$$ = std::move($1);$$.push_back($2);}
 	;
 
 mark2baseclasses
@@ -440,8 +441,13 @@ classcomponent
 	| REGEXP		{$$ = new RegExpClass($1);}
 	;
 
-
+/*ADD doubleorint[lefttatweel] doubleorint[righttatweel]*/
 glyph	
+	: glyphidentifier	{$$ = $1;}
+	| glyphidentifier	COORD doubleorint[lefttatweel] doubleorint[righttatweel]	{$$ = $1;}
+	;
+
+glyphidentifier	
 	: identifier	{$$ = new GlyphName($1);}
 	| GLYPHNAME		{$$ = new GlyphName($1);}
 	| NOTDEF		{$$ = new GlyphName(std::string(".notdef"));}
