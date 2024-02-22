@@ -59,22 +59,21 @@ public:
 		path_join_tension,
 		path_join_macro
 	};
-	enum ParameterType {
-		None,
-		direction,
-		tension,
-		control,
-		expression
-	};
 	struct Param {
 		QString name;
-		ParameterType type;
 		ParameterPosition position;
 		int applytosubpath;
 		int applytopoint;
 		bool isEquation;
 		bool isInControllePath;
 		QString affects;
+		QVariant value;
+		std::unique_ptr<MFExpr> expr;
+		Param() {};
+		Param(const Param& a);
+		Param(Param&& a);
+		Param& operator=(Param& other);
+		Param& operator=(Param&& other);
 	};
 	struct ImageInfo
 	{
@@ -217,7 +216,7 @@ public:
 		Q_PROPERTY(double rightTatweel READ rightTatweel WRITE setrightTatweel NOTIFY valueChanged)
 
 		Q_PROPERTY(QString body READ body WRITE setBody NOTIFY valueChanged)
-		Q_PROPERTY(QString verbatim READ verbatim WRITE setVerbatim NOTIFY valueChanged)		
+		Q_PROPERTY(QString verbatim READ verbatim WRITE setVerbatim NOTIFY valueChanged)
 		Q_PROPERTY(Glyph::ImageInfo image READ image WRITE setImage NOTIFY valueChanged)
 		Q_PROPERTY(QHashGlyphComponentInfo components READ components WRITE setComponents NOTIFY valueChanged)
 
@@ -251,12 +250,12 @@ public:
 	QHashGlyphComponentInfo components() const;
 
 
-	
+
 	void parseComponents(QString componentSource);
-	void setComponent(QString name, double x, double y, double t1, double t2, double t3, double t4);	
-	void setParameter(QString name, Exp* exp, bool isEquation,bool isInControllePath, QString affects);
-	void setParameter(QString name, Exp* exp, bool isEquation);
-	void setParameter(QString name, Exp* exp, bool isEquation, bool isInControllePath);
+	void setComponent(QString name, double x, double y, double t1, double t2, double t3, double t4);
+	void setParameter(QString name, MFExpr* exp, bool isEquation, bool isInControllePath, QString affects);
+	void setParameter(QString name, MFExpr* exp, bool isEquation);
+	void setParameter(QString name, MFExpr* exp, bool isEquation, bool isInControllePath);
 	void parsePaths(QString pathsSource);
 	QString parameters() const;
 	QString getError();
@@ -265,10 +264,9 @@ public:
 	mp_edge_object* getEdge(bool resetExpParams = false);
 	QUndoStack* undoStack() const;
 
-	
-	QMap<QString, Param> params;
+
+	std::map<QString, Param> params;
 	QMap<QString, Param*> dependents;
-	QMap<QString, QSharedPointer<Exp>> expressions;
 	QHashGlyphComponentInfo m_components;
 	QMap<int, QMap<int, Knot*> >  controlledPaths;
 	QMap<int, QString >  controlledPathNames;
@@ -282,6 +280,8 @@ public:
 	bool isDirty;
 
 	ComputedValues getComputedValues();
+
+	bool setProperty(const char* name, const QVariant& value, bool updateParam = false);
 
 
 signals:
@@ -308,7 +308,7 @@ private:
 	double m_lefttatweel;
 	double m_righttatweel;
 	QString m_body;
-	QString m_verbatim;	
+	QString m_verbatim;
 	Glyph::ImageInfo m_image;
 	mp_edge_object* edge;
 	MP mp;

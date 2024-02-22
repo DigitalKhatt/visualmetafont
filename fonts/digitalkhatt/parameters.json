@@ -1,0 +1,3554 @@
+{
+    "adjustmarks.alefkaf.l1": {
+        "subtable1": {
+            "temp": {
+                "baseparameters": {
+                    "hamzaabove.small": [
+                        -47,
+                        295
+                    ]
+                }
+            }
+        }
+    },
+    "adjustmarks.alefkaf.l2": {
+        "subtable1": {
+            "temp": {
+                "baseparameters": {
+                    "kaf.init": [
+                        23,
+                        799
+                    ]
+                }
+            }
+        }
+    },
+    "adjustmarks.aleflam": {
+        "subtable1": {
+            "hamzaabove": {
+                "baseparameters": {
+                    "alef.fina": [
+                        15,
+                        852
+                    ],
+                    "alef.isol": [
+                        1,
+                        804
+                    ]
+                }
+            }
+        }
+    },
+    "adjustmarks.aleflam.l1": {
+        "subtable1": {
+            "hamzaabove": {
+                "baseparameters": {
+                    "hamzaabove": [
+                        -54,
+                        233
+                    ]
+                }
+            }
+        }
+    },
+    "adjustmarks.aleflam.l2": {
+        "subtable1": {
+            "hamzaabove": {
+                "baseparameters": {
+                    "hamzaabove": [
+                        -67,
+                        270
+                    ]
+                }
+            }
+        }
+    },
+    "adjustmarks.aleflam.l2hamza": {
+        "subtable1": {
+            "hamzaabove": {
+                "baseparameters": {
+                    "alef.isol": [
+                        9,
+                        772
+                    ]
+                }
+            }
+        }
+    },
+    "adjustmarks.l1": {
+        "subtable1": {
+            "parameters": {
+                "dammatanidgham": [
+                    -96,
+                    -1,
+                    0,
+                    0
+                ],
+                "fatha": [
+                    9,
+                    -48,
+                    0,
+                    0
+                ],
+                "fathatan": [
+                    -41,
+                    -55,
+                    0,
+                    0
+                ],
+                "fathatanidgham": [
+                    -93,
+                    -93,
+                    0,
+                    0
+                ],
+                "maddahabove": [
+                    41,
+                    41,
+                    0,
+                    0
+                ],
+                "smallalef.joined": [
+                    79,
+                    -45,
+                    0,
+                    0
+                ]
+            }
+        }
+    },
+    "adjustmarks.l11": {
+        "subtable1": {
+            "parameters": {
+                "fatha": [
+                    -86,
+                    77,
+                    0,
+                    0
+                ]
+            }
+        }
+    },
+    "adjustmarks.l2": {
+        "subtable1": {
+            "parameters": {
+                "dammatan": [
+                    -107,
+                    -50,
+                    0,
+                    0
+                ],
+                "dammatanidgham": [
+                    -51,
+                    -16,
+                    0,
+                    0
+                ],
+                "fathatan": [
+                    -27,
+                    -13,
+                    0,
+                    0
+                ],
+                "fathatanidgham": [
+                    -27,
+                    -55,
+                    0,
+                    0
+                ]
+            }
+        }
+    },
+    "adjustmarks.l22": {
+        "subtable1": {
+            "parameters": {
+                "dammatan": [
+                    -27,
+                    -13,
+                    0,
+                    0
+                ],
+                "dammatanidgham": [
+                    135,
+                    11,
+                    0,
+                    0
+                ]
+            }
+        }
+    },
+    "adjustmarks.l3": {
+        "subtable1": {
+            "parameters": {
+                "damma": [
+                    124,
+                    41,
+                    0,
+                    0
+                ],
+                "dammatanidgham": [
+                    72,
+                    48,
+                    0,
+                    0
+                ],
+                "fathatanidgham": [
+                    80,
+                    40,
+                    0,
+                    0
+                ]
+            }
+        }
+    },
+    "adjustmarks2.l1": {
+        "subtable1": {
+            "shadda": {
+                "baseparameters": {
+                    "reh.fina": [
+                        208,
+                        416
+                    ]
+                }
+            }
+        }
+    },
+    "adjustmarks2.l3": {
+        "subtable1": {
+            "smallalefreplacement": {
+                "baseparameters": {
+                    "yehshape.fina.afterbeh": [
+                        167,
+                        291
+                    ]
+                }
+            }
+        }
+    },
+    "adjustmarks_auto7": {
+        "subtable1": {
+            "parameters": {
+                "smallalef.joined": [
+                    32,
+                    24,
+                    0,
+                    0
+                ]
+            }
+        }
+    },
+    "adjustwaqf.l1": {
+        "subtable2": {
+            "waqfmarks": {
+                "baseparameters": {
+                    "dammatanidgham": [
+                        0,
+                        -153
+                    ]
+                }
+            }
+        }
+    },
+    "adjustwaqf.l2": {
+        "subtable2": {
+            "waqf.sad": {
+                "baseparameters": {
+                    "qaf.fina.expa": [
+                        259,
+                        0
+                    ]
+                }
+            }
+        }
+    },
+    "alefadjustment.l2": {
+        "subtable1": {
+            "parameters": {
+                "alef.isol": [
+                    9,
+                    -6,
+                    0,
+                    0
+                ]
+            }
+        }
+    },
+    "alefkern.l1": {
+        "subtable1": {
+            "parameters": {
+                "alef.isol": [
+                    -80,
+                    -20,
+                    0,
+                    0
+                ]
+            }
+        }
+    },
+    "basmala.curs.l1": {
+        "subtable1": {
+            "entryParameters": {
+                "alef.isol": [
+                    6,
+                    -189
+                ],
+                "hah.init": [
+                    0,
+                    -138
+                ],
+                "hah.init.basmala": [
+                    222,
+                    -152
+                ],
+                "lam.init": [
+                    -120,
+                    160
+                ]
+            }
+        }
+    },
+    "basmala.curs.l2": {
+        "subtable1": {
+            "entryParameters": {
+                "lam.init": [
+                    -264,
+                    -69
+                ]
+            }
+        }
+    },
+    "dalhwawcursive": {
+        "subtable1": {
+            "entryParameters": {
+                "heh.init.beforemeem": [
+                    294,
+                    -177
+                ],
+                "waw.isol": [
+                    385,
+                    -54
+                ]
+            }
+        }
+    },
+    "defaultdotmarks": {
+        "onedotdown": {
+            "onedotdown": {
+                "baseparameters": {
+                    "behshape.fina.expa": [
+                        123,
+                        13
+                    ],
+                    "behshape.init": [
+                        48,
+                        -12
+                    ],
+                    "behshape.init.beforehah": [
+                        120,
+                        74
+                    ],
+                    "behshape.init.beforenoon": [
+                        69,
+                        -69
+                    ],
+                    "behshape.init.beforeyeh": [
+                        50,
+                        -129
+                    ],
+                    "behshape.init.bseen.basmala": [
+                        136,
+                        -24
+                    ],
+                    "behshape.init.pluslt_60": [
+                        46,
+                        -22
+                    ],
+                    "behshape.isol": [
+                        131,
+                        0
+                    ],
+                    "behshape.isol.expa": [
+                        162,
+                        -14
+                    ],
+                    "behshape.medi.beforeyeh": [
+                        0,
+                        -97
+                    ],
+                    "hah.fina": [
+                        99,
+                        649
+                    ],
+                    "hah.init": [
+                        65,
+                        98
+                    ],
+                    "hah.isol": [
+                        107,
+                        664
+                    ],
+                    "hah.medi.afterbeh": [
+                        116,
+                        7
+                    ],
+                    "hah.medi.afterfeh": [
+                        133,
+                        33
+                    ],
+                    "hah.medi.afterlam.beforeyeh": [
+                        205,
+                        37
+                    ],
+                    "hah.medi.aftermeem": [
+                        125,
+                        27
+                    ],
+                    "hah.medi.beforeyeh": [
+                        72,
+                        24
+                    ],
+                    "hah.medi.lam_hah": [
+                        132,
+                        -11
+                    ]
+                }
+            }
+        },
+        "onedotup": {
+            "onedotup": {
+                "baseparameters": {
+                    "ain.init": [
+                        -72,
+                        16
+                    ],
+                    "ain.init.finjani": [
+                        -110,
+                        -15
+                    ],
+                    "behshape.init.beforeseen": [
+                        -120,
+                        64
+                    ],
+                    "behshape.init.beforeyeh": [
+                        -114,
+                        0
+                    ],
+                    "behshape.medi": [
+                        -22,
+                        79
+                    ],
+                    "behshape.medi.beforereh": [
+                        -11,
+                        102
+                    ],
+                    "behshape.medi.beforeseen": [
+                        -29,
+                        47
+                    ],
+                    "behshape.medi.beforeyeh": [
+                        -120,
+                        66
+                    ],
+                    "behshape.medi.ii": [
+                        -135,
+                        52
+                    ],
+                    "dal.fina": [
+                        13,
+                        -11
+                    ],
+                    "dal.isol": [
+                        -34,
+                        22
+                    ],
+                    "fehshape.init": [
+                        -4,
+                        4
+                    ],
+                    "fehshape.init.beforehah": [
+                        -353,
+                        8
+                    ],
+                    "fehshape.init.beforeyeh": [
+                        -69,
+                        14
+                    ],
+                    "fehshape.init.pluslt_60": [
+                        -55,
+                        -15
+                    ],
+                    "fehshape.medi": [
+                        -26,
+                        46
+                    ],
+                    "hah.init": [
+                        -136,
+                        68
+                    ],
+                    "hah.init.ii": [
+                        -98,
+                        55
+                    ],
+                    "hah.medi": [
+                        -68,
+                        10
+                    ],
+                    "hah.medi.afterbeh": [
+                        83,
+                        116
+                    ],
+                    "hah.medi.afterfeh": [
+                        -99,
+                        -33
+                    ],
+                    "hah.medi.aftermeem": [
+                        22,
+                        49
+                    ],
+                    "hah.medi.ii": [
+                        -193,
+                        58
+                    ],
+                    "hah.medi.lam_hah": [
+                        -75,
+                        72
+                    ],
+                    "reh.fina": [
+                        35,
+                        17
+                    ],
+                    "reh.fina.afterbehshape": [
+                        62,
+                        103
+                    ],
+                    "reh.fina.afterseen": [
+                        58,
+                        115
+                    ],
+                    "sad.fina": [
+                        378,
+                        -40
+                    ],
+                    "sad.isol": [
+                        192,
+                        -38
+                    ],
+                    "sad.isol.expa": [
+                        -264,
+                        4
+                    ],
+                    "sad.medi": [
+                        218,
+                        37
+                    ],
+                    "sad.medi.beforereh": [
+                        204,
+                        0
+                    ],
+                    "sad.medi.beforeyeh": [
+                        117,
+                        0
+                    ],
+                    "tah.fina": [
+                        513,
+                        -525
+                    ],
+                    "tah.init": [
+                        96,
+                        -482
+                    ],
+                    "tah.isol": [
+                        245,
+                        -392
+                    ],
+                    "tah.medi": [
+                        182,
+                        -472
+                    ],
+                    "tah.medi.beforeyeh": [
+                        238,
+                        -481
+                    ]
+                }
+            }
+        },
+        "three_dots": {
+            "three_dots": {
+                "baseparameters": {
+                    "behshape.fina": [
+                        18,
+                        -111
+                    ],
+                    "behshape.fina.expa": [
+                        0,
+                        -172
+                    ],
+                    "behshape.init": [
+                        -27,
+                        -46
+                    ],
+                    "behshape.isol": [
+                        36,
+                        -160
+                    ],
+                    "behshape.isol.expa": [
+                        66,
+                        -173
+                    ],
+                    "behshape.medi.beforereh": [
+                        -18,
+                        54
+                    ],
+                    "behshape.medi.pluslt_60": [
+                        -27,
+                        38
+                    ],
+                    "seen.fina": [
+                        163,
+                        17
+                    ],
+                    "seen.init.beforeyeh": [
+                        189,
+                        7
+                    ],
+                    "seen.isol": [
+                        221,
+                        -54
+                    ]
+                }
+            }
+        },
+        "twodotsdown": {
+            "twodotsdown": {
+                "baseparameters": {
+                    "behshape.init": [
+                        155,
+                        172
+                    ],
+                    "behshape.init.beforehah": [
+                        213,
+                        184
+                    ],
+                    "behshape.init.beforenoon": [
+                        141,
+                        -57
+                    ],
+                    "behshape.init.beforeseen": [
+                        113,
+                        120
+                    ],
+                    "behshape.medi": [
+                        122,
+                        148
+                    ],
+                    "behshape.medi.basmala": [
+                        68,
+                        40
+                    ],
+                    "behshape.medi.beforenoon": [
+                        67,
+                        95
+                    ],
+                    "behshape.medi.beforereh": [
+                        116,
+                        170
+                    ],
+                    "behshape.medi.beforeseen": [
+                        122,
+                        85
+                    ],
+                    "behshape.medi.beforeyeh": [
+                        20,
+                        -40
+                    ],
+                    "behshape.medi.expa": [
+                        104,
+                        117
+                    ]
+                },
+                "markparameters": {
+                    "twodotsdown": [
+                        104,
+                        132
+                    ]
+                }
+            }
+        },
+        "twodotsup": {
+            "twodotsup": {
+                "baseparameters": {
+                    "behshape.fina": [
+                        11,
+                        -104
+                    ],
+                    "behshape.fina.expa": [
+                        12,
+                        -92
+                    ],
+                    "behshape.init": [
+                        3,
+                        -64
+                    ],
+                    "behshape.init.beforehah": [
+                        16,
+                        28
+                    ],
+                    "behshape.init.beforeseen": [
+                        -115,
+                        -19
+                    ],
+                    "behshape.init.beforeyeh": [
+                        -65,
+                        0
+                    ],
+                    "behshape.isol": [
+                        21,
+                        -143
+                    ],
+                    "behshape.isol.expa": [
+                        0,
+                        -138
+                    ],
+                    "behshape.medi.beforeseen": [
+                        -41,
+                        -20
+                    ],
+                    "behshape.medi.beforeyeh": [
+                        -123,
+                        17
+                    ],
+                    "fehshape.init": [
+                        -33,
+                        -13
+                    ],
+                    "fehshape.init.beforehah": [
+                        -300,
+                        -33
+                    ],
+                    "fehshape.init.beforeyeh": [
+                        -57,
+                        -23
+                    ],
+                    "fehshape.medi.beforeyeh": [
+                        32,
+                        0
+                    ],
+                    "heh.fina": [
+                        -14,
+                        -54
+                    ],
+                    "heh.fina.afterlam": [
+                        -17,
+                        -35
+                    ]
+                }
+            }
+        }
+    },
+    "defaultkasrameemiqlab.l1": {
+        "subtable1": {
+            "smalllowmeem": {
+                "baseparameters": {
+                    "kasra": [
+                        -61,
+                        -153
+                    ]
+                }
+            }
+        }
+    },
+    "defaultkasrameemiqlab.l2": {
+        "subtable1": {
+            "kasra": {
+                "baseparameters": {
+                    "heh.isol": [
+                        45,
+                        -138
+                    ]
+                }
+            }
+        },
+        "subtable2": {
+            "kasra": {
+                "baseparameters": {
+                    "hah.isol": [
+                        327,
+                        -66
+                    ]
+                }
+            }
+        }
+    },
+    "defaultkasrameemiqlab.l3": {
+        "subtable1": {
+            "smalllowmeem": {
+                "baseparameters": {
+                    "kasra": [
+                        -125,
+                        -193
+                    ]
+                }
+            }
+        }
+    },
+    "defaultkasrameemiqlab.l4": {
+        "subtable1": {
+            "smalllowmeem": {
+                "baseparameters": {
+                    "kasra": [
+                        -133,
+                        -200
+                    ]
+                }
+            }
+        }
+    },
+    "defaultkasrameemiqlab.l5": {
+        "subtable1": {
+            "smalllowmeemhhhh": {
+                "baseparameters": {
+                    "lam.isol": [
+                        28,
+                        -304
+                    ]
+                }
+            }
+        }
+    },
+    "defaultmarkdotmarksbottom": {
+        "defaultmarkdotmarksbottom": {
+            "lowmarks": {
+                "baseparameters": {
+                    "onedotdown": [
+                        25,
+                        31
+                    ]
+                },
+                "markparameters": {
+                    "kasratanidgham": [
+                        40,
+                        -37
+                    ]
+                }
+            }
+        }
+    },
+    "defaultmarkdotmarkstop": {
+        "defaultmarkdotmarkstop": {
+            "shadda": {
+                "baseparameters": {
+                    "onedotup": [
+                        -41,
+                        0
+                    ],
+                    "twodotsup": [
+                        -22,
+                        -55
+                    ]
+                }
+            },
+            "topmarks": {
+                "baseparameters": {
+                    "onedotup": [
+                        -33,
+                        0
+                    ],
+                    "three_dots": [
+                        -88,
+                        -12
+                    ],
+                    "twodotsup": [
+                        -35,
+                        -15
+                    ]
+                },
+                "markparameters": {
+                    "damma": [
+                        24,
+                        48
+                    ],
+                    "dammatanidgham": [
+                        -42,
+                        -16
+                    ],
+                    "meemiqlab": [
+                        22,
+                        45
+                    ]
+                }
+            }
+        }
+    },
+    "defaultmarkposition": {
+        "defaultmarkposition": {
+            "hamzaabove": {
+                "baseparameters": {
+                    "behshape.medi": [
+                        0,
+                        -65
+                    ],
+                    "behshape.medi.expa": [
+                        0,
+                        -65
+                    ],
+                    "waw.fina": [
+                        77,
+                        -95
+                    ]
+                }
+            },
+            "lowmarks": {
+                "baseparameters": {
+                    "ain.fina": [
+                        119,
+                        583
+                    ],
+                    "ain.init.beforeyeh": [
+                        139,
+                        -69
+                    ],
+                    "ain.isol": [
+                        133,
+                        600
+                    ],
+                    "ain.medi.beforeyeh": [
+                        81,
+                        -81
+                    ],
+                    "alef.isol": [
+                        97,
+                        55
+                    ],
+                    "alef.isol.ii": [
+                        120,
+                        77
+                    ],
+                    "behshape.init": [
+                        60,
+                        -27
+                    ],
+                    "behshape.init.beforehah": [
+                        160,
+                        80
+                    ],
+                    "behshape.init.beforenoon": [
+                        70,
+                        -96
+                    ],
+                    "behshape.init.beforeyeh": [
+                        0,
+                        -100
+                    ],
+                    "behshape.isol": [
+                        163,
+                        0
+                    ],
+                    "behshape.medi.beforeyeh": [
+                        -49,
+                        -156
+                    ],
+                    "dal.isol": [
+                        79,
+                        11
+                    ],
+                    "feh.isol": [
+                        -54,
+                        -40
+                    ],
+                    "fehshape.init.beforehah": [
+                        33,
+                        -33
+                    ],
+                    "fehshape.init.beforeyeh": [
+                        -1,
+                        -110
+                    ],
+                    "fehshape.medi.beforeyeh": [
+                        97,
+                        -152
+                    ],
+                    "hah.fina": [
+                        96,
+                        620
+                    ],
+                    "hah.isol": [
+                        126,
+                        595
+                    ],
+                    "hah.medi.afterfeh": [
+                        83,
+                        0
+                    ],
+                    "hah.medi.aftermeem": [
+                        154,
+                        57
+                    ],
+                    "hah.medi.beforeyeh": [
+                        60,
+                        -60
+                    ],
+                    "hamza.isol": [
+                        70,
+                        47
+                    ],
+                    "heh.init.beforemeem": [
+                        181,
+                        186
+                    ],
+                    "heh.init.beforeyeh": [
+                        79,
+                        4
+                    ],
+                    "heh.isol": [
+                        25,
+                        7
+                    ],
+                    "heh.medi": [
+                        150,
+                        -16
+                    ],
+                    "kaf.init": [
+                        -1,
+                        0
+                    ],
+                    "kaf.medi.beforeyeh": [
+                        9,
+                        -173
+                    ],
+                    "lam.fina": [
+                        46,
+                        46
+                    ],
+                    "lam.fina.afterkaf": [
+                        150,
+                        23
+                    ],
+                    "lam.init.allah": [
+                        -30,
+                        8
+                    ],
+                    "lam.init.beforeyeh": [
+                        -60,
+                        -160
+                    ],
+                    "lam.init.lam_hah": [
+                        69,
+                        138
+                    ],
+                    "lam.init.lamalef": [
+                        165,
+                        62
+                    ],
+                    "lam.init.pluslt_200": [
+                        69,
+                        0
+                    ],
+                    "lam.isol": [
+                        -67,
+                        -11
+                    ],
+                    "lam.medi.beforeyeh": [
+                        -13,
+                        -177
+                    ],
+                    "meem.fina": [
+                        86,
+                        120
+                    ],
+                    "meem.fina.basmala": [
+                        24,
+                        48
+                    ],
+                    "meem.fina.ii": [
+                        83,
+                        554
+                    ],
+                    "meem.init": [
+                        125,
+                        97
+                    ],
+                    "meem.isol": [
+                        169,
+                        75
+                    ],
+                    "meem.isol.ii": [
+                        134,
+                        512
+                    ],
+                    "meem.medi.beforeyeh": [
+                        69,
+                        0
+                    ],
+                    "noon.fina": [
+                        114,
+                        0
+                    ],
+                    "noon.fina.basmala": [
+                        0,
+                        57
+                    ],
+                    "noon.fina.expa.afterbeh": [
+                        -241,
+                        -60
+                    ],
+                    "noon.isol.expa": [
+                        -311,
+                        -61
+                    ],
+                    "qaf.fina.expa": [
+                        -157,
+                        40
+                    ],
+                    "reh.fina": [
+                        -14,
+                        1
+                    ],
+                    "reh.fina.afterseen": [
+                        0,
+                        45
+                    ],
+                    "sad.fina": [
+                        451,
+                        280
+                    ],
+                    "sad.isol": [
+                        150,
+                        116
+                    ],
+                    "sad.medi": [
+                        327,
+                        179
+                    ],
+                    "sad.medi.beforereh": [
+                        391,
+                        57
+                    ],
+                    "sad.medi.beforeyeh": [
+                        196,
+                        39
+                    ],
+                    "seen.fina": [
+                        228,
+                        196
+                    ],
+                    "seen.init.beforeyeh": [
+                        259,
+                        115
+                    ],
+                    "seen.isol": [
+                        316,
+                        250
+                    ],
+                    "seen.isol.expa": [
+                        201,
+                        115
+                    ],
+                    "tah.medi.beforeyeh": [
+                        178,
+                        36
+                    ],
+                    "yehshape.isol": [
+                        81,
+                        -16
+                    ]
+                }
+            },
+            "smallletters": {
+                "baseparameters": {
+                    "behshape.init": [
+                        -46,
+                        -32
+                    ],
+                    "behshape.medi": [
+                        3,
+                        -39
+                    ],
+                    "behshape.medi.beforeseen": [
+                        -48,
+                        -49
+                    ],
+                    "fehshape.init": [
+                        -50,
+                        0
+                    ],
+                    "hah.medi": [
+                        15,
+                        -18
+                    ],
+                    "hah.medi.afterbeh": [
+                        -35,
+                        -25
+                    ],
+                    "hah.medi.aftermeem": [
+                        -104,
+                        23
+                    ],
+                    "hah.medi.lam_hah": [
+                        -23,
+                        -39
+                    ],
+                    "heh.init": [
+                        -39,
+                        0
+                    ],
+                    "heh.medi": [
+                        2,
+                        -15
+                    ],
+                    "kaf.init": [
+                        -32,
+                        0
+                    ],
+                    "kaf.init.ii": [
+                        -10,
+                        0
+                    ],
+                    "kaf.medi": [
+                        19,
+                        -13
+                    ],
+                    "kaf.medi.ii": [
+                        -3,
+                        -38
+                    ],
+                    "sad.medi": [
+                        72,
+                        15
+                    ]
+                },
+                "markparameters": {
+                    "hamzaabove.joined": [
+                        -80,
+                        65
+                    ]
+                }
+            },
+            "topmarks": {
+                "baseparameters": {
+                    "ain.init": [
+                        -32,
+                        3
+                    ],
+                    "ain.init.finjani": [
+                        -42,
+                        21
+                    ],
+                    "alef.fina": [
+                        -13,
+                        23
+                    ],
+                    "alef.fina.laf": [
+                        -115,
+                        28
+                    ],
+                    "alef.fina.lamalef": [
+                        -44,
+                        30
+                    ],
+                    "alef.isol": [
+                        -6,
+                        -73
+                    ],
+                    "alefmaksura.isol": [
+                        -27,
+                        -310
+                    ],
+                    "behshape.fina": [
+                        116,
+                        -83
+                    ],
+                    "behshape.fina.expa": [
+                        129,
+                        -151
+                    ],
+                    "behshape.init": [
+                        -10,
+                        -64
+                    ],
+                    "behshape.init.beforehah": [
+                        22,
+                        30
+                    ],
+                    "behshape.init.beforehahyeh": [
+                        -19,
+                        -59
+                    ],
+                    "behshape.init.beforenoon": [
+                        -50,
+                        0
+                    ],
+                    "behshape.init.beforeseen": [
+                        -55,
+                        0
+                    ],
+                    "behshape.init.beforeyeh": [
+                        -38,
+                        16
+                    ],
+                    "behshape.isol": [
+                        69,
+                        -55
+                    ],
+                    "behshape.isol.expa": [
+                        230,
+                        -172
+                    ],
+                    "behshape.medi": [
+                        -10,
+                        -28
+                    ],
+                    "behshape.medi.beforeseen": [
+                        -43,
+                        -111
+                    ],
+                    "behshape.medi.expa": [
+                        -76,
+                        -15
+                    ],
+                    "behshape.medi.pluslt_60": [
+                        -39,
+                        0
+                    ],
+                    "dal.isol": [
+                        57,
+                        0
+                    ],
+                    "feh.isol": [
+                        141,
+                        -37
+                    ],
+                    "feh.isol.expa": [
+                        -103,
+                        -138
+                    ],
+                    "hah.init": [
+                        34,
+                        0
+                    ],
+                    "hah.init.beforemeem": [
+                        -69,
+                        -69
+                    ],
+                    "hah.medi": [
+                        -86,
+                        0
+                    ],
+                    "hah.medi.afterbeh": [
+                        88,
+                        -34
+                    ],
+                    "hah.medi.afterbeh.beforeyeh": [
+                        -63,
+                        -27
+                    ],
+                    "hah.medi.afterbeh.pluslt_150": [
+                        -56,
+                        0
+                    ],
+                    "hah.medi.afterfeh": [
+                        -145,
+                        -59
+                    ],
+                    "hah.medi.afterlam.beforeyeh": [
+                        -110,
+                        153
+                    ],
+                    "hah.medi.ii": [
+                        -57,
+                        -23
+                    ],
+                    "hah.medi.lam_hah": [
+                        -54,
+                        -85
+                    ],
+                    "hamza.isol": [
+                        14,
+                        -83
+                    ],
+                    "heh.fina.afterlam": [
+                        -15,
+                        -49
+                    ],
+                    "heh.fina.allah": [
+                        -24,
+                        -96
+                    ],
+                    "heh.init": [
+                        11,
+                        -8
+                    ],
+                    "heh.init.pluslt_260": [
+                        19,
+                        9
+                    ],
+                    "heh.isol": [
+                        53,
+                        0
+                    ],
+                    "heh.medi": [
+                        75,
+                        -55
+                    ],
+                    "heh.medi.pluslt_100": [
+                        87,
+                        -61
+                    ],
+                    "kaf.fina": [
+                        11,
+                        -249
+                    ],
+                    "kaf.fina.afterlam": [
+                        -16,
+                        -245
+                    ],
+                    "kaf.fina.expa": [
+                        54,
+                        -145
+                    ],
+                    "kaf.init": [
+                        33,
+                        -200
+                    ],
+                    "kaf.init.beforelam": [
+                        13,
+                        -49
+                    ],
+                    "kaf.init.beforelamalef": [
+                        -69,
+                        -81
+                    ],
+                    "kaf.init.beforelamfina": [
+                        -160,
+                        -240
+                    ],
+                    "kaf.init.beforeyeh": [
+                        -56,
+                        -301
+                    ],
+                    "kaf.init.ii": [
+                        -190,
+                        -27
+                    ],
+                    "kaf.isol": [
+                        32,
+                        -160
+                    ],
+                    "kaf.medi": [
+                        -113,
+                        -187
+                    ],
+                    "kaf.medi.beforelam": [
+                        -9,
+                        -106
+                    ],
+                    "kaf.medi.beforelamfina": [
+                        -173,
+                        -181
+                    ],
+                    "kaf.medi.beforemeem": [
+                        -27,
+                        -166
+                    ],
+                    "kaf.medi.beforeyeh": [
+                        27,
+                        -166
+                    ],
+                    "kaf.medi.ii": [
+                        -346,
+                        -110
+                    ],
+                    "lam.fina": [
+                        149,
+                        -92
+                    ],
+                    "lam.fina.afterkaf": [
+                        100,
+                        -73
+                    ],
+                    "lam.init": [
+                        -6,
+                        -50
+                    ],
+                    "lam.init.allah": [
+                        -45,
+                        -18
+                    ],
+                    "lam.init.beforedal": [
+                        -105,
+                        16
+                    ],
+                    "lam.init.beforehahyeh": [
+                        -222,
+                        0
+                    ],
+                    "lam.init.beforeyeh": [
+                        -49,
+                        -65
+                    ],
+                    "lam.init.lam_hah": [
+                        -212,
+                        48
+                    ],
+                    "lam.init.lamalef": [
+                        78,
+                        37
+                    ],
+                    "lam.init.pluslt_200": [
+                        -8,
+                        -34
+                    ],
+                    "lam.init.pluslt_50": [
+                        -41,
+                        -111
+                    ],
+                    "lam.init.pluslt_60": [
+                        -48,
+                        -92
+                    ],
+                    "lam.isol": [
+                        186,
+                        17
+                    ],
+                    "lam.medi": [
+                        -56,
+                        -48
+                    ],
+                    "lam.medi.beforeheh": [
+                        -125,
+                        -62
+                    ],
+                    "lam.medi.beforeyeh": [
+                        -141,
+                        -79
+                    ],
+                    "lam.medi.laf": [
+                        -115,
+                        -63
+                    ],
+                    "lam.medi.laf.afterkaf": [
+                        -81,
+                        -23
+                    ],
+                    "lam.medi.pluslt_60": [
+                        5,
+                        13
+                    ],
+                    "meem.fina": [
+                        28,
+                        -86
+                    ],
+                    "meem.fina.afterheh": [
+                        -59,
+                        -83
+                    ],
+                    "meem.fina.afterkaf": [
+                        -88,
+                        120
+                    ],
+                    "meem.init": [
+                        83,
+                        -16
+                    ],
+                    "noon.fina.expa": [
+                        0,
+                        -83
+                    ],
+                    "noon.isol.expa": [
+                        -40,
+                        -60
+                    ],
+                    "qaf.fina": [
+                        94,
+                        -56
+                    ],
+                    "qaf.isol": [
+                        200,
+                        -20
+                    ],
+                    "reh.fina": [
+                        37,
+                        -134
+                    ],
+                    "reh.fina.afterbehshape": [
+                        36,
+                        -62
+                    ],
+                    "reh.fina.afterseen": [
+                        100,
+                        -40
+                    ],
+                    "reh.isol": [
+                        45,
+                        0
+                    ],
+                    "sad.init.kii": [
+                        137,
+                        19
+                    ],
+                    "sad.isol": [
+                        266,
+                        -33
+                    ],
+                    "sad.medi": [
+                        220,
+                        -16
+                    ],
+                    "sad.medi.beforereh": [
+                        154,
+                        0
+                    ],
+                    "seen.fina": [
+                        192,
+                        -168
+                    ],
+                    "seen.fina.expa": [
+                        0,
+                        -138
+                    ],
+                    "seen.init.beforeyeh": [
+                        211,
+                        0
+                    ],
+                    "seen.isol": [
+                        294,
+                        -49
+                    ],
+                    "seen.medi.beforeyeh": [
+                        112,
+                        -24
+                    ],
+                    "tah.fina": [
+                        457,
+                        -180
+                    ],
+                    "tah.init": [
+                        107,
+                        -361
+                    ],
+                    "tah.init.beforeyeh": [
+                        216,
+                        -250
+                    ],
+                    "tah.isol": [
+                        360,
+                        -320
+                    ],
+                    "tah.medi": [
+                        149,
+                        -216
+                    ],
+                    "tah.medi.beforeyeh": [
+                        209,
+                        -370
+                    ],
+                    "tatweel": [
+                        16,
+                        -232
+                    ],
+                    "waw.fina": [
+                        38,
+                        -188
+                    ],
+                    "waw.isol": [
+                        69,
+                        -13
+                    ],
+                    "yehshape.fina": [
+                        0,
+                        -200
+                    ],
+                    "yehshape.fina.afterbeh": [
+                        -5,
+                        -87
+                    ],
+                    "yehshape.fina.ii": [
+                        51,
+                        -123
+                    ],
+                    "yehshape.isol.expa": [
+                        170,
+                        -324
+                    ]
+                },
+                "markparameters": {
+                    "damma": [
+                        -7,
+                        59
+                    ],
+                    "dammatanidgham": [
+                        0,
+                        27
+                    ],
+                    "maddahabove": [
+                        -29,
+                        49
+                    ]
+                }
+            }
+        },
+        "hamzaabove": {
+            "hamzaabove": {
+                "baseparameters": {
+                    "alef.fina": [
+                        -9,
+                        -96
+                    ],
+                    "alef.fina.afterkaf": [
+                        11,
+                        -45
+                    ],
+                    "alef.fina.laf": [
+                        -30,
+                        -13
+                    ],
+                    "alef.fina.lamalef": [
+                        4,
+                        -56
+                    ],
+                    "alef.isol": [
+                        15,
+                        -99
+                    ],
+                    "alefmaksura.isol": [
+                        0,
+                        -220
+                    ],
+                    "alefmaksura.isol.expa": [
+                        84,
+                        -381
+                    ],
+                    "behshape.init": [
+                        27,
+                        -81
+                    ],
+                    "behshape.init.beforenoon": [
+                        8,
+                        -176
+                    ],
+                    "behshape.medi": [
+                        46,
+                        -209
+                    ],
+                    "behshape.medi.beforeseen": [
+                        -30,
+                        -184
+                    ],
+                    "behshape.medi.expa": [
+                        0,
+                        -190
+                    ],
+                    "lam.init.lamalef": [
+                        -60,
+                        -320
+                    ],
+                    "smallalef.isol": [
+                        40,
+                        -100
+                    ],
+                    "waw.fina": [
+                        50,
+                        -171
+                    ],
+                    "waw.isol": [
+                        110,
+                        -111
+                    ],
+                    "yehshape.fina.ii": [
+                        160,
+                        -140
+                    ]
+                }
+            }
+        },
+        "hamzaabove.lamalef": {
+            "hamzaabove": {
+                "baseparameters": {
+                    "lam.init.lamalef": [
+                        -61,
+                        -272
+                    ],
+                    "lam.medi.laf": [
+                        -311,
+                        -230
+                    ]
+                }
+            }
+        },
+        "hamzabelow": {
+            "hamzabelow": {
+                "baseparameters": {
+                    "alef.fina": [
+                        135,
+                        -289
+                    ],
+                    "alef.fina.kii": [
+                        260,
+                        -420
+                    ],
+                    "alef.fina.laf": [
+                        241,
+                        -316
+                    ],
+                    "alef.fina.lamalef": [
+                        295,
+                        -299
+                    ],
+                    "alef.isol": [
+                        125,
+                        -252
+                    ],
+                    "alef.isol.ii": [
+                        95,
+                        -250
+                    ]
+                }
+            }
+        },
+        "maddahabove": {
+            "maddahabove": {
+                "baseparameters": {
+                    "alef.fina": [
+                        40,
+                        -57
+                    ],
+                    "alef.fina.afterkaf": [
+                        38,
+                        -28
+                    ],
+                    "alef.fina.laf": [
+                        -60,
+                        0
+                    ],
+                    "alef.fina.lamalef": [
+                        29,
+                        0
+                    ],
+                    "alef.isol": [
+                        26,
+                        -48
+                    ],
+                    "smallwaw": [
+                        99,
+                        -271
+                    ],
+                    "smallyeh": [
+                        54,
+                        -77
+                    ],
+                    "yehshape.fina.ii": [
+                        27,
+                        -149
+                    ],
+                    "yehshape.isol.expa": [
+                        34,
+                        -276
+                    ]
+                }
+            }
+        },
+        "meemfinaafterkaf": {
+            "sukun": {
+                "baseparameters": {
+                    "meem.fina.afterkaf": [
+                        0,
+                        -343
+                    ]
+                },
+                "markparameters": {
+                    "damma": [
+                        57,
+                        115
+                    ]
+                }
+            }
+        },
+        "roundedfilledhigh": {
+            "roundedfilledhigh": {
+                "baseparameters": {
+                    "alef.isol": [
+                        51,
+                        583
+                    ]
+                }
+            }
+        },
+        "shadda": {
+            "shadda": {
+                "baseparameters": {
+                    "behshape.isol": [
+                        81,
+                        -32
+                    ],
+                    "behshape.isol.expa": [
+                        158,
+                        -117
+                    ],
+                    "dal.fina": [
+                        44,
+                        -88
+                    ],
+                    "feh.isol": [
+                        193,
+                        -41
+                    ],
+                    "hah.medi.afterfeh": [
+                        -151,
+                        23
+                    ],
+                    "hah.medi.afterlam.beforeyeh": [
+                        -56,
+                        136
+                    ],
+                    "kaf.fina": [
+                        0,
+                        -163
+                    ],
+                    "kaf.init": [
+                        -11,
+                        -204
+                    ],
+                    "kaf.init.beforelam": [
+                        44,
+                        -55
+                    ],
+                    "kaf.init.beforeyeh": [
+                        40,
+                        -224
+                    ],
+                    "kaf.init.ii.pluslt_100": [
+                        -240,
+                        -20
+                    ],
+                    "kaf.medi.beforemeem": [
+                        -47,
+                        -175
+                    ],
+                    "lam.fina": [
+                        163,
+                        -81
+                    ],
+                    "lam.fina.afterkaf": [
+                        68,
+                        -56
+                    ],
+                    "lam.init": [
+                        11,
+                        -45
+                    ],
+                    "lam.init.allah": [
+                        -32,
+                        -13
+                    ],
+                    "lam.init.beforedal": [
+                        -85,
+                        -18
+                    ],
+                    "lam.init.beforehahyeh": [
+                        -208,
+                        -96
+                    ],
+                    "lam.init.beforeyeh": [
+                        -49,
+                        -81
+                    ],
+                    "lam.init.lam_hah": [
+                        -196,
+                        16
+                    ],
+                    "lam.init.lamalef": [
+                        68,
+                        13
+                    ],
+                    "lam.isol": [
+                        181,
+                        9
+                    ],
+                    "lam.medi": [
+                        -52,
+                        -39
+                    ],
+                    "lam.medi.allah": [
+                        -28,
+                        -78
+                    ],
+                    "lam.medi.beforeheh": [
+                        -138,
+                        -54
+                    ],
+                    "lam.medi.beforeyeh": [
+                        -147,
+                        -65
+                    ],
+                    "lam.medi.laf": [
+                        -94,
+                        -48
+                    ],
+                    "lam.medi.laf.afterkaf": [
+                        -64,
+                        -11
+                    ],
+                    "meem.medi.afterhah": [
+                        -18,
+                        75
+                    ],
+                    "qaf.fina": [
+                        114,
+                        -16
+                    ],
+                    "qaf.fina.expa": [
+                        28,
+                        -57
+                    ],
+                    "reh.fina": [
+                        83,
+                        67
+                    ],
+                    "reh.fina.afterseen": [
+                        49,
+                        49
+                    ],
+                    "reh.isol": [
+                        98,
+                        32
+                    ],
+                    "sad.medi": [
+                        189,
+                        -9
+                    ],
+                    "sad.medi.beforereh": [
+                        275,
+                        15
+                    ],
+                    "seen.isol": [
+                        333,
+                        -41
+                    ],
+                    "seen.medi.pluslt_100": [
+                        79,
+                        11
+                    ],
+                    "tah.medi": [
+                        95,
+                        -367
+                    ],
+                    "waw.fina": [
+                        61,
+                        0
+                    ],
+                    "waw.isol": [
+                        120,
+                        7
+                    ],
+                    "yehshape.fina.afterbeh": [
+                        3,
+                        61
+                    ],
+                    "yehshape.fina.ii": [
+                        49,
+                        17
+                    ],
+                    "yehshape.fina.ii.expa": [
+                        90,
+                        -54
+                    ]
+                }
+            }
+        },
+        "smallalefreplacement": {
+            "smallalefreplacement": {
+                "baseparameters": {
+                    "alefmaksura.isol": [
+                        -11,
+                        -296
+                    ],
+                    "alefmaksura.isol.expa": [
+                        77,
+                        -452
+                    ],
+                    "behshape.init": [
+                        -16,
+                        -130
+                    ],
+                    "behshape.medi": [
+                        -16,
+                        -130
+                    ],
+                    "yehshape.fina.afterbeh": [
+                        32,
+                        -261
+                    ],
+                    "yehshape.fina.afterbeh.expa": [
+                        57,
+                        -201
+                    ],
+                    "yehshape.fina.ii": [
+                        113,
+                        -326
+                    ],
+                    "yehshape.fina.ii.expa": [
+                        100,
+                        -180
+                    ]
+                }
+            }
+        },
+        "smallhighnoon": {
+            "smallhighnoon": {
+                "baseparameters": {
+                    "behshape.init.pluslt_300": [
+                        48,
+                        -81
+                    ]
+                }
+            }
+        },
+        "smallhighseen": {
+            "smallhighseen": {
+                "baseparameters": {
+                    "alef.fina": [
+                        41,
+                        -69
+                    ],
+                    "heh.fina": [
+                        -152,
+                        172
+                    ],
+                    "lam.fina": [
+                        -79,
+                        64
+                    ],
+                    "noon.fina": [
+                        -86,
+                        216
+                    ],
+                    "noon.fina.expa": [
+                        -138,
+                        165
+                    ],
+                    "sad.medi": [
+                        28,
+                        -201
+                    ]
+                }
+            }
+        },
+        "smallhighyeh": {
+            "smallhighyeh": {
+                "baseparameters": {
+                    "behshape.init": [
+                        -25,
+                        0
+                    ],
+                    "behshape.medi": [
+                        -50,
+                        0
+                    ],
+                    "behshape.medi.pluslt_200": [
+                        -11,
+                        -69
+                    ],
+                    "lam.init": [
+                        0,
+                        -24
+                    ]
+                }
+            }
+        },
+        "smalllowseen": {
+            "smalllowseen": {
+                "baseparameters": {
+                    "sad.medi": [
+                        185,
+                        147
+                    ]
+                }
+            }
+        },
+        "tah": {
+            "fathadamma": {
+                "baseparameters": {
+                    "tah.fina": [
+                        509,
+                        -245
+                    ],
+                    "tah.init": [
+                        142,
+                        -320
+                    ],
+                    "tah.isol": [
+                        340,
+                        -280
+                    ],
+                    "tah.medi": [
+                        181,
+                        -260
+                    ]
+                }
+            },
+            "fathatandammatan": {
+                "baseparameters": {
+                    "tah.isol": [
+                        -27,
+                        -180
+                    ]
+                }
+            },
+            "idgham": {
+                "baseparameters": {
+                    "tah.isol": [
+                        458,
+                        -347
+                    ]
+                }
+            }
+        },
+        "wasla": {
+            "wasla": {
+                "baseparameters": {
+                    "alef.fina": [
+                        13,
+                        -87
+                    ],
+                    "alef.fina.afterkaf": [
+                        26,
+                        -40
+                    ],
+                    "alef.isol": [
+                        44,
+                        -90
+                    ]
+                }
+            }
+        }
+    },
+    "defaultmkmk": {
+        "defaultmkmkbottom": {
+            "lowmarks": {
+                "baseparameters": {
+                    "hamzaabove.joined": [
+                        11,
+                        -232
+                    ],
+                    "hamzabelow": [
+                        9,
+                        77
+                    ],
+                    "smallhighyeh": [
+                        57,
+                        -259
+                    ]
+                }
+            }
+        },
+        "defaultmkmkmeemiqlab": {
+            "meemiqlab": {
+                "baseparameters": {
+                    "damma": [
+                        -140,
+                        -500
+                    ],
+                    "fatha": [
+                        -101,
+                        -295
+                    ]
+                }
+            }
+        },
+        "defaultmkmktop": {
+            "topmarks": {
+                "baseparameters": {
+                    "hamzaabove": [
+                        -52,
+                        55
+                    ],
+                    "hamzaabove.joined": [
+                        -82,
+                        58
+                    ],
+                    "hamzaabove.lamalef": [
+                        -116,
+                        43
+                    ],
+                    "hamzaabove.small": [
+                        -50,
+                        11
+                    ],
+                    "shadda": [
+                        -14,
+                        26
+                    ],
+                    "smallalef.joined": [
+                        -38,
+                        61
+                    ],
+                    "smallalef.replacement": [
+                        -69,
+                        0
+                    ],
+                    "smallhighwaw": [
+                        34,
+                        104
+                    ],
+                    "smallhighyeh": [
+                        -24,
+                        24
+                    ]
+                },
+                "markparameters": {
+                    "damma": [
+                        19,
+                        64
+                    ],
+                    "fatha": [
+                        0,
+                        47
+                    ],
+                    "fathatanidgham": [
+                        0,
+                        60
+                    ]
+                }
+            }
+        },
+        "hamzaabovejoined": {
+            "hamzaabove.joined": {
+                "baseparameters": {
+                    "maddahabove": [
+                        -157,
+                        -391
+                    ]
+                }
+            }
+        },
+        "smallhighseenwaqf.qaf": {
+            "waqf.qaf": {
+                "baseparameters": {
+                    "smallhighseen": [
+                        -115,
+                        -67
+                    ]
+                }
+            }
+        }
+    },
+    "defaultwaqfmarktobase": {
+        "defaultwaqfmarktobase": {
+            "waqfmarks": {
+                "baseparameters": {
+                    "alef.fina.laf": [
+                        -60,
+                        104
+                    ],
+                    "alef.fina.lamalef": [
+                        -41,
+                        69
+                    ],
+                    "dal.fina": [
+                        0,
+                        -72
+                    ],
+                    "hamza.isol": [
+                        -109,
+                        -28
+                    ],
+                    "heh.fina.afterlam": [
+                        -250,
+                        -83
+                    ],
+                    "heh.fina.allah": [
+                        0,
+                        -96
+                    ],
+                    "lam.isol": [
+                        -30,
+                        -87
+                    ],
+                    "meem.fina": [
+                        -57,
+                        -201
+                    ],
+                    "meem.fina.afterkaf": [
+                        -176,
+                        57
+                    ],
+                    "noon.fina": [
+                        57,
+                        0
+                    ],
+                    "qaf.fina.expa": [
+                        57,
+                        -172
+                    ],
+                    "sad.isol": [
+                        28,
+                        -115
+                    ],
+                    "seen.isol": [
+                        127,
+                        0
+                    ],
+                    "waw.fina": [
+                        -120,
+                        -96
+                    ],
+                    "yehshape.fina.ii": [
+                        -125,
+                        0
+                    ]
+                }
+            }
+        }
+    },
+    "hamzaabovebelow.l1": {
+        "subtable1": {
+            "hamzaabove": {
+                "baseparameters": {
+                    "alefmaksura.isol": [
+                        117,
+                        39
+                    ],
+                    "behshape.medi": [
+                        44,
+                        33
+                    ]
+                }
+            }
+        }
+    },
+    "hamzaabovebelow.l2": {
+        "subtable1": {
+            "markclass3": {
+                "baseparameters": {
+                    "hamzaabove": [
+                        -5,
+                        106
+                    ]
+                }
+            }
+        }
+    },
+    "joinedsmallletters.l1": {
+        "subtable1": {
+            "smallhighwaw": {
+                "baseparameters": {
+                    "seen.medi": [
+                        23,
+                        -134
+                    ]
+                }
+            }
+        },
+        "subtable2": {
+            "jsl": {
+                "baseparameters": {
+                    "behshape.init": [
+                        0,
+                        60
+                    ]
+                }
+            }
+        }
+    },
+    "joinedsmallletters.l3": {
+        "subtable1": {
+            "beforewaw": {
+                "baseparameters": {
+                    "behshape.init": [
+                        53,
+                        -13
+                    ],
+                    "behshape.medi": [
+                        49,
+                        16
+                    ],
+                    "fehshape.medi": [
+                        90,
+                        12
+                    ],
+                    "heh.medi": [
+                        87,
+                        6
+                    ],
+                    "kaf.medi": [
+                        98,
+                        16
+                    ],
+                    "lam.init": [
+                        125,
+                        0
+                    ],
+                    "seen.medi": [
+                        95,
+                        0
+                    ],
+                    "tah.init": [
+                        147,
+                        16
+                    ],
+                    "tah.medi": [
+                        126,
+                        -19
+                    ]
+                }
+            }
+        }
+    },
+    "kafinityehfinesmallalefmaddah.l1": {
+        "subtable1": {
+            "parameters": {
+                "smallalef.replacement": [
+                    32,
+                    -65,
+                    0,
+                    0
+                ]
+            }
+        }
+    },
+    "leftrightcursive": {
+        "leftrightcursive": {
+            "entryParameters": {
+                "behshape.init": [
+                    -759,
+                    203
+                ],
+                "hamza.isol": [
+                    -351,
+                    703
+                ],
+                "yehshape.isol": [
+                    -403,
+                    157
+                ]
+            },
+            "exitParameters": {
+                "alef.fina": [
+                    11,
+                    0
+                ],
+                "alef.isol": [
+                    65,
+                    9
+                ],
+                "feh.isol": [
+                    0,
+                    188
+                ],
+                "hah.isol": [
+                    113,
+                    79
+                ],
+                "hamzaabove.lamalef": [
+                    -720,
+                    485
+                ],
+                "heh.init.beforemeem": [
+                    873,
+                    1289
+                ],
+                "lam.init.beforeyeh": [
+                    420,
+                    30
+                ],
+                "lam.init.lamalef": [
+                    473,
+                    522
+                ],
+                "meem.init.beforeyeh": [
+                    -312,
+                    23
+                ],
+                "noon.fina.afterbeh": [
+                    67,
+                    -96
+                ],
+                "qaf.fina": [
+                    16,
+                    -16
+                ],
+                "qaf.isol": [
+                    -138,
+                    374
+                ],
+                "reh.fina": [
+                    115,
+                    115
+                ],
+                "smallalef.isol": [
+                    401,
+                    -44
+                ],
+                "smallyeh": [
+                    -388,
+                    -13
+                ],
+                "waw.fina": [
+                    48,
+                    0
+                ],
+                "waw.isol": [
+                    92,
+                    340
+                ]
+            }
+        }
+    },
+    "lowmarkafterwawandreh.fina.afterbehshape1": {
+        "lowmarkafterwawandreh.fina.afterbehshape1": {
+            "kasratan": {
+                "baseparameters": {
+                    "heh.isol": [
+                        13,
+                        -55
+                    ]
+                }
+            },
+            "lowmarks": {
+                "baseparameters": {
+                    "behshape.init": [
+                        75,
+                        97
+                    ],
+                    "behshape.init.beforehah": [
+                        167,
+                        139
+                    ],
+                    "behshape.init.beforenoon": [
+                        83,
+                        13
+                    ],
+                    "behshape.init.beforereh": [
+                        23,
+                        51
+                    ],
+                    "behshape.init.beforeyeh": [
+                        28,
+                        -192
+                    ],
+                    "dal.isol": [
+                        138,
+                        -97
+                    ],
+                    "fehshape.init": [
+                        41,
+                        -69
+                    ],
+                    "hah.isol": [
+                        111,
+                        680
+                    ],
+                    "lam.init": [
+                        0,
+                        -69
+                    ]
+                }
+            }
+        }
+    },
+    "lowmarkafterwawandreh.fina.afterbehshape2": {
+        "lowmarkafterwawandreh.fina.afterbehshape2": {
+            "kasra": {
+                "baseparameters": {
+                    "behshape.init": [
+                        92,
+                        -208
+                    ],
+                    "behshape.init.beforehah": [
+                        138,
+                        -125
+                    ]
+                }
+            }
+        }
+    },
+    "lowmarkafterwawandreh.fina.afterseen1": {
+        "lowmarkafterwawandreh.fina.afterseen1": {
+            "kasratan": {
+                "baseparameters": {
+                    "heh.isol": [
+                        -144,
+                        28
+                    ]
+                }
+            },
+            "lowmarks": {
+                "baseparameters": {
+                    "behshape.init": [
+                        104,
+                        75
+                    ],
+                    "behshape.init.beforenoon": [
+                        81,
+                        16
+                    ],
+                    "behshape.init.beforeyeh": [
+                        144,
+                        -13
+                    ],
+                    "behshape.isol": [
+                        111,
+                        13
+                    ],
+                    "behshape.isol.expa": [
+                        100,
+                        16
+                    ],
+                    "fehshape.init": [
+                        138,
+                        83
+                    ],
+                    "hah.isol": [
+                        131,
+                        655
+                    ],
+                    "kaf.init": [
+                        40,
+                        68
+                    ]
+                }
+            }
+        }
+    },
+    "lowmarkafterwawandreh.fina.afterseen2": {
+        "lowmarkafterwawandreh.fina.afterseen2": {
+            "kasra": {
+                "baseparameters": {
+                    "behshape.init.beforeyeh": [
+                        105,
+                        -309
+                    ]
+                }
+            },
+            "kasratan": {
+                "baseparameters": {
+                    "behshape.isol": [
+                        56,
+                        -180
+                    ],
+                    "behshape.isol.expa": [
+                        0,
+                        -133
+                    ]
+                }
+            }
+        }
+    },
+    "lowmarkafterwawandreh.fina1": {
+        "lowmarkafterwawandreh.fina1": {
+            "kasratan": {
+                "baseparameters": {
+                    "ain.isol": [
+                        132,
+                        718
+                    ],
+                    "alefmaksura.isol": [
+                        -120,
+                        0
+                    ],
+                    "alefmaksura.isol.expa": [
+                        -286,
+                        -40
+                    ],
+                    "dal.isol": [
+                        -65,
+                        0
+                    ],
+                    "hah.isol": [
+                        158,
+                        737
+                    ],
+                    "hamza.isol": [
+                        13,
+                        97
+                    ],
+                    "heh.isol": [
+                        -163,
+                        41
+                    ],
+                    "lam.isol": [
+                        -10,
+                        -93
+                    ],
+                    "meem.isol": [
+                        -98,
+                        32
+                    ],
+                    "meem.isol.ii": [
+                        173,
+                        659
+                    ],
+                    "noon.isol": [
+                        -68,
+                        22
+                    ],
+                    "noon.isol.expa": [
+                        -418,
+                        -32
+                    ],
+                    "reh.isol": [
+                        -228,
+                        -11
+                    ]
+                }
+            },
+            "lowmarks": {
+                "baseparameters": {
+                    "ain.isol": [
+                        163,
+                        578
+                    ],
+                    "behshape.init": [
+                        131,
+                        22
+                    ],
+                    "behshape.init.beforehah": [
+                        82,
+                        138
+                    ],
+                    "behshape.init.beforenoon": [
+                        90,
+                        11
+                    ],
+                    "behshape.init.beforeseen": [
+                        27,
+                        54
+                    ],
+                    "behshape.init.beforeyeh": [
+                        150,
+                        3
+                    ],
+                    "behshape.init.pluslt_200": [
+                        19,
+                        -13
+                    ],
+                    "behshape.isol": [
+                        -32,
+                        -37
+                    ],
+                    "behshape.isol.expa": [
+                        145,
+                        -7
+                    ],
+                    "dal.isol": [
+                        114,
+                        65
+                    ],
+                    "fehshape.init": [
+                        68,
+                        40
+                    ],
+                    "hah.init": [
+                        -30,
+                        66
+                    ],
+                    "hah.init.basmala": [
+                        124,
+                        138
+                    ],
+                    "hah.init.beforeyeh": [
+                        107,
+                        143
+                    ],
+                    "hah.init.ii": [
+                        21,
+                        59
+                    ],
+                    "hah.isol": [
+                        61,
+                        708
+                    ],
+                    "heh.init.beforemeem": [
+                        123,
+                        105
+                    ],
+                    "heh.isol": [
+                        155,
+                        127
+                    ],
+                    "lam.init": [
+                        53,
+                        53
+                    ],
+                    "lam.init.beforedal": [
+                        55,
+                        41
+                    ],
+                    "lam.init.beforeyeh": [
+                        144,
+                        9
+                    ],
+                    "lam.isol": [
+                        -22,
+                        -124
+                    ],
+                    "meem.init": [
+                        163,
+                        114
+                    ],
+                    "meem.init.beforeyeh": [
+                        231,
+                        173
+                    ],
+                    "meem.isol": [
+                        114,
+                        130
+                    ],
+                    "meem.isol.ii": [
+                        138,
+                        552
+                    ],
+                    "noon.isol.expa": [
+                        -352,
+                        -92
+                    ],
+                    "reh.isol": [
+                        -170,
+                        -18
+                    ],
+                    "seen.isol": [
+                        356,
+                        367
+                    ]
+                }
+            }
+        }
+    },
+    "lowmarkafterwawandreh.fina2": {
+        "lowmarkafterwawandreh.fina2": {
+            "kasra": {
+                "baseparameters": {
+                    "behshape.init": [
+                        193,
+                        -315
+                    ],
+                    "behshape.init.beforehah": [
+                        96,
+                        27
+                    ],
+                    "behshape.init.beforenoon": [
+                        106,
+                        -106
+                    ],
+                    "behshape.init.beforeyeh": [
+                        135,
+                        -221
+                    ],
+                    "behshape.init.pluslt_200": [
+                        0,
+                        -54
+                    ],
+                    "behshape.isol": [
+                        45,
+                        -147
+                    ],
+                    "behshape.isol.expa": [
+                        290,
+                        -113
+                    ],
+                    "hah.init": [
+                        -41,
+                        -112
+                    ],
+                    "hah.init.beforeyeh": [
+                        140,
+                        38
+                    ],
+                    "hah.init.ii": [
+                        -126,
+                        -211
+                    ],
+                    "onedotdown": [
+                        25,
+                        -76
+                    ]
+                }
+            },
+            "kasratan": {
+                "baseparameters": {
+                    "behshape.isol": [
+                        -13,
+                        -180
+                    ],
+                    "hah.isol": [
+                        55,
+                        568
+                    ]
+                }
+            }
+        }
+    },
+    "lowmarkafterwawandreh.finabeforehah": {
+        "lowmarkafterwawandreh.finabeforehah": {
+            "kasra": {
+                "baseparameters": {
+                    "reh.fina": [
+                        27,
+                        100
+                    ]
+                }
+            }
+        }
+    },
+    "lowmarkafterwawandreh.isol1": {
+        "lowmarkafterwawandreh.isol1": {
+            "kasratan": {
+                "baseparameters": {
+                    "ain.isol": [
+                        184,
+                        779
+                    ],
+                    "dal.isol": [
+                        -83,
+                        55
+                    ],
+                    "hamza.isol": [
+                        -98,
+                        55
+                    ],
+                    "heh.isol": [
+                        -47,
+                        43
+                    ],
+                    "noon.isol": [
+                        -46,
+                        -69
+                    ],
+                    "qaf.isol": [
+                        -41,
+                        13
+                    ]
+                }
+            },
+            "lowmarks": {
+                "baseparameters": {
+                    "ain.init": [
+                        81,
+                        130
+                    ],
+                    "ain.init.finjani": [
+                        97,
+                        111
+                    ],
+                    "alef.isol.ii": [
+                        117,
+                        -137
+                    ],
+                    "behshape.init": [
+                        119,
+                        94
+                    ],
+                    "behshape.init.beforehah": [
+                        105,
+                        105
+                    ],
+                    "behshape.init.beforenoon": [
+                        85,
+                        69
+                    ],
+                    "behshape.init.beforereh": [
+                        -9,
+                        29
+                    ],
+                    "behshape.init.beforeseen": [
+                        106,
+                        116
+                    ],
+                    "behshape.init.beforeyeh": [
+                        127,
+                        11
+                    ],
+                    "behshape.init.pluslt_200": [
+                        -11,
+                        -33
+                    ],
+                    "behshape.isol": [
+                        29,
+                        0
+                    ],
+                    "behshape.isol.expa": [
+                        188,
+                        -53
+                    ],
+                    "dal.isol": [
+                        163,
+                        114
+                    ],
+                    "fehshape.init": [
+                        85,
+                        113
+                    ],
+                    "fehshape.init.beforeyeh": [
+                        -81,
+                        -212
+                    ],
+                    "hah.init": [
+                        46,
+                        116
+                    ],
+                    "hah.init.ii": [
+                        53,
+                        100
+                    ],
+                    "hah.isol": [
+                        114,
+                        758
+                    ],
+                    "heh.init": [
+                        208,
+                        97
+                    ],
+                    "heh.init.beforemeem": [
+                        123,
+                        140
+                    ],
+                    "heh.isol": [
+                        0,
+                        69
+                    ],
+                    "kaf.init": [
+                        76,
+                        113
+                    ],
+                    "kaf.init.beforeyeh": [
+                        13,
+                        -152
+                    ],
+                    "lam.init": [
+                        106,
+                        108
+                    ],
+                    "lam.init.allah": [
+                        32,
+                        98
+                    ],
+                    "lam.init.beforedal": [
+                        -27,
+                        -125
+                    ],
+                    "lam.init.beforeyeh": [
+                        56,
+                        -236
+                    ],
+                    "lam.init.lamalef": [
+                        130,
+                        106
+                    ],
+                    "lam.isol": [
+                        0,
+                        -83
+                    ],
+                    "meem.init": [
+                        158,
+                        136
+                    ],
+                    "meem.isol": [
+                        -111,
+                        0
+                    ],
+                    "noon.isol": [
+                        52,
+                        -87
+                    ],
+                    "noon.isol.expa": [
+                        -355,
+                        -16
+                    ],
+                    "qaf.isol": [
+                        -45,
+                        0
+                    ],
+                    "qaf.isol.expa": [
+                        -349,
+                        -67
+                    ],
+                    "reh.isol": [
+                        -136,
+                        -72
+                    ],
+                    "sad.init.beforeyeh": [
+                        196,
+                        212
+                    ],
+                    "sad.isol": [
+                        359,
+                        343
+                    ],
+                    "seen.init": [
+                        -17,
+                        17
+                    ]
+                }
+            }
+        }
+    },
+    "lowmarkafterwawandreh.isol2": {
+        "lowmarkafterwawandreh.isol2": {
+            "kasra": {
+                "baseparameters": {
+                    "behshape.init": [
+                        94,
+                        -208
+                    ],
+                    "behshape.init.beforehah": [
+                        105,
+                        -175
+                    ],
+                    "behshape.init.beforenoon": [
+                        110,
+                        -42
+                    ],
+                    "behshape.init.beforeyeh": [
+                        98,
+                        -261
+                    ],
+                    "behshape.init.pluslt_200": [
+                        13,
+                        -40
+                    ],
+                    "behshape.isol": [
+                        65,
+                        -130
+                    ],
+                    "behshape.isol.expa": [
+                        212,
+                        -212
+                    ],
+                    "hah.init": [
+                        81,
+                        -179
+                    ],
+                    "hah.init.ii": [
+                        56,
+                        -150
+                    ],
+                    "hah.isol": [
+                        177,
+                        382
+                    ],
+                    "onedotdown": [
+                        16,
+                        -89
+                    ]
+                }
+            },
+            "kasratan": {
+                "baseparameters": {
+                    "behshape.isol": [
+                        13,
+                        -111
+                    ],
+                    "hah.isol": [
+                        41,
+                        625
+                    ]
+                }
+            },
+            "lowmarks": {
+                "baseparameters": {
+                    "onedotdown": [
+                        -3,
+                        -44
+                    ]
+                }
+            }
+        }
+    },
+    "meemiqlabtah.l1": {
+        "subtable1": {
+            "fathadamma": {
+                "baseparameters": {
+                    "tah.fina": [
+                        -280,
+                        320
+                    ]
+                }
+            }
+        }
+    },
+    "rehhehbeforemeem": {
+        "subtable1": {
+            "entryParameters": {
+                "hah.init.beforemeem": [
+                    113,
+                    22
+                ]
+            }
+        }
+    },
+    "rehwawcursive": {
+        "rehfinaafterbehshape": {
+            "entryParameters": {
+                "behshape.init": [
+                    -70,
+                    -110
+                ],
+                "behshape.init.beforereh": [
+                    -69,
+                    -180
+                ],
+                "waw.isol": [
+                    88,
+                    -65
+                ]
+            }
+        },
+        "rehfinaafterseen": {
+            "entryParameters": {
+                "alef.isol": [
+                    45,
+                    -11
+                ],
+                "behshape.init.beforeyeh": [
+                    19,
+                    -28
+                ],
+                "behshape.isol": [
+                    -204,
+                    0
+                ],
+                "kaf.init": [
+                    -163,
+                    0
+                ],
+                "reh.isol": [
+                    124,
+                    23
+                ],
+                "waw.isol": [
+                    123,
+                    35
+                ]
+            }
+        },
+        "rehwawalef": {
+            "entryParameters": {
+            }
+        },
+        "rehwawfina": {
+            "entryParameters": {
+                "alef.isol": [
+                    68,
+                    11
+                ],
+                "alefmaksura.isol": [
+                    88,
+                    61
+                ],
+                "alefmaksura.isol.expa": [
+                    24,
+                    144
+                ],
+                "behshape.init": [
+                    -4,
+                    8
+                ],
+                "behshape.init.beforeseen": [
+                    54,
+                    13
+                ],
+                "behshape.isol": [
+                    68,
+                    16
+                ],
+                "behshape.isol.expa": [
+                    -76,
+                    123
+                ],
+                "fehshape.init": [
+                    -55,
+                    0
+                ],
+                "hah.init.ii": [
+                    -183,
+                    0
+                ],
+                "hah.isol": [
+                    -87,
+                    9
+                ],
+                "hamza.isol": [
+                    -1,
+                    0
+                ],
+                "heh.init.beforemeem": [
+                    -53,
+                    10
+                ],
+                "heh.isol": [
+                    52,
+                    49
+                ],
+                "kaf.init.beforeyeh": [
+                    -125,
+                    0
+                ],
+                "lam.init": [
+                    11,
+                    0
+                ],
+                "lam.isol": [
+                    0,
+                    94
+                ],
+                "notdef": [
+                    0,
+                    -9
+                ],
+                "reh.isol": [
+                    -36,
+                    -10
+                ],
+                "sad.init.kii": [
+                    -67,
+                    112
+                ],
+                "seen.init.beforeyeh": [
+                    -86,
+                    0
+                ],
+                "seen.isol": [
+                    -90,
+                    90
+                ],
+                "seen.isol.expa": [
+                    -22,
+                    89
+                ],
+                "smallalef.isol": [
+                    -3,
+                    33
+                ],
+                "waw.isol": [
+                    24,
+                    19
+                ]
+            }
+        },
+        "rehwawisol": {
+            "entryParameters": {
+                "alef.isol": [
+                    27,
+                    28
+                ],
+                "alef.isol.ii": [
+                    255,
+                    -234
+                ],
+                "behshape.init.beforereh": [
+                    -83,
+                    -99
+                ],
+                "behshape.init.beforeyeh": [
+                    0,
+                    -81
+                ],
+                "fehshape.init.beforeyeh": [
+                    0,
+                    -64
+                ],
+                "hah.init": [
+                    -79,
+                    0
+                ],
+                "hah.isol": [
+                    -52,
+                    92
+                ],
+                "heh.isol": [
+                    49,
+                    -13
+                ],
+                "lam.init": [
+                    -25,
+                    -16
+                ],
+                "lam.init.beforeyeh": [
+                    13,
+                    -81
+                ],
+                "noon.isol": [
+                    -11,
+                    -45
+                ],
+                "reh.isol": [
+                    26,
+                    -78
+                ],
+                "sad.init.beforeyeh": [
+                    114,
+                    32
+                ],
+                "waw.isol": [
+                    85,
+                    -18
+                ]
+            }
+        }
+    },
+    "shr1.cursive.l1": {
+        "subtable1": {
+            "entryParameters": {
+                "waw.isol": [
+                    304,
+                    -28
+                ]
+            }
+        }
+    },
+    "shr1.cursive.l2": {
+        "subtable1": {
+            "entryParameters": {
+                "heh.init": [
+                    263,
+                    0
+                ]
+            }
+        }
+    },
+    "shr1.dalcursive": {
+        "subtable1": {
+            "entryParameters": {
+                "behshape.init.beforenoon": [
+                    0,
+                    -199
+                ]
+            }
+        }
+    },
+    "smallalefjoined": {
+        "smallalefjoined": {
+            "smallalef.joined": {
+                "baseparameters": {
+                    "hamzaabove.joined": [
+                        -9,
+                        116
+                    ]
+                }
+            }
+        }
+    },
+    "smallhighyehshadda.kasra": {
+        "subtable1": {
+            "smallhighyehshadda": {
+                "baseparameters": {
+                    "shadda": [
+                        34,
+                        -712
+                    ]
+                }
+            }
+        }
+    },
+    "variouskern.l2": {
+        "subtable1": {
+            "dammatan": {
+                "baseparameters": {
+                    "hamza.isol": [
+                        176,
+                        342
+                    ]
+                }
+            }
+        }
+    }
+}

@@ -24,7 +24,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include "qdebug.h"
 
-GlyphItem::GlyphItem(int scale, GlyphVis* glyph, OtLayout * layout, quint32 lookup, quint32 subtable, quint16 baseChar, double lefttatweel, double righttatweel, QGraphicsItem * parent) :QGraphicsPathItem(parent)
+GlyphItem::GlyphItem(double scale, GlyphVis* glyph, OtLayout * layout, quint32 lookup, quint32 subtable, quint16 baseChar, double lefttatweel, double righttatweel, QGraphicsItem * parent) :QGraphicsPathItem(parent)
 {
 
 	m_glyph = glyph;

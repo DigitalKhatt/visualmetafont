@@ -23,6 +23,7 @@
 #include <iostream>
 #include "Subtable.h"
 #include <stack>
+#include <unordered_set>
 
 using namespace std;
 
@@ -52,10 +53,11 @@ namespace feayy {
     int index;
   };
 
-  //using StatePositions = std::map < RuleRegExpSymbol*, std::vector<RuleRegExpTag*>>;
+  using StatePositions = std::map < RuleRegExpSymbol*, std::pair<std::vector<RuleRegExpTag*>, RuleRegExpSymbol*>>;
 
   struct TDFAConstState {
-    ASTPositions positions;
+    //ASTPositions positions;
+    StatePositions positions;
     std::map<RuleRegExpSymbol*, StateConfiguration> posStates;
     bool marked = false;
     std::map<uint16_t, Transition> transtitions;
@@ -80,13 +82,15 @@ namespace feayy {
           if (old->second.origin->positionNumber > origin->positionNumber) {
             this->positions.erase(old->first);
             this->posStates.erase(old);
-            //TODO : Origin always unique ?
-            this->positions.insert({ pos.first,pos.second });
+            //TODO : Origin always unique ? No : t1ac|t2ad
+            this->positions.insert({ pos.first,{pos.second,origin} });
+            //this->positions.insert({ pos.first,pos.second });
             this->posStates.insert({ pos.first,{currentTags,pos.second,origin } });
           }
         }
-        else {          
-          this->positions.insert(pos);
+        else {
+          //this->positions.insert(pos);
+          this->positions.insert({ pos.first,{pos.second,origin} });
           this->posStates.insert({ pos.first,{currentTags,pos.second,origin } });
         }
       }
@@ -199,7 +203,9 @@ namespace feayy {
       }
       std::cout << " " << "positions:" << '\n';
 
-      std::vector<std::pair < RuleRegExpSymbol*, std::vector<RuleRegExpTag*>>> sortedPositions;
+      std::vector<std::pair < RuleRegExpSymbol*, std::pair<std::vector<RuleRegExpTag*>, RuleRegExpSymbol*>>> sortedPositions;
+
+      //std::vector<std::pair < RuleRegExpSymbol*, std::vector<RuleRegExpTag*>>> sortedPositions;
 
       for (auto& posr : state.positions) {
         sortedPositions.push_back(posr);
@@ -213,11 +219,11 @@ namespace feayy {
         auto pos = posr.first;
         std::cout << "    Position No " << pos->positionNumber;
         std::cout << ",tags={";
-        for (auto it = posr.second.begin(); it != posr.second.end(); ++it) {
+        for (auto it = posr.second.first.begin(); it != posr.second.first.end(); ++it) {
           if (auto lookup = dynamic_cast<RuleRegExpAction*>(*it)) {
             std::cout << lookup->name();
           }
-          if (std::next(it) != posr.second.end()) {
+          if (std::next(it) != posr.second.first.end()) {
             std::cout << ", ";
           }
         }
@@ -225,7 +231,7 @@ namespace feayy {
         if (state.posStates[pos].origin) {
           std::cout << ",origin:{posNumber:" << state.posStates[pos].origin->positionNumber << ",index:" << state.origins[state.posStates[pos].origin].index << "}";
         }
-        
+
         /*
         if (state.origins[state.posStates[pos].origin].tags.size() > 0) {
           std::cout << ",origintags={";
@@ -281,6 +287,113 @@ namespace feayy {
       }
     }
     std::cout << "*****************************END********************************************" << '\n';
+  }
+
+
+
+  static bool Equivalent(const DFA& dfa, int i, int j, const std::vector<int>& partition) {
+
+    auto& dest_i = dfa.states[i];
+    auto& dest_j = dfa.states[j];
+
+    //if ((dest_i.final != 0 && dest_j.final == 0) || (dest_i.final == 0 && dest_j.final != 0)) return false;
+    //else if (dest_i.final != 0 && dest_j.final != 0 && !(dest_i.backtrackfinal == dest_j.backtrackfinal)) return false;
+
+    for (int z = 0; z < dfa.eqClasses.size(); z++) {  // for input z
+
+      auto findi = dest_i.transtitions.find(z);
+      auto findj = dest_j.transtitions.find(z);
+      auto existi = findi != dest_i.transtitions.end();
+      auto existj = findj != dest_j.transtitions.end();
+
+      if (!existi && !existj) continue; // same group containing the only dead state
+      else if (existi && !existj) return false;
+      else if (!existi && existj) return false;
+      else if (findi->second.backtracks != findj->second.backtracks) return false;
+      else if (partition[findi->second.state] != partition[findj->second.state]) return false;
+    }
+    return true;
+  }
+
+  struct minimize_key_t {
+    int final;
+    DFABackTrackInfo backtrackfinal;
+  };
+
+  bool operator<(const minimize_key_t& lhs, const minimize_key_t& rhs) {
+    //if (lhs.final != rhs.final)
+    //  return lhs.final < rhs.final;
+    //else
+      return lhs.backtrackfinal < rhs.backtrackfinal;
+  }
+
+  static void minimizeDFA(DFA& dfa) {
+    const int N = dfa.states.size();
+
+    std::map<minimize_key_t, int> init;
+
+    std::vector<int> partition_0(N, -1);
+    // initialize grouping by the final state
+    int final_idx = -1, nonfinal_idx = -1;
+    int nb_final = 0;
+    int nb_final_distinct = 0;
+    for (int i = 0; i < N; i++) {
+      if (dfa.states[i].final != 0) {
+        if (final_idx < 0) final_idx = i;
+        nb_final++;
+        /*const minimize_key_t key = {dfa.states[i].final, dfa.states[i].backtrackfinal};
+        std::pair<std::map<minimize_key_t, int>::iterator, bool> p = init.insert(std::make_pair(key, i));
+        //std::cout << "final_index=" << i << ",final=" << dfa.states[i].final << ",prevTransIndex=" << dfa.states[i].backtrackfinal.prevTransIndex;
+        //for (auto& action : dfa.states[i].backtrackfinal.actions) {
+        //  std::cout << "|"<<  action.name << ":idRule=" << action.idRule << ",type=" << (int)action.type;
+        //}
+        std::cout << std::endl;
+        if (p.second) {
+          partition_0[i] = i;
+          nb_final_distinct++;
+        }
+        else {
+          int j = p.first->second;
+          partition_0[i] = j;
+        }*/
+        // each final is on its own group
+        partition_0[i] = i;
+        //partition_0[i] = final_idx;
+      }
+      else {
+        if (nonfinal_idx < 0) nonfinal_idx = i;
+        partition_0[i] = nonfinal_idx;
+      }
+    }
+    std::cout << "final_idx=" << final_idx << ",nb_final=" << nb_final << ",nb_final_distinct=" << nb_final_distinct << std::endl;
+
+    while (true) {
+      std::vector<int> partition(N, -1);
+      int i = 0;
+      while (i < N) {
+        partition[i] = i;
+        int i_next = N;
+        for (int j = i + 1; j < N; j++) {
+          if (partition[j] >= 0) continue;  // skip if j is already merged
+          if (partition_0[i] == partition_0[j] && Equivalent(dfa, i, j, partition_0)) {
+            partition[j] = i;   // merge i & j
+          }
+          else if (i_next == N) { i_next = j; }  // keep the first unmerged node
+        }
+        i = i_next;
+      }
+      if (partition_0 == partition) break;
+      partition_0 = partition;
+    }
+
+
+
+    std::unordered_set<int> newstates;
+
+    for (int i = 0; i < partition_0.size(); i++) {
+      newstates.insert(partition_0[i]);
+    }
+    std::cout << "prvNbStates=" << N << ",newNbStates=" << newstates.size() << std::endl;
   }
 
   DFA Pass::computeDFA(OtLayout& otlayout) {
@@ -542,14 +655,14 @@ namespace feayy {
         for (auto pos : currentState.positions) {
           if (dynamic_cast<RuleRegExpANY*>(pos.first)) {
             auto followPositions = pos.first->followpos();
-            nextStateAnyPos.addPositions(followPositions, pos.second, pos.first);
+            nextStateAnyPos.addPositions(followPositions, pos.second.first, pos.first);
           }
         }
 
         computeNextSate(currentState, nextStateAnyPos, 0xFFFF);
 
         std::set<int> totalClasses;
-        std::map<int, std::vector <ASTPositions::value_type >> posByClass;
+        std::map<int, std::vector <StatePositions::value_type >> posByClass;
         for (auto pos : currentState.positions) {
           auto& classes = eqClassesVisitor.eqClassesByGlyphSet[pos.first];
           //totalClasses.unite(classes);
@@ -564,12 +677,12 @@ namespace feayy {
           auto& positions = posByClass[eqClass];
           for (auto pos : positions) {
             auto followPositions = pos.first->followpos();
-            nextState.addPositions(followPositions, pos.second, pos.first);
+            nextState.addPositions(followPositions, pos.second.first, pos.first);
           }
           for (auto pos : currentState.positions) {
             if (dynamic_cast<RuleRegExpANY*>(pos.first)) {
               auto followPositions = pos.first->followpos();
-              nextState.addPositions(followPositions, pos.second, pos.first);
+              nextState.addPositions(followPositions, pos.second.first, pos.first);
             }
           }
           computeNextSate(currentState, nextState, eqClass);
@@ -581,6 +694,7 @@ namespace feayy {
 
     //printDFA(dfa, otlayout, idRules, dstates);
 
+    //minimizeDFA(dfa);
 
     return dfa;
   }

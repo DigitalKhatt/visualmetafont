@@ -54,6 +54,7 @@ private slots:
   void imageVisible(bool visible);
   void fillContour(bool fill);
   void pointerGroupClicked(int id);
+  void showAnchors(bool checked);
 
 private:
   MP_options* _mp_options;

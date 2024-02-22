@@ -24,195 +24,209 @@ static const int changeGlyphPropertyCommandId = 1;
 
 
 
-ChangeGlyphPropertyCommand::ChangeGlyphPropertyCommand(Glyph *glyph, const QString &propertyName, QVariant value, QUndoCommand *parent)
-	: QUndoCommand(parent)
+ChangeGlyphPropertyCommand::ChangeGlyphPropertyCommand(Glyph* glyph, const QString& propertyName, QVariant value, QUndoCommand* parent)
+  : QUndoCommand(parent)
 {
 
-	setText(QObject::tr("Set %1's value").arg(propertyName));
+  setText(QObject::tr("Set %1's value").arg(propertyName));
 
-	m_glyph = glyph;
-	m_propertyName = propertyName;
-	m_oldValue = glyph->property(propertyName.toLatin1());
-	m_newValue = value;
+  m_glyph = glyph;
+  m_propertyName = propertyName;
+  m_oldValue = glyph->property(propertyName.toLatin1());
+  m_newValue = value;
 }
 
 void ChangeGlyphPropertyCommand::undo()
 {
 
-	QByteArray name = m_propertyName.toLatin1();
-	m_glyph->setProperty(name, m_oldValue);
+  QByteArray name = m_propertyName.toLatin1();
+  m_glyph->setProperty(name, m_oldValue, true);
 
 }
 
 void ChangeGlyphPropertyCommand::redo()
 {
-	m_glyph->setProperty(m_propertyName.toLatin1(), m_newValue);
+  m_glyph->setProperty(m_propertyName.toLatin1(), m_newValue, true);
 }
 
-bool ChangeGlyphPropertyCommand::mergeWith(const QUndoCommand *command)
+bool ChangeGlyphPropertyCommand::mergeWith(const QUndoCommand* command)
 {
-	if (command->id() != changeGlyphPropertyCommandId)
-		return false;
+  if (command->id() != changeGlyphPropertyCommandId)
+    return false;
 
-	const ChangeGlyphPropertyCommand *other = static_cast<const ChangeGlyphPropertyCommand*>(command);
-	if (m_propertyName != other->m_propertyName)
-		return false;
+  const ChangeGlyphPropertyCommand* other = static_cast<const ChangeGlyphPropertyCommand*>(command);
+  if (m_propertyName != other->m_propertyName)
+    return false;
 
-	m_newValue = other->m_newValue;
-	return true;
+  m_newValue = other->m_newValue;
+  return true;
 }
 
 int ChangeGlyphPropertyCommand::id() const
 {
-	return changeGlyphPropertyCommandId;
+  return changeGlyphPropertyCommandId;
 }
 
-GlyphSourceChangeCommand::GlyphSourceChangeCommand(Glyph *glyph, const QString &name, QString oldvalue, QString newvalue,
-	bool structureChanged, QUndoCommand * parent) : QUndoCommand(parent)
+GlyphSourceChangeCommand::GlyphSourceChangeCommand(Glyph* glyph, const QString& name, QString oldvalue, QString newvalue,
+  bool structureChanged, QUndoCommand* parent) : QUndoCommand(parent)
 {
-	setText(QObject::tr(name.toLatin1()));
+  setText(QObject::tr(name.toLatin1()));
 
-	m_glyph = glyph;
-	m_oldValue = oldvalue;
-	m_newValue = newvalue;
-	m_structureChanged = structureChanged;
+  m_glyph = glyph;
+  m_oldValue = oldvalue;
+  m_newValue = newvalue;
+  m_structureChanged = structureChanged;
 }
 void GlyphSourceChangeCommand::undo()
 {
-	m_glyph->setSource(m_oldValue, m_structureChanged);
+  m_glyph->setSource(m_oldValue, m_structureChanged);
 }
 
 void GlyphSourceChangeCommand::redo()
 {
-	m_glyph->setSource(m_newValue, m_structureChanged);
+  m_glyph->setSource(m_newValue, m_structureChanged);
 }
-GlyphParamsChangeCommand::GlyphParamsChangeCommand(Glyph *glyph, const QString &name, QMap<QString, QVariant> oldvalue, QMap<QString, QVariant> newvalue,
-	QMap<int, QMap<int, Glyph::Knot> >old_controlledPaths, QMap<int, QMap<int, Glyph::Knot> > new_controlledPaths, QUndoCommand *parent) : QUndoCommand(parent)
+GlyphParamsChangeCommand::GlyphParamsChangeCommand(Glyph* glyph, const QString& name, QMap<QString, QVariant> oldvalue, QMap<QString, QVariant> newvalue,
+  QMap<int, QMap<int, Glyph::Knot> >old_controlledPaths, QMap<int, QMap<int, Glyph::Knot> > new_controlledPaths,
+  std::map<QString, Glyph::Param> old_params, std::map<QString, Glyph::Param> new_params, QUndoCommand* parent) : QUndoCommand(parent)
 {
-	setText(QObject::tr(name.toLatin1()));
+  setText(QObject::tr(name.toLatin1()));
 
-	m_glyph = glyph;
-	m_oldValue = oldvalue;
-	m_newValue = newvalue;
-	this->old_controlledPaths = old_controlledPaths;
-	this->new_controlledPaths = new_controlledPaths;
-	bypassRedo = true;
+  m_glyph = glyph;
+  m_oldValue = oldvalue;
+  m_newValue = newvalue;
+  this->old_controlledPaths = old_controlledPaths;
+  this->new_controlledPaths = new_controlledPaths;
+  this->old_params = old_params;
+  this->new_params = new_params;
+  bypassRedo = true;
 }
 void GlyphParamsChangeCommand::undo()
 {
-	QMap<QString, QVariant>::iterator i;
-	for (i = m_newValue.begin(); i != m_newValue.end(); ++i) {
-		m_glyph->setProperty(i.key().toLatin1(), m_oldValue[i.key()]);
-	}
 
-	QMapIterator<int, QMap<int, Glyph::Knot*> > j(m_glyph->controlledPaths);
-	while (j.hasNext()) {
-		j.next();
-		QMapIterator<int, Glyph::Knot*> h(j.value());
-		while (h.hasNext()) {
-			h.next();
-			*m_glyph->controlledPaths[j.key()][h.key()] = old_controlledPaths[j.key()][h.key()];
-		}
-	}
+  for (auto& [name, param] : new_params) {
+    m_glyph->params[name] = old_params[name];
+    m_glyph->setProperty(name.toLatin1(), old_params[name].expr->constantValue(0));
+  }
 
-	m_glyph->setWidth(m_glyph->width());
+  QMap<QString, QVariant>::iterator i;
+  for (i = m_newValue.begin(); i != m_newValue.end(); ++i) {
+    m_glyph->setProperty(i.key().toLatin1(), m_oldValue[i.key()]);
+  }
+
+  QMapIterator<int, QMap<int, Glyph::Knot*> > j(m_glyph->controlledPaths);
+  while (j.hasNext()) {
+    j.next();
+    QMapIterator<int, Glyph::Knot*> h(j.value());
+    while (h.hasNext()) {
+      h.next();
+      *m_glyph->controlledPaths[j.key()][h.key()] = old_controlledPaths[j.key()][h.key()];
+    }
+  }
+
+  m_glyph->setWidth(m_glyph->width());
 
 }
 
 void GlyphParamsChangeCommand::redo()
 {
-	if (bypassRedo) {
-		bypassRedo = false;
-		return;
-	}
+  if (bypassRedo) {
+    bypassRedo = false;
+    return;
+  }
 
-	QMap<QString, QVariant>::iterator i;
-	for (i = m_newValue.begin(); i != m_newValue.end(); ++i) {
-		m_glyph->setProperty(i.key().toLatin1(), i.value());
-	}
+  for (auto& [name, param] : new_params) {
+    m_glyph->params[name] = param;
+    m_glyph->setProperty(name.toLatin1(), param.expr->constantValue(0));
+  }
 
-	QMapIterator<int, QMap<int, Glyph::Knot*> > j(m_glyph->controlledPaths);
-	while (j.hasNext()) {
-		j.next();
-		QMapIterator<int, Glyph::Knot*> h(j.value());
-		while (h.hasNext()) {
-			h.next();
-			*m_glyph->controlledPaths[j.key()][h.key()] = new_controlledPaths[j.key()][h.key()];
-		}
-	}
+  QMap<QString, QVariant>::iterator i;
+  for (i = m_newValue.begin(); i != m_newValue.end(); ++i) {
+    m_glyph->setProperty(i.key().toLatin1(), i.value());
+  }
 
-	m_glyph->setWidth(m_glyph->width());
+  QMapIterator<int, QMap<int, Glyph::Knot*> > j(m_glyph->controlledPaths);
+  while (j.hasNext()) {
+    j.next();
+    QMapIterator<int, Glyph::Knot*> h(j.value());
+    while (h.hasNext()) {
+      h.next();
+      *m_glyph->controlledPaths[j.key()][h.key()] = new_controlledPaths[j.key()][h.key()];
+    }
+  }
+
+  m_glyph->setWidth(m_glyph->width());
 }
-GlyphPathsChangeCommand::GlyphPathsChangeCommand(Glyph *glyph, const QString &name,
-	QMap<int, QMap<int, Glyph::Knot> >old_controlledPaths, QMap<int, QMap<int, Glyph::Knot> > new_controlledPaths, QUndoCommand *parent) : QUndoCommand(parent)
+GlyphPathsChangeCommand::GlyphPathsChangeCommand(Glyph* glyph, const QString& name,
+  QMap<int, QMap<int, Glyph::Knot> >old_controlledPaths, QMap<int, QMap<int, Glyph::Knot> > new_controlledPaths, QUndoCommand* parent) : QUndoCommand(parent)
 {
-	setText(QObject::tr(name.toLatin1()));
+  setText(QObject::tr(name.toLatin1()));
 
-	m_glyph = glyph;
+  m_glyph = glyph;
 
-	this->old_controlledPaths = old_controlledPaths;
-	this->new_controlledPaths = new_controlledPaths;
+  this->old_controlledPaths = old_controlledPaths;
+  this->new_controlledPaths = new_controlledPaths;
 }
 void GlyphPathsChangeCommand::undo()
 {
-	auto iter = m_glyph->controlledPaths.begin();
-	while (iter != m_glyph->controlledPaths.end()) {
-		auto iter2 = iter.value().begin();
-		auto end = iter.value().end();
-		end--;
-		while (iter2 != end) {
-			delete iter2.value();
-			++iter2;
-		}
-		++iter;
-	}
+  auto iter = m_glyph->controlledPaths.begin();
+  while (iter != m_glyph->controlledPaths.end()) {
+    auto iter2 = iter.value().begin();
+    auto end = iter.value().end();
+    end--;
+    while (iter2 != end) {
+      delete iter2.value();
+      ++iter2;
+    }
+    ++iter;
+  }
 
-	m_glyph->controlledPaths.clear();
+  m_glyph->controlledPaths.clear();
 
-	QMapIterator<int, QMap<int, Glyph::Knot> > j(old_controlledPaths);
-	while (j.hasNext()) {
-		j.next();
-		QMapIterator<int, Glyph::Knot> h(j.value());
-		while (h.hasNext()) {
-			h.next();
-			m_glyph->controlledPaths[j.key()][h.key()] = new Glyph::Knot();
-			*m_glyph->controlledPaths[j.key()][h.key()] = old_controlledPaths[j.key()][h.key()];
-		}
-	}
+  QMapIterator<int, QMap<int, Glyph::Knot> > j(old_controlledPaths);
+  while (j.hasNext()) {
+    j.next();
+    QMapIterator<int, Glyph::Knot> h(j.value());
+    while (h.hasNext()) {
+      h.next();
+      m_glyph->controlledPaths[j.key()][h.key()] = new Glyph::Knot();
+      *m_glyph->controlledPaths[j.key()][h.key()] = old_controlledPaths[j.key()][h.key()];
+    }
+  }
 
-	m_glyph->isDirty = true;
-	emit m_glyph->valueChanged("controlledPaths", true);
+  m_glyph->isDirty = true;
+  emit m_glyph->valueChanged("controlledPaths", true);
 
 }
 
 void GlyphPathsChangeCommand::redo()
 {
-	
-	auto iter = m_glyph->controlledPaths.begin();
-	while (iter != m_glyph->controlledPaths.end()) {
-		auto iter2 = iter.value().begin();
-		auto end = iter.value().end();
-		end--;
-		while (iter2 != end) {
-			delete iter2.value();
-			++iter2;
-		}
-		++iter;
-	}
 
-	m_glyph->controlledPaths.clear();
+  auto iter = m_glyph->controlledPaths.begin();
+  while (iter != m_glyph->controlledPaths.end()) {
+    auto iter2 = iter.value().begin();
+    auto end = iter.value().end();
+    end--;
+    while (iter2 != end) {
+      delete iter2.value();
+      ++iter2;
+    }
+    ++iter;
+  }
 
-	QMapIterator<int, QMap<int, Glyph::Knot> > j(new_controlledPaths);
-	while (j.hasNext()) {
-		j.next();
-		QMapIterator<int, Glyph::Knot> h(j.value());
-		while (h.hasNext()) {
-			h.next();
-			m_glyph->controlledPaths[j.key()][h.key()] = new Glyph::Knot();
-			*m_glyph->controlledPaths[j.key()][h.key()] = new_controlledPaths[j.key()][h.key()];
-		}
-	}
+  m_glyph->controlledPaths.clear();
 
-	m_glyph->isDirty = true;
-	emit m_glyph->valueChanged("controlledPaths", true);
+  QMapIterator<int, QMap<int, Glyph::Knot> > j(new_controlledPaths);
+  while (j.hasNext()) {
+    j.next();
+    QMapIterator<int, Glyph::Knot> h(j.value());
+    while (h.hasNext()) {
+      h.next();
+      m_glyph->controlledPaths[j.key()][h.key()] = new Glyph::Knot();
+      *m_glyph->controlledPaths[j.key()][h.key()] = new_controlledPaths[j.key()][h.key()];
+    }
+  }
+
+  m_glyph->isDirty = true;
+  emit m_glyph->valueChanged("controlledPaths", true);
 }

@@ -222,7 +222,7 @@ void ToOpenType::initiliazeGlobals() {
   globalValues.FamilyName = "DigitalKhatt Madina Quranic";
   globalValues.Weight = "Regular";
   globalValues.Copyright = R"copyright(Copyright (c) 2020-2023 Amine Anane (https://github.com/DigitalKhatt))copyright";
-  globalValues.License = R"license(This Font Software is licensed under the SIL Open Font License, Version 1.1.
+  /*globalValues.License = R"license(This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
 http://scripts.sil.org/OFL
 
@@ -312,7 +312,7 @@ COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
-OTHER DEALINGS IN THE FONT SOFTWARE.)license";
+OTHER DEALINGS IN THE FONT SOFTWARE.)license";*/
 }
 
 void ToOpenType::setGIds() {
@@ -500,6 +500,8 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
     return false;
 
   ot_layout->loadLookupFile(lokkupsFileName);
+
+  ot_layout->substEquivGlyphs.clear();
 
   ot_layout->generateSubstEquivGlyphs();
 

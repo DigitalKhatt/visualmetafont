@@ -25,7 +25,6 @@
 #include <QGraphicsView>
 #include "glyph.hpp"
 #include "font.hpp"
-#include "tensiondirectionitem.hpp"
 #include <QMenu>
 #include <iostream>
 #include "glyphscene.hpp"
@@ -44,8 +43,6 @@ KnotControlledItem::KnotControlledItem(int numsubpath, int numpoint, mp_gr_knot 
   this->m_isInControlledPath = m_glyph->controlledPaths.contains(numsubpath) && m_glyph->controlledPaths[numsubpath].contains(numpoint);
   left = NULL;
   right = NULL;
-  lefttd = NULL;
-  righttd = NULL;
 
   QPen penline(Qt::gray);
   penline.setWidth(0);
@@ -122,14 +119,7 @@ void KnotControlledItem::setPositions(mp_gr_knot knot) {
     right->setPos(m_knot->right_x, m_knot->right_y);
     rightline->setLine(m_knot->x_coord, m_knot->y_coord, right->pos().x(), right->pos().y());
   }
-  if (lefttd) {
-    lefttd->calculatePosition(-QLineF(m_knot->left_x, m_knot->left_y, m_knot->x_coord, m_knot->y_coord).angle());
-    leftline->setLine(0, 0, lefttd->pos().x(), lefttd->pos().y());
-  }
-  if (righttd) {
-    righttd->calculatePosition(-QLineF(m_knot->right_x, m_knot->right_y, m_knot->x_coord, m_knot->y_coord).angle());
-    rightline->setLine(0, 0, righttd->pos().x(), righttd->pos().y());
-  }
+  
 
 }
 QRectF KnotControlledItem::boundingRect() const
@@ -172,7 +162,7 @@ bool KnotControlledItem::moveMinMaxDeltas(QGraphicsItem* watched, QGraphicsScene
     QVariant val = m_glyph->property(ba.data());
     if (!val.isValid()) {
       auto point = QPointF(0, 0);
-      m_glyph->setParameter(propName, new LitPoint(point), false);
+      m_glyph->setParameter(propName, new PairPathPointExp(point), false);
       auto& param = m_glyph->params[propName];
       param.isInControllePath = true;
       val = point;
@@ -215,31 +205,10 @@ bool KnotControlledItem::moveMinMaxDeltas(QGraphicsItem* watched, QGraphicsScene
   return true;
 
 }
-int KnotControlledItem::getControlledPosition(QGraphicsSceneMouseEvent* event) {
-
-  auto scene = (GlyphScene*)this->scene();
-
-  //bool alt = event->modifiers() & Qt::AltModifier;
-
-  //if (!alt) {
-  //  return 0;
-  //}
-
-  auto F1 = scene->currentPressdKeys.contains(Qt::Key_F1);
-  auto F2 = scene->currentPressdKeys.contains(Qt::Key_F2);
-  auto F3 = scene->currentPressdKeys.contains(Qt::Key_F3);
-
-
-  int expIndex = F1 ? 1 : F2 ? 2 : F3 ? 3 : 0;
-
-  return expIndex;
-
-}
-
 bool KnotControlledItem::updateControlledPoint(MFExpr* expr, int position, QPointF diff) {
   bool ret = false;
   if (expr->isConstant(position)) {
-    expr->setConstantValue(position, expr->constantValue(position).toPointF() + diff);
+    expr->setConstantValue(position, expr->constantValue(position).toPoint() + diff.toPoint());
     ret = true;
   }
   else {
@@ -250,12 +219,20 @@ bool KnotControlledItem::updateControlledPoint(MFExpr* expr, int position, QPoin
     }
     if (!parmName.isEmpty()) {
       auto latinName = parmName.toLatin1();
+      auto& param = m_glyph->params[parmName];
+      if (param.expr->isConstant(position)) {
+        QPointF pair = param.expr->constantValue(position).toPoint() + diff.toPoint();
+        param.expr->setConstantValue(position, pair);
+        m_glyph->setProperty(parmName.toLatin1(), pair);
+        ret = true;
+      }
+      /*
       QVariant val = m_glyph->property(latinName);
       if (QVariant::PointF == val.type()) {
         QPointF point = val.toPointF();
         m_glyph->setProperty(latinName, point + diff);
         ret = true;
-      }
+      }*/
     }
   }
   return ret;
@@ -284,7 +261,7 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
 
     if (watched == incurve) {
 
-      int expIndex = getControlledPosition(me);
+      int expIndex = scene->getControlledPosition(me);
 
       updateControlledPoint(m_glyphknot->expr.get(), expIndex, diff);
 
@@ -332,20 +309,25 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
       //menu.addAction("Right Kashida");
 
       /** add submenu */
-      lksubMenu = menu.addMenu(tr("Left Kashida"));
+      /*lksubMenu = menu.addMenu(tr("Left Kashida"));
       lksubMenu->addAction("0");
       lksubMenu->addAction("1");
-      lksubMenu->addAction("2");
+      lksubMenu->addAction("2");*/
 
-      rksubMenu = menu.addMenu(tr("Right Kashida"));
+      /*rksubMenu = menu.addMenu(tr("Right Kashida"));
       rksubMenu->addAction("0");
       rksubMenu->addAction("1");
-      rksubMenu->addAction("2");
+      rksubMenu->addAction("2");*/
 
-      axes = menu.addMenu(tr("Axes"));
+      /*axes = menu.addMenu(tr("Axes"));
       axes->addAction("Add Left");
       axes->addAction("Add Right");
-      axes->addAction("Remove Blend");
+      axes->addAction("Remove Blend");*/
+      menu.addAction("Add Left 1");
+      menu.addAction("Add Right 1");
+      menu.addAction("Add Left 2");
+      menu.addAction("Add Right 2");
+      menu.addAction("Remove Blend");
     }
     else if (watched == left || watched == right) {
       QMenu* axes = menu.addMenu(tr("Axes"));
@@ -367,11 +349,17 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
         int knots = a->text().toInt();
         addKashida(false, knots);
       }
-      else if (a->text() == "Add Left") {
+      else if (a->text() == "Add Left 1") {
         AddRemoveBlend(true, false, 0);
       }
-      else if (a->text() == "Add Right") {
+      else if (a->text() == "Add Right 1") {
         AddRemoveBlend(false, false, 0);
+      }
+      else if (a->text() == "Add Left 2") {
+        AddRemoveBlend(true, false, 3);
+      }
+      else if (a->text() == "Add Right 2") {
+        AddRemoveBlend(false, false, 3);
       }
       else if (a->text() == "Remove Blend") {
         AddRemoveBlend(false, true, 0);
@@ -446,354 +434,6 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
   return QGraphicsItem::sceneEventFilter(watched, event);
 }
 
-bool KnotControlledItem::addKashida_old(bool left, int nbKnots) {
-
-  auto scene = (GlyphScene*)this->scene();
-
-  auto selectItems = scene->selectedItems();
-
-  if (selectItems.size() != 2) {
-    QMessageBox msgBox;
-    msgBox.setText("Two incurve points should be selected.");
-    return msgBox.exec();
-  }
-
-  auto topPoint = dynamic_cast<KnotItem*>(selectItems.at(0));
-  auto bottomPoint = dynamic_cast<KnotItem*>(selectItems.at(1));
-
-  if (!topPoint || !bottomPoint || topPoint->knottype != KnotItem::InCurve || bottomPoint->knottype != KnotItem::InCurve) {
-    QMessageBox msgBox;
-    msgBox.setText("Two incurve points should be selected.");
-    return msgBox.exec();
-  }
-
-  auto parentTop = (KnotControlledItem*)topPoint->parentItem();
-  auto parentBottom = (KnotControlledItem*)bottomPoint->parentItem();
-
-  if (parentTop->m_numsubpath != parentBottom->m_numsubpath || !parentTop->m_isInControlledPath || !parentBottom->m_isInControlledPath) {
-    QMessageBox msgBox;
-    msgBox.setText("The two points should belong to the same path.");
-    return msgBox.exec();
-  }
-
-  if (topPoint->scenePos().y() * -1 < bottomPoint->scenePos().y() * -1) {
-    auto temp = topPoint;
-    auto tempParent = parentTop;
-    topPoint = bottomPoint;
-    bottomPoint = temp;
-    parentTop = parentBottom;
-    parentBottom = tempParent;
-  }
-
-  //TODO : Detect orientation. For now we suppose clockwise orientation
-
-  KnotItem* first, * second;
-
-
-  if (left) {
-    first = bottomPoint;
-    second = topPoint;
-  }
-  else {
-    first = topPoint;
-    second = bottomPoint;
-  }
-
-  KnotControlledItem* parentFirst, * parentSecond;
-
-  parentFirst = (KnotControlledItem*)first->parentItem();
-  parentSecond = (KnotControlledItem*)second->parentItem();
-
-  auto firstKnot = m_glyph->controlledPaths.value(parentFirst->m_numsubpath).value(parentFirst->m_numpoint);
-  auto secondKnot = m_glyph->controlledPaths.value(parentSecond->m_numsubpath).value(parentSecond->m_numpoint);
-
-  auto bottomKnot = left ? firstKnot : secondKnot;
-  auto topKnot = left ? secondKnot : firstKnot;
-
-  auto controlledPath = m_glyph->controlledPaths[parentFirst->m_numsubpath];
-  auto lastKey = controlledPath.lastKey();
-
-  auto startPoint = parentFirst->m_numpoint < parentSecond->m_numpoint ? controlledPath.firstKey() : parentSecond->m_numpoint;
-  auto firstPoint = parentFirst->m_numpoint;
-  auto secondPoint = parentFirst->m_numpoint < parentSecond->m_numpoint ? parentSecond->m_numpoint : lastKey + parentSecond->m_numpoint;
-
-
-  //firstKnot->expr->constantValue
-
-  m_glyph->blockSignals(true);
-  auto oldSource = m_glyph->source();
-
-
-  QMap<int, Glyph::Knot*>  newcontrolledPaths;
-  int keyoffset = 0;
-  bool secondPointDone = false;
-  for (auto i = controlledPath.begin(); i != controlledPath.end(); ++i) {
-    if (i.key() < startPoint) {
-      delete i.value();
-      continue;
-    }
-
-    if (i.key() == startPoint && parentFirst->m_numpoint >= parentSecond->m_numpoint) {
-      continue;
-    }
-
-    if (i.key() <= firstPoint) {
-      newcontrolledPaths.insert(i.key(), controlledPath.value(i.key()));
-      continue;
-    }
-
-    if (i.key() < secondPoint) {
-      if (i.key() < lastKey) {
-        delete i.value();
-        continue;
-      }
-    }
-
-    if (!secondPointDone && (i.key() == secondPoint || i.key() == lastKey)) {
-
-      auto edge = m_glyph->getEdge();
-      QPointF matrix;
-      if (edge) {
-        matrix = { edge->xpart,edge->ypart };
-      }
-
-      double nuqta = m_glyph->font->getNumericVariable("nuqta");
-
-      auto verbatim = m_glyph->verbatim();
-
-      QString minVarName, maxDeltaVarName, dirVar1, delataDirVar1, varRationVarName;
-
-      if (left) {
-        //verbatim.append("numeric x.left.maxDelta,y.left.maxDelta;\n");
-        verbatim.append("z.left.maxDelta = (maxLeft - minLeft) * nuqta * (-1,-1/leftVerticalRatio);\n");
-        minVarName = "z.left.min";
-        maxDeltaVarName = "z.left.maxDelta";
-        dirVar1 = "left.dir1";
-        delataDirVar1 = "left.dir1.delta";
-        varRationVarName = "leftVerticalRatio";
-      }
-      else {
-        //verbatim.append("numeric x.right.maxDelta,y.right.maxDelta;\n");
-        verbatim.append("z.right.maxDelta = (maxRight - minRight) * nuqta * (1, -1 / rightVerticalRatio);\n");
-        //verbatim.append("z.right.1.min = z.right.ori + (xpart z.right.min/(xpart rightFirstRatio/100),ypart z.right.min/(ypart rightFirstRatio/100));\n");
-        minVarName = "z.right.min";
-        maxDeltaVarName = "z.right.maxDelta";
-        dirVar1 = "right.dir1";
-        delataDirVar1 = "right.dir1.delta";
-        varRationVarName = "rightVerticalRatio";
-      }
-
-      auto dirVar1Value = left ? -145 : 145;
-      auto delataDirVar1Value = new LitNumber(0);
-      auto varRatioValue = left ? 12 : 8;
-      auto minValue = left ? QPointF{ -5, -5 } : QPointF{ 5, -5 };
-
-      m_glyph->setParameter(QString(minVarName), new LitPoint(minValue), true, true);
-      //m_glyph->setParameter(QString(dirVar1), new LitNumber(dirVar1Value), false, true);
-      //m_glyph->setParameter(QString(delataDirVar1), delataDirVar1Value, false, true);
-      m_glyph->setParameter(QString(varRationVarName), new LitNumber(varRatioValue), false, true);
-
-
-      m_glyph->setVerbatim(verbatim);
-
-
-      int maxTatweel = 20;
-      int minTatweel = -1;
-      double verticalRatio = left ? 12 : 8;
-
-      double maxWidth = nuqta * (maxTatweel - minTatweel);
-
-      auto maxPoint = left ? QPointF{ -maxWidth,-maxWidth / verticalRatio } : QPointF{ maxWidth,-maxWidth / verticalRatio };
-
-      QPointF origin{ parentBottom->m_knot->x_coord  ,parentBottom->m_knot->y_coord };
-
-      origin = origin - matrix;
-
-      QString oriName;
-
-
-      MFExpr* bottomexpr = dynamic_cast<PairPathPointExp*>(bottomKnot->expr.get());
-      if (!bottomKnot->expr->isLiteral()) {
-        bottomexpr = dynamic_cast<VarMFExpr*>(bottomKnot->expr.get());
-        if (bottomexpr) {
-          oriName = bottomexpr->toString();
-        }
-      }
-      else {
-        // Add parameter if not exists
-        origin = bottomKnot->expr->constantValue(0).toPointF();
-        oriName = left ? QString("z.left.ori") : QString("z.right.ori");
-        QByteArray ba = oriName.toLocal8Bit();
-        QVariant val = m_glyph->property(ba.data());
-        if (!val.isValid()) {
-          auto point = QPointF(0, 0);
-          m_glyph->setParameter(oriName, new LitPoint(origin), true);
-          auto& param = m_glyph->params[oriName];
-          param.isInControllePath = true;
-          val = point;
-        }
-        m_glyph->setProperty(ba.data(), origin);
-      }
-
-      if (!left) {
-
-        firstKnot->leftValue.type = Glyph::mpgui_given;
-        /*
-        firstKnot->leftValue.dirExpr = std::make_unique<FunctionMFExp>("brdm",
-          new ScalarMultiMFExp(new DirPathPointExp(new VarMFExpr(dirVar1, true)), MFExprOperator::MINUS),
-          new ScalarMultiMFExp(new DirPathPointExp(new VarMFExpr(delataDirVar1, true)), MFExprOperator::MINUS)
-          );
-          */
-
-        firstKnot->leftValue.dirExpr = std::make_unique<ScalarMultiMFExp>(
-          new DirPathPointExp(
-            new FunctionMFExp("brdm",
-              new LitPathNumericExp(dirVar1Value),
-              new LitPathNumericExp(0))), MFExprOperator::MINUS
-          );
-
-
-
-        firstKnot->expr = std::make_unique<FunctionMFExp>("brdm",
-          firstKnot->expr.release(),
-          new LitPointPathPointExp({ 0,0 })
-          );
-
-
-        Glyph::Knot* z_r1_top = nullptr;
-        Glyph::Knot* z_r1_bottom = nullptr;
-
-        if (nbKnots == 0) {
-          firstKnot->rightValue = {};
-          firstKnot->rightValue.type = Glyph::mpgui_curl;
-          firstKnot->rightValue.macrovalue = "link";
-          firstKnot->rightValue.jointtype = Glyph::path_join_macro;
-        }
-        else {
-          firstKnot->rightValue = {};
-          firstKnot->rightValue.jointtype = Glyph::path_join_tension;
-
-          auto z_r1_top = new Glyph::Knot();
-          z_r1_top->leftValue = {};
-          z_r1_top->leftValue.type = Glyph::mpgui_open;
-          z_r1_top->leftValue.jointtype = Glyph::path_join_macro;
-
-          z_r1_top->rightValue = {};
-          z_r1_top->rightValue.type = Glyph::mpgui_curl;
-          z_r1_top->rightValue.macrovalue = "link";
-          z_r1_top->rightValue.jointtype = Glyph::path_join_macro;
-
-          auto temp = new LitPointPathPointExp({ 16,88 });
-          auto temp2 = new BinOpMFExp(new LitPathNumericExp(2.0 / 3), MFExprOperator::TIMES, new VarMFExpr(minVarName, true));
-          auto temp3 = new BinOpMFExp(temp, MFExprOperator::PLUS, temp2);
-          auto temp4 = new BinOpMFExp(temp3, MFExprOperator::PLUS, new VarMFExpr(oriName, true));
-
-
-          z_r1_top->expr = std::make_unique<FunctionMFExp>("brdm", temp4, new LitPointPathPointExp({ 0,0 }));
-
-          keyoffset++;
-
-          newcontrolledPaths.insert(i.key() + keyoffset, z_r1_top);
-        }
-
-        auto z_r3 = new Glyph::Knot();
-        z_r3->expr = std::make_unique<FunctionMFExp>("brdm",
-          new BinOpMFExp(new VarMFExpr(minVarName, true), MFExprOperator::PLUS, new VarMFExpr(oriName, true)),
-          new VarMFExpr(maxDeltaVarName, false)
-          );
-        z_r3->leftValue = {};
-        z_r3->leftValue.type = Glyph::mpgui_curl;
-        z_r3->leftValue.macrovalue = "link";
-        z_r3->leftValue.jointtype = Glyph::path_join_macro;
-
-        z_r3->rightValue = {};
-        z_r3->rightValue.jointtype = Glyph::path_join_tension;
-        //z_r3->rightValue.tensionExpr = std::make_unique<LitPathNumericExp>(1);    
-
-
-
-        keyoffset += 3;
-
-        newcontrolledPaths.insert(i.key() + keyoffset, z_r3);
-
-        secondKnot->leftValue.type = Glyph::mpgui_given;
-
-        /*
-        secondKnot->leftValue.dirExpr = std::make_unique<FunctionMFExp>("brdm",
-          new DirPathPointExp(new VarMFExpr(dirVar1, true)),
-          new DirPathPointExp(new VarMFExpr(delataDirVar1, true))
-          );*/
-
-        secondKnot->leftValue.dirExpr = std::make_unique<DirPathPointExp>(
-          new FunctionMFExp("brdm",
-            new LitPathNumericExp(dirVar1Value),
-            new LitPathNumericExp(0))
-          );
-
-        if (!oriName.isEmpty()) {
-          secondKnot->expr = std::make_unique<FunctionMFExp>("brdm",
-            new VarMFExpr(oriName, true),
-            new LitPointPathPointExp({ 0,0 })
-            );
-        }
-
-        keyoffset++;
-
-        newcontrolledPaths.insert(i.key() + keyoffset, secondKnot);
-
-        if (i.key() == lastKey) {
-          newcontrolledPaths.insert(i.key() + ++keyoffset, newcontrolledPaths.first());
-        }
-
-      }
-      else {
-        firstKnot->rightValue = {};
-        firstKnot->rightValue.type = Glyph::mpgui_curl;
-        firstKnot->rightValue.macrovalue = "link";
-        firstKnot->rightValue.jointtype = Glyph::path_join_macro;
-
-        secondKnot->leftValue = {};
-        secondKnot->leftValue.type = Glyph::mpgui_curl;
-        secondKnot->leftValue.macrovalue = "link";
-        secondKnot->leftValue.jointtype = Glyph::path_join_macro;
-
-        keyoffset = 3;
-
-        newcontrolledPaths.insert(i.key() + keyoffset, secondKnot);
-
-        if (i.key() == lastKey) {
-          newcontrolledPaths.insert(i.key() + keyoffset + 1, newcontrolledPaths.first());
-        }
-
-      }
-
-      secondPointDone = true;
-
-      continue;
-    }
-
-    newcontrolledPaths.insert(i.key() + keyoffset, controlledPath.value(i.key()));
-  }
-
-  m_glyph->blockSignals(false);
-
-
-
-  m_glyph->controlledPaths[parentFirst->m_numsubpath] = newcontrolledPaths;
-
-  m_glyph->isDirty = true;
-
-  auto newSource = m_glyph->source();
-
-  GlyphSourceChangeCommand* command = new GlyphSourceChangeCommand(m_glyph, "Source Changed", oldSource, newSource, true);
-  m_glyph->undoStack()->push(command);
-
-
-
-  return true;
-
-
-}
 bool KnotControlledItem::AddRemoveBlend(bool left, bool remove, int type) {
 
   auto scene = (GlyphScene*)this->scene();
@@ -822,12 +462,22 @@ bool KnotControlledItem::AddRemoveBlend(bool left, bool remove, int type) {
         }
       }
       else {
-        QString bendFuncName = left ? "bldmvi" : "brdmvi";
+        QString bendFuncName = left ? (type == 0 ? "bldmvi" : "bldmv") : (type == 0 ? "brdmvi" : "brdmv");
 
-        parentItem->m_glyphknot->expr = std::make_unique<FunctionMFExp>(bendFuncName,
-          parentItem->m_glyphknot->expr.release(),
-          new LitPointPathPointExp({ 0,0 })
+        if (type == 0) {
+          parentItem->m_glyphknot->expr = std::make_unique<FunctionMFExp>(bendFuncName,
+            parentItem->m_glyphknot->expr.release(),
+            new PairPathPointExp(QPointF{ 0,0 })
           );
+        }
+        else {
+
+          std::vector<MFExpr*> params{ parentItem->m_glyphknot->expr.release(),
+            new PairPathPointExp(QPointF{ 0,0 }),
+            new PairPathPointExp(QPointF{ 0,0 }) };
+          parentItem->m_glyphknot->expr = std::make_unique<FunctionMFExp>(bendFuncName, params);
+        }
+
         change = true;
       }
     }
@@ -882,8 +532,8 @@ bool KnotControlledItem::AddRemoveBlend(bool left, bool remove, int type) {
             else {
               knotentryexit.dirExpr = std::make_unique<FunctionMFExp>(bendFuncName,
                 knotentryexit.dirExpr.release(),
-                new LitPointPathPointExp({ 0,0 })
-                );
+                new PairPathPointExp(QPointF{ 0,0 })
+              );
               change = true;
             }
           }
@@ -899,7 +549,7 @@ bool KnotControlledItem::AddRemoveBlend(bool left, bool remove, int type) {
             knotentryexit.tensionExpr = std::make_unique<FunctionMFExp>(bendFuncName,
               knotentryexit.tensionExpr.release(),
               new LitPathNumericExp(0)
-              );
+            );
             change = true;
           }
         }
@@ -1045,7 +695,7 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
       auto secondPointRatio = 2.0 / 3;
       auto maxLength = (1 + 6);
 
-      m_glyph->setParameter(QString(vertRatioVarName), new LitNumber(vertRatioValue), false, true);
+      m_glyph->setParameter(QString(vertRatioVarName), new LitPathNumericExp(vertRatioValue), false, true);
 
 
       int maxTatweel = 20;
@@ -1069,8 +719,8 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
 
       firstKnot->expr = std::make_unique<FunctionMFExp>(bendFuncName,
         firstKnot->expr.release(),
-        new LitPointPathPointExp({ 0,0 })
-        );
+        new PairPathPointExp(QPointF{ 0,0 })
+      );
 
       if (nbKnots == 0) {
         firstKnot->rightValue = {};
@@ -1096,10 +746,10 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
         }
 
         z_r1->expr = std::make_unique<FunctionMFExp>(bendFuncName,
-          new LitPointPathPointExp(origin + firstPointRatio * minValue + (left ? QPointF() : joinvector)),
+          new PairPathPointExp(origin + firstPointRatio * minValue + (left ? QPointF() : joinvector)),
           //new LitPointPathPointExp({ firstPointRatio * maxDelta.x(),firstPointRatio * maxDelta.y() })
-          new LitPointPathPointExp({ 0,0 })
-          );
+          new PairPathPointExp(QPointF{ 0,0 })
+        );
 
         keyoffset++;
 
@@ -1118,10 +768,10 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
           z_r2->rightValue.jointtype = left ? Glyph::path_join_tension : Glyph::path_join_macro;
 
           z_r2->expr = std::make_unique<FunctionMFExp>(bendFuncName,
-            new LitPointPathPointExp(origin + secondPointRatio * minValue + (left ? QPointF() : joinvector)),
+            new PairPathPointExp(origin + secondPointRatio * minValue + (left ? QPointF() : joinvector)),
             //new LitPointPathPointExp({ secondPointRatio * maxDelta.x(),secondPointRatio * maxDelta.y() })
-            new LitPointPathPointExp({ 0,0 })
-            );
+            new PairPathPointExp(QPointF{ 0,0 })
+          );
 
           keyoffset++;
 
@@ -1132,10 +782,10 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
 
       auto z_r3 = new Glyph::Knot();
       z_r3->expr = std::make_unique<FunctionMFExp>(bendFuncName,
-        new LitPointPathPointExp(origin + minValue),
+        new PairPathPointExp(origin + minValue),
         new BinOpMFExp(new VarMFExpr("nuqta", false), MFExprOperator::TIMES,
           new PairPathPointExp(new LitPathNumericExp(left ? -maxLength : maxLength), new BinOpMFExp(new LitPathNumericExp(-maxLength), MFExprOperator::OVER, new VarMFExpr(vertRatioVarName, true))))
-        );
+      );
 
       if (!left) {
         z_r3->leftValue = {};
@@ -1168,10 +818,10 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
         z_r2_bottom->rightValue.jointtype = Glyph::path_join_tension;
 
         z_r2_bottom->expr = std::make_unique<FunctionMFExp>(bendFuncName,
-          new LitPointPathPointExp(origin + secondPointRatio * minValue + (left ? joinvector : QPointF())),
+          new PairPathPointExp(origin + secondPointRatio * minValue + (left ? joinvector : QPointF())),
           //new LitPointPathPointExp({ secondPointRatio * maxDelta.x(),secondPointRatio * maxDelta.y() })
-          new LitPointPathPointExp({ 0,0 })
-          );
+          new PairPathPointExp(QPointF{ 0,0 })
+        );
 
         keyoffset++;
         newcontrolledPaths.insert(i.key() + keyoffset, z_r2_bottom);
@@ -1187,10 +837,10 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
         z_r1_bottom->rightValue.jointtype = Glyph::path_join_tension;
 
         z_r1_bottom->expr = std::make_unique<FunctionMFExp>(bendFuncName,
-          new LitPointPathPointExp(origin + firstPointRatio * minValue + (left ? joinvector : QPointF())),
+          new PairPathPointExp(origin + firstPointRatio * minValue + (left ? joinvector : QPointF())),
           //new LitPointPathPointExp({ firstPointRatio * maxDelta.x(),firstPointRatio * maxDelta.y() })
-          new LitPointPathPointExp({ 0,0 })
-          );
+          new PairPathPointExp(QPointF{ 0,0 })
+        );
 
         keyoffset++;
         newcontrolledPaths.insert(i.key() + keyoffset, z_r1_bottom);
@@ -1229,8 +879,8 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
 
       secondKnot->expr = std::make_unique<FunctionMFExp>(bendFuncName,
         secondKnot->expr.release(),
-        new LitPointPathPointExp({ 0,0 })
-        );
+        new PairPathPointExp(QPointF{ 0,0 })
+      );
 
 
       keyoffset++;
@@ -1273,9 +923,12 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
 
 bool KnotControlledItem::updateControlPoint(QGraphicsSceneMouseEvent* event, bool leftControl, QPointF diff, bool shift, bool ctrl) {
 
+  
   if (!incurve || incurve->isSelected()) {
     return false;
   }
+
+  auto scene = (GlyphScene*)incurve->scene();
 
   Glyph::KnotEntryExit& controlValue = leftControl ? m_glyphknot->leftValue : m_glyphknot->rightValue;
   KnotItem* item = leftControl ? left : right;
@@ -1286,7 +939,7 @@ bool KnotControlledItem::updateControlPoint(QGraphicsSceneMouseEvent* event, boo
   QLineF currentline(QPointF(), incurve->mapFromScene(item->scenePos()));
   double ang = currentline.angleTo(line);
   double radianAngle = qDegreesToRadians(ang);
-  int expIndex = getControlledPosition(event);
+  int expIndex = scene->getControlledPosition(event);
 
   //Controls
   if (controlValue.type == Glyph::mpgui_explicit) {
@@ -1304,6 +957,9 @@ bool KnotControlledItem::updateControlPoint(QGraphicsSceneMouseEvent* event, boo
 
   //Direction
   if (!shift && controlValue.type == Glyph::mpgui_given) {
+    //updateControlledPoint(controlValue.dirExpr.get(), expIndex, -diff);
+    //canmodify = true;
+    
     auto expr = controlValue.dirExpr.get();
 
     double deltaAng = line.angleTo(currentline);

@@ -29,7 +29,7 @@ class GlyphItem : public QGraphicsPathItem
 {
 
 public:
-	GlyphItem(int scale, GlyphVis* glyph, OtLayout * layout, quint32 lookup = 0, quint32 subtable = 0, quint16 baseChar = 0,double lefttatweel = 0.0, double righttatweel = 0.0, QGraphicsItem * parent = Q_NULLPTR);
+	GlyphItem(double scale, GlyphVis* glyph, OtLayout * layout, quint32 lookup = 0, quint32 subtable = 0, quint16 baseChar = 0,double lefttatweel = 0.0, double righttatweel = 0.0, QGraphicsItem * parent = Q_NULLPTR);
 	~GlyphItem();
 	//QRectF boundingRect() const Q_DECL_OVERRIDE;
 	//void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) Q_DECL_OVERRIDE;
@@ -48,7 +48,7 @@ private:
 	quint16 m_baseChar;
 	QPointF lastPos;
 	QPoint lastdiff;
-	int m_scale;
+	double m_scale;
 	double m_lefttatweel;
 	double m_righttatweel;
 	//QPainterPath path;

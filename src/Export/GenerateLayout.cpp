@@ -232,7 +232,7 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
 
 }
 void GenerateLayout::generateLayout(int lineWidth, int scale) {
-  bool Json = false;
+  bool Json = true;
 
   QFile saveFile(Json
     ? QStringLiteral("quran.json")

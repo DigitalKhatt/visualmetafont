@@ -505,6 +505,66 @@ namespace feayy {
     }
   };
 
+  class GlyphSetRegExpRep : public GlyphSetRegExp {
+  public:
+
+    GlyphSetRegExp* expr;
+    int minRep;
+    int maxRep;
+
+    explicit GlyphSetRegExpRep(GlyphSetRegExp* expr, int min, int max) : expr{ expr }, minRep{ min }, maxRep{ max } {
+      if (minRep <= 0) minRep = 0;
+    }
+    explicit GlyphSetRegExpRep(GlyphSetRegExp* expr, int rep) : GlyphSetRegExpRep{ expr , rep , rep } {}
+
+    virtual ~GlyphSetRegExpRep()
+    {
+      delete expr;
+    }
+
+    QVector<QVector<GlyphSet*>> getSequences() override {
+
+      QVector<QVector<GlyphSet*>> minSeqs;
+
+      auto rightseqs = expr->getSequences();
+
+      if (minRep == 0) {
+        minSeqs.append({});
+      }
+      else {        
+
+        for (int i = 0; i < minRep; i++) {
+          auto lefseqs = minSeqs;
+          for (auto leftseq : lefseqs) {
+            for (auto rightseq : rightseqs) {
+              QVector<GlyphSet*> newseq{ leftseq };
+              newseq.append(rightseq);
+              minSeqs.append(newseq);
+            }
+          }
+        }
+      }
+
+      QVector<QVector<GlyphSet*>> ret = minSeqs;
+      QVector<QVector<GlyphSet*>> latSeqs = minSeqs;
+
+      for (int i = minRep; i < maxRep; i++) {
+        auto lefseqs = latSeqs;
+        latSeqs = {};
+        for (auto leftseq : lefseqs) {
+          for (auto rightseq : rightseqs) {
+            QVector<GlyphSet*> newseq{ leftseq };
+            newseq.append(rightseq);
+            latSeqs.append(newseq);
+          }
+        }
+        ret.append(latSeqs);
+      }
+
+      return ret;
+    }
+  };
+
   class GlyphSetRegExpOr : public GlyphSetRegExp {
   public:
 

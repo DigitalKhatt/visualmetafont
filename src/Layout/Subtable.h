@@ -148,7 +148,7 @@ struct AlternateSubtable : Subtable {
 
   AlternateSubtable(Lookup* lookup);
   QByteArray getOpenTypeTable(bool extended) override;
-  
+
 
   QMap<quint16, QVector<ExtendedGlyph> > alternates;
 
@@ -325,6 +325,40 @@ struct DFABackTrackInfo {
   std::vector<DFAAction> actions;
 };
 
+
+
+inline bool operator==(const DFAAction& lhs, const DFAAction& rhs) {
+  return lhs.type == rhs.type && lhs.name == rhs.name; //&& lhs.idRule == rhs.idRule;
+}
+
+inline bool operator!=(const DFAAction& lhs, const DFAAction& rhs) {
+  return lhs.type != rhs.type || lhs.name != rhs.name; //&& lhs.idRule == rhs.idRule;
+}
+
+inline bool operator==(const DFABackTrackInfo& lhs, const DFABackTrackInfo& rhs) {
+  return lhs.prevTransIndex == rhs.prevTransIndex && lhs.actions == rhs.actions;
+}
+
+inline bool operator!=(const DFABackTrackInfo& lhs, const DFABackTrackInfo& rhs) {
+  return lhs.prevTransIndex != rhs.prevTransIndex || lhs.actions != rhs.actions;
+}
+
+inline bool operator<(const DFAAction& lhs, const DFAAction& rhs) {
+  /*if (lhs.idRule != rhs.idRule)
+    return lhs.idRule < rhs.idRule;
+  else*/ if (lhs.type != rhs.type)
+    return lhs.type < rhs.type;
+  else
+    return lhs.name < rhs.name;
+}
+
+inline bool operator<(const DFABackTrackInfo& lhs, const DFABackTrackInfo& rhs) {
+  if (lhs.prevTransIndex != rhs.prevTransIndex)
+    return lhs.prevTransIndex < rhs.prevTransIndex;
+  else
+    return lhs.actions < rhs.actions;
+}
+
 struct DFATransOut {
   int state;
   std::vector<DFABackTrackInfo> backtracks;
@@ -333,7 +367,6 @@ struct DFATransOut {
 struct DFASTate {
   std::map<int, DFATransOut> transtitions;
   int final = 0;
-  //std::map <int, std::vector<DFAAction>> actions;
   DFABackTrackInfo backtrackfinal;
 };
 

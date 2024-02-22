@@ -70,9 +70,8 @@
 %type	<QMap<int, Glyph::Knot*> >			subpath	fillpath controlledpath
 %type	<bool>								affect
 %type <MFExprOperator> plus_minus times_over
-%type <Exp*>  expression;
 %type <MFExpr*> constnum constpoint functionexpr varexpr primarymfexpr    secondarymfexpr tertiarymfexpr mfexpr 
-
+%type <std::vector<MFExpr*>> mffuncparams
 
 %start glyphs
 
@@ -140,20 +139,10 @@ params :
 	| params param
 ;
 
-param : T_EALPHA[name] affect expression ';'	{parsingglyph->setParameter($name, $expression,$affect);}
-  | T_EALPHA[name] affect expression ';' '%' T_EALPHA[dep] {parsingglyph->setParameter($name, $expression,$affect,false,$dep);}
-	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'		{parsingglyph->setParameter($name, new LitNumber($x),$affect);}
-	/*|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_LTENS '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::tension,$x,0,Glyph::left,$numpath,$numpoint,$affect);}
-	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_RTENS '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::tension,$x,0,Glyph::right,$numpath,$numpoint,$affect);}
-	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_LDIR '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::direction,$x,0,Glyph::left,$numpath,$numpoint,$affect);}
-	|	T_EALPHA[name] affect  T_NUMBER[x]  ';'	T_PARAM_RDIR '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] ')'	{parsingglyph->setParameter($name, Glyph::direction,$x,0,Glyph::left,$numpath,$numpoint,$affect);}*/
+param : T_EALPHA[name] affect mfexpr ';'	{parsingglyph->setParameter($name, $mfexpr,$affect);}
+  | T_EALPHA[name] affect mfexpr ';' '%' T_EALPHA[dep] {parsingglyph->setParameter($name, $mfexpr,$affect,false,$dep);}
 ;
 
-expression:  '(' T_NUMBER[x] ',' T_NUMBER[y] ')' {$$ =  new LitPoint(QPointF($x,$y));}
-  | T_DIR T_NUMBER[x] {$$ =  new DirNumber($x);}
-  | T_EALPHA[name] '+' '(' T_NUMBER[x] ',' T_NUMBER[y] ')' { $$ = new BinOp(new Id($name),Oper::ADD, new LitPoint(QPointF($x,$y)));}
-  | '(' T_NUMBER[x] ',' T_NUMBER[y] ')' '+'  T_EALPHA[name]  { $$ = new BinOp( new LitPoint(QPointF($x,$y)),Oper::ADD,new Id($name));} 
-;
 
 
 affect : T_AFFECT {$$ = false;}
@@ -203,14 +192,12 @@ subpath : point {$$.insert(driver.numpoint,$point);}
 	}
 	$point->leftValue = $pathjoin->rightValue; 
 	delete $pathjoin;
-	if($point->leftValue.macrovalue == "join"){
+	if($point->leftValue.macrovalue == "leftjoin"){
 		$1.insert($1.lastKey() + 4,$point);
-	}else if($point->leftValue.macrovalue == "leftjoin"){
-		$1.insert($1.lastKey() + 8,$point);
 	}else if($point->leftValue.macrovalue == "rightjoin"){
-		$1.insert($1.lastKey() + 8,$point);
-	}else if($point->leftValue.macrovalue == "rightjoiniii"){
-		$1.insert($1.lastKey() + 10,$point);
+		$1.insert($1.lastKey() + 4,$point);
+	}else if($point->leftValue.macrovalue == "setranchor"){
+		$1.insert($1.lastKey() + 3,$point);
 	}else if($point->leftValue.macrovalue == "endlink"){
 		$1.insert($1.lastKey() + 2,$point);
 	}else if($point->leftValue.macrovalue == "link"){
@@ -309,7 +296,7 @@ tertiarymfexpr : secondarymfexpr[expr] {$$ = $expr;}
 
 varexpr : T_EALPHA[var] {
 	auto isParam = false;
-	if(parsingglyph->params.contains($var)){
+	if(parsingglyph->params.find($var) != parsingglyph->params.end()){
 		isParam = true;
 		parsingglyph->params[$var].isInControllePath = true;
 	}else if(parsingglyph->dependents.contains($var)){
@@ -325,9 +312,13 @@ constpoint : '(' mfexpr[x] ',' mfexpr[y] ')' {
 	$$ = new PairPathPointExp($x,$y);
 };
 
-functionexpr : T_EALPHA[functionName]'(' mfexpr[left]  ',' mfexpr[right] ')' {		
-	$$ =  new FunctionMFExp($functionName,$left,$right);	
+functionexpr : T_EALPHA[functionName]'(' mffuncparams ')' {		
+	$$ =  new FunctionMFExp($functionName,$mffuncparams);	
 };
+
+mffuncparams : mfexpr { $$.push_back($1);}
+| mffuncparams ',' mfexpr {$$ = std::move($1);$$.push_back($3);}
+;
 
 constnum : T_NUMBER[x] {	
 	$$ = new LitPathNumericExp($x);

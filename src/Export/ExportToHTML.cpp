@@ -43,46 +43,166 @@ ExportToHTML::~ExportToHTML()
 {
 }
 
+template <>
+struct std::hash<QColor>
+{
+  std::size_t operator()(const QColor& k) const
+  {
+    using std::size_t;
+    using std::hash;
+    using std::string;
+
+    // Compute individual hash values for first,
+    // second and third and combine them using XOR
+    // and bit shifting:
+
+    return k.rgba();
+  }
+};
+
+
 void ExportToHTML::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int lineWidth, QList<QStringList> originalText, int scale) {
-  QFile file("pages.component.ts.html");
+  bool newHtml = true;
+
+  QFile file("output/pages.component.ts.html");
   file.open(QIODevice::WriteOnly | QIODevice::Text);
   QTextStream out(&file);   // we will serialize the data into the file
   out.setCodec("UTF-8");
 
+  struct color_compare {
+    bool operator()(const QColor& a, const QColor& b) const {
+      return a.redF() < b.redF()
+        || a.greenF() < b.greenF()
+        || a.blueF() < b.blueF()
+        || a.alphaF() < b.alphaF();
+    }
+  };
+
+
+  std::unordered_map<QColor, QString> colors
+  {
+    {QColor{ 0, 166, 80 },"green"},
+    {QColor{ 0 ,102 ,148 },"tafkim"},
+    {QColor{156, 154, 155 },"lgray"},
+    {QColor{ 0 ,173, 239},"lkalkala"},
+    {QColor{ 195, 138, 8  },"red1"},
+    {QColor{ 244, 114, 22  },"red2"},
+    {QColor{ 236, 0, 140  },"red3"},
+    {QColor{ 140, 0, 0   },"red4"}
+  };
+
   for (int p = 0; p < originalText.length(); p++) {
     auto& pageText = originalText[p];
     auto& page = pages[p];
-    out << "<div #page class='page";    
-    if (p == 0 || p == 1) {
-      out << " center";
+    if (!newHtml) {
+      out << "<div #page class='page";
+      if (p == 0 || p == 1) {
+        out << " center";
+      }
+      else {
+        out << " justify";
+      }
+      out << "'";
+      out << " data-page-number='" << p + 1 << "'>" << '\n';
+      out << "<div class='innerpage'>" << '\n';
     }
     else {
-      out << " justify";
+      out << "<div class='page'>" << '\n';
     }
-    out << "' data-page-number='" << p + 1 << "'>" << '\n';
-    out << "<div class='innerpage'>" << '\n';
+
     for (int l = 0; l < pageText.length(); l++) {
       auto& lineText = pageText[l];
       auto& line = page[l];
-      out << "<div data-line-number='" << l + 1 << "'";      
+      out << "<div";
+      if (!newHtml) {
+        out << "< data-line-number='" << l + 1 << "'";
+      }
       if (line.type == LineType::Bism) {
-        out << " class = 'linebism";
+        out << " class='linebism";
       }
       else if (line.type == LineType::Sura) {
-        out << " class = 'linesuran";
+        out << " class='linesuran";
       }
       else {
-        out << " class = 'line";
+        out << " class='line";
       }
-      out << "'>" << '\n';
-     
+      out << "'>";
+      // out << lineText;
+      QMap<int, QVector<GlyphLayoutInfo*>> linechars;
+      for (auto& glyph : line.glyphs) {
+        auto& linechar = linechars[glyph.cluster];
+        linechar.append(&glyph);
+      }
 
-      out << lineText << '\n';
+      for (int charIndex = 0; charIndex < lineText.size(); charIndex++) {
+        auto qchar = lineText[charIndex];
+        GlyphLayoutInfo* glyphLayout = nullptr;
+        if (linechars.contains(charIndex)) {
+          glyphLayout = linechars[charIndex][0];
+        }
+        else {
+          int lastIndex = charIndex - 1;
+          while (!linechars.contains(lastIndex)) lastIndex--;
+
+          auto index = charIndex - lastIndex;
+          if (index < linechars[lastIndex].size()) {
+            glyphLayout = linechars[lastIndex][index];
+          }
+        }
+
+        if (glyphLayout != nullptr) {
+
+          if (glyphLayout->color) {
+            int color = (int)glyphLayout->color;
+            QColor qcolor = QColor{ (color >> 24) & 0xff ,(color >> 16) & 0xff ,(color >> 8) & 0xff };
+
+            auto find = colors.find(qcolor);
+
+            QString className;
+
+            if (find != colors.end()) {
+              className = find->second;
+            }
+
+
+            out << "<span class='" << className << "'>" << qchar << "</span>";
+          }
+          else {
+            out << qchar;
+          }
+        }
+        else {
+          out << qchar;
+        }
+
+      }
+
+
       out << "</div>" << '\n';
     }
-    out << "</div>" << '\n';
+    if (!newHtml) {
+      out << "</div>" << '\n';
+    }
+
     out << "</div>" << '\n';
   }
+
+  QFile qtFile("output/quran_text.js");
+  qtFile.open(QIODevice::WriteOnly | QIODevice::Text);
+  QTextStream qtOut(&qtFile);   // we will serialize the data into the file
+  qtOut.setCodec("UTF-8");
+
+  qtOut << "let quranText = [" << '\n';
+  for (auto& page : originalText) {
+    qtOut << "  [" << '\n';
+    for (auto& line : page) {
+      qtOut << "    '" << line << "',\n";
+    }
+    qtOut << "  ],\n";
+  }
+  qtOut << "]";
+
+  qtOut << "\nexport { quranText };";
 }
 
 void ExportToHTML::generateQuranPagesOld(QList<QList<LineLayoutInfo>> pages, int lineWidth, QList<QStringList> originalText, int scale)

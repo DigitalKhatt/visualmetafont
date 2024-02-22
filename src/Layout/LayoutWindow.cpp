@@ -68,6 +68,8 @@
 #include <math.h> 
 
 #include "to_opentype.h"
+#include <unordered_set>
+#include <Subtable.h>
 
 
 //#include "hb.hh"
@@ -214,14 +216,18 @@ void LayoutWindow::createActions()
 
   QIcon icon = QIcon::fromTheme("document-save", QIcon(":/images/downloadpdf.png"));
   QAction* action = new QAction(icon, tr("&Generate Medina Quran..."), this);
-  connect(action, &QAction::triggered, this, &LayoutWindow::generateAllQuranTexMedina);
+  connect(action, &QAction::triggered, [&]() {
+    generateMushafMadina(false);
+  });
   fileMenu->addAction(action);
   fileToolBar->addAction(action);
   fileToolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
 
   icon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
-  action = new QAction(icon, tr("&Generate Medina Quran VAR HTML"), this);
-  connect(action, &QAction::triggered, this, &LayoutWindow::generateMadinaVARHTML);
+  action = new QAction(icon, tr("&Generate Medina Quran HTML"), this);
+  connect(action, &QAction::triggered, this, [&]() {
+    generateMushafMadina(true);
+  });
   fileMenu->addAction(action);
   fileToolBar->addAction(action);
   fileToolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -294,6 +300,31 @@ void LayoutWindow::createActions()
 
   fileToolBar->addWidget(toggleButton);
 
+
+  toggleButton = new QPushButton(tr("&TeX Algo"));
+  toggleButton->setCheckable(true);
+  toggleButton->setChecked(false);
+
+  connect(toggleButton, &QPushButton::toggled, [&](bool checked) {
+    applyTeXAlgo = checked;
+    executeRunText(true, 1);
+  });
+
+
+
+  fileToolBar->addWidget(toggleButton);
+
+  toggleButton = new QPushButton(tr("&Force"));
+  toggleButton->setCheckable(true);
+  toggleButton->setChecked(false);
+
+  connect(toggleButton, &QPushButton::toggled, [&](bool checked) {
+    applyForce = checked;
+    executeRunText(true, 1);
+  });
+
+  fileToolBar->addWidget(toggleButton);
+
 }
 bool LayoutWindow::generateOpenTypeCff2Standard() {
   return generateOpenTypeCff2(false);
@@ -304,7 +335,7 @@ bool LayoutWindow::generateOpenTypeCff2Extended() {
 bool LayoutWindow::generateOpenTypeCff2(bool extended) {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
-  QString otfFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + ".otf";
+  QString otfFileName = fileInfo.path() + "/output/" + fileInfo.completeBaseName() + ".otf";
 
   OtLayout layout = OtLayout(m_otlayout->mp, extended);
 
@@ -316,7 +347,7 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended) {
 
   auto ret = layout.toOpenType->GenerateFile(otfFileName);
 
-  QString fileName = fileInfo.absolutePath() + "/" + fileInfo.completeBaseName() + "_glyphnames.lua";
+  QString fileName = fileInfo.absolutePath() + "/output/" + fileInfo.completeBaseName() + "_glyphnames.lua";
 
   QFile file(fileName);
 
@@ -337,7 +368,7 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended) {
   file.close();
 
   //Lookup names
-  fileName = fileInfo.absolutePath() + "/" + fileInfo.completeBaseName() + "_lookupnames.lua";
+  fileName = fileInfo.absolutePath() + "/output/" + fileInfo.completeBaseName() + "_lookupnames.lua";
 
   QFile file2(fileName);
 
@@ -366,10 +397,10 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended) {
 bool LayoutWindow::generateOpenType() {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
-  QString otfFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + "-cff1.otf";
+  QString otfFileName = fileInfo.path() + "/output/" + fileInfo.completeBaseName() + "-cff1.otf";
 
   OtLayout layout = OtLayout(m_otlayout->mp, false);
-  layout.useNormAxisValues = false;
+  layout.useNormAxisValues = true;
   layout.toOpenType->isCff2 = true;
 
   layout.loadLookupFile("automedina.fea");
@@ -408,7 +439,9 @@ bool LayoutWindow::exportpdf() {
 
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
-  auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, true, true);
+  auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, true, true, applyFontSize, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
+  //auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, true, true, applyFontSize, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+
 
   QList<QList<LineLayoutInfo>> pages{ page };
   QList<QStringList> originalPages{ lines };
@@ -497,7 +530,40 @@ bool LayoutWindow::exportpdf() {
   return true;
 }
 
-LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level) {
+static QMap<int, double> madinaLineWidths =
+{
+  { 586 * 15 + 1, 0.81},
+  { 593 * 15 + 2, 0.81},
+  { 594 * 15 + 5, 0.63},
+  { 600 * 15 + 10,0.63 },
+  { 601 * 15 + 3, 1 },
+  { 601 * 15 + 4, 1 },
+  { 601 * 15 + 7, 1 },
+  { 601 * 15 + 8, 1 },
+  { 601 * 15 + 9, 1 },
+  { 601 * 15 + 10, 1 },
+  { 601 * 15 + 13, 1 },
+  { 601 * 15 + 14, 1 },
+  { 601 * 15 + 15, 1 },
+  { 602 * 15 + 5, 0.63 },
+  { 602 * 15 + 11, 0.9 },
+  { 602 * 15 + 15, 0.53 },
+  { 603 * 15 + 10, 0.66 },
+  { 603 * 15 + 13, 1 },
+  { 603 * 15 + 15, 0.60 },
+  { 604 * 15 + 3, 1 },
+  { 604 * 15 + 4, 0.55 },
+  { 604 * 15 + 7, 1 },
+  { 604 * 15 + 8, 1 },
+  { 604 * 15 + 9, 0.55 },
+  { 604 * 15 + 12, 1 },
+  { 604 * 15 + 13, 1 },
+  { 604 * 15 + 14, 0.675 },
+  { 604 * 15 + 15, 0.5 },
+};
+
+
+LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level) {
 
   loadLookupFile("automedina.fea");
 
@@ -520,6 +586,11 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout
 
 
   QString sajdapatterns = "(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)"; // sajdapatterns.replace("\u0657", "\u08F0").replace("\u065E", "\u08F1").replace("\u0656", "\u08F2");
+  sajdapatterns = sajdapatterns.replace("\u0623", "\u0627\u0654");
+  sajdapatterns = sajdapatterns.replace("\u0624", "\u0648\u0654");
+  sajdapatterns = sajdapatterns.replace("\u0625", "\u0627\u0655");
+  sajdapatterns = sajdapatterns.replace("\u0626", "\u064A\u0654");
+
   QRegularExpression sajdaRe = QRegularExpression(sajdapatterns, QRegularExpression::MultilineOption);
 
   int beginsajda = 0;
@@ -527,13 +598,8 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout
   int sajdamatched = 0;
 
 
-
-
   for (int pagenum = 0; pagenum < 604; pagenum++) {
-
-    //if (pagenum == 155) {
-    //	auto test = 5;
-    //}
+    //for (int pagenum = 48; pagenum < 49; pagenum++) {
 
     QString textt = QString::fromUtf8(qurantext[pagenum] + 1);
 
@@ -542,46 +608,275 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout
     textt = textt.replace("\u0625", "\u0627\u0655");
     textt = textt.replace("\u0626", "\u064A\u0654");
 
-    //textt = textt.replace(QRegularExpression(" *" + QString("۞") + " *"), QString("۞") + " ");    
 
-    auto lines = textt.split(char(10), Qt::SkipEmptyParts);
+    QStringList lines;
+
+    if (pagenum == 583) {
+      textt.append(QString("سُورَةُ عَبَسَ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        //return {};
+        throw new std::runtime_error("ERROR");
+      }
+
+    }
+
+    else if (pagenum == 584) {
+      textt = textt.replace(QString("سُورَةُ عَبَسَ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 75) {
+      textt.append(QString("سُورَةُ النِّسَاءِ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
+    else if (pagenum == 76) {
+      textt = textt.replace(QString("سُورَةُ النِّسَاءِ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 348) {
+      textt.append(QString("سُورَةُ النُّورِ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
+    else if (pagenum == 349) {
+      textt = textt.replace(QString("سُورَةُ النُّورِ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 365) {
+      textt.append(QString("سُورَةُ الشُّعَرَاءِ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
+    else if (pagenum == 366) {
+      textt = textt.replace(QString("سُورَةُ الشُّعَرَاءِ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 375) {
+      textt.append(QString("سُورَةُ النَّمْلِ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
+    else if (pagenum == 376) {
+      textt = textt.replace(QString("سُورَةُ النَّمْلِ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 444) {
+      textt.append(QString("سُورَةُ الصَّافَّاتِ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
+    else if (pagenum == 445) {
+      textt = textt.replace(QString("سُورَةُ الصَّافَّاتِ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 451) {
+      textt.append(QString("سُورَةُ صٓ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
+    else if (pagenum == 452) {
+      textt = textt.replace(QString("سُورَةُ صٓ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 497) {
+      textt.append(QString("سُورَةُ الجَاثِيَةِ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
+    else if (pagenum == 498) {
+      textt = textt.replace(QString("سُورَةُ الجَاثِيَةِ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 505) {
+      textt.append(QString("سُورَةُ مُحَمَّدٍ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
+    else if (pagenum == 506) {
+      textt = textt.replace(QString("سُورَةُ مُحَمَّدٍ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 524) {
+      textt.append(QString("سُورَةُ النَّجْمِ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
+    else if (pagenum == 525) {
+      textt = textt.replace(QString("سُورَةُ النَّجْمِ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 527) {
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 547) {
+      textt.append(QString("سُورَةُ المُمْتَحنَةِ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
+    else if (pagenum == 548) {
+      textt = textt.replace(QString("سُورَةُ المُمْتَحنَةِ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 554) {
+      textt.append(QString("سُورَةُ التَّغَابُنِ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
+    else if (pagenum == 555) {
+      textt = textt.replace(QString("سُورَةُ التَّغَابُنِ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else if (pagenum == 556) {
+      textt.append(QString("سُورَةُ الطَّلَاقِ") + "\n");
+      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (page.size() == 1) {
+        lines = page[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
+    else if (pagenum == 557) {
+      textt = textt.replace(QString("سُورَةُ الطَّلَاقِ") + "\n", "");
+      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+    }
+    else {
+      lines = textt.split(char(10), Qt::SkipEmptyParts);
+    }
+
+    if (applyTeXAlgo && pagenum <= 599 && pagenum > 1 && pagenum != 378) {
+      auto result = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      if (result.size() == 1) {
+        lines = result[0];
+      }
+      else {
+        throw new std::runtime_error("ERROR");
+      }
+    }
 
     auto justification = LineJustification::Distribute;
     int beginsura = OtLayout::TopSpace << OtLayout::SCALEBY;
 
     if (pagenum == 0 || pagenum == 1) {
-      justification = LineJustification::Center;
+      double diameter = pageWidth * 0.9;
+      /*
+      for (int lineNumber = 2; lineNumber <= 8; lineNumber++) {
+
+        double degree = (lineNumber - 1) * M_PI / 8;
+
+        madinaLineWidths[(pagenum + 1) * 15 + lineNumber] = diameter * std::sin(degree) / pageWidth;
+
+
+      }*/
+      auto ratio = 0.9;
+      madinaLineWidths[(pagenum + 1) * 15 + 2] = ratio * 0.5;
+      madinaLineWidths[(pagenum + 1) * 15 + 3] = ratio * 0.7;
+      madinaLineWidths[(pagenum + 1) * 15 + 4] = ratio * 0.9;
+      madinaLineWidths[(pagenum + 1) * 15 + 5] = ratio;
+      madinaLineWidths[(pagenum + 1) * 15 + 6] = ratio * 0.9;
+      madinaLineWidths[(pagenum + 1) * 15 + 7] = ratio * 0.7;
+      madinaLineWidths[(pagenum + 1) * 15 + 8] = ratio * 0.4;
+
       beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
     }
 
-    auto page = layout->justifyPage(scale, lineWidth, lineWidth, lines, justification, newface, true, false, cluster_level);
+    QList<LineLayoutInfo> shapedPage;
 
-    newface = false;
+    for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
+      auto newJustification = justification;
+      auto line = QStringList{ lines[lineIndex] };
+      int key = (pagenum + 1) * 15 + (lineIndex + 1);
+      int lineWidth = pageWidth;
+      auto match = surabism.match(lines[lineIndex]);
 
-    //int currentyPos = TopSpace;
+      LineType lineType = LineType::Line;
 
-    for (int i = 0; i < page.size(); ++i) {
-
-      auto& currentpage = page[i];
-
-      // check if suran name or bism
-      auto match = surabism.match(lines[i]);
-      if (match.hasMatch()) {
-
-        auto temp = layout->justifyPage(scale, lineWidth, lineWidth, { lines[i] }, LineJustification::Center, false, true, false, cluster_level);
-
+      if (!(pagenum == 1 && lineIndex == 1) && match.hasMatch()) {
         if (match.captured(0).startsWith("سُ")) {
-          temp[0].type = LineType::Sura;
+          lineType = LineType::Sura;
         }
         else {
-          temp[0].type = LineType::Bism;
+          lineType = LineType::Bism;
         }
-
-        page[i] = temp[0];
+        lineWidth = 0;
+        newJustification = LineJustification::Center;
       }
-      else {
+      else if (madinaLineWidths.contains(key))
+      {
+        double ratio = madinaLineWidths.value(key);
+
+        if (ratio < 1) {
+          lineWidth = pageWidth * ratio;
+          newJustification = LineJustification::Center;
+        }
+      }
+      auto shapedLine = layout->justifyPage(scale, lineWidth, pageWidth, line, newJustification, newface, true, false, cluster_level)[0];
+
+      shapedLine.type = lineType;
+      newface = false;
+
+      if (shapedLine.type == LineType::Line) {
         // check if sajda
-        match = sajdaRe.match(lines[i]);
+        match = sajdaRe.match(lines[lineIndex]);
         if (match.hasMatch()) {
 
           sajdamatched++;
@@ -590,12 +885,12 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout
           int endOffset = match.capturedEnd(match.lastCapturedIndex()) - 1; // endOffset == 9
 
 
-          while (layout->glyphGlobalClasses[lines[i][endOffset].unicode()] == OtLayout::MarkGlyph)
+          while (layout->glyphGlobalClasses[lines[lineIndex][endOffset].unicode()] == OtLayout::MarkGlyph)
             endOffset--;
 
           bool beginDone = false;
 
-          auto& glyphs = currentpage.glyphs;
+          auto& glyphs = shapedLine.glyphs;
 
           for (auto& glyphLayout : glyphs) {
 
@@ -617,28 +912,23 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout
       }
 
 
-      if (i == 0 && (pagenum == 0 || pagenum == 1)) {
-        page[i].type = LineType::Sura;
-        page[i].ystartposition = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1)) << OtLayout::SCALEBY;
+      if (lineIndex == 0 && (pagenum == 0 || pagenum == 1)) {
+        shapedLine.type = LineType::Sura;
+        shapedLine.ystartposition = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1)) << OtLayout::SCALEBY;
       }
       else {
-        page[i].ystartposition = beginsura;
+        shapedLine.ystartposition = beginsura;
         beginsura += OtLayout::InterLineSpacing << OtLayout::SCALEBY;
       }
+
+      shapedPage.append(shapedLine);
     }
-
-
-
-    pages.append(page);
+    pages.append(shapedPage);
     originalPages.append(lines);
   }
 
   if (beginsajda != 15 || endsajda != 15 || sajdamatched != 15) {
     qDebug() << "sajdas problems?";
-  }
-
-  if (this->applyCollisionDetection) {
-    adjustOverlapping(pages, lineWidth, originalPages, scale);
   }
 
   LayoutPages result;
@@ -652,6 +942,7 @@ LayoutPages LayoutWindow::shapeMedina(int scale, int lineWidth, OtLayout* layout
 bool LayoutWindow::generateLayoutInfo() {
 
   OtLayout layout = OtLayout(m_otlayout->mp, true);
+  layout.useNormAxisValues = false;
 
   layout.loadLookupFile("automedina.fea");
 
@@ -664,7 +955,9 @@ bool LayoutWindow::generateLayoutInfo() {
 
   GenerateLayout generateLayout{ &layout,result };
 
-  generateLayout.generateLayout(lineWidth, scale);
+  //generateLayout.generateLayout(lineWidth, scale);
+
+  generateLayout.generateLayoutProtoBuf(lineWidth, scale);
 
 
   return true;
@@ -712,7 +1005,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
   auto result = shapeMedina(scale, lineWidth, &layout, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
-  auto htmlFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + "-quran.html";
+  auto htmlFileName = fileInfo.path() + "/output/" + fileInfo.completeBaseName() + "-quran.html";
 
   QFile file(htmlFileName);
   file.open(QIODevice::WriteOnly | QIODevice::Text);
@@ -1149,15 +1442,30 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
 }
 
-bool LayoutWindow::generateAllQuranTexMedina() {
+bool LayoutWindow::generateMushafMadina(bool isHTML) {
 
-  int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
+  double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
+
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
-  auto result = shapeMedina(scale, lineWidth, m_otlayout);
+  hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES;
+
+  if (isHTML) {
+    cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS;
+  }
+
+  auto result = shapeMedina(scale, lineWidth, m_otlayout, cluster_level);
+
+  if (this->applyCollisionDetection) {
+    adjustOverlapping(result.pages, lineWidth, result.originalPages, scale);
+  }
+
+  if (this->applyForce) {
+    applyDirectedForceLayout(result.pages, result.originalPages, lineWidth, 0, 1, scale);
+  }
 
 
-  QFile file("quran_medina_inputtext.txt");
+  QFile file("output/quran_medina_inputtext.txt");
   file.open(QIODevice::WriteOnly | QIODevice::Text);
   QTextStream out(&file);   // we will serialize the data into the file
   out.setCodec("UTF-8");
@@ -1173,21 +1481,47 @@ bool LayoutWindow::generateAllQuranTexMedina() {
 
   file.close();
 
-  QPageSize pageSize{ { 90.2,144.5 },QPageSize::Millimeter, "MedianQuranBook" };
-  QPageLayout pageLayout{ pageSize , QPageLayout::Portrait,QMarginsF(0, 0, 0, 0) };
+  if (!isHTML) {
+    auto res = 4800 << OtLayout::SCALEBY;
+    QPageSize pageSize{ { 90.2 ,144.5  },QPageSize::Millimeter, "MedianQuranBook" };
+    QPageLayout pageLayout{ pageSize , QPageLayout::Portrait,QMarginsF(0, 0, 0, 0) };
 #if defined(ENABLE_PDF_GENERATION)
-  QuranPdfWriter quranWriter("quranMedina.pdf", m_otlayout);
-  quranWriter.setPageLayout(pageLayout);
-  quranWriter.setResolution(4800 << OtLayout::SCALEBY);
+    QuranPdfWriter quranWriter("output/quranMedina.pdf", m_otlayout);
+    quranWriter.setPageLayout(pageLayout);
+    quranWriter.setResolution(4800 << OtLayout::SCALEBY);
+    //quranWriter.setResolution(72);
 
-  quranWriter.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
-
-
-  ExportToHTML extohtml{ m_otlayout };
-
-  extohtml.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
-
+    quranWriter.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
 #endif
+  }
+  else {
+    ExportToHTML extohtml{ m_otlayout };
+
+    extohtml.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
+  }
+
+  QFile file2("output/medinashaping.dat");
+  file2.open(QIODevice::WriteOnly);
+  QDataStream out2(&file2);   // we will serialize the data into the file
+  out2 << OtLayout::EMSCALE;
+  //out2 << result.pages;
+  for (auto& page : result.pages) {
+    for (auto& line : page) {
+      for (auto& glyph : line.glyphs) {
+        out2 << glyph.codepoint;
+        out2 << glyph.x_advance;
+        out2 << glyph.x_offset;
+        out2 << glyph.y_offset;
+        out2 << glyph.lefttatweel;
+        out2 << glyph.righttatweel;
+      }
+    }
+  }
+  out2 << result.originalPages;
+  //out << result.suraNamebyPage;
+  //out << locations;
+  file2.close();
+
   return true;
 
 }
@@ -1198,52 +1532,78 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
 
   int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
-  auto result = m_otlayout->pageBreak(scale, lineWidth, 604, false);
 
-  if (result.pages.count() == 0) {
+  QString quran;
+
+  for (int i = 581; i < 600; i++) {
+    //const char * text = qurantext[i];
+    const char* tt;
+
+
+    tt = qurantext[i] + 1;
+
+
+    //unsigned int text_len = strlen(tt);
+
+    quran.append(quran.fromUtf8(tt));
+
+    //hb_buffer_add_utf8(buffer, tt, text_len, 0, text_len);
+
+  }
+
+  LayoutPages pages;
+
+  pages.originalPages = m_otlayout->pageBreak(scale, lineWidth, true, quran, 19);
+
+  if (pages.originalPages.count() == 0) {
     QMessageBox msgBox;
     msgBox.setText("No feasable solution. Try to change the scale.");
     msgBox.exec();
     return false;
   }
 
+
+
   if (this->applyJustification) {
-    for (int pagenum = 0; pagenum < result.originalPages.length(); pagenum++) {
-
-      if (pagenum != 0 && pagenum != 1) {
-        auto justification = LineJustification::Distribute;
+    for (int pagenum = 0; pagenum < pages.originalPages.length(); pagenum++) {
 
 
-        auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, result.originalPages[pagenum], justification, false, true);
+      auto justification = LineJustification::Distribute;
 
-        for (int lineIndex = 0; lineIndex < page.length(); lineIndex++) {
-          if (result.pages[pagenum][lineIndex].type == LineType::Line) {
-            result.pages[pagenum][lineIndex] = page[lineIndex];
-          }
-          else {
-            auto temp = m_otlayout->justifyPage(scale, 0, lineWidth, QStringList{ result.originalPages[pagenum][lineIndex] }, LineJustification::Center, false, true);
-            //temp[0].type = result.pages[pagenum][lineIndex].type;
-            //temp[0].ystartposition = result.pages[pagenum][lineIndex].ystartposition;
-            result.pages[pagenum][lineIndex].glyphs = temp[0].glyphs;
-          }
+
+      auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, pages.originalPages[pagenum], justification, false, true);
+
+      pages.pages.append(page);
+
+      /*
+      for (int lineIndex = 0; lineIndex < page.length(); lineIndex++) {
+        if (result.pages[pagenum][lineIndex].type == LineType::Line) {
+          result.pages[pagenum][lineIndex] = page[lineIndex];
         }
-      }
+        else {
+          auto temp = m_otlayout->justifyPage(scale, 0, lineWidth, QStringList{ result[pagenum][lineIndex] }, LineJustification::Center, false, true);
+          //temp[0].type = result.pages[pagenum][lineIndex].type;
+          //temp[0].ystartposition = result.pages[pagenum][lineIndex].ystartposition;
+          result.pages[pagenum][lineIndex].glyphs = temp[0].glyphs;
+        }
+      }*/
+
     }
   }
 
   if (this->applyCollisionDetection) {
-    adjustOverlapping(result.pages, lineWidth, result.originalPages, scale);
+    adjustOverlapping(pages.pages, lineWidth, pages.originalPages, scale);
   }
 
   QPageSize pageSize{ { 90.2,144.5 },QPageSize::Millimeter, "MedianQuranBook" };
   QPageLayout pageLayout{ pageSize , QPageLayout::Portrait,QMarginsF(0, 0, 0, 0) };
 
 #if defined(ENABLE_PDF_GENERATION)
-  QuranPdfWriter quranWriter("allquran.pdf", m_otlayout);
+  QuranPdfWriter quranWriter("output/allquran.pdf", m_otlayout);
   quranWriter.setPageLayout(pageLayout);
   quranWriter.setResolution(4800 << OtLayout::SCALEBY);
 
-  quranWriter.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
+  quranWriter.generateQuranPages(pages.pages, lineWidth, pages.originalPages, scale);
 
 #endif
   return true;
@@ -1453,6 +1813,16 @@ void LayoutWindow::createDockWindows()
 
   });
 
+  connect(lokkupTreeWidget, &QTreeWidget::itemDoubleClicked, [&, this](QTreeWidgetItem* item, int column) {
+    auto lookupName = item->text(0);
+    if (item->childCount() == 0 && this->m_otlayout->lookupsIndexByName.contains(item->text(0))) {
+
+      editLookup(item->text(0));
+
+    }
+
+  });
+
   lookupTree->setWidget(lokkupTreeWidget);
 
   this->setCentralWidget(m_graphicsView);
@@ -1495,7 +1865,7 @@ void LayoutWindow::serializeTexPages() {
     }
   }
 
-  QFile file("texpages.dat");
+  QFile file("output/texpages.dat");
   file.open(QIODevice::WriteOnly);
   QDataStream out(&file);   // we will serialize the data into the file
   out << OtLayout::EMSCALE;
@@ -1531,7 +1901,7 @@ void LayoutWindow::serializeMedinaPages() {
     }
   }
 
-  QFile file("medinapages.dat");
+  QFile file("output/medinapages.dat");
   file.open(QIODevice::WriteOnly);
   QDataStream out(&file);   // we will serialize the data into the file
   out << OtLayout::EMSCALE;
@@ -1659,10 +2029,10 @@ void LayoutWindow::findOverflows() {
 
   hb_buffer_destroy(buffer);
 
-  QString fileName = QString("overflows.csv");
+  QString fileName = QString("output/overflows.csv");
 
   if (applyJustification) {
-    fileName = QString("overflows_with_just.csv");
+    fileName = QString("output/overflows_with_just.csv");
   }
 
   QFile file(fileName);
@@ -1673,7 +2043,7 @@ void LayoutWindow::findOverflows() {
 
   for (auto key : alloverflows.keys()) {
     auto overflow = alloverflows.value(key);
-    for (auto line : overflow) {
+    for (auto& line : overflow) {
       out << key << "," << line.pageNumber << "," << line.lineNumber << "," << (line.overflow) << "," << (line.percentage) << "%" << "\n";
     }
   }
@@ -1741,10 +2111,10 @@ void LayoutWindow::calculateMinimumSize() {
 
   hb_buffer_destroy(buffer);
 
-  QString fileName = "overflows.csv";
+  QString fileName = "output/overflows.csv";
 
   if (applyJustification) {
-    fileName = "overflows_with_just.csv";
+    fileName = "output/overflows_with_just.csv";
   }
 
   QFile file(fileName);
@@ -1895,7 +2265,7 @@ void LayoutWindow::testQuarn() {
 void LayoutWindow::executeRunText(bool newFace, int refresh)
 {
 
-  int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
+  double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
   if (m_graphicsScene->items().isEmpty()) {
     refresh = 2;
@@ -1912,19 +2282,33 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 
   QString textt = textEdit->toPlainText();
 
-  auto lines = textt.split(char(10), Qt::SkipEmptyParts);
-
   const int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
-
+  QStringList lines;
+  if (applyTeXAlgo) {
+    auto result = m_otlayout->pageBreak(scale, lineWidth, false, textt, 1);
+    if (result.size() == 1) {
+      lines = result[0];
+    }
+  }
+  else {
+    lines = textt.split(char(10), Qt::SkipEmptyParts);
+  }
   auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, newFace, true, applyFontSize, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
   QVector<int> set;
 
   QList<QList<LineLayoutInfo>> pages = { page };
 
+  QList<QStringList> originalPages = { lines };
+
+  if (this->applyForce) {
+    applyDirectedForceLayout(pages, originalPages, lineWidth, 0, 1, scale);
+  }
+
   if (this->applyCollisionDetection) {
-    adjustOverlapping(pages, lineWidth, 0, 1, set, scale);
+    QVector<OverlapResult> result;
+    adjustOverlapping(pages, lineWidth, 0, 1, set, scale, result);
   }
 
   page = pages[0];
@@ -2120,7 +2504,7 @@ void LayoutWindow::adjustPage(QString text, hb_font_t* shapeFont, hb_buffer_t* b
 
 }
 
-void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, QList<QStringList> originalPages, int emScale) {
+void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, QList<QStringList> originalPages, double emScale) {
 
   //QPageSize pageSize{ { 90.2,144.5 },QPageSize::Millimeter, "MedianQuranBook" };
   QPageSize pageSize{ { 90.2,147.5 },QPageSize::Millimeter, "MedianQuranBook" };
@@ -2134,6 +2518,8 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
   std::vector<QThread*> threads;
   std::vector<QVector<int>*> overlappages;
+
+  std::vector<QVector<OverlapResult>*> overlapResults;
 
   // fetch all gryph initially otherwise mpost is not thread safe when executing getAlternate
   for (auto& page : pages) {
@@ -2158,7 +2544,12 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
     overlappages.push_back(set);
 
-    QThread* thread = QThread::create([this, &pages, begin, pageperthread, set, lineWidth, emScale] { adjustOverlapping(pages, lineWidth, begin, pageperthread, *set, emScale); });
+    QVector<OverlapResult>* result1 = new QVector<OverlapResult>();
+
+    overlapResults.push_back(result1);
+
+
+    QThread* thread = QThread::create([this, &pages, &result1, begin, pageperthread, set, lineWidth, emScale] { adjustOverlapping(pages, lineWidth, begin, pageperthread, *set, emScale, *result1); });
 
     threads.push_back(thread);
 
@@ -2170,6 +2561,35 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
     t->wait();
     delete t;
   }
+
+  QVector<OverlapResult> overlapResult;
+
+  QMap<QVector<int>, OverlapResult> sequences;
+
+  for (auto overlaps : overlapResults) {
+
+    for (auto& overlap : *overlaps) {
+      auto& page = pages[overlap.pageIndex];
+      auto& line = page[overlap.lineIndex];
+      QVector<int> sequence;
+      for (int i = overlap.prevGlyph; i <= overlap.nextGlyph; i++) {
+        auto& glyphLayout = line.glyphs[i];
+        sequence.append(glyphLayout.codepoint);
+      }
+
+
+      overlapResult.append(overlap);
+      /*if (!sequences.contains(sequence)) {
+        sequences.insert(sequence, overlap);
+        overlapResult.append(overlap);
+      }*/
+
+
+    }
+    delete overlaps;
+  }
+
+  generateOverlapLookups(pages, originalPages, overlapResult);
 
   QList<QList<LineLayoutInfo>> newpages;
   QList<QStringList> neworiginalPages;
@@ -2239,16 +2659,17 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
     delete t;
   }
 #if defined(ENABLE_PDF_GENERATION)
-  QuranPdfWriter allquran_overlapping("allquran_overlapping.pdf", m_otlayout);
+  QuranPdfWriter allquran_overlapping("output/overlapping.pdf", m_otlayout);
   allquran_overlapping.setPageLayout(pageLayout);
   allquran_overlapping.setResolution(4800 << OtLayout::SCALEBY);
 
   allquran_overlapping.generateQuranPages(newpages, lineWidth, neworiginalPages, emScale);
 #endif
 }
-void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, int beginPage, int nbPages, QVector<int>& set, int emScale) {
 
-  double scale = (double)emScale / (1 << OtLayout::SCALEBY); //(1 << OtLayout::SCALEBY) * 1; // 0.85;		
+void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, int beginPage, int nbPages, QVector<int>& set, double emScale, QVector<OverlapResult>& result) {
+
+  double scale = (double)emScale; //(1 << OtLayout::SCALEBY) * 1; // 0.85;		
   //const int lineWidth = lineWidth; // (17000 - (2 * 400)) << OtLayout::SCALEBY;
   //scale = scale * 1.05;
 
@@ -2258,7 +2679,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
   QTransform pathtransform;
 
   //transform = transform.scale(scale, scale);
-  pathtransform = pathtransform.scale(scale, -scale);
+  pathtransform = pathtransform.scale(scale * 1.00, -scale * 1.00);
 
   for (int p = beginPage; p < beginPage + nbPages; p++) {
     auto& page = pages[p];
@@ -2282,7 +2703,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
         currentxPos -= glyphLayout.x_advance;
         QPoint pos(currentxPos + (glyphLayout.x_offset), currentyPos - (glyphLayout.y_offset));
 
-        linePositions.append(QPoint{ pos.x() >> OtLayout::SCALEBY,pos.y() >> OtLayout::SCALEBY });
+        linePositions.append(QPoint{ pos.x(),pos.y() });
 
       }
 
@@ -2354,51 +2775,56 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
         }
 
         // verify previous glyphs in the same line
-        if (g == 0) continue;
-
-
+        // TODO optimize
+        bool isSameWord = true;
         for (int gg = g - 1; gg >= 0; gg--) {
 
           auto& otherglyphLayout = line.glyphs[gg];
           QString otherglyphName = m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
 
-          bool isOtherMark = m_otlayout->automedina->classes["marks"].contains(otherglyphName);
-          //bool isOtherWaqfMark = m_otlayout->automedina->classes["waqfmarks"].contains(otherglyphName);
           bool isOtherSpace = otherglyphName.contains("space") || otherglyphName.contains("linefeed");
-          //bool isPrevIsol = otherglyphName.contains("isol");
-          //bool isPrevFina = otherglyphName.contains(".fina");
 
-          if ((isMark || isOtherMark) && !isOtherSpace) {// || isIsol || isPrevIsol || (isFina && isPrevFina)
-
-            GlyphVis& otherGlyph = *m_otlayout->getGlyph(otherglyphName, otherglyphLayout.lefttatweel, otherglyphLayout.righttatweel); //glyphs[otherglyphName];
-            QPointF otherpos = linePositions[gg];
-
-            QPainterPath otherpath = pathtransform.map(otherGlyph.path);
-            otherpath.translate(otherpos);
-
-            if (path.intersects(otherpath)) {
-
-              int adjust = 0;
-
-              if ((glyphName == "kasra" || glyphName.contains("dot")) && (otherglyphName.contains("reh") || otherglyphName.contains("waw") || otherglyphName == "meem.fina" || otherglyphName == "meem.fina.afterkaf" || otherglyphName == "meem.fina.afterheh")) {
-
-                //adjust = rectother.bottom() - rect.top();
-                //continue;
-              }
-
-              //if (!isWaqfMark) {
-
-              glyphLayout.color = 0xFF000000;
-
-              if (adjust > 0) {
-                glyphLayout.y_offset -= adjust << OtLayout::SCALEBY;
-              }
-
-
-              otherglyphLayout.color = 0xFF000000;
-              intersection = true;
-            }
+          if (isOtherSpace) {
+            isSameWord = false;
+            continue;
           }
+
+          if (isSameWord) {
+            //TODO include lam.init kaf.medi for example
+
+            bool isPrevInit = otherglyphName.contains(".init");
+            bool isPrevMedi = otherglyphName.contains(".medi");
+
+            if (glyphName.contains(".fina") && (isPrevMedi || isPrevInit)) continue;
+            if (glyphName.contains(".medi") && (isPrevMedi || isPrevInit)) continue;
+          }
+
+
+
+          GlyphVis& otherGlyph = *m_otlayout->getGlyph(otherglyphName, otherglyphLayout.lefttatweel, otherglyphLayout.righttatweel); //glyphs[otherglyphName];
+          QPointF otherpos = linePositions[gg];
+
+          QPainterPath otherpath = pathtransform.map(otherGlyph.path);
+          otherpath.translate(otherpos);
+
+          if (path.intersects(otherpath)) {
+
+            glyphLayout.color = 0xFF000000;
+
+            otherglyphLayout.color = 0xFF000000;
+            intersection = true;
+
+            OverlapResult overlap;
+
+            overlap.pageIndex = p;
+            overlap.lineIndex = l;
+            overlap.nextGlyph = g;
+            overlap.prevGlyph = gg;
+
+            result.append(overlap);
+
+          }
+
         }
 
 
@@ -2412,8 +2838,388 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
   }
 }
+void LayoutWindow::generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pages, const QList<QStringList>& originalPages, const QVector<OverlapResult>& result) {
+  QFile file("output/overlaps.txt");
+  file.open(QIODevice::WriteOnly | QIODevice::Text);
+  QTextStream out(&file);   // we will serialize the data into the file
+  out.setCodec("UTF-8");
 
 
+
+  std::set<QString> words;
+
+  auto& basesClass = m_otlayout->automedina->classes["bases"];
+  auto& marksClass = m_otlayout->automedina->classes["marks"];
+
+  QString innerLookupsString;
+
+  QTextStream innerlookups{ &innerLookupsString };
+
+  QSet<QVector<int>> sequences;
+
+  struct GlyphPos {
+    QSet<quint16> set;
+    QString lookupName;
+  };
+
+  QVector<QVector<GlyphPos>> posSubtables;
+  std::map<QString, std::unordered_set<int>> subLookupKerns;
+
+
+
+  int lastsubLookupNumber = 0;
+
+  if (m_otlayout->lookupsIndexByName.contains("adjustoverlap")) {
+    auto adjustoverlapLookup = m_otlayout->lookups[m_otlayout->lookupsIndexByName["adjustoverlap"]];
+    for (auto subtable : adjustoverlapLookup->subtables) {
+      //SingleAdjustmentSubtable* kernTable = dynamic_cast<SingleAdjustmentSubtable*>(subtable);
+      ChainingSubtable* chainingSubtable = dynamic_cast<ChainingSubtable*>(subtable);
+
+      QVector<GlyphPos> positions;
+
+      for (int pos = 0; pos < chainingSubtable->compiledRule.input.size(); pos++) {
+        GlyphPos glyphPos{ chainingSubtable->compiledRule.input[pos] ,{} };
+        for (auto& lookupRecord : chainingSubtable->compiledRule.lookupRecords) {
+          if (lookupRecord.position == pos) {
+            glyphPos.lookupName = lookupRecord.lookupName;
+            break;
+          }
+        }
+        positions.append(glyphPos);
+      }
+
+      posSubtables.append(positions);
+      for (auto& lookupRecord : chainingSubtable->compiledRule.lookupRecords) {
+        if (!lookupRecord.lookupName.isEmpty()) {
+          SingleAdjustmentSubtable* kernTable = dynamic_cast<SingleAdjustmentSubtable*>(m_otlayout->lookups[m_otlayout->lookupsIndexByName[lookupRecord.lookupName]]->subtables[0]);
+          int number = std::stoi(lookupRecord.lookupName.mid(15).toStdString());
+          if (subLookupKerns.find(lookupRecord.lookupName) == subLookupKerns.end()) {
+
+            auto& pair = subLookupKerns.insert({ lookupRecord.lookupName,{} });
+            auto& res = *pair.first;
+            for (auto codepoint : kernTable->singlePos.keys()) {
+              res.second.insert(codepoint);
+            }
+            if (number > lastsubLookupNumber) {
+              lastsubLookupNumber = number;
+            }
+          }
+        }
+
+      }
+
+    }
+  }
+
+  int subLookupNumber = lastsubLookupNumber + 1;
+
+
+
+  QString subLookups;
+
+
+  bool kern = true;
+
+  for (auto overlap : result) {
+
+    auto& page = pages[overlap.pageIndex];
+    auto& line = page[overlap.lineIndex];
+    auto& text = originalPages[overlap.pageIndex][overlap.lineIndex];
+
+
+
+    auto& prevGlyphLayout = line.glyphs[overlap.prevGlyph];
+    QString prevGlyphName = m_otlayout->glyphNamePerCode[prevGlyphLayout.codepoint];
+
+    auto& nextGlyphLayout = line.glyphs[overlap.nextGlyph];
+    QString nextGlyphName = m_otlayout->glyphNamePerCode[nextGlyphLayout.codepoint];
+
+    bool betweenBases;
+
+    if (basesClass.contains(prevGlyphName) && basesClass.contains(nextGlyphName)) {
+      betweenBases = true;
+    }
+    else {
+      betweenBases = false;
+    }
+
+    QVector<int> basesIndexes;
+
+    int prevBaseIndex;
+    for (prevBaseIndex = overlap.prevGlyph; prevBaseIndex >= 0; prevBaseIndex--) {
+      auto& glyphLayout = line.glyphs[prevBaseIndex];
+      QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+      if (basesClass.contains(glyphName)) {
+        break;
+      }
+    }
+
+    basesIndexes.append(prevBaseIndex);
+
+    for (int nextBaseIndex = prevBaseIndex + 1; nextBaseIndex <= overlap.nextGlyph; nextBaseIndex++) {
+      auto& glyphLayout = line.glyphs[nextBaseIndex];
+      QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+      if (basesClass.contains(glyphName)) {
+        basesIndexes.append(nextBaseIndex);
+      }
+    }
+
+    if (betweenBases && basesIndexes.size() != 2) {
+      std::cout << "Could not add lookup in line " << overlap.lineIndex + 1 << " of page " << overlap.pageIndex + 1 << " between " << prevGlyphName.toStdString() << " and " << nextGlyphName.toStdString() << std::endl;
+    }
+
+    int lastIndex = basesIndexes.last() > overlap.nextGlyph ? basesIndexes.last() : overlap.nextGlyph;
+
+    QVector<int> sequence;
+
+    bool containsSpace = false;
+
+    for (int i = basesIndexes.first(); i <= lastIndex; i++) {
+      auto& glyphLayout = line.glyphs[i];
+      sequence.append(glyphLayout.codepoint);
+      QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+      if (glyphName.contains("space")) {
+        containsSpace = true;
+      }
+    }
+
+    if (containsSpace) continue;
+
+    if (sequences.contains(sequence)) continue;
+
+    sequences.insert(sequence);
+
+    if (betweenBases) continue;
+
+    // generate word
+
+    int startCluster = 0;
+    int endCluster = text.size();
+
+
+
+    for (int i = overlap.prevGlyph; i >= 0; i--) {
+      auto& glyphLayout = line.glyphs[i];
+      QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+      if (glyphName.contains("space")) {
+        startCluster = glyphLayout.cluster + 1;
+        break;
+      }
+    }
+    for (int i = overlap.nextGlyph; i < line.glyphs.size(); i++) {
+      auto& glyphLayout = line.glyphs[i];
+      QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+      if (glyphName.contains("space")) {
+        endCluster = glyphLayout.cluster;
+        break;
+      }
+    }
+
+    QString word = text.mid(startCluster, endCluster - startCluster);
+
+
+    if (words.find(word) == words.end()) {
+      words.insert(word);
+    }
+
+    int seqLength = lastIndex - basesIndexes.first() + 1;
+
+    bool alreadyExist = false;
+    QVector<GlyphPos>* posToAdd = nullptr;
+    for (auto& posSubtable : posSubtables) {
+      if (posSubtable.size() == seqLength) {
+        bool found = true;
+        alreadyExist = true;
+        for (int i = 0; i < seqLength; i++) {
+          auto& glyphLayout = line.glyphs[basesIndexes.first() + i];
+          if (posSubtable[i].set.contains(glyphLayout.codepoint)) {
+            found = false;
+          }
+          else {
+            alreadyExist = false;
+          }
+        }
+        if (alreadyExist) break;
+        else if (found && posToAdd == nullptr) {
+          posToAdd = &posSubtable;
+        }
+      }
+    }
+
+    if (alreadyExist) continue;
+
+    /*
+    if (posToAdd) {
+      for (int i = 0; i < seqLength; i++) {
+        auto& glyphLayout = line.glyphs[basesIndexes.first() + i];
+        (*posToAdd)[i].set.insert(glyphLayout.codepoint);
+        auto find = subLookupKerns.find((*posToAdd)[i].lookupName);
+        if (find != subLookupKerns.end()) {
+          find->second.insert(glyphLayout.codepoint);
+        }
+      }
+    }
+    else {*/
+    QVector<GlyphPos> posSubtable;
+    for (int i = 0; i < seqLength; i++) {
+      auto& glyphLayout = line.glyphs[basesIndexes.first() + i];
+      GlyphPos glyphPos;
+
+      glyphPos.set.insert(glyphLayout.codepoint);
+      /*
+      glyphPos.lookupName = QString("adjustoverlap.l%1").arg(subLookupNumber++);
+      subLookupKerns.insert({ glyphPos.lookupName  ,{glyphLayout.codepoint} });
+      posSubtable.append(glyphPos);*/
+
+      auto find = false;
+      for (auto& sublookup : subLookupKerns) {
+        auto res = sublookup.second.find(glyphLayout.codepoint);
+        if (res == sublookup.second.end()) {
+          glyphPos.lookupName = sublookup.first;
+          find = true;
+          sublookup.second.insert(glyphLayout.codepoint);
+          break;
+        }
+      }
+      if (!find) {
+        glyphPos.lookupName = QString("adjustoverlap.l%1").arg(subLookupNumber++);
+        subLookupKerns.insert({ glyphPos.lookupName ,{glyphLayout.codepoint} });
+      }
+      posSubtable.append(glyphPos);
+    }
+
+    posSubtables.append(posSubtable);
+    //}
+
+
+    /* marktobase
+    QString subtable = "  pos";
+
+    QString baseSegment;
+    QString classMarks;
+
+    QString sublookupName = QString("adjustoverlap.l%1").arg(subLookupNumber++);
+
+    QString sublookup = "  lookup " + sublookupName + " {\n";
+
+    GlyphLayoutInfo baseLayout;
+
+    QSet<int> marks;
+
+    for (int i = basesIndexes.first(); i <= lastIndex; i++) {
+      auto& glyphLayout = line.glyphs[i];
+      QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+
+      subtable += " " + glyphName + "'";
+      if (basesIndexes.contains(i)) {
+        if (!classMarks.isEmpty()) {
+          sublookup += "    " + baseSegment + classMarks + ";\n";
+        }
+        baseSegment = "pos base " + glyphName;
+        classMarks = "";
+        baseLayout = glyphLayout;
+        marks.clear();
+      }
+      else {
+
+        if (!marks.contains(glyphLayout.codepoint)) {
+          classMarks += QString(" <anchor %1 %2> markClass %3 <anchor %4 %5> @%3")
+            .arg(glyphLayout.x_offset - baseLayout.x_offset)
+            .arg(glyphLayout.y_offset - baseLayout.y_offset)
+            .arg(glyphName)
+            .arg(0)
+            .arg(0);
+          subtable += "lookup " + sublookupName;
+          marks.insert(glyphLayout.codepoint);
+        }
+        else {
+          std::cout << "Inner lookup " << sublookupName.toStdString() << " has duplicate mark " << glyphName.toStdString() << std::endl;
+        }
+
+      }
+    }
+
+    if (!classMarks.isEmpty()) {
+      sublookup += "    " + baseSegment + classMarks + ";\n";
+    }
+
+    sublookup += "  } " + sublookupName + ";\n";
+
+    subLookups += sublookup;
+
+    subtable += ";\n";
+
+    mainLookup << subtable;*/
+
+  }
+
+  int nbWordbyline = 0;
+  for (auto& word : words) {
+    out << word;
+    nbWordbyline++;
+    if (nbWordbyline == 6) {
+      out << '\n';
+      nbWordbyline = 0;
+    }
+    else {
+      out << ' ';
+    }
+  }
+
+  out << '\n';
+  if (kern) {
+    for (auto& subLookupKern : subLookupKerns) {
+      auto lookupName = subLookupKern.first; // QString("adjustoverlap.l%1").arg(subLookupKern.first);
+      QString sublookup = "  lookup " + lookupName + " {\n";
+      for (auto& codepoint : subLookupKern.second) {
+        QString glyphName = m_otlayout->glyphNamePerCode[codepoint];
+        sublookup += "    pos /^" + glyphName + "([.]added_.*)$/ <0 0 0 0>;\n";
+      }
+      sublookup += "  } " + lookupName + ";\n";
+      subLookups += sublookup;
+    }
+  }
+
+  std::sort(posSubtables.begin(), posSubtables.end(), [](const QVector<GlyphPos>& a, const QVector<GlyphPos>& b) {
+    return a.size() > b.size();
+  });
+
+  QString mainLookup;
+  for (auto& posSubtable : posSubtables) {
+    QString posLine = "  pos";
+    for (auto glyphPos : posSubtable) {
+      if (glyphPos.set.size() > 1) {
+        posLine += " [";
+      }
+
+      for (auto glyph : glyphPos.set) {
+        QString glyphName = m_otlayout->glyphNamePerCode[glyph];
+        posLine += " /^" + glyphName + "([.]added_.*)$?/";
+      }
+      if (glyphPos.set.size() > 1) {
+        posLine += "]";
+      }
+      posLine += "'";
+      if (!glyphPos.lookupName.isEmpty()) {
+        posLine += "lookup " + glyphPos.lookupName;
+      }
+    }
+    posLine += ";\n";
+    mainLookup += posLine;
+  }
+
+
+  out << "lookup adjustoverlap {" << '\n';
+  out << "  feature mkmk;\n";
+  out << subLookups;
+  out << mainLookup;
+  out << "} adjustoverlap;" << '\n';
+
+
+
+
+  file.close();
+}
 
 
 

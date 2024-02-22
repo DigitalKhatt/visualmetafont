@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -25,126 +25,135 @@
 #include <QPainter>
 #include <QStyleOption>
 
-PairItem::PairItem(Glyph::Param param, Glyph* glyph, QGraphicsItem *parent):QGraphicsItem(parent){
-	this->glyph = glyph;
-	this->param = param;
-	setFlags(ItemIsMovable | ItemIsSelectable);	
-	setCacheMode(DeviceCoordinateCache);	
-	
-	setToolTip(param.name);
+PairItem::PairItem(Glyph::Param& param, Glyph* glyph, QGraphicsItem* parent) :QGraphicsItem(parent), param{ param } {
+  this->glyph = glyph;  
+  setFlags(ItemIsMovable | ItemIsSelectable);
+  setCacheMode(DeviceCoordinateCache);
 
-	
+  setToolTip(param.name);
 
-	if (param.type == Glyph::direction) {
-		setPos(100, 100);
-	}
 
-	QColor col = QColor(4, 100, 166);
-	this->pen = QPen(col);
-	this->pen.setCosmetic(true);
-	this->pen.setWidthF(1.5);
+  QColor col = QColor(4, 100, 166);
+  this->pen = QPen(col);
+  this->pen.setCosmetic(true);
+  this->pen.setWidthF(1.5);
 
-	this->brush = Qt::white;
-	radius = 4;
-	
+  this->brush = Qt::white;
+  radius = 4;
+
 }
 
 QRectF PairItem::boundingRect() const
-{	
-	QRectF rect = QRectF(-radius, -radius, 2 * radius, 2 * radius);
+{
+  QRectF rect = QRectF(-radius, -radius, 2 * radius, 2 * radius);
 
-	/*
-	if (scene()) {
-		if (!scene()->views().isEmpty()) {
-			QGraphicsView* view = scene()->views().first();
-			double radiusScene = view->mapToScene(QRect(-radius, -radius, 2 * radius, 2 * radius)).boundingRect().width() / 2;
-			rect = QRectF(-radiusScene, -radiusScene, 2 * radiusScene, 2 * radiusScene);
-		}
+  /*
+  if (scene()) {
+    if (!scene()->views().isEmpty()) {
+      QGraphicsView* view = scene()->views().first();
+      double radiusScene = view->mapToScene(QRect(-radius, -radius, 2 * radius, 2 * radius)).boundingRect().width() / 2;
+      rect = QRectF(-radiusScene, -radiusScene, 2 * radiusScene, 2 * radiusScene);
+    }
 
-	}*/
+  }*/
 
-	if (scene()) {
-		if (!scene()->views().isEmpty()) {
-			QGraphicsView* view = scene()->views().first();
-			double ratio = view->physicalDpiX() / 96.0;
-			double radiusScene = view->mapToScene(QRect(-radius * ratio, -radius * ratio, 2 * radius*ratio, 2 * radius*ratio)).boundingRect().width() / 2;
-			rect = QRectF(-radiusScene, -radiusScene, 2 * radiusScene, 2 * radiusScene);
-		}
-	}
+  if (scene()) {
+    if (!scene()->views().isEmpty()) {
+      QGraphicsView* view = scene()->views().first();
+      double ratio = view->physicalDpiX() / 96.0;
+      double radiusScene = view->mapToScene(QRect(-radius * ratio, -radius * ratio, 2 * radius * ratio, 2 * radius * ratio)).boundingRect().width() / 2;
+      rect = QRectF(-radiusScene, -radiusScene, 2 * radiusScene, 2 * radiusScene);
+    }
+  }
 
-	return rect;
-	
+  return rect;
+
 }
 
 QPainterPath PairItem::shape() const
 {
-	QPainterPath path;
+  QPainterPath path;
 
-	path.addEllipse(boundingRect());
+  path.addEllipse(boundingRect());
 
-	return path;
+  return path;
 }
-void PairItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
+void PairItem::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
 {
-	QPointF diff = event->pos() - event->lastPos();
+  QPointF diff = event->pos() - event->lastPos();  
 
-	QPointF pair = glyph->property(param.name.toLatin1()).toPointF() +  diff;
+  
+  auto scene = (GlyphScene*)this->scene();
 
-	if(param.type == Glyph::expression){
-		auto exp = glyph->expressions.value(param.name);
-		exp->setConstantValue(pair);
-	}
+  int position = scene->getControlledPosition(event);
 
-	glyph->setProperty(param.name.toLatin1(), pair);
+  auto expr = param.expr.get();
+  if (expr->isConstant(position)) {
+    QPoint pair = expr->constantValue(position).toPoint() + diff.toPoint();
+    expr->setConstantValue(position, pair);
+    glyph->setProperty(param.name.toLatin1(), pair);
+  }
+
+
+  
+  /*
+  QPointF pair = glyph->property(param.name.toLatin1()).toPointF() + diff;
+
+
+  auto exp = glyph->expressions.value(param.name);
+  exp->setConstantValue(0, pair);
+
+
+  glyph->setProperty(param.name.toLatin1(), pair);*/
 }
-void PairItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *)
+void PairItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget*)
 {
 
-	if (isSelected()) {
-		painter->setBrush(this->pen.color());
-		painter->setPen(this->pen);
-	}
-	else {
-		if (flags() & ItemIsMovable) {
-			painter->setBrush(this->brush);
-			painter->setPen(this->pen);
-		}
-		else {
-			painter->setBrush(Qt::gray);
-			painter->setPen(Qt::gray);
-		}
+  if (isSelected()) {
+    painter->setBrush(this->pen.color());
+    painter->setPen(this->pen);
+  }
+  else {
+    if (flags() & ItemIsMovable) {
+      painter->setBrush(this->brush);
+      painter->setPen(this->pen);
+    }
+    else {
+      painter->setBrush(Qt::gray);
+      painter->setPen(Qt::gray);
+    }
 
-	}
+  }
 
-	painter->drawEllipse(boundingRect());
-	
-	/*
-	if (!isSelected()) {
+  painter->drawEllipse(boundingRect());
 
-		QColor selectionColor(Qt::black);
-		selectionColor.setAlphaF(0.2);
+  /*
+  if (!isSelected()) {
 
-		QPen pen(selectionColor);
-		pen.setWidth(2);
-		pen.setCosmetic(true);
+    QColor selectionColor(Qt::black);
+    selectionColor.setAlphaF(0.2);
 
-		painter->setPen(pen);
-		painter->drawEllipse(boundingRect());
+    QPen pen(selectionColor);
+    pen.setWidth(2);
+    pen.setCosmetic(true);
 
-		QColor color(Qt::black);
-		color.setAlphaF(0.2);
+    painter->setPen(pen);
+    painter->drawEllipse(boundingRect());
 
-		painter->setPen(Qt::NoPen);
-		painter->setBrush(color);
-		painter->drawEllipse(boundingRect());
-	}
-	else {
-		painter->setPen(Qt::NoPen);
-		painter->setBrush(Qt::darkGray);
-		painter->drawEllipse(boundingRect());
-	}*/
+    QColor color(Qt::black);
+    color.setAlphaF(0.2);
+
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(color);
+    painter->drawEllipse(boundingRect());
+  }
+  else {
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(Qt::darkGray);
+    painter->drawEllipse(boundingRect());
+  }*/
 }
 
 PairItem::~PairItem() {
-	
+
 }

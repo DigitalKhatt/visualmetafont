@@ -56,12 +56,13 @@
 #include <QtCore/qmath.h>
 #include <fstream>
 #include "metafont.h"
+#include "automedina/digitalkhatt.h"
+#include "automedina/oldmadina.h"
+
+#include <cfenv>
 
 
-
-
-
-int OtLayout::SCALEBY = 8;
+int OtLayout::SCALEBY = 0;
 double OtLayout::EMSCALE = 1;
 int OtLayout::MINSPACEWIDTH = 0;
 int OtLayout::SPACEWIDTH = 75;
@@ -233,9 +234,9 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
 
     auto xadvance = hbFont->em_scale_x(pglyph->width);
 
-    
 
-    
+
+
     double advance = pglyph->width;
     //return advance; // floatToHarfBuzzPosition(advance);
     int upem = 1000;
@@ -487,12 +488,15 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
 
     char			prevName[64];
     hb_font_get_glyph_name(font, prev_info.codepoint, prevName, sizeof(prevName));
-    if (QString(prevName).contains(".expa")) {
-      curr_info.lefttatweel = 0.1 + 0.3 * prev_info.lefttatweel;
+    if (QString(prevName) == "behshape.medi.expa") {
+      curr_info.lefttatweel = (std::min)(prev_info.lefttatweel, 1.5);
+    }
+    else if (QString(prevName).contains(".expa")) {
+      curr_info.lefttatweel = 1.5;
 
     }
     else {
-      curr_info.lefttatweel = prev_info.lefttatweel;
+      //curr_info.lefttatweel = 0.07 + 0.1 * prev_info.lefttatweel;
     }
 
     auto& curr_glyph = *layout->getGlyph(curr_info.codepoint);
@@ -917,11 +921,12 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
   root.append(scriptList);
   root.append(featureList);
 
-
-
   quint16 lookupCount = lookups.size();
 
   quint32 lookupListtotalSize = 2 + 2 * lookupCount;
+
+  int nbSubtablekt01expa1 = 0;
+
   for (int i = 0; i < lookups.size(); ++i) {
 
     Lookup* lookup = lookups.at(i);
@@ -929,6 +934,16 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
     auto subtables = lookup->getSubtables(extended);
 
     quint32 nb_subtables = subtables.size();
+
+    if (lookup->name == "kt01.expa.1") {
+      nbSubtablekt01expa1 = nb_subtables;
+    }
+
+    auto expaLookup = lookup->name == "kt02.expa.1" || lookup->name == "kt03.expa.1" || lookup->name == "kt04.expa.1" || lookup->name == "kt05.expa.1";
+
+    if (expaLookup) {
+      nb_subtables = nbSubtablekt01expa1;
+    }
 
     //lookup header
     lookupListtotalSize += 2 + 2 + 2 + 2 * nb_subtables;
@@ -952,13 +967,21 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
 
   quint32 subtablesOffset = lookupListtotalSize;
 
+  std::vector<quint32> subtablesOffsetkt01expa1;
+
   for (int i = 0; i < lookups.size(); ++i) {
 
     Lookup* lookup = lookups.at(i);
 
+    auto expaLookup = lookup->name == "kt02.expa.1" || lookup->name == "kt03.expa.1" || lookup->name == "kt04.expa.1" || lookup->name == "kt05.expa.1";
+
     auto subtables = lookup->getSubtables(extended);
 
     quint32 nb_subtables = subtables.size();
+
+    if (expaLookup) {
+      nb_subtables = nbSubtablekt01expa1;
+    }
 
     QByteArray lookupArray;
 
@@ -971,52 +994,57 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
     if (lookup->markGlyphSetIndex != -1) {
       debutsequence += 2;
     }
-    //QByteArray temp = lookup->getSubtables();
+
     QByteArray exttables_array;
-
-
-    //std::cout << "GSUB=" << isgsub << ";lookupIndex=" << i << ";Lookup=" << lookup->name.toStdString() << std::endl;
 
 
     for (int i = 0; i < nb_subtables; ++i) {
 
 
-      auto& subtable = subtables.at(i);
+
       lookupArray << debutsequence;
-
-
-
-
-
-
 
 
       quint16 lookuptype = (quint16)lookup->type;
 
-      exttables_array << (quint16)1 << lookuptype << (quint32)(subtablesOffset - (beginoffset + debutsequence));
+      if (lookup->name == "kt01.expa.1") {
+        subtablesOffsetkt01expa1.push_back(subtablesOffset);
+      }
 
-
-      QByteArray subtableArray;
-
-      if (!extended && subtable->isConvertible()) {
-        subtableArray = subtable->getConvertedOpenTypeTable();
+      if (expaLookup) {
+        exttables_array << (quint16)1 << lookuptype << (quint32)(subtablesOffsetkt01expa1[i] - (beginoffset + debutsequence));
       }
       else {
-        subtableArray = subtable->getOptOpenTypeTable(extended);
+
+        exttables_array << (quint16)1 << lookuptype << (quint32)(subtablesOffset - (beginoffset + debutsequence));
+
+        QByteArray subtableArray;
+
+        auto& subtable = subtables.at(i);
+
+        if (!extended && subtable->isConvertible()) {
+          subtableArray = subtable->getConvertedOpenTypeTable();
+        }
+        else {
+          subtableArray = subtable->getOptOpenTypeTable(extended);
+        }
+
+
+
+
+        if (lookup->type != Lookup::fsmgsub && subtableArray.size() > 0xFFFF) {
+          std::cout << lookup->name.toStdString() << " : Subtable " << subtable->name.toStdString() << " exceeds the limit of 64K" << std::endl;
+          //throw std::runtime_error{ "Subtable exeeded the limit of 64K" };
+        }
+
+
+
+        subtablesArray.append(subtableArray);
+
+        subtablesOffset += subtableArray.size();
       }
 
 
-     
-
-      if (lookup->type != Lookup::fsmgsub && subtableArray.size() > 0xFFFF) {
-        throw std::runtime_error{ "Subtable exeeded the limit of 64K" };
-      }
-
-
-
-      subtablesArray.append(subtableArray);
-
-      subtablesOffset += subtableArray.size();
 
       debutsequence += 8;
     }
@@ -1115,7 +1143,17 @@ OtLayout::OtLayout(MP mp, bool extended, QObject * parent) :QObject(parent), fsm
 
   this->mp = mp;
 
-  automedina = new Automedina(this, mp, extended);
+  if (strcmp(mp->job_name, "digitalkhatt") == 0) {
+    automedina = new digitalkhatt(this, mp, extended);
+  }
+  else if (strcmp(mp->job_name, "oldmadina") == 0) {
+    automedina = new OldMadina(this, mp, extended);
+  }
+  else {
+    throw new std::runtime_error("invalid font");
+  }
+
+
 
   nuqta();
 
@@ -1428,7 +1466,7 @@ void OtLayout::addClass(QString name, QSet<QString> set) {
   }
   automedina->classes[name] = set;
 }
-hb_font_t* OtLayout::createFont(int emScale, bool newFace)
+hb_font_t* OtLayout::createFont(double emScale, bool newFace)
 {
   int upem = 1000;
 
@@ -1688,7 +1726,7 @@ void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableI
 }
 #endif
 
-void OtLayout::applyJustFeature(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, int emScale) {
+void OtLayout::applyJustFeature(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, double emScale) {
 
   if (!this->allGsubFeatures.contains(feature))
     return;
@@ -1936,7 +1974,7 @@ void OtLayout::applyJustFeature(hb_buffer_t * buffer, bool& needgpos, double& di
 
 }
 
-void OtLayout::applyJustFeature_old(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, int emScale) {
+void OtLayout::applyJustFeature_old(hb_buffer_t * buffer, bool& needgpos, double& diff, QString feature, hb_font_t * shapefont, double nuqta, double emScale) {
 
   if (!this->allGsubFeatures.contains(feature))
     return;
@@ -2171,7 +2209,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t * buffer, bool& needgpos, double
 
 }
 
-void OtLayout::jutifyLine_old(hb_font_t * shapefont, hb_buffer_t * text_buffer, int lineWidth, int emScale, bool tajweedColor) {
+void OtLayout::jutifyLine_old(hb_font_t * shapefont, hb_buffer_t * text_buffer, int lineWidth, double emScale, bool tajweedColor) {
 
   const int minSpace = OtLayout::MINSPACEWIDTH * emScale;
   const int  defaultSpace = OtLayout::SPACEWIDTH * emScale;
@@ -2346,7 +2384,7 @@ void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int 
 
 }
 
-QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification,
+QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification,
   bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level) {
 
   QList<LineLayoutInfo> page;
@@ -2381,7 +2419,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
     bool first = true;
     bool overfull = false;
     currentFont = shapefont;
-    int fontSize = emScale;
+    double fontSize = emScale;
 
     uint glyph_count;
 
@@ -2487,7 +2525,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
         if (lineLayout.overfull > 0) {
           double ratio = (double)lineWidth / currentlineWidth;
           if (ratio > 0.01) {
-            fontSize = std::floor((double)emScale * ratio);
+            fontSize = emScale * ratio;
             currentFont = this->createFont(fontSize, false);
             overfull = true;
             continue;
@@ -2508,8 +2546,373 @@ QList<LineLayoutInfo> OtLayout::justifyPage(int emScale, int lineWidth, int page
 
 }
 
-LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t  cluster_level) {
+QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, int nbPages) {
 
+  QSet<int> forcedBreaks;
+
+  QString suraWord = "سُورَةُ";
+  QString bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
+
+  QString surapattern = "^("
+    + suraWord + " .*|"
+    + bism
+    + "|" + "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+    + ")$";
+
+  QList<QString> suraNames;
+
+  QRegularExpression suraRe(surapattern, QRegularExpression::MultilineOption);
+  QRegularExpressionMatchIterator i = suraRe.globalMatch(text);
+  while (i.hasNext()) {
+    QRegularExpressionMatch match = i.next();
+    int startOffset = match.capturedStart(); // startOffset == 6
+    int endOffset = match.capturedEnd(); // endOffset == 9
+    forcedBreaks.insert(endOffset);
+    forcedBreaks.insert(startOffset - 1);
+  }
+
+  text = text.replace(char(10), char(32));
+  text = text.replace(bism + char(32), bism + char(10));
+
+
+  return pageBreak(emScale, lineWidth, pageFinishbyaVerse, text, forcedBreaks, nbPages);
+
+}
+QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, QSet<int> forcedBreaks, int nbPages) {
+
+  typedef long ParaWidth;
+
+  struct Candidate {
+    size_t index;  // index int the text buffer
+    int prev = -1;  // index to previous break
+    int totalWidth = 0;  // width of text until this point, if we decide to break here
+    double  totalDemerits = 0.0;  // best demerits found for this break (index) and lineNumber
+    size_t lineNumber = 0;  // only updated for non-constant line widths
+    size_t pageNumber = 1;
+    size_t totalSpaces = 0;  // preceding space count after breaking
+  };
+
+
+  constexpr double DEMERITS_INFTY = std::numeric_limits<double>::max();
+
+  hb_buffer_t* buffer = buffer = hb_buffer_create();
+
+  hb_buffer_set_direction(buffer, HB_DIRECTION_RTL);
+  hb_buffer_set_script(buffer, HB_SCRIPT_ARABIC);
+  hb_buffer_set_language(buffer, hb_language_from_string("ar", strlen("ar")));
+  hb_buffer_set_cluster_level(buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+
+  buffer->useCallback = !useNormAxisValues;
+
+
+  hb_font_t* font = this->createFont(emScale);
+
+  hb_buffer_add_utf16(buffer, text.utf16(), text.size(), 0, text.size());
+
+  hb_shape(font, buffer, NULL, 0);
+
+
+  uint glyph_count;
+
+  const int spaceWidth = 100 * emScale;
+  const int maxStretch = 100 * emScale;
+  const int maxShrink = 50 * emScale;
+
+  //ParaWidth lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+
+  hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
+  hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
+
+
+
+  ParaWidth totalWidth = 0;
+  int totalSpaces = 0;
+  std::vector<int> actives;
+  std::vector<Candidate> candidates;
+
+  candidates.push_back({});
+  Candidate* initCand = &candidates.back();
+
+  initCand->pageNumber = 1;
+  initCand->lineNumber = 0;
+  initCand->index = glyph_count;
+  initCand->prev = -1;
+
+  actives.push_back(0);
+
+  auto sortActives = [&candidates](const int& a, const int& b) {
+    if (candidates[a].pageNumber < candidates[b].pageNumber) {
+      return true;
+    }
+    else if (candidates[a].pageNumber > candidates[b].pageNumber) {
+
+      return false;
+    }
+    else {
+      return candidates[a].lineNumber < candidates[b].lineNumber;
+    }
+
+  };
+
+  for (int i = glyph_count - 1; i >= 0; i--) {
+
+    if (glyph_info[i].codepoint != 10 && glyph_info[i].codepoint != 0x20) {
+      totalWidth += glyph_pos[i].x_advance;
+      continue;
+    }
+
+    double penalty = 0;
+
+    //check nextglyph equal aya and set penalty
+    if (i != 0 && glyphNamePerCode[glyph_info[i - 1].codepoint].contains("aya")) {
+      // avoid break
+      penalty = 500;
+    }
+    //check previous glyph eual aya and set penalty
+    else if (i != glyph_count - 1 && glyphNamePerCode[glyph_info[i + 1].codepoint].contains("aya")) {
+      // prefer break
+      penalty = -1;
+    }
+
+    auto forcedBreak = forcedBreaks.contains(glyph_info[i].cluster);
+
+    totalSpaces++;
+
+    QHash<int, Candidate> potcandidates;
+
+    auto activeit = actives.begin();
+    while (activeit != actives.end()) {
+
+      auto active = &candidates.at(*activeit);
+
+      // must terminate a page with end of aya
+      // A page has always 15 lines
+      if (pageFinishbyaVerse) {
+        if (active->lineNumber == 14 && !(glyph_info[i + 1].codepoint >= Automedina::AyaNumberCode && glyph_info[i + 1].codepoint <= Automedina::AyaNumberCode + 286)) {
+          activeit++;
+          continue;
+        }
+      }
+
+      // calculate adjustment ratio
+      double adjRatio = 0.0;
+      if (nbPages <= 0) {
+        int nbSpaces = totalSpaces - active->totalSpaces - 1;
+        ParaWidth width = (totalWidth - active->totalWidth) + nbSpaces * spaceWidth;
+        if (width < lineWidth) { // short line
+          adjRatio = (lineWidth - width) / (nbSpaces * maxStretch);
+        }
+        else if (width > lineWidth) { // a long line
+          adjRatio = (lineWidth - width) / (nbSpaces * maxShrink);
+        }
+
+        if (adjRatio < -1) {
+          activeit = actives.erase(activeit);
+          continue;
+        }
+      }
+      else {
+        int nbSpaces = totalSpaces - active->totalSpaces - 1;
+        auto wordsWidth = (totalWidth - active->totalWidth);
+        ParaWidth width = wordsWidth + nbSpaces * (spaceWidth);
+        //ParaWidth width = wordsWidth + nbSpaces * (200 * emScale);
+        double maxLineStretch = 0.05 * wordsWidth + nbSpaces * maxStretch;
+        double maxLineShrink = 0.01 * wordsWidth + nbSpaces * maxShrink;
+        if (width < lineWidth) { // short line
+          adjRatio = (lineWidth - width) / (maxLineStretch);
+        }
+        else if (width > lineWidth) { // a long line
+          adjRatio = (lineWidth - width) / (maxLineShrink);
+          if (adjRatio < -1) {
+            //adjRatio = lineWidth - width;
+          }
+        }
+        //std::cout << "lineWidth=" << lineWidth << ", maxLineShrink=" << maxLineShrink << ", width=" << width << ", adjRatio=" << adjRatio << std::endl;
+        /*
+        if (adjRatio < -100) {
+          activeit = actives.erase(activeit);
+          continue;
+        }*/
+      }
+
+      std::feclearexcept(FE_ALL_EXCEPT);
+
+      double demerits = 0;
+      double badness = 100 * std::pow(std::abs(adjRatio), 3);
+      if (penalty >= 0) {
+        demerits = (1 + std::pow(badness + penalty, 2));
+      }
+      else {
+        demerits = (1 + std::pow(badness, 2) - std::pow(penalty, 2));
+      }
+
+      if ((bool)std::fetestexcept(FE_OVERFLOW) || (bool)std::fetestexcept(FE_UNDERFLOW)) {
+        throw "Error";
+      }
+
+      double totalDemerits = active->totalDemerits + demerits;
+
+      /*
+                qDebug() << "index : " << active->index
+                    << ", lineNumber : " << active->lineNumber
+                    << ", pageNumber : " << active->pageNumber
+                    << ", totalSpaces : " << active->totalSpaces
+                    << ", totalWidth : " << active->totalWidth
+                    << ",active->totalDemerits : " << active->totalDemerits
+                    << ",demerits : " << demerits
+                    << ",totalDemerits : " << totalDemerits
+                    << ",currentIndex : " << i;*/
+
+
+      if ((bool)std::fetestexcept(FE_OVERFLOW) || (bool)std::fetestexcept(FE_UNDERFLOW)) {
+        throw "Error";
+      }
+
+      int lineNumber = active->lineNumber + 1;
+      int pageNumber = active->pageNumber;
+
+      if (lineNumber == 16) {
+        lineNumber = 1;
+        pageNumber = pageNumber + 1;
+      }
+
+      int key = lineNumber;
+
+      if (nbPages > 0) {
+        key = (pageNumber - 1) * 15 + lineNumber;
+      }
+
+
+      if (!potcandidates.contains(key) || potcandidates[key].totalDemerits > totalDemerits) {
+
+
+        potcandidates[key] = {};
+
+        Candidate* cand = &potcandidates[key];
+
+
+        cand->lineNumber = lineNumber;
+        cand->pageNumber = pageNumber;
+
+        cand->index = i;
+        cand->totalSpaces = totalSpaces;
+        cand->totalWidth = totalWidth;
+        cand->totalDemerits = totalDemerits;
+        cand->prev = *activeit;
+
+
+      }
+
+      if (nbPages > 0 && nbPages != 1) {
+        if (potcandidates.size() > 30 * 15) break;
+      }
+
+      activeit++;
+    }
+
+    if (forcedBreak) {
+      actives.clear();
+    }
+
+    for (auto& cand : potcandidates) {
+      actives.push_back(candidates.size());
+      candidates.push_back(cand);
+    }
+    std::sort(actives.begin(), actives.end(), sortActives);
+  }
+
+  Candidate* bestCandidate = nullptr;
+
+  double best = DEMERITS_INFTY;
+  for (auto activenum : actives) {
+    auto active = &candidates.at(activenum);
+    //qDebug() << "index : " << active->index << ", lineNumber : " << active->lineNumber << "Total demerits : " << active->totalDemerits;
+    if (active->index == 0 && active->totalDemerits < best && active->lineNumber == 15 && (!(nbPages > 0) || active->pageNumber == nbPages)) {
+      best = active->totalDemerits;
+      bestCandidate = active;
+    }
+
+  }
+
+  if (bestCandidate == nullptr) {
+    return {};
+  }
+
+
+  QStringList originalPage;
+  QList<QStringList> originalPages;
+
+
+  auto cand = bestCandidate;
+  int currentpageNumber = bestCandidate->pageNumber;
+
+  //std::cout << std::fixed << "lineWidth=" << lineWidth << ",spaceWidth=" << spaceWidth << ",maxStretch=" << maxStretch << ",maxShrink=" << maxShrink << std::endl;
+
+  while (cand->prev != -1) {
+
+    auto prev = &candidates.at(cand->prev);
+
+    int beginIndex = prev->index - 1;
+    int endIndex = cand->index + 1;
+
+    QString originalLine;
+
+    originalLine.append(text.mid(glyph_info[prev->index - 1].cluster, glyph_info[cand->index].cluster - glyph_info[prev->index - 1].cluster));
+
+    /*
+    int currentcluster = glyph_info[beginIndex].cluster;
+    int currentnewcluster = 0;
+
+    for (int i = beginIndex; i >= endIndex; i--) {
+
+      if (glyph_info[i].cluster != currentcluster) {
+        int clusternb = glyph_info[i].cluster - currentcluster;
+        originalLine.append(text.mid(currentcluster, clusternb));
+        currentcluster = glyph_info[i].cluster;
+        currentnewcluster += clusternb;
+      }
+
+    }*/
+
+    //originalLine.append(text.mid(currentcluster, glyph_info[endIndex - 1].cluster - currentcluster));
+
+    if (cand->pageNumber == currentpageNumber) {
+      originalPage.prepend(originalLine);
+    }
+    else {
+      currentpageNumber--;
+      originalPages.prepend(originalPage);
+      originalPage.clear();
+      originalPage.append(originalLine);
+
+    }
+
+    /*
+    int nbSpaces = cand->totalSpaces - prev->totalSpaces - 1;
+    auto wordsWidth = (cand->totalWidth - prev->totalWidth);
+    ParaWidth width = wordsWidth + nbSpaces * (spaceWidth);
+
+    std::cout << std::fixed << "pageNumber=" << cand->pageNumber << ",lineNumber=" << cand->lineNumber << ",demerits=" << cand->totalDemerits - prev->totalDemerits
+      << ",totalDemerits=" << cand->totalDemerits
+      << ",nbSpaces=" << nbSpaces
+      << ",wordsWidth=" << cand->totalWidth - prev->totalWidth
+      << ",currLineWidth=" << width
+      << std::endl;*/
+
+
+    cand = prev;
+  }
+
+
+  originalPages.prepend(originalPage);
+
+  return originalPages;
+
+}
+
+LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t  cluster_level) {
+
+  bool use20_604_Format = true;
 
   bool isQurancomplex = false;
 
@@ -2539,9 +2942,8 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
   QString quran;
 
-  for (int i = 2; i < lastPage; i++) {
-    //for (int i = 581; i < 604; i++) {
-    //for (int i = 1; i < 2; i++) {
+  //for (int i = 2; i < lastPage; i++) {
+  for (int i = 581; i < 600; i++) {
     //const char * text = qurantext[i];
     const char* tt;
 
@@ -2639,9 +3041,9 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
   uint glyph_count;
 
-  const int minSpaceWidth = 50 * emScale;
-  const int spaceWidth = 75 * emScale;
-  const int maxSpaceWidth = 100 * emScale;
+  const int spaceWidth = 100 * emScale;
+  const int maxStretch = 100 * emScale;
+  const int maxShrink = 50 * emScale;
 
   //ParaWidth lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
@@ -2659,6 +3061,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
   Candidate* initCand = &candidates.back();
 
   initCand->pageNumber = 1;
+  initCand->lineNumber = 0;
   initCand->index = glyph_count;
   initCand->prev = -1;
 
@@ -2691,20 +3094,41 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
       // calculate adjustment ratio
       double adjRatio = 0.0;
-      int spaces = totalSpaces - active->totalSpaces;
-      ParaWidth width = (totalWidth - active->totalWidth) + spaces * spaceWidth;
-      if (width < lineWidth) {
-        adjRatio = (lineWidth - width) / (spaces * maxSpaceWidth);
+      if (!use20_604_Format) {
+        int spaces = totalSpaces - active->totalSpaces;
+        ParaWidth width = (totalWidth - active->totalWidth) + spaces * spaceWidth;
+        if (width < lineWidth) { // short line
+          adjRatio = (lineWidth - width) / (spaces * maxStretch);
+        }
+        else if (width > lineWidth) { // a long line
+          adjRatio = (lineWidth - width) / (spaces * maxShrink);
+        }
+
+        if (adjRatio < -1) {
+          activeit = actives.erase(activeit);
+          continue;
+        }
       }
-      else if (width > lineWidth) {
-        adjRatio = (lineWidth - width) / (spaces * minSpaceWidth);
+      else {
+        int spaces = totalSpaces - active->totalSpaces;
+        ParaWidth width = (totalWidth - active->totalWidth) + spaces * spaceWidth;
+        double maxLineStretch = 0.05 * lineWidth;
+        double maxLineShrink = 0.02 * lineWidth;
+        if (width < lineWidth) { // short line
+          adjRatio = (lineWidth - width) / (maxLineStretch);
+        }
+        else if (width > lineWidth) { // a long line
+          adjRatio = (lineWidth - width) / (maxLineShrink);
+        }
+
+        if (adjRatio < -100) {
+          activeit = actives.erase(activeit);
+          continue;
+        }
       }
 
-      if (adjRatio < -1) {
-        activeit = actives.erase(activeit);
-        continue;
-      }
 
+      //if (adjRatio < 160) {
       double demerits = (1 + 100 * std::pow(std::abs(adjRatio), 3));
 
       double totalDemerits = active->totalDemerits + demerits;
@@ -2728,14 +3152,10 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
         pageNumber = pageNumber + 1;
       }
 
-      //int key = (pageNumber - 1)* 15 + lineNumber;
       int key = lineNumber;
 
-      if (potcandidates.contains(key)) {
-        auto& candidate = candidates.at(potcandidates[key]);
-        if (candidate.pageNumber != pageNumber && candidate.totalDemerits > totalDemerits) {
-          //throw "Should not";
-        }
+      if (use20_604_Format) {
+        key = (pageNumber - 1) * 15 + lineNumber;
       }
 
 
@@ -2760,6 +3180,10 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 
       }
 
+      if (use20_604_Format) {
+        if (potcandidates.size() > 30 * 15) break;
+      }
+
       activeit++;
     }
 
@@ -2771,6 +3195,20 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
       actives.push_back(cand);
     }
 
+    std::sort(actives.begin(), actives.end(), [&candidates](const int& a, const int& b) {
+      if (candidates[a].pageNumber < candidates[b].pageNumber) {
+        return true;
+      }
+      else if (candidates[a].pageNumber > candidates[b].pageNumber) {
+
+        return false;
+      }
+      else {
+        return candidates[a].lineNumber < candidates[b].lineNumber;
+      }
+
+    });
+
   }
 
   Candidate* bestCandidate = nullptr;
@@ -2779,7 +3217,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
   for (auto activenum : actives) {
     auto active = &candidates.at(activenum);
     //qDebug() << "index : " << active->index << ", lineNumber : " << active->lineNumber << "Total demerits : " << active->totalDemerits;
-    if (active->index == 0 && active->totalDemerits < best && active->lineNumber == 15) {
+    if (active->index == 0 && active->totalDemerits < best && active->lineNumber == 15 && (!use20_604_Format || active->pageNumber == 18)) {
       best = active->totalDemerits;
       bestCandidate = active;
     }
@@ -2824,10 +3262,17 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
     int totalSpaces = cand->totalSpaces - prev->totalSpaces - 1;
     int totalWidth = cand->totalWidth - prev->totalWidth;
 
-    int spaceaverage = (lineWidth - totalWidth) / totalSpaces;
-    if (spaceaverage < minSpaceWidth) {
-      spaceaverage = minSpaceWidth;
+    int minSpaceWidth = spaceWidth - maxStretch;
+
+    int spaceaverage = minSpaceWidth;
+
+    if (totalSpaces != 0) {
+      spaceaverage = (lineWidth - totalWidth) / totalSpaces;
+      if (spaceaverage < minSpaceWidth) {
+        spaceaverage = minSpaceWidth;
+      }
     }
+
 
     LineLayoutInfo lineLayout;
 
@@ -3102,7 +3547,7 @@ LayoutPages OtLayout::pageBreak(int emScale, int lineWidth, bool pageFinishbyaVe
 }
 int OtLayout::AlternatelastCode = 0xF0000;
 std::unordered_map<GlyphParameters, GlyphVis*>& OtLayout::getSubstEquivGlyphs(int glyphCode) {
-  return substEquivGlyphs[glyphCode];
+  return substEquivGlyphs[glyphCode];  
 }
 GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph, bool addToEquivSubst) {
 
@@ -3133,7 +3578,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
   if (!extended && glyph->name.contains(".added_")) {
     auto originalGlyph = glyph->originalglyph;
     parameters.lefttatweel += glyph->charlt;
-    parameters.righttatweel += glyph->charrt;    
+    parameters.righttatweel += glyph->charrt;
 
     glyph = &glyphs[originalGlyph];
 
@@ -3155,6 +3600,24 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
     else if (parameters.righttatweel > expnadable->second.maxRight) {
       parameters.righttatweel = expnadable->second.maxRight;
     }
+  }
+  else {
+    //std::cout << glyph->name.toStdString() << " is not expandable" << std::endl;
+    return nullptr;
+
+    /*
+    if (parameters.lefttatweel < -0.5) {
+      parameters.lefttatweel = -0.5;
+    }
+    else if (parameters.lefttatweel > 20) {
+      parameters.lefttatweel = 20;
+    }
+    if (parameters.righttatweel < -0.5) {
+      parameters.righttatweel = -0.5;
+    }
+    else if (parameters.righttatweel > 20) {
+      parameters.righttatweel = 20;
+    }*/
   }
 
   cachedGlyphs = !generateNewGlyph ? &tempGlyphs[glyphCode] : &addedGlyphs[glyphCode];
@@ -3213,21 +3676,27 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
     glyphNamePerCode[newglyph->charcode] = newglyph->name;
     glyphCodePerName[newglyph->name] = newglyph->charcode;
 
+
+
     if (glyphGlobalClasses.contains(glyphCode)) {
       glyphGlobalClasses[newglyph->charcode] = glyphGlobalClasses[glyphCode];
 
+      /*
       for (auto& pclass : automedina->classes) {
         if (pclass.contains(glyph->name)) {
+
           pclass.insert(newglyph->name);
         }
 
-      }
+      }*/
     }
 
-    QMap<QString, GlyphVisAnchor>::iterator i;
+    QMap<GlyphVis::AnchorKey, GlyphVisAnchor>::iterator i;
     for (i = newglyph->anchors.begin(); i != newglyph->anchors.end(); ++i) {
       auto anchor = i.value();
-      auto anchorName = i.key();
+      auto anchorKey = i.key();
+      auto anchorName = anchorKey.name;
+
       switch (i.value().type)
       {
       case 1:
@@ -3238,6 +3707,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
         break;
       case 3:
         automedina->exitAnchors[anchorName][newglyph->charcode] = anchor.anchor;
+        break;
       case 4:
         automedina->entryAnchorsRTL[anchorName][newglyph->charcode] = anchor.anchor;
         break;

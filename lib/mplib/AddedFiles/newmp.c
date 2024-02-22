@@ -155,7 +155,7 @@ double static setParameters(MP mp, mp_edge_object* hh) {
   mp_node varnode = mp_find_variable(mp, r);
 
   mp_node value = value_node(varnode);
-  if (mp_type(value) == mp_pair_node_type) {
+  if (value != NULL && mp_type(value) == mp_pair_node_type) {
     if (mp_type(x_part(value)) == mp_known && mp_type(y_part(value)) == mp_known) {
       hh->xleftanchor = number_to_double(value_number(x_part(value)));
       hh->yleftanchor = number_to_double(value_number(y_part(value)));
@@ -174,7 +174,7 @@ double static setParameters(MP mp, mp_edge_object* hh) {
   varnode = mp_find_variable(mp, r);
 
   value = value_node(varnode);
-  if (mp_type(value) == mp_pair_node_type) {
+  if (value != NULL && mp_type(value) == mp_pair_node_type) {
     if (mp_type(x_part(value)) == mp_known && mp_type(y_part(value)) == mp_known) {
       hh->xrightanchor = number_to_double(value_number(x_part(value)));
       hh->yrightanchor = number_to_double(value_number(y_part(value)));
@@ -334,6 +334,94 @@ void setAnchors(MP mp, mp_edge_object* hh) {
   free_number(arg2);
 
 }
+static mp_node getTokenList(MP mp, char* varName) {
+  mp_node root = mp_get_symbolic_node(mp);
+  mp_node lastNode = root;
+
+  int i = 0;
+  while (varName[i] != '\0') {
+    int starti = i;
+    while (isalpha(varName[i]) || varName[i] == '_') {
+      i++;
+    }
+    if (starti != i) {
+      // alpha
+      mp_sym  varrSymp = mp_id_lookup(mp, varName + starti, i - starti, false);
+      mp_node t = mp_get_symbolic_node(mp);
+      set_mp_sym_sym(t, varrSymp);
+      mp_name_type(t) = 0;
+      mp_link(lastNode) = t;
+      lastNode = t;
+    }
+    else {
+      while (isdigit(varName[i]) || varName[i] == '.') {
+        i++;
+      }
+      if (starti != i) {
+        if ((i - starti) == 1 && varName[starti] == '.') continue; // . separator
+        char* eptr;
+        double result = strtod(varName + starti, &eptr);
+        mp_number arg2;
+        new_number(arg2);
+        set_number_from_double(arg2, result);
+        mp_node t = mp_new_num_tok(mp, arg2);
+        free_number(arg2);
+        mp_link(lastNode) = t;
+        lastNode = t;
+      }
+      else {
+        break;
+      }
+    }
+
+  }
+
+
+  mp_node ret = mp_link(root);
+  mp_link(root) = NULL;
+  mp_flush_token_list(mp, root);
+
+  return ret;
+}
+bool getMPPairVariable(MP mp, char* varName, double* x, double* y) {
+  bool ret = false;
+  mp_node root = getTokenList(mp, varName);
+
+  mp_node varnode = mp_find_variable(mp, root);
+
+  if (varnode != NULL) {
+    mp_node value = value_node(varnode);
+
+    if (value && mp_type(value) == mp_pair_node_type) {
+      if (mp_type(x_part(value)) == mp_known && mp_type(y_part(value)) == mp_known) {
+        *x = number_to_double(value_number(x_part(value)));
+        *y = number_to_double(value_number(y_part(value)));
+        ret = true;
+      }
+    }
+  }
+
+  mp_flush_token_list(mp, root);
+
+  return ret;
+}
+
+bool getMPNumVariable(MP mp, char* varName, double* x) {
+  bool ret = false;
+  mp_node root = getTokenList(mp, varName);
+
+  mp_node varnode = mp_find_variable(mp, root);
+
+  if (varnode && mp_type(varnode) == mp_known) {
+    *x = number_to_double(value_number(varnode));
+    ret = true;
+  }
+
+  mp_flush_token_list(mp, root);
+
+  return ret;
+}
+
 
 void getPointParam(MP mp, int index, double* x, double* y) {
 

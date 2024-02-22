@@ -62,7 +62,7 @@ private:
 	bool moveMinMaxDeltas(QGraphicsItem* watched, QGraphicsSceneMouseEvent* event);
 	bool addKashida(bool left, int nbKnots);
 	bool AddRemoveBlend(bool left, bool remove, int type);
-	bool addKashida_old(bool left, int nbKnots);
+	
 
 	int m_numsubpath;
 	int m_numpoint;
@@ -74,8 +74,6 @@ private:
 	KnotItem* incurve;
 	KnotItem* left;
 	KnotItem* right;
-	TensionDirectionItem* lefttd;
-	TensionDirectionItem* righttd;
 	QGraphicsLineItem* leftline;
 	QGraphicsLineItem* rightline;
 
@@ -106,7 +104,7 @@ private:
 	}
 	bool updateControlPoint(QGraphicsSceneMouseEvent* event, bool leftControl, QPointF diff, bool shift, bool ctrl);
 
-	int getControlledPosition(QGraphicsSceneMouseEvent* event);
+	
 	bool updateControlledPoint(MFExpr* expr, int position, QPointF diff);
 };
 #endif // KNOTCONTROLLEDITEM_H

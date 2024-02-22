@@ -381,6 +381,10 @@ void GlyphScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
     m_newValues.clear();
     old_controlledPaths.clear();
     new_controlledPaths.clear();
+    old_params.clear();
+    new_params.clear();
+
+    old_params = m_glyph->params;
 
     auto mo = m_glyph->metaObject();
     for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i) {
@@ -400,16 +404,6 @@ void GlyphScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
         old_controlledPaths[j.key()][h.key()] = *m_glyph->controlledPaths[j.key()][h.key()];
       }
     }
-    /*
-    QMapIterator<int, QMap<int, Glyph::Knot*> > j(m_glyph->controlledPaths);
-    while (j.hasNext()) {
-      j.next();
-      QMapIterator<int, Glyph::Knot*> h(j.value());
-      while (h.hasNext()) {
-        h.next();
-        old_controlledPaths[j.key()][h.key()] = *m_glyph->controlledPaths[j.key()][h.key()];
-      }
-    }*/
 
     connect(m_glyph, &Glyph::valueChanged, this, &GlyphScene::recordGlyphChange);
 
@@ -517,19 +511,9 @@ void GlyphScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
         }
       }
 
-      /*
-      QMapIterator<int, QMap<int, Glyph::Knot*> > j(m_glyph->controlledPaths);
-      while (j.hasNext()) {
-        j.next();
-        QMapIterator<int, Glyph::Knot*> h(j.value());
-        while (h.hasNext()) {
-          h.next();
-          new_controlledPaths[j.key()][h.key()] = *m_glyph->controlledPaths[j.key()][h.key()];
-        }
-      }*/
-
       if (!m_newValues.isEmpty() || !new_controlledPaths.isEmpty()) {
-        GlyphParamsChangeCommand* command = new GlyphParamsChangeCommand(m_glyph, "Item(s) Moved", m_oldValues, m_newValues, old_controlledPaths, new_controlledPaths);
+        GlyphParamsChangeCommand* command = new GlyphParamsChangeCommand(m_glyph, "Item(s) Moved", m_oldValues, m_newValues,
+          old_controlledPaths, new_controlledPaths, old_params, new_params);
         m_glyph->undoStack()->push(command);
       }
     }
@@ -544,7 +528,15 @@ void GlyphScene::recordGlyphChange(QString name) {
   if (name == "imagetransform") {
     name = "image";
   }
-  m_newValues[name] = m_glyph->property(name.toLatin1());
+
+  auto pit = m_glyph->params.find(name);
+
+  if (pit != m_glyph->params.end()) {
+    new_params[pit->first] = pit->second;    
+  }
+  else {
+    m_newValues[name] = m_glyph->property(name.toLatin1());
+  }
 }
 void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint, QString dir) {
   int numpath = point->m_numsubpath;
@@ -578,7 +570,7 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
         if (edge) {
           matrix = { edge->xpart,edge->ypart };
         }
-        newknot->expr = std::make_unique<LitPointPathPointExp>(QPointF(newpoint.x(), -newpoint.y()) - matrix);
+        newknot->expr = std::make_unique<PairPathPointExp>(QPointF(newpoint.x(), -newpoint.y()) - matrix);
 
 
         newknot->leftValue = currentKnot->rightValue;
@@ -681,7 +673,7 @@ void GlyphScene::addnewPath(QPointF newpoint, QString dir) {
   right.type = Glyph::mpgui_open;
   newknot->leftValue = left;
   newknot->rightValue = right;
-  newknot->expr = std::make_unique<LitPointPathPointExp>(QPointF(newpoint.x(), -newpoint.y()));
+  newknot->expr = std::make_unique<PairPathPointExp>(QPointF(newpoint.x(), -newpoint.y()));
 
   int numpath = m_glyph->controlledPaths.size();
   newpath[0] = newknot;

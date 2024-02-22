@@ -1,0 +1,23 @@
+{
+  "profiles": {
+    "QuranCPP": {
+      "commandName": "Project"
+    },
+    "Tarteel": {
+      "commandName": "Project",
+      "commandLineArgs": "tarteel > output-file.txt"
+    },
+    "Compare": {
+      "commandName": "Project",
+      "commandLineArgs": "compare"
+    },
+    "XML": {
+      "commandName": "Project",
+      "commandLineArgs": "xml"
+    },
+    "tex": {
+      "commandName": "Project",
+      "commandLineArgs": "tex"
+    }
+  }
+}

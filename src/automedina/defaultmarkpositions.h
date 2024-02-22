@@ -44,8 +44,8 @@ public:
 
 
 
-    if (curr->conatinsAnchor(className)) {
-      QPoint anchor = curr->getAnchor(className) + adjust;
+    if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
+      QPoint anchor = curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor) + adjust;
       return anchor;
     }
     else {
@@ -116,8 +116,8 @@ public:
       curr = curr->getAlternate(parameters);
     }
 
-    if (curr->conatinsAnchor("dbal")) {
-      QPoint anchor = curr->getAnchor("dbal") + adjust;
+    if (curr->conatinsAnchor("dbal", GlyphVis::AnchorType::MarkAnchor)) {
+      QPoint anchor = curr->getAnchor("dbal", GlyphVis::AnchorType::MarkAnchor) + adjust;
       return anchor;
     }
     else {
@@ -430,8 +430,8 @@ public:
       curr = curr->getAlternate(parameters);
     }
 
-    if (curr->conatinsAnchor(className)) {
-      QPoint anchor = curr->getAnchor(className) + adjust;
+    if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
+      QPoint anchor = curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor) + adjust;
       return anchor;
     }
 
@@ -482,12 +482,12 @@ public:
     }
 
     
-    if (curr->conatinsAnchor(className)) {
-      QPoint anchor = curr->getAnchor(className) + adjust;
+    if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
+      QPoint anchor = curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor) + adjust;
       return anchor;
     }
-    else if ((curr->name == "behshape.fina.expa" || curr->originalglyph == "behshape.fina.expa") && curr->conatinsAnchor("dotbelow")) {
-      QPoint anchor = curr->getAnchor("dotbelow") + adjust;
+    else if ((curr->name == "behshape.fina.expa" || curr->originalglyph == "behshape.fina.expa") && curr->conatinsAnchor("dotbelow", GlyphVis::AnchorType::MarkAnchor)) {
+      QPoint anchor = curr->getAnchor("dotbelow", GlyphVis::AnchorType::MarkAnchor) + adjust;
       return anchor;
     }
     else {
@@ -524,6 +524,7 @@ public:
 
     //QPoint adjustoriginal = getAdjustment(_y, _subtable, originalglyph, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
+    // TODO يُضَٰهِـُٔونَ different from standard
     if (curr->name.contains("added")) {
       adjust = _subtable.classes[className].baseparameters[curr->originalglyph];
     }
@@ -539,7 +540,7 @@ public:
       return value + adjust;
     }
     else if (className == "smallhighwaw") {
-      auto anchor = curr->getAnchor("smallhighwaw");
+      auto anchor = curr->getAnchor("smallhighwaw", GlyphVis::AnchorType::MarkAnchor);
 
       auto value = anchor + adjust;
 

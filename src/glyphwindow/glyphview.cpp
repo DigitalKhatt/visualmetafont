@@ -22,7 +22,6 @@
 #include "pairitem.hpp"
 #include "glyphscene.hpp"
 #include "glyph.hpp"
-#include "tensiondirectionitem.hpp"
 #include "glyphcellitem.hpp"
 //#include <QGLWidget>
 
@@ -97,16 +96,6 @@ void GlyphView::scaleView(qreal scaleFactor)
 
 	scale(scaleFactor, scaleFactor);
 
-	QList<QGraphicsItem *> list = glyphscene->items();
-	for (int i = 0; i < list.length(); i++) {
-		TensionDirectionItem *cell = qgraphicsitem_cast<TensionDirectionItem *>(list[i]);
-		if (cell != NULL) {
-			//cell->pre
-			cell->setTransform(this->transform().inverted());
-			//cell->calculatePosition();
-		}
-
-	}
 }
 
 

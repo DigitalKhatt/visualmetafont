@@ -5,7 +5,7 @@ require('fontloader-digitalkhatt-cff2')
 require('charstrings')
 require('digitalkhatt-define')
 require('digitalkhatt-plug')
-require('quran')
+require('mushaffeatures.lua')
 require('digitalkhatt_glyphnames')
 require('digitalkhatt_lookupnames')
 

@@ -561,10 +561,10 @@ QMdiSubWindow *MainWindow::findMdiChild(const QString &fileName) const
 
     foreach (QMdiSubWindow *window, mdiArea->subWindowList()) {
         MdiChild *mdiChild = qobject_cast<MdiChild *>(window->widget());
-        if (mdiChild->currentFile() == canonicalFilePath)
+        if (mdiChild && mdiChild->currentFile() == canonicalFilePath)
             return window;
     }
-    return 0;
+    return nullptr;
 }
 
 void MainWindow::switchLayoutDirection()

@@ -542,7 +542,7 @@ namespace feayy {
           newsubtable->compiledRule.backtrack = backtrack;
 
           for (auto pair : input) {
-            auto set = pair.first->getCodes(otlayout);
+            auto set = pair.first->getCachedCodes(otlayout);
             if (!set.isEmpty()) {
               if (!pair.second.isEmpty()) {
                 for (auto& lookupName : pair.second) {

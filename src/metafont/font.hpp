@@ -48,13 +48,15 @@ public:
 	QString filePath();
 	double lineHeight();
 	double getNumericVariable(QString name);
+	bool getPairVariable(QString name, QPointF& point);
 	Glyph* getGlyph(uint code);	
 	QString path() {
 		return m_path;
 	}
+	QString executeMetaPost(QString command);
 
 	//protected:
-	MP mp;
+	MP mp = nullptr;
 
 
 private:

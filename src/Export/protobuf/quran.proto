@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package protobuf;
+
+option java_package = "org.digitalkhatt.mushaf.protobuf";
+option java_multiple_files = true;
+
+message Font {
+  map<int32, Glyph> glyphs = 1;
+}
+
+message Glyph {
+  string name = 1;
+  repeated double bbox = 2;
+  repeated Path default = 3;
+  repeated double limits = 4;
+  repeated Path minLeft = 5;
+  repeated Path maxLeft = 6;
+  repeated Path minRight = 7;
+  repeated Path maxRight = 8;  
+}
+
+message Path {  
+  repeated PathElem  elems = 1;
+  repeated double color = 2;
+}
+
+message PathElem {
+  repeated double points = 1;
+}
+
+message LayOut {  
+  repeated Page pages = 1;
+  repeated Sura suras = 2;
+}
+
+message Page {
+  repeated Line lines = 1;
+}
+
+message Line {
+  repeated GlyphLayout glyphs = 1; 
+  int32 type = 2;
+  int32 x = 3;
+  int32 y = 4;
+}
+
+message GlyphLayout {
+  int32 codepoint = 1; 
+  optional int32 x_advance = 2; 
+  optional int32 x_offset = 3;
+  optional int32 y_offset = 4;
+  optional int32 color = 5;
+  optional double lefttatweel = 6;
+  optional double righttatweel = 7;
+  optional bool beginsajda = 8;
+  optional bool endsajda = 9;
+}
+
+message Sura {
+  string name = 1; 
+  int32 page_number = 2;
+  int32 x = 3;
+  int32 y = 4;
+}

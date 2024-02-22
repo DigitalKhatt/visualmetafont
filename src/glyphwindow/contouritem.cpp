@@ -20,8 +20,8 @@
 #include "contouritem.hpp"
 #include "pairitem.hpp"
 #include "knotitem.hpp"
-#include "tensiondirectionitem.hpp"
 #include <iostream>
+#include "font.hpp"
 
 
 
@@ -29,207 +29,201 @@ ContourItem::~ContourItem() {
 
 }
 
-ContourItem::ContourItem(QGraphicsItem * parent)
-	: QGraphicsObject(parent)
+ContourItem::ContourItem(QGraphicsItem* parent)
+  : QGraphicsObject(parent)
 {
-	penWidth = 1;
-	rotationAngle = 0;
-	penColor = Qt::black;
+  penWidth = 1;
+  rotationAngle = 0;
+  penColor = Qt::black;
 
-	QTransform m;
-	m.scale(1, -1);
+  QTransform m;
+  m.scale(1, -1);
 
-	setTransform(m);
+  setTransform(m);
 
-	path = NULL;
-	parampoints = NULL;
-	labels = NULL;
+  path = NULL;
+  parampoints = NULL;
+  labels = NULL;
 
 }
 
 void ContourItem::setFillEnabled(bool enable)
 {
-	this->enableFill = enable;
+  this->enableFill = enable;
 
-	if (this->path) {
-		if(enable)
-			this->path->setBrush(Qt::black);
-		else
-			this->path->setBrush(QBrush{});
-	}
+  if (this->path) {
+    if (enable)
+      this->path->setBrush(Qt::black);
+    else
+      this->path->setBrush(QBrush{});
+  }
 }
 
-void ContourItem::setFillGradient(const QColor &color1, const QColor &color2)
+void ContourItem::setFillGradient(const QColor& color1, const QColor& color2)
 {
-	fillColor1 = color1;
-	fillColor2 = color2;
-	update();
+  fillColor1 = color1;
+  fillColor2 = color2;
+  update();
 }
 
 void ContourItem::setPenWidth(int width)
 {
-	penWidth = width;
-	update();
+  penWidth = width;
+  update();
 }
 
-void ContourItem::setPenColor(const QColor &color)
+void ContourItem::setPenColor(const QColor& color)
 {
-	penColor = color;
-	update();
+  penColor = color;
+  update();
 }
 
 void ContourItem::setRotationAngle(int degrees)
 {
-	rotationAngle = degrees;
-	update();
+  rotationAngle = degrees;
+  update();
 }
 
 void ContourItem::setGlyph(Glyph* glyph)
 {
-	this->glyph = glyph;
+  this->glyph = glyph;
 
 
-	generateedge(glyph->getEdge());
+  generateedge(glyph->getEdge());
 }
 
 QRectF ContourItem::boundingRect() const
 {
-	QRectF ret = QRectF();// (-1000, -1000, 2000, 2000);
-	if (path != NULL)
-		ret = path->boundingRect();
+  QRectF ret = QRectF();// (-1000, -1000, 2000, 2000);
+  if (path != NULL)
+    ret = path->boundingRect();
 
-	return ret;
+  return ret;
 }
 
-void ContourItem::paint(QPainter *painter,
-	const QStyleOptionGraphicsItem *option, QWidget *widget)
+void ContourItem::paint(QPainter* painter,
+  const QStyleOptionGraphicsItem* option, QWidget* widget)
 {
-	Q_UNUSED(painter);
-	Q_UNUSED(option);
-	Q_UNUSED(widget);
+  Q_UNUSED(painter);
+  Q_UNUSED(option);
+  Q_UNUSED(widget);
 
 
 }
-void ContourItem::generateedge(mp_edge_object *  h, bool newelement) {
+void ContourItem::generateedge(mp_edge_object* h, bool newelement) {
 
-	if (h) {
+  if (h) {
 
-		if (this->labels != NULL) {
-			delete this->labels;
-		}
+    if (this->labels != NULL) {
+      delete this->labels;
+    }
 
-		labels = new QGraphicsItemGroup(this);
+    labels = new QGraphicsItemGroup(this);
 
-		if (this->path == NULL)
-			newelement = true;
+    if (this->path == NULL)
+      newelement = true;
 
-		if (newelement) {
-			if (this->path != NULL)
-				delete this->path;
+    if (newelement) {
+      if (this->path != NULL)
+        delete this->path;
 
-			if (this->parampoints != NULL)
-				delete this->parampoints;
+      if (this->parampoints != NULL)
+        delete this->parampoints;
 
-			this->path = new QGraphicsPathItem(this);
-			this->path->setZValue(-1);
-			//this->path->setFlags(QGraphicsItem::ItemIsMovable | QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemSendsGeometryChanges);
+      this->path = new QGraphicsPathItem(this);
+      this->path->setZValue(-1);
+      //this->path->setFlags(QGraphicsItem::ItemIsMovable | QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemSendsGeometryChanges);
 
-			QPen pen;
-			pen.setWidth(1);
-			pen.setCosmetic(true);
-			this->path->setPen(pen);			
+      QPen pen;
+      pen.setWidth(1);
+      pen.setCosmetic(true);
+      this->path->setPen(pen);
 
-			this->parampoints = new QGraphicsPathItem(this);
-
-
-		}
+      this->parampoints = new QGraphicsPathItem(this);
 
 
-		int childnb = 0;		
-		QMapIterator<QString, Glyph::Param> i(glyph->params);
+    }
 
-		QPointF translate;
-		auto edge = glyph->getEdge();
-		if(edge != nullptr){
-				 translate =  QPointF(edge->xpart, edge->ypart);
-		}
-		while (i.hasNext()) {
-			i.next();		
-			Glyph::Param param = i.value();			
-			if (param.type == Glyph::expression && !param.isInControllePath){
-				 auto value =  glyph->expressions.value(param.name);
-				 if(value->type() == QVariant::PointF){
-					 QPointF point = value->value().toPointF() + translate;
-					 QGraphicsItem *  pair;
-					 if (newelement) {
-						 pair = new PairItem(param, glyph, this->parampoints);
-					 }
-					 else {
-						 pair = this->parampoints->childItems()[childnb++];
-					 }
 
-					 pair->setPos(point.x(), point.y());
-				 }
+    int childnb = 0;
 
-			}
-		}
-		
-		int numsubpath = 0;
 
-		mp_graphic_object* body = h->body;
-		QPainterPath localpath;
+    QPointF translate;
+    auto edge = glyph->getEdge();
+    if (edge != nullptr) {
+      translate = QPointF(edge->xpart, edge->ypart);
+    }
 
-		if (body) {
+    for (auto& [name, param] : glyph->params) {
+      if (!param.isInControllePath && param.value.type() == QVariant::PointF) {
+        QPointF point = param.value.toPointF();
+        QGraphicsItem* pair;
+        if (newelement) {
+          pair = new PairItem(param, glyph, this->parampoints);
+        }
+        else {
+          pair = this->parampoints->childItems()[childnb++];
+        }
+        pair->setPos(point.x(), point.y());
+      }
+    }
 
-			do {
-				switch (body->type)
-				{
-				case mp_stroked_code:
-				case mp_fill_code: {
-					mp_fill_object * fill = (mp_fill_object *)body;
-					QString prescript = fill->pre_script;
-          
-					/*
-					if (prescript.contains("begin component")) {
-						while (body = body->next) {
-							fill = (mp_fill_object *)body;
-							QString postscipt = fill->post_script;
-						}
-					}				*/					
-					//if (numsubpath > glyph->controlledPaths.count() - 1) {
-						QPainterPath subpath = mp_dump_solved_path(fill, numsubpath++, newelement);
-						localpath.addPath(subpath);
-					//}
-					
-					break;
-				}
-				case mp_text_code: {
-					mp_text_object * text = (mp_text_object *)body;
-					QGraphicsSimpleTextItem * textitem = new QGraphicsSimpleTextItem(labels);
-					textitem->setFlags(QGraphicsItem::ItemIgnoresTransformations);
-					textitem->setPos(text->tx, text->ty);
-					textitem->setText(text->text_p);
+    int numsubpath = 0;
+
+    mp_graphic_object* body = h->body;
+    QPainterPath localpath;
+
+    if (body) {
+
+      do {
+        switch (body->type)
+        {
+        case mp_stroked_code:
+        case mp_fill_code: {
+          mp_fill_object* fill = (mp_fill_object*)body;
+          QString prescript = fill->pre_script;
+
+          /*
+          if (prescript.contains("begin component")) {
+            while (body = body->next) {
+              fill = (mp_fill_object *)body;
+              QString postscipt = fill->post_script;
+            }
+          }				*/
+          //if (numsubpath > glyph->controlledPaths.count() - 1) {
+          QPainterPath subpath = mp_dump_solved_path(fill, numsubpath++, newelement);
+          localpath.addPath(subpath);
+          //}
+
+          break;
+        }
+        case mp_text_code: {
+          mp_text_object* text = (mp_text_object*)body;
+          QGraphicsSimpleTextItem* textitem = new QGraphicsSimpleTextItem(labels);
+          textitem->setFlags(QGraphicsItem::ItemIgnoresTransformations);
+          textitem->setPos(text->tx, text->ty);
+          textitem->setText(text->text_p);
           QGraphicsEllipseItem* dot = new   QGraphicsEllipseItem(labels);
-          dot->setRect(text->tx - 5, text->ty - 5,10,10);
-          
-				}
-				default:
-					break;
-				}
+          dot->setRect(text->tx - 5, text->ty - 5, 10, 10);
 
-			} while (body = body->next);
-		}
+        }
+        default:
+          break;
+        }
 
-		localpath.setFillRule(Qt::FillRule::WindingFill);
+      } while (body = body->next);
+    }
 
-		path->setPath(localpath);
-	}
+    localpath.setFillRule(Qt::FillRule::WindingFill);
+
+    path->setPath(localpath);
+  }
 
 
 }
 QPainterPath ContourItem::mp_dump_solved_path(mp_fill_object* fill, int numsubpath, bool newelement) {
-	mp_gr_knot p, q;
-	QPainterPath path;
+  mp_gr_knot p, q;
+  QPainterPath path;
 
   struct Variable {
     QString name;
@@ -241,7 +235,7 @@ QPainterPath ContourItem::mp_dump_solved_path(mp_fill_object* fill, int numsubpa
     int point;
   };
 
-  QVector<Variable> customLinks;
+  std::vector<Variable> customLinks;
 
   QString post_script = fill->post_script;
   if (!post_script.isEmpty()) {
@@ -249,7 +243,7 @@ QPainterPath ContourItem::mp_dump_solved_path(mp_fill_object* fill, int numsubpa
     for (auto value : split) {
       auto temp = value.split('=', Qt::SkipEmptyParts);
       if (temp.length() == 2) {
-        customLinks.append({ temp[0],temp[1].toInt() });
+        customLinks.push_back({ temp[0],temp[1].toInt() });
       }
     }
   }
@@ -258,41 +252,41 @@ QPainterPath ContourItem::mp_dump_solved_path(mp_fill_object* fill, int numsubpa
 
   auto h = fill->path_p;
 
-	if (h == nullptr) return path;
+  if (h == nullptr) return path;
 
-	int numpoint = 0;
+  int numpoint = 0;
   int numstaticpoint = 0;
   int laststaticpoint = 0;
 
-	path.moveTo(h->x_coord, h->y_coord);
-	p = h;
-	do {	
+  path.moveTo(h->x_coord, h->y_coord);
+  p = h;
+  do {
 
-		if (p->data.types.right_type == mp_endpoint) {
-			break;
-		}
+    if (p->data.types.right_type == mp_endpoint) {
+      break;
+    }
 
-		if (newelement) {
-			knotControlledItems[numsubpath][numpoint] = new KnotControlledItem(numsubpath, numstaticpoint, p, numpoint, glyph, this->path);
-			
-		}
-		else {
-			KnotControlledItem* item = knotControlledItems.value(numsubpath).value(numpoint);
-			if(item != nullptr)
-				item->setPositions(p);
-		}
+    if (newelement) {
+      knotControlledItems[numsubpath][numpoint] = new KnotControlledItem(numsubpath, numstaticpoint, p, numpoint, glyph, this->path);
 
-		q = p->next;
+    }
+    else {
+      KnotControlledItem* item = knotControlledItems.value(numsubpath).value(numpoint);
+      if (item != nullptr)
+        item->setPositions(p);
+    }
 
-		
-		path.cubicTo(p->right_x, p->right_y, q->left_x, q->left_y, q->x_coord, q->y_coord);
+    q = p->next;
 
-		numpoint++;
 
-    if (!customLinks.isEmpty()) {
+    path.cubicTo(p->right_x, p->right_y, q->left_x, q->left_y, q->x_coord, q->y_coord);
+
+    numpoint++;
+
+    if (!customLinks.empty()) {
       if (glyph->controlledPaths.contains(numsubpath) && glyph->controlledPaths[numsubpath].contains(laststaticpoint)) {
         auto m_glyphknot = glyph->controlledPaths[numsubpath][laststaticpoint];
-        if (currentPoint.index < customLinks.length() && m_glyphknot->rightValue.macrovalue == customLinks[currentPoint.index].name) {
+        if (currentPoint.index < customLinks.size() && m_glyphknot->rightValue.macrovalue == customLinks[currentPoint.index].name) {
           if (currentPoint.point <= customLinks[currentPoint.index].totalPoint) {
             numstaticpoint = -1;
             currentPoint.point++;
@@ -315,11 +309,11 @@ QPainterPath ContourItem::mp_dump_solved_path(mp_fill_object* fill, int numsubpa
       laststaticpoint++;
     }
 
-		p = q;
-		
-	} while (p != h);
-	
+    p = q;
 
-	return path;
+  } while (p != h);
+
+
+  return path;
 
 }

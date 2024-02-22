@@ -1,0 +1,73 @@
+@font-face {
+    font-family: digitalkhatt;
+    font-style: normal;
+    src: url(oldmadina.otf) format("opentype");
+    font-display: block;
+}
+
+@font-face {
+    font-family: oldmadina;
+    font-style: normal;
+    src: url(oldmadina.otf) format("opentype");
+    font-display: block;
+}
+
+
+body {
+    font-family: digitalkhatt;
+}
+
+@font-feature-values "digitalkhatt" {
+    @character-variant {
+        stretch1: 1 1;
+        stretch2: 1 2;
+        stretch3: 1 3;
+    }
+}
+
+.st1 {
+    font-variant-alternates: character-variant(stretch1);
+}
+.st2 {
+    font-variant-alternates: character-variant(stretch2);
+}
+.st3 {
+    font-variant-alternates: character-variant(stretch3);
+}
+
+.stretch3 {
+    font-feature-settings: 'cv01' 3;
+    color: green
+}
+
+.example {
+    font-variant-alternates: character-variant(stretch1);
+    font-family: digitalkhatt;
+    font-size: 1rem;
+    width: 500px;
+    line-height: 1.9;
+    margin: 0 auto;
+    word-spacing: 10px;
+    text-justify: inter-word;
+    text-align: justify;
+    /*text-align-last: justify;*/
+}
+
+.center {
+    font-family: digitalkhatt;
+    font-size: 40px;
+    width: 300px;
+    line-height: 1.9;
+    margin: 0 auto;
+    white-space: nowrap;
+    text-align: center;
+    text-justify: inter-word;
+}
+.issuetitle {
+    font-size: 40px;
+    width: 1000px;
+    line-height: 1.9;
+    margin: 0 auto;
+    white-space: nowrap;
+    text-align: center;
+}

@@ -39,6 +39,13 @@ class QLabel;
 class QSpinBox;
 class QTreeWidget;
 
+struct OverlapResult {
+  int pageIndex;
+  int lineIndex; 
+  int nextGlyph;
+  int prevGlyph;
+};
+
 class LayoutWindow : public QMainWindow
 {
 	Q_OBJECT
@@ -76,15 +83,18 @@ private:
   bool generateOpenTypeCff2(bool extended);
 	bool exportpdf();
 	bool generateAllQuranTexBreaking();
-	bool generateAllQuranTexMedina();
+	bool generateMushafMadina(bool isHTML);
   bool generateMadinaVARHTML();
   bool generateLayoutInfo();
-	LayoutPages shapeMedina(int scale, int lineWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
+	LayoutPages shapeMedina(double scale, int lineWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
 	void testQuarn();
 	void simpleAdjustPage(hb_buffer_t *buffer);
 	void adjustPage(QString text, hb_font_t* shapeFont, hb_buffer_t *buffer);	
-	void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, int beginPage, int nbPages, QVector<int>&, int emScale);
-	void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, QList<QStringList> originalPages, int emScale);
+	void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, int beginPage, int nbPages, QVector<int>&, double emScale, QVector<OverlapResult>& result);
+  void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, QList<QStringList> originalPages, double emScale);
+  void applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages, QList<QStringList> originalPages, int lineWidth, int beginPage, int nbPages, double emScale);
+  void generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pages,const QList<QStringList>& originalPages,const QVector<OverlapResult>& result);
+  void editLookup(QString lookupName);
 
 	//QList<LineLayoutInfo> justifyPage(int emScale, int lineWidth, QStringList lines, LineJustification justification, bool newFace = true);
 	//QList<LineLayoutInfo> justifyPage_old(int emScale, int lineWidth, QStringList lines, LineJustification justification, bool newFace = true);
@@ -127,4 +137,6 @@ private:
 	bool applyJustification = true;
 	bool applyCollisionDetection = false;
   bool applyFontSize = false;
+  bool applyForce = false;
+  bool applyTeXAlgo = false;
 };

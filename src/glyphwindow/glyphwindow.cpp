@@ -149,9 +149,9 @@ void GlyphWindow::createDockWindows()
 void GlyphWindow::createPathView() {
   dockPath = new QDockWidget(this);
   dockPath->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea | Qt::BottomDockWidgetArea | Qt::TopDockWidgetArea);
-  dockPath->setObjectName(QStringLiteral("Path"));  
+  dockPath->setObjectName(QStringLiteral("Path"));
 
-  auto pathView = new PathView(glyph,this);
+  auto pathView = new PathView(glyph, this);
 
   dockPath->setWidget(pathView);
   addDockWidget(Qt::RightDockWidgetArea, dockPath);
@@ -230,6 +230,14 @@ void GlyphWindow::createActions()
   editMenu->addAction(redoAction);
   editToolBar->addAction(redoAction);
 
+  QPushButton* toggleButton = new QPushButton(tr("&Anchors"));
+  toggleButton->setCheckable(true);
+  int showAnchors = glyph->font->getNumericVariable("showAnchors");
+  toggleButton->setChecked(showAnchors);
+  editToolBar->addWidget(toggleButton);
+
+  connect(toggleButton, &QPushButton::toggled, this, &GlyphWindow::showAnchors);
+
   viewMenu = menuBar()->addMenu(tr("&View"));
 
   menuBar()->addSeparator();
@@ -287,6 +295,15 @@ void GlyphWindow::createActions()
   pointerToolbar->addWidget(pointerButton);
   pointerToolbar->addWidget(linePointerButton);
   //pointerToolbar->addWidget(addPointButton);
+}
+void GlyphWindow::showAnchors(bool checked) {
+  QString command = QString("showAnchors:=%1;").arg(checked ? 1 : 0);
+
+  glyph->font->executeMetaPost(command);
+
+  glyph->setWidth(glyph->width());
+
+  
 }
 void GlyphWindow::pointerGroupClicked(int)
 {

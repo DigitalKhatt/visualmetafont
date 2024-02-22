@@ -81,7 +81,7 @@
 %type <std::vector<LookupStatement *> *> lookup_statements feature_statements
 %type <MarkedGlyphSetRegExp*> markedglyphsetregexp
 %type <std::vector<MarkedGlyphSetRegExp *>*> inputseq
-%type <GlyphSetRegExp*> glyphsetregexp  glyphsetregexpwithoutglyph
+%type <GlyphSetRegExp*> glyphsetregexp  glyphsetregexpwithoutglyph glyphsetregexp_prim /*gsregex gsregex_prim gsregex_sec  gsregex_terc gsregex_q */
 %type <ChainingContextualRule*> contextualexplicit contextualgpos
 %type <Anchor*> anchor anchorformat
 %type <Mark2BaseClass*> mark2baseclass
@@ -288,21 +288,19 @@ contextualligagsub
 	| SUBSTITUTE glyphseq  BY glyph[ligature] { $$ = new LigatureSubstitutionRule($glyphseq,$ligature);}
 	;
 
-/*
-contextualgsub	
-	: SUBSTITUTE contextualexplicit {$$ = $2;$$->setType(true);}
-	;*/
-
 contextualgpos
 	: POSITION contextualexplicit {$$ = $2;$$->setType(false);}	 
 	;
 
+	
 contextualexplicit
 	: inputseq {$$ = new ChainingContextualRule(nullptr,$1,nullptr);}
 	| inputseq glyphsetregexp {$$ = new ChainingContextualRule(nullptr,$1,$2);}
 	| glyphsetregexp inputseq {$$ = new ChainingContextualRule($1,$2,nullptr);}
 	| glyphsetregexp inputseq glyphsetregexp {$$ = new ChainingContextualRule($1,$2,$3);}
-	; 
+	;
+
+
 
 gposrule
 	: singleadjustment	{$$ = $1;}
@@ -335,24 +333,74 @@ mark2mark
 %precedence CID IDENTIFIANT REGEXP GLYPHNAME NOTDEF '[' '@' T_NULL;
 %precedence GLYPHSET;
 %precedence  '(';
+%precedence  '{';
+%precedence  '?';
 
 glyphsetregexpwithoutglyph
 	: glyphsetwithoutglyph { $$ = new GlyphSetRegExpSingle($1); }
 	| glyph glyphsetwithoutglyph { $$ = new GlyphSetRegExpSeq{new GlyphSetRegExpSingle(new GlyphSet($glyph)),new GlyphSetRegExpSingle($glyphsetwithoutglyph)};}
-	| glyphseq glyphsetwithoutglyph { $$ = new GlyphSetRegExpSingle($glyphsetwithoutglyph); }
+	/*| glyphseq glyphsetwithoutglyph { $$ = new GlyphSetRegExpSingle($glyphsetwithoutglyph); }*/
 	| glyphsetregexpwithoutglyph[left] glyphset { $$ = new GlyphSetRegExpSeq{$left,$glyphset};}
 	| glyphsetregexpwithoutglyph[left] '|' glyphsetregexp[right]  { $$ = new GlyphSetRegExpOr{$left,$right};}
 	| glyphsetregexpwithoutglyph[left] '(' glyphsetregexp[right] ')' { $$ = new GlyphSetRegExpSeq{$left,$right};}
 	| '(' glyphsetregexp ')' { $$ = $glyphsetregexp;}
 	;
 
+/*
+gsregex   
+	: gsregex_q	{ $$ = $1;}
+	| gsregex gsregex_q  {$$ = new GlyphSetRegExpSeq{$1,$2};}	
+	;
+
+gsregex_q   
+	: gsregex_prim	{ $$ = $1;}
+	| gsregex_q '\'' { $$ = $1;}
+	;
+
+	
+gsregex_terc 
+	: gsregex_terc[left] '|' gsregex_sec[right]  { $$ = new GlyphSetRegExpOr{$left,$right};}
+	| gsregex_sec	{ $$ = $1;}	
+	;
+
+gsregex_sec
+	: gsregex_sec gsregex_prim  {$$ = new GlyphSetRegExpSeq{$1,$2};}	
+	| gsregex_prim	{ $$ = $1;}		
+	;
+
+
+gsregex_prim
+	: glyphset { $$ = new GlyphSetRegExpSingle($1); }
+	| gsregex_prim[exp] '{' INT_LITERAL[min] ',' INT_LITERAL[max] '}'  { $$ = new GlyphSetRegExpRep{$exp,$min,$max};}	
+	| '(' gsregex_terc ')' { $$ = $2;}
+	;*/
+	
+/*
+glyphsetregexp_prim
+	: glyphsetregexp[left] '|' glyphsetregexp[right]  { $$ = new GlyphSetRegExpOr{$left,$right};}
+	;
+
+	
+glyphsetregexp
+	: glyphset { $$ = new GlyphSetRegExpSingle($1); }
+	| glyphsetregexp glyphset { $$ = new GlyphSetRegExpSeq{$1,$glyphset};}	
+	| glyphsetregexp '(' glyphsetregexp ')' { $$ = new GlyphSetRegExpSeq{$1,$3};}
+	| '(' glyphsetregexp ')' { $$ = $2;}
+	| glyphsetregexp[exp] '{' INT_LITERAL[min] ',' INT_LITERAL[max] '}'  { $$ = new GlyphSetRegExpRep{$exp,$min,$max};}	
+	| glyphsetregexp_prim
+	;*/
+
+
 glyphsetregexp
 	: glyphset { $$ = new GlyphSetRegExpSingle($1); }
 	| glyphsetregexp glyphset { $$ = new GlyphSetRegExpSeq{$1,$glyphset};}
 	| glyphsetregexp[left] '|' glyphsetregexp[right]  { $$ = new GlyphSetRegExpOr{$left,$right};}
+	| glyphsetregexp[left] '?'  { $$ = new GlyphSetRegExpOr{$left,new GlyphSetRegExpSingle(new GlyphSet())};}
 	| glyphsetregexp '(' glyphsetregexp ')' { $$ = new GlyphSetRegExpSeq{$1,$3};}
 	| '(' glyphsetregexp ')' { $$ = $2;}
+	| glyphsetregexp[exp] '{' INT_LITERAL[min] ',' INT_LITERAL[max] '}'  { $$ = new GlyphSetRegExpRep{$exp,$min,$max};}	
 	;
+
 
 
 

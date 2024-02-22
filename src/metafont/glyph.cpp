@@ -29,7 +29,52 @@
 
 #include "metafont.h"
 
-
+Glyph::Param::Param(const Glyph::Param& a) {
+  name = a.name;
+  position = a.position;
+  applytosubpath = a.applytosubpath;
+  applytopoint = a.applytopoint;
+  isEquation = a.isEquation;
+  isInControllePath = a.isInControllePath;
+  affects = a.affects;
+  value = a.value;
+  expr = a.expr->clone();
+}
+Glyph::Param::Param(Glyph::Param&& a) {
+  name = a.name;
+  position = a.position;
+  applytosubpath = a.applytosubpath;
+  applytopoint = a.applytopoint;
+  isEquation = a.isEquation;
+  isInControllePath = a.isInControllePath;
+  affects = a.affects;
+  value = a.value;
+  expr = std::move(a.expr);
+}
+Glyph::Param& Glyph::Param::operator=(Glyph::Param& a) {
+  name = a.name;
+  position = a.position;
+  applytosubpath = a.applytosubpath;
+  applytopoint = a.applytopoint;
+  isEquation = a.isEquation;
+  isInControllePath = a.isInControllePath;
+  affects = a.affects;
+  value = a.value;
+  expr = a.expr->clone();
+  return *this;
+}
+Glyph::Param& Glyph::Param::operator=(Glyph::Param&& a) {
+  name = a.name;
+  position = a.position;
+  applytosubpath = a.applytosubpath;
+  applytopoint = a.applytopoint;
+  isEquation = a.isEquation;
+  isInControllePath = a.isInControllePath;
+  affects = a.affects;
+  value = a.value;
+  expr = std::move(a.expr);
+  return *this;
+}
 
 Glyph::Glyph(QString code, MP mp, Font* parent) : QObject((QObject*)parent) {
   edge = NULL;
@@ -63,7 +108,6 @@ void Glyph::setSource(QString source, bool structureChanged) {
 
 
   params.clear();
-  expressions.clear();
   dependents.clear();
 
   QList<QByteArray> dynamicProperties = dynamicPropertyNames();
@@ -141,35 +185,26 @@ QString Glyph::source() {
       source = source % "%%endcomponents\n";
     }
 
-    if (params.count() > 0) {
+    if (params.size() > 0) {
       source = source % "%%beginparams\n";
       QPointF valpoint;
       QString typepoint;
       double valdouble;
-      for (auto i = params.constBegin(); i != params.constEnd(); ++i) {
-        Param param = i.value();
+      for (const auto& [key, param] : params) {
         QString propname = param.name;
         QString affect = param.isEquation ? "=" : ":=";
-        switch (param.type) {
-        case expression:
 
-          auto value = property(propname.toLatin1());
+        auto expString = param.expr->toString();
 
-          auto exp = expressions.value(propname);
+        QString comment;
 
-          exp->setConstantValue(value);
-
-          auto expString = exp->toString();
-
-          QString comment;
-
-          if (!param.affects.isEmpty()) {
-            comment = " % " + param.affects;
-          }
-
-          source = source % QString("%1 %2 %3;%4\n").arg(QString(propname)).arg(affect).arg(expString).arg(comment);
-          break;
+        if (!param.affects.isEmpty()) {
+          comment = " % " + param.affects;
         }
+
+        source = source % QString("%1 %2 %3;%4\n").arg(QString(propname)).arg(affect).arg(expString).arg(comment);
+
+
       }
       /*
       QMapIterator<QString, Param> i(params);
@@ -557,19 +592,19 @@ void Glyph::componentChanged(QString name, bool structureChanged) {
   emit valueChanged("component", false);
 }
 
-void Glyph::setParameter(QString name, Exp* exp, bool isEquation) {
+void Glyph::setParameter(QString name, MFExpr* exp, bool isEquation) {
   setParameter(name, exp, isEquation, false, QString());
 }
-void Glyph::setParameter(QString name, Exp* exp, bool isEquation, bool isInControllePath) {
+void Glyph::setParameter(QString name, MFExpr* exp, bool isEquation, bool isInControllePath) {
   setParameter(name, exp, isEquation, isInControllePath, QString());
 }
-void Glyph::setParameter(QString name, Exp* exp, bool isEquation, bool isInControllePath, QString affects) {
+void Glyph::setParameter(QString name, MFExpr* exp, bool isEquation, bool isInControllePath, QString affects) {
   Param param = {};
 
   param.name = name;
-  param.type = ParameterType::expression;
   param.isEquation = isEquation;
   param.affects = affects;
+  param.expr = std::unique_ptr<MFExpr>{ exp };
 
   param.isInControllePath = isInControllePath;
 
@@ -577,17 +612,16 @@ void Glyph::setParameter(QString name, Exp* exp, bool isEquation, bool isInContr
     param.isInControllePath = true;
   }
 
-  params.insert(param.name, param);
+  params.insert({ param.name, std::move(param) });
 
   if (!affects.isEmpty()) {
-    dependents.insert(affects, &params[param.name]);
+    dependents.insert(affects, &params[name]);
   }
 
-  QSharedPointer<Exp> p{ exp };
-
-  expressions.insert(param.name, p);
-
-  setProperty(param.name.toLatin1(), p->constantValue());
+  //TODO : check this
+  if (exp->isLiteral()) {
+    setProperty(name.toLatin1(), exp->constantValue(0));
+  }
 
 }
 
@@ -610,7 +644,6 @@ mp_edge_object* Glyph::getEdge(bool resetExpParams)
     return edge;
 
   auto data = source();
-
   /*
   if (expressions.size() > 0) {
     QString end = "enddefchar;\n";
@@ -630,18 +663,13 @@ mp_edge_object* Glyph::getEdge(bool resetExpParams)
 
   }*/
 
-
-
-
   if (!resetExpParams) {
     data = QString("ignore_exp_parameters:=1;lefttatweel:=%1;righttatweel:=%2;").arg(leftTatweel()).arg(rightTatweel()) % data;
   }
 
-
-
   QByteArray commandBytes = data.toLatin1();
   mp->history = mp_spotless;
-  int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());  
+  int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());
   if (status >= mp_error_message_issued) {
     QString error = getError();
     edge = NULL;
@@ -657,25 +685,23 @@ mp_edge_object* Glyph::getEdge(bool resetExpParams)
     p = p->next;
   }
 
-  //int res = mp_svg_gr_ship_out(edge, 0, false);
+  QPointF translate;
+  if (edge != nullptr) {
+    translate = QPointF(edge->xpart, edge->ypart);
+  }
 
-  //auto svg = _mp_results->ship_out.data;
-
-  /*
-  if (expressions.size() > 0) {
-    for (int i = 0; i < expressions.size(); ++i) {
-      auto name = expressions.keys().at(i);
-      auto value = expressions.value(name);
-      if (value->type() == QVariant::PointF) {
-        double x = 0;
-        double y = 0;
-        getPointParam(mp, i, &x, &y);
-        value->setValue(QPointF(x, y));
+  for (auto& [name, param] : params) {
+    if (!param.isInControllePath) {
+      auto expr = param.expr.get();
+      if (expr->type() != QVariant::Double) {
+        QString varName = !param.affects.isEmpty() ? param.affects : name;       
+        QPointF point;
+        if (font->getPairVariable(varName, point)) {
+          param.value = point + translate;
+        }
       }
     }
-
-
-  }*/
+  }
 
   return edge;
 }
@@ -788,4 +814,17 @@ QPainterPath Glyph::getPath() {
   localpath.addPath(getPathFromEdge(getEdge()));
 
   return localpath;
+}
+
+bool Glyph::setProperty(const char* name, const QVariant& value, bool updateParam) {
+  if (updateParam) {
+    auto param = this->params.find(name);
+    if (param != this->params.end()) {
+      auto expr = param->second.expr.get();
+      if (expr->isConstant(0)) {
+        expr->setConstantValue(0, value);
+      }
+    }
+  }
+  return QObject::setProperty(name, value);
 }

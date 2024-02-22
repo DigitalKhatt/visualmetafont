@@ -11,6 +11,7 @@ endif()
 find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
 
+
 cmake_policy(SET CMP0071 NEW)
 
 #add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/showIncludes>)
@@ -25,6 +26,8 @@ set(WEBLIB_NAME VisualMetaFontWasm)
 set(LUATEX_NAME luadigitalkhatt)
 
 if (NOT EMSCRIPTEN)
+
+  find_package(protobuf CONFIG REQUIRED)
 
   find_package(Qt5 COMPONENTS Core OpenGL Svg PrintSupport Widgets REQUIRED)
 
@@ -91,8 +94,12 @@ else()
 endif()
 
 set(Automedina
-  automedina/automedina.cpp
   automedina/automedina.h
+  automedina/automedina.cpp
+  automedina/digitalkhatt.h
+  automedina/digitalkhatt.cpp
+  automedina/oldmadina.h
+  automedina/oldmadina.cpp
   automedina/defaultmarkpositions.h
   )
 
@@ -145,6 +152,9 @@ set(Export
   Export/ExportToHTML.h
   Export/GenerateLayout.h
   Export/GenerateLayout.cpp
+  Export/protobuf/quran.pb.cc
+  Export/protobuf/quran.pb.h
+  Export/generateLayoutProtoBuf.cpp
   )
 source_group("Export" FILES ${Export})
 
@@ -180,6 +190,8 @@ set(Layout
   Layout/GraphicsSceneAdjustment.cpp
   Layout/GraphicsViewAdjustment.cpp
   Layout/LayoutWindow.cpp
+  Layout/apply_force.cpp
+  Layout/LookupEdit.cpp
   )
 source_group("Layout" FILES ${Layout})
 
@@ -234,7 +246,6 @@ set(GlyphWindow
   glyphwindow/knotitem.cpp
   glyphwindow/pairitem.cpp
   glyphwindow/ruleritem.cpp
-  glyphwindow/tensiondirectionitem.cpp
   glyphwindow/pathview.h
   glyphwindow/pathview.cpp
   )
@@ -411,6 +422,8 @@ if (NOT EMSCRIPTEN)
     target_link_libraries(${WEBLIB_NAME} PUBLIC PNG::PNG )
   endif()
   ]]
+
+  target_link_libraries(${PROJECT_NAME} PRIVATE protobuf::libprotobuf)
 
 else()
 

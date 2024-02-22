@@ -59,6 +59,46 @@ public:
 
 	QSet<int> currentPressdKeys;
 
+	int getControlledPosition(QGraphicsSceneMouseEvent* event) {
+
+		auto scene = this;
+
+		if (scene->currentPressdKeys.contains(Qt::Key_F1)) {
+			return 1;
+		}
+		else if (scene->currentPressdKeys.contains(Qt::Key_F2)) {
+			return 2;
+		}
+		else if (scene->currentPressdKeys.contains(Qt::Key_F3)) {
+			return 3;
+		}
+		else if (scene->currentPressdKeys.contains(Qt::Key_F4)) {
+			return 4;
+		}
+		else if (scene->currentPressdKeys.contains(Qt::Key_F5)) {
+			return 5;
+		}
+		else if (scene->currentPressdKeys.contains(Qt::Key_F6)) {
+			return 6;
+		}
+		else if (scene->currentPressdKeys.contains(Qt::Key_F7)) {
+			return 7;
+		}
+		else if (scene->currentPressdKeys.contains(Qt::Key_F8)) {
+			return 8;
+		}
+		else if (scene->currentPressdKeys.contains(Qt::Key_F9)) {
+			return 9;
+		}
+		else if (scene->currentPressdKeys.contains(Qt::Key_F10)) {
+			return 10;
+		}
+		else {
+			return 0;
+		}
+
+	}
+
 public slots:
 	void setMode(Mode mode);
 
@@ -88,7 +128,8 @@ private:
 	RulerItem* ruler;
 	bool ismoving;
 	bool wasMouseMoveEvent;
-
+	std::map<QString, Glyph::Param> old_params;
+	std::map<QString, Glyph::Param> new_params;
 	void loadImage(Glyph::ImageInfo imageInfo);
 	ContourItem* contour;
 

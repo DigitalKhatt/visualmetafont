@@ -107,7 +107,7 @@ private:
 	bool _isParam;
 public:
 
-	VarMFExpr(QString v, bool isParam) :val{ v }, _isParam{ isParam }{ }
+	VarMFExpr(QString v, bool isParam) :val{ v }, _isParam{ isParam } { }
 
 	// Returns a reference to the stored string value.
 	QString toString() override {
@@ -260,7 +260,7 @@ public:
 	}
 
 	bool isConstant(int i) override {
-		return left->isConstant(i) && right->isConstant(i);
+		return left->isConstant(i) || right->isConstant(i);
 	}
 
 	bool containsConstant() override {
@@ -274,47 +274,6 @@ public:
 	}
 
 	bool isLiteral() override { return left->isLiteral() && right->isLiteral(); }
-};
-
-
-class LitPointPathPointExp :public PathPointExp {
-private:
-	QPointF val;
-
-public:
-	LitPointPathPointExp(QPointF v) :val(v) { }
-
-	QString toString() override {
-		return QString("(%1,%2)").arg(val.x()).arg(val.y());
-	}
-
-	QVariant constantValue(int i) override {
-		return val;
-	}
-
-	void setConstantValue(int i, QVariant value) override {
-		val = value.toPointF();
-	}
-
-	QVariant::Type type() override {
-		return QVariant::PointF;
-	}
-
-
-
-	bool isConstant(int i) override {
-		return true;
-	}
-
-	bool containsConstant() override {
-		return true;
-	}
-
-	std::unique_ptr<MFExpr> clone() {
-		return std::make_unique<LitPointPathPointExp>(val);
-	}
-
-	bool isLiteral() override { return true; }
 };
 
 class BinOpMFExp :public PathPointExp {
@@ -365,6 +324,7 @@ public:
 		if (pos < 2) {
 			return args[pos]->isConstant(0);
 		}
+		return false;
 	}
 
 	virtual void setConstantValue(int pos, QVariant value) override {
@@ -399,17 +359,29 @@ public:
 class FunctionMFExp :public PathPointExp {
 
 protected:
-	std::unique_ptr<MFExpr> args[2];
+	std::vector<std::unique_ptr<MFExpr>> args;
 	QString functionName;
 	int nbArgs;
 
 public:
 	FunctionMFExp(QString functionName, MFExpr* l, MFExpr* r) : functionName{ functionName }
 	{
-		args[0] = std::unique_ptr<MFExpr>(l);
-		args[1] = std::unique_ptr<MFExpr>(r);
+		args.push_back(std::unique_ptr<MFExpr>(l));
+		args.push_back(std::unique_ptr<MFExpr>(r));
 
 		nbArgs = 2;
+
+
+	}
+
+	FunctionMFExp(QString functionName, std::vector<MFExpr*> params) : functionName{ functionName }
+	{
+
+		for (auto param : params) {
+			args.push_back(std::unique_ptr<MFExpr>(param));
+		}
+
+		nbArgs = args.size();
 
 
 	}
@@ -424,7 +396,19 @@ public:
 
 	// Returns a reference to the stored string value.
 	QString toString() override {
-		return QString("%1(%2,%3)").arg(functionName).arg(args[0]->toString()).arg(args[1]->toString());
+		int size = args.size();
+		auto result = QString("%1 ( ").arg(functionName);
+		if (size > 0) {
+			result += args[0]->toString();
+		}
+
+		for (int i = 1; i < size; i++) {
+			result += ", " + args[i]->toString();
+		}
+
+		result = result + " )";
+
+		return result;
 	}
 
 	QVariant constantValue(int pos) override {
@@ -466,15 +450,20 @@ public:
 	}
 
 	QString paramName(int i) override {
-		if (i < 2) {
+		if (i < nbArgs) {
 			return args[i]->paramName(0);
 		}
 	}
 
 	std::unique_ptr<MFExpr> clone() override {
-		auto exp1 = args[0]->clone();
-		auto exp2 = args[1]->clone();
-		auto ret = std::make_unique<FunctionMFExp>(functionName, exp1.release(), exp2.release());
+
+		std::vector<MFExpr*> params;
+
+		for (auto& exp : args) {
+			auto exp1 = exp->clone();
+			params.push_back(exp1.release());
+		}
+		auto ret = std::make_unique<FunctionMFExp>(functionName, params);
 		return ret;
 	}
 

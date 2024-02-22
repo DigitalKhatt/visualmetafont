@@ -45,7 +45,7 @@ GlyphVis::GlyphVis() {
 GlyphVis::~GlyphVis()
 {
   if (copiedPath && isCopiedPath) {
-    mp_graphic_object* p, *q;
+    mp_graphic_object* p, * q;
 
     p = copiedPath;
     while (p != NULL) {
@@ -85,7 +85,7 @@ GlyphVis::GlyphVis(const GlyphVis& other) {
   isCopiedPath = other.isCopiedPath;
 
   if (other.copiedPath && isCopiedPath) {
-    copiedPath =  copyEdgeBody();
+    copiedPath = copyEdgeBody();
   }
 
   expanded = other.expanded;
@@ -163,7 +163,7 @@ GlyphVis& GlyphVis::operator=(const GlyphVis& other) {
   isCopiedPath = other.isCopiedPath;
 
   if (other.copiedPath && isCopiedPath) {
-    copiedPath =  copyEdgeBody();
+    copiedPath = copyEdgeBody();
   }
 
   expanded = other.expanded;
@@ -265,12 +265,13 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
   charlt = m_edge->charlt;
   charrt = m_edge->charrt;
 
-  if(edge->body == nullptr ){
+  if (edge->body == nullptr) {
     bbox.llx = 0;
     bbox.lly = 0;
     bbox.urx = 0;
     bbox.ury = 0;
-  }else{
+  }
+  else {
     bbox.llx = m_edge->minx;
     bbox.lly = m_edge->miny;
     bbox.urx = m_edge->maxx;
@@ -304,7 +305,7 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
 #endif
   if (copyPath) {
     isCopiedPath = true;
-    copiedPath =  this->copyEdgeBody();
+    copiedPath = this->copyEdgeBody();
   }
   else {
     isCopiedPath = false;
@@ -314,18 +315,19 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
 
   for (int i = 0; i < m_edge->numAnchors; i++) {
     AnchorPoint anchor = m_edge->anchors[i];
-    anchors.insert(anchor.anchorName,{ QPoint(anchor.x, anchor.y), anchor.type});
+    //auto type = anchor.type == (int)AnchorType::EntryAnchorRTL ? AnchorType::EntryAnchor : (anchor.type == (int)AnchorType::ExitAnchorRTL ? AnchorType::ExitAnchor : (AnchorType)anchor.type);
+    anchors.insert({ anchor.anchorName,(AnchorType)anchor.type }, { QPoint(anchor.x, anchor.y), anchor.type });
   }
 
 
 }
 
-bool GlyphVis::conatinsAnchor(QString name){
-  return anchors.contains(name);
+bool GlyphVis::conatinsAnchor(QString name, AnchorType type) {
+  return anchors.contains({ name,type });
 }
 
-QPoint GlyphVis::getAnchor(QString name) {
-  return anchors.value(name).anchor;
+QPoint GlyphVis::getAnchor(QString name, AnchorType type) {
+  return anchors.value({ name,type }).anchor;
 
   /*
         if (value.isNull()) {
@@ -348,7 +350,7 @@ mp_graphic_object* GlyphVis::copyEdgeBody() {
 
   mp_edge_object* h = edge();
 
-  auto copypath = [](mp_gr_knot knot,OtLayout* layout)
+  auto copypath = [](mp_gr_knot knot, OtLayout* layout)
   {
     mp_gr_knot p, current, ret;
 
@@ -407,39 +409,39 @@ mp_graphic_object* GlyphVis::copyEdgeBody() {
       do {
         switch (body->type)
         {
-          case mp_fill_code: {
+        case mp_fill_code: {
 
-              mp_fill_object* fillobject = (mp_fill_object*)body;
-              mp_gr_knot newpath = copypath(fillobject->path_p, m_otLayout);
+          mp_fill_object* fillobject = (mp_fill_object*)body;
+          mp_gr_knot newpath = copypath(fillobject->path_p, m_otLayout);
 
-              mp_fill_object* nextObject = (mp_fill_object * )mp_new_graphic_object(m_otLayout->mp, mp_fill_code); // new mp_fill_object;
-              nextObject->type = mp_fill_code;
-              nextObject->path_p = newpath;
-              nextObject->next = nullptr;
-              nextObject->pre_script = nullptr;
-              nextObject->post_script = nullptr;
-              nextObject->pen_p = nullptr;
-              nextObject->htap_p = nullptr;
+          mp_fill_object* nextObject = (mp_fill_object*)mp_new_graphic_object(m_otLayout->mp, mp_fill_code); // new mp_fill_object;
+          nextObject->type = mp_fill_code;
+          nextObject->path_p = newpath;
+          nextObject->next = nullptr;
+          nextObject->pre_script = nullptr;
+          nextObject->post_script = nullptr;
+          nextObject->pen_p = nullptr;
+          nextObject->htap_p = nullptr;
 
-              if (fillobject->color_model == mp_rgb_model) {
-                nextObject->color_model = mp_rgb_model;
-                nextObject->color = fillobject->color;
-              }
+          if (fillobject->color_model == mp_rgb_model) {
+            nextObject->color_model = mp_rgb_model;
+            nextObject->color = fillobject->color;
+          }
 
-              if (currObject == nullptr) {
-                currObject = (mp_graphic_object*)nextObject;
-                result = currObject;
-              }
-              else {
-                currObject->next = (mp_graphic_object*)nextObject;
-                currObject = currObject->next;
-              }
+          if (currObject == nullptr) {
+            currObject = (mp_graphic_object*)nextObject;
+            result = currObject;
+          }
+          else {
+            currObject->next = (mp_graphic_object*)nextObject;
+            currObject = currObject->next;
+          }
 
 
-              break;
-            }
-          default:
-            break;
+          break;
+        }
+        default:
+          break;
         }
 
       } while (body = body->next);
@@ -466,15 +468,15 @@ QPainterPath GlyphVis::getPath(mp_edge_object* h) {
       do {
         switch (body->type)
         {
-          case mp_fill_code: {
-              QPainterPath subpath = mp_dump_solved_path(((mp_fill_object*)body)->path_p);
-              localpath.addPath(subpath);
+        case mp_fill_code: {
+          QPainterPath subpath = mp_dump_solved_path(((mp_fill_object*)body)->path_p);
+          localpath.addPath(subpath);
 
 
-              break;
-            }
-          default:
-            break;
+          break;
+        }
+        default:
+          break;
         }
 
       } while (body = body->next);
@@ -500,22 +502,22 @@ QPicture GlyphVis::getPicture(mp_edge_object* h)
       do {
         switch (body->type)
         {
-          case mp_fill_code: {
-              auto fillobject = (mp_fill_object*)body;
-              QPainterPath subpath = mp_dump_solved_path(fillobject->path_p);
-              if (fillobject->color_model == mp_rgb_model) {
-                //painter.setBrush(QColor(fillobject->color.a_val, fillobject->color.b_val, fillobject->color.c_val));
-                painter.fillPath(subpath, QColor(fillobject->color.a_val * 255, fillobject->color.b_val * 255, fillobject->color.c_val * 255));
-              }
-              else {
-                int t = 5;
-              }
+        case mp_fill_code: {
+          auto fillobject = (mp_fill_object*)body;
+          QPainterPath subpath = mp_dump_solved_path(fillobject->path_p);
+          if (fillobject->color_model == mp_rgb_model) {
+            //painter.setBrush(QColor(fillobject->color.a_val, fillobject->color.b_val, fillobject->color.c_val));
+            painter.fillPath(subpath, QColor(fillobject->color.a_val * 255, fillobject->color.b_val * 255, fillobject->color.c_val * 255));
+          }
+          else {
+            int t = 5;
+          }
 
 
-              break;
-            }
-          default:
-            break;
+          break;
+        }
+        default:
+          break;
         }
 
       } while (body = body->next);

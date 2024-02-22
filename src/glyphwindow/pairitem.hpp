@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -30,7 +30,7 @@ class MdiGlyph;
 class PairItem : public QGraphicsItem {
 
 public:
-	PairItem(Glyph::Param param, Glyph* glyph, QGraphicsItem *parent);
+	PairItem(Glyph::Param& param, Glyph* glyph, QGraphicsItem *parent);
 	~PairItem();
 
 	QRectF boundingRect() const Q_DECL_OVERRIDE;
@@ -41,7 +41,7 @@ protected:
 	void mouseMoveEvent(QGraphicsSceneMouseEvent *event) Q_DECL_OVERRIDE;
 
 private:
-	Glyph::Param param;
+	Glyph::Param& param;
 	Glyph* glyph;
 	double radius;
 	QBrush brush;

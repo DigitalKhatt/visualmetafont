@@ -110,26 +110,47 @@ void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
 
   QMapIterator<quint16, GlyphExpansion>i(expansion);
 
+
   while (i.hasNext()) {
     i.next();
 
     GlyphExpansion expan = i.value();
 
     if (expan.MinLeftTatweel != 0 || expan.MinRightTatweel != 0) {
+
+      if (expan.MinLeftTatweel > 0 && expan.MinRightTatweel > 0) {
+        throw new std::runtime_error("SHOULD NOT");
+      }
+
       GlyphParameters parameters;
 
       parameters.lefttatweel = (double)expan.MinLeftTatweel;
       parameters.righttatweel = (double)expan.MinRightTatweel;
 
       auto substGlyph = (uint16_t)subst[i.key()];
-
       auto substEquivGlyphs = m_layout->getSubstEquivGlyphs(substGlyph);
+      while (true) {
 
-      for (auto& glyph : substEquivGlyphs) {
-        GlyphVis* newglyph = m_layout->getAlternate(glyph.second->charcode, parameters, true, true);
+        auto oldSize = substEquivGlyphs.size();
+
+        for (auto& glyph : substEquivGlyphs) {
+          if ((expan.MinLeftTatweel > 0 && glyph.second->charrt > 0) || (expan.MinRightTatweel > 0 && glyph.second->charlt > 3)) continue;
+          if ((glyph.second->charlt > 5 || glyph.second->charrt > 5)) continue;
+          //if ((glyph.second->charlt < -0.1 || glyph.second->charrt < -0.1)) continue;
+
+          //if ((expan.MinLeftTatweel > 0 && glyph.second->charlt > 5) || (expan.MinRightTatweel > 0 && glyph.second->charrt > 5)) continue;
+
+          GlyphVis* newglyph = m_layout->getAlternate(glyph.second->charcode, parameters, true, true);
+        }
+        GlyphVis* glyph = m_layout->getAlternate(substGlyph, parameters, true, true);
+
+        if (!m_lookup->name.contains("jt02")) break;
+
+        substEquivGlyphs = m_layout->getSubstEquivGlyphs(substGlyph);
+
+        auto newSize = substEquivGlyphs.size();
+        if (newSize == oldSize) break;
       }
-      GlyphVis* glyph = m_layout->getAlternate(substGlyph, parameters, true, true);
-
     }
 
 
@@ -290,6 +311,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
       }
 
       if ((expan.MinLeftTatweel < 0 && expan.MinLeftTatweel < limits.minLeft) || (expan.MinLeftTatweel > 0 && expan.MinLeftTatweel > limits.maxLeft)) {
+        std::cout << "MinLeftTatweel error for glyph " + name.toStdString() << std::endl;
         //throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
       }
       else if (expan.MinLeftTatweel < 0.0) {
@@ -318,6 +340,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
       }
 
       if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
+        std::cout << "MinRightTatweel error for glyph " + name.toStdString() << std::endl;
         //throw new runtime_error("MinRightTatweel error for glyph " + name.toStdString());
       }
       else if (expan.MinRightTatweel < 0.0) {
@@ -797,8 +820,17 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
 
     ValueRecord record = i.value();
 
-    if (parameters.contains(i.key())) {
-      ValueRecord par = parameters.value(i.key());
+    auto originalCode = i.key();
+
+    if (!extended) {
+      auto glyph = m_layout->getGlyph(originalCode);
+      if (glyph->name.contains(".added_")) {
+        originalCode = m_layout->glyphCodePerName[glyph->originalglyph];
+      }
+    }
+
+    if (parameters.contains(originalCode)) {
+      ValueRecord par = parameters.value(originalCode);
       record = { (qint16)(record.xPlacement + par.xPlacement),(qint16)(record.yPlacement + par.yPlacement) ,(qint16)(record.xAdvance + par.xAdvance) ,record.yAdvance };
     }
 
@@ -941,7 +973,7 @@ void AlternateSubtable::generateSubstEquivGlyphs() {
         parameters.righttatweel = alternateGlyph.righttatweel;
 
         m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
-      }     
+      }
     }
   }
 }
@@ -1203,56 +1235,92 @@ void MarkBaseSubtable::readJson(const QJsonObject& json)
 }
 optional<QPoint> CursiveSubtable::getExit(quint16 glyph_id, double lefttatweel, double righttatweel) {
 
-  optional<QPoint> ret;
+  optional<QPoint> exit;
+
+  auto anchorType = m_lookup->flags & Lookup::Flags::RightToLeft ? GlyphVis::AnchorType::ExitAnchorRTL : GlyphVis::AnchorType::ExitAnchor;
 
   if (anchors.contains(glyph_id)) {
 
     auto& entryexit = anchors[glyph_id];
 
-    if (entryexit.exit || !entryexit.exitName.isEmpty()) {
+    GlyphVis* originalglyph = m_layout->getGlyph(glyph_id);
+    GlyphVis* curr = originalglyph;
 
-      QPoint exit;
+    if (lefttatweel != 0.0 || righttatweel != 0.0) {
+      GlyphParameters parameters{};
 
-      if (entryexit.exit) {
-        exit = *(entryexit.exit);
-      }
+      parameters.lefttatweel = lefttatweel;
+      parameters.righttatweel = righttatweel;
 
+      curr = originalglyph->getAlternate(parameters);
+    }
 
-      if (exitParameters.contains(glyph_id)) {
-        exit += exitParameters[glyph_id];
-      }
-      if (lefttatweel != 0.0 || righttatweel != 0.0) {
-        GlyphParameters parameters{};
+    if (!entryexit.exitName.isEmpty() && curr->conatinsAnchor(entryexit.exitName, anchorType)) {
+      exit = curr->getAnchor(entryexit.exitName, anchorType);
+    }
+    else if (curr->conatinsAnchor(this->name, anchorType)) {
+      exit = curr->getAnchor(this->name, anchorType);
+    }
+    else {
+      exit = entryexit.exit;
+      //exit = calculateEntry(originalglyph, curr, entry);
+    }
 
-        parameters.lefttatweel = lefttatweel;
-        parameters.righttatweel = righttatweel;
-
-        QString glyphName = m_layout->glyphNamePerCode[glyph_id];
-
-        GlyphVis* originalglyph = &m_layout->glyphs[glyphName];
-
-        GlyphVis* curr = originalglyph->getAlternate(parameters);
-
-        if (!entryexit.exitName.isEmpty() && curr->conatinsAnchor(entryexit.exitName)) {
-          exit = curr->getAnchor(entryexit.exitName);
-        }
-        else if (curr->conatinsAnchor(this->name)) {
-          exit = curr->getAnchor(this->name);
-        }
-        else {
-          //exit = calculateEntry(originalglyph, curr, entry);
-        }
-      }
-      ret = exit;
+    if (exit && exitParameters.contains(glyph_id)) {
+      exit = *exit + exitParameters[glyph_id];
     }
   }
 
-  return ret;
+  return exit;
 }
 
 optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, double lefttatweel, double righttatweel) {
 
+  optional<QPoint> entry;
+
+  auto anchorType = m_lookup->flags & Lookup::Flags::RightToLeft ? GlyphVis::AnchorType::EntryAnchorRTL : GlyphVis::AnchorType::EntryAnchor;
+
+  if (anchors.contains(glyph_id)) {
+
+    auto& entryexit = anchors[glyph_id];
+
+    GlyphVis* originalglyph = m_layout->getGlyph(glyph_id);
+    GlyphVis* curr = originalglyph;
+
+    if (lefttatweel != 0.0 || righttatweel != 0.0) {
+      GlyphParameters parameters{};
+
+      parameters.lefttatweel = lefttatweel;
+      parameters.righttatweel = righttatweel;
+
+      curr = originalglyph->getAlternate(parameters);
+    }
+
+    if (!entryexit.entryName.isEmpty() && curr->conatinsAnchor(entryexit.entryName, anchorType)) {
+      entry = curr->getAnchor(entryexit.entryName, anchorType);
+    }
+    else if (curr->conatinsAnchor(this->name, anchorType)) {
+      entry = curr->getAnchor(this->name, anchorType);
+    }
+    else {
+      entry = entryexit.entry;
+      if (entry) {
+        entry = calculateEntry(originalglyph, curr, *entry);
+      }
+    }
+
+    if (entry && entryParameters.contains(glyph_id)) {
+      entry = *entry + entryParameters[glyph_id];
+    }
+  }
+
+  return entry;
+}
+/*ptional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, double lefttatweel, double righttatweel) {
+
   optional<QPoint> ret;
+
+  auto anchorType = m_lookup->flags & Lookup::Flags::RightToLeft ? GlyphVis::AnchorType::EntryAnchorRTL : GlyphVis::AnchorType::EntryAnchor;
 
   if (anchors.contains(glyph_id)) {
 
@@ -1278,8 +1346,11 @@ optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, double lefttatweel,
 
         GlyphVis* curr = originalglyph->getAlternate(parameters);
 
-        if (curr->conatinsAnchor(this->name)) {
-          entry = curr->getAnchor(this->name);
+        if (!entryexit.entryName.isEmpty() && curr->conatinsAnchor(entryexit.entryName, anchorType)) {
+          entry = curr->getAnchor(entryexit.entryName, anchorType);
+        }
+        else if (curr->conatinsAnchor(this->name, anchorType)) {
+          entry = curr->getAnchor(this->name, anchorType);
         }
         else {
           entry = calculateEntry(originalglyph, curr, entry);
@@ -1291,7 +1362,8 @@ optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, double lefttatweel,
   }
 
   return ret;
-}
+}*/
+
 QPoint CursiveSubtable::calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint entry) {
 
   /*
@@ -1415,30 +1487,54 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
     std::cout << "basmala.curs.l3" << std::endl;
   }*/
 
+  bool rtl = m_lookup->flags & Lookup::Flags::RightToLeft;
 
   for (auto anchor = anchors.constBegin(); anchor != anchors.constEnd(); ++anchor) {
 
     auto& entryexit = anchor.value();
 
+    auto glyphCode = anchor.key();
+
+    /*
     auto calcentry = entryexit.entry;
 
     if (!calcentry) {
       if (!entryexit.entryName.isEmpty()) {
         GlyphVis* curr = m_layout->getGlyph(anchor.key());
-        if (curr->anchors.contains(entryexit.entryName)) {
-          calcentry = curr->anchors.value(entryexit.entryName).anchor;
+        auto it = curr->anchors.find({ entryexit.entryName,rtl ? GlyphVis::AnchorType::EntryAnchorRTL : GlyphVis::AnchorType::EntryAnchor });
+        if (it != curr->anchors.end()) {
+          calcentry = it->anchor;
         }
       }
-    }
+    }*/
 
+
+    std::optional<QPoint> calcentry;
+
+    if (!extended) {
+      auto glyph = m_layout->getGlyph(glyphCode);
+      if (glyph->name.contains(".added_")) {
+
+        auto& originalGlyph = m_layout->glyphs[glyph->originalglyph];
+
+        calcentry = getEntry(originalGlyph.charcode, glyph->charlt, glyph->charrt);
+      }
+      else {
+        calcentry = getEntry(glyphCode, 0, 0);
+      }
+    }
+    else {
+      calcentry = getEntry(glyphCode, 0, 0);
+    }
 
     if (calcentry) {
 
       QPoint entry{ *(calcentry) };
 
+      /*
       if (entryParameters.contains(anchor.key())) {
         entry += entryParameters[anchor.key()];
-      }
+      }*/
 
       root << anchorOffset;
 
@@ -1492,24 +1588,45 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
       root << (quint16)0;
     }
 
-    calcentry = entryexit.exit;
-
-    if (!calcentry) {
+    /*
+    auto calcexit = entryexit.exit;
+    if (!calcexit) {
       if (!entryexit.exitName.isEmpty()) {
         GlyphVis* curr = m_layout->getGlyph(anchor.key());
-        if (curr->anchors.contains(entryexit.exitName)) {
-          calcentry = curr->anchors.value(entryexit.exitName).anchor;
+        auto it = curr->anchors.find({ entryexit.exitName,rtl ? GlyphVis::AnchorType::ExitAnchorRTL : GlyphVis::AnchorType::ExitAnchor });
+        if (it != curr->anchors.end()) {
+          calcexit = it->anchor;
         }
       }
+    }*/
+
+    std::optional<QPoint> calcexit;
+
+
+    if (!extended) {
+      auto glyph = m_layout->getGlyph(glyphCode);
+      if (glyph->name.contains(".added_")) {
+
+        auto& originalGlyph = m_layout->glyphs[glyph->originalglyph];
+
+        calcexit = getExit(originalGlyph.charcode, glyph->charlt, glyph->charrt);
+      }
+      else {
+        calcexit = getExit(glyphCode, 0, 0);
+      }
+    }
+    else {
+      calcexit = getExit(glyphCode, 0, 0);
     }
 
-    if (calcentry) {
+    if (calcexit) {
 
-      QPoint exit{ *(calcentry) };
+      QPoint exit{ *(calcexit) };
 
+      /*
       if (exitParameters.contains(anchor.key())) {
         exit += exitParameters[anchor.key()];
-      }
+      }*/
 
       root << anchorOffset;
 
@@ -1793,18 +1910,32 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
       QPoint coordinate;
       QPoint adjust;
 
-      if (markClass.baseparameters.contains(baseglyphName)) {
-        adjust = markClass.baseparameters[baseglyphName];
+      QString originalGlyph = baseglyphName;
+      double charlt = 0.0;
+      double charrt = 0.0;
+
+      if (!extended) {
+        auto glyph = m_layout->getGlyph(glyphCode);
+        if (glyph->name.contains(".added_")) {
+          originalGlyph = glyph->originalglyph;
+        }
+        charlt = glyph->charlt;
+        charrt = glyph->charrt;
+      }
+
+
+      if (markClass.baseparameters.contains(originalGlyph)) {
+        adjust = markClass.baseparameters[originalGlyph];
         coordinate = adjust;
       }
 
-      if (markClass.baseanchors.contains(baseglyphName)) {
-        coordinate += markClass.baseanchors[baseglyphName];
+      if (markClass.baseanchors.contains(originalGlyph)) {
+        coordinate += markClass.baseanchors[originalGlyph];
       }
       else {
 
         if (markClass.basefunction != nullptr) {
-          coordinate = markClass.basefunction(baseglyphName, className, adjust, 0.0, 0.0);
+          coordinate = markClass.basefunction(originalGlyph, className, adjust, charlt, charrt);
         }
       }
 
@@ -1886,18 +2017,31 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
     QPoint coordinate;
     QPoint adjust;
 
-    if (markClass.markparameters.contains(markglyphName)) {
-      adjust = markClass.markparameters[markglyphName];
+    QString originalMark = markglyphName;
+
+    double charlt = 0.0;
+    double charrt = 0.0;
+    if (!extended) {
+      auto glyph = m_layout->getGlyph(charcode);
+      if (glyph->name.contains(".added_")) {
+        originalMark = glyph->originalglyph;
+        charlt = glyph->charlt;
+        charrt = glyph->charrt;
+      }
+    }
+
+    if (markClass.markparameters.contains(originalMark)) {
+      adjust = markClass.markparameters[originalMark];
       coordinate = adjust;
     }
 
-    if (markClass.markanchors.contains(markglyphName)) {
-      coordinate += markClass.markanchors[markglyphName];
+    if (markClass.markanchors.contains(originalMark)) {
+      coordinate += markClass.markanchors[originalMark];
     }
     else {
 
       if (markClass.markfunction) {
-        coordinate = markClass.markfunction(markglyphName, className, adjust, 0, 0);
+        coordinate = markClass.markfunction(originalMark, className, adjust, charlt, charrt);
       }
 
     }

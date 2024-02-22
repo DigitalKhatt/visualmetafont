@@ -18,7 +18,7 @@
 */
 
 #pragma once
-
+#include <stdbool.h>
 typedef struct MP_instance*MP;
 //void mymplib_shipout_backend(MP mp, void*voidh);
 
@@ -38,4 +38,7 @@ void mp_gr_toss_objects_extended(mp_edge_object* hh);
 //Transform getMatrix(MP mp, int charcode);
 
 void getPointParam(MP mp, int index,double*x, double*y);
+
+bool getMPPairVariable(MP mp, char* varName, double* x, double* y);
+bool getMPNumVariable(MP mp, char* varName, double* x);
 

@@ -46,43 +46,19 @@ public:
   const int minwaqfhigh = 900;
 
 public:
-  Automedina(OtLayout* layout, MP mp, bool extended);
-  Lookup* getLookup(QString lookupName);
-  QSet<quint16> classtoUnicode(QString className);
+  Automedina(OtLayout* layout, MP mp, bool extended) : glyphs{ layout->glyphs }, m_layout{ layout }, mp{ mp }, extended{ extended } {}
+
+  QSet<quint16> classtoUnicode(QString className, bool includeExpandables = false);
   QSet<quint16> regexptoUnicode(QString regexp);
   QSet<QString> classtoGlyphName(QString className);
-
   QHash<QString, GlyphVis>& glyphs;
-  CalcAnchor  getanchorCalcFunctions(QString functionName, Subtable* subtable);
 
-private:
+  virtual Lookup* getLookup(QString lookupName) = 0;
+  virtual CalcAnchor  getanchorCalcFunctions(QString functionName, Subtable* subtable) = 0;
+
+protected:
   OtLayout* m_layout;
 
-
-  Lookup* defaultmarkposition();
-  Lookup* defaultwaqfmarktobase();
-  Lookup* forsmalllalef();
-  Lookup* forsmallhighwaw();
-  Lookup* forhamza();
-  Lookup* forheh();
-  Lookup* forwaw();
-  Lookup* leftrightcursive();
-  Lookup* ligaturecursive();
-  Lookup* pointmarks();
-  Lookup* defaultwaqfmarkabovemarkprecise();
-  Lookup* defaultdotmarks();
-  Lookup* defaultmarkdotmarks();
-  Lookup* defaultmkmk();
-  Lookup* ayanumbers();
-  Lookup* ayanumberskern();
-  Lookup* rehwawcursive();
-  Lookup* lowmarkafterwawandreh();
-  Lookup* tajweedcolorcpp();
-  Lookup* populatecvxx();
-  Lookup* glyphalternates();
-  //Justification
-  Lookup* shrinkstretchlt(float lt, QString featureName);
-  Lookup* shrinkstretchlt();
   QHash<QString, QSet<QString>> classes;
   //void setAnchorCalcFunctions();
   void addchar(QString macroname,
@@ -95,8 +71,7 @@ private:
     std::optional<double> right_tatweeltension,
     QString newname,
     std::optional<int> which_in_baseline);
-  void addchars();
-  void generateGlyphs();
+
   QMap<QString, QSet<quint16>> cachedClasstoUnicode;
   //QMap<QString, AnchorCalc*> anchorCalcFunctions;
 

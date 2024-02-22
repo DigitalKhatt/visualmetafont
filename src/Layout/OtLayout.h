@@ -132,7 +132,7 @@ struct LineLayoutInfo {
   int ystartposition;
   LineType type = LineType::Line;
   float overfull;
-  int fontSize;
+  double fontSize;
 };
 
 struct LayoutPages {
@@ -221,7 +221,7 @@ public:
   void loadLookupFile(std::string fileName);
 
   void parseFeatureFile(std::string fileName);
-  hb_font_t* createFont(int scale, bool newFace = true);
+  hb_font_t* createFont(double scale, bool newFace = true);
   QSet<quint16> classtoUnicode(QString className);
   QSet<quint16> regexptoUnicode(QString regexp);
 
@@ -303,8 +303,10 @@ public:
 
   int tajweedcolorindex = 0xFFFF;
 
-  QList<LineLayoutInfo> justifyPage(int emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, bool changeSize = false, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
-  LayoutPages pageBreak(int emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
+  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, bool changeSize = false, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
+  LayoutPages pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
+  QList<QStringList> pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, QSet<int> forcedBreaks, int nbPages);
+  QList<QStringList> pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, int nbPages);
 
   bool applyJustification = true;
 
@@ -414,6 +416,8 @@ public:
 
   }
 
+  bool isExtended() { return extended; }
+
 #ifndef DIGITALKHATT_WEBLIB
 signals:
   void parameterChanged();
@@ -429,11 +433,8 @@ private:
 
   QMap<QString, QSet<quint16> > allGposFeatures;
   QMap<QString, QSet<quint16> > allGsubFeatures;
-
-
-
-  QByteArray getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups,
-    QMap<QString, QSet<quint16>>& allFeatures, QMap<QString, int>& lookupsIndexByName);
+    
+  QByteArray getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures, QMap<QString, int>& lookupsIndexByName);
   QByteArray getFeatureList(QMap<QString, QSet<quint16>> allFeatures);
   QByteArray getScriptList(int featureCount);
 
@@ -450,11 +451,11 @@ private:
 
   bool JustificationInProgress = false;
 
-  void applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, int emScale);
-  void applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, int emScale);
+  void applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, double emScale);
+  void applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, double emScale);
 
   void jutifyLine(hb_font_t* shapefont, hb_buffer_t* buffer, int lineWidth, bool tajweedColor);
-  void jutifyLine_old(hb_font_t* shapefont, hb_buffer_t* buffer, int lineWidth, int emScale, bool tajweedColor);
+  void jutifyLine_old(hb_font_t* shapefont, hb_buffer_t* buffer, int lineWidth, double emScale, bool tajweedColor);
 
   bool extended = true;
 
