@@ -42,4 +42,4 @@ files/quranMedina.pdf
 .vscode/
 CMakeLists.txt.user
 lib/QtPropertyBrowser/qt6/
-
+fonts/oldmadina/output/
