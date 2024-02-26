@@ -1,4 +1,0 @@
-ttx -o digitalkhatt.ttx digitalkhatt.otf
-ttx --flavor woff2 -o digitalkhatt.woff2 digitalkhatt.ttx
-ttx -o oldmadina.ttx oldmadina.otf
-ttx --flavor woff2 -o oldmadina.woff2 oldmadina.ttx

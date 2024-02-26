@@ -597,6 +597,10 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
   int endsajda = 0;
   int sajdamatched = 0;
 
+  QString page584 = QString::fromUtf8(qurantext[583] + 1);
+  bool oldMadinah = page584.contains("سُورَةُ عَبَسَ");
+
+
 
   for (int pagenum = 0; pagenum < 604; pagenum++) {
     //for (int pagenum = 48; pagenum < 49; pagenum++) {
@@ -609,199 +613,205 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
     textt = textt.replace("\u0626", "\u064A\u0654");
 
 
-    QStringList lines;
+    QStringList lines;    
 
-    if (pagenum == 583) {
-      textt.append(QString("سُورَةُ عَبَسَ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
-      }
-      else {
-        //return {};
-        throw new std::runtime_error("ERROR");
-      }
+    if (!oldMadinah) {
+      if (pagenum == 583) {
+        textt.append(QString("سُورَةُ عَبَسَ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          //return {};
+          throw new std::runtime_error("ERROR");
+        }
 
-    }
-
-    else if (pagenum == 584) {
-      textt = textt.replace(QString("سُورَةُ عَبَسَ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 75) {
-      textt.append(QString("سُورَةُ النِّسَاءِ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
+      }
+      else if (pagenum == 584) {
+        textt = textt.replace(QString("سُورَةُ عَبَسَ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 75) {
+        textt.append(QString("سُورَةُ النِّسَاءِ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          throw new std::runtime_error("ERROR");
+        }
+      }
+      else if (pagenum == 76) {
+        textt = textt.replace(QString("سُورَةُ النِّسَاءِ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 348) {
+        textt.append(QString("سُورَةُ النُّورِ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          throw new std::runtime_error("ERROR");
+        }
+      }
+      else if (pagenum == 349) {
+        textt = textt.replace(QString("سُورَةُ النُّورِ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 365) {
+        textt.append(QString("سُورَةُ الشُّعَرَاءِ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          throw new std::runtime_error("ERROR");
+        }
+      }
+      else if (pagenum == 366) {
+        textt = textt.replace(QString("سُورَةُ الشُّعَرَاءِ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 375) {
+        textt.append(QString("سُورَةُ النَّمْلِ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          throw new std::runtime_error("ERROR");
+        }
+      }
+      else if (pagenum == 376) {
+        textt = textt.replace(QString("سُورَةُ النَّمْلِ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 444) {
+        textt.append(QString("سُورَةُ الصَّافَّاتِ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          throw new std::runtime_error("ERROR");
+        }
+      }
+      else if (pagenum == 445) {
+        textt = textt.replace(QString("سُورَةُ الصَّافَّاتِ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 451) {
+        textt.append(QString("سُورَةُ صٓ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          throw new std::runtime_error("ERROR");
+        }
+      }
+      else if (pagenum == 452) {
+        textt = textt.replace(QString("سُورَةُ صٓ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 497) {
+        textt.append(QString("سُورَةُ الجَاثِيَةِ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          throw new std::runtime_error("ERROR");
+        }
+      }
+      else if (pagenum == 498) {
+        textt = textt.replace(QString("سُورَةُ الجَاثِيَةِ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 505) {
+        textt.append(QString("سُورَةُ مُحَمَّدٍ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          throw new std::runtime_error("ERROR");
+        }
+      }
+      else if (pagenum == 506) {
+        textt = textt.replace(QString("سُورَةُ مُحَمَّدٍ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 524) {
+        textt.append(QString("سُورَةُ النَّجْمِ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          throw new std::runtime_error("ERROR");
+        }
+      }
+      else if (pagenum == 525) {
+        textt = textt.replace(QString("سُورَةُ النَّجْمِ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 527) {
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 547) {
+        textt.append(QString("سُورَةُ المُمْتَحنَةِ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          throw new std::runtime_error("ERROR");
+        }
+      }
+      else if (pagenum == 548) {
+        textt = textt.replace(QString("سُورَةُ المُمْتَحنَةِ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 554) {
+        textt.append(QString("سُورَةُ التَّغَابُنِ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          throw new std::runtime_error("ERROR");
+        }
+      }
+      else if (pagenum == 555) {
+        textt = textt.replace(QString("سُورَةُ التَّغَابُنِ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+      }
+      else if (pagenum == 556) {
+        textt.append(QString("سُورَةُ الطَّلَاقِ") + "\n");
+        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        if (page.size() == 1) {
+          lines = page[0];
+        }
+        else {
+          throw new std::runtime_error("ERROR");
+        }
+      }
+      else if (pagenum == 557) {
+        textt = textt.replace(QString("سُورَةُ الطَّلَاقِ") + "\n", "");
+        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
       }
       else {
-        throw new std::runtime_error("ERROR");
+        lines = textt.split(char(10), Qt::SkipEmptyParts);
       }
-    }
-    else if (pagenum == 76) {
-      textt = textt.replace(QString("سُورَةُ النِّسَاءِ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 348) {
-      textt.append(QString("سُورَةُ النُّورِ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
-      }
-      else {
-        throw new std::runtime_error("ERROR");
-      }
-    }
-    else if (pagenum == 349) {
-      textt = textt.replace(QString("سُورَةُ النُّورِ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 365) {
-      textt.append(QString("سُورَةُ الشُّعَرَاءِ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
-      }
-      else {
-        throw new std::runtime_error("ERROR");
-      }
-    }
-    else if (pagenum == 366) {
-      textt = textt.replace(QString("سُورَةُ الشُّعَرَاءِ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 375) {
-      textt.append(QString("سُورَةُ النَّمْلِ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
-      }
-      else {
-        throw new std::runtime_error("ERROR");
-      }
-    }
-    else if (pagenum == 376) {
-      textt = textt.replace(QString("سُورَةُ النَّمْلِ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 444) {
-      textt.append(QString("سُورَةُ الصَّافَّاتِ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
-      }
-      else {
-        throw new std::runtime_error("ERROR");
-      }
-    }
-    else if (pagenum == 445) {
-      textt = textt.replace(QString("سُورَةُ الصَّافَّاتِ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 451) {
-      textt.append(QString("سُورَةُ صٓ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
-      }
-      else {
-        throw new std::runtime_error("ERROR");
-      }
-    }
-    else if (pagenum == 452) {
-      textt = textt.replace(QString("سُورَةُ صٓ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 497) {
-      textt.append(QString("سُورَةُ الجَاثِيَةِ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
-      }
-      else {
-        throw new std::runtime_error("ERROR");
-      }
-    }
-    else if (pagenum == 498) {
-      textt = textt.replace(QString("سُورَةُ الجَاثِيَةِ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 505) {
-      textt.append(QString("سُورَةُ مُحَمَّدٍ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
-      }
-      else {
-        throw new std::runtime_error("ERROR");
-      }
-    }
-    else if (pagenum == 506) {
-      textt = textt.replace(QString("سُورَةُ مُحَمَّدٍ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 524) {
-      textt.append(QString("سُورَةُ النَّجْمِ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
-      }
-      else {
-        throw new std::runtime_error("ERROR");
-      }
-    }
-    else if (pagenum == 525) {
-      textt = textt.replace(QString("سُورَةُ النَّجْمِ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 527) {
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 547) {
-      textt.append(QString("سُورَةُ المُمْتَحنَةِ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
-      }
-      else {
-        throw new std::runtime_error("ERROR");
-      }
-    }
-    else if (pagenum == 548) {
-      textt = textt.replace(QString("سُورَةُ المُمْتَحنَةِ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 554) {
-      textt.append(QString("سُورَةُ التَّغَابُنِ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
-      }
-      else {
-        throw new std::runtime_error("ERROR");
-      }
-    }
-    else if (pagenum == 555) {
-      textt = textt.replace(QString("سُورَةُ التَّغَابُنِ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
-    }
-    else if (pagenum == 556) {
-      textt.append(QString("سُورَةُ الطَّلَاقِ") + "\n");
-      auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
-      if (page.size() == 1) {
-        lines = page[0];
-      }
-      else {
-        throw new std::runtime_error("ERROR");
-      }
-    }
-    else if (pagenum == 557) {
-      textt = textt.replace(QString("سُورَةُ الطَّلَاقِ") + "\n", "");
-      lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
     }
     else {
       lines = textt.split(char(10), Qt::SkipEmptyParts);
     }
+
+
 
     if (applyTeXAlgo && pagenum <= 599 && pagenum > 1 && pagenum != 378) {
       auto result = layout->pageBreak(scale, pageWidth, false, textt, 1);
