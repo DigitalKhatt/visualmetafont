@@ -3447,8 +3447,11 @@ lookup kt01.expa.1 {
 	sub @jt.mediexpaleft'lookup jt02.expa.1.1	/heh.medi/'lookup kt01.expa.1.1 [@jt.mediexparight6 @jt.finaexpa6]'lookup jt02.expa.1.2;
 
 
-	sub /init/' (/medi(?![.]*added)/{0,10})' @jt.mediexpaleft'lookup jt02.expa.1.3 [@jt.mediexparight3 @jt.finaexpa3]'lookup jt02.expa.1.2;
-  sub /init/' (/medi(?![.]*added)/{0,10})' @jt.mediexpaleft'lookup jt02.expa.1.1 [@jt.mediexparight6 @jt.finaexpa6]'lookup jt02.expa.1.2;
+	sub /init/' (/(init|medi|isol|fina)(?![.]*added)/{0,10})' @jt.mediexpaleft'lookup jt02.expa.1.3 [@jt.mediexparight3 @jt.finaexpa3]'lookup jt02.expa.1.2;
+  sub /init/' (/(init|medi|isol|fina)(?![.]*added)/{0,10})' @jt.mediexpaleft'lookup jt02.expa.1.1 [@jt.mediexparight6 @jt.finaexpa6]'lookup jt02.expa.1.2;
+
+  sub /init/'lookup jt02.expa.1.3	/heh.medi/'lookup kt01.expa.1.1 [@jt.mediexparight3 @jt.finaexpa3]'lookup jt02.expa.1.2;
+  sub /init/'lookup jt02.expa.1.1	/heh.medi/'lookup kt01.expa.1.1 [@jt.mediexparight6 @jt.finaexpa6]'lookup jt02.expa.1.2;
 
 	sub @jt.initexpa'lookup jt02.expa.1.3 [@jt.mediexparight3 @jt.finaexpa3]'lookup jt02.expa.1.2;
 	sub @jt.initexpa'lookup jt02.expa.1.1 [@jt.mediexparight6 @jt.finaexpa6]'lookup jt02.expa.1.2;
@@ -3598,15 +3601,53 @@ lookup stdexpa.ligadecomp.prio3 {
 
 	sub ain.init.finjani'lookup jt02.ligadecomp.prio3.1  [@jt.finaexpa3 @jt.mediexparight3]'lookup jt02.ligadecomp.prio3.1;
 
-} stdexpa.ligadecomp.prio3;	
+} stdexpa.ligadecomp.prio3;
+
+lookup stdexpa.kafalternate.prio1 {
+
+	feature jt02;
+
+	lookupflag IgnoreMarks;
+
+	lookup stdexpa.kafalternate.prio1.1 {		
+		sub kaf.init.beforelam by kaf.init.ii;
+		sub kaf.medi.beforelam by kaf.medi.ii;
+		sub lam.fina.afterkaf by lam.fina;
+		sub lam.medi.afterkaf by lam.medi;
+		sub alef.fina.afterkaf by alef.fina;
+		sub kaf.init by kaf.init.ii;
+		sub kaf.medi by kaf.medi.ii;
+	} stdexpa.kafalternate.prio1.1;
+
+	sub [kaf.init.beforelam kaf.medi.beforelam]'lookup stdexpa.kafalternate.prio1.1 [lam.fina.afterkaf alef.fina.afterkaf lam.medi.afterkaf]'lookup stdexpa.kafalternate.prio1.1;
+	sub [kaf.init  kaf.medi ]'lookup stdexpa.kafalternate.prio1.1;
+
+} stdexpa.kafalternate.prio1;
+
+lookup stdexpa.kafalternate.prio2 {
+
+	feature jt03;
+
+	lookupflag IgnoreMarks;
+
+	lookup stdexpa.kafalternate.prio2.1 {		
+		sub kaf.medi.beforemeem by kaf.medi.ii;
+		sub meem.fina.afterkaf by meem.fina;	
+	} stdexpa.kafalternate.prio2.1;
+
+	sub [kaf.medi.beforemeem]'lookup stdexpa.kafalternate.prio2.1 [meem.fina.afterkaf]'lookup stdexpa.kafalternate.prio2.1;
+		
+
+} stdexpa.kafalternate.prio2;	
 	
 
 lookup jt01.expa.1 {
 	@beforeexpaprio1 = [behshape.isol behshape.fina kaf.fina  kaf.fina.afterlam noon.isol noon.fina
-			noon.fina.afterbeh feh.fina feh.isol qaf.isol qaf.fina seen.isol seen.fina
+			noon.fina.afterbeh feh.fina feh.isol qaf.isol qaf.fina seen.isol seen.fina yehshape.fina.ii
 	];
 	@expaprio1 = [behshape.isol.expa behshape.fina.expa kaf.fina.expa kaf.fina.afterlam.expa noon.isol.expa
 			noon.fina.expa noon.fina.expa.afterbeh feh.fina.expa feh.isol.expa qaf.isol.expa qaf.fina.expa seen.isol.expa seen.fina.expa
+      yehshape.fina.ii.expa
 	];	
 
 	feature jt01;
@@ -3672,9 +3713,11 @@ feature jt01 {
 } jt01;
 feature jt02 {
 	lookup jt02.expa.1 ;
+  lookup stdexpa.kafalternate.prio1;
 } jt02;
 feature jt03 {
 	lookup jt03.expa.1 ;
+  lookup stdexpa.kafalternate.prio2;
 } jt03;
 feature jt04 {
 	lookup jt04.expa.1 ;
