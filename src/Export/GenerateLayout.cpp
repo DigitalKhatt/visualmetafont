@@ -235,8 +235,8 @@ void GenerateLayout::generateLayout(int lineWidth, int scale) {
   bool Json = true;
 
   QFile saveFile(Json
-    ? QStringLiteral("quran.json")
-    : QStringLiteral("quran.dat"));
+    ? QStringLiteral("output/quran.json")
+    : QStringLiteral("output/quran.dat"));
 
   if (!saveFile.open(QIODevice::WriteOnly)) {
     qWarning("Couldn't open save file.");
@@ -258,7 +258,7 @@ void GenerateLayout::generateLayout(int lineWidth, int scale) {
 
 
   saveFile.write(Json
-    ? QJsonDocument(quranObject).toJson(QJsonDocument::JsonFormat::Compact)
+    ? QJsonDocument(quranObject).toJson(QJsonDocument::JsonFormat::Indented)
     : QCborValue::fromJsonValue(quranObject).toCbor());
 }
 void GenerateLayout::generateSuraLocations(QJsonArray& surasArray) {

@@ -2484,7 +2484,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int p
       const int minSpace = OtLayout::MINSPACEWIDTH * fontSize;
 
 
-      if (lineWidth != 0 && spaces.size() != 0) {
+      if (lineWidth != 0 && spaces.size() != 0 && applyJustification) {
         if (lineLayout.overfull < 0) {
 
           double spaceAdded = -lineLayout.overfull / spaces.size();

@@ -422,7 +422,7 @@ OldMadina::OldMadina(OtLayout* layout, MP mp, bool extended) :Automedina{ layout
 
 
   layout->expandableGlyphs["alef.isol"] = { 5,-4,0,0 };
-  layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,20,-0.4 };
+  layout->expandableGlyphs["alef.fina"] = { 5,-4,20,-0.4 };
 
   layout->expandableGlyphs["behshape.isol"] = { 20,-2.5,0,0 };
 

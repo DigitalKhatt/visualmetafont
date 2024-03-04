@@ -6114,9 +6114,9 @@ if not known y.kafpos2 : y.kafpos2 := 0; fi
 %%beginpaths
 
 fill
-((627,809) + z.kafpos) {right} .. tension 0.75 and 1 ..
- {down}((641,788) + z.kafpos) .. tension 1 and 2.54535 ..
-((618,725) + z.kafpos) .. tension 9.18768 and 4.65417 ..
+((582,792) + z.kafpos) {right} .. tension 0.75 and 1 ..
+ {down}((596,771) + z.kafpos) .. tension 1 and 2.54535 ..
+((573,708) + z.kafpos) .. tension 9.18768 and 4.65417 ..
  {down}(103,471) .. tension 6.25338 and 0.774053 ..
  {down}(327,120) .. tension 0.857029 and 1 ..
 bldmv ( (245,17), (0,0), (2,-8) ) leftjoin
@@ -6160,9 +6160,9 @@ if not known y.kafpos : y.kafpos := 0; fi
 %%beginpaths
 
 fill
-((569,838) + z.kafpos) {right} .. tension 0.75 and 1 ..
- {down}((579,822) + z.kafpos) .. tension 1 and 2.54535 ..
-((556,746) + z.kafpos) .. tension 9.18768 and 6.92449 ..
+((426,763) + z.kafpos) {right} .. tension 0.75 and 1 ..
+ {down}((436,747) + z.kafpos) .. tension 1 and 2.54535 ..
+((413,671) + z.kafpos) .. tension 9.18768 and 6.92449 ..
  {down}z4 .. tension 8.85555 and 0.75 ..
  {down}(154,151) .. tension 0.857029 and 1 ..
 bldmv ( (85,21), (0,0), (2,-8) ) leftjoin
@@ -6193,9 +6193,9 @@ if not known y.kafpos : y.kafpos := 0; fi
 %%beginpaths
 
 fill
-((355,726) + z.kafpos) {right} .. tension 0.75 and 1 ..
- {down}((365,710) + z.kafpos) .. tension 1 and 2.54535 ..
-((342,634) + z.kafpos) .. tension 9.18768 and 6.92449 ..
+((245,741) + z.kafpos) {right} .. tension 0.75 and 1 ..
+ {down}((255,725) + z.kafpos) .. tension 1 and 2.54535 ..
+((232,649) + z.kafpos) .. tension 9.18768 and 6.92449 ..
  {down}z4 .. tension 8.85555 and 0.75 ..
  {down}(154,151) .. tension 0.857029 and 1 ..
 bldmv ( (85,21), (0,0), (2,-8) ) leftjoin
@@ -6208,7 +6208,7 @@ bldmv ( (79,103), (0,0), (11,-5) ) .. tension 1 and 1 ..
 
 %%endpaths
 %%beginbody
-rightbearing := 50; 
+rightbearing := -100; 
 
 enddefchar;
 defchar(kaf.init.beforeyeh,-1,-1,-1,-1);
@@ -6480,7 +6480,7 @@ enddefchar;
 defchar(kaf.medi.beforelam.ii,-1,-1,-1,-1);
 %%beginbody
 
-z.kafpos = (-200,100);
+z.kafpos = (-120,120);
 kaf.medi.beforelam_(lefttatweel,righttatweel);
 enddefchar;
 defchar(kaf.fina.afterlam,-1,-1,-1,-1);

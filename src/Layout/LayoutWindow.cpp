@@ -613,7 +613,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
     textt = textt.replace("\u0626", "\u064A\u0654");
 
 
-    QStringList lines;    
+    QStringList lines;
 
     if (!oldMadinah) {
       if (pagenum == 583) {
@@ -860,17 +860,22 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
 
       LineType lineType = LineType::Line;
 
-      if (!(pagenum == 1 && lineIndex == 1) && match.hasMatch()) {
+      if (match.hasMatch()) {
         if (match.captured(0).startsWith("سُ")) {
           lineType = LineType::Sura;
         }
         else {
           lineType = LineType::Bism;
         }
-        lineWidth = 0;
-        newJustification = LineJustification::Center;
+        
+        if (!((pagenum == 0 || pagenum == 1) && lineIndex == 1)) {
+          lineWidth = 0;
+          newJustification = LineJustification::Center;
+        }
+        
       }
-      else if (madinaLineWidths.contains(key))
+
+      if (madinaLineWidths.contains(key))
       {
         double ratio = madinaLineWidths.value(key);
 
@@ -879,6 +884,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
           newJustification = LineJustification::Center;
         }
       }
+
       auto shapedLine = layout->justifyPage(scale, lineWidth, pageWidth, line, newJustification, newface, true, false, cluster_level)[0];
 
       shapedLine.type = lineType;
@@ -965,7 +971,7 @@ bool LayoutWindow::generateLayoutInfo() {
 
   GenerateLayout generateLayout{ &layout,result };
 
-  //generateLayout.generateLayout(lineWidth, scale);
+  generateLayout.generateLayout(lineWidth, scale);
 
   generateLayout.generateLayoutProtoBuf(lineWidth, scale);
 
@@ -2328,6 +2334,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
   int pos_x = m_graphicsView->horizontalScrollBar()->value();
   int pos_y = m_graphicsView->verticalScrollBar()->value();
 
+
   if (refresh) {
 
 
@@ -2974,9 +2981,7 @@ void LayoutWindow::generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pa
       }
     }
 
-    if (betweenBases && basesIndexes.size() != 2) {
-      std::cout << "Could not add lookup in line " << overlap.lineIndex + 1 << " of page " << overlap.pageIndex + 1 << " between " << prevGlyphName.toStdString() << " and " << nextGlyphName.toStdString() << std::endl;
-    }
+   
 
     int lastIndex = basesIndexes.last() > overlap.nextGlyph ? basesIndexes.last() : overlap.nextGlyph;
 
@@ -2993,20 +2998,14 @@ void LayoutWindow::generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pa
       }
     }
 
-    if (containsSpace) continue;
-
     if (sequences.contains(sequence)) continue;
 
     sequences.insert(sequence);
-
-    if (betweenBases) continue;
 
     // generate word
 
     int startCluster = 0;
     int endCluster = text.size();
-
-
 
     for (int i = overlap.prevGlyph; i >= 0; i--) {
       auto& glyphLayout = line.glyphs[i];
@@ -3027,6 +3026,17 @@ void LayoutWindow::generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pa
 
     QString word = text.mid(startCluster, endCluster - startCluster);
 
+    if (containsSpace || betweenBases) {
+      std::cout << "pos";
+      for (int glyphIndex = basesIndexes.first(); glyphIndex <= lastIndex; glyphIndex++) {
+        auto& glyphLayout = line.glyphs[glyphIndex];
+        sequence.append(glyphLayout.codepoint);
+        QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+        std::cout << " " << glyphName.toStdString() << "'";
+      }
+      std::cout << "; # page " << overlap.pageIndex + 1 << " line " << overlap.lineIndex + 1 << " " << word.toStdString() << std::endl;
+      continue;
+    }
 
     if (words.find(word) == words.end()) {
       words.insert(word);

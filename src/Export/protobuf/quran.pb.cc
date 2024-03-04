@@ -122,6 +122,7 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORIT
 PROTOBUF_CONSTEXPR Line::Line(
     ::_pbi::ConstantInitialized): _impl_{
     /*decltype(_impl_.glyphs_)*/{}
+  , /*decltype(_impl_.text_)*/{&::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized{}}
   , /*decltype(_impl_.type_)*/0
   , /*decltype(_impl_.x_)*/0
   , /*decltype(_impl_.y_)*/0
@@ -140,12 +141,13 @@ PROTOBUF_CONSTEXPR GlyphLayout::GlyphLayout(
     /*decltype(_impl_._has_bits_)*/{}
   , /*decltype(_impl_._cached_size_)*/{}
   , /*decltype(_impl_.codepoint_)*/0
+  , /*decltype(_impl_.cluster_)*/0
   , /*decltype(_impl_.x_advance_)*/0
   , /*decltype(_impl_.x_offset_)*/0
   , /*decltype(_impl_.y_offset_)*/0
+  , /*decltype(_impl_.color_)*/0
   , /*decltype(_impl_.lefttatweel_)*/0
   , /*decltype(_impl_.righttatweel_)*/0
-  , /*decltype(_impl_.color_)*/0
   , /*decltype(_impl_.beginsajda_)*/false
   , /*decltype(_impl_.endsajda_)*/false} {}
 struct GlyphLayoutDefaultTypeInternal {
@@ -246,10 +248,11 @@ const uint32_t TableStruct_quran_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(pr
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
   ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::protobuf::Line, _impl_.glyphs_),
   PROTOBUF_FIELD_OFFSET(::protobuf::Line, _impl_.type_),
   PROTOBUF_FIELD_OFFSET(::protobuf::Line, _impl_.x_),
   PROTOBUF_FIELD_OFFSET(::protobuf::Line, _impl_.y_),
+  PROTOBUF_FIELD_OFFSET(::protobuf::Line, _impl_.text_),
+  PROTOBUF_FIELD_OFFSET(::protobuf::Line, _impl_.glyphs_),
   PROTOBUF_FIELD_OFFSET(::protobuf::GlyphLayout, _impl_._has_bits_),
   PROTOBUF_FIELD_OFFSET(::protobuf::GlyphLayout, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -257,6 +260,7 @@ const uint32_t TableStruct_quran_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(pr
   ~0u,  // no _weak_field_map_
   ~0u,  // no _inlined_string_donated_
   PROTOBUF_FIELD_OFFSET(::protobuf::GlyphLayout, _impl_.codepoint_),
+  PROTOBUF_FIELD_OFFSET(::protobuf::GlyphLayout, _impl_.cluster_),
   PROTOBUF_FIELD_OFFSET(::protobuf::GlyphLayout, _impl_.x_advance_),
   PROTOBUF_FIELD_OFFSET(::protobuf::GlyphLayout, _impl_.x_offset_),
   PROTOBUF_FIELD_OFFSET(::protobuf::GlyphLayout, _impl_.y_offset_),
@@ -266,12 +270,13 @@ const uint32_t TableStruct_quran_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(pr
   PROTOBUF_FIELD_OFFSET(::protobuf::GlyphLayout, _impl_.beginsajda_),
   PROTOBUF_FIELD_OFFSET(::protobuf::GlyphLayout, _impl_.endsajda_),
   ~0u,
+  ~0u,
   0,
   1,
   2,
-  5,
   3,
   4,
+  5,
   6,
   7,
   ~0u,  // no _has_bits_
@@ -294,8 +299,8 @@ static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protode
   { 46, -1, -1, sizeof(::protobuf::LayOut)},
   { 54, -1, -1, sizeof(::protobuf::Page)},
   { 61, -1, -1, sizeof(::protobuf::Line)},
-  { 71, 86, -1, sizeof(::protobuf::GlyphLayout)},
-  { 95, -1, -1, sizeof(::protobuf::Sura)},
+  { 72, 88, -1, sizeof(::protobuf::GlyphLayout)},
+  { 98, -1, -1, sizeof(::protobuf::Sura)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -325,25 +330,25 @@ const char descriptor_table_protodef_quran_2eproto[] PROTOBUF_SECTION_VARIABLE(p
   "lem\022\r\n\005color\030\002 \003(\001\"\032\n\010PathElem\022\016\n\006points"
   "\030\001 \003(\001\"F\n\006LayOut\022\035\n\005pages\030\001 \003(\0132\016.protob"
   "uf.Page\022\035\n\005suras\030\002 \003(\0132\016.protobuf.Sura\"%"
-  "\n\004Page\022\035\n\005lines\030\001 \003(\0132\016.protobuf.Line\"Q\n"
-  "\004Line\022%\n\006glyphs\030\001 \003(\0132\025.protobuf.GlyphLa"
-  "yout\022\014\n\004type\030\002 \001(\005\022\t\n\001x\030\003 \001(\005\022\t\n\001y\030\004 \001(\005"
-  "\"\316\002\n\013GlyphLayout\022\021\n\tcodepoint\030\001 \001(\005\022\026\n\tx"
-  "_advance\030\002 \001(\005H\000\210\001\001\022\025\n\010x_offset\030\003 \001(\005H\001\210"
-  "\001\001\022\025\n\010y_offset\030\004 \001(\005H\002\210\001\001\022\022\n\005color\030\005 \001(\005"
-  "H\003\210\001\001\022\030\n\013lefttatweel\030\006 \001(\001H\004\210\001\001\022\031\n\014right"
-  "tatweel\030\007 \001(\001H\005\210\001\001\022\027\n\nbeginsajda\030\010 \001(\010H\006"
-  "\210\001\001\022\025\n\010endsajda\030\t \001(\010H\007\210\001\001B\014\n\n_x_advance"
-  "B\013\n\t_x_offsetB\013\n\t_y_offsetB\010\n\006_colorB\016\n\014"
-  "_lefttatweelB\017\n\r_righttatweelB\r\n\013_begins"
-  "ajdaB\013\n\t_endsajda\"\?\n\004Sura\022\014\n\004name\030\001 \001(\t\022"
-  "\023\n\013page_number\030\002 \001(\005\022\t\n\001x\030\003 \001(\005\022\t\n\001y\030\004 \001"
-  "(\005B$\n org.digitalkhatt.mushaf.protobufP\001"
-  "b\006proto3"
+  "\n\004Page\022\035\n\005lines\030\001 \003(\0132\016.protobuf.Line\"_\n"
+  "\004Line\022\014\n\004type\030\001 \001(\005\022\t\n\001x\030\002 \001(\005\022\t\n\001y\030\003 \001("
+  "\005\022\014\n\004text\030\004 \001(\t\022%\n\006glyphs\030\005 \003(\0132\025.protob"
+  "uf.GlyphLayout\"\337\002\n\013GlyphLayout\022\021\n\tcodepo"
+  "int\030\001 \001(\005\022\017\n\007cluster\030\002 \001(\005\022\026\n\tx_advance\030"
+  "\003 \001(\005H\000\210\001\001\022\025\n\010x_offset\030\004 \001(\005H\001\210\001\001\022\025\n\010y_o"
+  "ffset\030\005 \001(\005H\002\210\001\001\022\022\n\005color\030\006 \001(\005H\003\210\001\001\022\030\n\013"
+  "lefttatweel\030\007 \001(\001H\004\210\001\001\022\031\n\014righttatweel\030\010"
+  " \001(\001H\005\210\001\001\022\027\n\nbeginsajda\030\t \001(\010H\006\210\001\001\022\025\n\010en"
+  "dsajda\030\n \001(\010H\007\210\001\001B\014\n\n_x_advanceB\013\n\t_x_of"
+  "fsetB\013\n\t_y_offsetB\010\n\006_colorB\016\n\014_lefttatw"
+  "eelB\017\n\r_righttatweelB\r\n\013_beginsajdaB\013\n\t_"
+  "endsajda\"\?\n\004Sura\022\014\n\004name\030\001 \001(\t\022\023\n\013page_n"
+  "umber\030\002 \001(\005\022\t\n\001x\030\003 \001(\005\022\t\n\001y\030\004 \001(\005B$\n org"
+  ".digitalkhatt.mushaf.protobufP\001b\006proto3"
   ;
 static ::_pbi::once_flag descriptor_table_quran_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_quran_2eproto = {
-    false, false, 1088, descriptor_table_protodef_quran_2eproto,
+    false, false, 1119, descriptor_table_protodef_quran_2eproto,
     "quran.proto",
     &descriptor_table_quran_2eproto_once, nullptr, 0, 10,
     schemas, file_default_instances, TableStruct_quran_2eproto::offsets,
@@ -1840,12 +1845,21 @@ Line::Line(const Line& from)
   Line* const _this = this; (void)_this;
   new (&_impl_) Impl_{
       decltype(_impl_.glyphs_){from._impl_.glyphs_}
+    , decltype(_impl_.text_){}
     , decltype(_impl_.type_){}
     , decltype(_impl_.x_){}
     , decltype(_impl_.y_){}
     , /*decltype(_impl_._cached_size_)*/{}};
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _impl_.text_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+    _impl_.text_.Set("", GetArenaForAllocation());
+  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_text().empty()) {
+    _this->_impl_.text_.Set(from._internal_text(), 
+      _this->GetArenaForAllocation());
+  }
   ::memcpy(&_impl_.type_, &from._impl_.type_,
     static_cast<size_t>(reinterpret_cast<char*>(&_impl_.y_) -
     reinterpret_cast<char*>(&_impl_.type_)) + sizeof(_impl_.y_));
@@ -1858,11 +1872,16 @@ inline void Line::SharedCtor(
   (void)is_message_owned;
   new (&_impl_) Impl_{
       decltype(_impl_.glyphs_){arena}
+    , decltype(_impl_.text_){}
     , decltype(_impl_.type_){0}
     , decltype(_impl_.x_){0}
     , decltype(_impl_.y_){0}
     , /*decltype(_impl_._cached_size_)*/{}
   };
+  _impl_.text_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+    _impl_.text_.Set("", GetArenaForAllocation());
+  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
 }
 
 Line::~Line() {
@@ -1877,6 +1896,7 @@ Line::~Line() {
 inline void Line::SharedDtor() {
   GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
   _impl_.glyphs_.~RepeatedPtrField();
+  _impl_.text_.Destroy();
 }
 
 void Line::SetCachedSize(int size) const {
@@ -1890,6 +1910,7 @@ void Line::Clear() {
   (void) cached_has_bits;
 
   _impl_.glyphs_.Clear();
+  _impl_.text_.ClearToEmpty();
   ::memset(&_impl_.type_, 0, static_cast<size_t>(
       reinterpret_cast<char*>(&_impl_.y_) -
       reinterpret_cast<char*>(&_impl_.type_)) + sizeof(_impl_.y_));
@@ -1902,40 +1923,50 @@ const char* Line::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
     uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // repeated .protobuf.GlyphLayout glyphs = 1;
+      // int32 type = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 8)) {
+          _impl_.type_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // int32 x = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 16)) {
+          _impl_.x_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // int32 y = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 24)) {
+          _impl_.y_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // string text = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 34)) {
+          auto str = _internal_mutable_text();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "protobuf.Line.text"));
+        } else
+          goto handle_unusual;
+        continue;
+      // repeated .protobuf.GlyphLayout glyphs = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 42)) {
           ptr -= 1;
           do {
             ptr += 1;
             ptr = ctx->ParseMessage(_internal_add_glyphs(), ptr);
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
-          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
-        } else
-          goto handle_unusual;
-        continue;
-      // int32 type = 2;
-      case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 16)) {
-          _impl_.type_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
-          CHK_(ptr);
-        } else
-          goto handle_unusual;
-        continue;
-      // int32 x = 3;
-      case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 24)) {
-          _impl_.x_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
-          CHK_(ptr);
-        } else
-          goto handle_unusual;
-        continue;
-      // int32 y = 4;
-      case 4:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 32)) {
-          _impl_.y_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
-          CHK_(ptr);
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<42>(ptr));
         } else
           goto handle_unusual;
         continue;
@@ -1968,30 +1999,40 @@ uint8_t* Line::_InternalSerialize(
   uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // repeated .protobuf.GlyphLayout glyphs = 1;
+  // int32 type = 1;
+  if (this->_internal_type() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt32ToArray(1, this->_internal_type(), target);
+  }
+
+  // int32 x = 2;
+  if (this->_internal_x() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt32ToArray(2, this->_internal_x(), target);
+  }
+
+  // int32 y = 3;
+  if (this->_internal_y() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt32ToArray(3, this->_internal_y(), target);
+  }
+
+  // string text = 4;
+  if (!this->_internal_text().empty()) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->_internal_text().data(), static_cast<int>(this->_internal_text().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "protobuf.Line.text");
+    target = stream->WriteStringMaybeAliased(
+        4, this->_internal_text(), target);
+  }
+
+  // repeated .protobuf.GlyphLayout glyphs = 5;
   for (unsigned i = 0,
       n = static_cast<unsigned>(this->_internal_glyphs_size()); i < n; i++) {
     const auto& repfield = this->_internal_glyphs(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
-  }
-
-  // int32 type = 2;
-  if (this->_internal_type() != 0) {
-    target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteInt32ToArray(2, this->_internal_type(), target);
-  }
-
-  // int32 x = 3;
-  if (this->_internal_x() != 0) {
-    target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteInt32ToArray(3, this->_internal_x(), target);
-  }
-
-  // int32 y = 4;
-  if (this->_internal_y() != 0) {
-    target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteInt32ToArray(4, this->_internal_y(), target);
+        InternalWriteMessage(5, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -2010,24 +2051,31 @@ size_t Line::ByteSizeLong() const {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // repeated .protobuf.GlyphLayout glyphs = 1;
+  // repeated .protobuf.GlyphLayout glyphs = 5;
   total_size += 1UL * this->_internal_glyphs_size();
   for (const auto& msg : this->_impl_.glyphs_) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
   }
 
-  // int32 type = 2;
+  // string text = 4;
+  if (!this->_internal_text().empty()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        this->_internal_text());
+  }
+
+  // int32 type = 1;
   if (this->_internal_type() != 0) {
     total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(this->_internal_type());
   }
 
-  // int32 x = 3;
+  // int32 x = 2;
   if (this->_internal_x() != 0) {
     total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(this->_internal_x());
   }
 
-  // int32 y = 4;
+  // int32 y = 3;
   if (this->_internal_y() != 0) {
     total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(this->_internal_y());
   }
@@ -2051,6 +2099,9 @@ void Line::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_
   (void) cached_has_bits;
 
   _this->_impl_.glyphs_.MergeFrom(from._impl_.glyphs_);
+  if (!from._internal_text().empty()) {
+    _this->_internal_set_text(from._internal_text());
+  }
   if (from._internal_type() != 0) {
     _this->_internal_set_type(from._internal_type());
   }
@@ -2076,8 +2127,14 @@ bool Line::IsInitialized() const {
 
 void Line::InternalSwap(Line* other) {
   using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   _impl_.glyphs_.InternalSwap(&other->_impl_.glyphs_);
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
+      &_impl_.text_, lhs_arena,
+      &other->_impl_.text_, rhs_arena
+  );
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
       PROTOBUF_FIELD_OFFSET(Line, _impl_.y_)
       + sizeof(Line::_impl_.y_)
@@ -2107,13 +2164,13 @@ class GlyphLayout::_Internal {
     (*has_bits)[0] |= 4u;
   }
   static void set_has_color(HasBits* has_bits) {
-    (*has_bits)[0] |= 32u;
-  }
-  static void set_has_lefttatweel(HasBits* has_bits) {
     (*has_bits)[0] |= 8u;
   }
-  static void set_has_righttatweel(HasBits* has_bits) {
+  static void set_has_lefttatweel(HasBits* has_bits) {
     (*has_bits)[0] |= 16u;
+  }
+  static void set_has_righttatweel(HasBits* has_bits) {
+    (*has_bits)[0] |= 32u;
   }
   static void set_has_beginsajda(HasBits* has_bits) {
     (*has_bits)[0] |= 64u;
@@ -2136,12 +2193,13 @@ GlyphLayout::GlyphLayout(const GlyphLayout& from)
       decltype(_impl_._has_bits_){from._impl_._has_bits_}
     , /*decltype(_impl_._cached_size_)*/{}
     , decltype(_impl_.codepoint_){}
+    , decltype(_impl_.cluster_){}
     , decltype(_impl_.x_advance_){}
     , decltype(_impl_.x_offset_){}
     , decltype(_impl_.y_offset_){}
+    , decltype(_impl_.color_){}
     , decltype(_impl_.lefttatweel_){}
     , decltype(_impl_.righttatweel_){}
-    , decltype(_impl_.color_){}
     , decltype(_impl_.beginsajda_){}
     , decltype(_impl_.endsajda_){}};
 
@@ -2160,12 +2218,13 @@ inline void GlyphLayout::SharedCtor(
       decltype(_impl_._has_bits_){}
     , /*decltype(_impl_._cached_size_)*/{}
     , decltype(_impl_.codepoint_){0}
+    , decltype(_impl_.cluster_){0}
     , decltype(_impl_.x_advance_){0}
     , decltype(_impl_.x_offset_){0}
     , decltype(_impl_.y_offset_){0}
+    , decltype(_impl_.color_){0}
     , decltype(_impl_.lefttatweel_){0}
     , decltype(_impl_.righttatweel_){0}
-    , decltype(_impl_.color_){0}
     , decltype(_impl_.beginsajda_){false}
     , decltype(_impl_.endsajda_){false}
   };
@@ -2194,7 +2253,9 @@ void GlyphLayout::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  _impl_.codepoint_ = 0;
+  ::memset(&_impl_.codepoint_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&_impl_.cluster_) -
+      reinterpret_cast<char*>(&_impl_.codepoint_)) + sizeof(_impl_.cluster_));
   cached_has_bits = _impl_._has_bits_[0];
   if (cached_has_bits & 0x000000ffu) {
     ::memset(&_impl_.x_advance_, 0, static_cast<size_t>(
@@ -2220,72 +2281,80 @@ const char* GlyphLayout::_InternalParse(const char* ptr, ::_pbi::ParseContext* c
         } else
           goto handle_unusual;
         continue;
-      // optional int32 x_advance = 2;
+      // int32 cluster = 2;
       case 2:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 16)) {
+          _impl_.cluster_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // optional int32 x_advance = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 24)) {
           _Internal::set_has_x_advance(&has_bits);
           _impl_.x_advance_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // optional int32 x_offset = 3;
-      case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 24)) {
+      // optional int32 x_offset = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 32)) {
           _Internal::set_has_x_offset(&has_bits);
           _impl_.x_offset_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // optional int32 y_offset = 4;
-      case 4:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 32)) {
+      // optional int32 y_offset = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 40)) {
           _Internal::set_has_y_offset(&has_bits);
           _impl_.y_offset_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // optional int32 color = 5;
-      case 5:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 40)) {
+      // optional int32 color = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 48)) {
           _Internal::set_has_color(&has_bits);
           _impl_.color_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // optional double lefttatweel = 6;
-      case 6:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 49)) {
+      // optional double lefttatweel = 7;
+      case 7:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 57)) {
           _Internal::set_has_lefttatweel(&has_bits);
           _impl_.lefttatweel_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
           ptr += sizeof(double);
         } else
           goto handle_unusual;
         continue;
-      // optional double righttatweel = 7;
-      case 7:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 57)) {
+      // optional double righttatweel = 8;
+      case 8:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 65)) {
           _Internal::set_has_righttatweel(&has_bits);
           _impl_.righttatweel_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
           ptr += sizeof(double);
         } else
           goto handle_unusual;
         continue;
-      // optional bool beginsajda = 8;
-      case 8:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 64)) {
+      // optional bool beginsajda = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 72)) {
           _Internal::set_has_beginsajda(&has_bits);
           _impl_.beginsajda_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // optional bool endsajda = 9;
-      case 9:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 72)) {
+      // optional bool endsajda = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 80)) {
           _Internal::set_has_endsajda(&has_bits);
           _impl_.endsajda_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
@@ -2328,52 +2397,58 @@ uint8_t* GlyphLayout::_InternalSerialize(
     target = ::_pbi::WireFormatLite::WriteInt32ToArray(1, this->_internal_codepoint(), target);
   }
 
-  // optional int32 x_advance = 2;
+  // int32 cluster = 2;
+  if (this->_internal_cluster() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt32ToArray(2, this->_internal_cluster(), target);
+  }
+
+  // optional int32 x_advance = 3;
   if (_internal_has_x_advance()) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteInt32ToArray(2, this->_internal_x_advance(), target);
+    target = ::_pbi::WireFormatLite::WriteInt32ToArray(3, this->_internal_x_advance(), target);
   }
 
-  // optional int32 x_offset = 3;
+  // optional int32 x_offset = 4;
   if (_internal_has_x_offset()) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteInt32ToArray(3, this->_internal_x_offset(), target);
+    target = ::_pbi::WireFormatLite::WriteInt32ToArray(4, this->_internal_x_offset(), target);
   }
 
-  // optional int32 y_offset = 4;
+  // optional int32 y_offset = 5;
   if (_internal_has_y_offset()) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteInt32ToArray(4, this->_internal_y_offset(), target);
+    target = ::_pbi::WireFormatLite::WriteInt32ToArray(5, this->_internal_y_offset(), target);
   }
 
-  // optional int32 color = 5;
+  // optional int32 color = 6;
   if (_internal_has_color()) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteInt32ToArray(5, this->_internal_color(), target);
+    target = ::_pbi::WireFormatLite::WriteInt32ToArray(6, this->_internal_color(), target);
   }
 
-  // optional double lefttatweel = 6;
+  // optional double lefttatweel = 7;
   if (_internal_has_lefttatweel()) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteDoubleToArray(6, this->_internal_lefttatweel(), target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(7, this->_internal_lefttatweel(), target);
   }
 
-  // optional double righttatweel = 7;
+  // optional double righttatweel = 8;
   if (_internal_has_righttatweel()) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteDoubleToArray(7, this->_internal_righttatweel(), target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(8, this->_internal_righttatweel(), target);
   }
 
-  // optional bool beginsajda = 8;
+  // optional bool beginsajda = 9;
   if (_internal_has_beginsajda()) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteBoolToArray(8, this->_internal_beginsajda(), target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(9, this->_internal_beginsajda(), target);
   }
 
-  // optional bool endsajda = 9;
+  // optional bool endsajda = 10;
   if (_internal_has_endsajda()) {
     target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteBoolToArray(9, this->_internal_endsajda(), target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(10, this->_internal_endsajda(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -2397,44 +2472,49 @@ size_t GlyphLayout::ByteSizeLong() const {
     total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(this->_internal_codepoint());
   }
 
+  // int32 cluster = 2;
+  if (this->_internal_cluster() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(this->_internal_cluster());
+  }
+
   cached_has_bits = _impl_._has_bits_[0];
   if (cached_has_bits & 0x000000ffu) {
-    // optional int32 x_advance = 2;
+    // optional int32 x_advance = 3;
     if (cached_has_bits & 0x00000001u) {
       total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(this->_internal_x_advance());
     }
 
-    // optional int32 x_offset = 3;
+    // optional int32 x_offset = 4;
     if (cached_has_bits & 0x00000002u) {
       total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(this->_internal_x_offset());
     }
 
-    // optional int32 y_offset = 4;
+    // optional int32 y_offset = 5;
     if (cached_has_bits & 0x00000004u) {
       total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(this->_internal_y_offset());
     }
 
-    // optional double lefttatweel = 6;
+    // optional int32 color = 6;
     if (cached_has_bits & 0x00000008u) {
-      total_size += 1 + 8;
+      total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(this->_internal_color());
     }
 
-    // optional double righttatweel = 7;
+    // optional double lefttatweel = 7;
     if (cached_has_bits & 0x00000010u) {
       total_size += 1 + 8;
     }
 
-    // optional int32 color = 5;
+    // optional double righttatweel = 8;
     if (cached_has_bits & 0x00000020u) {
-      total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(this->_internal_color());
+      total_size += 1 + 8;
     }
 
-    // optional bool beginsajda = 8;
+    // optional bool beginsajda = 9;
     if (cached_has_bits & 0x00000040u) {
       total_size += 1 + 1;
     }
 
-    // optional bool endsajda = 9;
+    // optional bool endsajda = 10;
     if (cached_has_bits & 0x00000080u) {
       total_size += 1 + 1;
     }
@@ -2461,6 +2541,9 @@ void GlyphLayout::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PR
   if (from._internal_codepoint() != 0) {
     _this->_internal_set_codepoint(from._internal_codepoint());
   }
+  if (from._internal_cluster() != 0) {
+    _this->_internal_set_cluster(from._internal_cluster());
+  }
   cached_has_bits = from._impl_._has_bits_[0];
   if (cached_has_bits & 0x000000ffu) {
     if (cached_has_bits & 0x00000001u) {
@@ -2473,13 +2556,13 @@ void GlyphLayout::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PR
       _this->_impl_.y_offset_ = from._impl_.y_offset_;
     }
     if (cached_has_bits & 0x00000008u) {
-      _this->_impl_.lefttatweel_ = from._impl_.lefttatweel_;
+      _this->_impl_.color_ = from._impl_.color_;
     }
     if (cached_has_bits & 0x00000010u) {
-      _this->_impl_.righttatweel_ = from._impl_.righttatweel_;
+      _this->_impl_.lefttatweel_ = from._impl_.lefttatweel_;
     }
     if (cached_has_bits & 0x00000020u) {
-      _this->_impl_.color_ = from._impl_.color_;
+      _this->_impl_.righttatweel_ = from._impl_.righttatweel_;
     }
     if (cached_has_bits & 0x00000040u) {
       _this->_impl_.beginsajda_ = from._impl_.beginsajda_;

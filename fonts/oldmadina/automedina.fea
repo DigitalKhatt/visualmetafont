@@ -735,7 +735,8 @@ lookup variouskern {
 		pos /^dal.isol/ < -100 0 -100 0>;
 		pos shadda <-80 -50 0 0>;
 		pos smallwaw <0 0 50 0>;
-		pos /^lam.init/ <0 0 70 0>;	
+		pos /^lam.init/ <0 0 70 0>;
+    pos alef.fina.lamalef <50 0 50 0>;	
 	} variouskern.l1;	
 
 	lookup variouskern.l2 {					
@@ -747,8 +748,12 @@ lookup variouskern {
 	} alefkern.l1;
 
 	lookup alefkern.l2 {
-		pos /^alef/ <500 0 500 0>;	
+		pos /^alef/ <150 0 150 0>;	
 	} alefkern.l2;
+
+  lookup alefkern.l3 {
+		pos /^alef/ <50 0 50 0>;	
+	} alefkern.l3;
 
 	pos /^alef/'lookup alefkern.l1 (wasla | (hamzaabove [fatha damma]))  [/behshape.init/ /fehshape.init/] /dot/ shadda [fatha fathatan fathatanidgham];	
 
@@ -760,13 +765,60 @@ lookup variouskern {
 
 	pos smallwaw'lookup variouskern.l1 maddahabove;
 
-	pos smallwaw'<-200 0 -200 0> space /^kaf.init.ii/;
+	pos smallwaw'<-100 0 -100 0> space /^kaf.init.ii/;
 
-	pos smallwaw'<-300 0 -300 0> space /^kaf.init/;
+	pos smallwaw'<-100 0 -100 0> space /^kaf.init/;
 
 	pos waw.fina'<-200 0 -200 0> sukun space /^kaf.init/;
 
 	pos lam.fina'<-100 0 -100 0> space lam.init shadda fatha;
+
+  pos alef.fina.lamalef'lookup variouskern.l1  kaf.init.beforelam;
+
+  pos alef.fina.lamalef'lookup variouskern.l1  kaf.init.beforelam.ii;
+
+  pos [/^alef/]'lookup alefkern.l2 [hamzaabove hamzaabove.small]' [fatha damma sukun]' /kaf.init.beforelam/';
+  pos [/^alef/]'lookup alefkern.l3 [hamzaabove hamzaabove.small]' [fatha damma sukun]' /kaf.init.iii/';
+
+  lookup alefkern.l4 {
+		pos /^alef/ <70 0 70 0>;	
+	} alefkern.l4;
+
+  lookup alefkern.l5 {
+		pos /^alef/ <200 0 200 0>;	
+	} alefkern.l5;
+
+  pos alef.fina'lookup alefkern.l4 maddahabove space alef.isol hamzaabove;
+
+  pos alef.isol'<200 0 200 0> [smallhighroundedzero rectangularzero] space [kaf.init];
+  pos alef.isol'lookup alefkern.l5 [smallhighroundedzero rectangularzero] space [kaf.init.beforelam];
+
+  lookup variouskern.l6 {
+		pos kaf.init.beforelam <0 0 150 0>;
+    pos kaf.init <0 0 150 0>;	
+	} variouskern.l6;
+
+  pos heh.isol' twodotsup' dammatanidgham' space' kaf.init.beforelam'lookup  variouskern.l6; # page 30 line 14 عَشَرَةࣱ كَامِلَةࣱۗ
+  pos heh.fina' twodotsup' dammatanidgham' waqf.sad' space' kaf.init.beforelam'lookup  variouskern.l6; # page 120 line 12 صِدِّيقَةࣱۖ كَانَا
+  pos dal.isol' onedotup' sukun' space' kaf.init'<0 0 100 0>; # page 126 line 8 وَإِذْ كَفَفْتُ
+  pos alef.isol' smallhighroundedzero' waqf.jeem' space' kaf.init'lookup  variouskern.l6; # page 209 line 14 لِيُؤْمِنُوا۟ۚ كَذَٰلِكَ
+  pos dal.isol' dammatanidgham' space' kaf.init'lookup  variouskern.l6; # page 186 line 11 وَفَسَادࣱ كَبِيرࣱ
+  pos alef.isol' hamzaabove' sukun' space' kaf.init'lookup  variouskern.l6; # page 283 line 10 ٱقْرَأْ كِتَٰبَكَ
+  pos heh.isol' twodotsup' fathatanidgham' space' kaf.init.beforelam'lookup  variouskern.l6; # page 532 line 13 وَرْدَةࣰ كَٱلدِّهَانِ
+  pos heh.fina' twodotsup' dammatanidgham' space' kaf.init'lookup  variouskern.l6; # page 494 line 15 فَٰكِهَةࣱ كَثِيرَةࣱ
+  pos heh.isol' twodotsup' fathatanidgham' waqf.sad' space' kaf.init.beforelam'lookup  variouskern.l6; # page 454 line 3 مَحْشُورَةࣰۖ كُلࣱّ
+  pos heh.isol' twodotsup' fathatanidgham' waqf.jeem' space' kaf.init'lookup  variouskern.l6; # page 362 line 15 وَٰحِدَةࣰۚ كَذَٰلِكَ
+  pos dal.isol' onedotup' sukun' space' kaf.init.beforelam'lookup  variouskern.l6; # page 505 line 11 إِذْ كَانُوا۟
+
+  lookup variouskern.l7 {
+		pos ain.isol <0 -50 0 0>;    	
+	} variouskern.l7;
+
+  pos reh.fina' shadda' fatha' waw.isol' sukun' ain.isol'lookup variouskern.l7; # page 230 line 4 ٱلرَّوْعُ
+  pos waw.fina' fatha' alef.isol' ain.isol'lookup variouskern.l7; # page 244 line 3 صُوَاعَ
+  pos reh.fina' fatha' alef.isol' ain.isol'lookup variouskern.l7; # page 521 line 11 فَرَاغَ
+
+  
 
 } variouskern;
 
@@ -827,9 +879,15 @@ lookup caltmkmk {
     <anchor function defaultbaseanchorforlow> markClass kasra <anchor function defaullowmarkanchor> @kasra
     <anchor function defaultbaseanchorforlow> markClass kasratan <anchor function defaullowmarkanchor> @kasratan
     <anchor function defaultbaseanchorforlow> markClass kasratanidgham <anchor function defaullowmarkanchor> @kasratanidgham;
-	} caltmkmk.l1;
+	} caltmkmk.l1;  
 
   pos hah.isol'lookup caltmkmk.l1 onedotdown'lookup caltmkmk.l1 [kasra kasratan kasratanidgham] 'lookup caltmkmk.l1;
+
+  lookup caltmkmk.l2 {					
+		pos base  [dal.isol] <anchor 0 0> markClass fatha <anchor 0 0> @fatha ;
+	} caltmkmk.l2;
+
+  pos dal.isol fatha'lookup caltmkmk.l2 kaf.init.beforelam;
 
 } caltmkmk;
 
@@ -1152,7 +1210,7 @@ lookup othercalt {
 
 	lookup othercalt.l2 {
 		sub alef.isol add -1.4 0;
-		#sub alef.fina add -1.4 0;		
+			
 	} othercalt.l2;
 
 	lookup othercalt.l3 {
@@ -1161,7 +1219,11 @@ lookup othercalt {
 
 	lookup othercalt.l4 {
 		sub hamzaabove by hamzabelow;
-	} othercalt.l4;	
+	} othercalt.l4;
+
+  lookup othercalt.l5 {
+		sub alef.fina add -0.5 0;	
+	} othercalt.l5;	
 
 	sub behshape.init'lookup othercalt.l1 twodotsdown /^reh.fina/;
 
@@ -1176,6 +1238,10 @@ lookup othercalt {
 	sub alef.isol wasla kaf.init'lookup othercalt.l1;
 
 	sub [/^behshape.medi/ /^behshape.init/  /yehshape|alefmaksura/ /waw/] hamzaabove'lookup othercalt.l4 [kasra kasratan kasratanidgham];
+
+  sub alef.isol'lookup othercalt.l2 kaf.init;
+
+  sub [alef.fina alef.fina.lamalef]'lookup othercalt.l5 kaf.init.beforelam'lookup othercalt.l1;
 
 
 } othercalt;
@@ -1232,11 +1298,11 @@ feature calt {
 	lookup kaflamalef;			
 	lookup kafmeemliga;
 	lookup hahlig;
-	lookup ainfinjani;
-	lookup othercalt;
+	lookup ainfinjani;	
   lookup leftexpand;
   lookup convertsmallaleftochar;  
-  lookup marks.addwidth;	
+  lookup marks.addwidth;
+  lookup othercalt;
 } calt;
 
 feature curs {
@@ -1317,8 +1383,7 @@ lookup adjustoverlap {
     pos /^kaf.init([.]added_.*)?$/ <0 0 0 0>;
     pos /^smallalef.replacement([.]added_.*)?$/ <0 0 0 0>;
     pos /^wasla([.]added_.*)?$/ <0 0 0 0>;
-    pos /^hamzaabove.joined([.]added_.*)?$/ <0 0 0 0>;
-    pos /^hamzaabove.lamalef([.]added_.*)?$/ <0 0 0 0>;
+    pos /^hamzaabove.joined([.]added_.*)?$/ <0 0 0 0>;    
     pos /^alef.fina([.]added_.*)?$/ <0 0 0 0>;
     pos /^behshape.init([.]added_.*)?$/ <0 0 0 0>;
     pos /^behshape.init.beforeseen([.]added_.*)?$/ <0 0 0 0>;
@@ -2600,8 +2665,7 @@ lookup adjustoverlap {
   pos /^reh.fina.afterbehshape([.]added_.*)?$/'lookup adjustoverlap.l1 /^fatha([.]added_.*)?$/'lookup adjustoverlap.l119 /^alef.isol([.]added_.*)?$/'lookup adjustoverlap.l104 /^maddahabove([.]added_.*)?$/'lookup adjustoverlap.l105 /^behshape.init([.]added_.*)?$/'lookup adjustoverlap.l105 /^hamzabelow([.]added_.*)?$/'lookup adjustoverlap.l101;
   pos /^fehshape.medi([.]added_.*)?$/'lookup adjustoverlap.l1 /^twodotsup([.]added_.*)?$/'lookup adjustoverlap.l22 /^shadda([.]added_.*)?$/'lookup adjustoverlap.l26 /^fathatanidgham([.]added_.*)?$/'lookup adjustoverlap.l13 /^alef.fina([.]added_.*)?$/'lookup adjustoverlap.l31 /^waqf.sad([.]added_.*)?$/'lookup adjustoverlap.l16;
   pos /^reh.fina([.]added_.*)?$/'lookup adjustoverlap.l101 /^fatha([.]added_.*)?$/'lookup adjustoverlap.l115 /^heh.isol([.]added_.*)?$/'lookup adjustoverlap.l102 /^twodotsup([.]added_.*)?$/'lookup adjustoverlap.l105 /^kasra([.]added_.*)?$/'lookup adjustoverlap.l102 /^smalllowmeem([.]added_.*)?$/'lookup adjustoverlap.l101;
-  pos /^behshape.init([.]added_.*)?$/'lookup adjustoverlap.l50 /^twodotsup([.]added_.*)?$/'lookup adjustoverlap.l29 /^shadda([.]added_.*)?$/'lookup adjustoverlap.l34 /^fatha([.]added_.*)?$/'lookup adjustoverlap.l99 /^alef.fina([.]added_.*)?$/'lookup adjustoverlap.l4 /^hamzaabove([.]added_.*)?$/'lookup adjustoverlap.l51;
-  pos /^lam.init.lamalef([.]added_.*)?$/'lookup adjustoverlap.l10 /^fatha([.]added_.*)?$/'lookup adjustoverlap.l113 /^hamzaabove.lamalef([.]added_.*)?$/'lookup adjustoverlap.l1 /^fatha([.]added_.*)?$/'lookup adjustoverlap.l114 /^alef.fina.lamalef([.]added_.*)?$/'lookup adjustoverlap.l100 /^kaf.init.beforelam([.]added_.*)?$/'lookup adjustoverlap.l100;
+  pos /^behshape.init([.]added_.*)?$/'lookup adjustoverlap.l50 /^twodotsup([.]added_.*)?$/'lookup adjustoverlap.l29 /^shadda([.]added_.*)?$/'lookup adjustoverlap.l34 /^fatha([.]added_.*)?$/'lookup adjustoverlap.l99 /^alef.fina([.]added_.*)?$/'lookup adjustoverlap.l4 /^hamzaabove([.]added_.*)?$/'lookup adjustoverlap.l51;  
   pos /^kaf.init.beforeyeh([.]added_.*)?$/'lookup adjustoverlap.l100 /^shadda([.]added_.*)?$/'lookup adjustoverlap.l107 /^fatha([.]added_.*)?$/'lookup adjustoverlap.l112 /^yehshape.fina.ii([.]added_.*)?$/'lookup adjustoverlap.l101 /^smallalef.replacement([.]added_.*)?$/'lookup adjustoverlap.l1 /^maddahabove([.]added_.*)?$/'lookup adjustoverlap.l104;
   pos /^fehshape.medi([.]added_.*)?$/'lookup adjustoverlap.l101 /^onedotup([.]added_.*)?$/'lookup adjustoverlap.l105 /^shadda([.]added_.*)?$/'lookup adjustoverlap.l106 /^fathatanidgham([.]added_.*)?$/'lookup adjustoverlap.l102 /^alef.fina([.]added_.*)?$/'lookup adjustoverlap.l106 /^waqf.sad([.]added_.*)?$/'lookup adjustoverlap.l103;
   pos /^behshape.init([.]added_.*)?$/'lookup adjustoverlap.l20 /^twodotsdown([.]added_.*)?$/'lookup adjustoverlap.l13 /^maddahabove([.]added_.*)?$/'lookup adjustoverlap.l13 /^hamzaabove.joined([.]added_.*)?$/'lookup adjustoverlap.l13 /^fathatanidgham([.]added_.*)?$/'lookup adjustoverlap.l11 /^alef.fina([.]added_.*)?$/'lookup adjustoverlap.l19;
@@ -2756,14 +2820,25 @@ lookup adjustoverlap {
   pos /^lam.init([.]added_.*)?$/'lookup adjustoverlap.l103 /^sukun([.]added_.*)?$/'lookup adjustoverlap.l108 /^kaf.medi.beforelam([.]added_.*)?$/'lookup adjustoverlap.l102;
   pos /^reh.isol([.]added_.*)?$/'lookup adjustoverlap.l103 /^kasra([.]added_.*)?$/'lookup adjustoverlap.l106 /^hah.isol([.]added_.*)?$/'lookup adjustoverlap.l101;
   pos /^lam.isol([.]added_.*)?$/'lookup adjustoverlap.l12 /^fatha([.]added_.*)?$/'lookup adjustoverlap.l90 /^waqf.jeem([.]added_.*)?$/'lookup adjustoverlap.l12;
+
+   lookup adjustoverlap.l122 {
+    pos kasratan <100 -180 0 0>;
+    pos waqf.jeem <50 150 0 0>;
+    pos waqf.sad <0 100 0 0>;
+  } adjustoverlap.l122;
+
+  pos heh.isol' twodotsup' kasratan'lookup adjustoverlap.l122 waqf.sad' space' alef.isol' hamzabelow'; # page 419 line 12 بِعَوْرَةٍۖ إِن  
+  pos heh.fina.afterlam' twodotsup' dammatan' waqf.jeem'lookup adjustoverlap.l122 space' alef.isol' hamzaabove' damma'; # page 212 line 2 ذِلَّةٌۚ أُو۟لَٰٓئِكَ
+  pos hah.isol' dammatan' waqf.sad'lookup adjustoverlap.l122 space' alef.isol' wasla'; # page 354 line 10 مِصْبَاحٌۖ ٱلْمِصْبَاحُ
+
 } adjustoverlap;
 
 
 feature mkmk {
 	lookup defaultmarkdotmarks;
 	lookup defaultmkmk;
-	lookup caltmkmk;	
-	lookup lowmarkafterwawandreh;
+  lookup caltmkmk;
+  lookup lowmarkafterwawandreh;  
 	lookup adjustoverlap;
 } mkmk;
 

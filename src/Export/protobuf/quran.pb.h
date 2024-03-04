@@ -1380,12 +1380,13 @@ class Line final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kGlyphsFieldNumber = 1,
-    kTypeFieldNumber = 2,
-    kXFieldNumber = 3,
-    kYFieldNumber = 4,
+    kGlyphsFieldNumber = 5,
+    kTextFieldNumber = 4,
+    kTypeFieldNumber = 1,
+    kXFieldNumber = 2,
+    kYFieldNumber = 3,
   };
-  // repeated .protobuf.GlyphLayout glyphs = 1;
+  // repeated .protobuf.GlyphLayout glyphs = 5;
   int glyphs_size() const;
   private:
   int _internal_glyphs_size() const;
@@ -1403,7 +1404,21 @@ class Line final :
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::protobuf::GlyphLayout >&
       glyphs() const;
 
-  // int32 type = 2;
+  // string text = 4;
+  void clear_text();
+  const std::string& text() const;
+  template <typename ArgT0 = const std::string&, typename... ArgT>
+  void set_text(ArgT0&& arg0, ArgT... args);
+  std::string* mutable_text();
+  PROTOBUF_NODISCARD std::string* release_text();
+  void set_allocated_text(std::string* text);
+  private:
+  const std::string& _internal_text() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_text(const std::string& value);
+  std::string* _internal_mutable_text();
+  public:
+
+  // int32 type = 1;
   void clear_type();
   int32_t type() const;
   void set_type(int32_t value);
@@ -1412,7 +1427,7 @@ class Line final :
   void _internal_set_type(int32_t value);
   public:
 
-  // int32 x = 3;
+  // int32 x = 2;
   void clear_x();
   int32_t x() const;
   void set_x(int32_t value);
@@ -1421,7 +1436,7 @@ class Line final :
   void _internal_set_x(int32_t value);
   public:
 
-  // int32 y = 4;
+  // int32 y = 3;
   void clear_y();
   int32_t y() const;
   void set_y(int32_t value);
@@ -1439,6 +1454,7 @@ class Line final :
   typedef void DestructorSkippable_;
   struct Impl_ {
     ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::protobuf::GlyphLayout > glyphs_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr text_;
     int32_t type_;
     int32_t x_;
     int32_t y_;
@@ -1571,14 +1587,15 @@ class GlyphLayout final :
 
   enum : int {
     kCodepointFieldNumber = 1,
-    kXAdvanceFieldNumber = 2,
-    kXOffsetFieldNumber = 3,
-    kYOffsetFieldNumber = 4,
-    kLefttatweelFieldNumber = 6,
-    kRighttatweelFieldNumber = 7,
-    kColorFieldNumber = 5,
-    kBeginsajdaFieldNumber = 8,
-    kEndsajdaFieldNumber = 9,
+    kClusterFieldNumber = 2,
+    kXAdvanceFieldNumber = 3,
+    kXOffsetFieldNumber = 4,
+    kYOffsetFieldNumber = 5,
+    kColorFieldNumber = 6,
+    kLefttatweelFieldNumber = 7,
+    kRighttatweelFieldNumber = 8,
+    kBeginsajdaFieldNumber = 9,
+    kEndsajdaFieldNumber = 10,
   };
   // int32 codepoint = 1;
   void clear_codepoint();
@@ -1589,7 +1606,16 @@ class GlyphLayout final :
   void _internal_set_codepoint(int32_t value);
   public:
 
-  // optional int32 x_advance = 2;
+  // int32 cluster = 2;
+  void clear_cluster();
+  int32_t cluster() const;
+  void set_cluster(int32_t value);
+  private:
+  int32_t _internal_cluster() const;
+  void _internal_set_cluster(int32_t value);
+  public:
+
+  // optional int32 x_advance = 3;
   bool has_x_advance() const;
   private:
   bool _internal_has_x_advance() const;
@@ -1602,7 +1628,7 @@ class GlyphLayout final :
   void _internal_set_x_advance(int32_t value);
   public:
 
-  // optional int32 x_offset = 3;
+  // optional int32 x_offset = 4;
   bool has_x_offset() const;
   private:
   bool _internal_has_x_offset() const;
@@ -1615,7 +1641,7 @@ class GlyphLayout final :
   void _internal_set_x_offset(int32_t value);
   public:
 
-  // optional int32 y_offset = 4;
+  // optional int32 y_offset = 5;
   bool has_y_offset() const;
   private:
   bool _internal_has_y_offset() const;
@@ -1628,33 +1654,7 @@ class GlyphLayout final :
   void _internal_set_y_offset(int32_t value);
   public:
 
-  // optional double lefttatweel = 6;
-  bool has_lefttatweel() const;
-  private:
-  bool _internal_has_lefttatweel() const;
-  public:
-  void clear_lefttatweel();
-  double lefttatweel() const;
-  void set_lefttatweel(double value);
-  private:
-  double _internal_lefttatweel() const;
-  void _internal_set_lefttatweel(double value);
-  public:
-
-  // optional double righttatweel = 7;
-  bool has_righttatweel() const;
-  private:
-  bool _internal_has_righttatweel() const;
-  public:
-  void clear_righttatweel();
-  double righttatweel() const;
-  void set_righttatweel(double value);
-  private:
-  double _internal_righttatweel() const;
-  void _internal_set_righttatweel(double value);
-  public:
-
-  // optional int32 color = 5;
+  // optional int32 color = 6;
   bool has_color() const;
   private:
   bool _internal_has_color() const;
@@ -1667,7 +1667,33 @@ class GlyphLayout final :
   void _internal_set_color(int32_t value);
   public:
 
-  // optional bool beginsajda = 8;
+  // optional double lefttatweel = 7;
+  bool has_lefttatweel() const;
+  private:
+  bool _internal_has_lefttatweel() const;
+  public:
+  void clear_lefttatweel();
+  double lefttatweel() const;
+  void set_lefttatweel(double value);
+  private:
+  double _internal_lefttatweel() const;
+  void _internal_set_lefttatweel(double value);
+  public:
+
+  // optional double righttatweel = 8;
+  bool has_righttatweel() const;
+  private:
+  bool _internal_has_righttatweel() const;
+  public:
+  void clear_righttatweel();
+  double righttatweel() const;
+  void set_righttatweel(double value);
+  private:
+  double _internal_righttatweel() const;
+  void _internal_set_righttatweel(double value);
+  public:
+
+  // optional bool beginsajda = 9;
   bool has_beginsajda() const;
   private:
   bool _internal_has_beginsajda() const;
@@ -1680,7 +1706,7 @@ class GlyphLayout final :
   void _internal_set_beginsajda(bool value);
   public:
 
-  // optional bool endsajda = 9;
+  // optional bool endsajda = 10;
   bool has_endsajda() const;
   private:
   bool _internal_has_endsajda() const;
@@ -1704,12 +1730,13 @@ class GlyphLayout final :
     ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     int32_t codepoint_;
+    int32_t cluster_;
     int32_t x_advance_;
     int32_t x_offset_;
     int32_t y_offset_;
+    int32_t color_;
     double lefttatweel_;
     double righttatweel_;
-    int32_t color_;
     bool beginsajda_;
     bool endsajda_;
   };
@@ -2566,7 +2593,117 @@ Page::lines() const {
 
 // Line
 
-// repeated .protobuf.GlyphLayout glyphs = 1;
+// int32 type = 1;
+inline void Line::clear_type() {
+  _impl_.type_ = 0;
+}
+inline int32_t Line::_internal_type() const {
+  return _impl_.type_;
+}
+inline int32_t Line::type() const {
+  // @@protoc_insertion_point(field_get:protobuf.Line.type)
+  return _internal_type();
+}
+inline void Line::_internal_set_type(int32_t value) {
+  
+  _impl_.type_ = value;
+}
+inline void Line::set_type(int32_t value) {
+  _internal_set_type(value);
+  // @@protoc_insertion_point(field_set:protobuf.Line.type)
+}
+
+// int32 x = 2;
+inline void Line::clear_x() {
+  _impl_.x_ = 0;
+}
+inline int32_t Line::_internal_x() const {
+  return _impl_.x_;
+}
+inline int32_t Line::x() const {
+  // @@protoc_insertion_point(field_get:protobuf.Line.x)
+  return _internal_x();
+}
+inline void Line::_internal_set_x(int32_t value) {
+  
+  _impl_.x_ = value;
+}
+inline void Line::set_x(int32_t value) {
+  _internal_set_x(value);
+  // @@protoc_insertion_point(field_set:protobuf.Line.x)
+}
+
+// int32 y = 3;
+inline void Line::clear_y() {
+  _impl_.y_ = 0;
+}
+inline int32_t Line::_internal_y() const {
+  return _impl_.y_;
+}
+inline int32_t Line::y() const {
+  // @@protoc_insertion_point(field_get:protobuf.Line.y)
+  return _internal_y();
+}
+inline void Line::_internal_set_y(int32_t value) {
+  
+  _impl_.y_ = value;
+}
+inline void Line::set_y(int32_t value) {
+  _internal_set_y(value);
+  // @@protoc_insertion_point(field_set:protobuf.Line.y)
+}
+
+// string text = 4;
+inline void Line::clear_text() {
+  _impl_.text_.ClearToEmpty();
+}
+inline const std::string& Line::text() const {
+  // @@protoc_insertion_point(field_get:protobuf.Line.text)
+  return _internal_text();
+}
+template <typename ArgT0, typename... ArgT>
+inline PROTOBUF_ALWAYS_INLINE
+void Line::set_text(ArgT0&& arg0, ArgT... args) {
+ 
+ _impl_.text_.Set(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:protobuf.Line.text)
+}
+inline std::string* Line::mutable_text() {
+  std::string* _s = _internal_mutable_text();
+  // @@protoc_insertion_point(field_mutable:protobuf.Line.text)
+  return _s;
+}
+inline const std::string& Line::_internal_text() const {
+  return _impl_.text_.Get();
+}
+inline void Line::_internal_set_text(const std::string& value) {
+  
+  _impl_.text_.Set(value, GetArenaForAllocation());
+}
+inline std::string* Line::_internal_mutable_text() {
+  
+  return _impl_.text_.Mutable(GetArenaForAllocation());
+}
+inline std::string* Line::release_text() {
+  // @@protoc_insertion_point(field_release:protobuf.Line.text)
+  return _impl_.text_.Release();
+}
+inline void Line::set_allocated_text(std::string* text) {
+  if (text != nullptr) {
+    
+  } else {
+    
+  }
+  _impl_.text_.SetAllocated(text, GetArenaForAllocation());
+#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (_impl_.text_.IsDefault()) {
+    _impl_.text_.Set("", GetArenaForAllocation());
+  }
+#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:protobuf.Line.text)
+}
+
+// repeated .protobuf.GlyphLayout glyphs = 5;
 inline int Line::_internal_glyphs_size() const {
   return _impl_.glyphs_.size();
 }
@@ -2606,66 +2743,6 @@ Line::glyphs() const {
   return _impl_.glyphs_;
 }
 
-// int32 type = 2;
-inline void Line::clear_type() {
-  _impl_.type_ = 0;
-}
-inline int32_t Line::_internal_type() const {
-  return _impl_.type_;
-}
-inline int32_t Line::type() const {
-  // @@protoc_insertion_point(field_get:protobuf.Line.type)
-  return _internal_type();
-}
-inline void Line::_internal_set_type(int32_t value) {
-  
-  _impl_.type_ = value;
-}
-inline void Line::set_type(int32_t value) {
-  _internal_set_type(value);
-  // @@protoc_insertion_point(field_set:protobuf.Line.type)
-}
-
-// int32 x = 3;
-inline void Line::clear_x() {
-  _impl_.x_ = 0;
-}
-inline int32_t Line::_internal_x() const {
-  return _impl_.x_;
-}
-inline int32_t Line::x() const {
-  // @@protoc_insertion_point(field_get:protobuf.Line.x)
-  return _internal_x();
-}
-inline void Line::_internal_set_x(int32_t value) {
-  
-  _impl_.x_ = value;
-}
-inline void Line::set_x(int32_t value) {
-  _internal_set_x(value);
-  // @@protoc_insertion_point(field_set:protobuf.Line.x)
-}
-
-// int32 y = 4;
-inline void Line::clear_y() {
-  _impl_.y_ = 0;
-}
-inline int32_t Line::_internal_y() const {
-  return _impl_.y_;
-}
-inline int32_t Line::y() const {
-  // @@protoc_insertion_point(field_get:protobuf.Line.y)
-  return _internal_y();
-}
-inline void Line::_internal_set_y(int32_t value) {
-  
-  _impl_.y_ = value;
-}
-inline void Line::set_y(int32_t value) {
-  _internal_set_y(value);
-  // @@protoc_insertion_point(field_set:protobuf.Line.y)
-}
-
 // -------------------------------------------------------------------
 
 // GlyphLayout
@@ -2690,7 +2767,27 @@ inline void GlyphLayout::set_codepoint(int32_t value) {
   // @@protoc_insertion_point(field_set:protobuf.GlyphLayout.codepoint)
 }
 
-// optional int32 x_advance = 2;
+// int32 cluster = 2;
+inline void GlyphLayout::clear_cluster() {
+  _impl_.cluster_ = 0;
+}
+inline int32_t GlyphLayout::_internal_cluster() const {
+  return _impl_.cluster_;
+}
+inline int32_t GlyphLayout::cluster() const {
+  // @@protoc_insertion_point(field_get:protobuf.GlyphLayout.cluster)
+  return _internal_cluster();
+}
+inline void GlyphLayout::_internal_set_cluster(int32_t value) {
+  
+  _impl_.cluster_ = value;
+}
+inline void GlyphLayout::set_cluster(int32_t value) {
+  _internal_set_cluster(value);
+  // @@protoc_insertion_point(field_set:protobuf.GlyphLayout.cluster)
+}
+
+// optional int32 x_advance = 3;
 inline bool GlyphLayout::_internal_has_x_advance() const {
   bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
   return value;
@@ -2718,7 +2815,7 @@ inline void GlyphLayout::set_x_advance(int32_t value) {
   // @@protoc_insertion_point(field_set:protobuf.GlyphLayout.x_advance)
 }
 
-// optional int32 x_offset = 3;
+// optional int32 x_offset = 4;
 inline bool GlyphLayout::_internal_has_x_offset() const {
   bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
   return value;
@@ -2746,7 +2843,7 @@ inline void GlyphLayout::set_x_offset(int32_t value) {
   // @@protoc_insertion_point(field_set:protobuf.GlyphLayout.x_offset)
 }
 
-// optional int32 y_offset = 4;
+// optional int32 y_offset = 5;
 inline bool GlyphLayout::_internal_has_y_offset() const {
   bool value = (_impl_._has_bits_[0] & 0x00000004u) != 0;
   return value;
@@ -2774,9 +2871,9 @@ inline void GlyphLayout::set_y_offset(int32_t value) {
   // @@protoc_insertion_point(field_set:protobuf.GlyphLayout.y_offset)
 }
 
-// optional int32 color = 5;
+// optional int32 color = 6;
 inline bool GlyphLayout::_internal_has_color() const {
-  bool value = (_impl_._has_bits_[0] & 0x00000020u) != 0;
+  bool value = (_impl_._has_bits_[0] & 0x00000008u) != 0;
   return value;
 }
 inline bool GlyphLayout::has_color() const {
@@ -2784,7 +2881,7 @@ inline bool GlyphLayout::has_color() const {
 }
 inline void GlyphLayout::clear_color() {
   _impl_.color_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000020u;
+  _impl_._has_bits_[0] &= ~0x00000008u;
 }
 inline int32_t GlyphLayout::_internal_color() const {
   return _impl_.color_;
@@ -2794,7 +2891,7 @@ inline int32_t GlyphLayout::color() const {
   return _internal_color();
 }
 inline void GlyphLayout::_internal_set_color(int32_t value) {
-  _impl_._has_bits_[0] |= 0x00000020u;
+  _impl_._has_bits_[0] |= 0x00000008u;
   _impl_.color_ = value;
 }
 inline void GlyphLayout::set_color(int32_t value) {
@@ -2802,9 +2899,9 @@ inline void GlyphLayout::set_color(int32_t value) {
   // @@protoc_insertion_point(field_set:protobuf.GlyphLayout.color)
 }
 
-// optional double lefttatweel = 6;
+// optional double lefttatweel = 7;
 inline bool GlyphLayout::_internal_has_lefttatweel() const {
-  bool value = (_impl_._has_bits_[0] & 0x00000008u) != 0;
+  bool value = (_impl_._has_bits_[0] & 0x00000010u) != 0;
   return value;
 }
 inline bool GlyphLayout::has_lefttatweel() const {
@@ -2812,7 +2909,7 @@ inline bool GlyphLayout::has_lefttatweel() const {
 }
 inline void GlyphLayout::clear_lefttatweel() {
   _impl_.lefttatweel_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000008u;
+  _impl_._has_bits_[0] &= ~0x00000010u;
 }
 inline double GlyphLayout::_internal_lefttatweel() const {
   return _impl_.lefttatweel_;
@@ -2822,7 +2919,7 @@ inline double GlyphLayout::lefttatweel() const {
   return _internal_lefttatweel();
 }
 inline void GlyphLayout::_internal_set_lefttatweel(double value) {
-  _impl_._has_bits_[0] |= 0x00000008u;
+  _impl_._has_bits_[0] |= 0x00000010u;
   _impl_.lefttatweel_ = value;
 }
 inline void GlyphLayout::set_lefttatweel(double value) {
@@ -2830,9 +2927,9 @@ inline void GlyphLayout::set_lefttatweel(double value) {
   // @@protoc_insertion_point(field_set:protobuf.GlyphLayout.lefttatweel)
 }
 
-// optional double righttatweel = 7;
+// optional double righttatweel = 8;
 inline bool GlyphLayout::_internal_has_righttatweel() const {
-  bool value = (_impl_._has_bits_[0] & 0x00000010u) != 0;
+  bool value = (_impl_._has_bits_[0] & 0x00000020u) != 0;
   return value;
 }
 inline bool GlyphLayout::has_righttatweel() const {
@@ -2840,7 +2937,7 @@ inline bool GlyphLayout::has_righttatweel() const {
 }
 inline void GlyphLayout::clear_righttatweel() {
   _impl_.righttatweel_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000010u;
+  _impl_._has_bits_[0] &= ~0x00000020u;
 }
 inline double GlyphLayout::_internal_righttatweel() const {
   return _impl_.righttatweel_;
@@ -2850,7 +2947,7 @@ inline double GlyphLayout::righttatweel() const {
   return _internal_righttatweel();
 }
 inline void GlyphLayout::_internal_set_righttatweel(double value) {
-  _impl_._has_bits_[0] |= 0x00000010u;
+  _impl_._has_bits_[0] |= 0x00000020u;
   _impl_.righttatweel_ = value;
 }
 inline void GlyphLayout::set_righttatweel(double value) {
@@ -2858,7 +2955,7 @@ inline void GlyphLayout::set_righttatweel(double value) {
   // @@protoc_insertion_point(field_set:protobuf.GlyphLayout.righttatweel)
 }
 
-// optional bool beginsajda = 8;
+// optional bool beginsajda = 9;
 inline bool GlyphLayout::_internal_has_beginsajda() const {
   bool value = (_impl_._has_bits_[0] & 0x00000040u) != 0;
   return value;
@@ -2886,7 +2983,7 @@ inline void GlyphLayout::set_beginsajda(bool value) {
   // @@protoc_insertion_point(field_set:protobuf.GlyphLayout.beginsajda)
 }
 
-// optional bool endsajda = 9;
+// optional bool endsajda = 10;
 inline bool GlyphLayout::_internal_has_endsajda() const {
   bool value = (_impl_._has_bits_[0] & 0x00000080u) != 0;
   return value;

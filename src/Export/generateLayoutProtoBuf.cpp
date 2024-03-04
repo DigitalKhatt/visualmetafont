@@ -185,21 +185,27 @@ void GenerateLayout::generateLayoutProtoBuf(int lineWidth, int scale) {
     glyphs[glyph.charcode] = glyphProto;
   }
 
-  for (auto& page : layoutPages.pages) {
+  for (int pageIndex = 0; pageIndex < layoutPages.pages.size(); pageIndex++) {
+
+    auto& page = layoutPages.pages[pageIndex];
+    auto& pagetext = layoutPages.originalPages[pageIndex];
 
     auto pageStream = layout.add_pages();
 
 
-    for (auto& line : page) {
+    for (int lineIndex = 0; lineIndex < page.size(); lineIndex++) {
+      auto& line = page[lineIndex];
       auto lineStream = pageStream->add_lines();
       lineStream->set_type((int)line.type);
       lineStream->set_x(line.xstartposition);
       lineStream->set_y(line.ystartposition);
+      lineStream->set_text(pagetext[lineIndex].toStdString());
       for (auto& glyph : line.glyphs) {
         auto glphStream = lineStream->add_glyphs();
 
 
         glphStream->set_codepoint(glyph.codepoint);
+        glphStream->set_cluster(glyph.cluster);
 
         if (glyph.x_advance != 0) {
           glphStream->set_x_advance(glyph.x_advance);

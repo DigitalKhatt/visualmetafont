@@ -38,23 +38,25 @@ message Page {
   repeated Line lines = 1;
 }
 
-message Line {
-  repeated GlyphLayout glyphs = 1; 
-  int32 type = 2;
-  int32 x = 3;
-  int32 y = 4;
+message Line {  
+  int32 type = 1;
+  int32 x = 2;
+  int32 y = 3;
+  string text = 4;
+  repeated GlyphLayout glyphs = 5; 
 }
 
 message GlyphLayout {
-  int32 codepoint = 1; 
-  optional int32 x_advance = 2; 
-  optional int32 x_offset = 3;
-  optional int32 y_offset = 4;
-  optional int32 color = 5;
-  optional double lefttatweel = 6;
-  optional double righttatweel = 7;
-  optional bool beginsajda = 8;
-  optional bool endsajda = 9;
+  int32 codepoint = 1;
+  int32 cluster = 2;
+  optional int32 x_advance = 3; 
+  optional int32 x_offset = 4;
+  optional int32 y_offset = 5;
+  optional int32 color = 6;
+  optional double lefttatweel = 7;
+  optional double righttatweel = 8;
+  optional bool beginsajda = 9;
+  optional bool endsajda = 10;  
 }
 
 message Sura {
