@@ -55,6 +55,7 @@ public:
 
   virtual Lookup* getLookup(QString lookupName) = 0;
   virtual CalcAnchor  getanchorCalcFunctions(QString functionName, Subtable* subtable) = 0;
+  virtual void generateSubstEquivGlyphs() {}
 
 protected:
   OtLayout* m_layout;

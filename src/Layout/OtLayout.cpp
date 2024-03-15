@@ -1208,6 +1208,8 @@ void OtLayout::generateSubstEquivGlyphs() {
 
 
   if (!extended && substEquivGlyphs.size() == 0) {
+
+    automedina->generateSubstEquivGlyphs();
     for (auto lookup : lookups) {
       if (!disabledLookups.contains(lookup)) {
         if (lookup->isGsubLookup() && lookup->type != Lookup::SubType::fsmgsub) {

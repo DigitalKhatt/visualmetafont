@@ -571,10 +571,31 @@ QByteArray SingleSubtable::getOpenTypeTable(bool extended) {
   QByteArray root;
   QByteArray coverage;
 
+  QMap<quint16, quint16 > newSubst;
+
+  if (!extended) {
+    for (auto i = subst.cbegin(), end = subst.cend(); i != end; ++i) {
+      auto before = i.key();
+      auto after = i.value();
+      newSubst.insert(before, after);
+      auto& beforeGlyphs = m_layout->getSubstEquivGlyphs(before);
+      auto& afterGlyphs = m_layout->getSubstEquivGlyphs(after);
+
+      for (auto& addedGlyph : beforeGlyphs) {
+        auto& ret = afterGlyphs.find(addedGlyph.first);
+        if (ret != afterGlyphs.end()) {
+          newSubst.insert(addedGlyph.second->charcode, ret->second->charcode);
+        }
+      }
+      
+    }
+  }
+  else {
+    newSubst = subst;
+  }
 
 
-
-  quint16 glyphCount = subst.size();
+  quint16 glyphCount = newSubst.size();
   quint16 coverage_offset = 2 + 2 + 2 + 2 * glyphCount;
 
 
@@ -586,7 +607,7 @@ QByteArray SingleSubtable::getOpenTypeTable(bool extended) {
   coverage << (quint16)1;
   coverage << (quint16)glyphCount;
 
-  QMapIterator<quint16, quint16>i(subst);
+  QMapIterator<quint16, quint16>i(newSubst);
 
 
   while (i.hasNext()) {
@@ -972,7 +993,7 @@ void AlternateSubtable::generateSubstEquivGlyphs() {
         parameters.lefttatweel = alternateGlyph.lefttatweel;
         parameters.righttatweel = alternateGlyph.righttatweel;
 
-        m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
+        m_layout->getAlternate(alternateGlyph.code, parameters, true, true);
       }
     }
   }

@@ -2300,6 +2300,8 @@ bldmv ( (179,147), (28,24), (0,0) ) .. tension 1 and 1 ..
 %%beginbody
 
 %z.rt.rbearing = (332.902,0.659722);
+show leftanchor;
+show rightanchor;
 enddefchar;
 defchar(behshape.medi.expa,-1,-1,-1,-1);
 %%backgroundimage:images/behmediexpa.jpg,-2094.73,-1126.75,1,0,0,1
@@ -5923,6 +5925,42 @@ tah.isol_(lefttatweel,righttatweel);
 rightanchor := z1;
 
 enddefchar;
+defchar(yehshape.fina.ii,-1,-1,-1,-1);
+%%backgroundimage:images/fehyeh.jpg,-95,-647.402,1,0,0,1
+%%beginparams
+z1 = (362,10);
+z2 = (597,9);
+
+%%beginverbatim
+
+z3 = z1 + (76,83);
+
+%(497.525,1.20559)
+%%endverbatim
+
+%%beginpaths
+
+fill
+(22,-36) .. tension 1.15253 and 2.73859 ..
+ {right}(123,158) .. tension 1 and 1 ..
+ {down}(134.269,138.992) .. tension 2.78482 and 1 ..
+ {down}(78.9031,3.93523) .. tension 1 and 0.915494 ..
+ {right}(268.641,-112.034) .. tension 1.09661 and 6.40317 ..
+ {up}(529.996,-19.7595) .. tension 1.03121 and 1 ..
+(497.525,1.20559) .. tension 0.891928 and 0.75 ..
+ {left}z1 .. tension 10.1756 and 7.57227 ..
+z3 {right} .. tension 1.39519 and 1.43919 ..
+(563.648,77.5785) .. tension 1 and 1 ..
+ {down}z2 .. tension 1.42107 and 1.14232 ..
+ {left}(250,-203) .. tension 0.907684 and 1 ..
+ {up} cycle
+;
+
+%%endpaths
+%%beginbody
+rightbearing := x1 - x2;
+setCursiveAnchor(ltrcursive,z1,EntryAnchor);
+enddefchar;
 defchar(yeh.shape.i,-1,-1,-1,-1);
 %%backgroundimage:images/yeh.isol.jpg,-38,-1129,1,0,0,1
 %%beginparams
@@ -5982,42 +6020,6 @@ z.yeh.shape.ii.1 .. tension 0.972505 and 1 ..
 %%beginbody
 leftbearing := 0;
 enddefchar;
-defchar(yehshape.fina.ii,-1,-1,-1,-1);
-%%backgroundimage:images/fehyeh.jpg,-95,-647.402,1,0,0,1
-%%beginparams
-z1 = (362,10);
-z2 = (597,9);
-
-%%beginverbatim
-
-z3 = z1 + (76,83);
-
-%(497.525,1.20559)
-%%endverbatim
-
-%%beginpaths
-
-fill
-(22,-36) .. tension 1.15253 and 2.73859 ..
- {right}(123,158) .. tension 1 and 1 ..
- {down}(134.269,138.992) .. tension 2.78482 and 1 ..
- {down}(78.9031,3.93523) .. tension 1 and 0.915494 ..
- {right}(268.641,-112.034) .. tension 1.09661 and 6.40317 ..
- {up}(529.996,-19.7595) .. tension 1.03121 and 1 ..
-(497.525,1.20559) .. tension 0.891928 and 0.75 ..
- {left}z1 .. tension 10.1756 and 7.57227 ..
-z3 {right} .. tension 1.39519 and 1.43919 ..
-(563.648,77.5785) .. tension 1 and 1 ..
- {down}z2 .. tension 1.42107 and 1.14232 ..
- {left}(250,-203) .. tension 0.907684 and 1 ..
- {up} cycle
-;
-
-%%endpaths
-%%beginbody
-rightbearing := x1 - x2;
-setCursiveAnchor(ltrcursive,z1,EntryAnchor);
-enddefchar;
 defchar(alefmaksura.isol,1609,-1,-1,-1);
 %%backgroundimage:images/yeh.isol.jpg,-81.194,-1005,1,0,0,1
 %%beginbody
@@ -6033,11 +6035,6 @@ shift_ := z1 - z.yeh.shape.i.1;
 
 draw pic_ shifted shift_;
 rightbearing := 0;
-
-enddefchar;
-defchar(yehshape.isol,1610,-1,-1,-1);
-%%beginbody
-alefmaksura.isol_(0,0);
 
 enddefchar;
 beginchar(yehshape.fina,-1,-1,-1,-1);
@@ -6060,6 +6057,11 @@ rightbearing := 0;
 tr_ := tr_ shifted (0, -ypart rightanchor);
 
 endchar;
+defchar(yehshape.isol,1610,-1,-1,-1);
+%%beginbody
+alefmaksura.isol_(0,0);
+
+enddefchar;
 defchar(kaf.isol,1603,-1,-1,-1);
 %%backgroundimage:images/kaf.isol.1.jpg,-118.352,-967.865,1,0,0,1
 

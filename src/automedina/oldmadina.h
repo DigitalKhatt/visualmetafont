@@ -6,6 +6,7 @@ public:
   OldMadina(OtLayout* layout, MP mp, bool extended);
   Lookup* getLookup(QString lookupName) override;
   CalcAnchor  getanchorCalcFunctions(QString functionName, Subtable* subtable) override;
+  void generateSubstEquivGlyphs() override;
 private:
   Lookup* defaultmarkposition();
   Lookup* defaultwaqfmarktobase();
