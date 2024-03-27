@@ -171,8 +171,8 @@ def endchar =
       tr_ := tr_ shifted (0,- ypart rightanchor); 
     fi;
   elseif known leftanchor :
-    %tr_ := tr_ shifted (- xpart leftanchor,0); 
-    tr_ := tr_ shifted -leftanchor;
+    tr_ := tr_ shifted (- xpart leftanchor,0); 
+    %tr_ := tr_ shifted -leftanchor;
   elseif known rightanchor :
   %   tr_ := tr_ shifted (floor xpart rightanchor - xpart rightanchor,ypart tr_ - floor ypart tr_ + ypart rightanchor - floor ypart rightanchor);   
   fi;

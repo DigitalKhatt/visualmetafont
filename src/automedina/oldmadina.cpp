@@ -505,6 +505,9 @@ OldMadina::OldMadina(OtLayout* layout, MP mp, bool extended) :Automedina{ layout
   layout->expandableGlyphs["behshape.medi.beforeseen"] = { 20,-1,20,-1 };
   layout->expandableGlyphs["behshape.medi.beforereh"] = { 0,0,20,-0.7 };
   layout->expandableGlyphs["behshape.medi.beforenoon"] = { 20,-0.7,20,-0.7 };
+  layout->expandableGlyphs["behshape.medi.beforeyeh"] = { 0,0,20,-1 };
+
+
 
   layout->expandableGlyphs["hah.medi"] = { 20,-1.3,20,-1 };
   layout->expandableGlyphs["hah.medi.afterbeh"] = { 20,-1,0,0 };
@@ -563,11 +566,11 @@ OldMadina::OldMadina(OtLayout* layout, MP mp, bool extended) :Automedina{ layout
 
   //kashida_ii
 
-  
+
   layout->expandableGlyphs["behshape.medi.expa"] = { 20,-1,0,0 };
-  
-  
-  
+
+
+
 
   //Basmala
   layout->expandableGlyphs["behshape.medi.basmala"] = { 20,-1,0,0 };
@@ -2465,7 +2468,7 @@ Lookup* OldMadina::glyphalternates() {
   }
 
   unordered_map<QString, QString> mappings;
-  
+
 
   mappings.insert({ "noon.isol","noon.isol.expa" });
   mappings.insert({ "behshape.isol","behshape.isol.expa" });
@@ -2489,14 +2492,77 @@ Lookup* OldMadina::glyphalternates() {
   mappings.insert({ "yehshape.fina","yehshape.fina.expa" });
   mappings.insert({ "yehshape.fina.ii","yehshape.fina.ii.expa" });
 
-  mappings.insert({ "behshape.medi","behshape.medi.expa" });
+  struct AltFeature {
+    struct Subst {
+      QString glyph;
+      QString substitute;
+    };
+    QString featureName;
+    std::vector<Subst> alternates;
+  };
+
+  std::vector<AltFeature> altfeatures;
+
+  altfeatures.push_back({ "cv10",{{"behshape.medi","behshape.medi.expa"}} });
+  altfeatures.push_back({ "cv11",{{"heh.init.beforemeem","heh.init"},{"meem.fina.afterheh","meem.fina"}} });
+  altfeatures.push_back({ "cv12",{{"behshape.init.beforehah","behshape.init"},{"hah.medi.afterbeh","hah.medi" }, {"hah.medi.afterbeh.beforeyeh","hah.medi.beforeyeh"}} });
+  altfeatures.push_back({ "cv13",{{"meem.init.beforehah","meem.init" },{"hah.medi.aftermeem","hah.medi" }} });
+  altfeatures.push_back({ "cv14",{{"fehshape.init.beforehah","fehshape.init" },{"hah.medi.afterfeh","hah.medi" }} });
+  altfeatures.push_back({ "cv15",{{"lam.init.lam_hah","lam.init" },{"hah.medi.lam_hah","hah.medi" }} });
+  altfeatures.push_back({ "cv16",{{"hah.init.ii","hah.init" },{"hah.medi.ii","hah.medi" },{"ain.init.finjani","ain.init"} } });
+  altfeatures.push_back({ "cv17",{{ "seen.init.beforereh","seen.init" },{"seen.medi.beforereh","seen.medi"}, {"reh.fina.afterseen","reh.fina"},{"sad.medi.beforereh","sad.medi"},{"sad.init.beforereh","sad.init"}} });
+  altfeatures.push_back({ "cv18",{{ "hah.init.beforemeem","hah.init" },{"meem.medi.afterhah","meem.medi" }, } });
+
+  for (auto& feature : altfeatures) {
+    Lookup* alternate = new Lookup(m_layout);
+    alternate->name = feature.featureName;
+    alternate->feature = alternate->name;
+    alternate->type = Lookup::alternate;
+
+    m_layout->addLookup(alternate);
+
+    AlternateSubtable* alternateSubtable = new AlternateSubtable(alternate);
+    alternate->subtables.append(alternateSubtable);
+    alternate->name = alternate->name;
+
+    for (auto mapping : feature.alternates) {
+
+      QVector<ExtendedGlyph> alternates;
+      int code = m_layout->glyphCodePerName[mapping.glyph];
+      int substcode = m_layout->glyphCodePerName[mapping.substitute];
+      auto& valueLimits = m_layout->expandableGlyphs[mapping.glyph];
+
+      if (code == 0 || substcode == 0) {
+        throw new std::runtime_error("Glyph name invalid");
+      }
+      alternates.append({ substcode,0,0 });
+      alternateSubtable->alternates[code] = alternates;
+
+      for (double leftTatweel = 0.5; leftTatweel <= std::min(valueLimits.maxLeft, 6.0F); leftTatweel += 0.5) {
+        GlyphParameters parameters;
+        parameters.lefttatweel = leftTatweel;
+        parameters.righttatweel = 0.0;
+        GlyphVis* newglyph = m_layout->getAlternate(code, parameters, true, true);
+        if (newglyph != nullptr) {
+          QVector<ExtendedGlyph> alternates2;
+          alternates2.append({ substcode,leftTatweel,0 });
+          alternateSubtable->alternates[newglyph->charcode] = alternates2;
+        }
+      }
+    }
+  }
+
+
 
   //decomp
   unordered_map<QString, QString> mappingsdecomp;
+
+  mappingsdecomp.insert({ "behshape.medi","behshape.medi.expa" });
+
   mappingsdecomp.insert({ "heh.init.beforemeem","heh.init" });
   mappingsdecomp.insert({ "meem.fina.afterheh","meem.fina" });
 
-  mappingsdecomp.insert({ "behshape.init.beforehah","behshape.init" });  
+  mappingsdecomp.insert({ "behshape.init.beforehah","behshape.init" });
   mappingsdecomp.insert({ "hah.medi.afterbeh","hah.medi" });
 
   mappingsdecomp.insert({ "meem.init.beforehah","meem.init" });
@@ -2505,20 +2571,18 @@ Lookup* OldMadina::glyphalternates() {
   mappingsdecomp.insert({ "fehshape.init.beforehah","fehshape.init" });
   mappingsdecomp.insert({ "hah.medi.afterfeh","hah.medi" });
   mappingsdecomp.insert({ "hah.medi.afterbeh.beforeyeh","hah.medi" });
-  
-  
+
+
 
   mappingsdecomp.insert({ "lam.init.lam_hah","lam.init" });
   mappingsdecomp.insert({ "hah.medi.lam_hah","hah.medi" });
-
-  mappingsdecomp.insert({ "heh.init.beforemeem","heh.init" });
-  mappingsdecomp.insert({ "meem.fina.afterheh","meem.fina" });
 
   mappingsdecomp.insert({ "hah.init.ii","hah.init" });
   mappingsdecomp.insert({ "hah.medi.ii","hah.medi" });
 
   mappingsdecomp.insert({ "seen.init.beforereh","seen.init" });
   mappingsdecomp.insert({ "reh.fina.afterseen","reh.fina" });
+
   mappingsdecomp.insert({ "hah.init.beforemeem","hah.init" });
   mappingsdecomp.insert({ "meem.medi.afterhah","meem.medi" });
   mappingsdecomp.insert({ "sad.medi.beforereh","sad.medi" });
@@ -2560,14 +2624,14 @@ Lookup* OldMadina::glyphalternates() {
     }
     alternates.append({ substcode,0,0 });
     alternateSubtable->alternates[code] = alternates;
-    
+
     for (double leftTatweel = 0.5; leftTatweel <= std::min(valueLimits.maxLeft, 6.0F); leftTatweel += 0.5) {
-      QVector<ExtendedGlyph> alternates2;
       GlyphParameters parameters;
       parameters.lefttatweel = leftTatweel;
       parameters.righttatweel = 0.0;
       GlyphVis* newglyph = m_layout->getAlternate(code, parameters, true, true);
       if (newglyph != nullptr) {
+        QVector<ExtendedGlyph> alternates2;
         alternates2.append({ substcode,leftTatweel,0 });
         alternateSubtable->alternates[newglyph->charcode] = alternates2;
       }
@@ -2615,7 +2679,7 @@ Lookup* OldMadina::glyphalternates() {
   auto& valueLimits = m_layout->expandableGlyphs["behshape.medi"];
   auto glyphCode = m_layout->glyphCodePerName["behshape.medi"];
   int substcode = m_layout->glyphCodePerName["behshape.medi.expa"];
-  
+
   for (double leftTatweel = 0.5; leftTatweel <= std::min(valueLimits.maxLeft, 3.0F); leftTatweel += 0.5) {
     QVector<ExtendedGlyph> alternates;
     GlyphParameters parameters;
@@ -2641,7 +2705,7 @@ Lookup* OldMadina::glyphalternates() {
   alternate->subtables.append(alternateSubtable);
   alternateSubtable->name = alternate->name;*/
 
-  
+
   for (auto& glyph : m_layout->expandableGlyphs) {
 
     if (mappings.find(glyph.first) != mappings.end()) continue;
@@ -2666,10 +2730,10 @@ Lookup* OldMadina::glyphalternates() {
           alternates.append({ glyphCode,leftTatweel2,0 });
         }
         alternateSubtable->alternates[newCode] = alternates;
-      }      
+      }
     }
-  }  
-  
+  }
+
   alternate = new Lookup(m_layout);
   //alternate->name = QString("cv%1").arg(cvNumber++, 2, 10, QLatin1Char('0'));
   alternate->name = "cv02";
@@ -2685,7 +2749,7 @@ Lookup* OldMadina::glyphalternates() {
   for (auto& glyph : m_layout->expandableGlyphs) {
 
     auto glyphCode = m_layout->glyphCodePerName[glyph.first];
-    auto valueLimits = glyph.second;    
+    auto valueLimits = glyph.second;
 
     if (valueLimits.maxRight > 0) {
       QVector<ExtendedGlyph> alternates;
@@ -2695,24 +2759,24 @@ Lookup* OldMadina::glyphalternates() {
       alternateSubtable->alternates[glyphCode] = alternates;
     };
 
-    if (valueLimits.maxLeft > 0 && valueLimits.maxRight > 0) {      
+    if (valueLimits.maxLeft > 0 && valueLimits.maxRight > 0) {
       for (double leftTatweel = 0.5; leftTatweel <= std::min(valueLimits.maxLeft, 3.0F); leftTatweel += 0.5) {
         QVector<ExtendedGlyph> alternates;
         GlyphParameters parameters;
         parameters.lefttatweel = leftTatweel;
         parameters.righttatweel = 0.0;
-        GlyphVis* newglyph = m_layout->getAlternate(glyphCode, parameters,true,true);
+        GlyphVis* newglyph = m_layout->getAlternate(glyphCode, parameters, true, true);
         for (double righttatweel = 0.5; righttatweel <= std::min(valueLimits.maxRight, 6.0F); righttatweel += 0.5) {
           alternates.append({ glyphCode,leftTatweel,righttatweel });
         }
         alternateSubtable->alternates[newglyph->charcode] = alternates;
       }
-     
-      
+
+
     }
   }
 
-  
+
 
 
   return nullptr;

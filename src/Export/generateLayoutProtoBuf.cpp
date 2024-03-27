@@ -267,12 +267,12 @@ void GenerateLayout::generateLayoutProtoBuf(int lineWidth, int scale) {
     }
   }
 
-  std::fstream layoutOutput("output/layout.portobuf", std::ios::out | std::ios::trunc | std::ios::binary);
+  std::fstream layoutOutput("output/layout.protobuf", std::ios::out | std::ios::trunc | std::ios::binary);
   if (!layout.SerializeToOstream(&layoutOutput)) {
     throw std::runtime_error("ERROR");
   }
 
-  std::fstream fontOutput("output/font.portobuf", std::ios::out | std::ios::trunc | std::ios::binary);
+  std::fstream fontOutput("output/font.protobuf", std::ios::out | std::ios::trunc | std::ios::binary);
   if (!font.SerializeToOstream(&fontOutput)) {
     throw std::runtime_error("ERROR");
   }

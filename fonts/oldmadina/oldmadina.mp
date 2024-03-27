@@ -1948,7 +1948,7 @@ bldmvi ( (144,615), (-50,_tatweel) ) .. tension 11.4991 and 2.76737 ..
 bldmvi ( (172,419), (0,0) ) .. tension 1.51205 and 2.71461 ..
 brdmv ( (196,176), (21,-56), (0,0) ) .. tension brdmvi ( 1, 0.05 ) and 1 ..
 brdmv ( (246,92), (397,-338), (-77,-1) ) setranchor
-(255,-1) rightjoinii
+(254,0) rightjoinii
 brdmv ( (177,26), (490,-386), (-20,-25) ) .. tension atleast 1 ..
 (138,108) .. tension 2.00581 and 1 ..
 bldmvi ( (106,390), (0,0) ) .. tension 1 and 59.2462 ..
@@ -1957,6 +1957,7 @@ bldmvi ( (106,390), (0,0) ) .. tension 1 and 59.2462 ..
 
 %%endpaths
 %%beginbody
+show rightanchor;
 
 enddefchar;
 defchar(alef.fina.afterkaf,-1,-1,-1,-1);
@@ -2123,7 +2124,7 @@ endchar;
 defchar(behshape.init,-1,-1,-1,-1);
 %%backgroundimage:images/beh.init.expa.jpg,-1907.89,-929.527,1,0,0,1
 %%beginparams
-leftVerticalRatio := 7.2;
+leftVerticalRatio := 10;
 z1 = bldmv ( (-8.81,453.652), (-17.3083,-9.28014), (-17.3199,-18.0564) );
 
 %%beginverbatim
@@ -2289,7 +2290,7 @@ defchar(behshape.medi,-1,-1,-1,-1);
 fillc
 bldmv ( (210,162), (8,22), (0,0) ) {right} .. tension 1.79471 and 1 ..
 brdmv ( (244,141), (-3.6212,2.99202), (-18.7783,0.242692) ) setranchor
-(362,-1) rightjoinii
+(362,0) rightjoinii
 bldmv ( (182,68), (13,1), (0,0) ) leftjoin
 bldmv ( (141,114), (-46,-6), (14.5278,-4.31711) ) ..
 bldmv ( (179,147), (28,24), (0,0) ) .. tension 1 and 1 ..
@@ -4635,7 +4636,7 @@ fill
  {up}(330,360) .. tension 1 and 1.30224 ..
  {right}(362,428) .. tension 5.61548 and 8.32259 ..
 brdmv ( (430,213), (10,-32), (53,-198) ) setranchor
-(516,-1) rightjoinii
+(516,0) rightjoinii
 (397,100) {dir -116.466} .. tension 1.73439 and 0.75 ..
  {left}(178,6) .. tension 0.885773 and 1 ..
  {up} cycle
@@ -5619,7 +5620,7 @@ brdmv ( (146,115), (6,15), (0,0) ) .. tension 1 and 1 ..
  {right}(122,250) .. tension 10000 and 3.53521 ..
 (144,236) .. tension 1 and 1 ..
 brdmv ( (231,134), (19,15), (0,0) ) setranchor
-(336,-1) rightjoinii
+(336,0) rightjoinii
 brdmv ( (180,63), (63,30), (-27,12) ) ..
  cycle
 ;
@@ -5635,6 +5636,8 @@ z1 .. tension 0.75 and 1.48739 ..
 ;
 
 %%endpaths
+%%beginbody
+show rightanchor;
 enddefchar;
 defchar(ain.medi.beforeyeh,-1,-1,-1,-1);
 %%backgroundimage:images/ain.medi_yeh.jpg,-445,-969,1,0,0,1
