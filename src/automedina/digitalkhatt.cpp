@@ -483,7 +483,7 @@ digitalkhatt::digitalkhatt(OtLayout* layout, MP mp, bool extended) :Automedina{ 
   layout->expandableGlyphs["kaf.medi.beforelam"] = { 0,0,6,-1 };
   layout->expandableGlyphs["kaf.medi.beforelamalef"] = { 0,0,6,-1 };
   layout->expandableGlyphs["kaf.medi.beforelamfina"] = { 0,0,6,-1 };
-  layout->expandableGlyphs["kaf.medi.ii"] = { 5,-0.5,5,-0.5 };
+  layout->expandableGlyphs["kaf.medi.ii"] = { 20,-0.5,20,-0.5 };
   layout->expandableGlyphs["lam.medi"] = { 6,-1,6.5,-0.5 };
   layout->expandableGlyphs["lam.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
   layout->expandableGlyphs["lam.medi.beforeheh"] = { 0,0,6.5,-0.5 };

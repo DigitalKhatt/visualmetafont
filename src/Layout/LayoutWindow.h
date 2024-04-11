@@ -66,7 +66,7 @@ protected:
 
 private slots :
 	void calculateMinimumSize();
-  void findOverflows();
+  void findOverflows(bool overfull);  
 	void testKasheda();
 	void serializeTexPages();
 	void serializeMedinaPages();
@@ -90,11 +90,12 @@ private:
 	void testQuarn();
 	void simpleAdjustPage(hb_buffer_t *buffer);
 	void adjustPage(QString text, hb_font_t* shapeFont, hb_buffer_t *buffer);	
-	void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, int beginPage, int nbPages, QVector<int>&, double emScale, QVector<OverlapResult>& result);
-  void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, QList<QStringList> originalPages, double emScale);
+	void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, int beginPage, int nbPages, QVector<int>&, double emScale, QVector<OverlapResult>& result, bool onlySameLine);
+  void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, QList<QStringList> originalPages, double emScale, bool onlySameLine);
   void applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages, QList<QStringList> originalPages, int lineWidth, int beginPage, int nbPages, double emScale);
   void generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pages,const QList<QStringList>& originalPages,const QVector<OverlapResult>& result);
   void editLookup(QString lookupName);
+  void saveCollision();
 
 	//QList<LineLayoutInfo> justifyPage(int emScale, int lineWidth, QStringList lines, LineJustification justification, bool newFace = true);
 	//QList<LineLayoutInfo> justifyPage_old(int emScale, int lineWidth, QStringList lines, LineJustification justification, bool newFace = true);

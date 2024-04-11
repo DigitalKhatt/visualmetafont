@@ -494,8 +494,9 @@ OldMadina::OldMadina(OtLayout* layout, MP mp, bool extended) :Automedina{ layout
   layout->expandableGlyphs["ain.init"] = { 20,-0.7,0,0 };
   layout->expandableGlyphs["fehshape.init"] = { 20,-1,0,0 };
   layout->expandableGlyphs["kaf.init"] = { 20,-1.5,0,0 };
-  layout->expandableGlyphs["kaf.init.iii"] = { 20,-1.5,0,0 };
   layout->expandableGlyphs["kaf.init.ii"] = { 20,-1.5,6,-1 };
+  layout->expandableGlyphs["kaf.init.iii"] = { 20,-1.5,0,0 };
+  layout->expandableGlyphs["kaf.init.iv"] = { 20,-1.5,0,0 };  
   layout->expandableGlyphs["lam.init"] = { 20,-1,0,0 };
   layout->expandableGlyphs["meem.init"] = { 20,-0.7,0,0 };
   layout->expandableGlyphs["heh.init"] = { 20,-0.5,0,0 };
@@ -503,8 +504,8 @@ OldMadina::OldMadina(OtLayout* layout, MP mp, bool extended) :Automedina{ layout
   layout->expandableGlyphs["heh.medi"] = { 20,-0.3,0,0 };
   layout->expandableGlyphs["behshape.medi"] = { 20,-0.5,20,-0.5 };
   layout->expandableGlyphs["behshape.medi.beforeseen"] = { 20,-1,20,-1 };
-  layout->expandableGlyphs["behshape.medi.beforereh"] = { 0,0,20,-0.7 };
-  layout->expandableGlyphs["behshape.medi.beforenoon"] = { 20,-0.7,20,-0.7 };
+  layout->expandableGlyphs["behshape.medi.beforereh"] = { 20,-0.5,20,-0.7 };
+  layout->expandableGlyphs["behshape.medi.beforenoon"] = { 20,-0.5,20,-0.7 };
   layout->expandableGlyphs["behshape.medi.beforeyeh"] = { 0,0,20,-1 };
 
 
@@ -559,6 +560,7 @@ OldMadina::OldMadina(OtLayout* layout, MP mp, bool extended) :Automedina{ layout
   layout->expandableGlyphs["noon.fina"] = { 0.0,0.0,20,-0.5 };
   layout->expandableGlyphs["noon.fina.basmala"] = { 20,0.0,0,-0.5 };
   layout->expandableGlyphs["reh.fina"] = { 0.0,0.0,20,-0.5 };
+  layout->expandableGlyphs["ain.fina"] = { 0.0,0.0,20,-0.5 };
 
   layout->expandableGlyphs["fatha"] = { 20,-1.0,0,0 };
   layout->expandableGlyphs["kasra"] = { 20,-1.0,0,0 };
@@ -705,20 +707,8 @@ Lookup* OldMadina::rehwawcursivecpp() {
 
     }
 
-  };
+  };  
 
-  CursiveSubtable* rehwawisol = new CustomCursiveSubtable(lookup);
-  lookup->subtables.append(rehwawisol);
-  rehwawisol->name = "rehwawisol";
-
-  CursiveSubtable* rehwawfina = new CustomCursiveSubtable(lookup);
-  lookup->subtables.append(rehwawfina);
-  rehwawfina->name = "rehwawfina";
-
-  /*
-  CursiveSubtable* rehwawalef = new CustomCursiveSubtable(lookup);
-  lookup->subtables.append(rehwawalef);
-  rehwawalef->name = "rehwawalef";*/
 
   CursiveSubtable* rehfinaafterbehshape = new CursiveSubtable(lookup);
   lookup->subtables.append(rehfinaafterbehshape);
@@ -730,26 +720,36 @@ Lookup* OldMadina::rehwawcursivecpp() {
   rehfinaafterseen->name = "rehfinaafterseen";
   rehfinaafterseen->anchors[glyphs["reh.fina.afterseen"].charcode].exit = QPoint(kern, 0);
 
-  auto glyphcodes = m_layout->classtoUnicode("reh.isol|waw.isol");
+  CursiveSubtable* rehisol = new CursiveSubtable(lookup);
+  lookup->subtables.append(rehisol);
+  rehisol->name = "rehisol";
+  rehisol->anchors[glyphs["reh.isol"].charcode].exit = QPoint(kern, 0);
+
+  CursiveSubtable* wawisol = new CursiveSubtable(lookup);
+  lookup->subtables.append(wawisol);
+  wawisol->name = "wawisol";
+  wawisol->anchors[glyphs["waw.isol"].charcode].exit = QPoint(kern, 0);
+
+  CursiveSubtable* rehfina = new CustomCursiveSubtable(lookup);
+  lookup->subtables.append(rehfina);
+  rehfina->name = "rehfina";
+
+  auto glyphcodes = m_layout->classtoUnicode("^reh.fina$|^reh.fina[.]added");
 
   for (auto glyphcode : glyphcodes) {
-    rehwawisol->anchors[glyphcode].exit = QPoint(kern, 0);
+    rehfina->anchors[glyphcode].exit = QPoint(kern, 0);
   }
 
-  glyphcodes = m_layout->classtoUnicode("reh.fina$|waw.fina$");
+
+  CursiveSubtable* wawfina = new CustomCursiveSubtable(lookup);
+  lookup->subtables.append(wawfina);
+  wawfina->name = "wawfina";
+
+  glyphcodes = m_layout->classtoUnicode("^waw.fina$|^waw.fina[.]added");
 
   for (auto glyphcode : glyphcodes) {
-    rehwawfina->anchors[glyphcode].exit = QPoint(kern, 0);
+    wawfina->anchors[glyphcode].exit = QPoint(kern, 0);
   }
-
-  /*
-  glyphcodes = m_layout->classtoUnicode("^reh|^waw");
-
-  for (auto glyphcode : glyphcodes) {
-    rehwawalef->anchors[glyphcode].exit = QPoint(0, 0);
-  }*/
-
-
 
   glyphcodes = m_layout->classtoUnicode("[.]isol|[.]init"); //"((?<!reh|waw)[.]isol)|init"
 
@@ -757,31 +757,15 @@ Lookup* OldMadina::rehwawcursivecpp() {
 
     QString glyphName = m_layout->glyphNamePerCode[glyphcode];
     auto& glyph = glyphs[glyphName];
-    /*
-    bool includeGlyph = true;
-    for (auto anchors : exitAnchorsRTL) {
-      if (anchors.contains(glyphcode)) {
-        includeGlyph = false;
-        break;
-      }
-    }
-
-    if (includeGlyph) {*/
-    rehwawisol->anchors[glyphcode].entry = QPoint(glyph.width, 0);
-    rehwawfina->anchors[glyphcode].entry = QPoint(glyph.width, 0);
+    
+    rehisol->anchors[glyphcode].entry = QPoint(glyph.width, 0);
+    wawisol->anchors[glyphcode].entry = QPoint(glyph.width, 0);
+    rehfina->anchors[glyphcode].entry = QPoint(glyph.width, 0);
+    wawfina->anchors[glyphcode].entry = QPoint(glyph.width, 0);
     rehfinaafterbehshape->anchors[glyphcode].entry = QPoint(glyph.width, 0);
-    rehfinaafterseen->anchors[glyphcode].entry = QPoint(glyph.width, 0);
-    //}
+    rehfinaafterseen->anchors[glyphcode].entry = QPoint(glyph.width, 0);    
 
   }
-
-  /*
-  glyphcodes = m_layout->classtoUnicode("^alef.isol"); //"((?<!reh|waw)[.]isol)|init"
-  for (auto glyphcode : glyphcodes) {
-    QString glyphName = m_layout->glyphNamePerCode[glyphcode];
-    auto& glyph = glyphs[glyphName];
-    rehwawalef->anchors[glyphcode].entry = QPoint(glyph.width, 0);
-  }*/
 
   return lookup;
 
@@ -2675,6 +2659,30 @@ Lookup* OldMadina::glyphalternates() {
     alternateSubtable->alternates[code] = alternates;
   }
 
+  unordered_map<QString, QString> mappingLigaRightOnlys;
+
+  mappingLigaRightOnlys.insert({ "ain.init.finjani","ain.init" });
+  mappingLigaRightOnlys.insert({ "hah.init.ii", "hah.init" });
+  mappingLigaRightOnlys.insert({ "hah.medi.ii","hah.medi" });
+
+  for (auto mapping : mappingLigaRightOnlys) {
+
+    QVector<ExtendedGlyph> alternates;
+    int code = m_layout->glyphCodePerName[mapping.first];
+    int substcode = m_layout->glyphCodePerName[mapping.second];
+
+    if (code == 0 || substcode == 0) {
+      throw new std::runtime_error("Glyph name invalid");
+    }    
+    alternates.append({ substcode,1,0 });
+    alternates.append({ substcode,2,0 });
+    alternates.append({ substcode,3,0 });
+    alternates.append({ substcode,4,0 });
+    alternates.append({ substcode,5,0 });
+    alternates.append({ substcode,6,0 });
+    alternateSubtable->alternates[code] = alternates;
+  }
+
   //behshape.medi
   auto& valueLimits = m_layout->expandableGlyphs["behshape.medi"];
   auto glyphCode = m_layout->glyphCodePerName["behshape.medi"];
@@ -2726,9 +2734,18 @@ Lookup* OldMadina::glyphalternates() {
         if (leftTatweel == 0) {
           newCode = glyphCode;
         }
-        for (double leftTatweel2 = leftTatweel + 1; leftTatweel2 <= std::min(valueLimits.maxLeft, 6.0F); leftTatweel2 += 1) {
+        auto leftTatweel2 = leftTatweel;
+        for (int i = 1; i <= 6; i++) {
+          leftTatweel2++;
+          if (leftTatweel2 > 6) {
+            leftTatweel2 = 6;
+          }
           alternates.append({ glyphCode,leftTatweel2,0 });
         }
+        /*
+        for (double leftTatweel2 = leftTatweel + 1; leftTatweel2 <= std::min(valueLimits.maxLeft, 6.0F); leftTatweel2 += 1) {
+          alternates.append({ glyphCode,leftTatweel2,0 });
+        }*/
         alternateSubtable->alternates[newCode] = alternates;
       }
     }

@@ -587,7 +587,7 @@ QByteArray SingleSubtable::getOpenTypeTable(bool extended) {
           newSubst.insert(addedGlyph.second->charcode, ret->second->charcode);
         }
       }
-      
+
     }
   }
   else {
@@ -1337,54 +1337,6 @@ optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, double lefttatweel,
 
   return entry;
 }
-/*ptional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, double lefttatweel, double righttatweel) {
-
-  optional<QPoint> ret;
-
-  auto anchorType = m_lookup->flags & Lookup::Flags::RightToLeft ? GlyphVis::AnchorType::EntryAnchorRTL : GlyphVis::AnchorType::EntryAnchor;
-
-  if (anchors.contains(glyph_id)) {
-
-    auto& entryexit = anchors[glyph_id];
-
-    if (entryexit.entry) {
-
-      QPoint entry{ *(entryexit.entry) };
-
-      if (entryParameters.contains(glyph_id)) {
-        entry += entryParameters[glyph_id];
-      }
-
-      if (lefttatweel != 0.0 || righttatweel != 0.0) {
-        GlyphParameters parameters{};
-
-        parameters.lefttatweel = lefttatweel;
-        parameters.righttatweel = righttatweel;
-
-        QString glyphName = m_layout->glyphNamePerCode[glyph_id];
-
-        GlyphVis* originalglyph = &m_layout->glyphs[glyphName];
-
-        GlyphVis* curr = originalglyph->getAlternate(parameters);
-
-        if (!entryexit.entryName.isEmpty() && curr->conatinsAnchor(entryexit.entryName, anchorType)) {
-          entry = curr->getAnchor(entryexit.entryName, anchorType);
-        }
-        else if (curr->conatinsAnchor(this->name, anchorType)) {
-          entry = curr->getAnchor(this->name, anchorType);
-        }
-        else {
-          entry = calculateEntry(originalglyph, curr, entry);
-        }
-      }
-      ret = entry;
-
-    }
-  }
-
-  return ret;
-}*/
-
 QPoint CursiveSubtable::calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint entry) {
 
   /*
@@ -1781,14 +1733,7 @@ void MarkBaseSubtable::readParameters(const QJsonObject& json) {
   }
 
 }
-
-optional<QPoint> MarkBaseSubtable::getBaseAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel) {
-
-  quint16 classIndex = markCodes[mark_id];
-
-  QString className = classNamebyIndex[classIndex];
-
-  QString baseGlyphName = m_layout->glyphNamePerCode[base_id];
+QPoint MarkBaseSubtable::getBaseAnchor(QString baseGlyphName, QString className, double lefttatweel, double righttatweel) {
 
   QPoint coordinate;
 
@@ -1798,36 +1743,37 @@ optional<QPoint> MarkBaseSubtable::getBaseAnchor(quint16 mark_id, quint16 base_i
     coordinate = markClass.baseparameters[baseGlyphName];
   }
 
-  if (markClass.baseanchors.contains(baseGlyphName)) {
-    coordinate += markClass.baseanchors[baseGlyphName];
-  }
-  else {
+  GlyphVis* curr = &m_layout->glyphs[baseGlyphName];
 
-    if (markClass.basefunction) {
-      coordinate = markClass.basefunction(baseGlyphName, className, coordinate, lefttatweel, righttatweel);
-    }
-  }
-
-  return coordinate;
-
-  /*
-  if (lefttatweel != 0 || righttatweel != 0) {
-
-    GlyphVis* baseGlyph = &this->m_layout->glyphs[baseGlyphName];
-
+  if (lefttatweel != 0.0 || righttatweel != 0.0) {
     GlyphParameters parameters{};
 
     parameters.lefttatweel = lefttatweel;
     parameters.righttatweel = righttatweel;
 
-    baseGlyph = &baseGlyph->getAlternate(parameters);
-  }*/
+    curr = curr->getAlternate(parameters);
+  }
 
-
+  if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
+    coordinate += curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor);
+  }
+  else {
+    QString anchorName = m_lookup->name + "_" + className;
+    if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
+      coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
+    }
+    else if (markClass.basefunction) {
+      coordinate = markClass.basefunction(baseGlyphName, className, coordinate, lefttatweel, righttatweel);
+    }
+    else if (markClass.baseanchors.contains(baseGlyphName)) {
+      coordinate += markClass.baseanchors[baseGlyphName];
+    }    
+  }
 
   return coordinate;
 }
-optional<QPoint> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel) {
+
+optional<QPoint> MarkBaseSubtable::getBaseAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel) {
 
   quint16 classIndex = markCodes[mark_id];
 
@@ -1835,7 +1781,11 @@ optional<QPoint> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_i
 
   QString baseGlyphName = m_layout->glyphNamePerCode[base_id];
 
-  QString markGlyphName = m_layout->glyphNamePerCode[mark_id];
+  return getBaseAnchor(baseGlyphName, className, lefttatweel, righttatweel);
+
+
+}
+QPoint MarkBaseSubtable::getMarkAnchor(QString markGlyphName, QString className, double lefttatweel, double righttatweel) {
 
   QPoint coordinate;
 
@@ -1845,17 +1795,43 @@ optional<QPoint> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_i
     coordinate = markClass.markparameters[markGlyphName];
   }
 
-  if (markClass.markanchors.contains(markGlyphName)) {
-    coordinate += markClass.markanchors[markGlyphName];
+  GlyphVis* curr = &m_layout->glyphs[markGlyphName];
+
+  if (lefttatweel != 0.0 || righttatweel != 0.0) {
+    GlyphParameters parameters{};
+
+    parameters.lefttatweel = lefttatweel;
+    parameters.righttatweel = righttatweel;
+
+    curr = curr->getAlternate(parameters);
+  }
+  if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
+    coordinate += curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor);
   }
   else {
-
-    if (markClass.markfunction != nullptr) {
+    QString anchorName = m_lookup->name + "_" + className;
+    if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
+      coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
+    }
+    else if (markClass.markfunction != nullptr) {
       coordinate = markClass.markfunction(markGlyphName, className, coordinate, lefttatweel, righttatweel);
     }
+    else if (markClass.markanchors.contains(markGlyphName)) {
+      coordinate += markClass.markanchors[markGlyphName];
+    }    
   }
 
   return coordinate;
+}
+optional<QPoint> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel) {
+
+  quint16 classIndex = markCodes[mark_id];
+
+  QString className = classNamebyIndex[classIndex];
+
+  QString markGlyphName = m_layout->glyphNamePerCode[mark_id];
+
+  return getMarkAnchor(markGlyphName, className, lefttatweel, righttatweel);
 
 }
 
@@ -1928,7 +1904,6 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
       QString className = it.key();
 
 
-      QPoint coordinate;
       QPoint adjust;
 
       QString originalGlyph = baseglyphName;
@@ -1944,32 +1919,18 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
         charrt = glyph->charrt;
       }
 
-
-      if (markClass.baseparameters.contains(originalGlyph)) {
-        adjust = markClass.baseparameters[originalGlyph];
-        coordinate = adjust;
-      }
-
-      if (markClass.baseanchors.contains(originalGlyph)) {
-        coordinate += markClass.baseanchors[originalGlyph];
-      }
-      else {
-
-        if (markClass.basefunction != nullptr) {
-          coordinate = markClass.basefunction(originalGlyph, className, adjust, charlt, charrt);
-        }
-      }
+      QPoint coordinate = getBaseAnchor(originalGlyph, className, charlt, charrt);
 
       bool done = false;
-      if (m_layout->isOTVar && !markClass.baseanchors.contains(baseglyphName) && markClass.basefunction != nullptr) {
+      if (m_layout->isOTVar) {
         const auto& ff = m_layout->expandableGlyphs.find(m_layout->glyphNamePerCode[glyphCode]);
 
         if (ff != m_layout->expandableGlyphs.end()) {
 
-          auto val1 = markClass.basefunction(baseglyphName, className, adjust, ff->second.maxLeft, 0.0);
-          auto val2 = markClass.basefunction(baseglyphName, className, adjust, ff->second.minLeft, 0.0);
-          auto val3 = markClass.basefunction(baseglyphName, className, adjust, 0.0, ff->second.maxRight);
-          auto val4 = markClass.basefunction(baseglyphName, className, adjust, 0.0, ff->second.minRight);
+          auto val1 = getBaseAnchor(baseglyphName, className, ff->second.maxLeft, 0.0);
+          auto val2 = getBaseAnchor(baseglyphName, className, ff->second.minLeft, 0.0);
+          auto val3 = getBaseAnchor(baseglyphName, className, 0.0, ff->second.maxRight);
+          auto val4 = getBaseAnchor(baseglyphName, className, 0.0, ff->second.minRight);
           DefaultDelta delatX{ val1.x() - coordinate.x(),val2.x() - coordinate.x(),val3.x() - coordinate.x() ,val4.x() - coordinate.x() };
           DefaultDelta delatY{ val1.y() - coordinate.y(),val2.y() - coordinate.y(),val3.y() - coordinate.y() ,val4.y() - coordinate.y() };
 
@@ -2035,8 +1996,8 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
     MarkClass markClass = classes[className];
 
-    QPoint coordinate;
-    QPoint adjust;
+
+
 
     QString originalMark = markglyphName;
 
@@ -2051,32 +2012,18 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
       }
     }
 
-    if (markClass.markparameters.contains(originalMark)) {
-      adjust = markClass.markparameters[originalMark];
-      coordinate = adjust;
-    }
-
-    if (markClass.markanchors.contains(originalMark)) {
-      coordinate += markClass.markanchors[originalMark];
-    }
-    else {
-
-      if (markClass.markfunction) {
-        coordinate = markClass.markfunction(originalMark, className, adjust, charlt, charrt);
-      }
-
-    }
+    QPoint coordinate = getMarkAnchor(originalMark, className, charlt, charrt);
 
     bool done = false;
-    if (m_layout->isOTVar && !markClass.markanchors.contains(markglyphName) && markClass.markfunction != nullptr) {
+    if (m_layout->isOTVar) {
       const auto& ff = m_layout->expandableGlyphs.find(m_layout->glyphNamePerCode[charcode]);
 
       if (ff != m_layout->expandableGlyphs.end()) {
 
-        auto val1 = markClass.markfunction(markglyphName, className, adjust, ff->second.maxLeft, 0.0);
-        auto val2 = markClass.markfunction(markglyphName, className, adjust, ff->second.minLeft, 0.0);
-        auto val3 = markClass.markfunction(markglyphName, className, adjust, 0.0, ff->second.maxRight);
-        auto val4 = markClass.markfunction(markglyphName, className, adjust, 0.0, ff->second.minRight);
+        auto val1 = getMarkAnchor(markglyphName, className, ff->second.maxLeft, 0.0);
+        auto val2 = getMarkAnchor(markglyphName, className, ff->second.minLeft, 0.0);
+        auto val3 = getMarkAnchor(markglyphName, className, 0.0, ff->second.maxRight);
+        auto val4 = getMarkAnchor(markglyphName, className, 0.0, ff->second.minRight);
         DefaultDelta delatX{ val1.x() - coordinate.x(),val2.x() - coordinate.x(),val3.x() - coordinate.x() ,val4.x() - coordinate.x() };
         DefaultDelta delatY{ val1.y() - coordinate.y(),val2.y() - coordinate.y(),val3.y() - coordinate.y() ,val4.y() - coordinate.y() };
 

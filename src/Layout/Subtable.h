@@ -274,7 +274,9 @@ struct MarkBaseSubtable : Subtable {
   QMap<quint16, QString> classNamebyIndex;
 
   virtual std::optional<QPoint> getBaseAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel);
+  virtual QPoint getBaseAnchor(QString baseGlyphName, QString className, double lefttatweel, double righttatweel);
   virtual std::optional<QPoint> getMarkAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel);
+  QPoint getMarkAnchor(QString markGlyphName, QString className, double lefttatweel, double righttatweel);
 };
 
 struct ChainingSubtable : Subtable {

@@ -53,7 +53,7 @@ public:
 
       QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
-      QPoint anchor = caclAnchor(*originalglyph, className) + adjustoriginal + adjust;    
+      QPoint anchor = caclAnchor(*originalglyph, className) + adjustoriginal + adjust;
 
       return anchor;
     }
@@ -116,61 +116,18 @@ public:
       curr = curr->getAlternate(parameters);
     }
 
-    if (curr->conatinsAnchor("dbal", GlyphVis::AnchorType::MarkAnchor)) {
-      QPoint anchor = curr->getAnchor("dbal", GlyphVis::AnchorType::MarkAnchor) + adjust;
-      return anchor;
-    }
-    else {
-      GlyphVis* originalglyph;
 
-      QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
+    GlyphVis* originalglyph;
 
-      int depth = std::max((int)-originalglyph->depth + _y.spacebasetobottommark, _y.markdepth);
+    QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
-      QPoint anchor = QPoint{ (int)(originalglyph->width * 0.5),-depth } + adjustoriginal + adjust;
+    int depth = std::max((int)-originalglyph->depth + _y.spacebasetobottommark, _y.markdepth);
 
-      return anchor;
-    }
+    QPoint anchor = QPoint{ (int)(originalglyph->width * 0.5),-depth } + adjustoriginal + adjust;
+
+    return anchor;
 
 
-
-    /*
-    GlyphVis& curr = _y.glyphs[glyphName];
-
-    int width;
-    int depth;
-
-    if (!curr.originalglyph.isEmpty() && (curr.charlt != 0 || curr.charrt != 0)) {
-      QPoint adjustoriginal;
-      if (_subtable.classes[className].baseparameters.contains(curr.originalglyph)) {
-        adjustoriginal = _subtable.classes[className].baseparameters[curr.originalglyph];
-      }
-
-      //QPoint originalAnchor = basefunction(curr.originalglyph, className, adjustoriginal);
-      GlyphVis& original = _y.glyphs[curr.originalglyph];
-      double xshift = curr.matrix.xpart - original.matrix.xpart;
-      double yshift = -curr.matrix.ypart + original.matrix.ypart;
-
-      width = original.width * 0.5;
-      depth = std::max((int)-original.depth + _y.spacebasetobottommark, _y.markdepth);
-
-      width += adjustoriginal.x() + xshift;
-      depth += -adjustoriginal.y() + yshift;
-
-
-
-
-    }
-    else {
-      width = curr.width * 0.5;
-      depth = std::max((int)-curr.depth + _y.spacebasetobottommark, _y.markdepth);
-    }
-
-
-    width = width + adjust.x();
-    depth = depth - adjust.y();
-
-    return QPoint(width, -depth);*/
   };
 private:
   Automedina& _y;
@@ -481,7 +438,7 @@ public:
       curr = curr->getAlternate(parameters);
     }
 
-    
+
     if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
       QPoint anchor = curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor) + adjust;
       return anchor;
@@ -509,7 +466,7 @@ public:
   Joinedsmalllettersbaseanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-   
+
 
     GlyphVis* curr = &_y.glyphs[glyphName];
 
@@ -529,7 +486,7 @@ public:
       adjust = _subtable.classes[className].baseparameters[curr->originalglyph];
     }
 
-    
+
 
     if (className == "jsl") {
       int width = curr->width * 0.5;

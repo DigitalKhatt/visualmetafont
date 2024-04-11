@@ -247,6 +247,8 @@ namespace feayy {
     for (auto mark2baseclass : *mark2BaseRule.mark2baseclasses) {
       QString className = QString::fromStdString(mark2baseclass->className);
 
+      //className = lookup->name + "." + className;
+
       MarkBaseSubtable::MarkClass newclass;
 
       newclass.markCodes = mark2baseclass->glyphset->getCodes(otlayout);
