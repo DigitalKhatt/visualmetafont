@@ -2453,7 +2453,7 @@ bldmv ( (67,136), (-250,-57), (8,-10) ) .. tension 1 and 3.59506 ..
 
 setCursiveAnchor(rtlcursive,leftanchor+ljoinvector, ExitAnchorRTL);
 
-tr_ := tr_ shifted (0,-ypart rightanchor);
+tr_ := tr_ shifted (0,162);
 
 z.mark2 = leftanchor;
 
@@ -3117,8 +3117,8 @@ fill
  {up}(82,670) .. tension 1.60026 and 2.03022 ..
  {right}(120,735) .. tension 14.0746 and 7.85072 ..
 brdmv ( (219,129), (-4.86111,29.1667), (4.09013,-36.3263) ) setranchor
-(263,0) rightjoinii
-bldmv ( (162,90), (0,-14), (0,0) ) leftjoin
+(276,0) rightjoinii
+bldmv ( (160,65), (0,-14), (0,0) ) leftjoin
 bldmv ( (139,126), (7.20961,17.21), (8.56626,-21.9777) ) .. tension 1 and 1.51257 ..
  {up} cycle
 ;
@@ -3161,11 +3161,11 @@ bldmv ( (43.9484,96.9046), (7.20961,17.21), (4.88393,-21.3963) ) .. tension 1 an
 %%endpaths
 enddefchar;
 defchar(lam.medi.beforeyeh,-1,-1,-1,-1);
-%%backgroundimage:images/lam.medi_yeh.fina.jpg,-397.157,-911.023,1,0,0,1
+%%backgroundimage:images/lam.medi_yeh.fina.jpg,-390.768,-911.412,1,0,0,1
 %%beginparams
 leftVerticalRatio := 10;
 rightVerticalRatio := 10;
-z1 = (-5,-108);
+z1 = (2,-108);
 z3 = z1 + (76,83);
 
 %%beginverbatim
@@ -3177,17 +3177,17 @@ z3 = z1 + (76,83);
 %%beginpaths
 
 fill
-(44.9142,106.998) .. tension 3.49539 and 1 ..
-(36.9523,264.868) .. tension 3.43687 and 13.4898 ..
- {up}(7.85707,523.018) .. tension 1.60026 and 2.03022 ..
- {right}(44.6091,595.946) .. tension 7.70954 and 10.129 ..
-(90.5463,358.218) .. tension bldmvi ( 3.07376, 20 ) and bldmvi ( 3.07376, 20 ) ..
-brdmv ( (137.491,143.149), (6.71294,-7.36104), (-8.06265,-40.3772) ) setranchor
-(202.768,0.486) rightjoinii
-(93.4437,59.5825) {dir -96.2313} .. tension 1.54833 and 1.05538 ..
+(52,107) .. tension 3.49539 and 1 ..
+(44,265) .. tension 3.43687 and 13.4898 ..
+ {up}(15,523) .. tension 1.60026 and 2.03022 ..
+ {right}(52,596) .. tension 7.70954 and 10.129 ..
+(98,358) .. tension bldmvi ( 3.07376, 20 ) and bldmvi ( 3.07376, 20 ) ..
+brdmv ( (144,143), (6.71294,-7.36104), (-8.06265,-40.3772) ) setranchor
+(210,0) rightjoinii
+(100,60) {dir -96.2313} .. tension 1.54833 and 1.05538 ..
 z3 .. tension 1 and 1 ..
  {left}z1 .. tension 0.914444 and 1 ..
-(-15,-89) {up} .. tension 4.40627 and 0.883604 ..
+(-8,-89) {up} .. tension 4.40627 and 0.883604 ..
  {up} cycle
 ;
 
@@ -4919,22 +4919,22 @@ tr_ := identity shifted (0,-ypart llcorner currentpicture);
 savepicture:=1;
 enddefchar;
 defchar(heh.init,-1,-1,-1,-1);
-%%backgroundimage:images/heh.init.jpg,-372.06,-1128.73,1,0,0,1
+%%backgroundimage:images/heh.init.jpg,-295.092,-1130.47,1,0,0,1
 %%beginparams
-z1 = (11,5);
+z1 = (87,7);
 
 %%beginverbatim
 
-lefttatweel := lefttatweel + 0.5;
+
 
 %%endverbatim
 
 %%beginpaths
 
 fill
-(57,136) --
-(118,66) leftjoin
-(47,109) .. tension 1 and 1 ..
+(133,138) --
+(194,68) leftjoin
+(123,111) .. tension 1 and 1 ..
  cycle
 ;
 
@@ -6182,6 +6182,55 @@ bldmv ( (398,95), (47,-49), (72,11) ) .. tension 1 and 1 ..
 
 
 enddefchar;
+defchar(kaf.init.ii.i,-1,-1,-1,-1);
+%%backgroundimage:images/kaf.init.ii.i.jpg,-1986.73,-1060.74,1,0,0,1
+%%beginparams
+leftVerticalRatio := 100;
+leftVerticalRatioNeg := 100;
+z.mark1 = bldmvi ( (1005,653), (-830,-2) );
+z.mark2 = bldmvi ( (713,386), (-830,-2) );
+
+%%beginverbatim
+
+
+lefttatweel := lefttatweel - 5;
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(1763,115) .. tension 5.21499 and 2.20804 ..
+bldmvi ( (1377,72), (-199,-9) ) .. tension 4.79831 and 4.79831 ..
+bldmvi ( (648,16), (-516,-6) ) leftjoin
+bldmvi ( (677,101), (-480,-6) ) .. tension 1 and 1 ..
+bldmvi ( (1424,166), (-199,-13) ) .. tension 1 and 13.8373 ..
+ {up}(1747,203) .. tension 1.79167 and 1.32758 ..
+ {left}(1647,270) .. tension 2.77908 and 1 ..
+bldmvi ( (1405,246), (-71,-5) ) .. tension 1 and 1 ..
+ {left}bldmvi ( bldmvi ( (551,215), (-828,-2) ), (46,-11) ) .. tension 1.31763 and 3.0911 ..
+ {up}bldmvi ( (241,261), (-828,-2) ) .. tension 1.47306 and 1.21903 ..
+bldmvi ( (381,454), (-828,-2) ) .. tension 1.59171 and 1.88264 ..
+ {right}bldmvi ( (850,666), (-828,-2) ) .. tension 1.99444 and 6.32225 ..
+ {left}bldmvi ( (817,571), (-828,-2) ) .. tension 5.20633 and 1 ..
+bldmvi ( (469,428), (-828,-2) ) .. tension 1 and 2.98033 ..
+ {down}bldmvi ( (336,323), (-828,-2) ) .. tension 8.16313 and 1 ..
+ {right}bldmvi ( (668,299), (-748,-15) ) .. tension 2.99705 and 1 ..
+bldmvi ( (1454,331), (-84,-5) ) .. tension 4.14509 and 4.14509 ..
+ {right}(1696,360) .. tension 1.40423 and 1.28104 ..
+ {down}(1843,223) .. tension 1.45818 and 2.68873 ..
+ cycle
+;
+
+%%endpaths
+%%beginbody
+
+tr_ := tr_ shifted (0, -ypart leftanchor);
+
+defAnchor(topmarks,z.mark1,MarkAnchor);
+defAnchor(smallletters,z.mark2,MarkAnchor);
+
+enddefchar;
 defchar(kaf.init.iii,-1,-1,-1,-1);
 %%beginbody
 
@@ -6663,44 +6712,24 @@ fill
 
 
 enddefchar;
-defchar(kaf.medi.ii.ii,-1,-1,-1,-1);
-%%backgroundimage:images/kafii.medi.jpg,-638.127,-949.413,1,0,0,1
+defchar(kaf.medi.ii.i,-1,-1,-1,-1);
+%%backgroundimage:images/kaf.medi.ii.i.jpg,-1468.13,-1008.53,1,0,0,1
 
 %%beginverbatim
 
-lefttatweel := lefttatweel - 1;
+%lefttatweel := lefttatweel ;
 
-numeric _tatweel;
-_tatweel := 20 * nuqta;
+
 %%endverbatim
 
 %%beginpaths
 
 fill
-bldmvi ( (1061,160), (_tatweel,37) ) .. tension 5.21499 and 2.20804 ..
-bldmvi ( (1018,148), (2361,36) ) .. tension 4.79831 and 0.75 ..
-(17,43) link
-bldmvi ( (1017,236), (2340,33) ) .. tension 1 and bldmvi ( 2.58099, 0 ) ..
- {up}bldmvi ( (1046,247), (_tatweel,42) ) .. tension 1.79167 and 1.32758 ..
- {left}bldmvi ( (992,292), (_tatweel,47) ) .. tension 6.7667 and 1 ..
- {left}bldmvi ( (183,231), (0,0) ) .. tension 1.31763 and 0.909914 ..
- {up}(68,311) .. tension 1.47306 and 1.21903 ..
-(200,520) .. tension 1.59171 and 1.88264 ..
- {right}(501,682) .. tension 1.99444 and 6.32225 ..
- {left}(480,607) .. tension 5.20633 and 1 ..
-(281,510) .. tension 1 and 2.98033 ..
- {down}(132,375) .. tension 4.01491 and 0.75 ..
- {right}(273,321) .. tension 1.02656 and 4.14509 ..
- {right}bldmvi ( (975,379), (_tatweel,44) ) .. tension 1.40423 and 1.28104 ..
- {down}bldmvi ( (1123,285), (_tatweel,37) ) .. tension 1.45818 and 2.68873 ..
- cycle
-;
-fill
-bldmvi ( (990,186), (2340,25) ) {dir -71.3871} ..
-bldmvi ( (1028,143), (2340,25) ) setranchor
-bldmvi ( (1161,42), (2426,5) ) rightjoinii
-bldmvi ( (982,81), (2340,25) ) ..
- {dir 88.8918}bldmvi ( (950,182), (2340,25) ) --
+(1669,161) {dir -71.3871} ..
+(1715,114) setranchor
+(1833,5) rightjoinii
+(1658,62) ..
+ {dir 88.8918}(1614,154) --
  cycle
 ;
 
@@ -6708,9 +6737,12 @@ bldmvi ( (982,81), (2340,25) ) ..
 %%beginbody
 
 
+kaf.init.ii.i_(lefttatweel,0);
 
-%show leftanchor;
-%show rightanchor;
+
+
+defAnchor(topmarks,z.mark1,MarkAnchor);
+
 
 
 enddefchar;
@@ -7727,6 +7759,8 @@ tr_ := tr_ shifted (0, -ypart rightanchor);
 enddefchar;
 defchar(seen.isol.expa,-1,-1,-1,-1);
 %%backgroundimage:images/seen.isol.expa.jpg,-1283,-937,1,0,0,1
+%%beginparams
+z.mark1 = bldmvi ( (227,-114), (-55,-83) );
 %%beginbody
 
 seen.twosinnas_(-0.5,0);
@@ -7742,6 +7776,8 @@ shift_ := leftanchor - rightanchor;
 
 draw pic_ shifted shift_;
 
+defAnchor(lowmarks,z.mark1,MarkAnchor);
+defAnchor(lowmarkafterwawandreh.lowmarks.l4_kasra   ,z.mark1,MarkAnchor);
 
 pair leftanchor;
 

@@ -1743,6 +1743,11 @@ QPoint MarkBaseSubtable::getBaseAnchor(QString baseGlyphName, QString className,
     coordinate = markClass.baseparameters[baseGlyphName];
   }
 
+  /*
+  if (baseGlyphName.contains("kaf.medi.ii.i") && className == "smallletters" && lefttatweel != 0) {
+    std::cout << "kaf.medi.ii.i";
+  }*/
+
   GlyphVis* curr = &m_layout->glyphs[baseGlyphName];
 
   if (lefttatweel != 0.0 || righttatweel != 0.0) {

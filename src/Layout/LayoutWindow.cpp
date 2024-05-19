@@ -2111,7 +2111,7 @@ void LayoutWindow::findOverflows(bool overfull) {
     name = name + QString("_with_just");
   }
 
-  QString fileName = name + QString(".csv");
+  QString fileName = name + QString("_%1.csv").arg(scale);
 
 
   QFile file(fileName);

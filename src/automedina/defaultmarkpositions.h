@@ -280,18 +280,7 @@ public:
   Defaulbaseanchorforsmallalef(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-    /*
-    GlyphVis* originalglyph = &_y.glyphs[glyphName];
-
-    QPoint adjustoriginal = getAdjustment(_y, _subtable, glyphName, className, adjust, lefttatweel, righttatweel, &originalglyph);
-
-    QPoint anchor = caclAnchor(originalglyph) + adjustoriginal + adjust;
-
-    return anchor;*/
-
-    if (glyphName.contains("meem.init.added")) {
-      int stop = 5;
-    }
+   
 
     GlyphVis* curr = &_y.glyphs[glyphName];
 

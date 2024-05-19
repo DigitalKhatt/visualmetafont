@@ -158,11 +158,11 @@ struct LinkForce : Force {
           auto width = intersection.boundingRect().width();
           link.firstNode->vx += width;
         }
-      }
-
-
-      if (link.linkType == LinkType::TopMarkRightBase || link.linkType == LinkType::BottomMarkRightBase) {
-
+        else if (link.linkType == LinkType::RightMarkLeftmark) {
+          auto width = intersection.boundingRect().width();
+          link.firstNode->vx += width / 2 ;
+          link.secondNode->vx -= width / 2;
+        }
       }
 
     }
