@@ -296,7 +296,8 @@ digitalkhatt::digitalkhatt(OtLayout* layout, MP mp, bool extended) :Automedina{ 
     "kasratan",
     "hamzabelow",
     "smalllowseen",
-    "roundedfilledlow"
+    "roundedfilledlow",
+    "smalllowmeem"
   };
 
   classes["kasras"] = {
@@ -480,11 +481,9 @@ digitalkhatt::digitalkhatt(OtLayout* layout, MP mp, bool extended) :Automedina{ 
   layout->expandableGlyphs["kaf.medi"] = { 6,-1.5,6,-1.5 };
   layout->expandableGlyphs["kaf.medi.beforemeem"] = { 0,0,6,0 };
   layout->expandableGlyphs["kaf.medi.beforeyeh"] = { 0,0,6,-1 };
-  layout->expandableGlyphs["kaf.medi.beforelam"] = { 0,0,6,-1 };
-  layout->expandableGlyphs["kaf.medi.beforelamalef"] = { 0,0,6,-1 };
-  layout->expandableGlyphs["kaf.medi.beforelamfina"] = { 0,0,6,-1 };
+  layout->expandableGlyphs["kaf.medi.beforelam"] = { 0,0,6,-1 };    
   layout->expandableGlyphs["kaf.medi.ii"] = { 20,-0.5,20,-0.5 };
-  layout->expandableGlyphs["lam.medi"] = { 6,-1,6.5,-0.5 };
+  layout->expandableGlyphs["lam.medi"] = { 20,-0.5,20,-0.5 };
   layout->expandableGlyphs["lam.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
   layout->expandableGlyphs["lam.medi.beforeheh"] = { 0,0,6.5,-0.5 };
   layout->expandableGlyphs["lam.medi.afterkaf"] = { 6,-1,0,0 };
@@ -496,8 +495,8 @@ digitalkhatt::digitalkhatt(OtLayout* layout, MP mp, bool extended) :Automedina{ 
 
 
 
-  layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,6.5,-0.5 };
-  layout->expandableGlyphs["lam.medi.laf"] = { 0.0,0.0,6.5,-0.5 };
+  layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,20,-0.5 };
+  layout->expandableGlyphs["lam.medi.laf"] = { 0.0,0.0,20,-0.5 };
   layout->expandableGlyphs["dal.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["heh.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["hah.fina"] = { 0.0,0.0,6,-0.5 };
@@ -507,17 +506,11 @@ digitalkhatt::digitalkhatt(OtLayout* layout, MP mp, bool extended) :Automedina{ 
   layout->expandableGlyphs["meem.fina.ii"] = { 0.0,0.0,6.3,-0.7 };
   layout->expandableGlyphs["behshape.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["qaf.fina"] = { 0.0,0.0,5,-0.5 };
-  layout->expandableGlyphs["lam.fina"] = { 0.0,0.0,6.5,-0.5 };
+  layout->expandableGlyphs["lam.fina"] = { 0.0,0.0,20,-0.5 };
   layout->expandableGlyphs["kaf.fina"] = { 0.0,0.0,6,-1 };
   layout->expandableGlyphs["noon.fina"] = { 0.0,0.0,6.5,-0.5 };
   layout->expandableGlyphs["noon.fina.basmala"] = { 10.0,0.0,0,-0.5 };
-  layout->expandableGlyphs["reh.fina"] = { 0.0,0.0,6.5,-0.5 };
-  layout->expandableGlyphs["reh.fina.ii"] = { 0.0,0.0,6.5,-0.5 };
-
-  layout->expandableGlyphs["hah.init.iii"] = { 9.0,0.0,0,0 };
-  layout->expandableGlyphs["sad.init.kii"] = { 20,0.0,0,0 };
-  layout->expandableGlyphs["heh.fina.kii"] = { 0.0,0.0,9,-1 };
-  layout->expandableGlyphs["dal.fina.kii"] = { 0.0,0.0,9,-1 };
+  layout->expandableGlyphs["reh.fina"] = { 0.0,0.0,20,-0.5 }; 
 
 
   layout->expandableGlyphs["fatha"] = { 12,-1.0,0,0 };
@@ -527,11 +520,7 @@ digitalkhatt::digitalkhatt(OtLayout* layout, MP mp, bool extended) :Automedina{ 
   //kashida_ii
 
   layout->expandableGlyphs["behshape.medi.iii"] = { 12,-1,12,-1 };
-  layout->expandableGlyphs["behshape.medi.expa"] = { 8,-1,0,0 };
-  layout->expandableGlyphs["alef.fina.kii"] = { 12,-1,12,-1 };
-  layout->expandableGlyphs["dal.fina.kii"] = { 12,-1,12,-1 };
-  layout->expandableGlyphs["heh.fina.kii"] = { 12,-1,12,-1 };
-  layout->expandableGlyphs["sad.init.kii"] = { 12,-1,0,0 };
+  layout->expandableGlyphs["behshape.medi.expa"] = { 8,-1,0,0 };        
 
   //Basmala
   layout->expandableGlyphs["behshape.medi.basmala"] = { 20,-1,0,0 };
@@ -597,14 +586,11 @@ Lookup* digitalkhatt::getLookup(QString lookupName) {
   else if (lookupName == "forwaw") {
     return forwaw();
   }
-  else if (lookupName == "leftrightcursive") {
-    return leftrightcursive();
+  else if (lookupName == "cursivejoin") {
+    return cursivejoin();
   }
-  else if (lookupName == "rehwawcursive") {
-    return rehwawcursive();
-  }
-  else if (lookupName == "ligaturecursive") {
-    return ligaturecursive();
+  else if (lookupName == "rehwawcursivecpp") {
+    return rehwawcursivecpp();
   }
   else if (lookupName == "defaultdotmarks") {
     return defaultdotmarks();
@@ -630,9 +616,6 @@ Lookup* digitalkhatt::getLookup(QString lookupName) {
   else if (lookupName == "shrinkstretchlt") {
     return shrinkstretchlt();
   }
-  else if (lookupName == "lowmarkafterwawandreh") {
-    return lowmarkafterwawandreh();
-  }
   else if (lookupName == "tajweedcolorcpp") {
     return tajweedcolorcpp();
   }
@@ -649,22 +632,22 @@ Lookup* digitalkhatt::getLookup(QString lookupName) {
   return nullptr;
 }
 
-Lookup* digitalkhatt::rehwawcursive() {
+Lookup* digitalkhatt::rehwawcursivecpp() {
   Lookup* lookup = new Lookup(m_layout);
-  lookup->name = "rehwawcursive";
+  lookup->name = "rehwawcursivecpp";
   lookup->feature = "curs";
   lookup->type = Lookup::cursive;
   lookup->flags = Lookup::Flags::IgnoreMarks; // | Lookup::Flags::RightToLeft;
+
+  int kern = 150;
 
   class CustomCursiveSubtable : public CursiveSubtable {
   public:
     CustomCursiveSubtable(Lookup* lookup) : CursiveSubtable(lookup) {}
 
-    virtual QPoint calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint defaultEntry) {
+    virtual QPoint calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint defaultEntry) {      
 
-      QPoint entry = entryParameters[originalglyph->charcode];
-
-      entry += QPoint(extendedglyph->width, 0);
+      QPoint entry = QPoint(extendedglyph->width, 0);
 
       return entry;
 
@@ -672,206 +655,73 @@ Lookup* digitalkhatt::rehwawcursive() {
 
   };
 
-  CursiveSubtable* rehwawisol = new CustomCursiveSubtable(lookup);
-  lookup->subtables.append(rehwawisol);
-  rehwawisol->name = "rehwawisol";
-
-  CursiveSubtable* rehwawfina = new CustomCursiveSubtable(lookup);
-  lookup->subtables.append(rehwawfina);
-  rehwawfina->name = "rehwawfina";
-
-  CursiveSubtable* rehwawalef = new CustomCursiveSubtable(lookup);
-  lookup->subtables.append(rehwawalef);
-  rehwawalef->name = "rehwawalef";
 
   CursiveSubtable* rehfinaafterbehshape = new CursiveSubtable(lookup);
   lookup->subtables.append(rehfinaafterbehshape);
   rehfinaafterbehshape->name = "rehfinaafterbehshape";
-  rehfinaafterbehshape->anchors[glyphs["reh.fina.afterbehshape"].charcode].exit = QPoint(0, 0);
+  rehfinaafterbehshape->anchors[glyphs["reh.fina.afterbehshape"].charcode].exit = QPoint(kern, 0);
 
   CursiveSubtable* rehfinaafterseen = new CursiveSubtable(lookup);
   lookup->subtables.append(rehfinaafterseen);
   rehfinaafterseen->name = "rehfinaafterseen";
-  rehfinaafterseen->anchors[glyphs["reh.fina.afterseen"].charcode].exit = QPoint(0, 0);
+  rehfinaafterseen->anchors[glyphs["reh.fina.afterseen"].charcode].exit = QPoint(kern, 0);
 
-  auto glyphcodes = m_layout->classtoUnicode("reh.isol|waw.isol");
+  CursiveSubtable* rehisol = new CursiveSubtable(lookup);
+  lookup->subtables.append(rehisol);
+  rehisol->name = "rehisol";
+  rehisol->anchors[glyphs["reh.isol"].charcode].exit = QPoint(kern, 0);
+
+  CursiveSubtable* wawisol = new CursiveSubtable(lookup);
+  lookup->subtables.append(wawisol);
+  wawisol->name = "wawisol";
+  wawisol->anchors[glyphs["waw.isol"].charcode].exit = QPoint(kern, 0);
+
+  CursiveSubtable* rehfina = new CustomCursiveSubtable(lookup);
+  lookup->subtables.append(rehfina);
+  rehfina->name = "rehfina";
+
+  auto glyphcodes = m_layout->classtoUnicode("^reh.fina$|^reh.fina[.]added");
 
   for (auto glyphcode : glyphcodes) {
-    rehwawisol->anchors[glyphcode].exit = QPoint(0, 0);
+    rehfina->anchors[glyphcode].exit = QPoint(kern, 0);
   }
 
-  glyphcodes = m_layout->classtoUnicode("reh.fina$|waw.fina$");
+
+  CursiveSubtable* wawfina = new CustomCursiveSubtable(lookup);
+  lookup->subtables.append(wawfina);
+  wawfina->name = "wawfina";
+
+  glyphcodes = m_layout->classtoUnicode("^waw.fina$|^waw.fina[.]added");
 
   for (auto glyphcode : glyphcodes) {
-    rehwawfina->anchors[glyphcode].exit = QPoint(0, 0);
+    wawfina->anchors[glyphcode].exit = QPoint(kern, 0);
   }
 
-  glyphcodes = m_layout->classtoUnicode("^reh|^waw");
+  glyphcodes = m_layout->classtoUnicode("[.]isol|[.]init"); //"((?<!reh|waw)[.]isol)|init"
 
   for (auto glyphcode : glyphcodes) {
-    rehwawalef->anchors[glyphcode].exit = QPoint(0, 0);
-  }
 
-
-
-  glyphcodes = m_layout->classtoUnicode("isol|init"); //"((?<!reh|waw)[.]isol)|init"
-
-  for (auto glyphcode : glyphcodes) {
     QString glyphName = m_layout->glyphNamePerCode[glyphcode];
     auto& glyph = glyphs[glyphName];
-    bool includeGlyph = true;
-    for (auto anchors : exitAnchorsRTL) {
-      if (anchors.contains(glyphcode)) {
-        includeGlyph = false;
-        break;
-      }
-    }
 
-    if (includeGlyph) {
-      rehwawisol->anchors[glyphcode].entry = QPoint(glyph.width, 0);
-      rehwawfina->anchors[glyphcode].entry = QPoint(glyph.width, 0);
-      rehfinaafterbehshape->anchors[glyphcode].entry = QPoint(glyph.width, 0);
-      rehfinaafterseen->anchors[glyphcode].entry = QPoint(glyph.width, 0);
-    }
+    rehisol->anchors[glyphcode].entry = QPoint(glyph.width, 0);
+    wawisol->anchors[glyphcode].entry = QPoint(glyph.width, 0);
+    rehfina->anchors[glyphcode].entry = QPoint(glyph.width, 0);
+    wawfina->anchors[glyphcode].entry = QPoint(glyph.width, 0);
+    rehfinaafterbehshape->anchors[glyphcode].entry = QPoint(glyph.width, 0);
+    rehfinaafterseen->anchors[glyphcode].entry = QPoint(glyph.width, 0);
 
-  }
-
-  glyphcodes = m_layout->classtoUnicode("^alef.isol"); //"((?<!reh|waw)[.]isol)|init"
-  for (auto glyphcode : glyphcodes) {
-    QString glyphName = m_layout->glyphNamePerCode[glyphcode];
-    auto& glyph = glyphs[glyphName];
-    rehwawalef->anchors[glyphcode].entry = QPoint(glyph.width, 0);
   }
 
   return lookup;
 
 }
-Lookup* digitalkhatt::leftrightcursive() {
-  Lookup* lookup = new Lookup(m_layout);
-  lookup->name = "leftrightcursive";
+Lookup* digitalkhatt::cursivejoin() {
+  auto lookup = new Lookup(m_layout);
+  lookup->name = "cursivejoinrtl";
   lookup->feature = "curs";
   lookup->type = Lookup::cursive;
-  lookup->flags = 0;
-  lookup->flags = lookup->flags | Lookup::Flags::RightToLeft | Lookup::Flags::IgnoreMarks;
-
-  struct Impl : CursiveSubtable
-  {
-    Impl(Lookup* lookup) : CursiveSubtable{ lookup } {}
-
-    virtual optional<QPoint> getEntry(quint16 glyph_id, double lefttatweel, double righttatweel) override {
-
-      if (lefttatweel == 0 && righttatweel == 0) {
-        return CursiveSubtable::getEntry(glyph_id, 0, 0);
-      }
-
-      auto glyphName = this->getNameFromCode(glyph_id);
-
-      GlyphVis* glyph = &this->m_layout->glyphs[glyphName];
-
-      GlyphParameters parameters{};
-
-      parameters.lefttatweel = lefttatweel;
-      parameters.righttatweel = righttatweel;
-
-      glyph = glyph->getAlternate(parameters);
-
-      return glyph->rightAnchor;
-
-    }
-
-    virtual optional<QPoint> getExit(quint16 glyph_id, double lefttatweel, double righttatweel) override {
-
-      if (lefttatweel == 0 && righttatweel == 0) {
-        return CursiveSubtable::getExit(glyph_id, 0, 0);
-      }
-
-      auto glyphName = this->getNameFromCode(glyph_id);
-
-      GlyphVis* glyph = &this->m_layout->glyphs[glyphName];
-
-      GlyphParameters parameters{};
-
-      parameters.lefttatweel = lefttatweel;
-      parameters.righttatweel = righttatweel;
-
-      glyph = glyph->getAlternate(parameters);
-
-      return glyph->leftAnchor;
-
-    }
-  };
-
-
-  CursiveSubtable* newsubtable = new Impl(lookup);
-  lookup->subtables.append(newsubtable);
-
-  newsubtable->name = "leftrightcursive";
-
-  for (auto& glyph : glyphs) {
-    if (glyph.leftAnchor || glyph.rightAnchor) {
-
-      newsubtable->anchors[glyph.charcode].entry = glyph.rightAnchor;
-      newsubtable->anchors[glyph.charcode].exit = glyph.leftAnchor;
-    }
-  }
-
-  /*
-        CursiveSubtable* leftrightcursivenonjoining = new CursiveSubtable(lookup);
-        lookup->subtables.append(leftrightcursivenonjoining);
-
-        leftrightcursivenonjoining->name = "leftrightcursivenonjoining";
-
-        for (auto& firstglyph : glyphs) {
-                if (firstglyph.name.contains("isol")) {
-                        for (auto& secondglyph : glyphs) {
-                                if (secondglyph.name.contains("init")) {
-                                        leftrightcursivenonjoining->anchors[firstglyph.charcode].exit = QPoint{ 0,0 };
-                                        leftrightcursivenonjoining->anchors[secondglyph.charcode].entry = QPoint{ (int)secondglyph.width,0 };
-                                }
-                        }
-
-                }
-        }*/
-
-  return lookup;
-
-}
-Lookup* digitalkhatt::ligaturecursive() {
-  Lookup* lookup = new Lookup(m_layout);
-  lookup->name = "ligaturecursive";
-  lookup->feature = "curs";
-  lookup->type = Lookup::cursive;
-  lookup->flags = 0;
-  //lookup->flags = lookup->flags | Lookup::Flags::RightToLeft | Lookup::Flags::IgnoreMarks;
-  lookup->flags = lookup->flags | Lookup::Flags::IgnoreMarks;
-
-
-  for (auto it = entryAnchors.constBegin(); it != entryAnchors.constEnd(); ++it) {
-    QString cursiveName = it.key();
-    auto entries = it.value();
-    auto exits = exitAnchors[cursiveName];
-
-    CursiveSubtable* newsubtable = new CursiveSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-    newsubtable->name = cursiveName;
-
-    for (auto anchor = entries.constBegin(); anchor != entries.constEnd(); ++anchor) {
-      newsubtable->anchors[anchor.key()].entry = anchor.value();
-    }
-
-    for (auto anchor = exits.constBegin(); anchor != exits.constEnd(); ++anchor) {
-      newsubtable->anchors[anchor.key()].exit = anchor.value();
-    }
-  }
-
-  m_layout->addLookup(lookup);
-
-  lookup = new Lookup(m_layout);
-  lookup->name = "ligaturecursiveRTL";
-  lookup->feature = "curs";
-  lookup->type = Lookup::cursive;
-  lookup->flags = 0;
-  lookup->flags = lookup->flags | Lookup::Flags::RightToLeft | Lookup::Flags::IgnoreMarks;
+  lookup->flags = Lookup::Flags::IgnoreMarks | Lookup::Flags::RightToLeft;
 
   for (auto it = entryAnchorsRTL.constBegin(); it != entryAnchorsRTL.constEnd(); ++it) {
     QString cursiveName = it.key();
@@ -892,30 +742,35 @@ Lookup* digitalkhatt::ligaturecursive() {
   }
 
 
+  m_layout->addLookup(lookup);
+
+  lookup = new Lookup(m_layout);
+  lookup->name = "cursivejoin";
+  lookup->feature = "curs";
+  lookup->type = Lookup::cursive;
+  lookup->flags = Lookup::Flags::IgnoreMarks;
+
+
+  for (auto it = entryAnchors.constBegin(); it != entryAnchors.constEnd(); ++it) {
+    QString cursiveName = it.key();
+    auto entries = it.value();
+    auto exits = exitAnchors[cursiveName];
+
+    CursiveSubtable* newsubtable = new CursiveSubtable(lookup);
+    lookup->subtables.append(newsubtable);
+    newsubtable->name = cursiveName;
+
+    for (auto anchor = entries.constBegin(); anchor != entries.constEnd(); ++anchor) {
+      newsubtable->anchors[anchor.key()].entry = anchor.value();
+    }
+
+    for (auto anchor = exits.constBegin(); anchor != exits.constEnd(); ++anchor) {
+      newsubtable->anchors[anchor.key()].exit = anchor.value();
+    }
+  }
+
+
   return lookup;
-
-
-
-  /*
-        int leftbearing = 100;
-
-        if (glyphs["alefmaksura.fina.ii"]->anchors.contains("yehcursive1")) {
-                //newsubtable->anchors[m_layout->glyphCodePerName["alefmaksura.fina.ii"]].entry = QPoint(400 + leftbearing - 24, 62);
-                newsubtable->anchors[m_layout->glyphCodePerName["alefmaksura.fina.ii"]].entry = glyphs["alefmaksura.fina.ii"]->anchors["yehcursive1"];
-        }
-
-        newsubtable->anchors[m_layout->glyphCodePerName["yeh.fina.ii"]].entry = glyphs["yeh.fina.ii"]->anchors["yehcursive1"];
-
-        if (glyphs["lam.medi.beforeyeh"]->anchors.contains("yehcursive1")) {
-                //newsubtable->anchors[m_layout->glyphCodePerName["lam.medi.beforeyeh"]].exit = QPoint(2, -79);
-                newsubtable->anchors[m_layout->glyphCodePerName["lam.medi.beforeyeh"]].exit = glyphs["lam.medi.beforeyeh"]->anchors["yehcursive1"];
-        }
-
-        if (glyphs["feh.init.yeh"]->anchors.contains("yehcursive1")) {
-                newsubtable->anchors[m_layout->glyphCodePerName["feh.init.yeh"]].exit = glyphs["feh.init.yeh"]->anchors["yehcursive1"];
-        }*/
-
-
 
 }
 Lookup* digitalkhatt::defaultmarkposition() {
@@ -1278,11 +1133,21 @@ Lookup* digitalkhatt::defaultmkmk() {
   lookup->subtables.append(subtable);
 
   subtable->name = "defaultmkmkmeemiqlab";
-  subtable->base = { "fatha","damma" };// "kasra"
+  subtable->base = { "fatha","damma","onedotup"};
 
   subtable->classes["meemiqlab"].mark = { "meemiqlab" };
   subtable->classes["meemiqlab"].basefunction = Defaultmarkabovemark(*this, *subtable);
   subtable->classes["meemiqlab"].markfunction = Defaultopmarkanchor(*this, *subtable);
+
+  subtable = new MarkBaseSubtable(lookup);
+  lookup->subtables.append(subtable);
+
+  subtable->name = "defaultmkmksmalllowmeem";
+  subtable->base = { "kasra" };
+
+  subtable->classes["smalllowmeem"].mark = { "smalllowmeem" };
+  subtable->classes["smalllowmeem"].basefunction = Defaultmarkbelowmark(*this, *subtable);
+  subtable->classes["smalllowmeem"].markfunction = Defaullowmarkanchor(*this, *subtable);
 
   subtable = new MarkBaseSubtable(lookup);
   lookup->subtables.append(subtable);
@@ -1460,266 +1325,6 @@ Lookup* digitalkhatt::defaultwaqfmarkabovemarkprecise() {
 
 
   return lookup;
-
-}
-Lookup* digitalkhatt::lowmarkafterwawandreh() {
-
-  Lookup* lookup = new Lookup(m_layout);
-  lookup->name = "lowmarkafterwawandreh";
-  lookup->feature = "mkmk";
-  lookup->type = Lookup::chainingpos;
-
-  lookup->markGlyphSetIndex = m_layout->addMarkSet({ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" });
-  lookup->flags = lookup->flags | Lookup::Flags::UseMarkFilteringSet;
-
-  for (QString finaisol : {"fina.afterbehshape", "fina.afterseen", "fina", "isol" }) {
-    for (QString kastradot : { "1", "2", "beforehah" }) {
-
-      Lookup* sublookup = new Lookup(m_layout);
-      sublookup->name = lookup->name + "." + finaisol + kastradot;
-      sublookup->feature = "";
-      sublookup->markGlyphSetIndex = m_layout->addMarkSet({ "kasra", "kasratan", "onedotdown", "twodotsdown", "kasratanidgham" });
-      sublookup->flags = lookup->flags | Lookup::Flags::UseMarkFilteringSet;
-
-      MarkBaseSubtable* marksubtable = new MarkBaseSubtable(sublookup);
-      sublookup->subtables.append(marksubtable);
-
-      marksubtable->name = sublookup->name;
-      if (kastradot == "1") {
-        sublookup->type = Lookup::mark2base;
-        marksubtable->base = { "[.]init|[.]isol" };
-
-        marksubtable->classes["lowmarks"].mark = { "kasra", "onedotdown", "twodotsdown" };
-        marksubtable->classes["lowmarks"].basefunction = Defaulbaseanchorforlow(*this, *marksubtable);
-        marksubtable->classes["lowmarks"].markfunction = Defaullowmarkanchor(*this, *marksubtable);
-
-        marksubtable->classes["kasratan"].mark = { "kasratan",  "kasratanidgham" };
-        marksubtable->classes["kasratan"].basefunction = Defaulbaseanchorforlow(*this, *marksubtable);
-        marksubtable->classes["kasratan"].markfunction = Defaullowmarkanchor(*this, *marksubtable);
-
-      }
-      else if (kastradot == "2") {
-        //sublookup->type = Lookup::mark2mark;
-        //marksubtable->base = { "onedotdown", "twodotsdown" };
-
-        sublookup->type = Lookup::mark2base;
-        marksubtable->base = { "(behshape|hah)[.](init|isol)" };
-
-        marksubtable->classes["kasra"].mark = { "kasra", };
-        marksubtable->classes["kasra"].basefunction = Defaulbaseanchorforlow(*this, *marksubtable);
-        marksubtable->classes["kasra"].markfunction = Defaullowmarkanchor(*this, *marksubtable);
-
-        marksubtable->classes["kasratan"].mark = { "kasratan", "kasratanidgham" };
-        marksubtable->classes["kasratan"].basefunction = Defaulbaseanchorforlow(*this, *marksubtable);
-        marksubtable->classes["kasratan"].markfunction = Defaullowmarkanchor(*this, *marksubtable);
-
-
-      }
-      else if (kastradot == "beforehah") {
-        sublookup->type = Lookup::mark2base;
-        marksubtable->base = { "reh|waw" };
-
-        marksubtable->classes["kasra"].mark = { "kasra" };
-        marksubtable->classes["kasra"].basefunction = Defaulbaseanchorforlow(*this, *marksubtable);
-        marksubtable->classes["kasra"].markfunction = Defaullowmarkanchor(*this, *marksubtable);
-      }
-
-      m_layout->addLookup(sublookup);
-    }
-    // displac
-    /*
-                if (finaisol == "isol") {
-                        Lookup * sublookup = new Lookup(m_layout);
-                        sublookup->name = lookup->name + "." + finaisol + "displac";
-                        sublookup->feature = "";
-                        sublookup->is_gsub = false;
-                        sublookup->local = true;
-                        sublookup->type = Lookup::singleadjustment;
-
-                        m_layout->addLookup(sublookup, true);
-
-                        SingleAdjustmentSubtable* singleadjsubtable = new SingleAdjustmentSubtable(sublookup);
-                        sublookup->subtables.append(singleadjsubtable);
-
-                        singleadjsubtable->name = sublookup->name;
-
-                        auto applied = classtoUnicode("(waw|reh)[.]" + finaisol);
-                        for (auto glyph : applied) {
-                                singleadjsubtable->singlePos[glyph] = { 0,0,0,0 };
-                        }
-                }*/
-
-                /*
-                            //rehwawcursive
-                            Lookup * sublookup = new Lookup(m_layout);
-                            sublookup->name = lookup->name + "." + finaisol + "rehwawcursive";
-                            sublookup->feature = "";
-                            sublookup->type = Lookup::cursive;
-                            sublookup->is_gsub = false;
-                            sublookup->local = true;
-                            sublookup->flags = Lookup::Flags::IgnoreMarks;
-
-                            m_layout->addLookup(sublookup, true);
-
-                            CursiveSubtable* cursivesubtable = new CursiveSubtable(lookup);
-                            sublookup->subtables.append(cursivesubtable);
-                            cursivesubtable->name = "cursivesubtable";
-
-                            auto& glyphcodes = m_layout->classtoUnicode("(waw|reh)[.]" + finaisol);
-
-                            for (auto glyphcode : glyphcodes) {
-                                    cursivesubtable->anchors[glyphcode].exit = QPoint(0, 0);
-                            }
-
-                            glyphcodes = m_layout->classtoUnicode("isol|init"); //"((?<!reh|waw)[.]isol)|init"
-
-                            for (auto glyphcode : glyphcodes) {
-                                    QString glyphName = m_layout->glyphNamePerCode[glyphcode];
-                                    auto glyph = glyphs[glyphName];
-                                    bool includeGlyph = true;
-                                    for (auto anchors : exitAnchorsRTL) {
-                                            if (anchors.contains(glyphcode)) {
-                                                    includeGlyph = false;
-                                                    break;
-                                            }
-                                    }
-
-                                    if (includeGlyph) {
-                                            cursivesubtable->anchors[glyphcode].entry = QPoint(glyph.width, 0);
-                                    }
-
-                            }*/
-
-                            // beforehah
-    ChainingSubtable* newsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-
-    newsubtable->name = "chaining_" + finaisol;
-
-    newsubtable->compiledRule = ChainingSubtable::CompiledRule();
-
-    newsubtable->compiledRule.input.append({ classtoUnicode("(waw|reh)[.]" + finaisol) });
-    newsubtable->compiledRule.input.append({ (quint16)glyphs["kasra"].charcode,(quint16)glyphs["kasratan"].charcode,(quint16)glyphs["kasratanidgham"].charcode });
-    newsubtable->compiledRule.input.append(classtoUnicode("hah[.]isol"));
-    newsubtable->compiledRule.input.append({ (quint16)glyphs["onedotdown"].charcode,(quint16)glyphs["twodotsdown"].charcode });
-    newsubtable->compiledRule.input.append({ (quint16)glyphs["kasra"].charcode,(quint16)glyphs["kasratan"].charcode,(quint16)glyphs["kasratanidgham"].charcode });
-
-    //if (finaisol == "isol") {
-    //	newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "displac" });
-    //}
-    //newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "rehwawcursive" });
-    newsubtable->compiledRule.lookupRecords.append({ 1,lookup->name + "." + finaisol + "beforehah" });
-    newsubtable->compiledRule.lookupRecords.append({ 3,lookup->name + "." + finaisol + "1" });
-    newsubtable->compiledRule.lookupRecords.append({ 4,lookup->name + "." + finaisol + "2" });
-
-
-    //
-    newsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-
-    newsubtable->name = "chaining_" + finaisol;
-
-    newsubtable->compiledRule = ChainingSubtable::CompiledRule();
-
-    newsubtable->compiledRule.backtrack.append({ classtoUnicode("(waw|reh)[.]" + finaisol) });
-    newsubtable->compiledRule.backtrack.append({ (quint16)glyphs["kasra"].charcode,(quint16)glyphs["kasratan"].charcode,(quint16)glyphs["kasratanidgham"].charcode });
-    newsubtable->compiledRule.input.append(classtoUnicode("[.]init|[.]isol"));
-    newsubtable->compiledRule.input.append({ (quint16)glyphs["onedotdown"].charcode,(quint16)glyphs["twodotsdown"].charcode });
-    newsubtable->compiledRule.input.append({ (quint16)glyphs["kasra"].charcode,(quint16)glyphs["kasratan"].charcode,(quint16)glyphs["kasratanidgham"].charcode });
-
-    if (finaisol == "isol") {
-      //newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "displac" });
-    }
-    //newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "rehwawcursive" });
-    newsubtable->compiledRule.lookupRecords.append({ 1,lookup->name + "." + finaisol + "1" });
-    newsubtable->compiledRule.lookupRecords.append({ 2,lookup->name + "." + finaisol + "2" });
-
-    //
-    newsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-
-    newsubtable->compiledRule = ChainingSubtable::CompiledRule();
-
-    newsubtable->compiledRule.backtrack.append({ classtoUnicode("(waw|reh)[.]" + finaisol) });
-    newsubtable->compiledRule.input.append(classtoUnicode("[.]init|[.]isol"));
-    newsubtable->compiledRule.input.append({ (quint16)glyphs["onedotdown"].charcode,(quint16)glyphs["twodotsdown"].charcode });
-    newsubtable->compiledRule.input.append({ (quint16)glyphs["kasra"].charcode,(quint16)glyphs["kasratan"].charcode,(quint16)glyphs["kasratanidgham"].charcode });
-
-    if (finaisol == "isol") {
-      //	newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "displac" });
-    }
-    //newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "rehwawcursive" });
-    newsubtable->compiledRule.lookupRecords.append({ 1,lookup->name + "." + finaisol + "1" });
-    newsubtable->compiledRule.lookupRecords.append({ 2,lookup->name + "." + finaisol + "2" });
-
-    // beforehah
-    newsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-
-    newsubtable->compiledRule = ChainingSubtable::CompiledRule();
-
-    newsubtable->compiledRule.input.append({ classtoUnicode("(waw|reh)[.]" + finaisol) });
-    newsubtable->compiledRule.input.append({ (quint16)glyphs["kasra"].charcode,(quint16)glyphs["kasratan"].charcode,(quint16)glyphs["kasratanidgham"].charcode });
-    newsubtable->compiledRule.input.append(classtoUnicode("hah[.]isol"));
-    newsubtable->compiledRule.input.append({ (quint16)glyphs["kasra"].charcode,(quint16)glyphs["kasratan"].charcode,(quint16)glyphs["kasratanidgham"].charcode,(quint16)glyphs["onedotdown"].charcode ,(quint16)glyphs["twodotsdown"].charcode });
-
-    if (finaisol == "isol") {
-      //	newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "displac" });
-    }
-    //newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "rehwawcursive" });
-    newsubtable->compiledRule.lookupRecords.append({ 1,lookup->name + "." + finaisol + "beforehah" });
-    newsubtable->compiledRule.lookupRecords.append({ 3,lookup->name + "." + finaisol + "1" });
-
-    //
-    newsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-
-    newsubtable->compiledRule = ChainingSubtable::CompiledRule();
-    newsubtable->compiledRule.backtrack.append({ classtoUnicode("(waw|reh)[.]" + finaisol) });
-    newsubtable->compiledRule.backtrack.append({ (quint16)glyphs["kasra"].charcode,(quint16)glyphs["kasratan"].charcode,(quint16)glyphs["kasratanidgham"].charcode });
-    newsubtable->compiledRule.input.append(classtoUnicode("[.]init|[.]isol"));
-    newsubtable->compiledRule.input.append({ (quint16)glyphs["kasra"].charcode,(quint16)glyphs["kasratan"].charcode,(quint16)glyphs["kasratanidgham"].charcode,(quint16)glyphs["onedotdown"].charcode ,(quint16)glyphs["twodotsdown"].charcode });
-
-    if (finaisol == "isol") {
-      //	newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "displac" });
-    }
-    //newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "rehwawcursive" });
-    newsubtable->compiledRule.lookupRecords.append({ 1,lookup->name + "." + finaisol + "1" });
-
-    //
-    newsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-
-    newsubtable->compiledRule = ChainingSubtable::CompiledRule();
-    newsubtable->compiledRule.backtrack.append({ classtoUnicode("(waw|reh)[.]" + finaisol) });
-    newsubtable->compiledRule.input.append(classtoUnicode("[.]init|[.]isol"));
-    newsubtable->compiledRule.input.append({ (quint16)glyphs["kasra"].charcode,(quint16)glyphs["kasratan"].charcode,(quint16)glyphs["kasratanidgham"].charcode, (quint16)glyphs["onedotdown"].charcode ,(quint16)glyphs["twodotsdown"].charcode });
-
-    if (finaisol == "isol") {
-      //	newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "displac" });
-    }
-    //newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "rehwawcursive" });
-    newsubtable->compiledRule.lookupRecords.append({ 1,lookup->name + "." + finaisol + "1" });
-
-    newsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-
-    newsubtable->compiledRule = ChainingSubtable::CompiledRule();
-    newsubtable->compiledRule.input.append({ classtoUnicode("(waw|reh)[.]" + finaisol) });
-    newsubtable->compiledRule.input.append({ (quint16)glyphs["kasra"].charcode,(quint16)glyphs["kasratan"].charcode,(quint16)glyphs["kasratanidgham"].charcode });
-    newsubtable->compiledRule.lookahead.append(classtoUnicode("hah[.]isol|ain[.]isol"));
-
-    if (finaisol == "isol") {
-      //	newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "displac" });
-    }
-    //newsubtable->compiledRule.lookupRecords.append({ 0,lookup->name + "." + finaisol + "rehwawcursive" });
-    newsubtable->compiledRule.lookupRecords.append({ 1,lookup->name + "." + finaisol + "beforehah" });
-
-  }
-  //}
-
-  return lookup;
-
 
 }
 Lookup* digitalkhatt::tajweedcolorcpp() {

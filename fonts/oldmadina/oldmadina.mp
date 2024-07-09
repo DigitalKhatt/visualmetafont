@@ -375,7 +375,7 @@ fill
 leftbearing:=0;
 rightbearing:=100;
 endchar;
-beginchar(endofaya,1757,1,-1,-1);
+beginchar(endofaya.ii,-1,1,-1,-1);
 %%backgroundimage:images/20,-100.278,-1135,1,0,0,1
 %%beginparams
 z1 = (516.686,563.695);
@@ -600,6 +600,89 @@ charwd := xpart (lrcorner currentpicture) - xpart (llcorner currentpicture) + le
 savepicture:=1;
 
 endchar;
+beginchar(endofaya,1757,-1,-1,-1);
+%%backgroundimage:images/aya2.JPG,-205.054,-919.225,1,0,0,1
+%%beginparams
+thickness_ := 20;
+z1 = (441,727);
+z1.n1 = (xpart.z1,-273);
+z1.n2 = (xpart.z1,-249);
+z1.n3 = (xpart.z1,-154);
+z1.n4 = (xpart.z1,ypart.z1.n3 + thickness_);
+z1.n5 = (xpart.z1,ypart.z1 - thickness_);
+z2 = (440,786);
+z3 = (882,282);
+
+%%beginverbatim
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+z1 ..
+ {dir 0}(467,725) {dir 140.227} ..
+ {up}z2 ..
+ {right}(530,873) ..
+ {down}(623,ypart.z2) ..
+ {dir -133.736}(607,741) {dir -11.7662} .. tension 0.906888 and 1 ..
+ {dir -38.019}(780,665) {dir 75.9387} .. tension 0.984617 and 1.1724 ..
+ {dir 9.32696}(851,746) {dir -92.5571} .. tension 1.17576 and 1 ..
+(897,613) .. tension 1 and 1.45857 ..
+ {dir -58.1711}(987,523) {dir 34.7492} .. tension 0.760681 and 1.19379 ..
+ {dir 6.52681}(1058,542) {dir -116.849} .. tension 0.920526 and 1 ..
+ {down}(1029,413) .. tension 1 and 1 ..
+(1036,262) .. tension 1 and 1 ..
+ {left}(1003,246) .. tension 1 and 0.75 ..
+ {dir 141.418}(973,258) {down} ..
+ {left}z1.n1 .. tension 1 and 1 ..
+ {right}z1.n2 ..
+ {up}(953,257) .. tension 1.06633 and 0.764259 ..
+ {dir 96.2847}(951,307) {dir -49.7743} ..
+ {right}(999,269) ..
+ {up}(1008,405) ..
+ {dir 61.522}(1028,515) {dir 174.326} .. tension 0.972502 and 1.52367 ..
+ {dir -99.1799}(938,419) {dir 90.999} .. tension 0.75354 and 1 ..
+(937,471) .. tension 0.965318 and 1.04914 ..
+ {dir 48.295}(968,513) {dir 124.83} .. tension 1.47369 and 1 ..
+(878,601) .. tension 1 and 0.75 ..
+ {dir 102.678}(833,710) {dir -156.685} .. tension 0.956759 and 4.83272 ..
+ {dir -70.6238}(801,539) {left} .. tension 4.76661 and 1.27814 ..
+ {dir 121.695}(780,565) .. tension 3.64246 and 1.01452 ..
+ {dir 85.7017}(776,645) {dir 135.318} .. tension 1.57031 and 1.00182 ..
+ {dir 173.721}(575,728) {dir 35.4839} ..
+ {up}(602,ypart.z2) ..
+ {left}(530,855) ..
+ {down}(461,ypart.z2) .. tension 0.975908 and 0.772607 ..
+(624,689) .. tension 1.33082 and 1 ..
+(786,558) ..
+ {down}z3 ..
+ {left}z1.n3 ..
+ {right}z1.n4 ..
+ {up}(xpart.z3 - thickness_,ypart.z3) ..
+ {left}z1.n5 ..
+ {right} cycle
+;
+
+%%endpaths
+%%beginbody
+
+path _p[];
+
+_p0 := pathpart currentpicture;
+
+currentpicture := nullpicture;
+_p1 := subpath (ypart (z1 intersectiontimes  _p0), ypart ( z1.n1 intersectiontimes  _p0)) of _p0;
+fill _p1 .. reverse  (_p1 reflectedabout (z1,z1+(0,50))) .. cycle withcolor black;
+_p1 := subpath (ypart (z1.n2 intersectiontimes  _p0), ypart ( z1.n3 intersectiontimes  _p0)) of _p0;
+fill _p1 .. reverse  (_p1 reflectedabout (z1,z1+(0,50))) .. cycle withcolor white;
+_p1 := subpath (ypart (z1.n4 intersectiontimes  _p0), ypart ( z1.n5 intersectiontimes  _p0)) of _p0;
+fill _p1 .. reverse  (_p1 reflectedabout (z1,z1+(0,50))) .. cycle withcolor white;;
+savepicture:=1;
+
+currentpicture := currentpicture shifted (0,20) scaled 0.95;
+
+endchar;
 defchar(one_dot,-1,-1,-1,-1);
 %%backgroundimage:images/alef.isol.jpg,-2845.44,-653.853,1,0,0,1
 
@@ -796,7 +879,7 @@ endchar;
 defchar(fathatanidgham,2288,-1,-1,-1);
 %%beginbody
 
-lefttatweel := lefttatweel - 0.5;
+lefttatweel := lefttatweel - 0.0;
 picture _temppic;
 _temppic := image(
 fatha_(lefttatweel,righttatweel);
@@ -808,12 +891,13 @@ z.ul = ulcorner _temppic;
 z.ur = urcorner _temppic;
 z.lr = lrcorner _temppic;
 
-%draw _temppic shifted (1/2(x.ul - x.ur), (y.ur-y.lr));
+%draw _temppic shifted (2/3(x.ul - x.ur), 50);
 
-draw _temppic shifted (2/3(x.ul - x.ur), 50);
+draw _temppic shifted (1.3/3(x.ul - x.ur), -1.0(y.ur-y.lr));
 
-%show z.s;
-
+leftbearing := 0;
+tr_ := identity shifted (0,-ypart llcorner currentpicture);
+savepicture:=1;
 
 enddefchar;
 beginchar(damma,1615,-1,-1,-1);
@@ -1919,6 +2003,38 @@ bldmvi ( (174.155,241.281), (-2.49691,154.468) ) ..
 leftbearing := leftbearing + 0;
 
 enddefchar;
+defchar(alef.isol.iijj,-1,-1,-1,-1);
+%%backgroundimage:images/alef.isol.jpg,-7890.45,-1034.63,1,0,0,1
+%%beginparams
+z33 = (-36.2269,6.34259);
+
+%%beginverbatim
+%lefttatweel := lefttatweel - 1;
+
+minLeft := -4;
+maxLeft := 5;
+
+y33 := - minLeft *nuqta;
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(79,529) .. tension 0.783131 and 2.33638 ..
+ {right}(118,645) .. tension 2.18707 and 1 ..
+ {down}(136,565) .. tension 1.40088 and 1 ..
+ {down}(199.827,94) .. tension 1 and 1.46344 ..
+ {left}(162.945,1) .. tension 2.7088 and 1.42231 ..
+ {up}(142,95) .. tension 1.62071 and 1 ..
+ {up} cycle
+;
+
+%%endpaths
+%%beginbody
+leftbearing := leftbearing + 0;
+
+enddefchar;
 defchar(alef.isol.ii,-1,-1,-1,-1);
 %%beginbody
 
@@ -1947,9 +2063,9 @@ bldmvi ( (76,583), (-50,_tatweel) ) .. tension 1.29322 and 2.09511 ..
 bldmvi ( (144,615), (-50,_tatweel) ) .. tension 11.4991 and 2.76737 ..
 bldmvi ( (172,419), (0,0) ) .. tension 1.51205 and 2.71461 ..
 brdmv ( (196,176), (21,-56), (0,0) ) .. tension brdmvi ( 1, 0.05 ) and 1 ..
-brdmv ( (246,92), (397,-338), (-77,-1) ) setranchor
-(254,0) rightjoinii
-brdmv ( (177,26), (490,-386), (-20,-25) ) .. tension atleast 1 ..
+brdmv ( (246,92), (397,-338), (-60,1) ) setranchor
+(271,-1) rightjoinii
+brdmv ( (177,26), (490,-386), (-14,-25) ) .. tension atleast 1 ..
 (138,108) .. tension 2.00581 and 1 ..
 bldmvi ( (106,390), (0,0) ) .. tension 1 and 59.2462 ..
  {up} cycle

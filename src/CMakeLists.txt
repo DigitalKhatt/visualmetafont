@@ -27,7 +27,7 @@ set(LUATEX_NAME luadigitalkhatt)
 
 if (NOT EMSCRIPTEN)
 
-  find_package(protobuf CONFIG REQUIRED)
+  find_package(Protobuf REQUIRED)
 
   find_package(Qt5 COMPONENTS Core OpenGL Svg PrintSupport Widgets REQUIRED)
 

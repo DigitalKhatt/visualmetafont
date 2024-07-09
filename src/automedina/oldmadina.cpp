@@ -1072,7 +1072,7 @@ Lookup* OldMadina::defaultwaqfmarktobase() {
   auto basefunction = [this](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
     GlyphVis& curr = glyphs[glyphName];
 
-    int height = std::max((int)curr.height + spacebasetotopmark, minwaqfhigh);
+    int height = std::max((int)curr.height + 100, 900);
     int width = 0; // curr.bbox.llx;
 
 

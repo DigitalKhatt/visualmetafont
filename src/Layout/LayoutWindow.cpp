@@ -2075,7 +2075,7 @@ void LayoutWindow::findOverflows(bool overfull) {
         }
       }
       else {
-       
+
         auto match = surabism.match(lines[linenum]);
 
         LineType lineType = LineType::Line;
@@ -3071,7 +3071,7 @@ void LayoutWindow::generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pa
           int number = std::stoi(lookupRecord.lookupName.mid(15).toStdString());
           if (subLookupKerns.find(lookupRecord.lookupName) == subLookupKerns.end()) {
 
-            auto& pair = subLookupKerns.insert({ lookupRecord.lookupName,{} });
+            auto pair = subLookupKerns.insert({ lookupRecord.lookupName,{} });
             auto& res = *pair.first;
             for (auto codepoint : kernTable->singlePos.keys()) {
               res.second.insert(codepoint);
@@ -3317,24 +3317,31 @@ void LayoutWindow::generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pa
   QString mainLookup;
   for (auto& posSubtable : posSubtables) {
     QString posLine = "  pos";
+    QString debugLine = "pos";
     for (auto glyphPos : posSubtable) {
       if (glyphPos.set.size() > 1) {
         posLine += " [";
+        debugLine += " [";
       }
 
       for (auto glyph : glyphPos.set) {
         QString glyphName = m_otlayout->glyphNamePerCode[glyph];
-        posLine += " /^" + glyphName + "([.]added_.*)$?/";
+        posLine += " /^" + glyphName + "([.]added_.*)?$/";
+        debugLine += " /^" + glyphName + "/";
       }
       if (glyphPos.set.size() > 1) {
         posLine += "]";
+        debugLine += "]";
       }
       posLine += "'";
+      debugLine += "'";
       if (!glyphPos.lookupName.isEmpty()) {
         posLine += "lookup " + glyphPos.lookupName;
       }
     }
     posLine += ";\n";
+    debugLine += ";\n";
+    std::cout << debugLine.toStdString();
     mainLookup += posLine;
   }
 

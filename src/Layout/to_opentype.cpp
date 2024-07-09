@@ -562,16 +562,17 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
 
 
   }
-
-
-  if (!layers.isEmpty()) {
-    QByteArray cpal;
-    QByteArray colr;
-    if (colrcpal(colr, cpal)) {
-      tables.append({ colr,HB_TAG('C','O','L','R') });
-      tables.append({ cpal,HB_TAG('C','P','A','L') });
+  //TODO 
+  if (!fileName.contains("oldmadina")) {
+    if (!layers.isEmpty()) {
+      QByteArray cpal;
+      QByteArray colr;
+      if (colrcpal(colr, cpal)) {
+        tables.append({ colr,HB_TAG('C','O','L','R') });
+        tables.append({ cpal,HB_TAG('C','P','A','L') });
+      }
     }
-  }
+  } 
 
   uint16_t numTables = tables.size();
 

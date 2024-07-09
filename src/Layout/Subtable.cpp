@@ -183,7 +183,7 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
 
       auto& addedGlyphs = m_layout->getSubstEquivGlyphs(substGlyph);
 
-      auto& found = addedGlyphs.find(parameters);
+      auto found = addedGlyphs.find(parameters);
 
       if (found != addedGlyphs.end()) {
 
@@ -207,7 +207,7 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
         parameters.lefttatweel = addedGlyph.second->charlt + (double)expan.MinLeftTatweel;
         parameters.righttatweel = addedGlyph.second->charrt + (double)expan.MinRightTatweel;
 
-        auto& found = addedGlyphs.find(parameters);
+        auto found = addedGlyphs.find(parameters);
 
         if (found != addedGlyphs.end()) {
 
@@ -582,7 +582,7 @@ QByteArray SingleSubtable::getOpenTypeTable(bool extended) {
       auto& afterGlyphs = m_layout->getSubstEquivGlyphs(after);
 
       for (auto& addedGlyph : beforeGlyphs) {
-        auto& ret = afterGlyphs.find(addedGlyph.first);
+        auto ret = afterGlyphs.find(addedGlyph.first);
         if (ret != afterGlyphs.end()) {
           newSubst.insert(addedGlyph.second->charcode, ret->second->charcode);
         }

@@ -208,7 +208,7 @@ bool KnotControlledItem::moveMinMaxDeltas(QGraphicsItem* watched, QGraphicsScene
 bool KnotControlledItem::updateControlledPoint(MFExpr* expr, int position, QPointF diff) {
   bool ret = false;
   if (expr->isConstant(position)) {
-    expr->setConstantValue(position, expr->constantValue(position).toPoint() + diff.toPoint());
+    expr->setConstantValue(position, expr->constantValue(position).toPointF() + diff);
     ret = true;
   }
   else {
@@ -221,7 +221,7 @@ bool KnotControlledItem::updateControlledPoint(MFExpr* expr, int position, QPoin
       auto latinName = parmName.toLatin1();
       auto& param = m_glyph->params[parmName];
       if (param.expr->isConstant(position)) {
-        QPointF pair = param.expr->constantValue(position).toPoint() + diff.toPoint();
+        QPointF pair = param.expr->constantValue(position).toPointF() + diff;
         param.expr->setConstantValue(position, pair);
         m_glyph->setProperty(parmName.toLatin1(), pair);
         ret = true;

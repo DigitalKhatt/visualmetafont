@@ -14,8 +14,7 @@ private:
   Lookup* forhamza();
   Lookup* forheh();
   Lookup* forwaw();
-  Lookup* leftrightcursive();
-  Lookup* ligaturecursive();
+  Lookup* cursivejoin();    
   Lookup* pointmarks();
   Lookup* defaultwaqfmarkabovemarkprecise();
   Lookup* defaultdotmarks();
@@ -23,8 +22,7 @@ private:
   Lookup* defaultmkmk();
   Lookup* ayanumbers();
   Lookup* ayanumberskern();
-  Lookup* rehwawcursive();
-  Lookup* lowmarkafterwawandreh();
+  Lookup* rehwawcursivecpp();  
   Lookup* tajweedcolorcpp();
   Lookup* populatecvxx();
   Lookup* glyphalternates();

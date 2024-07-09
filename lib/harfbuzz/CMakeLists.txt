@@ -60,6 +60,7 @@ set(SRC_FILES
     harfbuzz/src/hb-outline.cc
     harfbuzz/src/hb-buffer-verify.cc
     harfbuzz/src/hb-buffer-serialize.cc
+    harfbuzz/src/hb-face-builder.cc
 )
 
 # Add library to build.

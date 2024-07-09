@@ -89,7 +89,7 @@ bool Font::loadFile(const QString& fileName) {
   std::string::size_type const p(base_filename.find_last_of('.'));
   std::string job_name = base_filename.substr(0, p);
 
-  mp->job_name = xstrdup(job_name.c_str());
+  mp->job_name = strdup(job_name.c_str());
 
   QTextStream in(&file);
   QApplication::setOverrideCursor(Qt::WaitCursor);

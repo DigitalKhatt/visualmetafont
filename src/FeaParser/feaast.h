@@ -529,7 +529,7 @@ namespace feayy {
       auto rightseqs = expr->getSequences();
 
       if (minRep == 0) {
-        minSeqs.append({});
+        minSeqs.append(QVector<GlyphSet*>{});
       }
       else {        
 

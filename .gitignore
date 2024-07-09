@@ -43,3 +43,5 @@ files/quranMedina.pdf
 CMakeLists.txt.user
 lib/QtPropertyBrowser/qt6/
 fonts/oldmadina/output/
+fonts/digitalkhatt/output
+fonts.code-workspace

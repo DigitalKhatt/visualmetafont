@@ -3587,7 +3587,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
     glyphCode = glyph->charcode;
   }
 
-  auto& expnadable = expandableGlyphs.find(glyph->name);
+  auto expnadable = expandableGlyphs.find(glyph->name);
 
   if (expnadable != expandableGlyphs.end()) {
     if (parameters.lefttatweel < expnadable->second.minLeft) {

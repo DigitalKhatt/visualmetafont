@@ -264,7 +264,7 @@ public:
 	}
 
 	bool containsConstant() override {
-		return left->isConstant(0) && right->isConstant(0);
+		return left->isConstant(0) || right->isConstant(0);
 	}
 
 	std::unique_ptr<MFExpr> clone() override {

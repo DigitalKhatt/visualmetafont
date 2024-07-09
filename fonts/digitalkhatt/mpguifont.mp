@@ -43,19 +43,16 @@ vardef round primary u =
  elseif pair u: (round xpart u, round ypart u)
  else: u fi enddef;
 
-newinternal nextunicode, lefttatweel,righttatweel, leftbearing, rightbearing,  nuqta, which_in_baseline, leftbearingnumber, totalglyphs, ignore_exp_parameters, savepicture, number_of_anchors; 
+newinternal nextunicode, lefttatweel,righttatweel, leftbearing, rightbearing,  nuqta, which_in_baseline, totalglyphs, ignore_exp_parameters, savepicture, number_of_anchors; 
 newinternal string charname,originalglyph;
-newinternal showAnchors;
+newinternal showAnchors,digitscale;
 pair lefttatweel_const, righttatweel_const;
 newinternal minLeft,maxLeft,minRight,maxRight;
 
 %For parametric kashida
-newinternal leftMinWidth,leftMinHeight,leftVerticalRatio, leftAngleRot, leftAngleRotRatio;
-pair leftFirstRatio, leftLastRatio;
-newinternal rightMinWidth,rightMinHeight,rightVerticalRatio, rightAngleRot, rightAngleRotRatio;
-pair rightFirstRatio, rightLastRatio;
+newinternal leftVerticalRatio,leftVerticalRatioNeg,rightVerticalRatio,rightVerticalRatioNeg;
 
-leftbearingnumber := 0;
+digitscale := 0.80;
 
 nextunicode := 58000; % 57343; %hex"E000"-1; % the first code for aya numbers
 string charmacroname;
@@ -69,27 +66,25 @@ def Anchor = 6 enddef;
 
 % vardef first.hah.medi.pluslt_[]@#=@ enddef;
 
-% vardef hah.medi.pluslt_[]_(expr lt,rt) = hah.medi_(lt,rt);enddef;
+% vardef hah.medi.pluslt_[]_(expr _lt,_rt) = hah.medi_(_lt,_rt);enddef;
 
 def makechardef(suffix name)(expr c,w_sharp)(text t) =
   charmacroname:=str name & "_";  
-  expandafter vardef scantokens charmacroname(expr lt,rt) = %endgroup gobbled true  5 = x.12345678255; x.12345678255 := whatever;
-	if(ignore_exp_parameters <> 0) :
+  expandafter vardef scantokens charmacroname(expr _lt,_rt) =    
+	  if ignore_exp_parameters <> 0 :
         ignore_exp_parameters := 0;
-        charlt := lefttatweel;
-        charrt := righttatweel;  
-	else:
-        save lefttatweel,righttatweel;
-		charlt := lefttatweel := lt;
-        charrt := righttatweel :=rt;   
-	fi
-    %if charwd = -1: charwd := w_sharp; fi;
+        interim charlt := lefttatweel;
+        interim charrt := righttatweel;  
+	  else:
+      save lefttatweel,righttatweel;
+		  interim charlt := lefttatweel := _lt;
+      interim charrt := righttatweel :=_rt;   
+	  fi
     t         
-    originalglyph := str name;
-  %gobble begingroup 
+    originalglyph := str name;   
   enddef;
   beginchar(name,c,w_sharp,-1,-1);
-  scantokens charmacroname(0,0);
+    scantokens charmacroname(0,0);
   endchar; 
 enddef;
 delimiters begindefchar enddefchar;
@@ -98,10 +93,10 @@ def defchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
   makechardef(name)(c,w_sharp) begindefchar
 enddef;
 
-def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =  
+def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
+ clearxy;
  begingroup
  originalglyph := "";
- showAnchors := 0;
  charcode:=if known c: byte c else: -1 fi; 
  if (charcode = -1) and (unknown name): 
   charcode := incr nextunicode; name:= charcode; 
@@ -117,12 +112,12 @@ def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
  numeric param[];
  pair leftanchor,rightanchor;
  charlt := charrt := 0; 
- leftbearing := 100;
+ leftbearing := 0;
  rightbearing := 0;
  lefttatweel_const := righttatweel_const := (0,0);
  charwd:=w_sharp;      charht:=h_sharp;       chardp:=d_sharp;
  w:=charwd; h:=charht; d:=chardp;
- charic:=0; clearxy; clearit; %clearpen;
+ charic:=0;  clearit; %clearpen; %clearxy; 
  number_of_anchors := 0;
  left_tatweeltension := 0;
  right_tatweeltension := 0;  
@@ -132,6 +127,7 @@ def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
  _addedpostscript := "";
  savepicture := 0; 
 
+ save anchors;
  string anchors[]anchorname;
  pair anchors[]pairvalue;
  numeric anchors[]anctype; 
@@ -139,20 +135,11 @@ def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
  pair leftdeltas[][][];
  pair rightdeltas[][][];
  pair defdeltas[][][];
- leftMinHeight := 42; 
- leftMinWidth := 100; 
+
  leftVerticalRatio := 10;
- leftAngleRot := 5;
- leftAngleRotRatio := 10000;
- leftFirstRatio := (200,133);
- leftLastRatio := (120,104);
- rightMinHeight := 42; 
- rightMinWidth := 100; 
- rightVerticalRatio := 10;
- rightAngleRot := 5;
- rightAngleRotRatio := 10000;
- rightFirstRatio := (200,133);
- rightLastRatio := (120,104);
+ leftVerticalRatioNeg := 0;
+ rightVerticalRatioNeg := 0;
+ rightVerticalRatio := 10; 
  minLeft := minRight := -1;
  maxLeft := maxRight := 6;
 enddef;
@@ -161,6 +148,7 @@ transform tr_;
 vardef currentwidth = xpart (urcorner currentpicture) - xpart (ulcorner currentpicture) enddef;
 
 def endchar =
+  
 	%scantokens extra_endchar;
 	%if proofing>0: makebox(proofrule); fi
   
@@ -183,8 +171,8 @@ def endchar =
       tr_ := tr_ shifted (0,- ypart rightanchor); 
     fi;
   elseif known leftanchor :
-    %tr_ := tr_ shifted (- xpart leftanchor,0); 
-    tr_ := tr_ shifted -leftanchor;
+    tr_ := tr_ shifted (- xpart leftanchor,0); 
+    %tr_ := tr_ shifted -leftanchor;
   elseif known rightanchor :
   %   tr_ := tr_ shifted (floor xpart rightanchor - xpart rightanchor,ypart tr_ - floor ypart tr_ + ypart rightanchor - floor ypart rightanchor);   
   fi;
@@ -213,20 +201,20 @@ def endchar =
   currentpicture := currentpicture transformed tr_;
   
   charht := ypart (ulcorner currentpicture);if charht < 0 : charht := 0; fi ;  
-  chardp := ypart (llcorner currentpicture);if chardp > 0 : chardp := 0; fi ; 
+  chardp := ypart (llcorner currentpicture);if chardp > 0 : chardp := 0; fi ;   
   
-  %if unknown glyphs[charcode] :
-  %  listeglyphs[incr totalglyphs] := charcode;
-  %fi
-  
-  leftanchor := leftanchor transformed tr_;
-  rightanchor := rightanchor transformed tr_;
-
-  %show leftanchor,rightanchor;
+  if known leftanchor :
+    %leftanchor := leftanchor transformed tr_;
+    defAnchor(rtlcursive,leftanchor,ExitAnchorRTL); 
+  fi
+  if known rightanchor :  
+    %rightanchor := rightanchor transformed tr_;
+    defAnchor(rtlcursive,rightanchor,EntryAnchorRTL); 
+  fi  
 
   if savepicture = 1 :
-	expandafter picture scantokens charname pic; 
-	scantokens charname pic := currentpicture;
+	  expandafter picture scantokens charname pic; 
+	  scantokens charname pic := currentpicture;
   fi;
 
   % Access to array is sequential and becomes very slow when its size increases
@@ -239,8 +227,15 @@ def endchar =
   
   for i = 0 upto (number_of_anchors - 1): 
     anchors[i].pairvalue := anchors[i].pairvalue transformed tr_;
-    if showAnchors <> 0 : setlabel(anchors[i].anchorname,anchors[i].pairvalue); fi;
+    if showAnchors <> 0 :
+      setlabel(anchors[i].anchorname,anchors[i].pairvalue);      
+    fi
   endfor;
+
+  %if showAnchors <> 0 :      
+  %  if known leftanchor : setlabel("leftanchor",leftanchor); fi
+  %  if known rightanchor : setlabel("rightanchor",rightanchor); fi
+  %fi
   
 	shipit;
 	endgroup 
@@ -271,22 +266,28 @@ def controlledPath (expr numpath,numpoint)(text name,content) =
 enddef;
 
 def setCursiveAnchor(suffix pname)(expr pvalue)(expr anchortype) =
-  anchors[number_of_anchors].anchorname := str pname;  
-  anchors[number_of_anchors].pairvalue := pvalue; 
-  anchors[number_of_anchors].anctype := anchortype;  
-  number_of_anchors := incr number_of_anchors;
+  defAnchor(pname,pvalue,anchortype); 
 enddef;
 def setMarkAnchor(suffix pname)(expr pvalue) =
-  anchors[number_of_anchors].anchorname := str pname;  
-  anchors[number_of_anchors].pairvalue := pvalue; 
-  anchors[number_of_anchors].anctype := MarkAnchor;  
-  number_of_anchors := incr number_of_anchors;
+  defAnchor(pname,pvalue,MarkAnchor); 
 enddef;
 def setAnchor(suffix pname)(expr pvalue) =
-  anchors[number_of_anchors].anchorname := str pname;
-  anchors[number_of_anchors].pairvalue := pvalue;
-  anchors[number_of_anchors].anctype := Anchor;
-  number_of_anchors := incr number_of_anchors;
+  defAnchor(pname,pvalue,Anchor);
+enddef;
+def defAnchor(suffix pname)(expr pvalue)(expr anchortype) =
+  numeric iid_;
+  if known anchors.pname :
+    if anchors[anchors.pname].anctype =  anchortype:
+      iid_ := anchors.pname;
+    fi    
+  fi
+  if not known iid_ :
+    anchors.pname := number_of_anchors; iid_ := number_of_anchors; number_of_anchors := incr number_of_anchors;
+  fi
+  anchors[iid_].anchorname := str pname;
+  anchors[iid_].pairvalue := pvalue;
+  anchors[iid_].anctype := anchortype;
+  
 enddef;
 
 def saveAnchors(expr table, fileName) =
@@ -383,86 +384,110 @@ else:
 	.. controls  (q + (residu,0)) .. q 
 fi
 enddef;
-secondarydef p join q =
-hide(
-  if left_tatweeltension = 0: left_tatweeltension := 1;fi;
-  if right_tatweeltension = 0: right_tatweeltension := 1;fi;
-  if left_verticalextratio = 0: left_verticalextratio := 12;fi;
-  if right_verticalextratio = 0: right_verticalextratio := 6;fi;
-)
-if ypart p < ypart q :
-  hide(
-    left_elongation := -lefttatweel * nuqta;
-    z_0:= lefttatweel_const + (left_elongation,left_elongation/left_verticalextratio); 
-    z_0:= round z_0;    
-    z_1 := z_0 + joinvector; %(0,lineheight);    % pendirection
-    leftanchor := z_0; 
-  )
-	p .. tension atleast left_tatweeltension .. z_0
-	.. controls  (z_0 - (residu,0)) ..  (1/2[z_0,z_1] - (residu,0)) %(xpart z_0 -residu, 1/2[ypart z_0,ypart z_1]) 
-	.. controls  (z_1 - (residu,0)) .. z_1 .. tension atleast left_tatweeltension .. q
-else:
-	hide(
-    right_elongation := righttatweel * nuqta;
-    z_4:= q + righttatweel_const + (right_elongation, -right_elongation/right_verticalextratio);  
-    if (known leftanchor) :
-      if which_in_baseline = 1 :
-        z_4 := (xpart z_4, ypart leftanchor);  
-      elseif which_in_baseline = 2 :
-         %z_4 := (xpart z_4, -ypart leftanchor + ypart z_4);          
-         z_4 := (xpart z_4, 0);
-      fi
-      
-    fi
-    z_4 := round z_4;   
-    z_3 := z_4 + joinvector; % (0,lineheight);  pendirection; 
-    rightanchor := z_4;
-  )
-	p .. tension atleast right_tatweeltension .. z_3
-	.. controls  (z_3 + (residu,0)) ..  (1/2[z_4,z_3] + (residu,0)) % (xpart z_3 +residu, 1/2[ypart z_3,ypart z_4]) 
-	.. controls  (z_4 + (residu,0)) .. z_4 .. tension atleast right_tatweeltension .. q
-fi
-enddef;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
+vardef setdef(suffix $)(expr b) = if not known $ : $ := b fi enddef;
 secondarydef p leftjoin q =
    hide(
-    tatweel_ := lefttatweel*nuqta;
-   
+    setdef(x.lft.offset,nuqta + 50);
+    setdef(y.lft.offset,0);
+    setdef(x.lft.ratio.2 ,44);
+    setdef(x.lft.ratio.1.top ,11);
+    setdef(y.lft.ratio.1.top ,30);
+    setdef(x.lft.ratio.1.bot ,x.lft.ratio.1.top);
+    setdef(y.lft.ratio.1.bot ,y.lft.ratio.1.top);
 
-    width_ := leftMinWidth + tatweel_;
-    height_ := leftMinHeight + tatweel_ / leftVerticalRatio;
-    rotation_ := leftAngleRot + tatweel_ / leftAngleRotRatio;
-    z_l1 := p + (-width_/(xpart leftFirstRatio/100),-height_/(ypart leftFirstRatio/100));
-    z_l2 := p + (-width_/(xpart leftLastRatio/100),-height_/(ypart leftLastRatio/100));
-    z_l3 := p + (-width_,-height_) ;
-    z_l4 := z_l2 + joinvector;
-    z_l5 :=  z_l1 + joinvector;    
+    tatweel_ :=  lefttatweel *nuqta;  
 
-    z.dirl1 = (z_l1 - p) rotated rotation_;
-    z.dirl2 = (q - z_l5) rotated rotation_;
+    if tatweel_ > 0 :
+       z.lft.bot =  round(-(tatweel_ ,tatweel_ / leftVerticalRatio));    
+    else:
+       z.lft.bot =  round(-(tatweel_,if leftVerticalRatioNeg <> 0 : tatweel_ / leftVerticalRatioNeg else : 0 fi ));  
+    fi   
+    z.lft.top = z.lft.bot + ljoinvector;
+
+    ratio1_ := (100 - x.lft.ratio.2)/100;;  
+    first_ratio_bot_x_ := x.lft.ratio.1.bot/100;
+    first_ratio_bot_y_ := y.lft.ratio.1.bot /100;
+    first_ratio_top_x_ := x.lft.ratio.1.top/100;
+    first_ratio_top_y_ := y.lft.ratio.1.top/100;
+
+    hight.bot_ :=  ypart p - y.lft.bot;
+    width.bot_ :=  -x.lft.bot +xpart p;
+    hight.top_ :=  ypart q - y.lft.top;
+    width.top_ :=  -x.lft.top +xpart q;
+    
+    z_l1 := p - (width.bot_ * first_ratio_bot_x_,hight.bot_* first_ratio_bot_y_);    
+    z_l2 :=  (x.lft.bot + width.bot_  * ratio1_,y.lft.bot);  
+    z_l3 :=  (x.lft.top + width.top_  * ratio1_,y.lft.top); 
+    z_l4 :=  q - (width.top_  *first_ratio_top_x_,hight.top_ * first_ratio_top_y_);
+    leftanchor = z.lft.bot;    
   )
-  p {z.dirl1} .. ((0,0)+ z_l1) .. z_l2 .. z_l3 link z_l4 .. z_l5 .. {z.dirl2} q
+
+  p  ..  controls  z_l1 and z_l2 ..  
+  z.lft.bot .. controls  ( z.lft.bot - (residu,0)) .. 
+  (1/2[ z.lft.bot,z.lft.top] - (residu,0)) .. controls  (z.lft.top - (residu,0)) .. 
+  z.lft.top  .. controls z_l3  and z_l4 .. 
+ q
 enddef;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 secondarydef p rightjoin q =
-   hide(
+   hide(    
+    setdef(x.rt.offset,nuqta);
+    setdef(y.rt.offset,0);
+    setdef(y.rt.rbearing,0);
+    
+    setdef(x.rt.ratio.2 ,44);
+    setdef(x.rt.ratio.1.top ,11);
+    setdef(y.rt.ratio.1.top ,30);
+    setdef(x.rt.ratio.1.bot ,x.rt.ratio.1.top);
+    setdef(y.rt.ratio.1.bot ,y.rt.ratio.1.top);
+
     tatweel_ := righttatweel*nuqta;
-   
+    if known x.rt.rbearing :
+       x.rt.bot := round(x.rt.rbearing + tatweel_);
+    else:
+      if xpart q > xpart p : 
+          x.rt.bot := round(xpart q + x.rt.offset + tatweel_);
+      else :
+          x.rt.bot := round(xpart p + x.rt.offset + tatweel_);
+      fi
+    fi
+    
+    if tatweel_ > 0 :           
+         y.rt.bot :=  round(y.rt.rbearing - tatweel_ / rightVerticalRatio);
+    else:           
+         y.rt.bot :=  round(y.rt.rbearing if rightVerticalRatioNeg <> 0 : - tatweel_ / rightVerticalRatioNeg fi);
+    fi
 
-    width_ := rightMinWidth + tatweel_;
-    height_ := rightMinHeight + tatweel_ / rightVerticalRatio;
-    rotation_ := rightAngleRot + tatweel_ / rightAngleRotRatio;
-    z_r1 := q + (+width_/(xpart rightFirstRatio/100),-height_/(ypart rightFirstRatio/100));
-    z_r2 := q + (+width_/(xpart rightLastRatio/100),-height_/(ypart rightLastRatio/100));
-    z_r3 := q + (+width_,-height_) ;
-    z_r4 := z_r2 + joinvector;
-    z_r5 :=  z_r1 +joinvector;    
+    z.rt.top = z.rt.bot + rjoinvector;
+    ratio1_ := (100 - x.rt.ratio.2)/100;
+    first_ratio_bot_x_ := x.rt.ratio.1.bot/100;
+    first_ratio_bot_y_ := y.rt.ratio.1.bot /100;
+    first_ratio_top_x_ :=  x.rt.ratio.1.top/100;
+    first_ratio_top_y_ := y.rt.ratio.1.top /100;
+    hight.bot_ :=  ypart q - y.rt.bot;
+    width.bot_ :=  x.rt.bot -xpart q;
+    hight.top_ :=  ypart p - y.rt.top;
+    width.top_ :=  x.rt.top -xpart p;
 
-    z.dirr1 = (q - z_r1) rotated -rotation_;
-    z.dirr2 = (z_r5 - p) rotated -rotation_;
+    z_r1 := p + (width.top_  * first_ratio_top_x_, - hight.top_* first_ratio_top_y_);  
+    z_r2 := (x.rt.top -  width.top_ * ratio1_  , y.rt.top); 
+    z_r3 := (x.rt.bot -  width.bot_ * ratio1_ , y.rt.bot);
+    z_r4 := q + (width.bot_  * first_ratio_bot_x_, - hight.bot_* first_ratio_bot_y_); 
+
+   rightanchor =  z.rt.bot;
   )
-  p {z.dirr2} .. z_r5 .. z_r4  link z_r3 .. z_r2 .. z_r1 .. {z.dirr1} q
+  p  .. controls z_r1 and z_r2 .. % .. tension atleast 1 and atleast 1 ..  
+ z.rt.top  .. controls  ( z.rt.top + (residu,0)) ..  
+(1/2[ z.rt.top, z.rt.bot] + (residu,0)) 	.. controls  ( z.rt.bot + (residu,0)) ..
+ z.rt.bot   .. controls z_r3 and z_r4 .. % {left} .. tension atleast 1 and atleast 1 ..
+q
 enddef;
+secondarydef p setranchor q =
+  hide(z.rt.rbearing=q;)
+  p
+enddef;
+let rightjoinii = rightjoin;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 vardef tpoint(expr p,q,r,s,t) =
   points12 := t[p,q];
   points23 := t[q,r];
@@ -472,56 +497,6 @@ vardef tpoint(expr p,q,r,s,t) =
   t[points123,points234]
 enddef;
 pair z_l[],z_r[];
-secondarydef p rightjoiniii q =
-   hide(
-
-    z.rtat.botdist =  (rightMinWidth,-rightMinHeight);
-    z.rtat.bot4.min = q + z.rtat.botdist;
-    z.rtat.top4.min = z.rtat.bot4.min + joinvector;
-    z.rtat.topdist =  z.rtat.top4.min - p;  
-
-    z.rtat.top5.min = p + (9/10x.rtat.topdist,y.rtat.topdist) + if known x.rtat.top5.adj : z.rtat.top5.adj else : (0,0) fi ;
-    z.rtat.top55.min = 1/5[p + (1/20x.rtat.topdist,y.rtat.topdist),z.rtat.top5.min] + if known x.rtat.top55.adj : z.rtat.top55.adj else : (0,0) fi ;
-
-    z.rtat.top2.min = tpoint(p,z.rtat.top55.min,z.rtat.top5.min,z.rtat.top4.min,1/2);
-    points344 := points34;
-    points2344 := points234;
-    z.rtat.top1.min = tpoint(p,points12,points123,z.rtat.top2.min,1/2);
-    z.rtat.top3.min = tpoint(z.rtat.top2.min,points2344,points344,z.rtat.top4.min,1/2);
-
-
-    z.rtat.bot5.min = q + (9/10x.rtat.botdist,y.rtat.botdist) + if known x.rtat.bot5.adj : z.rtat.bot5.adj else : (0,0) fi ;
-    z.rtat.bot55.min = 1/5[q + (1/20x.rtat.botdist,y.rtat.botdist),z.rtat.bot5.min] + if known x.rtat.bot55.adj : z.rtat.bot55.adj else : (0,0) fi ;
-
-
-    z.rtat.bot2.min = tpoint(q,z.rtat.bot55.min,z.rtat.bot5.min,z.rtat.bot4.min,1/2);
-    points344 := points34;
-    points2344 := points234;
-    z.rtat.bot1.min = tpoint(q,points12,points123,z.rtat.bot2.min,1/2);
-    z.rtat.bot3.min = tpoint(z.rtat.bot2.min,points2344,points344,z.rtat.bot4.min,1/2);   
-
-
-    z.rtat.bot4.dta = nuqta * (7,-7 / rightVerticalRatio);
-
-    z.rtat.bot3.dta = z.rtat.bot4.dta - (nuqta,-1/20nuqta);
-    z.rtat.top3.dta = z.rtat.bot3.min +  z.rtat.bot3.dta + joinvector - z.rtat.top3.min;
-
-    z.rtat.bot2.dta = z.rtat.bot4.dta - (4*nuqta,-5/10nuqta);
-    z.rtat.top2.dta = z.rtat.bot2.min +  z.rtat.bot2.dta + joinvector - z.rtat.top2.min;
-
-    z.rtat.bot1.dta = (1/20nuqta,-1/20nuqta);
-    z.rtat.top1.dta = (1/20nuqta,-1/20nuqta); %z.rtat.bot1.min +  z.rtat.bot1.dta + joinvector - z.rtat.top1.min;
-   
-    
-    %{brdmvi(q - z.rtat.bot55.min,(0,0))}
-      
-  )
-  p {brdmvi(z.rtat.top55.min - p,(0,0))} .. brdmvi(z.rtat.top1.min,z.rtat.top1.dta) .. brdmvi(z.rtat.top2.min,z.rtat.top2.dta) .. brdmvi(z.rtat.top3.min,z.rtat.top3.dta)
-       link brdmvi(z.rtat.bot4.min,z.rtat.bot4.dta) ..
-       brdmvi(z.rtat.bot3.min,z.rtat.bot3.dta) .. brdmvi(z.rtat.bot2.min,z.rtat.bot2.dta) .. brdmvi(z.rtat.bot1.min,z.rtat.bot1.dta)
-    ..   q
-enddef;
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 secondarydef p link q =
 hide(
@@ -741,7 +716,7 @@ enddef;
 newinternal numeric residu, lineheight, left_verticalextratio, left_verticalconst,right_verticalextratio, right_verticalconst, left_tatweeltension, right_tatweeltension,
 penangle, pendirection, penwidth;
 
-pair pendirection, joinvector;
+pair pendirection, joinvector,ljoinvector,rjoinvector;
 
 def rotatepen primary a =
 + (penwidth,0 ) rotated a
@@ -762,7 +737,7 @@ penwidth := 85;
 %penwidth = lineheight++aaaa;
 %penangle := angle (adjacent,lineheight);
 pendirection := (penwidth,0) rotated penangle;
-joinvector := (16,lineheight);
+joinvector := ljoinvector := rjoinvector := (16,lineheight);
 nuqta := 1.4penwidth;
 
 %penwidth = lineheight++(lineheight/2);
@@ -804,6 +779,24 @@ enddef;
 vardef brdmvi(expr def,delta) =
 factor_ := (1 + righttatweel) / (maxRight - minRight);
 def + factor_ * delta
+enddef;
+vardef bldmv(expr def,dmax,dmin) =
+if lefttatweel < 0 :
+  factor_ := lefttatweel  /  minLeft;
+  def + factor_ * dmin
+else:
+   factor_ := lefttatweel / 20;
+   def + factor_ * dmax
+fi
+enddef;
+vardef brdmv(expr def,dmax,dmin) =
+if righttatweel < 0 :
+  factor_ := righttatweel  /  minRight;
+  def + factor_ * dmin
+else:
+   factor_ := righttatweel / 20;
+   def + factor_ * dmax
+fi
 enddef;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 vardef interpolatepoint(expr min,max,factor_) =
