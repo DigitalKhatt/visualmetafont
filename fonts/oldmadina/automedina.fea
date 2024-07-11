@@ -1015,34 +1015,17 @@ lookup joinedsmallletters {
     pos base  /init|medi/ <anchor function joinedsmalllettersbaseanchor> markClass [smallalef.joined hamzaabove.joined] <anchor function defaultopmarkanchor> @beforeheh;		
   } joinedsmallletters.l2;
 
-	lookup joinedsmallletters.l3 {					
-		pos base  /init|medi/ 	<anchor function joinedsmalllettersbaseanchor> markClass [smallalef.joined] <anchor function defaultopmarkanchor> @smallalef;
-	} joinedsmallletters.l3;
-		<anchor function joinedsmalllettersbaseanchor> markClass [hamzaabove.joined] <anchor function defaultopmarkanchor> @hamzaabove;		
-	lookup joinedsmallletters.l3.1 {					
-		pos base  /init|medi/	<anchor function joinedsmalllettersbaseanchor> markClass [hamzaabove.joined] <anchor function defaultopmarkanchor> @hamzaabove;		
-	} joinedsmallletters.l3.1;
+  lookup joinedsmallletters.l3 {					
+    pos base  /init|medi/ 	<anchor function joinedsmalllettersbaseanchor> markClass [smallalef.joined] <anchor function defaultopmarkanchor> @smallalef;
+  } joinedsmallletters.l3;
 
-	lookup joinedsmallletters.l4 {					
-		pos base   /init|medi/ <anchor function joinedsmalllettersbaseanchor> markClass [smallalef.joined hamzaabove.joined] <anchor function defaultopmarkanchor> @beforesad;		
-	} joinedsmallletters.l4;
-		<anchor function joinedsmalllettersbaseanchor> markClass [hamzaabove.joined] <anchor function defaultopmarkanchor> @hamzaabove;		
-	} joinedsmallletters.l3;
-		<anchor function joinedsmalllettersbaseanchor> markClass [hamzaabove.joined] <anchor function defaultopmarkanchor> @hamzaabove;		
-	} joinedsmallletters.l3;
-		<anchor function joinedsmalllettersbaseanchor> markClass [hamzaabove.joined] <anchor function defaultopmarkanchor> @hamzaabove;		
-	} joinedsmallletters.l3;
-		<anchor function joinedsmalllettersbaseanchor> markClass [hamzaabove.joined] <anchor function defaultopmarkanchor> @hamzaabove;		
-	} joinedsmallletters.l3;
-		<anchor function joinedsmalllettersbaseanchor> markClass [hamzaabove.joined] <anchor function defaultopmarkanchor> @hamzaabove;		
-	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l2 /^heh.medi/;
-	pos [smallalef.joined]'lookup joinedsmallletters.l3 [/^waw.fina/ /^qaf.fina/ /^qaf.fina.expa/];
-	pos [hamzaabove.joined]'lookup joinedsmallletters.l3.1 [/^waw.fina/ /^qaf.fina/ /^qaf.fina.expa/];
-	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l4 maddahabove [/^sad.medi/ /^sad.fina/];
-	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l4 [/^sad.medi/ /^sad.fina/];
-	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l5 [tah.medi /^tah.medi[.]added/ tah.medi.beforeyeh /^tah.fina/];
-	
-	} joinedsmallletters.l4;
+  lookup joinedsmallletters.l3.1 {					
+    pos base  /init|medi/	<anchor function joinedsmalllettersbaseanchor> markClass [hamzaabove.joined] <anchor function defaultopmarkanchor> @hamzaabove;		
+  } joinedsmallletters.l3.1;
+
+  lookup joinedsmallletters.l4 {					
+    pos base   /init|medi/ <anchor function joinedsmalllettersbaseanchor> markClass [smallalef.joined hamzaabove.joined] <anchor function defaultopmarkanchor> @beforesad;		
+  } joinedsmallletters.l4;
 
   lookup joinedsmallletters.l5 {					
     pos base   /init|medi/ <anchor function joinedsmalllettersbaseanchor> markClass [smallalef.joined hamzaabove.joined] <anchor function defaultopmarkanchor> @beforetah;		
@@ -1052,12 +1035,13 @@ lookup joinedsmallletters {
 
   pos [smallalef.joined smallhighwaw]'lookup joinedsmallletters.l1 maddahabove hamzaabove.joined;
 
-	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l2 /^heh.medi/;
-	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l3 [/^waw.fina/ /^qaf.fina/ /^qaf.fina.expa/];
-	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l4 maddahabove [/^sad.medi/ /^sad.fina/];
-	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l4 [/^sad.medi/ /^sad.fina/];
-	pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l5 [tah.medi /^tah.medi[.]added/ tah.medi.beforeyeh /^tah.fina/];
-	
+  pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l2 /^heh.medi/;
+  pos [smallalef.joined]'lookup joinedsmallletters.l3 [/^waw.fina/ /^qaf.fina/ /^qaf.fina.expa/];
+  pos [hamzaabove.joined]'lookup joinedsmallletters.l3.1 [/^waw.fina/ /^qaf.fina/ /^qaf.fina.expa/];
+  pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l4 maddahabove [/^sad.medi/ /^sad.fina/];
+  pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l4 [/^sad.medi/ /^sad.fina/];
+  pos [smallalef.joined hamzaabove.joined]'lookup joinedsmallletters.l5 [tah.medi /^tah.medi[.]added/ tah.medi.beforeyeh /^tah.fina/];
+  
 } joinedsmallletters;
 
 lookup hahlig {
@@ -1107,9 +1091,9 @@ lookup othercalt {
 
   sub [alef.isol alef.fina alef.fina.lamalef]'lookup othercalt.l2 hamzaabove'lookup othercalt.l1 [fatha damma sukun]' /^kaf.init/'lookup othercalt.l1;
 
-	lookup othercalt.kaf.l1 {		
-		sub kaf.init by kaf.init.iii;    
-	} othercalt.kaf.l1;
+  sub behshape.init'lookup othercalt.l3 onedotdown kasra alef.fina hamzabelow;
+
+  sub lam.init shadda kasra kaf.medi.beforelam'lookup othercalt.l1;
 
   sub alef.fina hamzaabove sukun kaf.init'lookup othercalt.l1;
 
@@ -1123,9 +1107,9 @@ lookup othercalt {
 
   ######## dal/thal kaf #############
 
-	lookup othercalt.kaf.l1 {		
-		sub kaf.init by kaf.init.iv;    
-	} othercalt.kaf.l1;
+  lookup othercalt.kaf.l1 {		
+    sub kaf.init by kaf.init.iii;    
+  } othercalt.kaf.l1;
 
   sub [dal.isol /^dal.fina/ /^reh.fina/]' [onedotup]' [hamzaabove fatha damma shadda sukun]' ([damma fatha kasra]?)' kaf.init'lookup othercalt.kaf.l1;
 
@@ -1826,15 +1810,15 @@ lookup justification {
       sub callback meem.fina.basmala expfactors 0 0 0 9;				
     } expa.basmala.1;
 
-		lookup expa.kafalternate.prio1.1 {		
-			sub callback kaf.init.beforelam by kaf.init.ii.i startlig expfactors 0 0 0 0;			
-			sub callback kaf.medi.beforelam by kaf.medi.ii startlig expfactors 0 0 0 0;
-			sub callback lam.fina.afterkaf by lam.fina endlig expfactors 0 0 0 0;
-			sub callback lam.medi.afterkaf by lam.medi endlig expfactors 0 0 0 0;
-			sub callback alef.fina.afterkaf by alef.fina endlig expfactors 0 0 0 0;
-			sub callback kaf.init by kaf.init.ii expfactors 0 0 0 0;
-			sub callback kaf.medi by kaf.medi.ii expfactors 0 0 0 0;
-		} expa.kafalternate.prio1.1;
+    lookup expa.basmala.2 {
+      sub callback meem.fina.basmala expfactors 0 0 0 12;		
+    } expa.basmala.2;
+
+    sub behshape.medi.basmala'lookup expa.basmala.1 meem.fina.basmala'lookup expa.basmala.2;		
+
+    sub seen.medi.basmala'lookup expa.basmala.1 meem.fina.basmala'lookup expa.basmala.1;	
+
+  } expa.basmala ;
 
   lookup expa.kafalternate.prio1 {
 
@@ -1842,15 +1826,15 @@ lookup justification {
 
     lookupflag IgnoreMarks;
 
-		lookup expa.kafalternate.prio1.1 {		
-			sub callback kaf.init.beforelam by kaf.init.ii startlig expfactors 0 0 0 0;			
-			sub callback kaf.medi.beforelam by kaf.medi.ii startlig expfactors 0 0 0 0;
-			sub callback lam.fina.afterkaf by lam.fina endlig expfactors 0 0 0 0;
-			sub callback lam.medi.afterkaf by lam.medi endlig expfactors 0 0 0 0;
-			sub callback alef.fina.afterkaf by alef.fina endlig expfactors 0 0 0 0;
-			sub callback kaf.init by kaf.init.ii expfactors 0 0 0 0;
-			sub callback kaf.medi by kaf.medi.ii expfactors 0 0 0 0;
-		} expa.kafalternate.prio1.1;
+    lookup expa.kafalternate.prio1.1 {		
+      sub callback kaf.init.beforelam by kaf.init.ii.i startlig expfactors 0 0 0 0;			
+      sub callback kaf.medi.beforelam by kaf.medi.ii startlig expfactors 0 0 0 0;
+      sub callback lam.fina.afterkaf by lam.fina endlig expfactors 0 0 0 0;
+      sub callback lam.medi.afterkaf by lam.medi endlig expfactors 0 0 0 0;
+      sub callback alef.fina.afterkaf by alef.fina endlig expfactors 0 0 0 0;
+      sub callback kaf.init by kaf.init.ii expfactors 0 0 0 0;
+      sub callback kaf.medi by kaf.medi.ii expfactors 0 0 0 0;
+    } expa.kafalternate.prio1.1;
 
     sub [kaf.init.beforelam kaf.medi.beforelam]'lookup expa.kafalternate.prio1.1 [lam.fina.afterkaf alef.fina.afterkaf lam.medi.afterkaf]'lookup expa.kafalternate.prio1.1;
     sub [kaf.init  kaf.medi ]'lookup expa.kafalternate.prio1.1;
@@ -2766,69 +2750,69 @@ lookup expa.kashida {
       [/init/] /\.medi/ * @mediexpaleft lookup expa.kashida.left.1 @finaexpa3 lookup expa.kashida.right.0.5 ^;		
       [/init/] /\.medi/ * @mediexpaleft lookup expa.kashida.left.1 @finaexpa6  lookup expa.kashida.right.1^;
       # four characters or more (medial kashida)
-	stretch {
-	
-		lookup expa.stretchspace;
-		lookup expa.basmala;	
-		lookup expa.kaf.fina.alternate;
-			
-		lookup expa.alternates.prio1;
-		lookup expa.ligadecomp.prio1;
-		lookup expa.fina_ascenders.prio1;
-		lookup expa.kashida;
-		lookup expa.fina_ascenders.prio1;
-		lookup expa.alternates.prio1;
-		lookup expa.kashida;		
-		lookup expa.ligadecomp.prio2;
-		step{
-			lookup expa.kashida;	
-			lookup expa.alternates.prio2;
-			
-		}	
-		lookup expa.ligadecomp.prio3;
-		step{
-			lookup expa.kashida;	
-			lookup expa.alternates.prio2;
-			
-		}
-		lookup expa.kafalternate.prio1;
-		lookup expa.kafalternate.prio2;
-		step{
-			lookup expa.kashida;
-			lookup expa.kashida;
-			lookup expa.kashida;	
-			lookup expa.alternates.prio2;
-			lookup expa.alternates.prio2;
-			lookup expa.alternates.prio2;			
-		}			
-		lookup expa.stretchspace;			
-	}
-	shrink {	
-		lookup expa.shrink.basmala;
-		lookup shr1.ligatures;		
-		lookup shr1.cursive;		
-		lookup shr1.kaf;
-		lookup expa.shrink;
-		#lookup shr1.kern;
-		lookup shr1.dalcursive;
-		#lookup expa.shrinkspace;
-	}
-			lookup expa.alternates.prio2;
-			lookup expa.alternates.prio2;
-			lookup expa.alternates.prio2;			
-		}			
-		lookup expa.stretchspace;			
-	}
-	shrink {	
-		lookup expa.shrink.basmala;
-		lookup shr1.ligatures;		
-		lookup shr1.cursive;		
-		lookup shr1.kaf;
-		lookup expa.shrink;
-		#lookup shr1.kern;
-		lookup shr1.dalcursive;
-		lookup expa.shrinkspace;
-	}
+      [/init/] /\.medi/ * @mediexpaleft lookup expa.kashida.left.1 @mediexparight3 lookup expa.kashida.right.0.5	/\.medi/ * /[.]fina/ ^;
+      [/init/] /\.medi/ * @mediexpaleft lookup expa.kashida.left.1 @mediexparight6 lookup expa.kashida.right.1	/\.medi/ * /[.]fina/ ^;			
+      #intial expansion if previous not matched
+      #three characters or more (initial kashida)
+      @initexpa lookup expa.kashida.left.1	@mediexparight3 lookup expa.kashida.right.0.5 /\.medi/ * /[.]fina/ ^;
+      @initexpa lookup expa.kashida.left.1	@mediexparight6 lookup expa.kashida.right.1 /\.medi/ * /[.]fina/ ^;
+      #two characters or more
+      [@initexpa] lookup expa.kashida.left.1 @finaexpa3 lookup expa.kashida.right.0.5 ^;			
+      [@initexpa] lookup expa.kashida.left.1  @finaexpa6  lookup expa.kashida.right.1 ^;
+    endpass;
+  endtable;
+  
+
+} expa.kashida;
+
+table(just) {
+  stretch {
+  
+    lookup expa.stretchspace;
+    lookup expa.basmala;	
+    lookup expa.kaf.fina.alternate;
+      
+    lookup expa.alternates.prio1;
+    lookup expa.ligadecomp.prio1;
+    lookup expa.fina_ascenders.prio1;
+    lookup expa.kashida;
+    lookup expa.fina_ascenders.prio1;
+    lookup expa.alternates.prio1;
+    lookup expa.kashida;		
+    lookup expa.ligadecomp.prio2;
+    step{
+      lookup expa.kashida;	
+      lookup expa.alternates.prio2;
+      
+    }	
+    lookup expa.ligadecomp.prio3;
+    step{
+      lookup expa.kashida;	
+      lookup expa.alternates.prio2;
+      
+    }
+    lookup expa.kafalternate.prio1;
+    lookup expa.kafalternate.prio2;
+    step{
+      lookup expa.kashida;
+      lookup expa.kashida;
+      lookup expa.kashida;	
+      lookup expa.alternates.prio2;
+      lookup expa.alternates.prio2;
+      lookup expa.alternates.prio2;			
+    }			
+    lookup expa.stretchspace;			
+  }
+  shrink {	
+    lookup expa.shrink.basmala;
+    lookup shr1.ligatures;		
+    lookup shr1.cursive;		
+    lookup shr1.kaf;
+    lookup expa.shrink;
+    #lookup shr1.kern;
+    lookup shr1.dalcursive;
+    #lookup expa.shrinkspace;
+  }
 
   aftergsub {
     lookup markexpansion;

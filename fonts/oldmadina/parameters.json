@@ -2862,100 +2862,12 @@
                         -1
                     ],
                     "alef.fina.lamalef": [
-                        -41,
-                        69
-                    ],
-                    "dal.fina": [
-                        0,
-                        -72
-                    ],
-                    "feh.isol": [
-                        -13,
-                        138
-                    ],
-                    "hah.isol": [
-                        13,
-                        11
-                    ],
-                    "hamza.isol": [
-                        56,
-                        -41
-                    ],
-                    "heh.fina": [
-                        -43,
-                        152
+                        -86,
+                        0
                     ],
                     "heh.fina.afterlam": [
-                        -261,
-                        32
-                    ],
-                    "heh.fina.allah": [
-                        -58,
-                        -33
-                    ],
-                    "heh.isol": [
-                        -55,
-                        125
-                    ],
-                    "kaf.fina.afterlam": [
-                        -26,
-                        107
-                    ],
-                    "kaf.isol": [
-                        0,
-                        83
-                    ],
-                    "lam.fina": [
-                        -15,
-                        224
-                    ],
-                    "lam.isol": [
-                        -70,
-                        230
-                    ],
-                    "meem.fina": [
-                        -57,
-                        -201
-                    ],
-                    "meem.fina.afterkaf": [
-                        -176,
-                        57
-                    ],
-                    "meem.fina.ii": [
-                        -27,
-                        125
-                    ],
-                    "noon.fina": [
-                        57,
-                        0
-                    ],
-                    "qaf.fina": [
-                        -63,
-                        126
-                    ],
-                    "qaf.fina.expa": [
-                        -51,
-                        90
-                    ],
-                    "qaf.isol": [
-                        -112,
-                        82
-                    ],
-                    "sad.isol": [
-                        28,
-                        -115
-                    ],
-                    "seen.isol": [
-                        127,
-                        0
-                    ],
-                    "waw.fina": [
-                        129,
-                        -14
-                    ],
-                    "yehshape.fina.ii": [
-                        -97,
-                        290
+                        -154,
+                        28
                     ]
                 }
             }
