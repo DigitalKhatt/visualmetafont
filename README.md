@@ -39,17 +39,18 @@ else {
 
  ### Edit the font glyph shapes
 
- Continuing with the Indopak font, we take as example the final Alef form. First you prepare the glyph image that it will be traced to generate the vector representation of the glyph. To do this, you can scan a page of the Mushaf, crop the word containing this form, scale it if necessary (To have the Alef height between 600 and 700 UPEM), and save the image in jpeg format in the fonts/indopak/images folder.
+Continuing with the Indopak font, we take as example the final Alef form. First you prepare the glyph image that it will be traced to generate the vector representation of the glyph. To do this, you can scan a page of the Mushaf, crop the word containing this form, scale it if necessary (To have the Alef height between 600 and 700 UPEM), and save the image in jpeg format in the fonts/indopak/images folder.
 
- <img src="docs/assets/crop_image.gif">
 
- Then you open the image in the glyph window and you determine the value of the baseline height to match the height of the glyph image's baseline. Next you assign the value to the the variable `lineheight` in the file mpguifont.mp. You have to close and reopen the editor to take the new value into account.
+https://github.com/user-attachments/assets/b9382687-8868-4849-ac8f-63818d24329e
 
-<img src="docs/assets/lineheight.gif">
+Then you open the image in the glyph window and you determine the value of the baseline height to match the height of the glyph image's baseline. Next you assign the value to the the variable `lineheight` in the file mpguifont.mp. You have to close and reopen the editor to take the new value into account.
+
+https://github.com/user-attachments/assets/871e2db4-2a8d-49f5-afa1-961d22c968ad
  
- Finally you start editing the glyph shape by tracing manually the image.
+Finally you start editing the glyph shape by tracing manually the image
 
-<img src="docs/assets/alef.fina.gif">
+https://github.com/user-attachments/assets/dacc15ea-ad77-402e-b52c-cfc516244d49
 
 ### Specify the substitution and positioning rules
 
@@ -179,15 +180,15 @@ Note that you should not apply the ligature if there is a hamza or Subscript Ale
 
 Now you have to adjust the positions of the diacritical marks. The tool can scan all the Quran text and generate all the words having collision or very close glyphs.
 
-<img src="docs/assets/savecollision.gif">
+https://github.com/user-attachments/assets/40835d39-c4ec-4784-b458-0dc584ebc70a
 
 The result is generated in the file output/overlaps.txt. You can copy the generated words to the layout window and adjust the marks graphically. Each time you change the position of a glyph the corresponding lookup is displayed in the console.
 
-<img src="docs/assets/markadjust.gif">
+https://github.com/user-attachments/assets/ec2f2c93-1eab-4d14-83eb-855f0adb6e1d
 
 It is possible that changing the position of one glyph affects the others since many rules are applied to sets of glyphs. It is therefore necessary to make other passes to check that there have been no other collisions. If this is the case many alternatives are possible such as increasing the default width of the glyph, split a rule in two or more rules or add a new specific rule for the sequence of glyphs generating the collision. To simplify defining new rules you can select and copy the sequence of glyphs causing the collision and use it in the contextual rules.
 
-<img src="docs/assets/addrule.gif">
+https://github.com/user-attachments/assets/46d7a276-5dc8-4f95-b672-74ab53ad5996
 
 Here the result for the words `يَٰبَنِيٓ يَتْلُونَ وَتَنسَوْنَ تَنتَشِرُونَ أَنۢبِئْهُم`
 
@@ -210,7 +211,7 @@ The first justification technique above uses an extended version of OpenType var
 
 The second and third techniques above use standard OpenType which can be generated from the menu `File->Generate OpenType CFF2 Standard`. The file is saved into output/<`fontname`>.otf.
 
-<img src="docs/assets/savefont.gif">
+https://github.com/user-attachments/assets/59a777fa-1e71-4b2b-803a-a4b8c0b3c10e
 
 To do some cleanup and optimization to the font or to generate a WOFF or WOFF2 format,  you can use the `ttx` command of [fonttools](https://github.com/fonttools/fonttools). 
 
@@ -230,5 +231,5 @@ The [Quran text generator tool](https://github.com/DigitalKhatt/visualmetafont/t
 
 The [Madinah Mushaf Analyzer](https://github.com/DigitalKhatt/medinamushafanalyzer) takes the [vectorized file of the Hafs handwritten Madinah Mushaf](https://dm.qurancomplex.gov.sa/hafsdownload/) of 1441 Hijri (2019) and tries to segment the curves into words, sub words and characters. It is not complete yet but it is already useful to infer certain font characteristics and justification rules. It is used also to generate the glyph raster images to design the glyph outlines of the second version of the new Madinah Mushaf font.
 
- <img src="docs/assets/madinahanalyzer.gif">
+https://github.com/user-attachments/assets/bec409ab-c5c9-4b09-a190-44bade739e62
  
