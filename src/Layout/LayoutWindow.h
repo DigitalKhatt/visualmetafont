@@ -22,6 +22,7 @@
 //#include <QtWidgets>
 #include "qmainwindow.h"
 #include "OtLayout.h"
+#include <qcombobox.h>
 
 class Font;
 class GlyphVis;
@@ -97,13 +98,9 @@ private:
   void editLookup(QString lookupName);
   void saveCollision();
 
-	//QList<LineLayoutInfo> justifyPage(int emScale, int lineWidth, QStringList lines, LineJustification justification, bool newFace = true);
-	//QList<LineLayoutInfo> justifyPage_old(int emScale, int lineWidth, QStringList lines, LineJustification justification, bool newFace = true);
-
-	//LayoutPages pageBreak(int emScale, int lineWidth, bool pageFinishbyaVerse);
 
 	void setQutranText(int type);
-
+  QComboBox* justCombo;
 	QDockWidget* textRun;
 	QDockWidget* lookupTree;
 	QPlainTextEdit * textEdit;
@@ -135,7 +132,7 @@ private:
 	QList<QString> currentQuranText;
 	QList<QString> suraNameByPage;
 
-	bool applyJustification = true;
+	bool applyJustification;
 	bool applyCollisionDetection = false;
   bool applyFontSize = false;
   bool applyForce = false;

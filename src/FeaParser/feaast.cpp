@@ -503,7 +503,7 @@ namespace feayy {
           std::string named = name.toStdString();
 
           value->lookupNames = { named };
-          lastautolookup = new LookupDefinition(named, stmts);
+          lastautolookup = new LookupDefinition(named, stmts, context.getNbLookup());
           context.lookups[named] = lastautolookup;
         }
       }
@@ -585,7 +585,7 @@ namespace feayy {
       auto lookupName = name.toStdString();
 
       markedGlyphSetRegExp.lookupNames = { lookupName };
-      auto lookup = new LookupDefinition(lookupName, stmts);
+      auto lookup = new LookupDefinition(lookupName, stmts, context.getNbLookup());
       context.lookups[lookupName] = lookup;
 
     }

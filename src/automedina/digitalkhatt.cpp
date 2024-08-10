@@ -6,7 +6,6 @@
 #include "GlyphVis.h"
 #include <algorithm>
 #include "qregularexpression.h"
-#include "defaultmarkpositions.h"
 #include "metafont.h"
 #include "qdebug.h"
 
@@ -156,6 +155,11 @@ void digitalkhatt::generateGlyphs() {
   addFake("tah.onedotup.isol", 0x0638, m_layout->glyphNamePerCode.lastKey() + 1);
   addFake("ain.onedotup.isol", 0x063A, m_layout->glyphNamePerCode.lastKey() + 1);
   addFake("alef.wasla.isol", 0x0671, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("noon.onedotup.isol", 0x0646, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("feh.onedotup.isol", 0x0641, m_layout->glyphNamePerCode.lastKey() + 1);
+  addFake("qaf.twodotsup.isol", 0x0642, m_layout->glyphNamePerCode.lastKey() + 1);
+
+
 
   m_layout->glyphs = glyphs;
 
@@ -418,119 +422,149 @@ digitalkhatt::digitalkhatt(OtLayout* layout, MP mp, bool extended) :Automedina{ 
 
   generateGlyphs();
 
-  //setAnchorCalcFunctions();
+  //Expandable glyphs
+  //Alef
+  layout->expandableGlyphs["alef.isol"] = { 20,-3,0,0 };
+  layout->expandableGlyphs["alef.fina"] = { 20.0,-2,20,-0.5 };
 
 
-  layout->expandableGlyphs["alef.isol"] = { 1,-3,0,0 };
-  layout->expandableGlyphs["behshape.isol.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["behshape.fina.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["kaf.fina.expa"] = { 6,-1,6,-1 };
-  layout->expandableGlyphs["kaf.fina.afterlam.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["noon.isol.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["noon.fina.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["noon.fina.expa.afterbeh"] = { 5,0,0,0 };
-  layout->expandableGlyphs["alefmaksura.isol.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["yehshape.isol.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["yehshape.fina.afterbeh.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["yehshape.fina.ii.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["yehshape.fina.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["sad.isol.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["sad.fina.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["seen.isol.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["seen.fina.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["feh.isol.expa"] = { 8,0,0,0 };
-  layout->expandableGlyphs["feh.fina.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["qaf.isol.expa"] = { 5,0,0,0 };
-  layout->expandableGlyphs["qaf.fina.expa"] = { 10,0,0,0 };
+  //Behshape
+  layout->expandableGlyphs["behshape.isol"] = { 2,-2,0,0 };
+  layout->expandableGlyphs["behshape.isol.expa"] = { 20,0,0,0 };
+  layout->expandableGlyphs["behshape.init"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["behshape.init.beforenoon"] = { 20,-1,0,0 };
+  layout->expandableGlyphs["behshape.medi"] = { 20,-1,20,-1 };
+  layout->expandableGlyphs["behshape.medi.afterlam"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["behshape.medi.beforeseen"] = { 20,-1,20,-1 };
+  layout->expandableGlyphs["behshape.medi.beforereh"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["behshape.medi.beforenoon"] = { 20,-0.5,20,-0.5 };
+  layout->expandableGlyphs["behshape.medi.expa"] = { 20,-1,20,-1 };
+  layout->expandableGlyphs["behshape.medi.beforeyeh"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["behshape.fina"] = { 0.0,0.0,20,-0.5 };
+  layout->expandableGlyphs["behshape.fina.expa"] = { 20,0,20,-0.5 };
 
-  layout->expandableGlyphs["behshape.init"] = { 6,-1,0,0 };
-  layout->expandableGlyphs["hah.init"] = { 5,-0.5,0,0 };
-  layout->expandableGlyphs["seen.init"] = { 6.3,-0.7,0,0 };
-  layout->expandableGlyphs["sad.init"] = { 6.5,-0.5,0,0 };
-  layout->expandableGlyphs["tah.init"] = { 6.5,-0.5,0,0 };
-  layout->expandableGlyphs["ain.init"] = { 6.3,-0.7,0,0 };
-  layout->expandableGlyphs["fehshape.init"] = { 6,-1,0,0 };
-  layout->expandableGlyphs["kaf.init"] = { 6,-1.5,0,0 };
-  layout->expandableGlyphs["kaf.init.ii"] = { 6,-1.5,6,-1 };
-  layout->expandableGlyphs["lam.init"] = { 6,-1,0,0 };
-  layout->expandableGlyphs["meem.init"] = { 6.3,-0.7,0,0 };
-  layout->expandableGlyphs["heh.init"] = { 6.5,-0.5,0,0 };
+  //Seen
+  layout->expandableGlyphs["seen.isol.expa"] = { 20,0,0,0 };
+  layout->expandableGlyphs["seen.init"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["seen.medi"] = { 20,-0.5,20,-0.5 };
+  layout->expandableGlyphs["seen.medi.beforeyeh"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["seen.medi.beforereh"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["seen.fina"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["seen.fina.expa"] = { 20,0,0,0 };
 
-  layout->expandableGlyphs["heh.medi"] = { 6.7,-0.3,0,0 };
-  layout->expandableGlyphs["behshape.medi"] = { 12,-0.5,12,-0.5 };
-  layout->expandableGlyphs["behshape.medi.beforeseen"] = { 6,-1,6,-1 };
-  layout->expandableGlyphs["behshape.medi.beforereh"] = { 0,0,6.3,-0.7 };
-  layout->expandableGlyphs["behshape.medi.beforenoon"] = { 6.3,-0.7,6.3,-0.7 };
 
-  layout->expandableGlyphs["hah.medi"] = { 5.7,-1.3,6,-1 };
-  layout->expandableGlyphs["hah.medi.afterbeh"] = { 6,-1,0,0 };
-  layout->expandableGlyphs["hah.medi.lam_hah"] = { 6,-1,0,0 };
-  layout->expandableGlyphs["hah.medi.aftermeem"] = { 6,-1,0,0 };
-  layout->expandableGlyphs["hah.medi.afterfeh"] = { 6,-1,0,0 };
-  layout->expandableGlyphs["hah.medi.ii"] = { 0,0,6.5,-0.5 };
-  layout->expandableGlyphs["seen.medi"] = { 6.5,-0.5,6.5,-0.5 };
-  layout->expandableGlyphs["seen.medi.beforereh"] = { 0,0,6.5,-0.5 };
-  layout->expandableGlyphs["seen.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
-  layout->expandableGlyphs["sad.medi"] = { 5,-0.5,5,-0.5 };
-  layout->expandableGlyphs["tah.medi"] = { 6,-0.5,6,-0.5 };
-  layout->expandableGlyphs["ain.medi"] = { 6.5,-0.5,6.5,-0.5 };
-  layout->expandableGlyphs["ain.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
-  layout->expandableGlyphs["fehshape.medi"] = { 6.5,-0.5,6.5,-0.5 };
-  layout->expandableGlyphs["fehshape.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
-
-  layout->expandableGlyphs["kaf.medi"] = { 6,-1.5,6,-1.5 };
-  layout->expandableGlyphs["kaf.medi.beforemeem"] = { 0,0,6,0 };
-  layout->expandableGlyphs["kaf.medi.beforeyeh"] = { 0,0,6,-1 };
-  layout->expandableGlyphs["kaf.medi.beforelam"] = { 0,0,6,-1 };    
-  layout->expandableGlyphs["kaf.medi.ii"] = { 20,-0.5,20,-0.5 };
+  //Lam
+  layout->expandableGlyphs["lam.init"] = { 20,-0.5,0,0 };
   layout->expandableGlyphs["lam.medi"] = { 20,-0.5,20,-0.5 };
-  layout->expandableGlyphs["lam.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
-  layout->expandableGlyphs["lam.medi.beforeheh"] = { 0,0,6.5,-0.5 };
-  layout->expandableGlyphs["lam.medi.afterkaf"] = { 6,-1,0,0 };
-  layout->expandableGlyphs["meem.medi"] = { 6.5,-0.5,6.5,-0.5 };
-  layout->expandableGlyphs["meem.medi.afterhah"] = { 6.3,-0.7,0,0 };
-  layout->expandableGlyphs["meem.medi.beforeyeh"] = { 0,0,6.5,-0.5 };
-
-
-
-
-
-  layout->expandableGlyphs["alef.fina"] = { 0.0,0.0,20,-0.5 };
+  layout->expandableGlyphs["lam.medi.afterkaf"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["lam.medi.beforeyeh"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["lam.medi.beforeheh"] = { 0,0,20,-0.5 };
   layout->expandableGlyphs["lam.medi.laf"] = { 0.0,0.0,20,-0.5 };
-  layout->expandableGlyphs["dal.fina"] = { 0.0,0.0,6.5,-0.5 };
-  layout->expandableGlyphs["heh.fina"] = { 0.0,0.0,6.5,-0.5 };
-  layout->expandableGlyphs["hah.fina"] = { 0.0,0.0,6,-0.5 };
-  layout->expandableGlyphs["seen.fina"] = { 0,0,6.5,-0.5 };
-  layout->expandableGlyphs["feh.fina"] = { 0.0,0.0,6.5,-0.5 };
-  layout->expandableGlyphs["meem.fina"] = { 0.0,0.0,6.3,-0.7 };
-  layout->expandableGlyphs["meem.fina.ii"] = { 0.0,0.0,6.3,-0.7 };
-  layout->expandableGlyphs["behshape.fina"] = { 0.0,0.0,6.5,-0.5 };
-  layout->expandableGlyphs["qaf.fina"] = { 0.0,0.0,5,-0.5 };
   layout->expandableGlyphs["lam.fina"] = { 0.0,0.0,20,-0.5 };
-  layout->expandableGlyphs["kaf.fina"] = { 0.0,0.0,6,-1 };
-  layout->expandableGlyphs["noon.fina"] = { 0.0,0.0,6.5,-0.5 };
-  layout->expandableGlyphs["noon.fina.basmala"] = { 10.0,0.0,0,-0.5 };
-  layout->expandableGlyphs["reh.fina"] = { 0.0,0.0,20,-0.5 }; 
+
+  //Meem
+  layout->expandableGlyphs["meem.init"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["meem.medi"] = { 20,-0.5,20,-0.5 };
+  layout->expandableGlyphs["meem.medi.afterhah"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["meem.medi.beforeyeh"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["meem.fina"] = { 0.0,0.0,20,-0.5 };
+  layout->expandableGlyphs["meem.fina.ii"] = { 0.0,0.0,20,-0.5 };
+  layout->expandableGlyphs["meem.fina.basmala"] = { 0,0,20,-0.5 };
+
+  //Noon
+  layout->expandableGlyphs["noon.isol.expa"] = { 20,0,0,0 };
+  layout->expandableGlyphs["noon.fina"] = { 0.0,0.0,20,-0.5 };
+  layout->expandableGlyphs["noon.fina.expa"] = { 20,0,20,-0.5 };
+  layout->expandableGlyphs["noon.fina.expa.afterbeh"] = { 20,0,0,0 };
+  layout->expandableGlyphs["noon.fina.basmala"] = { 20,0,20,-0.5 };
+
+  //Qaf
+  layout->expandableGlyphs["qaf.isol.expa"] = { 20,0,0,0 };
+  layout->expandableGlyphs["qaf.fina.expa"] = { 20,0,0,0 };
+
+  //Feh
+  layout->expandableGlyphs["feh.isol"] = { 7,-1,0,0 };
+  layout->expandableGlyphs["feh.isol.expa"] = { 20,0,0,0 };
+  layout->expandableGlyphs["fehshape.init"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["fehshape.medi"] = { 20,-0.5,20,-0.5 };
+  layout->expandableGlyphs["fehshape.medi.beforeyeh"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["feh.fina"] = { 20,-0.5,20,-0.5 };
+  layout->expandableGlyphs["feh.fina.expa"] = { 20,0,0,0 };
+
+  //Hah
+  layout->expandableGlyphs["hah.init"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["hah.medi"] = { 20,-0.5,20,-0.5 };
+  layout->expandableGlyphs["hah.medi.ii"] = { 20,-1,20,-0.5 };
+  layout->expandableGlyphs["hah.medi.afterbeh"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["hah.medi.lam_hah"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["hah.medi.aftermeem"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["hah.medi.afterfeh"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["hah.medi.beforeyeh"] = { 0,0,20,-1 };
+  layout->expandableGlyphs["hah.fina"] = { 0.0,0.0,20,-0.5 };
+
+  //Dal 
+  layout->expandableGlyphs["dal.fina"] = { 0.0,0.0,20,-0.5 };
+
+  //Reh 
+  layout->expandableGlyphs["reh.fina"] = { 0.0,0.0,20,-0.5 };
+
+  //Heh
+  layout->expandableGlyphs["heh.init"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["heh.medi"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["heh.medi.beforeyeh"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["heh.fina"] = { 0.0,0.0,20,-0.5 };
+
+  //Sad
+
+  layout->expandableGlyphs["sad.init"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["sad.medi"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["sad.isol.expa"] = { 20,0,0,0 };
+  layout->expandableGlyphs["sad.fina.expa"] = { 20,0,0,0 };
+
+  //Ain
+
+  layout->expandableGlyphs["ain.init"] = { 20,-0.5,0,0 };
+  layout->expandableGlyphs["ain.medi"] = { 20,-0.5,20,-0.5 };
+  layout->expandableGlyphs["ain.medi.beforeyeh"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["ain.fina"] = { 0,0,20,-0.5 };
+
+  //Tah
+  layout->expandableGlyphs["tah.init"] = { 20,-0.4,0,0 };
+  layout->expandableGlyphs["tah.medi"] = { 20,-0.4,20,-0.5 };
+  layout->expandableGlyphs["tah.medi.beforeyeh"] = { 0,0,20,-0.4 };
+
+  //Yeh
+  layout->expandableGlyphs["alefmaksura.isol"] = { 2,-2,0,0 };
+  layout->expandableGlyphs["yehshape.isol"] = { 2,-2,0,0 };
+  layout->expandableGlyphs["alefmaksura.isol.expa"] = { 20,0,0,0 };
+  layout->expandableGlyphs["yehshape.isol.expa"] = { 20,0,0,0 };
+  layout->expandableGlyphs["yehshape.fina.afterbeh.expa"] = { 20,0,0,0 };
+  layout->expandableGlyphs["yehshape.fina.ii.expa"] = { 20,0,0,0 };
+  layout->expandableGlyphs["yehshape.fina.expa"] = { 20,0,0,0 };
+
+  //Kaf
+  layout->expandableGlyphs["kaf.isol"] = { 20,-2,0,0 };
+  layout->expandableGlyphs["kaf.init"] = { 20,-2,0,0 };
+  layout->expandableGlyphs["kaf.init.ascent"] = { 20,-2,0,0 };
+  layout->expandableGlyphs["kaf.init.ii"] = { 20,-2.5,0,0 };
+  layout->expandableGlyphs["kaf.medi"] = { 20,-1,20,-1 };
+  layout->expandableGlyphs["kaf.medi.beforelam"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["kaf.medi.beforemeem"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["kaf.medi.beforeyeh"] = { 0,0,20,-0.5 };
+  layout->expandableGlyphs["kaf.medi.ii"] = { 20,-2,20,-0.5 };
+  layout->expandableGlyphs["kaf.fina"] = { 0.0,0.0,20,-0.5 };
+  layout->expandableGlyphs["kaf.fina.expa"] = { 20,0,20,-0.5 };
+  layout->expandableGlyphs["kaf.fina.afterlam.expa"] = { 20,0,0,0 };
 
 
-  layout->expandableGlyphs["fatha"] = { 12,-1.0,0,0 };
-  layout->expandableGlyphs["kasra"] = { 12,-1.0,0,0 };
-  layout->expandableGlyphs["space"] = { 6.0,-2,0.0,0.0 };
-
-  //kashida_ii
-
-  layout->expandableGlyphs["behshape.medi.iii"] = { 12,-1,12,-1 };
-  layout->expandableGlyphs["behshape.medi.expa"] = { 8,-1,0,0 };        
+  //Marks
+  layout->expandableGlyphs["fatha"] = { 10,-1.5,0,0 };
+  layout->expandableGlyphs["kasra"] = layout->expandableGlyphs["fatha"];
+  layout->expandableGlyphs["space"] = { 20,-0.8,0.0,0.0 };
 
   //Basmala
   layout->expandableGlyphs["behshape.medi.basmala"] = { 20,-1,0,0 };
   layout->expandableGlyphs["seen.medi.basmala"] = { 20,-1,0,0 };
-  layout->expandableGlyphs["meem.fina.basmala"] = { 0,0,20,-1 };
-
-
-
-
-
 
 
 }
@@ -549,7 +583,10 @@ CalcAnchor  digitalkhatt::getanchorCalcFunctions(QString functionName, Subtable*
     return Defaullowmarkanchor(*this, *(MarkBaseSubtable*)(subtable));
   }
   else if (functionName == "defaultwaqfmarkabovemark") {
-    return Defaulwaqftmarkabovemark(*this, *(MarkBaseSubtable*)(subtable));
+    return Defaultwaqfmarkabovemark(*this, *(MarkBaseSubtable*)(subtable));
+  }
+  else if (functionName == "defaultmarkbelowwaqfmark") {
+    return Defaultmarkbelowwaqfmark(*this, *(MarkBaseSubtable*)(subtable));
   }
   else if (functionName == "defaultbaseanchorforlow") {
     return Defaulbaseanchorforlow(*this, *(MarkBaseSubtable*)(subtable));
@@ -562,9 +599,6 @@ CalcAnchor  digitalkhatt::getanchorCalcFunctions(QString functionName, Subtable*
     return Joinedsmalllettersbaseanchor(*this, *(MarkBaseSubtable*)(subtable));
   }
 }
-
-
-
 
 Lookup* digitalkhatt::getLookup(QString lookupName) {
 
@@ -645,7 +679,7 @@ Lookup* digitalkhatt::rehwawcursivecpp() {
   public:
     CustomCursiveSubtable(Lookup* lookup) : CursiveSubtable(lookup) {}
 
-    virtual QPoint calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint defaultEntry) {      
+    virtual QPoint calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint defaultEntry) {
 
       QPoint entry = QPoint(extendedglyph->width, 0);
 
@@ -833,30 +867,38 @@ Lookup* digitalkhatt::defaultmarkposition() {
   newsubtable->classes["idgham"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
 
 
-  //default
+  //topmarks
   newsubtable = new MarkBaseSubtable(lookup);
   lookup->subtables.append(newsubtable);
-
-  newsubtable->name = "defaultmarkposition";
+  newsubtable->name = "topmarks";
   newsubtable->base = { "bases" };
   newsubtable->classes["topmarks"].mark = topmarks;
   newsubtable->classes["topmarks"].basefunction = Defaulbaseanchorfortop(*this, *newsubtable);
   newsubtable->classes["topmarks"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
 
-
+  //lowmarks
+  newsubtable = new MarkBaseSubtable(lookup);
+  lookup->subtables.append(newsubtable);
+  newsubtable->name = "lowmarks";
+  newsubtable->base = { "bases" };
   newsubtable->classes["lowmarks"].mark = lowmarks;
   newsubtable->classes["lowmarks"].basefunction = Defaulbaseanchorforlow(*this, *newsubtable);
   newsubtable->classes["lowmarks"].markfunction = Defaullowmarkanchor(*this, *newsubtable);
 
-  /*
-        newsubtable->classes["shadda"].mark = { "shadda" };
-        newsubtable->classes["shadda"].basefunction = new Defaulbaseanchorforsmallalef(*this, *newsubtable);
-        newsubtable->classes["shadda"].markfunction = new Defaultopmarkanchor(*this, *newsubtable);*/
-
+  //smallletters
+  newsubtable = new MarkBaseSubtable(lookup);
+  lookup->subtables.append(newsubtable);
+  newsubtable->name = "smallletters";
+  newsubtable->base = { "bases" };
   newsubtable->classes["smallletters"].mark = { "smallalef.joined","smallhighwaw" };
   newsubtable->classes["smallletters"].basefunction = Defaulbaseanchorforsmallalef(*this, *newsubtable);
   newsubtable->classes["smallletters"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
 
+  //joinedmarks
+  newsubtable = new MarkBaseSubtable(lookup);
+  lookup->subtables.append(newsubtable);
+  newsubtable->name = "joinedmarks";
+  newsubtable->base = { "bases" };
   newsubtable->classes["hamzaabove"].mark = { "hamzaabove.joined" };
   newsubtable->classes["hamzaabove"].basefunction = Defaulbaseanchorforsmallalef(*this, *newsubtable);
   newsubtable->classes["hamzaabove"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
@@ -1061,7 +1103,7 @@ Lookup* digitalkhatt::defaultdotmarks() {
         };*/
 
   newsubtable->name = "onedotup";
-  newsubtable->base = { "^behshape|^hah|^fehshape|^dal|^reh|^sad|^tah|^ain" };
+  newsubtable->base = { "^behshape|^hah|^fehshape|^dal|^reh|^sad|^tah|^ain|^noon|^feh[.]" };
   newsubtable->classes["onedotup"].mark = { "onedotup" };
   newsubtable->classes["onedotup"].basefunction = Defaulbaseanchorfortopdots(*this, *newsubtable);
   newsubtable->classes["onedotup"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
@@ -1069,7 +1111,7 @@ Lookup* digitalkhatt::defaultdotmarks() {
   newsubtable = new MarkBaseSubtable(lookup);
   lookup->subtables.append(newsubtable);
   newsubtable->name = "twodotsup";
-  newsubtable->base = { "^behshape|^fehshape|^heh" };
+  newsubtable->base = { "^behshape|^fehshape|^heh|^qaf" };
   newsubtable->classes["twodotsup"].mark = { "twodotsup" };
   newsubtable->classes["twodotsup"].basefunction = Defaulbaseanchorfortopdots(*this, *newsubtable);
   newsubtable->classes["twodotsup"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
@@ -1133,7 +1175,7 @@ Lookup* digitalkhatt::defaultmkmk() {
   lookup->subtables.append(subtable);
 
   subtable->name = "defaultmkmkmeemiqlab";
-  subtable->base = { "fatha","damma","onedotup"};
+  subtable->base = { "fatha","damma","onedotup" };
 
   subtable->classes["meemiqlab"].mark = { "meemiqlab" };
   subtable->classes["meemiqlab"].basefunction = Defaultmarkabovemark(*this, *subtable);
@@ -1159,19 +1201,7 @@ Lookup* digitalkhatt::defaultmkmk() {
   subtable->classes["waqf.qaf"].basefunction = Defaultmarkabovemark(*this, *subtable);
   subtable->classes["waqf.qaf"].markfunction = Defaultopmarkanchor(*this, *subtable);
 
-
-  // hamzaabove.joined
-  subtable = new MarkBaseSubtable(lookup);
-  lookup->subtables.append(subtable);
-
-  subtable->name = "hamzaabovejoined";
-  subtable->base = { "maddahabove" };
-
-  subtable->classes["hamzaabove.joined"].mark = { "hamzaabove.joined" };
-  subtable->classes["hamzaabove.joined"].basefunction = nullptr; //;new Defaultmarkabovemark(*this, *smallhighseen);
-  subtable->classes["hamzaabove.joined"].markfunction = nullptr; // new Defaultopmarkanchor(*this, *smallhighseen);
-
-
+  /*
   m_layout->addLookup(lookup);
 
   // hamzaabove.joined
@@ -1191,7 +1221,7 @@ Lookup* digitalkhatt::defaultmkmk() {
 
   subtable->classes["smallalef.joined"].mark = { "smallalef.joined" };
   //subtable->classes["smallalef.joined"].baseanchors = { { "smallalef.joined", 1 } }
-  subtable->classes["smallalef.joined"].markanchors = { { "smallalef.joined", QPoint(200,0) } };
+  subtable->classes["smallalef.joined"].markanchors = { { "smallalef.joined", QPoint(200,0) } };*/
 
   return lookup;
 
@@ -2378,27 +2408,15 @@ Lookup* digitalkhatt::populatecvxx() {
 
 Lookup* digitalkhatt::glyphalternates() {
 
+  /*
   if (m_layout->isExtended()) {
     return nullptr;
-  }
+  }*/
 
-  int cvNumber = 1;
-
-  //cv01
-  Lookup* alternate = new Lookup(m_layout);
-  alternate->name = QString("cv%1").arg(cvNumber++, 2, 10, QLatin1Char('0'));
-  alternate->feature = alternate->name;
-  alternate->type = Lookup::alternate;
-
-  m_layout->addLookup(alternate);
-
-  AlternateSubtable* alternateSubtable = new AlternateSubtable(alternate);
-  alternate->subtables.append(alternateSubtable);
-  alternate->name = alternate->name;
-
-
+  bool isExtended = m_layout->isExtended();
 
   unordered_map<QString, QString> mappings;
+
 
   mappings.insert({ "noon.isol","noon.isol.expa" });
   mappings.insert({ "behshape.isol","behshape.isol.expa" });
@@ -2406,16 +2424,195 @@ Lookup* digitalkhatt::glyphalternates() {
   mappings.insert({ "qaf.isol","qaf.isol.expa" });
   mappings.insert({ "seen.isol","seen.isol.expa" });
   mappings.insert({ "sad.isol","sad.isol.expa" });
-
+  mappings.insert({ "yehshape.isol","yehshape.isol.expa" });
+  mappings.insert({ "alefmaksura.isol","alefmaksura.isol.expa" });
 
   mappings.insert({ "noon.fina","noon.fina.expa" });
+  mappings.insert({ "noon.fina.afterbeh","noon.fina.expa.afterbeh" });
   mappings.insert({ "kaf.fina","kaf.fina.expa" });
+  mappings.insert({ "kaf.fina.afterlam","kaf.fina.afterlam.expa" });
   mappings.insert({ "behshape.fina","behshape.fina.expa" });
   mappings.insert({ "feh.fina","feh.fina.expa" });
   mappings.insert({ "qaf.fina","qaf.fina.expa" });
   mappings.insert({ "seen.fina","seen.fina.expa" });
   mappings.insert({ "sad.fina","sad.fina.expa" });
   mappings.insert({ "alef.fina","alef.fina" });
+  mappings.insert({ "yehshape.fina","yehshape.fina.expa" });
+  mappings.insert({ "yehshape.fina.ii","yehshape.fina.ii.expa" });
+
+  struct AltFeature {
+    struct Subst {
+      QString glyph;
+      QString substitute;
+    };
+    QString featureName;
+    std::vector<Subst> alternates;
+  };
+
+  std::vector<AltFeature> altfeatures;
+
+  altfeatures.push_back({ "cv10",{{"behshape.medi","behshape.medi.expa"}} });
+  altfeatures.push_back({ "cv11",{{"heh.init.beforemeem","heh.init"},{"meem.fina.afterheh","meem.fina"}} });
+  altfeatures.push_back({ "cv12",{{"behshape.init.beforehah","behshape.init"},{"hah.medi.afterbeh","hah.medi" }, {"hah.medi.afterbeh.beforeyeh","hah.medi.beforeyeh"}} });
+  altfeatures.push_back({ "cv13",{{"meem.init.beforehah","meem.init" },{"hah.medi.aftermeem","hah.medi" }} });
+  altfeatures.push_back({ "cv14",{{"fehshape.init.beforehah","fehshape.init" },{"hah.medi.afterfeh","hah.medi" }} });
+  altfeatures.push_back({ "cv15",{{"lam.init.lam_hah","lam.init" },{"hah.medi.lam_hah","hah.medi" }} });
+  altfeatures.push_back({ "cv16",{{"hah.init.ii","hah.init" },{"hah.medi.ii","hah.medi" },{"ain.init.finjani","ain.init"} } });
+  altfeatures.push_back({ "cv17",{{ "seen.init.beforereh","seen.init" },{"seen.medi.beforereh","seen.medi"}, {"reh.fina.afterseen","reh.fina"},{"sad.medi.beforereh","sad.medi"},{"sad.init.beforereh","sad.init"}} });
+  altfeatures.push_back({ "cv18",{{ "hah.init.beforemeem","hah.init" },{"meem.medi.afterhah","meem.medi" }, } });
+
+  for (auto& feature : altfeatures) {
+    Lookup* alternate = new Lookup(m_layout);
+    alternate->name = feature.featureName;
+    alternate->feature = alternate->name;
+    alternate->type = Lookup::alternate;
+
+    m_layout->addLookup(alternate);
+
+    AlternateSubtableWithTatweel* alternateSubtable = new AlternateSubtableWithTatweel(alternate);
+    alternate->subtables.append(alternateSubtable);
+    alternate->name = alternate->name;
+
+    for (auto mapping : feature.alternates) {
+
+      QVector<ExtendedGlyph> alternates;
+      int code = m_layout->glyphCodePerName[mapping.glyph];
+      int substcode = m_layout->glyphCodePerName[mapping.substitute];
+      ValueLimits valueLimits;
+
+      if (m_layout->expandableGlyphs.contains(mapping.glyph)) {
+        valueLimits = m_layout->expandableGlyphs[mapping.glyph];
+      }
+
+      if (code == 0 || substcode == 0) {
+        throw new std::runtime_error("Glyph name invalid");
+      }
+      alternates.append({ substcode,0,0 });
+      alternateSubtable->alternates[code] = alternates;
+
+      for (double leftTatweel = 0.5; leftTatweel <= std::min(valueLimits.maxLeft, 6.0F); leftTatweel += 0.5) {
+        GlyphParameters parameters;
+        parameters.lefttatweel = leftTatweel;
+        parameters.righttatweel = 0.0;
+        GlyphVis* newglyph = m_layout->getAlternate(code, parameters, !isExtended, !isExtended);
+        if (newglyph != nullptr) {
+          QVector<ExtendedGlyph> alternates2;
+          alternates2.append({ substcode,leftTatweel,0 });
+          alternateSubtable->alternates[newglyph->charcode] = alternates2;
+        }
+      }
+    }
+  }
+
+
+
+  //decomp
+  unordered_map<QString, QString> mappingsdecomp;
+
+  mappingsdecomp.insert({ "behshape.medi","behshape.medi.expa" });
+
+  mappingsdecomp.insert({ "heh.init.beforemeem","heh.init" });
+  mappingsdecomp.insert({ "meem.fina.afterheh","meem.fina" });
+
+  mappingsdecomp.insert({ "behshape.init.beforehah","behshape.init" });
+  mappingsdecomp.insert({ "hah.medi.afterbeh","hah.medi" });
+
+  mappingsdecomp.insert({ "meem.init.beforehah","meem.init" });
+  mappingsdecomp.insert({ "hah.medi.aftermeem","hah.medi" });
+
+  mappingsdecomp.insert({ "fehshape.init.beforehah","fehshape.init" });
+  mappingsdecomp.insert({ "hah.medi.afterfeh","hah.medi" });
+  mappingsdecomp.insert({ "hah.medi.afterbeh.beforeyeh","hah.medi" });
+
+
+
+  mappingsdecomp.insert({ "lam.init.lam_hah","lam.init" });
+  mappingsdecomp.insert({ "hah.medi.lam_hah","hah.medi" });
+
+  mappingsdecomp.insert({ "hah.init.ii","hah.init" });
+  mappingsdecomp.insert({ "hah.medi.ii","hah.medi" });
+
+  mappingsdecomp.insert({ "seen.init.beforereh","seen.init" });
+  mappingsdecomp.insert({ "reh.fina.afterseen","reh.fina" });
+
+  mappingsdecomp.insert({ "hah.init.beforemeem","hah.init" });
+  mappingsdecomp.insert({ "meem.medi.afterhah","meem.medi" });
+  mappingsdecomp.insert({ "sad.medi.beforereh","sad.medi" });
+  mappingsdecomp.insert({ "sad.init.beforereh","sad.init" });
+
+  mappingsdecomp.insert({ "ain.init.finjani","ain.init" });
+
+  //kafs
+  mappingsdecomp.insert({ "kaf.init.beforemeem","kaf.init.ii" });
+  mappingsdecomp.insert({ "kaf.init.beforelam","kaf.init.ii" });
+  mappingsdecomp.insert({ "kaf.medi.beforelam","kaf.medi.ii" });
+  mappingsdecomp.insert({ "lam.fina.afterkaf","lam.fina" });
+  mappingsdecomp.insert({ "lam.medi.afterkaf","lam.medi" });
+  mappingsdecomp.insert({ "alef.fina.afterkaf","alef.fina" });
+  mappingsdecomp.insert({ "kaf.init","kaf.init.ii" });
+  mappingsdecomp.insert({ "kaf.medi","kaf.medi.ii" });
+  mappingsdecomp.insert({ "kaf.medi.beforemeem","kaf.medi.ii" });
+  mappingsdecomp.insert({ "meem.fina.afterkaf","meem.fina" });
+
+  Lookup* alternate = new Lookup(m_layout);
+  alternate->name = "cv03";
+  alternate->feature = alternate->name;
+  alternate->type = Lookup::alternate;
+
+  m_layout->addLookup(alternate);
+
+  AlternateSubtableWithTatweel* alternateSubtable = new AlternateSubtableWithTatweel(alternate);
+  alternate->subtables.append(alternateSubtable);
+  alternate->name = alternate->name;
+
+  for (auto mapping : mappingsdecomp) {
+
+    QVector<ExtendedGlyph> alternates;
+    int code = m_layout->glyphCodePerName[mapping.first];
+    int substcode = m_layout->glyphCodePerName[mapping.second];
+
+    ValueLimits valueLimits;
+
+    if (m_layout->expandableGlyphs.contains(mapping.first)) {
+      valueLimits = m_layout->expandableGlyphs[mapping.first];
+    }    
+
+    if (code == 0 || substcode == 0) {
+      throw new std::runtime_error("Glyph name invalid");
+    }
+    alternates.append({ substcode,0,0 });
+    alternateSubtable->alternates[code] = alternates;
+
+    for (double leftTatweel = 0.5; leftTatweel <= std::min(valueLimits.maxLeft, 6.0F); leftTatweel += 0.5) {
+      GlyphParameters parameters;
+      parameters.lefttatweel = leftTatweel;
+      parameters.righttatweel = 0.0;
+      GlyphVis* newglyph = m_layout->getAlternate(code, parameters, !isExtended, !isExtended);
+      if (newglyph != nullptr) {
+        QVector<ExtendedGlyph> alternates2;
+        alternates2.append({ substcode,leftTatweel,0 });
+        alternateSubtable->alternates[newglyph->charcode] = alternates2;
+      }
+    }
+
+
+  }
+
+  int cvNumber = 1;
+
+  //cv01
+  alternate = new Lookup(m_layout);
+  //alternate->name = QString("cv%1").arg(cvNumber++, 2, 10, QLatin1Char('0'));
+  alternate->name = "cv01";
+  alternate->feature = alternate->name;
+  alternate->type = Lookup::alternate;
+
+  m_layout->addLookup(alternate);
+
+  alternateSubtable = new AlternateSubtableWithTatweel(alternate);
+  alternate->subtables.append(alternateSubtable);
+  alternateSubtable->name = alternate->name;
+
 
   for (auto mapping : mappings) {
 
@@ -2426,13 +2623,66 @@ Lookup* digitalkhatt::glyphalternates() {
     if (code == 0 || substcode == 0) {
       throw new std::runtime_error("Glyph name invalid");
     }
-
+    alternates.append({ substcode,0,0 });
+    alternates.append({ substcode,1,0 });
     alternates.append({ substcode,2,0 });
+    alternates.append({ substcode,3,0 });
     alternates.append({ substcode,4,0 });
+    alternates.append({ substcode,5,0 });
+    alternates.append({ substcode,6,0 });
+    alternates.append({ substcode,7,0 });
+    alternates.append({ substcode,8,0 });
+    alternates.append({ substcode,9,0 });
+    alternates.append({ substcode,10,0 });
+    alternates.append({ substcode,11,0 });
+    alternateSubtable->alternates[code] = alternates;
+  }
+
+  unordered_map<QString, QString> mappingLigaRightOnlys;
+
+  mappingLigaRightOnlys.insert({ "ain.init.finjani","ain.init" });
+  mappingLigaRightOnlys.insert({ "hah.init.ii", "hah.init" });
+  mappingLigaRightOnlys.insert({ "hah.medi.ii","hah.medi" });
+  mappingLigaRightOnlys.insert({ "behshape.init.beforereh","behshape.init" });
+
+
+
+  for (auto mapping : mappingLigaRightOnlys) {
+
+    QVector<ExtendedGlyph> alternates;
+    int code = m_layout->glyphCodePerName[mapping.first];
+    int substcode = m_layout->glyphCodePerName[mapping.second];
+
+    if (code == 0 || substcode == 0) {
+      throw new std::runtime_error("Glyph name invalid");
+    }
+    alternates.append({ substcode,1,0 });
+    alternates.append({ substcode,2,0 });
+    alternates.append({ substcode,3,0 });
+    alternates.append({ substcode,4,0 });
+    alternates.append({ substcode,5,0 });
     alternates.append({ substcode,6,0 });
     alternateSubtable->alternates[code] = alternates;
   }
 
+  //behshape.medi
+  auto valueLimits = m_layout->expandableGlyphs.at("behshape.medi");
+  auto glyphCode = m_layout->glyphCodePerName["behshape.medi"];
+  int substcode = m_layout->glyphCodePerName["behshape.medi.expa"];
+
+  for (double leftTatweel = 0.5; leftTatweel <= std::min(valueLimits.maxLeft, 3.0F); leftTatweel += 0.5) {
+    QVector<ExtendedGlyph> alternates;
+    GlyphParameters parameters;
+    parameters.lefttatweel = leftTatweel;
+    parameters.righttatweel = 0.0;
+    GlyphVis* newglyph = m_layout->getAlternate(glyphCode, parameters, !isExtended, !isExtended);
+    for (double leftTatweel2 = leftTatweel + 1; leftTatweel2 <= std::min(valueLimits.maxLeft, 6.0F); leftTatweel2 += 1) {
+      alternates.append({ substcode,leftTatweel2,0 });
+    }
+    alternateSubtable->alternates[newglyph->charcode] = alternates;
+  }
+
+  /*
   //cv02
   alternate = new Lookup(m_layout);
   alternate->name = QString("cv%1").arg(cvNumber++, 2, 10, QLatin1Char('0'));
@@ -2443,27 +2693,89 @@ Lookup* digitalkhatt::glyphalternates() {
 
   alternateSubtable = new AlternateSubtable(alternate);
   alternate->subtables.append(alternateSubtable);
+  alternateSubtable->name = alternate->name;*/
+
+
+  for (auto& glyph : m_layout->expandableGlyphs) {
+
+    if (mappings.find(glyph.first) != mappings.end()) continue;
+
+    if (glyph.first == "kasra") continue;
+
+    auto glyphCode = m_layout->glyphCodePerName[glyph.first];
+    auto valueLimits = glyph.second;
+
+    if (valueLimits.maxLeft > 0) {
+      for (double leftTatweel = 0; leftTatweel <= std::min(valueLimits.maxLeft, 3.0F); leftTatweel += 0.5) {
+        QVector<ExtendedGlyph> alternates;
+        GlyphParameters parameters;
+        parameters.lefttatweel = leftTatweel;
+        parameters.righttatweel = 0.0;
+        GlyphVis* newglyph = m_layout->getAlternate(glyphCode, parameters, !isExtended, !isExtended);
+        auto newCode = newglyph->charcode;
+        if (leftTatweel == 0) {
+          newCode = glyphCode;
+        }
+        auto leftTatweel2 = leftTatweel;
+        for (int i = 1; i <= 6; i++) {
+          leftTatweel2++;
+          if (leftTatweel2 > 6) {
+            leftTatweel2 = 6;
+          }
+          alternates.append({ glyphCode,leftTatweel2,0 });
+        }
+        /*
+        for (double leftTatweel2 = leftTatweel + 1; leftTatweel2 <= std::min(valueLimits.maxLeft, 6.0F); leftTatweel2 += 1) {
+          alternates.append({ glyphCode,leftTatweel2,0 });
+        }*/
+        alternateSubtable->alternates[newCode] = alternates;
+      }
+    }
+  }
+
+  alternate = new Lookup(m_layout);
+  //alternate->name = QString("cv%1").arg(cvNumber++, 2, 10, QLatin1Char('0'));
+  alternate->name = "cv02";
+  alternate->feature = alternate->name;
+  alternate->type = Lookup::alternate;
+
+  m_layout->addLookup(alternate);
+
+  alternateSubtable = new AlternateSubtableWithTatweel(alternate);
+  alternate->subtables.append(alternateSubtable);
   alternate->name = alternate->name;
 
-  mappings.clear();
+  for (auto& glyph : m_layout->expandableGlyphs) {
 
-  mappings.insert({ "fatha","fatha" });
+    auto glyphCode = m_layout->glyphCodePerName[glyph.first];
+    auto valueLimits = glyph.second;
 
-  for (auto mapping : mappings) {
+    if (valueLimits.maxRight > 0) {
+      QVector<ExtendedGlyph> alternates;
+      for (double righttatweel = 0.5; righttatweel <= std::min(valueLimits.maxRight, 6.0F); righttatweel += 0.5) {
+        alternates.append({ glyphCode,0,righttatweel });
+      }
+      alternateSubtable->alternates[glyphCode] = alternates;
+    };
 
-    QVector<ExtendedGlyph> alternates;
-    int code = m_layout->glyphCodePerName[mapping.first];
-    int substcode = m_layout->glyphCodePerName[mapping.second];
+    if (valueLimits.maxLeft > 0 && valueLimits.maxRight > 0) {
+      for (double leftTatweel = 0.5; leftTatweel <= std::min(valueLimits.maxLeft, 3.0F); leftTatweel += 0.5) {
+        QVector<ExtendedGlyph> alternates;
+        GlyphParameters parameters;
+        parameters.lefttatweel = leftTatweel;
+        parameters.righttatweel = 0.0;
+        GlyphVis* newglyph = m_layout->getAlternate(glyphCode, parameters, !isExtended, !isExtended);
+        for (double righttatweel = 0.5; righttatweel <= std::min(valueLimits.maxRight, 6.0F); righttatweel += 0.5) {
+          alternates.append({ glyphCode,leftTatweel,righttatweel });
+        }
+        alternateSubtable->alternates[newglyph->charcode] = alternates;
+      }
 
-    if (code == 0 || substcode == 0) {
-      throw new std::runtime_error("Glyph name invalid");
+
     }
-
-    alternates.append({ substcode,2,0 });
-    alternates.append({ substcode,4,0 });
-    alternates.append({ substcode,6,0 });
-    alternateSubtable->alternates[code] = alternates;
   }
+
+
 
 
   return nullptr;

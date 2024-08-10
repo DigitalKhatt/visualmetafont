@@ -157,7 +157,7 @@ feature_statement
 	;
 
 lookup_definition
-	: LOOKUP identifier[bname] '{' lookup_statements[lstm] '}' identifier[lname] 
+	: LOOKUP identifier[bname] {$<int>order = driver.context.getNbLookup();}[order] '{' lookup_statements[lstm] '}' identifier[lname] 
 		{ 			
 			if($bname != $lname){
 //				yyparser.error(yylloc, std::string("Lookup name '") + $bname + "' does not match with '" + $lname + "'");
@@ -171,7 +171,7 @@ lookup_definition
 				
 				YYERROR;
 			    }else{
-			      auto lookup = new LookupDefinition($bname,$lstm);
+			      auto lookup = new LookupDefinition($bname,$lstm,$<int>order );
 			      driver.context.lookups[$bname] = lookup;
 			      $$ = lookup;
 			    }

@@ -298,7 +298,7 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
 
       //QAction * scaleAct = new QAction("&Scale", this);	
       //connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
-
+      menu.addAction("Delete");
       menu.addAction("Left");
       menu.addAction("Right");
       menu.addAction("Up");
@@ -381,6 +381,10 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
       }
       else if (a->text() == "Remove Blend From Tension") {
         AddRemoveBlend(false, true, 2);
+      }
+      else if (a->text() == "Delete") {
+        auto scene = (GlyphScene*)this->scene();        
+        scene->deletePoint(this);
       }
       else if (a->text() == "Left") {
         m_glyphknot->leftValue.type = Glyph::mpgui_given;

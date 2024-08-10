@@ -538,6 +538,60 @@ void GlyphScene::recordGlyphChange(QString name) {
     m_newValues[name] = m_glyph->property(name.toLatin1());
   }
 }
+void GlyphScene::deletePoint(KnotControlledItem* point) {
+
+  int numpath = point->m_numsubpath;
+  int numpoint = point->m_numpoint;
+
+  if (m_glyph->controlledPaths.contains(numpath) && m_glyph->controlledPaths[numpath].contains(numpoint)) {
+
+    QMap<int, Glyph::Knot*>  newcontrolledPaths;
+    auto controlledPath = m_glyph->controlledPaths[numpath];
+    auto iterator = controlledPath.begin();
+    while (iterator != controlledPath.end()) {
+      if (iterator.key() < numpoint) {
+        newcontrolledPaths[iterator.key()] = controlledPath[iterator.key()];
+      }
+      else if (iterator.key() == numpoint) {
+
+      }
+      else {
+        newcontrolledPaths[iterator.key() - 1] = controlledPath[iterator.key()];
+      }
+      ++iterator;
+    }
+
+    QMap<int, QMap<int, Glyph::Knot> >  old_controlledPaths;
+    QMap<int, QMap<int, Glyph::Knot> >  new_controlledPaths;
+
+    QMapIterator<int, QMap<int, Glyph::Knot*> > j(m_glyph->controlledPaths);
+    while (j.hasNext()) {
+      j.next();
+      QMapIterator<int, Glyph::Knot*> h(j.value());
+      while (h.hasNext()) {
+        h.next();
+        old_controlledPaths[j.key()][h.key()] = *m_glyph->controlledPaths[j.key()][h.key()];
+      }
+    }
+
+    m_glyph->controlledPaths[numpath] = newcontrolledPaths;
+
+    QMapIterator<int, QMap<int, Glyph::Knot*> > jj(m_glyph->controlledPaths);
+    while (jj.hasNext()) {
+      jj.next();
+      QMapIterator<int, Glyph::Knot*> h(jj.value());
+      while (h.hasNext()) {
+        h.next();
+        new_controlledPaths[jj.key()][h.key()] = *m_glyph->controlledPaths[jj.key()][h.key()];
+      }
+    }
+
+
+    GlyphPathsChangeCommand* command = new GlyphPathsChangeCommand(m_glyph, "Paths(s) changed", old_controlledPaths, new_controlledPaths);
+    m_glyph->undoStack()->push(command);
+  }
+
+}
 void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint, QString dir) {
   int numpath = point->m_numsubpath;
   int numpoint = point->m_numpoint;
@@ -572,28 +626,21 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
         }
         newknot->expr = std::make_unique<PairPathPointExp>(QPointF(newpoint.x(), -newpoint.y()) - matrix);
 
-
-        newknot->leftValue = currentKnot->rightValue;
-
-        if (nextknot) {
-          newknot->rightValue = nextknot->leftValue;
+        Glyph::KnotEntryExit left = {};
+        Glyph::KnotEntryExit right = {};
+        left.jointtype = Glyph::path_join_tension;
+        right.jointtype = Glyph::path_join_tension;
+        left.tensionExpr = std::make_unique<LitPathNumericExp>(1);
+        if (!dir.isNull()) {
+          left.type = Glyph::mpgui_given;
+          left.dirExpr = std::make_unique<VarMFExpr>(dir, false);
+        }
+        else {
+          left.type = Glyph::mpgui_open;
         }
 
-        //Glyph::KnotEntryExit left = {};
-        //Glyph::KnotEntryExit right = {};
-        //left.jointtype = Glyph::path_join_tension;
-        //right.jointtype = Glyph::path_join_tension;
-        //left.tensionExpr = std::make_unique<LitPathNumericExp>(1);
-        //if (!dir.isNull()) {
-        //  left.type = Glyph::mpgui_given;
-        //  left.dirExpr = std::make_unique<VarPathPointExp>(dir, false);
-        //}
-        //else {
-        //  left.type = Glyph::mpgui_open;
-        //}
-
-        //right.tensionExpr = std::make_unique<LitPathNumericExp>(1);
-        //right.type = Glyph::mpgui_open;
+        right.tensionExpr = std::make_unique<LitPathNumericExp>(1);
+        right.type = Glyph::mpgui_open;
 
         //
         //if (nextite != controlledPath.end()) {
@@ -603,10 +650,8 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
         //  }*/
         //}
 
-        //newknot->leftValue = left;
-        //newknot->rightValue = right;
-
-
+        newknot->leftValue = left;
+        newknot->rightValue = right;
 
         newcontrolledPaths[iterator.key() + 1] = newknot;
       }

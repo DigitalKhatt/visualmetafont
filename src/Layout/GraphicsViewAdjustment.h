@@ -41,6 +41,6 @@ protected:
 	void scaleView(qreal scaleFactor);
 	void keyPressEvent(QKeyEvent *event) Q_DECL_OVERRIDE;
 	void resizeEvent(QResizeEvent *event) Q_DECL_OVERRIDE;
-
+  void contextMenuEvent(QContextMenuEvent* event) override;
 
 };

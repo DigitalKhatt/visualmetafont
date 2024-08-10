@@ -19,7 +19,9 @@
 
 #include "GraphicsViewAdjustment.h"
 #include <QtGui>
-
+#include <qmenu.h>
+#include <GlyphItem.h>
+#include "GlyphVis.h"
 
 GraphicsViewAdjustment::GraphicsViewAdjustment(QWidget *parent)
 	: GraphicsViewAdjustment(NULL, parent)
@@ -78,4 +80,38 @@ void GraphicsViewAdjustment::keyPressEvent(QKeyEvent *event)
 	default:
 		QGraphicsView::keyPressEvent(event);
 	}
+}
+void GraphicsViewAdjustment::contextMenuEvent(QContextMenuEvent* event) {
+  QMenu menu;
+  //QAction * scaleAct = new QAction("&Scale", this);	
+  //connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
+
+  if (!scene()->selectedItems().empty()) {
+    menu.addAction("Copy sorted pattern");    
+    QAction* a = menu.exec(event->globalPos());
+    if (a != NULL) {
+      if (a->text() == "Copy sorted pattern") {
+       
+          QPainterPath path;
+          QString pattern;          
+          std::map<QGraphicsItem*, int> indexByItem;
+          int index = 1;
+          for (auto item : scene()->items()) {            
+            indexByItem.insert({ item,index });
+            index++;
+          }
+          auto  selectItems = scene()->selectedItems();
+          std::sort(selectItems.begin(), selectItems.end(), [&indexByItem](QGraphicsItem* a, QGraphicsItem* b) {
+            return indexByItem[a] > indexByItem[b];
+          });         
+          
+          for (auto item : selectItems) {            
+            GlyphItem* glyphItem = (GlyphItem*)item;                        
+            pattern = pattern % "[" % glyphItem->m_glyph->name % "]' ";
+          }
+          QClipboard* clipboard = QGuiApplication::clipboard();
+          clipboard->setText(pattern);
+      }     
+    }
+  }
 }

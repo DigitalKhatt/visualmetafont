@@ -117,6 +117,7 @@ private slots:
 private:
 
 	void addPointAfterPoint(KnotControlledItem* point, QPointF newpoint, QString dir);
+	void deletePoint(KnotControlledItem* point);
 	void addnewPath(QPointF newpoint, QString dir);
 
 	QMap<QString, QVariant> m_oldValues;

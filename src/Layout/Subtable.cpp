@@ -973,8 +973,7 @@ void MultipleSubtable::readJson(const QJsonObject& json)
   }
 }
 
-AlternateSubtable::AlternateSubtable(Lookup* lookup) : Subtable(lookup) {
-}
+AlternateSubtable::AlternateSubtable(Lookup* lookup, quint16 format) : Subtable(lookup), format{ format } {}
 
 void AlternateSubtable::generateSubstEquivGlyphs() {
 
@@ -1000,6 +999,188 @@ void AlternateSubtable::generateSubstEquivGlyphs() {
 }
 
 QByteArray AlternateSubtable::getOpenTypeTable(bool extended) {
+
+  QByteArray root;
+  QByteArray coverage;
+  QByteArray sequencetables;
+  QDataStream root_stream(&root, QIODevice::WriteOnly);
+  QDataStream coverage_stream(&coverage, QIODevice::WriteOnly);
+  QDataStream seqtable_stream(&sequencetables, QIODevice::WriteOnly);
+
+  quint16 total = alternates.size();
+  uint coverage_size = 2 + 2 + 2 * total;
+  quint16 coverage_offset = 2 + 2 + 2 + 2 * total;
+  quint16 debutsequence = coverage_offset + coverage_size;
+
+  root_stream << (quint16)1;
+  root_stream << coverage_offset;
+  root_stream << total;
+
+
+  coverage_stream << (quint16)1;
+  coverage_stream << (quint16)total;
+
+  QMapIterator<quint16, QVector<ExtendedGlyph> >i(alternates);
+  quint16 seqtables_size = 0;
+  while (i.hasNext()) {
+    i.next();
+
+
+
+    QVector<ExtendedGlyph> seqtable = i.value();
+
+    root_stream << debutsequence;
+    coverage_stream << (quint16)i.key();
+    seqtable_stream << (quint16)seqtable.size();
+
+    for (auto& alternateGlyph : seqtable) {
+      if (alternateGlyph.lefttatweel != 0.0 || alternateGlyph.righttatweel != 0.0) {
+        GlyphParameters parameters{};
+
+        parameters.lefttatweel = alternateGlyph.lefttatweel;
+        parameters.righttatweel = alternateGlyph.righttatweel;
+
+        auto newGlyph = m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
+
+        seqtable_stream << (quint16)newGlyph->charcode;
+      }
+      else {
+        seqtable_stream << (quint16)alternateGlyph.code;
+      }
+    }
+    //seqtable_stream << seqtable;
+
+    debutsequence += 2 + 2 * seqtable.size();
+  }
+
+  root.append(coverage);
+  root.append(sequencetables);
+
+
+  return root;
+};
+
+AlternateSubtableWithTatweel::AlternateSubtableWithTatweel(Lookup* lookup) : AlternateSubtable(lookup, 10) {};
+
+void AlternateSubtableWithTatweel::generateSubstEquivGlyphs() {
+
+  QMapIterator<quint16, QVector<ExtendedGlyph> >i(alternates);
+  while (i.hasNext()) {
+    i.next();
+
+
+
+    QVector<ExtendedGlyph> seqtable = i.value();
+
+    for (auto& alternateGlyph : seqtable) {
+      if (alternateGlyph.lefttatweel != 0.0 || alternateGlyph.righttatweel != 0.0) {
+        GlyphParameters parameters{};
+
+        parameters.lefttatweel = alternateGlyph.lefttatweel;
+        parameters.righttatweel = alternateGlyph.righttatweel;
+
+        m_layout->getAlternate(alternateGlyph.code, parameters, true, true);
+      }
+    }
+  }
+}
+
+QByteArray AlternateSubtableWithTatweel::getOpenTypeTable(bool extended) {
+
+  QByteArray root;
+  QByteArray coverage;
+  QByteArray sequencetables;
+  QDataStream root_stream(&root, QIODevice::WriteOnly);
+  QDataStream coverage_stream(&coverage, QIODevice::WriteOnly);
+  QDataStream seqtable_stream(&sequencetables, QIODevice::WriteOnly);
+
+  quint16 total = alternates.size();
+  uint coverage_size = 2 + 2 + 2 * total;
+  quint16 coverage_offset = 2 + 2 + 2 + 2 * total;
+  quint16 debutsequence = coverage_offset + coverage_size;
+
+  root_stream << (quint16)format;
+  root_stream << coverage_offset;
+  root_stream << total;
+
+
+  coverage_stream << (quint16)1;
+  coverage_stream << (quint16)total;
+
+  QMapIterator<quint16, QVector<ExtendedGlyph> >i(alternates);
+  quint16 seqtables_size = 0;
+  while (i.hasNext()) {
+    i.next();
+
+    QVector<ExtendedGlyph> seqtable = i.value();
+
+    root_stream << debutsequence;
+    coverage_stream << (quint16)i.key();
+
+    QByteArray alternatesArray;
+    QByteArray tatweelsArray;
+
+    QDataStream alternatesArrayStream(&alternatesArray, QIODevice::WriteOnly);
+    QDataStream tatweelsArrayStream(&tatweelsArray, QIODevice::WriteOnly);
+
+    /*
+    seqtable_stream << (quint16)seqtable.size();
+
+    for (auto& alternateGlyph : seqtable) {
+      if (alternateGlyph.lefttatweel != 0.0 || alternateGlyph.righttatweel != 0.0) {
+        GlyphParameters parameters{};
+
+        parameters.lefttatweel = alternateGlyph.lefttatweel;
+        parameters.righttatweel = alternateGlyph.righttatweel;
+
+        auto newGlyph = m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
+
+        seqtable_stream << (quint16)newGlyph->charcode;
+      }
+      else {
+        seqtable_stream << (quint16)alternateGlyph.code;
+      }
+    }
+
+    debutsequence += 2 + 2 * seqtable.size();*/
+
+    alternatesArrayStream << (quint16)seqtable.size();
+    tatweelsArrayStream << (quint16)seqtable.size();
+
+    for (auto& alternateGlyph : seqtable) {
+      alternatesArrayStream << (quint16)alternateGlyph.code;
+      if (!m_layout->useNormAxisValues) {
+        OT::F16DOT16 lefttatweel;
+        lefttatweel.set_float(alternateGlyph.lefttatweel);
+
+        OT::F16DOT16 righttatweel;
+        righttatweel.set_float(alternateGlyph.righttatweel);
+
+        tatweelsArrayStream << (int32_t)lefttatweel.to_int() << (int32_t)righttatweel.to_int();
+      }
+      else {
+        throw std::runtime_error("Not implemented");
+      }
+    }
+
+    //seqtable_stream << alternatesArrayStream;
+    //seqtable_stream << tatweelsArrayStream;
+
+    sequencetables.append(alternatesArray);
+    sequencetables.append(tatweelsArray);
+
+    debutsequence += alternatesArray.size() + tatweelsArray.size();
+
+  }
+
+  root.append(coverage);
+  root.append(sequencetables);
+
+
+  return root;
+};
+
+QByteArray AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
 
   QByteArray root;
   QByteArray coverage;
@@ -1772,7 +1953,7 @@ QPoint MarkBaseSubtable::getBaseAnchor(QString baseGlyphName, QString className,
     }
     else if (markClass.baseanchors.contains(baseGlyphName)) {
       coordinate += markClass.baseanchors[baseGlyphName];
-    }    
+    }
   }
 
   return coordinate;
@@ -1823,7 +2004,7 @@ QPoint MarkBaseSubtable::getMarkAnchor(QString markGlyphName, QString className,
     }
     else if (markClass.markanchors.contains(markGlyphName)) {
       coordinate += markClass.markanchors[markGlyphName];
-    }    
+    }
   }
 
   return coordinate;

@@ -176,14 +176,8 @@ namespace feayy {
       if (otlayout->glyphCodePerName.contains(lname)) {
         auto charcode = otlayout->glyphCodePerName[lname];
         QSet set{ charcode };
-        /*
-        auto t = otlayout->nojustalternatePaths.find(charcode);
-        if (t != otlayout->nojustalternatePaths.end()) {
-          auto& second = t->second;
-          for (auto& addedGlyph : second) {
-            set.insert(addedGlyph.second->charcode);
-          }
-        }*/
+        //auto newset = otlayout->getSubsts(charcode);
+        //set.unite(newset);        
         return set;
       }
       else {
@@ -294,7 +288,14 @@ namespace feayy {
 
       QSet<quint16> unicodes;
       for (auto comp : _components) {
-        unicodes.unite(comp->getCodes(otlayout));
+        auto codes = comp->getCodes(otlayout);
+        unicodes.unite(codes);
+        if (auto glyph = dynamic_cast<Glyph*>(comp)) {
+          for (auto code : codes) {
+            auto set = otlayout->getSubsts(code);
+            unicodes.unite(set);
+          }
+        }
       }
 
       return unicodes;
@@ -531,7 +532,7 @@ namespace feayy {
       if (minRep == 0) {
         minSeqs.append(QVector<GlyphSet*>{});
       }
-      else {        
+      else {
 
         for (int i = 0; i < minRep; i++) {
           auto lefseqs = minSeqs;
@@ -929,8 +930,8 @@ namespace feayy {
 
   class LookupDefinition : public LookupStatement {
   public:
-    LookupDefinition(std::string name, std::vector<LookupStatement*>* stmtlist)
-      : name{ name }, stmts(stmtlist)
+    LookupDefinition(std::string name, std::vector<LookupStatement*>* stmtlist, int order)
+      : name{ name }, stmts(stmtlist), order{ order }
     {}
 
     ~LookupDefinition() {
@@ -947,6 +948,10 @@ namespace feayy {
       return name;
     }
 
+    int getOrder() {
+      return order;
+    }
+
     std::vector<LookupStatement*>& getStmts() {
       return *stmts;
     }
@@ -956,6 +961,7 @@ namespace feayy {
   private:
     std::string name;
     std::vector<LookupStatement*>* stmts;
+    int order;
 
   };
 
@@ -1008,8 +1014,7 @@ namespace feayy {
 
   class FeaContext
   {
-  public:
-
+  public:    
 
     typedef std::map<std::string, LookupDefinition*> lookupmap_type;
     typedef std::map<std::string, FeatureDefenition*> featuremap_type;
@@ -1033,8 +1038,14 @@ namespace feayy {
 
     void populateFeatures();
 
+    int getNbLookup() {
+      nbLookups++;
+      return nbLookups;
+    }
+
   private:
     OtLayout* otlayout;
+    int nbLookups = 0;
   };
 
   class Visitor {

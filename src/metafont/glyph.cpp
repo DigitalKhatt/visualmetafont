@@ -251,7 +251,7 @@ QString Glyph::source() {
         j.next();
         QMap<int, Knot*> path = j.value();
         const Knot* firstpoint = path.first();
-        const Knot* previouspoint = firstpoint;
+        const Knot* currentpoint = firstpoint;
         if (controlledPathNames[j.key()] == "fill") {
           source = source % QString("fill\n");
         }
@@ -266,43 +266,44 @@ QString Glyph::source() {
         h.next();
         while (h.hasNext()) {
           h.next();
-          const Knot* currentpoint;
-          currentpoint = h.value();
+          const Knot* nextpoint;
+          nextpoint = h.value();
 
-          source = source % previouspoint->expr->toString();
+          source = source % currentpoint->expr->toString();
 
 
-          if (previouspoint->rightValue.jointtype == path_join_control) {
-            source = source % QString(" .. controls %1").arg(previouspoint->rightValue.dirExpr->toString());
-            if (!previouspoint->rightValue.isEqualAfter) {
-              source = source % QString(" and %1").arg(currentpoint->leftValue.dirExpr->toString());
+          if (currentpoint->rightValue.jointtype == path_join_control) {
+            source = source % QString(" .. controls %1").arg(currentpoint->rightValue.dirExpr->toString());
+            if (!currentpoint->rightValue.isEqualAfter) {
+              source = source % QString(" and %1").arg(nextpoint->leftValue.dirExpr->toString());
             }
             source = source % QString(" ..\n");
           }
           else {
-            if (previouspoint->rightValue.type == mpgui_given) {
-              source = source % QString(" {%1}").arg(previouspoint->rightValue.dirExpr->toString());
+            if (currentpoint->rightValue.type == mpgui_given) {
+              source = source % QString(" {%1}").arg(currentpoint->rightValue.dirExpr->toString());
             }
-            if (previouspoint->rightValue.jointtype == path_join_macro) {
-              source = source % QString(" %1\n").arg(previouspoint->rightValue.macrovalue);
+            if (currentpoint->rightValue.jointtype == path_join_macro) {
+              source = source % QString(" %1\n").arg(currentpoint->rightValue.macrovalue);
             }
             else {
-              if (previouspoint->rightValue.tensionExpr) {
-                source = source % QString(" .. tension %1%2").arg(previouspoint->rightValue.isAtleast ? "atleast " : "").arg(previouspoint->rightValue.tensionExpr->toString());
-              }
-
-              if (!previouspoint->rightValue.isEqualAfter) {
-                if (currentpoint->leftValue.tensionExpr) {
-                  source = source % QString(" and %1%2").arg(currentpoint->leftValue.isAtleast ? "atleast " : "").arg(currentpoint->leftValue.tensionExpr->toString());
+              if (currentpoint->rightValue.tensionExpr) {
+                source = source % QString(" .. tension %1%2").arg(currentpoint->rightValue.isAtleast ? "atleast " : "").arg(currentpoint->rightValue.tensionExpr->toString());
+                if (!currentpoint->rightValue.isEqualAfter) {
+                  if (nextpoint->leftValue.tensionExpr) {
+                    source = source % QString(" and %1%2").arg(nextpoint->leftValue.isAtleast ? "atleast " : "").arg(nextpoint->leftValue.tensionExpr->toString());
+                  }
                 }
               }
+
+              
               source = source % QString(" ..\n");
             }
-            if (currentpoint->leftValue.type == mpgui_given) {
-              source = source % QString(" {%1}").arg(currentpoint->leftValue.dirExpr->toString());
+            if (nextpoint->leftValue.type == mpgui_given) {
+              source = source % QString(" {%1}").arg(nextpoint->leftValue.dirExpr->toString());
             }
           }
-          previouspoint = h.value();
+          currentpoint = h.value();
         }
         source = source % QString(" cycle\n");
         if (controlledPathNames[j.key()] != "fill" && controlledPathNames[j.key()] != "fillc") {

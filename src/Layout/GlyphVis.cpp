@@ -85,12 +85,12 @@ GlyphVis::GlyphVis(const GlyphVis& other) {
   isCopiedPath = other.isCopiedPath;
 
   if (other.copiedPath && isCopiedPath) {
-    copiedPath = copyEdgeBody();
+    copiedPath = copyEdgeBody(other.copiedPath);
   }
 
   expanded = other.expanded;
 
-  //paths = other.paths;
+  isAlternate = other.isAlternate;
 }
 
 GlyphVis* GlyphVis::getAlternate(GlyphParameters parameters) {
@@ -130,7 +130,7 @@ GlyphVis::GlyphVis(GlyphVis&& other)
   other.path = {};
 #endif
   expanded = other.expanded;
-
+  isAlternate = other.isAlternate;
 }
 
 GlyphVis& GlyphVis::operator=(const GlyphVis& other) {
@@ -163,10 +163,11 @@ GlyphVis& GlyphVis::operator=(const GlyphVis& other) {
   isCopiedPath = other.isCopiedPath;
 
   if (other.copiedPath && isCopiedPath) {
-    copiedPath = copyEdgeBody();
+    copiedPath = copyEdgeBody(other.copiedPath);
   }
 
   expanded = other.expanded;
+  isAlternate = other.isAlternate;
 
   return *this;
 }
@@ -303,13 +304,14 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
     path = getPath(m_edge);
   }
 #endif
+  auto body = m_edge != nullptr ? m_edge->body : nullptr;
   if (copyPath) {
     isCopiedPath = true;
-    copiedPath = this->copyEdgeBody();
+    copiedPath = this->copyEdgeBody(body);
   }
   else {
     isCopiedPath = false;
-    this->copiedPath = m_edge != nullptr ? m_edge->body : nullptr;
+    this->copiedPath = body;
   }
 
 
@@ -345,10 +347,8 @@ QPoint GlyphVis::getAnchor(QString name, AnchorType type) {
 
 }
 
-mp_graphic_object* GlyphVis::copyEdgeBody() {
+mp_graphic_object* GlyphVis::copyEdgeBody(mp_graphic_object* body) {
   mp_graphic_object* result = nullptr;
-
-  mp_edge_object* h = edge();
 
   auto copypath = [](mp_gr_knot knot, OtLayout* layout)
   {
@@ -399,54 +399,54 @@ mp_graphic_object* GlyphVis::copyEdgeBody() {
   };
 
 
-  if (h) {
 
 
-    mp_graphic_object* body = h->body;
-    mp_graphic_object* currObject = nullptr;
-
-    if (body) {
-      do {
-        switch (body->type)
-        {
-        case mp_fill_code: {
-
-          mp_fill_object* fillobject = (mp_fill_object*)body;
-          mp_gr_knot newpath = copypath(fillobject->path_p, m_otLayout);
-
-          mp_fill_object* nextObject = (mp_fill_object*)mp_new_graphic_object(m_otLayout->mp, mp_fill_code); // new mp_fill_object;
-          nextObject->type = mp_fill_code;
-          nextObject->path_p = newpath;
-          nextObject->next = nullptr;
-          nextObject->pre_script = nullptr;
-          nextObject->post_script = nullptr;
-          nextObject->pen_p = nullptr;
-          nextObject->htap_p = nullptr;
-
-          if (fillobject->color_model == mp_rgb_model) {
-            nextObject->color_model = mp_rgb_model;
-            nextObject->color = fillobject->color;
-          }
-
-          if (currObject == nullptr) {
-            currObject = (mp_graphic_object*)nextObject;
-            result = currObject;
-          }
-          else {
-            currObject->next = (mp_graphic_object*)nextObject;
-            currObject = currObject->next;
-          }
 
 
-          break;
-        }
-        default:
-          break;
+  mp_graphic_object* currObject = nullptr;
+
+  if (body) {
+    do {
+      switch (body->type)
+      {
+      case mp_fill_code: {
+
+        mp_fill_object* fillobject = (mp_fill_object*)body;
+        mp_gr_knot newpath = copypath(fillobject->path_p, m_otLayout);
+
+        mp_fill_object* nextObject = (mp_fill_object*)mp_new_graphic_object(m_otLayout->mp, mp_fill_code); // new mp_fill_object;
+        nextObject->type = mp_fill_code;
+        nextObject->path_p = newpath;
+        nextObject->next = nullptr;
+        nextObject->pre_script = nullptr;
+        nextObject->post_script = nullptr;
+        nextObject->pen_p = nullptr;
+        nextObject->htap_p = nullptr;
+
+        if (fillobject->color_model == mp_rgb_model) {
+          nextObject->color_model = mp_rgb_model;
+          nextObject->color = fillobject->color;
         }
 
-      } while (body = body->next);
-    }
+        if (currObject == nullptr) {
+          currObject = (mp_graphic_object*)nextObject;
+          result = currObject;
+        }
+        else {
+          currObject->next = (mp_graphic_object*)nextObject;
+          currObject = currObject->next;
+        }
+
+
+        break;
+      }
+      default:
+        break;
+      }
+
+    } while (body = body->next);
   }
+
 
   return result;
 

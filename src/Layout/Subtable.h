@@ -146,11 +146,27 @@ struct MultipleSubtable : Subtable {
 
 struct AlternateSubtable : Subtable {
 
-  AlternateSubtable(Lookup* lookup);
+  AlternateSubtable(Lookup* lookup, quint16 format = 1);
   QByteArray getOpenTypeTable(bool extended) override;
 
 
   QMap<quint16, QVector<ExtendedGlyph> > alternates;
+
+  virtual void generateSubstEquivGlyphs() override;
+
+  quint16 format = 1;
+
+};
+
+struct AlternateSubtableWithTatweel : AlternateSubtable {
+
+  AlternateSubtableWithTatweel(Lookup* lookup);
+
+  QByteArray getOpenTypeTable(bool extended) override;
+
+  bool isConvertible() override { return true; }
+
+  QByteArray getConvertedOpenTypeTable() override;
 
   virtual void generateSubstEquivGlyphs() override;
 

@@ -25,7 +25,6 @@
 #include "GlyphVis.h"
 #include <algorithm>
 #include "qregularexpression.h"
-#include "defaultmarkpositions.h"
 #include "metafont.h"
 #include "qdebug.h"
 
@@ -68,12 +67,8 @@ QSet<quint16> Automedina::classtoUnicode(QString className, bool includeExpandab
       unicodes.insert(glyph.charcode);
 
       if (includeExpandables) {
-        auto addedGlyphs = m_layout->substEquivGlyphs.find(glyph.charcode);
-        if (addedGlyphs != m_layout->substEquivGlyphs.end()) {
-          for (auto& addedGlyph : addedGlyphs->second) {
-            unicodes.insert(addedGlyph.second->charcode);
-          }
-        }
+        auto set = m_layout->getSubsts(glyph.charcode);
+        unicodes.unite(set);      
       }
     }
     else {
@@ -83,16 +78,7 @@ QSet<quint16> Automedina::classtoUnicode(QString className, bool includeExpandab
         QRegularExpression re(className);
         for (auto& glyph : m_layout->glyphs) {
           if (re.match(glyph.name).hasMatch()) {
-
             unicodes.insert(glyph.charcode);
-
-            /*
-            auto addedGlyphs = m_layout->substEquivGlyphs.find(glyph.charcode);
-            if (addedGlyphs != m_layout->substEquivGlyphs.end()) {
-              for (auto& addedGlyph : addedGlyphs->second) {
-                unicodes.insert(addedGlyph.second->charcode);
-              }
-            }*/
           }
         }
       }

@@ -100,6 +100,8 @@ set(Automedina
   automedina/digitalkhatt.cpp
   automedina/oldmadina.h
   automedina/oldmadina.cpp
+  automedina/indopak.h
+  automedina/indopak.cpp
   automedina/defaultmarkpositions.h
   )
 
@@ -180,6 +182,7 @@ set(Layout_WithoutGUI
   Layout/FSMDriver.h
   Layout/FSMDriver.cpp
   Layout/commontypes.h
+  Layout/just_features.cpp
   )
 
 

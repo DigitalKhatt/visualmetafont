@@ -155,13 +155,10 @@ public:
     int height = 1;
 
     if (glyphName == "fatha") {
-      height += (curr->width - ori_width) / 7;
+      height -= (curr->width - ori_width) / 7;
     }
 
-
-
-
-
+    
 
     width = width + adjust.x();
     height = height + adjust.y();
@@ -180,7 +177,7 @@ public:
   Defaullowmarkanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-    GlyphVis* curr = &_y.glyphs[glyphName];
+    GlyphVis* glyph = &_y.glyphs[glyphName];
 
     if (lefttatweel != 0.0 || righttatweel != 0.0) {
       GlyphParameters parameters{};
@@ -188,13 +185,16 @@ public:
       parameters.lefttatweel = lefttatweel;
       parameters.righttatweel = righttatweel;
 
-      curr = curr->getAlternate(parameters);
+      glyph = glyph->getAlternate(parameters);
     }
 
+    int width = glyph->width * 0.5;
+    int height = glyph->height;
 
-
-    int width = curr->width * 0.5;
-    int height = curr->height;
+    
+    if (!adjust.isNull()) {
+      std::cout << _subtable.getLookup()->name.toStdString() << "::" << _subtable.name.toStdString() << "::" << className.toStdString() << "::" << glyphName.toStdString() << std::endl;
+    }
 
     width = width + adjust.x();
     height = height + adjust.y();
@@ -243,28 +243,6 @@ public:
 
     width = width + adjust.x();
     height = height - adjust.y();
-
-
-    return QPoint(width, height);
-
-  };
-private:
-  Automedina& _y;
-  MarkBaseSubtable& _subtable;
-};
-
-class Defaulwaqftmarkabovemark : public AnchorCalc {
-public:
-  Defaulwaqftmarkabovemark(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-  QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
-
-    GlyphVis& curr = _y.glyphs[glyphName];
-
-    int width = curr.width * 0.5;
-    int height = curr.height + 100;
-
-    width = width + adjust.x();
-    height = height + adjust.y();
 
 
     return QPoint(width, height);

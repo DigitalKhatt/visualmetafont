@@ -122,7 +122,8 @@ public:
 
   bool conatinsAnchor(QString name, AnchorType type);
   bool expanded = false;
-  mp_graphic_object* copyEdgeBody();
+  mp_graphic_object* copyEdgeBody(mp_graphic_object* source);
+  bool isAlternate = false;
 
 private:
 #ifndef DIGITALKHATT_WEBLIB

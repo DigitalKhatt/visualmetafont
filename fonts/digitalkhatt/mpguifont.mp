@@ -47,7 +47,7 @@ newinternal nextunicode, lefttatweel,righttatweel, leftbearing, rightbearing,  n
 newinternal string charname,originalglyph;
 newinternal showAnchors,digitscale;
 pair lefttatweel_const, righttatweel_const;
-newinternal minLeft,maxLeft,minRight,maxRight;
+newinternal minLeft,maxLeft,minRight,maxRight, maxLii, maxRii;
 
 %For parametric kashida
 newinternal leftVerticalRatio,leftVerticalRatioNeg,rightVerticalRatio,rightVerticalRatioNeg;
@@ -142,6 +142,7 @@ def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
  rightVerticalRatio := 10; 
  minLeft := minRight := -1;
  maxLeft := maxRight := 6;
+ maxLii := maxRii := 20;
 enddef;
 transform tr_;
 
@@ -678,27 +679,27 @@ enddef;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 def cutGlyph(expr bottomPoint, upPoint, rightPath) =
 
-path p;
+path _p;
 pair bottomDispl, upDispl;
 numeric bottomTime, upTime;
 
 l_ := residu;
 
-p := pathpart currentpicture;
+_p := pathpart currentpicture;
 
 currentpicture:=nullpicture;
 
-(bottomTime,whatever) = p intersectiontimes bottomPoint;
-(upTime,whatever) = p intersectiontimes upPoint; 
+(bottomTime,whatever) = _p intersectiontimes bottomPoint;
+(upTime,whatever) = _p intersectiontimes upPoint; 
 
 if rightPath :
-  bottomDispl := bottomPoint - l_* unitvector direction bottomTime of p;
-  upDispl := upPoint +  l_* unitvector direction upTime of p;
-  fill subpath(bottomTime,upTime) of p .. controls   upDispl .. 1/2[upDispl,bottomDispl] .. controls bottomDispl ..   cycle ;
+  bottomDispl := bottomPoint - l_* unitvector direction bottomTime of _p;
+  upDispl := upPoint +  l_* unitvector direction upTime of _p;
+  fill subpath(bottomTime,upTime) of _p .. controls   upDispl .. 1/2[upDispl,bottomDispl] .. controls bottomDispl ..   cycle ;
 else:
-  bottomDispl := bottomPoint + l_* unitvector direction bottomTime of p;
-  upDispl := upPoint -   l_* unitvector direction upTime of p;
-  fill subpath(0,bottomTime) of p .. controls   bottomDispl .. 1/2[bottomDispl,upDispl] .. controls upDispl ..  subpath(upTime,length p) of p .. cycle ;
+  bottomDispl := bottomPoint + l_* unitvector direction bottomTime of _p;
+  upDispl := upPoint -   l_* unitvector direction upTime of _p;
+  fill subpath(0,bottomTime) of _p .. controls   bottomDispl .. 1/2[bottomDispl,upDispl] .. controls upDispl ..  subpath(upTime,length _p) of _p .. cycle ;
 fi;
 
 enddef;
@@ -731,7 +732,7 @@ left_verticalconst := right_verticalconst := 0;
 %penangle := 85;
 residu :=5;
 lineheight := 88;
-penwidth := 85;
+penwidth := 88;
 %adjacent := penwidth+-+lineheight;
 %sind penangle * penwidth = lineheight;
 %penwidth = lineheight++aaaa;
@@ -785,7 +786,7 @@ if lefttatweel < 0 :
   factor_ := lefttatweel  /  minLeft;
   def + factor_ * dmin
 else:
-   factor_ := lefttatweel / 20;
+   factor_ := lefttatweel / maxLii;
    def + factor_ * dmax
 fi
 enddef;
@@ -794,7 +795,7 @@ if righttatweel < 0 :
   factor_ := righttatweel  /  minRight;
   def + factor_ * dmin
 else:
-   factor_ := righttatweel / 20;
+   factor_ := righttatweel / maxRii;
    def + factor_ * dmax
 fi
 enddef;

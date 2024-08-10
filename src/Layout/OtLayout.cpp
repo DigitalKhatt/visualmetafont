@@ -58,6 +58,7 @@
 #include "metafont.h"
 #include "automedina/digitalkhatt.h"
 #include "automedina/oldmadina.h"
+#include "automedina/indopak.h"
 
 #include <cfenv>
 
@@ -230,12 +231,10 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
       parameters.righttatweel = righttatweel;
 
       pglyph = layout->getAlternate(pglyph->charcode, parameters);
+      
     }
 
     auto xadvance = hbFont->em_scale_x(pglyph->width);
-
-
-
 
     double advance = pglyph->width;
     //return advance; // floatToHarfBuzzPosition(advance);
@@ -1149,6 +1148,9 @@ OtLayout::OtLayout(MP mp, bool extended, QObject * parent) :QObject(parent), fsm
   else if (strcmp(mp->job_name, "oldmadina") == 0) {
     automedina = new OldMadina(this, mp, extended);
   }
+  else if (strcmp(mp->job_name, "indopak") == 0) {
+    automedina = new IndoPak(this, mp, extended);
+  }
   else {
     throw new std::runtime_error("invalid font");
   }
@@ -1528,6 +1530,17 @@ quint16 OtLayout::addMarkSet(QVector<QString> list) {
 }
 QSet<quint16> OtLayout::classtoUnicode(QString className) {
   return automedina->classtoUnicode(className);
+}
+
+QSet<quint16> OtLayout::getSubsts(int charCode) {
+  QSet<quint16> set;
+  auto addedGlyphs = substEquivGlyphs.find(charCode);
+  if (addedGlyphs != substEquivGlyphs.end()) {
+    for (auto& addedGlyph : addedGlyphs->second) {
+      set.insert(addedGlyph.second->charcode);
+    }
+  }
+  return set;
 }
 
 QSet<quint16> OtLayout::regexptoUnicode(QString regexp) {
@@ -2387,7 +2400,12 @@ void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int 
 }
 
 QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification,
-  bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level) {
+  bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level, JustType justType) {
+
+
+  if (justType == JustType::Features) {
+    return justifyPageUsingFeatures(emScale, lineWidth, pageWidth, lines, justification, newFace, tajweedColor, changeSize, cluster_level);
+  }
 
   QList<LineLayoutInfo> page;
 
@@ -2434,7 +2452,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int p
 #ifndef HB_NO_JUSTIFICATION
       buffer->useCallback = !useNormAxisValues;
 #endif
-      if (whichJust == WhichJust::HarfBuzz) {
+      if (justType == JustType::HarfBuzz || justType == JustType::None) {
         jutifyLine(currentFont, buffer, lineWidth, tajweedColor);
       }
       else {
@@ -3549,7 +3567,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
 }
 int OtLayout::AlternatelastCode = 0xF0000;
 std::unordered_map<GlyphParameters, GlyphVis*>& OtLayout::getSubstEquivGlyphs(int glyphCode) {
-  return substEquivGlyphs[glyphCode];  
+  return substEquivGlyphs[glyphCode];
 }
 GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph, bool addToEquivSubst) {
 
@@ -3577,7 +3595,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
 
   auto glyph = this->getGlyph(glyphCode);
 
-  if (!extended && glyph->name.contains(".added_")) {
+  if (glyph->isAlternate) {
     auto originalGlyph = glyph->originalglyph;
     parameters.lefttatweel += glyph->charlt;
     parameters.righttatweel += glyph->charrt;
@@ -3604,8 +3622,8 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
     }
   }
   else {
-    //std::cout << glyph->name.toStdString() << " is not expandable" << std::endl;
-    return nullptr;
+    std::cout << glyph->name.toStdString() << " is not expandable" << std::endl;
+    return glyph;
 
     /*
     if (parameters.lefttatweel < -0.5) {
@@ -3674,6 +3692,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
     newglyph->charcode = charcode;
     newglyph->name = name;
     newglyph->expanded = true;
+    newglyph->isAlternate = true;
 
     glyphNamePerCode[newglyph->charcode] = newglyph->name;
     glyphCodePerName[newglyph->name] = newglyph->charcode;

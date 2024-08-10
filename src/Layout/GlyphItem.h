@@ -27,7 +27,7 @@ class OtLayout;
 
 class GlyphItem : public QGraphicsPathItem
 {
-
+  friend class GraphicsViewAdjustment;
 public:
 	GlyphItem(double scale, GlyphVis* glyph, OtLayout * layout, quint32 lookup = 0, quint32 subtable = 0, quint16 baseChar = 0,double lefttatweel = 0.0, double righttatweel = 0.0, QGraphicsItem * parent = Q_NULLPTR);
 	~GlyphItem();
