@@ -67,7 +67,7 @@ private:
   QPlainTextEdit* mpostEdit;
 
 
-  QPlainTextEdit* logOutput, * termOutput, * psOutput, * svgOutput;
+  QPlainTextEdit* logOutput, * infoOutput;
 
   QTabWidget* tabWidget;
   QPushButton* executeButton;

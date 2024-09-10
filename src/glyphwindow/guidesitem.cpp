@@ -32,6 +32,8 @@ GuidesItem::GuidesItem(Glyph* glyph, QGraphicsItem * parent) : QGraphicsObject(p
 	m.scale(1, -1);
 
 	setTransform(m);
+
+  lineHeight = glyph->font->lineHeight();
 }
 
 GuidesItem::~GuidesItem() {
@@ -109,8 +111,7 @@ void GuidesItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option
 	painter->drawLine(width, -bottom, width, -top);
 
 	painter->drawLine(rect.left(), 800, rect.right(), 800);
-	painter->drawLine(rect.left(), -200, rect.right(), -200);
-	double lineHeight = glyph->font->lineHeight();
+	painter->drawLine(rect.left(), -200, rect.right(), -200);	
 	painter->drawLine(rect.left(), lineHeight, rect.right(), lineHeight);
 
 

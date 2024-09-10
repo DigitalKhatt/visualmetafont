@@ -31,6 +31,8 @@
 #include "qpainterpath.h"
 #include "exp.hpp"
 #include "pathpointexp.hpp"
+#include <unordered_set>
+
 
 class Font;
 struct mp_edge_object;
@@ -41,6 +43,9 @@ class Glyph : public QObject {
 	Q_OBJECT
 
 public:
+	struct AxisType {
+		double value;
+	};
 	enum ParameterPosition {
 		left,
 		right,
@@ -203,7 +208,7 @@ public:
 
 public:
 	friend class GlyphCellItem;
-	Glyph(QString code, MP mp, Font* parent);
+	Glyph(QString code, Font* parent);
 	~Glyph();
 
 	Q_PROPERTY(QString source READ source WRITE setSource NOTIFY valueChanged)
@@ -212,8 +217,6 @@ public:
 		Q_PROPERTY(double width READ width WRITE setWidth NOTIFY valueChanged)
 		Q_PROPERTY(double height READ height WRITE setHeight NOTIFY valueChanged)
 		Q_PROPERTY(double depth READ depth WRITE setDepth NOTIFY valueChanged)
-		Q_PROPERTY(double leftTatweel READ leftTatweel WRITE setleftTatweel NOTIFY valueChanged)
-		Q_PROPERTY(double rightTatweel READ rightTatweel WRITE setrightTatweel NOTIFY valueChanged)
 
 		Q_PROPERTY(QString body READ body WRITE setBody NOTIFY valueChanged)
 		Q_PROPERTY(QString verbatim READ verbatim WRITE setVerbatim NOTIFY valueChanged)
@@ -236,10 +239,6 @@ public:
 	double height() const;
 	void setDepth(double depth);
 	double depth() const;
-	void setleftTatweel(double lefttatweel);
-	double leftTatweel() const;
-	void setrightTatweel(double righttatweel);
-	double rightTatweel() const;
 	void setBody(QString body, bool autoParam = false);
 	QString body() const;
 	void setVerbatim(QString body);
@@ -257,11 +256,8 @@ public:
 	void setParameter(QString name, MFExpr* exp, bool isEquation);
 	void setParameter(QString name, MFExpr* exp, bool isEquation, bool isInControllePath);
 	void parsePaths(QString pathsSource);
-	QString parameters() const;
-	QString getError();
-	QString getLog();
 
-	mp_edge_object* getEdge(bool resetExpParams = false);
+	mp_edge_object* getEdge();
 	QUndoStack* undoStack() const;
 
 
@@ -270,6 +266,8 @@ public:
 	QHashGlyphComponentInfo m_components;
 	QMap<int, QMap<int, Knot*> >  controlledPaths;
 	QMap<int, QString >  controlledPathNames;
+	QString getLog();
+	QString getInfo();
 
 	Font* font;
 
@@ -282,6 +280,8 @@ public:
 	ComputedValues getComputedValues();
 
 	bool setProperty(const char* name, const QVariant& value, bool updateParam = false);
+
+	double axis(QString name);
 
 
 signals:
@@ -305,18 +305,17 @@ private:
 	double m_width;
 	double m_height;
 	double m_depth;
-	double m_lefttatweel;
-	double m_righttatweel;
 	QString m_body;
 	QString m_verbatim;
 	Glyph::ImageInfo m_image;
 	mp_edge_object* edge;
-	MP mp;
 
 	bool isSetSource;
 	QUndoStack* m_undoStack;
 	QString m_beginmacroname;
 
+	//TODO make it configurable
+	std::vector<QString> axisNames = { "lefttatweel","righttatweel","third","fourth","fifth" };
 
 };
 
@@ -325,6 +324,7 @@ typedef QHash<Glyph*, Glyph::ComponentInfo> QHashGlyphComponentInfo;
 Q_DECLARE_METATYPE(Glyph::ImageInfo)
 Q_DECLARE_METATYPE(Glyph::ComponentInfo)
 Q_DECLARE_METATYPE(QHashGlyphComponentInfo)
+Q_DECLARE_METATYPE(Glyph::AxisType)
 
 
 

@@ -57,11 +57,13 @@ public:
     int16_t yStrikeoutSize;
     int major;
     int minor;
-    QString FullName;
-    QString FamilyName;
-    QString Weight;
+    QString familyName;
+    QString subFamilyName;    
     QString Copyright;
     QString License;
+    QString fullName() {
+      return familyName + " " + subFamilyName;
+    }
   };
 
   struct DeltaValues {
@@ -163,30 +165,30 @@ public:
       delta.active[1] = limits.minLeft != 0.0; onlyOne.push_back(limits.minLeft == axisLimits.minLeft);
       delta.active[2] = limits.maxRight != 0.0; onlyOne.push_back(limits.maxRight == axisLimits.maxRight);
       delta.active[3] = limits.minRight != 0.0; onlyOne.push_back(limits.minRight == axisLimits.minRight);
-      
+
       for (int i = 0; i < delta.deltas.size(); i++) {
         if (delta.active[i]) {
-          isEmpty = false; 
-          if (delta.deltas[i] != 0.0) {            
+          isEmpty = false;
+          if (delta.deltas[i] != 0.0) {
             fixed_to_cff2(data, delta.deltas[i]);
             if (!onlyOne[i]) {
               fixed_to_cff2(data, delta.deltas[i]);
               fixed_to_cff2(data, delta.deltas[i]);
             }
-            
+
           }
           else {
             int_to_cff2(data, 0);
             if (!onlyOne[i]) {
               int_to_cff2(data, 0);
               int_to_cff2(data, 0);
-            }           
+            }
           }
         }
-        
+
       }
     }
-    
+
     if (isEmpty) {
       data.clear();
     }
@@ -281,14 +283,14 @@ public:
 
   bool colrcpal(QByteArray& colr, QByteArray& cpal);
   bool isCff2 = true;
-  QByteArray getPrivateDictCff2(int* size);  
+  QByteArray getPrivateDictCff2(int* size);
 
   QByteArray CFF2VariationStore();
 
   void populateGlyphs();
   QByteArray getVariationRegionList();
 
-  
+
 
 
   const uint16_t LTATNameId = 256;
@@ -318,12 +320,12 @@ private:
 
   QMap<quint16, GlyphVis*> glyphs;
   GlobalValues globalValues;
-  
+
   void int_to_cff2(QByteArray& cff, int val);
   void fixed_to_cff2(QByteArray& cff, double val);
   QByteArray charStrings(bool iscff2);
   QByteArray charString(mp_graphic_object* object, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ContourLimits contourLimits);
-  void initiliazeGlobals(); 
+  void initiliazeGlobals();
 
   int nbSubrs = 0;
   QByteArray subrs;

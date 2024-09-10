@@ -23,6 +23,7 @@
 #include <QObject>
 #include <QVector>
 #include <QHash>
+#include "OtLayout.h"
 
 
 
@@ -32,7 +33,7 @@ class GlyphVis;
 class Glyph;
 typedef struct MP_instance* MP;
 struct mp_edge_object;
-
+typedef struct mp_graphic_object mp_graphic_object;
 class Font : public QObject {
 	Q_OBJECT
 
@@ -46,6 +47,7 @@ public:
 	QVector<Glyph*> glyphs;
 	QHash<QString, Glyph*> glyphperName;
 	QString filePath();
+	QString fontName();
 	double lineHeight();
 	double getNumericVariable(QString name);
 	bool getPairVariable(QString name, QPointF& point);
@@ -54,12 +56,19 @@ public:
 		return m_path;
 	}
 	QString executeMetaPost(QString command);
-
-	//protected:
+	mp_edge_object* getEdges();
+	mp_edge_object* getEdge(int charCode);
+	void generateAlternate(QString macroname, GlyphParameters params);
+	mp_graphic_object* copyEdgeBody(mp_graphic_object* source);
+	QString getLog();
+	//TODO protected:
 	MP mp = nullptr;
+
+	QString familyName();
 
 
 private:
 	QString m_path;
+	QString m_fontName;
 };
 #endif // FONT_H

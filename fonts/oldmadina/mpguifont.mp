@@ -43,11 +43,12 @@ vardef round primary u =
  elseif pair u: (round xpart u, round ypart u)
  else: u fi enddef;
 
-newinternal nextunicode, lefttatweel,righttatweel, leftbearing, rightbearing,  nuqta, which_in_baseline, totalglyphs, ignore_exp_parameters, savepicture, number_of_anchors; 
+newinternal nextunicode, lefttatweel,righttatweel, leftbearing, rightbearing,  nuqta, which_in_baseline, totalglyphs, savepicture, number_of_anchors; 
 newinternal string charname,originalglyph;
 newinternal showAnchors,digitscale;
 pair lefttatweel_const, righttatweel_const;
-newinternal minLeft,maxLeft,minRight,maxRight;
+newinternal minLeft,maxLeft,minRight,maxRight, maxLii, maxRii;
+newinternal charlt,charrt;
 
 %For parametric kashida
 newinternal leftVerticalRatio,leftVerticalRatioNeg,rightVerticalRatio,rightVerticalRatioNeg;
@@ -55,7 +56,10 @@ newinternal leftVerticalRatio,leftVerticalRatioNeg,rightVerticalRatio,rightVerti
 digitscale := 0.80;
 
 nextunicode := 58000; % 57343; %hex"E000"-1; % the first code for aya numbers
-string charmacroname;
+
+string nametable.familyName;
+nametable.familyName := "DigitalKhatt Old Madina";
+
 
 def MarkAnchor = 1 enddef;
 def EntryAnchor = 2 enddef;
@@ -64,27 +68,29 @@ def EntryAnchorRTL = 4 enddef;
 def ExitAnchorRTL = 5 enddef;
 def Anchor = 6 enddef;
 
-% vardef first.hah.medi.pluslt_[]@#=@ enddef;
+def generateAlternate(suffix macroname)(suffix params) =
+beginchar(alternatechar,983040,-1,-1,-1);charlt:=params0;charrt:=params1;macroname(params);endchar;
+enddef;
 
-% vardef hah.medi.pluslt_[]_(expr _lt,_rt) = hah.medi_(_lt,_rt);enddef;
+primarydef w ?? d = if known w : w else : d fi enddef;
 
-def makechardef(suffix name)(expr c,w_sharp)(text t) =
-  charmacroname:=str name & "_";  
-  expandafter vardef scantokens charmacroname(expr _lt,_rt) =    
-	  if ignore_exp_parameters <> 0 :
-        ignore_exp_parameters := 0;
-        interim charlt := lefttatweel;
-        interim charrt := righttatweel;  
-	  else:
-      save lefttatweel,righttatweel;
-		  interim charlt := lefttatweel := _lt;
-      interim charrt := righttatweel :=_rt;   
-	  fi
+def makechardef(suffix name)(expr c,w_sharp)(text t) =    
+  vardef name$(suffix params) =    
+    interim lefttatweel := params0 ?? 0;
+    interim righttatweel := params1 ?? 0;   	  
     t         
     originalglyph := str name;   
+  enddef;  
+  expandafter vardef scantokens(str name & "_")(expr _lt,_rt) =    
+    save _params;
+    _params0 := _lt;
+    _params1 :=_rt;   	  
+    name$(_params);    
   enddef;
   beginchar(name,c,w_sharp,-1,-1);
-    scantokens charmacroname(0,0);
+    charlt := params0;
+    charrt := params1;   	   
+    name$(params);
   endchar; 
 enddef;
 delimiters begindefchar enddefchar;
@@ -127,7 +133,7 @@ def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
  _addedpostscript := "";
  savepicture := 0; 
 
- save anchors;
+ save anchors,minA,maxA;
  string anchors[]anchorname;
  pair anchors[]pairvalue;
  numeric anchors[]anctype; 
@@ -142,6 +148,7 @@ def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
  rightVerticalRatio := 10; 
  minLeft := minRight := -1;
  maxLeft := maxRight := 6;
+ maxLii := maxRii := 20;
 enddef;
 transform tr_;
 
@@ -344,8 +351,8 @@ mode:=lowres;
 mode_setup;	
 
 prologues := 3;
-outputformat := "svg";
-outputtemplate := "automedinaoutput\%j-%c.svg";
+%outputformat := "svg";
+%outputtemplate := "automedinaoutput\%j-%c.svg";
 fontmaking:=0;
 tracingonline:=1;
 
@@ -678,27 +685,27 @@ enddef;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 def cutGlyph(expr bottomPoint, upPoint, rightPath) =
 
-path p;
+path _p;
 pair bottomDispl, upDispl;
 numeric bottomTime, upTime;
 
 l_ := residu;
 
-p := pathpart currentpicture;
+_p := pathpart currentpicture;
 
 currentpicture:=nullpicture;
 
-(bottomTime,whatever) = p intersectiontimes bottomPoint;
-(upTime,whatever) = p intersectiontimes upPoint; 
+(bottomTime,whatever) = _p intersectiontimes bottomPoint;
+(upTime,whatever) = _p intersectiontimes upPoint; 
 
 if rightPath :
-  bottomDispl := bottomPoint - l_* unitvector direction bottomTime of p;
-  upDispl := upPoint +  l_* unitvector direction upTime of p;
-  fill subpath(bottomTime,upTime) of p .. controls   upDispl .. 1/2[upDispl,bottomDispl] .. controls bottomDispl ..   cycle ;
+  bottomDispl := bottomPoint - l_* unitvector direction bottomTime of _p;
+  upDispl := upPoint +  l_* unitvector direction upTime of _p;
+  fill subpath(bottomTime,upTime) of _p .. controls   upDispl .. 1/2[upDispl,bottomDispl] .. controls bottomDispl ..   cycle ;
 else:
-  bottomDispl := bottomPoint + l_* unitvector direction bottomTime of p;
-  upDispl := upPoint -   l_* unitvector direction upTime of p;
-  fill subpath(0,bottomTime) of p .. controls   bottomDispl .. 1/2[bottomDispl,upDispl] .. controls upDispl ..  subpath(upTime,length p) of p .. cycle ;
+  bottomDispl := bottomPoint + l_* unitvector direction bottomTime of _p;
+  upDispl := upPoint -   l_* unitvector direction upTime of _p;
+  fill subpath(0,bottomTime) of _p .. controls   bottomDispl .. 1/2[bottomDispl,upDispl] .. controls upDispl ..  subpath(upTime,length _p) of _p .. cycle ;
 fi;
 
 enddef;
@@ -785,7 +792,7 @@ if lefttatweel < 0 :
   factor_ := lefttatweel  /  minLeft;
   def + factor_ * dmin
 else:
-   factor_ := lefttatweel / 20;
+   factor_ := lefttatweel / maxLii;
    def + factor_ * dmax
 fi
 enddef;
@@ -794,9 +801,24 @@ if righttatweel < 0 :
   factor_ := righttatweel  /  minRight;
   def + factor_ * dmin
 else:
-   factor_ := righttatweel / 20;
+   factor_ := righttatweel / maxRii;
    def + factor_ * dmax
 fi
+enddef;
+vardef liii[](expr dft,dmax,dmin) =
+if params@ < 0 :
+  factor_ := params@  /  (minA@ ?? -1);
+  dft + factor_ * dmin
+else:
+   factor_ := params@ / (maxA@ ?? 20);
+   dft + factor_ * dmax
+fi
+enddef;
+vardef leii[](expr dft,dmax) =
+_maxA := maxA@ ?? 20;
+_minA := minA@ ?? -1;
+factor_ := (params@ - _minA) / (_maxA - _minA);
+dft + factor_ * dmax
 enddef;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 vardef interpolatepoint(expr min,max,factor_) =
@@ -914,9 +936,3 @@ enddef;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 input myfontbase.mp;
 input ayah.mp;
-
-def generateAlternate(suffix macroname)(expr lt, rt) =
-beginchar(alternatechar,983040,-1,-1,-1);macroname(lt,rt);charlt:=lt;charrt:=rt;endchar;
-enddef;
-
-

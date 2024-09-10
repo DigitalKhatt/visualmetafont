@@ -119,7 +119,7 @@ void KnotControlledItem::setPositions(mp_gr_knot knot) {
     right->setPos(m_knot->right_x, m_knot->right_y);
     rightline->setLine(m_knot->x_coord, m_knot->y_coord, right->pos().x(), right->pos().y());
   }
-  
+
 
 }
 QRectF KnotControlledItem::boundingRect() const
@@ -293,11 +293,14 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
     QMenu menu;
     QMenu* lksubMenu = nullptr;
     QMenu* rksubMenu = nullptr;
-    QMenu* axes = nullptr;
+    QMenu* LerpMinMax = nullptr;
+    QMenu* LerpMinDefMax = nullptr;
+    QMenu* LerpMinMaxDir = nullptr;
+    QMenu* LerpMinDefMaxDir = nullptr;
+    QMenu* LerpMinMaxTension = nullptr;
+    QMenu* LerpMinDefMaxTension = nullptr;
     if (watched == incurve) {
 
-      //QAction * scaleAct = new QAction("&Scale", this);	
-      //connect(newAct, &QAction::triggered, this, &MainWindow::newFile);
       menu.addAction("Delete");
       menu.addAction("Left");
       menu.addAction("Right");
@@ -305,38 +308,41 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
       menu.addAction("Down");
       menu.addAction("dir");
       menu.addAction("dir-dir");
-      //menu.addAction("Left Kashida");      
-      //menu.addAction("Right Kashida");
-
-      /** add submenu */
-      /*lksubMenu = menu.addMenu(tr("Left Kashida"));
-      lksubMenu->addAction("0");
-      lksubMenu->addAction("1");
-      lksubMenu->addAction("2");*/
-
-      /*rksubMenu = menu.addMenu(tr("Right Kashida"));
-      rksubMenu->addAction("0");
-      rksubMenu->addAction("1");
-      rksubMenu->addAction("2");*/
-
-      /*axes = menu.addMenu(tr("Axes"));
-      axes->addAction("Add Left");
-      axes->addAction("Add Right");
-      axes->addAction("Remove Blend");*/
-      menu.addAction("Add Left 1");
-      menu.addAction("Add Right 1");
-      menu.addAction("Add Left 2");
-      menu.addAction("Add Right 2");
+      LerpMinMax = menu.addMenu(tr("LerpMinMax"));
+      for (int i = 0; i < 5; i++) {
+        auto action = LerpMinMax->addAction(QString("Axis %1").arg(i));
+        action->setData(0);
+      }
+      LerpMinDefMax = menu.addMenu(tr("LerpMinDefMax"));
+      for (int i = 0; i < 5; i++) {
+        auto action = LerpMinDefMax->addAction(QString("Axis %1").arg(i));
+        action->setData(0);
+      }
       menu.addAction("Remove Blend");
     }
     else if (watched == left || watched == right) {
-      QMenu* axes = menu.addMenu(tr("Axes"));
-      axes->addAction("Add Left Tension");
-      axes->addAction("Add Left Dir");
-      axes->addAction("Add Right Tension");
-      axes->addAction("Add Right Dir");
-      axes->addAction("Remove Blend From Tension");
-      axes->addAction("Remove Blend From Dir");
+      LerpMinMaxDir = menu.addMenu(tr("LerpMinMaxDir"));
+      for (int i = 0; i < 5; i++) {
+        auto action = LerpMinMaxDir->addAction(QString("Axis %1").arg(i));
+        action->setData(1);
+      }
+      LerpMinDefMaxDir = menu.addMenu(tr("LerpMinDefMaxDir"));
+      for (int i = 0; i < 5; i++) {
+        auto action = LerpMinDefMaxDir->addAction(QString("Axis %1").arg(i));
+        action->setData(1);
+      }
+      LerpMinMaxTension = menu.addMenu(tr("LerpMinMaxTension"));
+      for (int i = 0; i < 5; i++) {
+        auto action = LerpMinMaxTension->addAction(QString("Axis %1").arg(i));
+        action->setData(2);
+      }
+      LerpMinDefMaxTension = menu.addMenu(tr("LerpMinDefMaxTension"));
+      for (int i = 0; i < 5; i++) {
+        auto action = LerpMinDefMaxTension->addAction(QString("Axis %1").arg(i));
+        action->setData(2);
+      }
+      menu.addAction("Remove Blend From Tension");
+      menu.addAction("Remove Blend From Dir");
     }
 
     QAction* a = menu.exec(me->screenPos());
@@ -349,41 +355,25 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
         int knots = a->text().toInt();
         addKashida(false, knots);
       }
-      else if (a->text() == "Add Left 1") {
-        AddRemoveBlend(true, false, 0);
+      else if (a->parentWidget() == LerpMinMax || a->parentWidget() == LerpMinMaxDir || a->parentWidget() == LerpMinMaxTension) {
+        int axisIndex = a->text().mid(5).toInt();
+        AddLerp(a->data().toInt(), 0, axisIndex);
       }
-      else if (a->text() == "Add Right 1") {
-        AddRemoveBlend(false, false, 0);
-      }
-      else if (a->text() == "Add Left 2") {
-        AddRemoveBlend(true, false, 3);
-      }
-      else if (a->text() == "Add Right 2") {
-        AddRemoveBlend(false, false, 3);
+      else if (a->parentWidget() == LerpMinDefMax || a->parentWidget() == LerpMinDefMaxDir || a->parentWidget() == LerpMinDefMaxTension) {
+        int axisIndex = a->text().mid(5).toInt();
+        AddLerp(a->data().toInt(), 1, axisIndex);
       }
       else if (a->text() == "Remove Blend") {
-        AddRemoveBlend(false, true, 0);
-      }
-      else if (a->text() == "Add Left Dir") {
-        AddRemoveBlend(true, false, 1);
-      }
-      else if (a->text() == "Add Right Dir") {
-        AddRemoveBlend(false, false, 1);
-      }
-      else if (a->text() == "Add Left Tension") {
-        AddRemoveBlend(true, false, 2);
-      }
-      else if (a->text() == "Add Right Tension") {
-        AddRemoveBlend(false, false, 2);
+        RemoveLerp(0);
       }
       else if (a->text() == "Remove Blend From Dir") {
-        AddRemoveBlend(false, true, 1);
+        RemoveLerp(1);
       }
       else if (a->text() == "Remove Blend From Tension") {
-        AddRemoveBlend(false, true, 2);
+        RemoveLerp(2);
       }
       else if (a->text() == "Delete") {
-        auto scene = (GlyphScene*)this->scene();        
+        auto scene = (GlyphScene*)this->scene();
         scene->deletePoint(this);
       }
       else if (a->text() == "Left") {
@@ -438,7 +428,82 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
   return QGraphicsItem::sceneEventFilter(watched, event);
 }
 
-bool KnotControlledItem::AddRemoveBlend(bool left, bool remove, int type) {
+bool KnotControlledItem::RemoveLerp(int valueType) {
+
+  auto scene = (GlyphScene*)this->scene();
+
+  auto selectItems = scene->selectedItems();
+
+  auto oldSource = m_glyph->source();
+
+  bool change = false;
+
+  for (auto item : selectItems) {
+    auto knotItem = dynamic_cast<KnotItem*>(item);
+    if (!knotItem) continue;
+
+    auto parentItem = (KnotControlledItem*)knotItem->parentItem();
+
+    if (knotItem == parentItem->incurve) {
+      auto expr = dynamic_cast<FunctionMFExp*>(parentItem->m_glyphknot->expr.get());
+      if (expr) {
+        auto expr2 = expr->getFirst()->clone();
+        parentItem->m_glyphknot->expr = std::unique_ptr<MFExpr>(expr2.release());
+        change = true;
+      }
+    }
+    else if (knotItem == parentItem->left || knotItem == parentItem->right) {
+
+      auto& knotentryexit = knotItem == parentItem->left ? parentItem->m_glyphknot->leftValue : parentItem->m_glyphknot->rightValue;
+
+      // direction
+      if (valueType == 1) {
+        auto expr = dynamic_cast<FunctionMFExp*>(knotentryexit.dirExpr.get());
+        if (expr) {
+          auto expr2 = expr->getFirst()->clone();
+          knotentryexit.dirExpr = std::unique_ptr<MFExpr>(expr2.release());
+          change = true;
+        }
+        else {
+          auto expdir = dynamic_cast<DirPathPointExp*>(knotentryexit.dirExpr.get());
+          if (expdir) {
+            auto expr2 = expdir->getVal();
+            expr = dynamic_cast<FunctionMFExp*>(expr2);
+            if (expr) {
+              expdir->setVal(expr->getFirst()->clone().release());
+              change = true;
+            }
+
+          }
+        }
+      }
+      //tension
+      else if (valueType == 2) {
+        auto expr = dynamic_cast<FunctionMFExp*>(knotentryexit.tensionExpr.get());
+        if (expr) {
+          auto expr2 = expr->getFirst()->clone();
+          knotentryexit.tensionExpr = std::unique_ptr<MFExpr>(expr2.release());
+          change = true;
+        }
+      }
+    }
+  }
+
+  if (change) {
+    m_glyph->isDirty = true;
+
+    auto newSource = m_glyph->source();
+
+    GlyphSourceChangeCommand* command = new GlyphSourceChangeCommand(m_glyph, "Source Changed", oldSource, newSource, true);
+    m_glyph->undoStack()->push(command);
+
+
+  }
+
+  return true;
+}
+
+bool KnotControlledItem::AddLerp(int valueType, int lerpType, int axis) {
 
   auto scene = (GlyphScene*)this->scene();
 
@@ -456,108 +521,81 @@ bool KnotControlledItem::AddRemoveBlend(bool left, bool remove, int type) {
 
     auto knot = parentItem->m_glyphknot;
 
+    QString bendFuncName;
+    int paramNumber;
+
+    if (lerpType == 0) {
+      bendFuncName = QString("leii%1").arg(axis);
+      paramNumber = 1;
+    }
+    else {
+      bendFuncName = QString("liii%1").arg(axis);
+      paramNumber = 2;
+    }
+
+
     if (knotItem == parentItem->incurve) {
-      if (remove) {
-        auto expr = dynamic_cast<FunctionMFExp*>(parentItem->m_glyphknot->expr.get());
-        if (expr) {
-          auto expr2 = expr->getFirst()->clone();
-          parentItem->m_glyphknot->expr = std::unique_ptr<MFExpr>(expr2.release());
-          change = true;
-        }
+      std::vector<MFExpr*> args{ parentItem->m_glyphknot->expr.release() };
+
+      for (int i = 0; i < paramNumber; i++) {
+        args.push_back(new PairPathPointExp(QPointF{ 0,0 }));
       }
-      else {
-        QString bendFuncName = left ? (type == 0 ? "bldmvi" : "bldmv") : (type == 0 ? "brdmvi" : "brdmv");
+      parentItem->m_glyphknot->expr = std::make_unique<FunctionMFExp>(bendFuncName, args);
 
-        if (type == 0) {
-          parentItem->m_glyphknot->expr = std::make_unique<FunctionMFExp>(bendFuncName,
-            parentItem->m_glyphknot->expr.release(),
-            new PairPathPointExp(QPointF{ 0,0 })
-          );
-        }
-        else {
+      change = true;
 
-          std::vector<MFExpr*> params{ parentItem->m_glyphknot->expr.release(),
-            new PairPathPointExp(QPointF{ 0,0 }),
-            new PairPathPointExp(QPointF{ 0,0 }) };
-          parentItem->m_glyphknot->expr = std::make_unique<FunctionMFExp>(bendFuncName, params);
-        }
-
-        change = true;
-      }
     }
     else if (knotItem == parentItem->left || knotItem == parentItem->right) {
 
       auto& knotentryexit = knotItem == parentItem->left ? parentItem->m_glyphknot->leftValue : parentItem->m_glyphknot->rightValue;
 
-      if (remove) {
-        if (type == 0 || type == 1) {
-          auto expr = dynamic_cast<FunctionMFExp*>(knotentryexit.dirExpr.get());
-          if (expr) {
-            auto expr2 = expr->getFirst()->clone();
-            knotentryexit.dirExpr = std::unique_ptr<MFExpr>(expr2.release());
+
+      if (valueType == 1) {
+        if (knotentryexit.dirExpr) {
+          auto dirExpr = dynamic_cast<DirPathPointExp*>(knotentryexit.dirExpr.get());
+          if (dirExpr) {
+            std::vector<MFExpr*> args{ dirExpr->getVal()->clone().release() };
+            for (int i = 0; i < paramNumber; i++) {
+              args.push_back(new LitPathNumericExp(0));
+            }
+            dirExpr->setVal(new FunctionMFExp(bendFuncName, args));
             change = true;
           }
           else {
-            auto expdir = dynamic_cast<DirPathPointExp*>(knotentryexit.dirExpr.get());
-            if (expdir) {
-              auto expr2 = expdir->getVal();
-              expr = dynamic_cast<FunctionMFExp*>(expr2);
-              if (expr) {
-                expdir->setVal(expr->getFirst()->clone().release());
-                change = true;
-              }
-
+            std::vector<MFExpr*> args{ knotentryexit.dirExpr.release() };
+            for (int i = 0; i < paramNumber; i++) {
+              args.push_back(new LitPathNumericExp(0));
             }
-          }
-        }
-        if (type == 0 || type == 2) {
-          auto expr = dynamic_cast<FunctionMFExp*>(knotentryexit.tensionExpr.get());
-          if (expr) {
-            auto expr2 = expr->getFirst()->clone();
-            knotentryexit.tensionExpr = std::unique_ptr<MFExpr>(expr2.release());
+            knotentryexit.dirExpr = std::make_unique<DirPathPointExp>(new FunctionMFExp(bendFuncName, args));
             change = true;
           }
+        }
+        else {
+          std::vector<MFExpr*> args{ new LitPathNumericExp(25) };
+
+          for (int i = 0; i < paramNumber; i++) {
+            args.push_back(new LitPathNumericExp(0));
+          }
+
+          knotentryexit.dirExpr = std::make_unique<DirPathPointExp>(new FunctionMFExp(bendFuncName, args));
+          knotentryexit.type = Glyph::mpgui_given;
+          change = true;
         }
       }
-      else {
-        QString bendFuncName = left ? "bldmvi" : "brdmvi";
+      if (valueType == 2) {
+        if (knotentryexit.tensionExpr) {
 
-        if (type == 0 || type == 1) {
-          if (knotentryexit.dirExpr) {
-            auto dirExpr = dynamic_cast<DirPathPointExp*>(knotentryexit.dirExpr.get());
-            if (dirExpr) {
-              auto expr2 = dirExpr->getVal()->clone().release();
-              dirExpr->setVal(new FunctionMFExp(bendFuncName,
-                expr2,
-                new LitPathNumericExp(0)
-              ));
-              change = true;
-            }
-            else {
-              knotentryexit.dirExpr = std::make_unique<FunctionMFExp>(bendFuncName,
-                knotentryexit.dirExpr.release(),
-                new PairPathPointExp(QPointF{ 0,0 })
-              );
-              change = true;
-            }
-          }
-          else {
-            knotentryexit.dirExpr = std::make_unique<DirPathPointExp>(new FunctionMFExp(bendFuncName, new LitPathNumericExp(25), new LitPathNumericExp(0)));
-            knotentryexit.type = Glyph::mpgui_given;
-            change = true;
-          }
-        }
-        if (type == 0 || type == 2) {
-          if (knotentryexit.tensionExpr) {
+          std::vector<MFExpr*> args{ knotentryexit.tensionExpr.release() };
 
-            knotentryexit.tensionExpr = std::make_unique<FunctionMFExp>(bendFuncName,
-              knotentryexit.tensionExpr.release(),
-              new LitPathNumericExp(0)
-            );
-            change = true;
+          for (int i = 0; i < paramNumber; i++) {
+            args.push_back(new LitPathNumericExp(0));
           }
+          knotentryexit.tensionExpr = std::make_unique<FunctionMFExp>(bendFuncName, args);
+
+          change = true;
         }
       }
+
     }
 
   }
@@ -927,7 +965,7 @@ bool KnotControlledItem::addKashida(bool left, int nbKnots) {
 
 bool KnotControlledItem::updateControlPoint(QGraphicsSceneMouseEvent* event, bool leftControl, QPointF diff, bool shift, bool ctrl) {
 
-  
+
   if (!incurve || incurve->isSelected()) {
     return false;
   }
@@ -963,7 +1001,7 @@ bool KnotControlledItem::updateControlPoint(QGraphicsSceneMouseEvent* event, boo
   if (!shift && controlValue.type == Glyph::mpgui_given) {
     //updateControlledPoint(controlValue.dirExpr.get(), expIndex, -diff);
     //canmodify = true;
-    
+
     auto expr = controlValue.dirExpr.get();
 
     double deltaAng = line.angleTo(currentline);

@@ -136,7 +136,7 @@ feature_definition
 			YYERROR;
 		}else{
 			$$ = new FeatureDefenition($bname,$lstm);
-			driver.context.features[$bname] = $$;
+			driver.context.features.push_back($$);
 		}
 	}
 	;

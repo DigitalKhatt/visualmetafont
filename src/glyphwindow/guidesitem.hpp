@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -35,6 +35,7 @@ public:
 
 private:
 	Glyph* glyph;
+	double lineHeight;
 	
 };
 #endif // GUIDESITEM_H

@@ -1,18 +1,18 @@
 /*173:*/
-// #line 5020 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 5078 "../../../source/texk/web2c/mplibdir/psout.w"
 
 #ifndef MPLIBPS_H
 #define MPLIBPS_H 1
 #include "mplib.h"
 /*182:*/
-// #line 5153 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 5211 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef struct{
 double a_val,b_val,c_val,d_val;
 }mp_color;
 
 /*:182*//*183:*/
-// #line 5163 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 5221 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef struct{
 double offset;
@@ -21,7 +21,7 @@ double*array;
 
 
 /*:183*//*188:*/
-// #line 5245 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 5303 "../../../source/texk/web2c/mplibdir/psout.w"
 
 #define GRAPHIC_BODY                      \
   int type;                               \
@@ -96,13 +96,12 @@ GRAPHIC_BODY;
 char*pre_script;
 }mp_special_object;
 
-
 //Added for VisualMetaFont
 typedef struct AnchorPoint {
-	char* anchorName;
-	int type;
-	int x;
-	int y;
+  char* anchorName;
+  int type;
+  int x;
+  int y;
 } AnchorPoint;
 
 typedef struct mp_edge_object{
@@ -127,29 +126,29 @@ double xpart;
 double ypart;
 int numAnchors;
 AnchorPoint anchors[10];
-
 }mp_edge_object;
 
 /*:188*//*235:*/
-// #line 6280 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 6318 "../../../source/texk/web2c/mplibdir/psout.w"
 
 int mp_ps_ship_out(mp_edge_object*hh,int prologues,int procset);
 
 /*:235*//*240:*/
-// #line 6335 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 6373 "../../../source/texk/web2c/mplibdir/psout.w"
 
 void mp_gr_toss_objects(mp_edge_object*hh);
 void mp_gr_toss_object(mp_graphic_object*p);
 
 /*:240*//*243:*/
-// #line 6399 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 6437 "../../../source/texk/web2c/mplibdir/psout.w"
 
 mp_graphic_object*mp_gr_copy_object(MP mp,mp_graphic_object*p);
 
 /*:243*/
-// #line 5024 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 5082 "../../../source/texk/web2c/mplibdir/psout.w"
 
 #endif
+#line 5084 "../../../source/texk/web2c/mplibdir/psout.w"
 
 
 /*:173*/

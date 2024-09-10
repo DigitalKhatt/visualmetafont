@@ -1,5 +1,5 @@
 /*2:*/
-// #line 45 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 43 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 #include <w2c/config.h> 
 #include <stdio.h> 
@@ -10,12 +10,12 @@
 #include "mpmath.h" 
 #include "mpstrings.h" 
 /*3:*/
-// #line 61 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 59 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 font_number mp_read_font_info(MP mp,char*fname);
 
 /*:3*/
-// #line 54 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 52 "../../../source/texk/web2c/mplibdir/tfmin.w"
 ;
 #define qi(A) (quarterword) (A) 
 #define null_font 0
@@ -43,11 +43,11 @@ tfget;(A) = (A) *0400+tfbyte; \
 #define integer_as_fraction(A) (int) (A)  \
 
 
-// #line 55 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 53 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 
 /*:2*//*4:*/
-// #line 64 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 62 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 font_number mp_read_font_info(MP mp,char*fname){
 boolean file_opened;
@@ -62,7 +62,7 @@ int h_and_d;
 int tfbyte= 0;
 n= null_font;
 /*12:*/
-// #line 236 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 234 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 file_opened= false;
 mp_ptr_scan_file(mp,fname);
@@ -83,13 +83,13 @@ file_opened= true
 
 
 /*:12*/
-// #line 77 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 75 "../../../source/texk/web2c/mplibdir/tfmin.w"
 ;
 /*6:*/
-// #line 111 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 109 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 /*7:*/
-// #line 140 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 138 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 tfget;read_two(lf);
 tfget;read_two(tfm_lh);
@@ -104,10 +104,10 @@ if(lf<(int)(6+(size_t)tfm_lh+whd_size))goto BAD_TFM;
 tf_ignore(10)
 
 /*:7*/
-// #line 112 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 110 "../../../source/texk/web2c/mplibdir/tfmin.w"
 ;
 /*8:*/
-// #line 159 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 157 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 if(mp->next_fmem<(size_t)bc)
 mp->next_fmem= (size_t)bc;
@@ -135,10 +135,10 @@ mp->next_fmem= mp->next_fmem+whd_size;
 
 
 /*:8*/
-// #line 113 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 111 "../../../source/texk/web2c/mplibdir/tfmin.w"
 ;
 /*9:*/
-// #line 189 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 187 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 if(tfm_lh<2)goto BAD_TFM;
 tf_ignore(4);
@@ -150,10 +150,10 @@ mp->font_dsize[n]= mp_take_fraction(mp,z,integer_as_fraction(267432584));
 tf_ignore(4*(tfm_lh-2))
 
 /*:9*/
-// #line 114 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 112 "../../../source/texk/web2c/mplibdir/tfmin.w"
 ;
 /*10:*/
-// #line 199 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 197 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 ii= mp->width_base[n];
 i= mp->char_base[n]+bc;
@@ -167,7 +167,7 @@ i++;
 }
 while(i<(int)mp->next_fmem){
 /*11:*/
-// #line 222 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 220 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 {
 tfget;d= tfbyte;
@@ -180,21 +180,21 @@ i++;
 }
 
 /*:11*/
-// #line 212 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 210 "../../../source/texk/web2c/mplibdir/tfmin.w"
 ;
 }
 goto DONE
 
 /*:10*/
-// #line 116 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 114 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 
 /*:6*/
-// #line 79 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 77 "../../../source/texk/web2c/mplibdir/tfmin.w"
 ;
 BAD_TFM:
 /*5:*/
-// #line 96 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 94 "../../../source/texk/web2c/mplibdir/tfmin.w"
 
 {
 char msg[256];
@@ -211,7 +211,7 @@ mp_error(mp,msg,hlp,true);
 }
 
 /*:5*/
-// #line 81 "../../../source/texk/web2c/mplibdir/tfmin.w"
+#line 79 "../../../source/texk/web2c/mplibdir/tfmin.w"
 ;
 DONE:
 if(file_opened)(mp->close_file)(mp,mp->tfm_infile);

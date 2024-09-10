@@ -41,4 +41,5 @@ void getPointParam(MP mp, int index,double*x, double*y);
 
 bool getMPPairVariable(MP mp, char* varName, double* x, double* y);
 bool getMPNumVariable(MP mp, char* varName, double* x);
+bool getMPStringVariable(MP mp, const char* varName, char** x);
 

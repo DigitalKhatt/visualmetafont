@@ -1948,12 +1948,18 @@ QPoint MarkBaseSubtable::getBaseAnchor(QString baseGlyphName, QString className,
     if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
       coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
     }
-    else if (markClass.basefunction) {
-      coordinate = markClass.basefunction(baseGlyphName, className, coordinate, lefttatweel, righttatweel);
-    }
-    else if (markClass.baseanchors.contains(baseGlyphName)) {
-      coordinate += markClass.baseanchors[baseGlyphName];
-    }
+    else {
+      QString anchorName = m_lookup->name;
+      if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
+        coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
+      }
+      else if (markClass.basefunction) {
+        coordinate = markClass.basefunction(baseGlyphName, className, coordinate, lefttatweel, righttatweel);
+      }
+      else if (markClass.baseanchors.contains(baseGlyphName)) {
+        coordinate += markClass.baseanchors[baseGlyphName];
+      }
+    }  
   }
 
   return coordinate;
@@ -1999,12 +2005,18 @@ QPoint MarkBaseSubtable::getMarkAnchor(QString markGlyphName, QString className,
     if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
       coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
     }
-    else if (markClass.markfunction != nullptr) {
-      coordinate = markClass.markfunction(markGlyphName, className, coordinate, lefttatweel, righttatweel);
-    }
-    else if (markClass.markanchors.contains(markGlyphName)) {
-      coordinate += markClass.markanchors[markGlyphName];
-    }
+    else {
+      QString anchorName = m_lookup->name;
+      if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
+        coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
+      }
+      else if (markClass.markfunction != nullptr) {
+        coordinate = markClass.markfunction(markGlyphName, className, coordinate, lefttatweel, righttatweel);
+      }
+      else if (markClass.markanchors.contains(markGlyphName)) {
+        coordinate += markClass.markanchors[markGlyphName];
+      }
+    }   
   }
 
   return coordinate;

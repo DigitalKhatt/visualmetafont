@@ -49,7 +49,7 @@ int mainold(int argc, char* argv[]) {
 		glyph->getEdge();
 	}
 
-	OtLayout* layout = new OtLayout(font->mp, true);
+	OtLayout* layout = new OtLayout(font, true);
 
 	return app.exec();
 }

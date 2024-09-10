@@ -6,6 +6,7 @@
 #include "GlyphVis.h"
 #include <algorithm>
 #include "qregularexpression.h"
+#include "defaultmarkpositions.h"
 #include "metafont.h"
 #include "qdebug.h"
 
@@ -14,8 +15,7 @@ using namespace std;
 
 void digitalkhatt::generateGlyphs() {
 
-  mp_run_data* _mp_results = mp_rundata(mp);
-  mp_edge_object* edges = _mp_results->edges;
+  mp_edge_object* edges = font->getEdges();
 
   glyphs.clear();
 
@@ -209,7 +209,7 @@ void digitalkhatt::addchars() {
 
 }
 
-digitalkhatt::digitalkhatt(OtLayout* layout, MP mp, bool extended) :Automedina{ layout,mp, extended } {
+digitalkhatt::digitalkhatt(OtLayout* layout, Font* font, bool extended) :Automedina{ layout,font, extended } {
 
   //m_metafont = layout->m_font;
   classes["marks"] = {
@@ -623,6 +623,9 @@ Lookup* digitalkhatt::getLookup(QString lookupName) {
   else if (lookupName == "cursivejoin") {
     return cursivejoin();
   }
+  else if (lookupName == "cursivejoinrtl") {
+    return cursivejoinrtl();
+  }
   else if (lookupName == "rehwawcursivecpp") {
     return rehwawcursivecpp();
   }
@@ -751,34 +754,8 @@ Lookup* digitalkhatt::rehwawcursivecpp() {
 
 }
 Lookup* digitalkhatt::cursivejoin() {
+
   auto lookup = new Lookup(m_layout);
-  lookup->name = "cursivejoinrtl";
-  lookup->feature = "curs";
-  lookup->type = Lookup::cursive;
-  lookup->flags = Lookup::Flags::IgnoreMarks | Lookup::Flags::RightToLeft;
-
-  for (auto it = entryAnchorsRTL.constBegin(); it != entryAnchorsRTL.constEnd(); ++it) {
-    QString cursiveName = it.key();
-    auto entries = it.value();
-    auto exits = exitAnchorsRTL[cursiveName];
-
-    CursiveSubtable* newsubtable = new CursiveSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-    newsubtable->name = cursiveName;
-
-    for (auto anchor = entries.constBegin(); anchor != entries.constEnd(); ++anchor) {
-      newsubtable->anchors[anchor.key()].entry = anchor.value();
-    }
-
-    for (auto anchor = exits.constBegin(); anchor != exits.constEnd(); ++anchor) {
-      newsubtable->anchors[anchor.key()].exit = anchor.value();
-    }
-  }
-
-
-  m_layout->addLookup(lookup);
-
-  lookup = new Lookup(m_layout);
   lookup->name = "cursivejoin";
   lookup->feature = "curs";
   lookup->type = Lookup::cursive;
@@ -803,6 +780,34 @@ Lookup* digitalkhatt::cursivejoin() {
     }
   }
 
+
+  return lookup;
+
+}
+Lookup* digitalkhatt::cursivejoinrtl() {
+  auto lookup = new Lookup(m_layout);
+  lookup->name = "cursivejoinrtl";
+  lookup->feature = "curs";
+  lookup->type = Lookup::cursive;
+  lookup->flags = Lookup::Flags::IgnoreMarks | Lookup::Flags::RightToLeft;
+
+  for (auto it = entryAnchorsRTL.constBegin(); it != entryAnchorsRTL.constEnd(); ++it) {
+    QString cursiveName = it.key();
+    auto entries = it.value();
+    auto exits = exitAnchorsRTL[cursiveName];
+
+    CursiveSubtable* newsubtable = new CursiveSubtable(lookup);
+    lookup->subtables.append(newsubtable);
+    newsubtable->name = cursiveName;
+
+    for (auto anchor = entries.constBegin(); anchor != entries.constEnd(); ++anchor) {
+      newsubtable->anchors[anchor.key()].entry = anchor.value();
+    }
+
+    for (auto anchor = exits.constBegin(); anchor != exits.constEnd(); ++anchor) {
+      newsubtable->anchors[anchor.key()].exit = anchor.value();
+    }
+  }
 
   return lookup;
 
@@ -1005,8 +1010,8 @@ Lookup* digitalkhatt::defaultmarkposition() {
   newsubtable->name = "hamzabelow";
   newsubtable->base = { "^alef[.]" };
   newsubtable->classes["hamzabelow"].mark = { "hamzabelow" };
-  //newsubtable->classes["hamzabelow"].basefunction  = nullptr;//;new Defaulbaseanchorforlow(*this, *newsubtable);
-  //newsubtable->classes["hamzabelow"].markfunction = nullptr; // new Defaullowmarkanchor(*this, *newsubtable);
+  newsubtable->classes["hamzabelow"].basefunction = Defaulbaseanchorforlow(*this, *newsubtable);
+  newsubtable->classes["hamzabelow"].markfunction = Defaullowmarkanchor(*this, *newsubtable);
 
   //wasla
   newsubtable = new MarkBaseSubtable(lookup);
@@ -2415,30 +2420,31 @@ Lookup* digitalkhatt::glyphalternates() {
 
   bool isExtended = m_layout->isExtended();
 
-  unordered_map<QString, QString> mappings;
+  unordered_map<QString, QString> cv01mappings;
 
 
-  mappings.insert({ "noon.isol","noon.isol.expa" });
-  mappings.insert({ "behshape.isol","behshape.isol.expa" });
-  mappings.insert({ "feh.isol","feh.isol.expa" });
-  mappings.insert({ "qaf.isol","qaf.isol.expa" });
-  mappings.insert({ "seen.isol","seen.isol.expa" });
-  mappings.insert({ "sad.isol","sad.isol.expa" });
-  mappings.insert({ "yehshape.isol","yehshape.isol.expa" });
-  mappings.insert({ "alefmaksura.isol","alefmaksura.isol.expa" });
+  cv01mappings.insert({ "noon.isol","noon.isol.expa" });
+  cv01mappings.insert({ "behshape.isol","behshape.isol.expa" });
+  cv01mappings.insert({ "feh.isol","feh.isol.expa" });
+  cv01mappings.insert({ "qaf.isol","qaf.isol.expa" });
+  cv01mappings.insert({ "seen.isol","seen.isol.expa" });
+  cv01mappings.insert({ "sad.isol","sad.isol.expa" });
+  cv01mappings.insert({ "yehshape.isol","yehshape.isol.expa" });
+  cv01mappings.insert({ "alefmaksura.isol","alefmaksura.isol.expa" });
+  cv01mappings.insert({ "kaf.isol","kaf.isol" });
 
-  mappings.insert({ "noon.fina","noon.fina.expa" });
-  mappings.insert({ "noon.fina.afterbeh","noon.fina.expa.afterbeh" });
-  mappings.insert({ "kaf.fina","kaf.fina.expa" });
-  mappings.insert({ "kaf.fina.afterlam","kaf.fina.afterlam.expa" });
-  mappings.insert({ "behshape.fina","behshape.fina.expa" });
-  mappings.insert({ "feh.fina","feh.fina.expa" });
-  mappings.insert({ "qaf.fina","qaf.fina.expa" });
-  mappings.insert({ "seen.fina","seen.fina.expa" });
-  mappings.insert({ "sad.fina","sad.fina.expa" });
-  mappings.insert({ "alef.fina","alef.fina" });
-  mappings.insert({ "yehshape.fina","yehshape.fina.expa" });
-  mappings.insert({ "yehshape.fina.ii","yehshape.fina.ii.expa" });
+  cv01mappings.insert({ "noon.fina","noon.fina.expa" });
+  cv01mappings.insert({ "noon.fina.afterbeh","noon.fina.expa.afterbeh" });
+  cv01mappings.insert({ "kaf.fina","kaf.fina.expa" });
+  cv01mappings.insert({ "kaf.fina.afterlam","kaf.fina.afterlam.expa" });
+  cv01mappings.insert({ "behshape.fina","behshape.fina.expa" });
+  cv01mappings.insert({ "feh.fina","feh.fina.expa" });
+  cv01mappings.insert({ "qaf.fina","qaf.fina.expa" });
+  cv01mappings.insert({ "seen.fina","seen.fina.expa" });
+  cv01mappings.insert({ "sad.fina","sad.fina.expa" });
+  cv01mappings.insert({ "alef.fina","alef.fina" });
+  cv01mappings.insert({ "yehshape.fina","yehshape.fina.expa" });
+  cv01mappings.insert({ "yehshape.fina.ii","yehshape.fina.ii.expa" });
 
   struct AltFeature {
     struct Subst {
@@ -2458,8 +2464,8 @@ Lookup* digitalkhatt::glyphalternates() {
   altfeatures.push_back({ "cv14",{{"fehshape.init.beforehah","fehshape.init" },{"hah.medi.afterfeh","hah.medi" }} });
   altfeatures.push_back({ "cv15",{{"lam.init.lam_hah","lam.init" },{"hah.medi.lam_hah","hah.medi" }} });
   altfeatures.push_back({ "cv16",{{"hah.init.ii","hah.init" },{"hah.medi.ii","hah.medi" },{"ain.init.finjani","ain.init"} } });
-  altfeatures.push_back({ "cv17",{{ "seen.init.beforereh","seen.init" },{"seen.medi.beforereh","seen.medi"}, {"reh.fina.afterseen","reh.fina"},{"sad.medi.beforereh","sad.medi"},{"sad.init.beforereh","sad.init"}} });
-  altfeatures.push_back({ "cv18",{{ "hah.init.beforemeem","hah.init" },{"meem.medi.afterhah","meem.medi" }, } });
+  altfeatures.push_back({ "cv17",{{"seen.init.beforereh","seen.init" },{"seen.medi.beforereh","seen.medi"}, {"reh.fina.afterseen","reh.fina"},{"sad.medi.beforereh","sad.medi"},{"sad.init.beforereh","sad.init"}} });
+  altfeatures.push_back({ "cv18",{{"hah.init.beforemeem","hah.init" },{"meem.medi.afterhah","meem.medi" }, } });
 
   for (auto& feature : altfeatures) {
     Lookup* alternate = new Lookup(m_layout);
@@ -2543,15 +2549,18 @@ Lookup* digitalkhatt::glyphalternates() {
   mappingsdecomp.insert({ "ain.init.finjani","ain.init" });
 
   //kafs
+  mappingsdecomp.insert({ "kaf.init","kaf.init.ii" });
   mappingsdecomp.insert({ "kaf.init.beforemeem","kaf.init.ii" });
   mappingsdecomp.insert({ "kaf.init.beforelam","kaf.init.ii" });
-  mappingsdecomp.insert({ "kaf.medi.beforelam","kaf.medi.ii" });
-  mappingsdecomp.insert({ "lam.fina.afterkaf","lam.fina" });
-  mappingsdecomp.insert({ "lam.medi.afterkaf","lam.medi" });
-  mappingsdecomp.insert({ "alef.fina.afterkaf","alef.fina" });
-  mappingsdecomp.insert({ "kaf.init","kaf.init.ii" });
+  mappingsdecomp.insert({ "kaf.init.ascent","kaf.init.ii" });
+  //mappingsdecomp.insert({ "kaf.init.beforeyeh","kaf.init.ii" });
   mappingsdecomp.insert({ "kaf.medi","kaf.medi.ii" });
+  mappingsdecomp.insert({ "kaf.medi.beforelam","kaf.medi.ii" });
   mappingsdecomp.insert({ "kaf.medi.beforemeem","kaf.medi.ii" });
+  //mappingsdecomp.insert({ "kaf.medi.beforeyeh","kaf.medi.ii" });  
+  mappingsdecomp.insert({ "lam.medi.afterkaf","lam.medi" });
+  mappingsdecomp.insert({ "lam.fina.afterkaf","lam.fina" });
+  mappingsdecomp.insert({ "alef.fina.afterkaf","alef.fina" });
   mappingsdecomp.insert({ "meem.fina.afterkaf","meem.fina" });
 
   Lookup* alternate = new Lookup(m_layout);
@@ -2575,7 +2584,7 @@ Lookup* digitalkhatt::glyphalternates() {
 
     if (m_layout->expandableGlyphs.contains(mapping.first)) {
       valueLimits = m_layout->expandableGlyphs[mapping.first];
-    }    
+    }
 
     if (code == 0 || substcode == 0) {
       throw new std::runtime_error("Glyph name invalid");
@@ -2594,15 +2603,10 @@ Lookup* digitalkhatt::glyphalternates() {
         alternateSubtable->alternates[newglyph->charcode] = alternates2;
       }
     }
-
-
   }
-
-  int cvNumber = 1;
 
   //cv01
   alternate = new Lookup(m_layout);
-  //alternate->name = QString("cv%1").arg(cvNumber++, 2, 10, QLatin1Char('0'));
   alternate->name = "cv01";
   alternate->feature = alternate->name;
   alternate->type = Lookup::alternate;
@@ -2614,7 +2618,7 @@ Lookup* digitalkhatt::glyphalternates() {
   alternateSubtable->name = alternate->name;
 
 
-  for (auto mapping : mappings) {
+  for (auto mapping : cv01mappings) {
 
     QVector<ExtendedGlyph> alternates;
     int code = m_layout->glyphCodePerName[mapping.first];
@@ -2623,7 +2627,11 @@ Lookup* digitalkhatt::glyphalternates() {
     if (code == 0 || substcode == 0) {
       throw new std::runtime_error("Glyph name invalid");
     }
-    alternates.append({ substcode,0,0 });
+    auto sameSubst = mapping.first == "kaf.isol" || mapping.first == "alef.fina";
+    if (!sameSubst) {
+      alternates.append({ substcode,0,0 });
+    }
+
     alternates.append({ substcode,1,0 });
     alternates.append({ substcode,2,0 });
     alternates.append({ substcode,3,0 });
@@ -2635,15 +2643,20 @@ Lookup* digitalkhatt::glyphalternates() {
     alternates.append({ substcode,9,0 });
     alternates.append({ substcode,10,0 });
     alternates.append({ substcode,11,0 });
+    if (sameSubst) {
+      alternates.append({ substcode,12,0 });
+    }
     alternateSubtable->alternates[code] = alternates;
   }
 
   unordered_map<QString, QString> mappingLigaRightOnlys;
 
+
   mappingLigaRightOnlys.insert({ "ain.init.finjani","ain.init" });
   mappingLigaRightOnlys.insert({ "hah.init.ii", "hah.init" });
   mappingLigaRightOnlys.insert({ "hah.medi.ii","hah.medi" });
   mappingLigaRightOnlys.insert({ "behshape.init.beforereh","behshape.init" });
+  mappingLigaRightOnlys.insert({ "lam.init.beforelam","lam.init" });
 
 
 
@@ -2682,23 +2695,9 @@ Lookup* digitalkhatt::glyphalternates() {
     alternateSubtable->alternates[newglyph->charcode] = alternates;
   }
 
-  /*
-  //cv02
-  alternate = new Lookup(m_layout);
-  alternate->name = QString("cv%1").arg(cvNumber++, 2, 10, QLatin1Char('0'));
-  alternate->feature = alternate->name;
-  alternate->type = Lookup::alternate;
-
-  m_layout->addLookup(alternate);
-
-  alternateSubtable = new AlternateSubtable(alternate);
-  alternate->subtables.append(alternateSubtable);
-  alternateSubtable->name = alternate->name;*/
-
-
   for (auto& glyph : m_layout->expandableGlyphs) {
 
-    if (mappings.find(glyph.first) != mappings.end()) continue;
+    if (cv01mappings.find(glyph.first) != cv01mappings.end()) continue;
 
     if (glyph.first == "kasra") continue;
 

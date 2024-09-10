@@ -56,26 +56,16 @@ struct hb_buffer_t;
 typedef struct MP_instance* MP;
 
 struct GlyphParameters {
-  double lefttatweel;
-  double righttatweel;
-  std::optional<double> leftextratio;
-  std::optional<double> rightextratio;
-  std::optional<double> left_tatweeltension;
-  std::optional<double> right_tatweeltension;
-  std::optional<int> which_in_baseline;
+  double lefttatweel = 0.0;
+  double righttatweel = 0.0;
+  double third = 0.0;
+  double fourth = 0.0;
+  double fifth = 0.0;
 
   bool operator==(const GlyphParameters& r) const {
-    return r.lefttatweel == lefttatweel && r.righttatweel == righttatweel && r.leftextratio == leftextratio && r.rightextratio == rightextratio
-      && r.left_tatweeltension == left_tatweeltension && r.right_tatweeltension == right_tatweeltension && r.which_in_baseline == which_in_baseline;
+    return r.lefttatweel == lefttatweel && r.righttatweel == righttatweel && r.third == third && r.fourth == fourth && r.fifth == fifth;
   }
 };
-
-struct ExtendedGlyph {
-  int code;
-  double lefttatweel;
-  double righttatweel;
-};
-
 namespace std {
   template<>
   struct hash<GlyphParameters> {
@@ -83,11 +73,9 @@ namespace std {
     {
       return hash<double>{}(r.lefttatweel)
         ^ hash<double>{}(r.righttatweel)
-        ^ hash<std::optional<double>>{}(r.leftextratio)
-        ^ hash<std::optional<double>>{}(r.rightextratio)
-        ^ hash<std::optional<double>>{}(r.left_tatweeltension)
-        ^ hash<std::optional<double>>{}(r.right_tatweeltension)
-        ^ hash<std::optional<double>>{}(r.which_in_baseline);
+        ^ hash<double>{}(r.third)
+        ^ hash<double>{}(r.fourth)
+        ^ hash<double>{}(r.fifth);
     }
   };
 
@@ -101,6 +89,11 @@ namespace std {
 }
 
 
+struct ExtendedGlyph {
+  int code;
+  double lefttatweel;
+  double righttatweel;
+};
 
 struct GlyphLayoutInfo {
   int advance;
@@ -125,6 +118,8 @@ enum class  LineType {
   Sura = 1,
   Bism = 2
 };
+
+
 
 struct LineLayoutInfo {
   std::vector<GlyphLayoutInfo> glyphs;
@@ -154,6 +149,13 @@ QDataStream& operator>>(QDataStream& stream, SuraLocation& location);
 enum class LineJustification {
   Center,
   Distribute
+};
+
+struct LineToJustify {
+  QString text;
+  int width;
+  LineJustification lineJustification;
+  LineType lineType;
 };
 
 using CalcAnchor = std::function<QPoint(QString, QString, QPoint, double, double)>;
@@ -221,9 +223,9 @@ public:
   };
 
 #if defined DIGITALKHATT_WEBLIB
-  OtLayout(MP mp, bool extended);
+  OtLayout(Font* font, bool extended);
 #else
-  OtLayout(MP mp, bool extended, QObject* parent = Q_NULLPTR);
+  OtLayout(Font* font, bool extended, QObject* parent = Q_NULLPTR);
 #endif
   ~OtLayout();
 
@@ -301,10 +303,10 @@ public:
     this->tables.push_back(lookup);
   };
 
-  MP mp;
+  Font* font;
 
   double nuqta();
-  double getNumericVariable(QString name);
+
 
   GlyphVis* getGlyph(int code);
   GlyphVis* getGlyph(QString name, double lefttatweel, double righttatweel);
@@ -317,9 +319,10 @@ public:
   }
 
   QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level, JustType justType);
-  QList<LineLayoutInfo> justifyPageUsingFeatures(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level) {
-    return {};
-  };
+  QList<LineLayoutInfo> justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level, JustType justType);
+
+
+  QList<LineLayoutInfo> justifyPageUsingFeatures(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level);
   LayoutPages pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
   QList<QStringList> pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, QSet<int> forcedBreaks, int nbPages);
   QList<QStringList> pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, int nbPages);
@@ -481,6 +484,6 @@ private:
 
 
 
-};
+  };
 
 #endif // OTLAYOUT_H

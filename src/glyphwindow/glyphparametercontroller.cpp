@@ -21,6 +21,7 @@
 #include "qtpropertymanager.h"
 #include "qteditorfactory.h"
 # include <QtWidgets>
+#include <iostream>
 
 GlyphParameterController::GlyphParameterController(QWidget* parent) : GlyphParameterController(NULL, parent) {
 }
@@ -98,47 +99,35 @@ void GlyphParameterController::glyphChanged(QString name) {
     auto* prop = m_nametoProperty[name];
     if (prop) {
       QVariant val = m_glyph->property(name.toLatin1());
-      if (name == "leftTatweel" || name == "rightTatweel") {
-        m_sliderManager->setValue(prop, val.toDouble() * tatweelRes);
+      int axisTypeId = qMetaTypeId<Glyph::AxisType>();
+      if (val.userType() == axisTypeId) {
+        Glyph::AxisType vv = val.value<Glyph::AxisType>();
+        m_sliderManager->setValue(prop, vv.value * tatweelRes);
       }
       else {
         m_manager->setValue(prop, val);
-        //prop->setValue(val);
       }
 
     }
-    /*
-    else {
-      for (auto prop : m_sliderManager->properties()) {
-        if (prop->propertyName() == name) {
-          QVariant val = m_glyph->property(name.toLatin1());
-          m_sliderManager->setValue(prop, val.toInt());
-          break;
-        }
-      }
-
-    }*/
   }
 
 }
 void GlyphParameterController::slotValueChanged(QtProperty* property, const QVariant& value)
 {
-  /*
-  if (!m_propertyToName.contains(property))
-    return;
-
-  QString name = m_propertyToName.value(property);*/
-
   QString name = property->propertyName();
 
-  QVariant oldvalue = m_glyph->property(name.toLatin1());
+  QVariant oldVariant = m_glyph->property(name.toLatin1());
 
 
-  if (oldvalue.isValid() && oldvalue != value) {
-    if (name == "leftTatweel" || name == "rightTatweel") {
-      auto newValue = (double)value.toInt() / tatweelRes;
-      if (oldvalue != newValue) {
-        m_glyph->setPropertyWithUndo(name.toLatin1(), newValue);
+  if (oldVariant.isValid() && oldVariant != value) {
+    int axisTypeId = qMetaTypeId<Glyph::AxisType>();
+    if (oldVariant.userType() == axisTypeId) {    
+      QVariant newVariant = QVariant::fromValue(Glyph::AxisType{ (double)value.toInt() / tatweelRes });      
+      if (newVariant != oldVariant) {
+        //auto oldValue = oldVariant.value< Glyph::AxisType>();
+        //auto newValue = newVariant.value< Glyph::AxisType>();
+        //std::cout << "oldValue=" << oldValue.value << "newValue=" << newValue.value << std::endl;
+        m_glyph->setPropertyWithUndo(name.toLatin1(), newVariant);
       }
     }
     else {
@@ -165,17 +154,8 @@ void GlyphParameterController::addProperties()
     if (name == "source" || name == "parameters" || name == "body" || name == "verbatim")
       continue;
     if (m_manager->isPropertyTypeSupported(type)) {
-      if (name == "leftTatweel" || name == "rightTatweel") {
-        subProperty = m_sliderManager->addProperty(name.toLatin1());
-        m_sliderManager->setRange(subProperty, -10 * tatweelRes, 20 * tatweelRes);
-        m_sliderManager->setValue(subProperty, metaProperty.read(m_glyph).toDouble() * tatweelRes);
-        m_sliderManager->setSingleStep(subProperty, 1);
-      }
-      else {
-        subProperty = m_manager->addProperty(type, QLatin1String(metaProperty.name()));
-        m_manager->setValue(subProperty, metaProperty.read(m_glyph));
-        //subProperty->setValue(metaProperty.read(m_glyph));
-      }
+      subProperty = m_manager->addProperty(type, QLatin1String(metaProperty.name()));
+      m_manager->setValue(subProperty, metaProperty.read(m_glyph));
     }
     else {
       subProperty = m_readOnlyManager->addProperty(QVariant::String, name.toLatin1());
@@ -197,6 +177,25 @@ void GlyphParameterController::addProperties()
       m_propertyToName[subProperty] = param.name;
       m_nametoProperty[param.name] = subProperty;
       m_browser->addProperty(subProperty);
+    }
+  }
+
+  QList<QByteArray> dynamicProperties = m_glyph->dynamicPropertyNames();
+  for (int i = 0; i < dynamicProperties.length(); i++) {
+    QByteArray propname = dynamicProperties[i];
+    if (!m_glyph->params.contains(propname)) {
+      QVariant val = m_glyph->property(propname);
+      auto axisTypeId = qMetaTypeId<Glyph::AxisType>();
+      if (val.userType() == axisTypeId) {
+        Glyph::AxisType vv = val.value< Glyph::AxisType>();
+        subProperty = m_sliderManager->addProperty(propname);
+        m_sliderManager->setRange(subProperty, -10 * tatweelRes, 20 * tatweelRes);
+        m_sliderManager->setValue(subProperty, vv.value * tatweelRes);
+        m_sliderManager->setSingleStep(subProperty, 1);
+        m_propertyToName[subProperty] = propname;
+        m_nametoProperty[propname] = subProperty;
+        m_browser->addProperty(subProperty);
+      }
     }
   }
 }

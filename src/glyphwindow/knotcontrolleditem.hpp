@@ -36,20 +36,20 @@ class TensionDirectionItem;
 class KnotControlledItem : public QGraphicsObject {
 	Q_OBJECT
 
-	friend class GlyphScene;
-public:	
+		friend class GlyphScene;
+public:
 
-	QRectF boundingRect() const Q_DECL_OVERRIDE;	
+	QRectF boundingRect() const Q_DECL_OVERRIDE;
 	//QPainterPath shape() const Q_DECL_OVERRIDE;
-	void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) Q_DECL_OVERRIDE;
-	bool sceneEventFilter(QGraphicsItem *watched, QEvent *event) Q_DECL_OVERRIDE;
-	
+	void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) Q_DECL_OVERRIDE;
+	bool sceneEventFilter(QGraphicsItem* watched, QEvent* event) Q_DECL_OVERRIDE;
 
-public:	
-	KnotControlledItem(int m_numsubpath, int m_numpoint, mp_gr_knot knot,int numpointpath, Glyph* glyph, QGraphicsItem * parent = Q_NULLPTR);
+
+public:
+	KnotControlledItem(int m_numsubpath, int m_numpoint, mp_gr_knot knot, int numpointpath, Glyph* glyph, QGraphicsItem* parent = Q_NULLPTR);
 	~KnotControlledItem();
 
-	void setPositions(mp_gr_knot knot);	
+	void setPositions(mp_gr_knot knot);
 	enum { Type = UserType + 4 };
 
 	int type() const
@@ -61,8 +61,9 @@ public:
 private:
 	bool moveMinMaxDeltas(QGraphicsItem* watched, QGraphicsSceneMouseEvent* event);
 	bool addKashida(bool left, int nbKnots);
-	bool AddRemoveBlend(bool left, bool remove, int type);
-	
+	bool AddLerp(int valueType, int lerpType, int axis);
+	bool RemoveLerp(int valueType);
+
 
 	int m_numsubpath;
 	int m_numpoint;
@@ -70,7 +71,7 @@ private:
 	bool m_isInControlledPath;
 	mp_gr_knot m_knot;
 	Glyph* m_glyph;
-	Glyph::Knot * m_glyphknot;
+	Glyph::Knot* m_glyphknot;
 	KnotItem* incurve;
 	KnotItem* left;
 	KnotItem* right;
@@ -104,7 +105,7 @@ private:
 	}
 	bool updateControlPoint(QGraphicsSceneMouseEvent* event, bool leftControl, QPointF diff, bool shift, bool ctrl);
 
-	
+
 	bool updateControlledPoint(MFExpr* expr, int position, QPointF diff);
 };
 #endif // KNOTCONTROLLEDITEM_H

@@ -404,6 +404,12 @@ target_link_libraries(${LUATEX_NAME} PRIVATE lualib)
 
 if (NOT EMSCRIPTEN)
 
+  #edit and continue (disable for now. slower)
+  #if(MSVC)
+  #  target_compile_options(${PROJECT_NAME} PUBLIC "/ZI")
+  #  target_link_options(${PROJECT_NAME} PUBLIC "/INCREMENTAL")
+  #endif()
+
   #target_link_libraries(${PROJECT_NAME} PUBLIC ZLIB::ZLIB
     #Qt5::QWindowsIntegrationPlugin
     #imm32 version Dwmapi Mincore winmm Wtsapi32

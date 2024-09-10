@@ -1,5 +1,5 @@
 /*3:*/
-// #line 81 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 80 "../../../source/texk/web2c/mplibdir/psout.w"
 
 #ifndef MPPSOUT_H
 #define MPPSOUT_H 1
@@ -8,7 +8,7 @@
 #include "mpmp.h"
 #include "mplibps.h"
 /*18:*/
-// #line 386 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 385 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef struct{
 boolean loaded;
@@ -21,7 +21,7 @@ integer tounicode;
 
 
 /*:18*//*36:*/
-// #line 755 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 759 "../../../source/texk/web2c/mplibdir/psout.w"
 
 enum _mode{FM_DUPIGNORE,FM_REPLACE,FM_DELETE};
 enum _ltype{MAPFILE,MAPLINE};
@@ -34,16 +34,17 @@ int lineno;
 }mapitem;
 
 /*:36*//*68:*/
-// #line 1615 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1625 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef char char_entry;
 #ifndef ZCONF_H
 typedef unsigned char Byte;
 typedef Byte Bytef;
 #endif
+#line 1631 "../../../source/texk/web2c/mplibdir/psout.w"
 
 /*:68*//*81:*/
-// #line 1894 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1904 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef unsigned char byte;
 typedef struct{
@@ -62,13 +63,13 @@ boolean valid;
 }cs_entry;
 
 /*:81*//*83:*/
-// #line 1920 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1930 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef char t1_line_entry;
 typedef char t1_buf_entry;
 
 /*:83*//*91:*/
-// #line 2301 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 2311 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef struct{
 const char*pdfname;
@@ -78,7 +79,7 @@ boolean valid;
 }key_entry;
 
 /*:91*//*95:*/
-// #line 2596 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 2606 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef struct{
 char*ff_name;
@@ -86,7 +87,7 @@ char*ff_path;
 }ff_entry;
 
 /*:95*//*102:*/
-// #line 3429 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 3439 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef struct mp_ps_font{
 int font_num;
@@ -99,8 +100,11 @@ int t1_lenIV;
 int slant;
 int extend;
 /*107:*/
-// #line 3546 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 3556 "../../../source/texk/web2c/mplibdir/psout.w"
 
+double flex_hint_data[14];
+unsigned int flex_hint_index;
+boolean ignore_flex_hint;
 double cur_x,cur_y;
 double orig_x,orig_y;
 mp_edge_object*h;
@@ -109,12 +113,12 @@ mp_gr_knot pp;
 
 
 /*:107*/
-// #line 3440 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 3450 "../../../source/texk/web2c/mplibdir/psout.w"
 
 }mp_ps_font;
 
 /*:102*//*115:*/
-// #line 3986 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 4044 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef struct{
 char*tfm_name;
@@ -140,12 +144,12 @@ short eid;
 
 
 /*:115*//*138:*/
-// #line 4528 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 4586 "../../../source/texk/web2c/mplibdir/psout.w"
 
 enum mp_char_mark_state{mp_unused= 0,mp_used};
 
 /*:138*//*174:*/
-// #line 5028 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 5086 "../../../source/texk/web2c/mplibdir/psout.w"
 
 #define gr_left_type(A)  (A)->data.types.left_type
 #define gr_right_type(A) (A)->data.types.right_type
@@ -159,7 +163,7 @@ enum mp_char_mark_state{mp_unused= 0,mp_used};
 #define gr_originator(A) (A)->originator
 
 /*:174*//*187:*/
-// #line 5208 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 5266 "../../../source/texk/web2c/mplibdir/psout.w"
 
 #define gr_type(A)         (A)->type
 #define gr_link(A)         (A)->next
@@ -198,7 +202,7 @@ enum mp_char_mark_state{mp_unused= 0,mp_used};
 #define gr_tyy_val(A)      ((mp_text_object *)A)->tyy
 
 /*:187*//*191:*/
-// #line 5370 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 5428 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef struct _gs_state{
 double red_field;
@@ -226,7 +230,7 @@ double width_field;
 
 
 /*:191*//*228:*/
-// #line 6085 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 6123 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef struct mp_font_size_node_data{
 NODE_BODY;
@@ -236,29 +240,29 @@ typedef struct mp_font_size_node_data*mp_font_size_node;
 
 
 /*:228*/
-// #line 88 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 87 "../../../source/texk/web2c/mplibdir/psout.w"
 
 typedef struct psout_data_struct{
 /*7:*/
-// #line 143 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 142 "../../../source/texk/web2c/mplibdir/psout.w"
 
 integer ps_offset;
 
 
 /*:7*//*19:*/
-// #line 402 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 401 "../../../source/texk/web2c/mplibdir/psout.w"
 
 #define ENC_BUF_SIZE  0x1000
 char enc_line[ENC_BUF_SIZE];
 void*enc_file;
 
 /*:19*//*23:*/
-// #line 556 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 555 "../../../source/texk/web2c/mplibdir/psout.w"
 
 avl_tree enc_tree;
 
 /*:23*//*33:*/
-// #line 713 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 713 "../../../source/texk/web2c/mplibdir/psout.w"
 
 void*fm_file;
 size_t fm_byte_waiting;
@@ -266,7 +270,7 @@ size_t fm_byte_length;
 unsigned char*fm_bytes;
 
 /*:33*//*37:*/
-// #line 766 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 770 "../../../source/texk/web2c/mplibdir/psout.w"
 
 mapitem*mitem;
 fm_entry*fm_cur;
@@ -276,21 +280,21 @@ fm_entry*non_tfm_found;
 fm_entry*not_avail_tfm_found;
 
 /*:37*//*43:*/
-// #line 913 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 917 "../../../source/texk/web2c/mplibdir/psout.w"
 
 avl_tree tfm_tree;
 avl_tree ps_tree;
 avl_tree ff_tree;
 
 /*:43*//*69:*/
-// #line 1622 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1632 "../../../source/texk/web2c/mplibdir/psout.w"
 
 char_entry*char_ptr,*char_array;
 size_t char_limit;
 char*job_id_string;
 
 /*:69*//*75:*/
-// #line 1769 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1779 "../../../source/texk/web2c/mplibdir/psout.w"
 
 #define PRINTF_BUF_SIZE     1024
 char*dvips_extra_charset;
@@ -303,7 +307,7 @@ size_t t1_byte_length;
 unsigned char*t1_bytes;
 
 /*:75*//*79:*/
-// #line 1853 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1863 "../../../source/texk/web2c/mplibdir/psout.w"
 
 char**t1_glyph_names;
 char*t1_builtin_glyph_names[256];
@@ -312,14 +316,14 @@ boolean read_encoding_only;
 int t1_encoding;
 
 /*:79*//*82:*/
-// #line 1915 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1925 "../../../source/texk/web2c/mplibdir/psout.w"
 
 unsigned short t1_dr,t1_er;
 unsigned short t1_cslen;
 short t1_lenIV;
 
 /*:82*//*84:*/
-// #line 1924 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1934 "../../../source/texk/web2c/mplibdir/psout.w"
 
 t1_line_entry*t1_line_ptr,*t1_line_array;
 size_t t1_line_limit;
@@ -334,7 +338,7 @@ char*subr_array_start,*subr_array_end;
 int subr_max,subr_size,subr_size_pos;
 
 /*:84*//*87:*/
-// #line 1954 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1964 "../../../source/texk/web2c/mplibdir/psout.w"
 
 const char**cs_token_pair;
 boolean t1_pfa,t1_cs,t1_scan,t1_eexec_encrypt,t1_synthetic;
@@ -345,7 +349,7 @@ void*t1_file;
 int hexline_length;
 
 /*:87*//*116:*/
-// #line 4011 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 4069 "../../../source/texk/web2c/mplibdir/psout.w"
 
 #define FONTNAME_BUF_SIZE 128
 boolean fontfile_found;
@@ -353,73 +357,74 @@ boolean is_otf_font;
 char fontname_buf[FONTNAME_BUF_SIZE];
 
 /*:116*//*192:*/
-// #line 5396 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 5454 "../../../source/texk/web2c/mplibdir/psout.w"
 
 struct _gs_state*gs_state;
 
 /*:192*/
-// #line 90 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 89 "../../../source/texk/web2c/mplibdir/psout.w"
 
 }psout_data_struct;
 /*5:*/
-// #line 122 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 121 "../../../source/texk/web2c/mplibdir/psout.w"
 
 void mp_ps_backend_initialize(MP mp);
 void mp_ps_backend_free(MP mp);
 
 /*:5*//*55:*/
-// #line 1402 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1408 "../../../source/texk/web2c/mplibdir/psout.w"
 
 fm_entry*mp_fm_lookup(MP mp,font_number f);
 
 /*:55*//*59:*/
-// #line 1515 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1521 "../../../source/texk/web2c/mplibdir/psout.w"
 
 void mp_map_file(MP mp,mp_string t);
 void mp_map_line(MP mp,mp_string t);
 void mp_init_map_file(MP mp,int is_troff);
 
 /*:59*//*65:*/
-// #line 1581 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1587 "../../../source/texk/web2c/mplibdir/psout.w"
 
 void mp_read_psname_table(MP mp);
 
 /*:65*//*72:*/
-// #line 1667 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 1677 "../../../source/texk/web2c/mplibdir/psout.w"
 
 void mp_set_job_id(MP mp);
 
 /*:72*//*104:*/
-// #line 3514 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 3524 "../../../source/texk/web2c/mplibdir/psout.w"
 
 mp_ps_font*mp_ps_font_parse(MP mp,int tex_font);
 
 /*:104*//*106:*/
-// #line 3540 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 3550 "../../../source/texk/web2c/mplibdir/psout.w"
 
 void mp_ps_font_free(MP mp,mp_ps_font*f);
 
 
 /*:106*//*109:*/
-// #line 3588 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 3601 "../../../source/texk/web2c/mplibdir/psout.w"
 
 mp_edge_object*mp_ps_font_charstring(MP mp,mp_ps_font*f,int c);
 mp_edge_object*mp_ps_do_font_charstring(MP mp,mp_ps_font*f,char*n);
 
 
 /*:109*//*189:*/
-// #line 5329 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 5387 "../../../source/texk/web2c/mplibdir/psout.w"
 
 mp_graphic_object*mp_new_graphic_object(MP mp,int type);
 
 /*:189*//*233:*/
-// #line 6154 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 6192 "../../../source/texk/web2c/mplibdir/psout.w"
 
 int mp_gr_ship_out(mp_edge_object*hh,int prologues,int procset,int standalone);
 
 /*:233*/
-// #line 92 "../../../source/texk/web2c/mplibdir/psout.w"
+#line 91 "../../../source/texk/web2c/mplibdir/psout.w"
 
 #endif
+#line 93 "../../../source/texk/web2c/mplibdir/psout.w"
 
 /*:3*/

@@ -1,5 +1,5 @@
 /*1:*/
-// #line 59 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 57 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 #include <w2c/config.h> 
 #include <stdio.h> 
@@ -49,10 +49,10 @@ object_color_d= pq->color.d_val; \
 #define number_to_double(A) (((math_data*) (mp->math) ) ->to_double) (A)  \
 
 
-// #line 72 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 70 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 /*12:*/
-// #line 206 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 207 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 typedef struct mp_pen_info{
 double tx,ty;
@@ -62,7 +62,7 @@ double ww;
 
 
 /*:12*//*31:*/
-// #line 579 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 593 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 typedef struct{
 unsigned char*data;
@@ -71,7 +71,7 @@ int width;
 }bitmap_t;
 
 /*:31*//*32:*/
-// #line 589 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 603 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 typedef struct{
 void*fp;
@@ -79,67 +79,67 @@ MP mp;
 }mp_png_io;
 
 /*:32*/
-// #line 73 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 71 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 /*8:*/
-// #line 123 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 124 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 static void mp_png_start(MP mp,mp_edge_object*hh,double hppp,double vppp,int colormodel,int antialias);
 
 /*:8*//*11:*/
-// #line 201 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 202 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 static void mp_png_color_out(MP mp,mp_graphic_object*p);
 
 /*:11*//*13:*/
-// #line 216 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 217 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 mp_pen_info*mp_png_pen_info(MP mp,mp_gr_knot pp,mp_gr_knot p);
 
 /*:13*//*16:*/
-// #line 316 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 317 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 static boolean mp_is_curved(mp_gr_knot p,mp_gr_knot q);
 
 
 /*:16*//*19:*/
-// #line 377 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 378 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 static double mp_png_choose_scale(MP mp,mp_graphic_object*p);
 
 /*:19*//*22:*/
-// #line 416 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 417 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 void mp_reallocate_psfonts(MP mp,int l);
 
 /*:22*//*24:*/
-// #line 424 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 425 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 static void mp_png_text_out(MP mp,mp_text_object*p);
 
 /*:24*//*26:*/
-// #line 486 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 496 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 static void mp_png_stroke_out(MP mp,mp_graphic_object*h,
 mp_pen_info*pen,boolean fill_also);
 
 
 /*:26*//*28:*/
-// #line 555 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 569 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 static void mp_png_fill_out(MP mp,mp_gr_knot p,mp_graphic_object*h);
 
 /*:28*//*34:*/
-// #line 613 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 627 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 int mp_png_save_to_file(MP mp,const bitmap_t*bitmap,const char*path,int colormodel);
 
 /*:34*/
-// #line 74 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 72 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 
 /*:1*//*5:*/
-// #line 99 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 100 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 void mp_png_backend_initialize(MP mp){
 mp->png= mp_xmalloc(mp,1,sizeof(pngout_data_struct));
@@ -151,7 +151,7 @@ mp->png= NULL;
 }
 
 /*:5*//*9:*/
-// #line 127 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 128 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 void mp_png_start(MP mp,mp_edge_object*hh,double hppp,double vppp,int colormodel,int antialias){
 double w,h;
@@ -184,7 +184,7 @@ cairo_set_antialias(mp->png->cr,antialias);
 }
 
 /*:9*//*10:*/
-// #line 167 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 168 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 static void mp_png_color_out(MP mp,mp_graphic_object*p){
 int object_color_model;
@@ -220,7 +220,7 @@ cairo_set_source_rgb(mp->png->cr,object_color_a,object_color_b,object_color_c);
 }
 
 /*:10*//*14:*/
-// #line 226 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 227 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 static double coord_range_x(mp_gr_knot h,double dz){
 double z;
@@ -258,7 +258,7 @@ return(zhi-zlo<=dz?aspect_bound:aspect_default);
 }
 
 /*:14*//*15:*/
-// #line 263 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 264 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 mp_pen_info*mp_png_pen_info(MP mp,mp_gr_knot pp,mp_gr_knot p){
 double wx,wy;
@@ -308,7 +308,7 @@ return pen;
 }
 
 /*:15*//*17:*/
-// #line 323 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 324 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 boolean mp_is_curved(mp_gr_knot p,mp_gr_knot q){
 double d;
@@ -330,7 +330,7 @@ return true;
 
 
 /*:17*//*18:*/
-// #line 345 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 346 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 static void mp_png_path_out(MP mp,mp_gr_knot h){
 mp_gr_knot p,q;
@@ -362,7 +362,7 @@ cairo_close_path(mp->png->cr);
 }
 
 /*:18*//*20:*/
-// #line 380 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 381 "../../../source/texk/web2c/mplibdir/pngout.w"
 double mp_png_choose_scale(MP mp,mp_graphic_object*p){
 
 double a,b,c,d,ad,bc;
@@ -383,7 +383,7 @@ return sqrt(ret1*ret1+ret2*ret2);
 }
 
 /*:20*//*21:*/
-// #line 403 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 404 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 void mp_reallocate_psfonts(MP mp,int l){
 if(l>=mp->png->font_max){
@@ -398,7 +398,7 @@ mp->png->font_max= l;
 }
 
 /*:21*//*25:*/
-// #line 427 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 428 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 void mp_png_text_out(MP mp,mp_text_object*p){
 double ds;
@@ -445,13 +445,22 @@ pp= pp->next;
 cairo_fill(mp->png->cr);
 }
 wd= mp_get_char_dimension(mp,mp->font_name[fn],k,'w');
+
+
+
+
+
+
+
+
+wd*= 10.0/ds;
 cairo_translate(mp->png->cr,wd,0);
 }
 cairo_restore(mp->png->cr);
 }
 
 /*:25*//*27:*/
-// #line 491 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 501 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 void mp_png_stroke_out(MP mp,mp_graphic_object*h,
 mp_pen_info*pen,boolean fill_also){
@@ -504,18 +513,22 @@ default:cairo_set_line_join(mp->png->cr,CAIRO_LINE_JOIN_MITER);break;
 }
 }
 cairo_set_miter_limit(mp->png->cr,gr_miterlim_val((mp_stroked_object*)h));
+mp_png_path_out(mp,gr_path_p((mp_stroked_object*)h));
 if(transformed){
 cairo_matrix_t matrix= {0,0,0,0,0,0};
+cairo_save(mp->png->cr);
 cairo_matrix_init(&matrix,pen->sx,pen->rx,pen->ry,pen->sy,pen->tx,pen->ty);
 cairo_transform(mp->png->cr,&matrix);
-}
-mp_png_path_out(mp,gr_path_p((mp_stroked_object*)h));
 cairo_stroke(mp->png->cr);
+cairo_restore(mp->png->cr);
+}else{
+cairo_stroke(mp->png->cr);
+}
 cairo_restore(mp->png->cr);
 }
 
 /*:27*//*29:*/
-// #line 558 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 572 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 void mp_png_fill_out(MP mp,mp_gr_knot p,mp_graphic_object*h){
 cairo_save(mp->png->cr);
@@ -526,7 +539,7 @@ cairo_restore(mp->png->cr);
 }
 
 /*:29*//*33:*/
-// #line 596 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 610 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 static void mp_write_png_data(png_structp png_ptr,png_bytep data,png_size_t length)
 {
@@ -541,7 +554,7 @@ static void mp_write_png_flush(png_structp png_ptr)
 
 
 /*:33*//*35:*/
-// #line 616 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 630 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 int mp_png_save_to_file(MP mp,const bitmap_t*bitmap,const char*path,int colormodel)
 {
@@ -685,7 +698,7 @@ return status;
 
 
 /*:35*//*36:*/
-// #line 761 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 775 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 int mp_png_gr_ship_out(mp_edge_object*hh,const char*options,int standalone){
 char*ss;
@@ -813,7 +826,7 @@ return 1;
 }
 
 /*:36*//*38:*/
-// #line 893 "../../../source/texk/web2c/mplibdir/pngout.w"
+#line 907 "../../../source/texk/web2c/mplibdir/pngout.w"
 
 int mp_png_ship_out(mp_edge_object*hh,const char*options){
 return mp_png_gr_ship_out(hh,options,(int)true);

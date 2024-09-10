@@ -85,18 +85,7 @@ glyphs :
 glyph: beginchar backgroundimage componentsection paramsection verbatimsection pathssection bodysection T_ENDCHAR ';'   { /*printf("contents:%s\n", $T_GLYPHCONTENT);*/ }
 ;
 
-beginchar: T_BEGINCHAR '(' T_EALPHA[name] ',' T_NUMBER[unicode] ',' T_NUMBER[width] ',' T_NUMBER[height] ',' T_NUMBER[depth] ',' T_NUMBER[lefttatweel] ',' T_NUMBER[righttatweel] ')' ';' 
-{ 
-	parsingglyph->setBeginMacroName($T_BEGINCHAR);
-	parsingglyph->setName($name.trimmed());
-	parsingglyph->setUnicode((int)$unicode);
-	parsingglyph->setWidth((int)$width);
-	parsingglyph->setHeight((int)$height);
-	parsingglyph->setDepth((int)$depth); 
-	parsingglyph->setleftTatweel($lefttatweel); 
-	parsingglyph->setrightTatweel($righttatweel); 
-}
-|T_BEGINCHAR '(' T_EALPHA[name] ',' T_NUMBER[unicode] ',' T_NUMBER[width] ',' T_NUMBER[height] ',' T_NUMBER[depth]  ')' ';' 
+beginchar: T_BEGINCHAR '(' T_EALPHA[name] ',' T_NUMBER[unicode] ',' T_NUMBER[width] ',' T_NUMBER[height] ',' T_NUMBER[depth]  ')' ';' 
 { 
 	parsingglyph->setBeginMacroName($T_BEGINCHAR);
 	parsingglyph->setName($name.trimmed());

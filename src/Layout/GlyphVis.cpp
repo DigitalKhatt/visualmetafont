@@ -28,12 +28,7 @@
 
 #include "automedina/automedina.h"
 #include <cmath>
-
-extern "C"
-{
-#include "mplibps.h"
-#include "mppsout.h"
-}
+#include "metafont.h";
 
 GlyphVis::GlyphVis() {
   m_edge = nullptr;
@@ -85,7 +80,7 @@ GlyphVis::GlyphVis(const GlyphVis& other) {
   isCopiedPath = other.isCopiedPath;
 
   if (other.copiedPath && isCopiedPath) {
-    copiedPath = copyEdgeBody(other.copiedPath);
+    copiedPath = m_otLayout->font->copyEdgeBody(other.copiedPath);
   }
 
   expanded = other.expanded;
@@ -163,7 +158,7 @@ GlyphVis& GlyphVis::operator=(const GlyphVis& other) {
   isCopiedPath = other.isCopiedPath;
 
   if (other.copiedPath && isCopiedPath) {
-    copiedPath = copyEdgeBody(other.copiedPath);
+    copiedPath = m_otLayout->font->copyEdgeBody(other.copiedPath);
   }
 
   expanded = other.expanded;
@@ -307,7 +302,7 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
   auto body = m_edge != nullptr ? m_edge->body : nullptr;
   if (copyPath) {
     isCopiedPath = true;
-    copiedPath = this->copyEdgeBody(body);
+    copiedPath = m_otLayout->font->copyEdgeBody(body);
   }
   else {
     isCopiedPath = false;
@@ -330,127 +325,9 @@ bool GlyphVis::conatinsAnchor(QString name, AnchorType type) {
 
 QPoint GlyphVis::getAnchor(QString name, AnchorType type) {
   return anchors.value({ name,type }).anchor;
-
-  /*
-        if (value.isNull()) {
-                for (int i = 0; i < m_edge->numAnchors; i++) {
-                        AnchorPoint anchor = m_edge->anchors[i];
-                        if (anchor.anchorName == name) {
-                                anchors[name] = QPoint(anchor.x, anchor.y);
-                                return anchors[name];
-                        }
-                }
-        }
-
-        return value;*/
-
-
 }
 
-mp_graphic_object* GlyphVis::copyEdgeBody(mp_graphic_object* body) {
-  mp_graphic_object* result = nullptr;
 
-  auto copypath = [](mp_gr_knot knot, OtLayout* layout)
-  {
-    mp_gr_knot p, current, ret;
-
-    ret = nullptr;
-
-    if (knot == nullptr) return ret;
-
-    ret = (mp_gr_knot)mp_xmalloc(layout->mp, 1, sizeof(struct mp_gr_knot_data)); //new mp_gr_knot_data();
-
-    ret->x_coord = knot->x_coord;
-    ret->y_coord = knot->y_coord;
-    ret->left_x = knot->left_x;
-    ret->left_y = knot->left_y;
-    ret->right_x = knot->right_x;
-    ret->right_y = knot->right_y;
-    ret->data.types.left_type = knot->data.types.left_type;
-    ret->next = nullptr;
-
-    current = ret;
-
-    p = knot->next;
-    while (p != knot) {
-
-
-      mp_gr_knot tmp = (mp_gr_knot)mp_xmalloc(layout->mp, 1, sizeof(struct mp_gr_knot_data)); // new mp_gr_knot_data();
-
-      tmp->left_x = p->left_x;
-      tmp->left_y = p->left_y;
-      tmp->x_coord = p->x_coord;
-      tmp->y_coord = p->y_coord;
-      tmp->right_x = p->right_x;
-      tmp->right_y = p->right_y;
-      tmp->data.types.left_type = p->data.types.left_type;
-
-
-
-      current->next = tmp;
-      current = tmp;
-
-      p = p->next;
-    }
-
-    current->next = ret;
-
-    return ret;
-  };
-
-
-
-
-
-
-  mp_graphic_object* currObject = nullptr;
-
-  if (body) {
-    do {
-      switch (body->type)
-      {
-      case mp_fill_code: {
-
-        mp_fill_object* fillobject = (mp_fill_object*)body;
-        mp_gr_knot newpath = copypath(fillobject->path_p, m_otLayout);
-
-        mp_fill_object* nextObject = (mp_fill_object*)mp_new_graphic_object(m_otLayout->mp, mp_fill_code); // new mp_fill_object;
-        nextObject->type = mp_fill_code;
-        nextObject->path_p = newpath;
-        nextObject->next = nullptr;
-        nextObject->pre_script = nullptr;
-        nextObject->post_script = nullptr;
-        nextObject->pen_p = nullptr;
-        nextObject->htap_p = nullptr;
-
-        if (fillobject->color_model == mp_rgb_model) {
-          nextObject->color_model = mp_rgb_model;
-          nextObject->color = fillobject->color;
-        }
-
-        if (currObject == nullptr) {
-          currObject = (mp_graphic_object*)nextObject;
-          result = currObject;
-        }
-        else {
-          currObject->next = (mp_graphic_object*)nextObject;
-          currObject = currObject->next;
-        }
-
-
-        break;
-      }
-      default:
-        break;
-      }
-
-    } while (body = body->next);
-  }
-
-
-  return result;
-
-}
 #ifndef DIGITALKHATT_WEBLIB
 QPainterPath GlyphVis::getPath(mp_edge_object* h) {
 

@@ -42,7 +42,7 @@ set(Source_Files
     #mpmathbinary.c
     mpmathdecimal.c
     mpmathdouble.c
-    mpstrings.c
+    mpstrings.c    
     #mpxout.c
     #pngout.c
     psout.c
@@ -52,6 +52,6 @@ set(Source_Files
 
 source_group("Source Files" FILES ${Source_Files})
 
-add_library(${PROJECT_NAME} STATIC ${AddedFiles} ${Header_Files}  ${Source_Files})
+add_library(${PROJECT_NAME} STATIC ${AddedFiles}  ${Source_Files})
 
 target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

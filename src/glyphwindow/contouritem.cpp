@@ -183,29 +183,22 @@ void ContourItem::generateedge(mp_edge_object* h, bool newelement) {
           mp_fill_object* fill = (mp_fill_object*)body;
           QString prescript = fill->pre_script;
 
-          /*
-          if (prescript.contains("begin component")) {
-            while (body = body->next) {
-              fill = (mp_fill_object *)body;
-              QString postscipt = fill->post_script;
-            }
-          }				*/
-          //if (numsubpath > glyph->controlledPaths.count() - 1) {
-          QPainterPath subpath = mp_dump_solved_path(fill, numsubpath++, newelement);
-          localpath.addPath(subpath);
-          //}
+          if (prescript == "begintext") {
+            QGraphicsSimpleTextItem* textitem = new QGraphicsSimpleTextItem(labels);
+            textitem->setFlags(QGraphicsItem::ItemIgnoresTransformations);
+            auto tx = fill->path_p->x_coord;
+            auto ty = fill->path_p->y_coord;
+            textitem->setPos(tx, ty);
+            textitem->setText(fill->post_script);
+            QGraphicsEllipseItem* dot = new   QGraphicsEllipseItem(labels);
+            dot->setRect(tx - 5, ty - 5, 10, 10);
+          }
+          else {
+            QPainterPath subpath = mp_dump_solved_path(fill, numsubpath++, newelement);
+            localpath.addPath(subpath);
+          }
 
           break;
-        }
-        case mp_text_code: {
-          mp_text_object* text = (mp_text_object*)body;
-          QGraphicsSimpleTextItem* textitem = new QGraphicsSimpleTextItem(labels);
-          textitem->setFlags(QGraphicsItem::ItemIgnoresTransformations);
-          textitem->setPos(text->tx, text->ty);
-          textitem->setText(text->text_p);
-          QGraphicsEllipseItem* dot = new   QGraphicsEllipseItem(labels);
-          dot->setRect(text->tx - 5, text->ty - 5, 10, 10);
-
         }
         default:
           break;

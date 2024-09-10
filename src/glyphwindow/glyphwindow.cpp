@@ -63,8 +63,8 @@ void GlyphWindow::executeCommands(void)
 
   glyph->getEdge();
 
-  logOutput->appendPlainText(glyph->getLog());
-  termOutput->appendPlainText(glyph->getError());
+  logOutput->setPlainText(glyph->getLog());
+  infoOutput->setPlainText(glyph->getInfo());
 
   //glyphView->setGlyph(glyph);
 }
@@ -116,16 +116,14 @@ void GlyphWindow::createDockWindows()
 	x -> setFont ( textEditFont ) ;
 
   CREATE(logOutput)
-    CREATE(termOutput)
-    CREATE(psOutput)
-    CREATE(svgOutput)
+    CREATE(infoOutput)
 
 # undef CREATE
 
     tabWidget = new QTabWidget(metapostCode);
   tabWidget->addTab(mpostPage, "Input");
   tabWidget->addTab(logOutput, "Log");
-  tabWidget->addTab(termOutput, "Term");
+  tabWidget->addTab(infoOutput, "Info");
 
   mpostEdit->setPlainText(glyph->source());
 
@@ -303,7 +301,7 @@ void GlyphWindow::showAnchors(bool checked) {
 
   glyph->setWidth(glyph->width());
 
-  
+
 }
 void GlyphWindow::pointerGroupClicked(int)
 {

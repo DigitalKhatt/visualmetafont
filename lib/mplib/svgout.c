@@ -1,5 +1,5 @@
 /*1:*/
-// #line 59 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 57 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 #include <w2c/config.h> 
 #include <stdio.h> 
@@ -96,10 +96,10 @@ mp_svg_print_ln(mp) ; \
 } \
 
 
-// #line 72 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 70 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 /*39:*/
-// #line 563 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 562 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 typedef struct mp_pen_info{
 double tx,ty;
@@ -109,87 +109,87 @@ double ww;
 
 
 /*:39*/
-// #line 73 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 71 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 /*29:*/
-// #line 397 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 396 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_font_pair_out(MP mp,double x,double y);
 
 /*:29*//*31:*/
-// #line 415 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 414 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_trans_pair_out(MP mp,mp_pen_info*pen,double x,double y);
 
 /*:31*//*33:*/
-// #line 437 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 436 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_pair_out(MP mp,double x,double y);
 
 /*:33*//*34:*/
-// #line 441 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 440 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_print_initial_comment(MP mp,mp_edge_object*hh);
 
 /*:34*//*38:*/
-// #line 558 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 557 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_color_out(MP mp,mp_graphic_object*p);
 
 /*:38*//*40:*/
-// #line 573 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 572 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 mp_pen_info*mp_svg_pen_info(MP mp,mp_gr_knot pp,mp_gr_knot p);
 
 /*:40*//*43:*/
-// #line 675 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 674 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static boolean mp_is_curved(mp_gr_knot p,mp_gr_knot q);
 
 
 /*:43*//*48:*/
-// #line 811 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 810 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_print_glyph_defs(MP mp,mp_edge_object*h);
 
 /*:48*//*50:*/
-// #line 916 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 915 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_text_out(MP mp,mp_text_object*p,int prologues);
 
 /*:50*//*52:*/
-// #line 1016 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 1015 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_stroke_out(MP mp,mp_graphic_object*h,
 mp_pen_info*pen,boolean fill_also);
 
 
 /*:52*//*54:*/
-// #line 1139 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 1138 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_fill_out(MP mp,mp_gr_knot p,mp_graphic_object*h);
 
 /*:54*//*58:*/
-// #line 1166 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 1165 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_clip_out(MP mp,mp_clip_object*p);
 
 /*:58*/
-// #line 74 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 72 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 
 /*:1*//*5:*/
-// #line 96 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 94 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_backend_initialize(MP mp){
 mp->svg= mp_xmalloc(mp,1,sizeof(svgout_data_struct));
 /*7:*/
-// #line 116 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 114 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 mp->svg->file_offset= 0;
 
 /*:7*//*13:*/
-// #line 173 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 171 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 mp->svg->loc= 0;
 mp->svg->bufsize= 256;
@@ -198,17 +198,17 @@ memset(mp->svg->buf,0,256);
 
 
 /*:13*//*21:*/
-// #line 302 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 300 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 mp->svg->level= 0;
 
 /*:21*//*57:*/
-// #line 1163 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 1162 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 mp->svg->clipid= 0;
 
 /*:57*/
-// #line 99 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 97 "../../../source/texk/web2c/mplibdir/svgout.w"
 ;
 }
 void mp_svg_backend_free(MP mp){
@@ -218,7 +218,7 @@ mp->svg= NULL;
 }
 
 /*:5*//*8:*/
-// #line 121 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 119 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_print_ln(MP mp){
 (mp->write_ascii_file)(mp,mp->output_file,"\n");
@@ -226,7 +226,7 @@ mp->svg->file_offset= 0;
 }
 
 /*:8*//*9:*/
-// #line 129 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 127 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_print_char(MP mp,int s){
 char ss[2];
@@ -236,7 +236,7 @@ mp->svg->file_offset++;
 }
 
 /*:9*//*10:*/
-// #line 144 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 142 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_print(MP mp,const char*ss){
 (mp->write_ascii_file)(mp,mp->output_file,ss);
@@ -245,7 +245,7 @@ mp->svg->file_offset+= strlen(ss);
 
 
 /*:10*//*11:*/
-// #line 154 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 152 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_print_nl(MP mp,const char*s){
 if(mp->svg->file_offset> 0)
@@ -255,7 +255,7 @@ mp_svg_print(mp,s);
 
 
 /*:11*//*15:*/
-// #line 210 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 208 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_reset_buf(MP mp){
 mp->svg->loc= 0;
@@ -263,7 +263,7 @@ memset(mp->svg->buf,0,mp->svg->bufsize);
 }
 
 /*:15*//*16:*/
-// #line 219 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 217 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_print_buf(MP mp){
 mp_svg_print(mp,(char*)mp->svg->buf);
@@ -271,7 +271,7 @@ mp_svg_reset_buf(mp);
 }
 
 /*:16*//*17:*/
-// #line 229 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 227 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_store_int(MP mp,integer n){
 unsigned char dig[23];
@@ -300,7 +300,7 @@ append_char((char)('0'+dig[k]));
 }
 
 /*:17*//*18:*/
-// #line 261 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 259 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_store_dd(MP mp,integer n){
 char nn= (char)abs(n)%100;
@@ -309,7 +309,7 @@ append_char((char)('0'+(nn%10)));
 }
 
 /*:18*//*19:*/
-// #line 280 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 278 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_store_double(MP mp,double s){
 char*value,*c;
@@ -325,7 +325,7 @@ free(value);
 
 
 /*:19*//*22:*/
-// #line 312 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 310 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_open_starttag(MP mp,const char*s){
 int l= mp->svg->level*2;
@@ -343,7 +343,7 @@ mp_svg_print_char(mp,'>');
 }
 
 /*:22*//*23:*/
-// #line 335 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 333 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_endtag(MP mp,const char*s,boolean indent){
 mp->svg->level--;
@@ -361,7 +361,7 @@ mp_svg_print_buf(mp);
 }
 
 /*:23*//*24:*/
-// #line 354 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 352 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_attribute(MP mp,const char*s,const char*v){
 mp_svg_print_char(mp,' ');
@@ -372,7 +372,7 @@ mp_svg_print_char(mp,'"');
 }
 
 /*:24*//*28:*/
-// #line 390 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 389 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_pair_out(MP mp,double x,double y){
 mp_svg_store_double(mp,(x+mp->svg->dx));
@@ -381,7 +381,7 @@ mp_svg_store_double(mp,(-(y+mp->svg->dy)));
 }
 
 /*:28*//*30:*/
-// #line 400 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 399 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_font_pair_out(MP mp,double x,double y){
 mp_svg_store_double(mp,(x));
@@ -390,7 +390,7 @@ mp_svg_store_double(mp,-(y));
 }
 
 /*:30*//*32:*/
-// #line 418 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 417 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_trans_pair_out(MP mp,mp_pen_info*pen,double x,double y){
 double sx,sy,rx,ry,px,py,retval,divider;
@@ -411,12 +411,12 @@ mp_svg_store_double(mp,(retval));
 
 
 /*:32*//*35:*/
-// #line 444 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 443 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_print_initial_comment(MP mp,mp_edge_object*hh){
 double tx,ty;
 /*36:*/
-// #line 483 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 482 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 {
 char*s;
@@ -441,7 +441,7 @@ mp_svg_print(mp," -->");
 
 
 /*:36*/
-// #line 447 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 446 "../../../source/texk/web2c/mplibdir/svgout.w"
 ;
 mp_svg_open_starttag(mp,"svg");
 mp_svg_attribute(mp,"version","1.1");
@@ -479,7 +479,7 @@ mp_svg_print(mp," -->");
 }
 
 /*:35*//*37:*/
-// #line 515 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 514 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_color_out(MP mp,mp_graphic_object*p){
 int object_color_model;
@@ -524,7 +524,7 @@ append_char(')');
 }
 
 /*:37*//*41:*/
-// #line 583 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 582 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static double coord_range_x(mp_gr_knot h,double dz){
 double z;
@@ -562,7 +562,7 @@ return(zhi-zlo<=dz?aspect_bound:aspect_default);
 }
 
 /*:41*//*42:*/
-// #line 620 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 619 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 mp_pen_info*mp_svg_pen_info(MP mp,mp_gr_knot pp,mp_gr_knot p){
 double wx,wy;
@@ -614,7 +614,7 @@ return pen;
 }
 
 /*:42*//*44:*/
-// #line 682 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 681 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 boolean mp_is_curved(mp_gr_knot p,mp_gr_knot q){
 double d;
@@ -636,7 +636,7 @@ return true;
 
 
 /*:44*//*45:*/
-// #line 702 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 701 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_path_out(MP mp,mp_gr_knot h){
 mp_gr_knot p,q;
@@ -669,7 +669,7 @@ append_char(0);
 }
 
 /*:45*//*46:*/
-// #line 733 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 732 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_path_trans_out(MP mp,mp_gr_knot h,mp_pen_info*pen){
 mp_gr_knot p,q;
@@ -703,7 +703,7 @@ append_char(0);
 
 
 /*:46*//*47:*/
-// #line 765 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 764 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 static void mp_svg_font_path_out(MP mp,mp_gr_knot h){
 mp_gr_knot p,q;
@@ -736,7 +736,7 @@ append_char(0);
 }
 
 /*:47*//*49:*/
-// #line 814 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 813 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_print_glyph_defs(MP mp,mp_edge_object*h){
 mp_graphic_object*p;
@@ -838,7 +838,7 @@ mp_xfree(mp_chars);
 
 
 /*:49*//*51:*/
-// #line 919 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 918 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_text_out(MP mp,mp_text_object*p,int prologues){
 
@@ -910,26 +910,26 @@ mp_svg_close_starttag(mp);
 while(l--> 0){
 k= (int)*s++;
 if(/*25:*/
-// #line 365 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 363 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 (k<=0x8)||(k==0xB)||(k==0xC)||(k>=0xE&&k<=0x1F)||
 (k>=0x7F&&k<=0x84)||(k>=0x86&&k<=0x9F)
 
 
 /*:25*/
-// #line 989 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 988 "../../../source/texk/web2c/mplibdir/svgout.w"
 ){
 char S[100];
 mp_snprintf(S,99,"The character %d cannot be output in SVG "
 "unless prologues:=3;",k);
 mp_warn(mp,S);
 }else if((/*26:*/
-// #line 374 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 372 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 (k=='&')||(k=='>')||(k=='<')
 
 /*:26*/
-// #line 994 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 993 "../../../source/texk/web2c/mplibdir/svgout.w"
 )){
 append_string("&#");
 mp_svg_store_int(mp,k);
@@ -945,7 +945,7 @@ mp_svg_endtag(mp,"g",true);
 }
 
 /*:51*//*53:*/
-// #line 1021 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 1020 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_stroke_out(MP mp,mp_graphic_object*h,
 mp_pen_info*pen,boolean fill_also){
@@ -1063,7 +1063,7 @@ mp_svg_endtag(mp,"g",true);
 }
 
 /*:53*//*55:*/
-// #line 1142 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 1141 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_fill_out(MP mp,mp_gr_knot p,mp_graphic_object*h){
 mp_svg_open_starttag(mp,"path");
@@ -1080,7 +1080,7 @@ mp_svg_endtag(mp,"path",false);
 }
 
 /*:55*//*59:*/
-// #line 1169 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 1168 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 void mp_svg_clip_out(MP mp,mp_clip_object*p){
 mp->svg->clipid++;
@@ -1107,7 +1107,7 @@ mp_svg_open_starttag(mp,"g");
 
 append_string("url(#CLIP");
 mp_svg_store_int(mp,mp->svg->clipid);
-append_string(");");
+append_string(")");
 mp_svg_attribute(mp,"clip-path",mp->svg->buf);
 mp_svg_reset_buf(mp);
 
@@ -1117,7 +1117,7 @@ mp_svg_close_starttag(mp);
 
 
 /*:59*//*61:*/
-// #line 1212 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 1211 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 int mp_svg_gr_ship_out(mp_edge_object*hh,int qprologues,int standalone){
 mp_graphic_object*p;
@@ -1146,7 +1146,7 @@ p= hh->body;
 while(p!=NULL){
 if(gr_has_scripts(p)){
 /*64:*/
-// #line 1323 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 1322 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 {
 if(gr_type(p)==mp_fill_code){do_write_prescript(p,mp_fill_object);}
@@ -1156,7 +1156,7 @@ else if(gr_type(p)==mp_text_code){do_write_prescript(p,mp_text_object);}
 
 
 /*:64*/
-// #line 1239 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 1238 "../../../source/texk/web2c/mplibdir/svgout.w"
 ;
 }
 switch(gr_type(p)){
@@ -1212,14 +1212,15 @@ break;
 }
 if(gr_has_scripts(p)){
 /*65:*/
-// #line 1339 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 1338 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 {
 if(gr_type(p)==mp_fill_code){do_write_postscript(p,mp_fill_object);}
 else if(gr_type(p)==mp_stroked_code){do_write_postscript(p,mp_stroked_object);}
 else if(gr_type(p)==mp_text_code){do_write_postscript(p,mp_text_object);}
-}/*:65*/
-// #line 1293 "../../../source/texk/web2c/mplibdir/svgout.w"
+}
+/*:65*/
+#line 1292 "../../../source/texk/web2c/mplibdir/svgout.w"
 ;
 }
 p= gr_link(p);
@@ -1231,7 +1232,7 @@ return 1;
 }
 
 /*:61*//*63:*/
-// #line 1310 "../../../source/texk/web2c/mplibdir/svgout.w"
+#line 1309 "../../../source/texk/web2c/mplibdir/svgout.w"
 
 int mp_svg_ship_out(mp_edge_object*hh,int prologues){
 return mp_svg_gr_ship_out(hh,prologues,(int)true);

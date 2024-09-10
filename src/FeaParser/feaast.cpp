@@ -48,10 +48,8 @@ namespace feayy {
 
     LookupDefinitionVisitor feaVisitor{ otlayout , *this };
 
-    for (auto feature : features)
-    {
-      FeatureDefenition* featureDefinition = feature.second;
-
+    for (auto featureDefinition : features)
+    {      
       featureDefinition->accept(feaVisitor);
     }
 

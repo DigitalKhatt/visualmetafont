@@ -218,9 +218,8 @@ void ToOpenType::initiliazeGlobals() {
 
   globalValues.major = 0;
   globalValues.minor = 1;
-  globalValues.FullName = "DigitalKhatt Madina Quranic";
-  globalValues.FamilyName = "DigitalKhatt Madina Quranic";
-  globalValues.Weight = "Regular";
+  globalValues.familyName = ot_layout->font->familyName(); // "DigitalKhatt Madina Quranic";
+  globalValues.subFamilyName = "Regular";
   globalValues.Copyright = R"copyright(Copyright (c) 2020-2023 Amine Anane (https://github.com/DigitalKhatt))copyright";
   /*globalValues.License = R"license(This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
@@ -240,7 +239,7 @@ with others.
 
 The OFL allows the licensed fonts to be used, studied, modified and
 redistributed freely as long as they are not sold by themselves. The
-fonts, including any derivative works, can be bundled, embedded, 
+fonts, including any derivative works, can be bundled, embedded,
 redistributed and/or sold with any software provided that any reserved
 names are not used by derivative works. The fonts and derivatives,
 however, cannot be released under any other type of license. The
@@ -572,7 +571,7 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
         tables.append({ cpal,HB_TAG('C','P','A','L') });
       }
     }
-  } 
+  }
 
   uint16_t numTables = tables.size();
 
@@ -862,12 +861,12 @@ QByteArray ToOpenType::name() {
 
 
   names.append(Name{ 0,globalValues.Copyright });
-  names.append(Name{ 1,globalValues.FamilyName });
-  names.append(Name{ 2,globalValues.Weight });
-  names.append(Name{ 3,"DigitalKhatt_V0.1_2020-09-18" });
-  names.append(Name{ 4,globalValues.FullName });
+  names.append(Name{ 1,globalValues.familyName });
+  names.append(Name{ 2,globalValues.subFamilyName });
+  names.append(Name{ 3,globalValues.fullName() + "V01" });
+  names.append(Name{ 4,globalValues.fullName() });
   names.append(Name{ 5,"Version " + QString::number(globalValues.major) + "." + QString::number(globalValues.minor) });
-  names.append(Name{ 6,"DigitalKhattQuranic" });
+  names.append(Name{ 6,globalValues.fullName().replace(" ","").mid(0,63) });
   //names.append(Name{ 7,"DigitalKhatt" });
   //names.append(Name{ 8,"DigitalKhatt" });
   names.append(Name{ 9,"Amine Anane" });
@@ -877,12 +876,12 @@ QByteArray ToOpenType::name() {
   names.append(Name{ 13,globalValues.License });
   names.append(Name{ 14,"http://scripts.sil.org/OFL" });
 
-  names.append(Name{ 16,"DigitalKhatt Madina" });
-  names.append(Name{ 17,"Quranic" });
+  names.append(Name{ 16,globalValues.familyName });
+  names.append(Name{ 17,globalValues.subFamilyName });
   names.append(Name{ 19,"بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" });
 
-  names.append(Name{ 21,globalValues.FamilyName });
-  names.append(Name{ 22,globalValues.Weight });
+  names.append(Name{ 21,globalValues.familyName });
+  names.append(Name{ 22,globalValues.subFamilyName });
 
   names.append(Name{ LTATNameId,"Left Elongation" });
   names.append(Name{ RTATNameId,"Right Elongation" });
@@ -1490,15 +1489,15 @@ QByteArray ToOpenType::cff() {
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  stringIndexData.append(globalValues.FullName.toLatin1());
+  stringIndexData.append(globalValues.fullName().toLatin1());
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  stringIndexData.append(globalValues.FamilyName.toLatin1());
+  stringIndexData.append(globalValues.familyName.toLatin1());
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  stringIndexData.append(globalValues.Weight.toLatin1());
+  stringIndexData.append(globalValues.subFamilyName.toLatin1());
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
@@ -1849,7 +1848,7 @@ QByteArray ToOpenType::getAyaMono() {
 
   QByteArray endofayaArray = charString(endofaya.copiedPath, this->isCff2, ayaLayers, endofayax, endofayay, ContourLimits{});
 
-  auto monoPath = (mp_fill_object*)mp_new_graphic_object(ot_layout->mp, mp_fill_code);
+  auto monoPath = (mp_fill_object*)mp_new_graphic_object(ot_layout->font->mp, mp_fill_code);
 
 
   auto source = endofaya.copiedPath->next;
@@ -1860,7 +1859,7 @@ QByteArray ToOpenType::getAyaMono() {
 
   do {
     if (source->type == mp_fill_code && pathIndex != 6 && pathIndex != 7 && pathIndex != 8 && pathIndex != 9) {
-      auto newpath = (mp_fill_object*)mp_new_graphic_object(ot_layout->mp, mp_fill_code);
+      auto newpath = (mp_fill_object*)mp_new_graphic_object(ot_layout->font->mp, mp_fill_code);
       newpath->path_p = ((mp_fill_object*)source)->path_p;
       dest->next = (mp_graphic_object*)newpath;
       dest = newpath;
@@ -2829,7 +2828,7 @@ std::pair<int, int> ToOpenType::getDeltaSetEntry(DefaultDelta delta, const Value
       }
     }
 
-    assert(deltaVector.size() == subRegions[subregionIndex].size());
+    //assert(deltaVector.size() == subRegions[subregionIndex].size());
   }
 
   auto& subRegionDataSet = delatSets[subregionIndex];

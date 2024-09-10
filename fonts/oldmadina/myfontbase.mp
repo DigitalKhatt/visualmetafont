@@ -143,8 +143,7 @@ enddef;
 
 vardef setlabel(expr s,z) = % puts string s near point z
   save p; picture p;
-  if known z:
-    p = s infont defaultfont scaled (defaultscale/bp_per_pixel);
-    draw p shifted z t_  withcolor black;   
+   if known z:
+    draw (0,0) shifted z t_ withprescript "begintext" withpostscript s;    
   fi
 enddef;

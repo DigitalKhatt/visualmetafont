@@ -1020,7 +1020,7 @@ namespace feayy {
     typedef std::map<std::string, FeatureDefenition*> featuremap_type;
 
     lookupmap_type		lookups;
-    featuremap_type		features;
+    std::vector<FeatureDefenition*> features;
     std::map<std::string, TableDefinition*> tables;
     JustTable jusTable;
 

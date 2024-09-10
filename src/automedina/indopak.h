@@ -6,7 +6,7 @@
 
 class IndoPak : public Automedina {
 public:
-  IndoPak(OtLayout* layout, MP mp, bool extended);
+  IndoPak(OtLayout* layout, Font* font, bool extended);
   Lookup* getLookup(QString lookupName) override;
   CalcAnchor  getanchorCalcFunctions(QString functionName, Subtable* subtable) override;
   void generateSubstEquivGlyphs() override;

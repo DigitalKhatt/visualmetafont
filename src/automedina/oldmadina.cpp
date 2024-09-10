@@ -51,8 +51,7 @@ void OldMadina::generateSubstEquivGlyphs() {
 
 void OldMadina::generateGlyphs() {
 
-  mp_run_data* _mp_results = mp_rundata(mp);
-  mp_edge_object* edges = _mp_results->edges;
+  mp_edge_object* edges = font->getEdges();
 
   glyphs.clear();
 
@@ -241,7 +240,7 @@ void OldMadina::addchars() {
 
 }
 
-OldMadina::OldMadina(OtLayout* layout, MP mp, bool extended) :Automedina{ layout,mp, extended } {
+OldMadina::OldMadina(OtLayout* layout, Font* font, bool extended) :Automedina{ layout,font, extended } {
 
   //m_metafont = layout->m_font;
   classes["marks"] = {
@@ -505,6 +504,7 @@ OldMadina::OldMadina(OtLayout* layout, MP mp, bool extended) :Automedina{ layout
 
   layout->expandableGlyphs["heh.medi"] = { 20,-0.3,0,0 };
   layout->expandableGlyphs["behshape.medi"] = { 20,-0.5,20,-0.5 };
+  layout->expandableGlyphs["behshape.medi.afterbeh"] = { 20,-0.5,0,0 };
   layout->expandableGlyphs["behshape.medi.beforeseen"] = { 20,-1,20,-1 };
   layout->expandableGlyphs["behshape.medi.beforereh"] = { 20,-0.5,20,-0.7 };
   layout->expandableGlyphs["behshape.medi.beforenoon"] = { 20,-0.5,20,-0.7 };
@@ -602,10 +602,7 @@ CalcAnchor  OldMadina::getanchorCalcFunctions(QString functionName, Subtable* su
   }
   else if (functionName == "defaullowmarkanchor") {
     return Defaullowmarkanchor(*this, *(MarkBaseSubtable*)(subtable));
-  }
-  else if (functionName == "defaultwaqfmarkabovemark") {
-    return Defaulwaqftmarkabovemark(*this, *(MarkBaseSubtable*)(subtable));
-  }
+  }  
   else if (functionName == "defaultbaseanchorforlow") {
     return Defaulbaseanchorforlow(*this, *(MarkBaseSubtable*)(subtable));
   }
@@ -2450,9 +2447,7 @@ Lookup* OldMadina::populatecvxx() {
 
 Lookup* OldMadina::glyphalternates() {
 
-  if (m_layout->isExtended()) {
-    return nullptr;
-  }
+  bool isExtended = m_layout->isExtended();
 
   unordered_map<QString, QString> mappings;
 
@@ -2508,7 +2503,7 @@ Lookup* OldMadina::glyphalternates() {
 
     m_layout->addLookup(alternate);
 
-    AlternateSubtable* alternateSubtable = new AlternateSubtable(alternate);
+    AlternateSubtableWithTatweel* alternateSubtable = new AlternateSubtableWithTatweel(alternate);
     alternate->subtables.append(alternateSubtable);
     alternate->name = alternate->name;
 
@@ -2529,7 +2524,7 @@ Lookup* OldMadina::glyphalternates() {
         GlyphParameters parameters;
         parameters.lefttatweel = leftTatweel;
         parameters.righttatweel = 0.0;
-        GlyphVis* newglyph = m_layout->getAlternate(code, parameters, true, true);
+        GlyphVis* newglyph = m_layout->getAlternate(code, parameters, !isExtended, !isExtended);
         if (newglyph != nullptr) {
           QVector<ExtendedGlyph> alternates2;
           alternates2.append({ substcode,leftTatweel,0 });
@@ -2579,11 +2574,15 @@ Lookup* OldMadina::glyphalternates() {
 
   //kafs
   mappingsdecomp.insert({ "kaf.init.beforelam","kaf.init.ii" });
+  mappingsdecomp.insert({ "kaf.init.beforelam.ii","kaf.init.ii" });  
   mappingsdecomp.insert({ "kaf.medi.beforelam","kaf.medi.ii" });
+  mappingsdecomp.insert({ "kaf.medi.beforelam.ii","kaf.medi.ii" });
   mappingsdecomp.insert({ "lam.fina.afterkaf","lam.fina" });
   mappingsdecomp.insert({ "lam.medi.afterkaf","lam.medi" });
   mappingsdecomp.insert({ "alef.fina.afterkaf","alef.fina" });
   mappingsdecomp.insert({ "kaf.init","kaf.init.ii" });
+  mappingsdecomp.insert({ "kaf.init.iii","kaf.init.ii" });
+  mappingsdecomp.insert({ "kaf.init.iv","kaf.init.ii" });
   mappingsdecomp.insert({ "kaf.medi","kaf.medi.ii" });
   mappingsdecomp.insert({ "kaf.medi.beforemeem","kaf.medi.ii" });
   mappingsdecomp.insert({ "meem.fina.afterkaf","meem.fina" });
@@ -2595,7 +2594,7 @@ Lookup* OldMadina::glyphalternates() {
 
   m_layout->addLookup(alternate);
 
-  AlternateSubtable* alternateSubtable = new AlternateSubtable(alternate);
+  AlternateSubtableWithTatweel* alternateSubtable = new AlternateSubtableWithTatweel(alternate);
   alternate->subtables.append(alternateSubtable);
   alternate->name = alternate->name;
 
@@ -2616,7 +2615,7 @@ Lookup* OldMadina::glyphalternates() {
       GlyphParameters parameters;
       parameters.lefttatweel = leftTatweel;
       parameters.righttatweel = 0.0;
-      GlyphVis* newglyph = m_layout->getAlternate(code, parameters, true, true);
+      GlyphVis* newglyph = m_layout->getAlternate(code, parameters, !isExtended, !isExtended);
       if (newglyph != nullptr) {
         QVector<ExtendedGlyph> alternates2;
         alternates2.append({ substcode,leftTatweel,0 });
@@ -2638,7 +2637,7 @@ Lookup* OldMadina::glyphalternates() {
 
   m_layout->addLookup(alternate);
 
-  alternateSubtable = new AlternateSubtable(alternate);
+  alternateSubtable = new AlternateSubtableWithTatweel(alternate);
   alternate->subtables.append(alternateSubtable);
   alternateSubtable->name = alternate->name;
 
@@ -2704,7 +2703,7 @@ Lookup* OldMadina::glyphalternates() {
     GlyphParameters parameters;
     parameters.lefttatweel = leftTatweel;
     parameters.righttatweel = 0.0;
-    GlyphVis* newglyph = m_layout->getAlternate(glyphCode, parameters, true, true);
+    GlyphVis* newglyph = m_layout->getAlternate(glyphCode, parameters, !isExtended, !isExtended);
     for (double leftTatweel2 = leftTatweel + 1; leftTatweel2 <= std::min(valueLimits.maxLeft, 6.0F); leftTatweel2 += 1) {
       alternates.append({ substcode,leftTatweel2,0 });
     }
@@ -2740,7 +2739,7 @@ Lookup* OldMadina::glyphalternates() {
         GlyphParameters parameters;
         parameters.lefttatweel = leftTatweel;
         parameters.righttatweel = 0.0;
-        GlyphVis* newglyph = m_layout->getAlternate(glyphCode, parameters, true, true);
+        GlyphVis* newglyph = m_layout->getAlternate(glyphCode, parameters, !isExtended, !isExtended);
         auto newCode = newglyph->charcode;
         if (leftTatweel == 0) {
           newCode = glyphCode;
@@ -2770,7 +2769,7 @@ Lookup* OldMadina::glyphalternates() {
 
   m_layout->addLookup(alternate);
 
-  alternateSubtable = new AlternateSubtable(alternate);
+  alternateSubtable = new AlternateSubtableWithTatweel(alternate);
   alternate->subtables.append(alternateSubtable);
   alternate->name = alternate->name;
 
@@ -2793,7 +2792,7 @@ Lookup* OldMadina::glyphalternates() {
         GlyphParameters parameters;
         parameters.lefttatweel = leftTatweel;
         parameters.righttatweel = 0.0;
-        GlyphVis* newglyph = m_layout->getAlternate(glyphCode, parameters, true, true);
+        GlyphVis* newglyph = m_layout->getAlternate(glyphCode, parameters, !isExtended, !isExtended);
         for (double righttatweel = 0.5; righttatweel <= std::min(valueLimits.maxRight, 6.0F); righttatweel += 0.5) {
           alternates.append({ glyphCode,leftTatweel,righttatweel });
         }
@@ -2803,9 +2802,6 @@ Lookup* OldMadina::glyphalternates() {
 
     }
   }
-
-
-
 
   return nullptr;
 

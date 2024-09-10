@@ -257,7 +257,7 @@ void GlyphCellItem::contextMenuEvent(QGraphicsSceneContextMenuEvent* event)
           return;
         }
         QString source = glyph->source();
-        Glyph* newglyph = new Glyph(source, glyph->mp, glyph->font);
+        Glyph* newglyph = new Glyph(source, glyph->font);
         newglyph->setName(text);
         newglyph->setUnicode(-1);
         int fromindex = glyph->font->glyphs.indexOf(glyph);

@@ -1,5 +1,5 @@
 /*4:*/
-// #line 127 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 126 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 #ifndef MPXOUT_H
 #define MPXOUT_H 1
@@ -9,7 +9,7 @@ mpx_troff_mode= 1
 }mpx_modes;
 typedef struct mpx_data*MPX;
 /*157:*/
-// #line 2549 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2550 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 typedef char*(*mpx_file_finder)(MPX,const char*,const char*,int);
 enum mpx_filetype{
@@ -23,7 +23,7 @@ mpx_specchar_format
 };
 
 /*:157*//*225:*/
-// #line 4133 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4134 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 typedef struct mpx_options{
 int mode;
@@ -40,8 +40,9 @@ int mpx_run_dvitomp(mpx_options*mpxopt);
 
 
 /*:225*/
-// #line 135 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 134 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 #endif
+#line 136 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 /*:4*/

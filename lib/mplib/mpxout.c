@@ -1,5 +1,5 @@
 /*2:*/
-// #line 36 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 35 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 #include <w2c/config.h> 
 #include <stdio.h> 
@@ -16,43 +16,57 @@
 #include <sys/types.h> 
 #include <unistd.h> 
 #endif
+#line 51 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 #ifdef WIN32
 #include <io.h> 
 #include <process.h> 
 #else
+#line 56 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #if HAVE_SYS_WAIT_H
 # include <sys/wait.h> 
 #endif
+#line 59 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #ifndef WEXITSTATUS
 # define WEXITSTATUS(stat_val) ((unsigned)(stat_val) >> 8)
 #endif
+#line 62 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #ifndef WIFEXITED
 # define WIFEXITED(stat_val) (((stat_val) & 255) == 0)
 #endif
+#line 65 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #endif
+#line 66 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 #ifdef WIN32
 #include <direct.h> 
 #else
+#line 70 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #if HAVE_DIRENT_H
 # include <dirent.h> 
 #else
+#line 73 "../../../source/texk/web2c/mplibdir/mpxout.w"
 # define dirent direct
 # if HAVE_SYS_NDIR_H
 #  include <sys/ndir.h> 
 # endif
+#line 77 "../../../source/texk/web2c/mplibdir/mpxout.w"
 # if HAVE_SYS_DIR_H
 #  include <sys/dir.h> 
 # endif
+#line 80 "../../../source/texk/web2c/mplibdir/mpxout.w"
 # if HAVE_NDIR_H
 #  include <ndir.h> 
 # endif
+#line 83 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #endif
+#line 84 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #endif
+#line 85 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h> 
 #endif
+#line 88 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #include <ctype.h> 
 #include <time.h> 
 #include <math.h> 
@@ -62,6 +76,7 @@
 #ifndef PI
 #define PI  3.14159265358979323846
 #endif
+#line 97 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #include "avl.h"
 #include "mpxout.h"
 #define true 1
@@ -95,7 +110,7 @@
  \
 
 #define bad_dvi(A) mpx_abort(mpx,"Bad DVI file: "A"!") 
-#define bad_dvi_two(A,B) mpx_abort(mpx,"Bad DVI file: %s !",A,B)  \
+#define bad_dvi_two(A,B) mpx_abort(mpx,"Bad DVI file: "A"!",B)  \
  \
 
 #define printable(c) (isprint(c) &&c<128&&c!='"') 
@@ -186,19 +201,19 @@ deff= mpx_fsearch(mpx,cname,mpx_specchar_format) ; \
 #define MPXLOG "makempx.log" \
 
 
-// #line 100 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 99 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 
 /*:2*//*3:*/
-// #line 112 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 111 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 typedef signed int web_integer;
 typedef signed int web_boolean;
 /*5:*/
-// #line 138 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 137 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 /*8:*/
-// #line 169 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 168 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 enum mpx_history_states{
 mpx_spotless= 0,
@@ -209,7 +224,7 @@ mpx_fatal_error
 
 
 /*:8*//*131:*/
-// #line 2180 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2181 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 typedef struct named_color_record{
 const char*name;
@@ -217,7 +232,7 @@ const char*value;
 }named_color_record;
 
 /*:131*//*165:*/
-// #line 2595 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2596 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 typedef struct{
 char*name;
@@ -225,7 +240,7 @@ int num;
 }avl_entry;
 
 /*:165*//*190:*/
-// #line 3198 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3199 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 typedef struct{
 char*name;
@@ -233,17 +248,17 @@ char*mac;
 }spec_entry;
 
 /*:190*/
-// #line 139 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 138 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 typedef struct mpx_data{
 int mode;
 /*9:*/
-// #line 178 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 177 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 int history;
 
 /*:9*//*11:*/
-// #line 189 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 188 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 char*banner;
 char*mpname;
@@ -254,12 +269,12 @@ FILE*errfile;
 int lnno;
 
 /*:11*//*16:*/
-// #line 245 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 244 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 jmp_buf jump_buf;
 
 /*:16*//*23:*/
-// #line 376 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 375 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 int texcnt;
 int verbcnt;
@@ -268,31 +283,31 @@ char*buf;
 unsigned bufsize;
 
 /*:23*//*40:*/
-// #line 774 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 773 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 FILE*dvi_file;
 FILE*tfm_file;
 FILE*vf_file;
 
 /*:40*//*44:*/
-// #line 816 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 817 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 char*cur_name;
 
 /*:44*//*45:*/
-// #line 824 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 825 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 int b0,b1,b2,b3;
 
 /*:45*//*47:*/
-// #line 843 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 844 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 web_boolean vf_reading;
 unsigned char cmd_buf[(virtual_space+1)];
 unsigned int buf_ptr;
 
 /*:47*//*55:*/
-// #line 1018 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1019 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 web_integer font_num[(max_fnums+1)];
 web_integer internal_num[(max_fnums+1)];
@@ -317,24 +332,24 @@ unsigned int cur_fbase,cur_ftop;
 
 
 /*:55*//*63:*/
-// #line 1134 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1135 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 double dvi_per_fix;
 
 /*:63*//*67:*/
-// #line 1189 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1190 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 web_integer in_width[256];
 web_integer tfm_check_sum;
 
 /*:67*//*87:*/
-// #line 1498 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1499 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 int state;
 int print_col;
 
 /*:87*//*93:*/
-// #line 1584 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1585 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 web_integer h;
 web_integer v;
@@ -342,7 +357,7 @@ double conv;
 double mag;
 
 /*:93*//*95:*/
-// #line 1612 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1613 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 boolean font_used[(max_fonts+1)];
 boolean fonts_used;
@@ -355,12 +370,12 @@ double str_scale;
 
 
 /*:95*//*107:*/
-// #line 1766 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1767 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 web_integer pic_dp;web_integer pic_ht;web_integer pic_wd;
 
 /*:107*//*111:*/
-// #line 1824 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1825 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 web_integer w;web_integer x;web_integer y;web_integer z;
 
@@ -374,31 +389,31 @@ web_integer stk_siz;
 double dvi_scale;
 
 /*:111*//*124:*/
-// #line 2106 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2107 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 web_integer k;web_integer p;
 web_integer numerator;web_integer denominator;
 
 /*:124*//*128:*/
-// #line 2165 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2166 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 char*dviname;
 
 /*:128*//*132:*/
-// #line 2188 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2189 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 named_color_record named_colors[(max_named_colors+1)];
 
 web_integer num_named_colors;
 
 /*:132*//*142:*/
-// #line 2355 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2356 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 web_integer color_stack_depth;
 char*color_stack[(max_color_stack_depth+1)];
 
 /*:142*//*155:*/
-// #line 2523 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2524 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 int next_specfnt[(max_fnums+1)];
 int shiftchar[SHIFTS];
@@ -417,27 +432,27 @@ int gflag;
 float unit;
 
 /*:155*//*158:*/
-// #line 2561 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2562 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx_file_finder find_file;
 
 /*:158*//*169:*/
-// #line 2660 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2661 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 char*arg_tail;
 
 /*:169*//*174:*/
-// #line 2773 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2774 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 avl_tree trfonts;
 
 /*:174*//*179:*/
-// #line 2959 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2960 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 avl_tree charcodes[(max_fnums+1)];
 
 /*:179*//*182:*/
-// #line 3041 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3042 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 boolean graphics_used;
 float dmp_str_h1;
@@ -447,38 +462,38 @@ float str_size;
 
 
 /*:182*//*189:*/
-// #line 3193 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3194 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 avl_tree spec_tab;
 
 /*:189*//*197:*/
-// #line 3346 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3347 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 float gx;
 float gy;
 
 /*:197*//*210:*/
-// #line 3839 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3840 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 char tex[15];
 int debug;
 const char*progname;
 
 /*:210*//*222:*/
-// #line 4112 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4113 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 char*maincmd;
 
 /*:222*/
-// #line 142 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 141 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 }mpx_data;
 
 /*:5*/
-// #line 115 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 114 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 /*20:*/
-// #line 293 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 292 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_xfree(void*x);
 static void*mpx_xrealloc(MPX mpx,void*p,size_t nmem,size_t size);
@@ -487,85 +502,85 @@ static char*mpx_xstrdup(MPX mpX,const char*s);
 
 
 /*:20*//*96:*/
-// #line 1627 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1628 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_prepare_font_use(MPX mpx);
 
 /*:96*//*100:*/
-// #line 1652 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1653 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_first_use(MPX mpx,int f);
 
 /*:100*//*134:*/
-// #line 2203 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2204 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_def_named_color(MPX mpx,const char*n,const char*v);
 
 /*:134*//*159:*/
-// #line 2564 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2565 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static char*mpx_find_file(MPX mpx,const char*nam,const char*mode,int ftype);
 
 /*:159*//*162:*/
-// #line 2579 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2580 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static FILE*mpx_fsearch(MPX mpx,const char*nam,int format);
 
 /*:162*//*183:*/
-// #line 3051 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3052 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_slant_and_ht(MPX mpx);
 
 /*:183*//*212:*/
-// #line 3865 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3866 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_erasetmp(MPX mpx);
 
 /*:212*/
-// #line 116 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 115 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 
 /*:3*//*7:*/
-// #line 160 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 159 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_initialize(MPX mpx){
 memset(mpx,0,sizeof(struct mpx_data));
 /*10:*/
-// #line 181 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 180 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->history= mpx_spotless;
 
 /*:10*//*24:*/
-// #line 383 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 382 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->bufsize= 1000;
 
 /*:24*//*48:*/
-// #line 848 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 849 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->vf_reading= false;
 mpx->buf_ptr= virtual_space;
 
 /*:48*//*56:*/
-// #line 1041 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1042 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->nfonts= 0;mpx->info_ptr= 0;mpx->font_name[0]= 0;
 mpx->vf_ptr= max_fnums;
 mpx->cur_fbase= 0;mpx->cur_ftop= 0;
 
 /*:56*//*88:*/
-// #line 1502 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1503 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->state= initial;
 mpx->print_col= 0;
 
 /*:88*//*92:*/
-// #line 1571 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1572 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->state= initial;
 
 /*:92*//*135:*/
-// #line 2211 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2212 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->num_named_colors= 0;
 mpx_def_named_color(mpx,"Apricot","(1.0, 0.680006, 0.480006)");
@@ -638,12 +653,12 @@ mpx_def_named_color(mpx,"YellowGreen","(0.560012, 1.0, 0.260012)");
 mpx_def_named_color(mpx,"YellowOrange","(1.0, 0.580006, 0.0)");
 
 /*:135*//*143:*/
-// #line 2361 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2362 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->color_stack_depth= 0;
 
 /*:143*//*156:*/
-// #line 2540 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2541 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->shiftptr= 0;
 mpx->specfnt= (max_fnums+1);
@@ -654,17 +669,17 @@ mpx->gflag= 0;
 mpx->h= 0;mpx->v= 0;
 
 /*:156*//*161:*/
-// #line 2576 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2577 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->find_file= mpx_find_file;
 
 /*:161*/
-// #line 163 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 162 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 }
 
 /*:7*//*12:*/
-// #line 200 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 199 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_printf(MPX mpx,const char*header,const char*msg,va_list ap){
 fprintf(mpx->errfile,"makempx %s: %s:",header,mpx->mpname);
@@ -676,7 +691,7 @@ fprintf(mpx->errfile,"\n");
 }
 
 /*:12*//*13:*/
-// #line 210 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 209 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_report(MPX mpx,const char*msg,...){
 va_list ap;
@@ -689,7 +704,7 @@ mpx->history= mpx_cksum_trouble;
 }
 
 /*:13*//*14:*/
-// #line 221 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 220 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_warn(MPX mpx,const char*msg,...){
 va_list ap;
@@ -701,7 +716,7 @@ mpx->history= mpx_cksum_trouble;
 }
 
 /*:14*//*15:*/
-// #line 231 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 230 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_error(MPX mpx,const char*msg,...){
 va_list ap;
@@ -712,7 +727,7 @@ mpx->history= mpx_warning_given;
 }
 
 /*:15*//*17:*/
-// #line 249 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 248 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_abort(MPX mpx,const char*msg,...){
 va_list ap;
@@ -729,7 +744,7 @@ mpx_jump_out;
 }
 
 /*:17*//*19:*/
-// #line 275 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 274 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static FILE*mpx_xfopen(MPX mpx,const char*fname,const char*fmode){
 FILE*f= fopen(fname,fmode);
@@ -743,7 +758,7 @@ static void mpx_fclose(MPX mpx,FILE*file){
 }
 
 /*:19*//*21:*/
-// #line 305 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 304 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_xfree(void*x){
 if(x!=NULL)free(x);
@@ -775,7 +790,7 @@ if(w==NULL)mpx_abort(mpx,"Out of Memory");
 return w;
 }
 /*:21*//*22:*/
-// #line 339 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 338 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int mpx_newer(char*source,char*target){
 struct stat source_stat,target_stat;
@@ -788,17 +803,20 @@ if(source_stat.st_mtim.tv_sec> target_stat.st_mtim.tv_sec||
 source_stat.st_mtim.tv_nsec>=target_stat.st_mtim.tv_nsec))
 return 0;
 #else
-if(source_stat.st_mtime>=target_stat.st_mtime)
+#line 350 "../../../source/texk/web2c/mplibdir/mpxout.w"
+ if(source_stat.st_mtime>=target_stat.st_mtime)
 return 0;
 #endif
+#line 353 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #endif
-return 1;
+#line 354 "../../../source/texk/web2c/mplibdir/mpxout.w"
+ return 1;
 }
 
 
 
 /*:22*//*25:*/
-// #line 388 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 387 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static char*mpx_getline(MPX mpx,FILE*mpfile){
 int c;
@@ -832,7 +850,7 @@ return mpx->buf;
 
 
 /*:25*//*26:*/
-// #line 423 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 422 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int mpx_match_str(const char*s,const char*t){
 while(*t!=0){
@@ -848,7 +866,7 @@ return 1;
 
 
 /*:26*//*27:*/
-// #line 453 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 452 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int mpx_getbta(MPX mpx,char*s){
 int ok= 1;
@@ -902,7 +920,7 @@ return 0;
 }
 
 /*:27*//*28:*/
-// #line 505 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 504 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_copy_mpto(MPX mpx,FILE*outfile,int textype){
 char*s;
@@ -942,7 +960,7 @@ res= xrealloc(res,strlen(res)+strlen(mpx->bb)+2,1);
 res= strncat(res,mpx->bb,strlen(mpx->bb));
 }
 if(c=='\0')
-res= strncat(res,"\n",1);
+res= strcat(res,"\n");
 *s= c;
 }while(*(mpx->tt)!='e');
 s= res;
@@ -966,7 +984,7 @@ fprintf(outfile,"%s",s);
 if(textype==B_TEX){
 
 
-if(t!=s||*t!='%')
+if((t!=s||*t!='%')&&mpx->mode==mpx_tex_mode)
 fprintf(outfile,"%%");
 }
 free(res);
@@ -974,7 +992,7 @@ free(res);
 
 
 /*:28*//*29:*/
-// #line 577 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 576 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static const char*mpx_predoc[]= {"",".po 0\n"};
 static const char*mpx_postdoc[]= {"\\end{document}\n",""};
@@ -998,7 +1016,7 @@ static const char*mpx_preverb[]= {"%% line %d %s\n",".lf %d %s\n"};
 static const char*mpx_postverb[]= {"\n","\n"};
 
 /*:29*//*30:*/
-// #line 599 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 598 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_mpto(MPX mpx,char*tmpname,char*mptexpre){
 FILE*outfile;
@@ -1026,7 +1044,7 @@ mpx->mpfile= mpx_xfopen(mpx,mpname,"r");
 fprintf(outfile,"%s",mpx_predoc[mode]);
 while(mpx_getline(mpx,mpx->mpfile)!=NULL)
 /*31:*/
-// #line 633 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 632 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 {
 mpx->aa= mpx->buf;
@@ -1054,16 +1072,16 @@ if(!verbatim_written)
 mpx_copy_mpto(mpx,outfile,FIRST_VERBATIM_TEX);
 else
 mpx_copy_mpto(mpx,outfile,VERBATIM_TEX);
+verbatim_written= 1;
 fprintf(outfile,"%s",mpx_postverb[mode]);
 }else{
 mpx_error(mpx,"unmatched etex");
 }
-verbatim_written= 1;
 }
 }
 
 /*:31*/
-// #line 625 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 624 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 fprintf(outfile,"%s",mpx_postdoc[mode]);
 mpx_fclose(mpx,mpx->mpfile);
@@ -1072,14 +1090,14 @@ mpx->lnno= 0;
 }
 
 /*:30*//*37:*/
-// #line 724 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 723 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_open_mpxfile(MPX mpx){
 mpx->mpxfile= mpx_xfopen(mpx,mpx->mpxname,"wb");
 }
 
 /*:37*//*41:*/
-// #line 780 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 779 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_open_dvi_file(MPX mpx){
 mpx->dvi_file= fopen(mpx->dviname,"rb");
@@ -1088,7 +1106,7 @@ mpx_abort(mpx,"DVI generation failed");
 }
 
 /*:41*//*42:*/
-// #line 788 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 787 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static web_boolean mpx_open_tfm_file(MPX mpx){
 mpx->tfm_file= mpx_fsearch(mpx,mpx->cur_name,mpx_tfm_format);
@@ -1099,9 +1117,11 @@ return true;
 }
 
 /*:42*//*43:*/
-// #line 800 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 799 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static web_boolean mpx_open_vf_file(MPX mpx){
+if(mpx->vf_file)
+fclose(mpx->vf_file);
 mpx->vf_file= mpx_fsearch(mpx,mpx->cur_name,mpx_vf_format);
 if(mpx->vf_file){
 free(mpx->cur_name);
@@ -1111,7 +1131,7 @@ return false;
 }
 
 /*:43*//*46:*/
-// #line 830 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 831 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_read_tfm_word(MPX mpx){
 mpx->b0= getc(mpx->tfm_file);
@@ -1121,12 +1141,12 @@ mpx->b3= getc(mpx->tfm_file);
 }
 
 /*:46*//*49:*/
-// #line 856 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 857 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static web_integer mpx_get_byte(MPX mpx){
 unsigned char b;
 /*50:*/
-// #line 907 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 908 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->vf_reading){
 b= (unsigned char)getc(mpx->vf_file);
@@ -1138,7 +1158,7 @@ incr(mpx->buf_ptr);
 }
 
 /*:50*/
-// #line 859 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 860 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 return b;
 }
@@ -1146,7 +1166,7 @@ return b;
 static web_integer mpx_signed_byte(MPX mpx){
 unsigned char b;
 /*50:*/
-// #line 907 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 908 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->vf_reading){
 b= (unsigned char)getc(mpx->vf_file);
@@ -1158,7 +1178,7 @@ incr(mpx->buf_ptr);
 }
 
 /*:50*/
-// #line 865 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 866 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 return(b<128?b:(b-256));
 }
@@ -1167,7 +1187,7 @@ static web_integer mpx_get_two_bytes(MPX mpx){
 unsigned char a,b;
 a= 0;b= 0;
 /*51:*/
-// #line 917 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 918 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->vf_reading){
 a= (unsigned char)getc(mpx->vf_file);
@@ -1185,7 +1205,7 @@ mpx->buf_ptr+= 2;
 }
 
 /*:51*/
-// #line 872 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 873 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 return(a*(int)(256)+b);
 }
@@ -1194,7 +1214,7 @@ static web_integer mpx_signed_pair(MPX mpx){
 unsigned char a,b;
 a= 0;b= 0;
 /*51:*/
-// #line 917 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 918 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->vf_reading){
 a= (unsigned char)getc(mpx->vf_file);
@@ -1212,7 +1232,7 @@ mpx->buf_ptr+= 2;
 }
 
 /*:51*/
-// #line 879 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 880 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 if(a<128)return(a*256+b);
 else return((a-256)*256+b);
@@ -1222,7 +1242,7 @@ static web_integer mpx_get_three_bytes(MPX mpx){
 unsigned char a,b,c;
 a= 0;b= 0;c= 0;
 /*52:*/
-// #line 933 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 934 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->vf_reading){
 a= (unsigned char)getc(mpx->vf_file);
@@ -1243,7 +1263,7 @@ mpx->buf_ptr+= 3;
 }
 
 /*:52*/
-// #line 887 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 888 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 return((a*(int)(256)+b)*256+c);
 }
@@ -1252,7 +1272,7 @@ static web_integer mpx_signed_trio(MPX mpx){
 unsigned char a,b,c;
 a= 0;b= 0;c= 0;
 /*52:*/
-// #line 933 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 934 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->vf_reading){
 a= (unsigned char)getc(mpx->vf_file);
@@ -1273,7 +1293,7 @@ mpx->buf_ptr+= 3;
 }
 
 /*:52*/
-// #line 894 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 895 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 if(a<128)return((a*(int)(256)+b)*256+c);
 else return(((a-(int)(256))*256+b)*256+c);
@@ -1283,7 +1303,7 @@ static web_integer mpx_signed_quad(MPX mpx){
 unsigned char a,b,c,d;
 a= 0;b= 0;c= 0;d= 0;
 /*53:*/
-// #line 952 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 953 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->vf_reading){
 a= (unsigned char)getc(mpx->vf_file);
@@ -1307,16 +1327,16 @@ mpx->buf_ptr+= 4;
 }
 
 /*:53*/
-// #line 902 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 903 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 if(a<128)return(((a*(int)(256)+b)*256+c)*256+d);
 else return((((a-256)*(int)(256)+b)*256+c)*256+d);
 }
 
 /*:49*//*57:*/
-// #line 1049 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1050 "../../../source/texk/web2c/mplibdir/mpxout.w"
 /*89:*/
-// #line 1509 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1510 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_print_char(MPX mpx,unsigned char c){
 web_integer l;
@@ -1332,7 +1352,7 @@ fprintf(mpx->mpxfile,"\n");
 mpx->print_col= 0;
 }
 /*90:*/
-// #line 1526 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1527 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->state==normal){
 if(printable(c)){
@@ -1360,12 +1380,12 @@ else
 mpx->state= special
 
 /*:90*/
-// #line 1523 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1524 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 }
 
 /*:89*//*91:*/
-// #line 1555 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1556 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_end_char_string(MPX mpx,web_integer l){
 while(mpx->state> special){
@@ -1380,7 +1400,7 @@ mpx->state= initial;
 }
 
 /*:91*/
-// #line 1049 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1050 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_print_font(MPX mpx,web_integer f){
 if((f<0)||(f>=(int)mpx->nfonts)){
@@ -1395,22 +1415,22 @@ s++;
 }
 
 /*:57*//*59:*/
-// #line 1078 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1079 "../../../source/texk/web2c/mplibdir/mpxout.w"
 /*64:*/
-// #line 1143 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1144 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static web_integer mpx_match_font(MPX mpx,unsigned ff,web_boolean exact){
 unsigned f;
 for(f= 0;f<mpx->nfonts;f++){
 if(f!=ff){
 /*65:*/
-// #line 1171 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1172 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(strcmp(mpx->font_name[f],mpx->font_name[ff]))
 continue
 
 /*:65*/
-// #line 1148 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1149 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 if(exact){
 if(fabs(mpx->font_scaled_size[f]-mpx->font_scaled_size[ff])<=font_tolerance){
@@ -1430,7 +1450,7 @@ break;
 }
 if(f<mpx->nfonts){
 /*66:*/
-// #line 1175 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1176 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(fabs(mpx->font_design_size[f]-mpx->font_design_size[ff])> font_tolerance){
 font_error("Inconsistent design sizes given for ",ff);
@@ -1441,14 +1461,14 @@ font_warn("Checksum mismatch for ",ff);
 }
 
 /*:66*/
-// #line 1166 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1167 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 }
 return(web_integer)f;
 }
 
 /*:64*/
-// #line 1078 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1079 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_define_font(MPX mpx,web_integer e){
 unsigned i;
@@ -1459,7 +1479,7 @@ if(mpx->nfonts==max_fonts)
 mpx_abort(mpx,"DVItoMP capacity exceeded (max fonts=%d)!",max_fonts);
 
 /*60:*/
-// #line 1096 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1097 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->vf_ptr==mpx->nfonts)
 mpx_abort(mpx,"DVItoMP capacity exceeded (max font numbers=%d)",max_fnums);
@@ -1472,14 +1492,14 @@ i= mpx->nfonts;
 mpx->font_num[i]= e
 
 /*:60*/
-// #line 1087 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1088 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 /*61:*/
-// #line 1107 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1108 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->font_check_sum[mpx->nfonts]= mpx_signed_quad(mpx);
 /*62:*/
-// #line 1123 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1124 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 x= mpx_signed_quad(mpx);
 k= 1;
@@ -1492,7 +1512,7 @@ mpx->font_design_size[mpx->nfonts]= mpx_signed_quad(mpx)*mpx->dvi_per_fix/104857
 else mpx->font_design_size[mpx->nfonts]= mpx_signed_quad(mpx)/1048576.0;
 
 /*:62*/
-// #line 1109 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1110 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 n= mpx_get_byte(mpx);
 n= n+mpx_get_byte(mpx);
@@ -1502,7 +1522,7 @@ mpx->font_name[mpx->nfonts][k]= (char)mpx_get_byte(mpx);
 mpx->font_name[mpx->nfonts][k]= 0
 
 /*:61*/
-// #line 1088 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1089 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 mpx->internal_num[i]= mpx_match_font(mpx,mpx->nfonts,true);
 if(mpx->internal_num[i]==(int)mpx->nfonts){
@@ -1512,7 +1532,7 @@ mpx->local_only[mpx->nfonts]= mpx->vf_reading;incr(mpx->nfonts);
 }
 
 /*:59*//*68:*/
-// #line 1202 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1203 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_in_TFM(MPX mpx,web_integer f){
 
@@ -1521,7 +1541,7 @@ int lh;
 int nw;
 unsigned int wp;
 /*69:*/
-// #line 1219 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1220 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx_read_tfm_word(mpx);lh= mpx->b2*(int)(256)+mpx->b3;
 mpx_read_tfm_word(mpx);
@@ -1555,10 +1575,10 @@ mpx->font_design_size[f]= (((mpx->b0*(int)(256)+mpx->b1)*256+mpx->b2)*256+mpx->b
 }
 
 /*:69*/
-// #line 1209 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1210 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 /*70:*/
-// #line 1251 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1252 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(wp> 0){
 for(k= (int)mpx->info_ptr;k<=(int)wp-1;k++){
@@ -1571,10 +1591,10 @@ mpx->width[k]= mpx->b0;
 }
 
 /*:70*/
-// #line 1210 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1211 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 /*71:*/
-// #line 1267 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1268 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 for(k= 0;k<=nw-1;k++){
 mpx_read_tfm_word(mpx);
@@ -1583,10 +1603,10 @@ mpx->in_width[k]= ((mpx->b0*0400+mpx->b1)*0400+mpx->b2)*0400+mpx->b3;
 }
 
 /*:71*/
-// #line 1211 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1212 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 /*74:*/
-// #line 1290 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1291 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->in_width[0]!=0)
 font_abort("Bad TFM file for ",f);
@@ -1600,7 +1620,7 @@ mpx->width[k]= mpx->in_width[mpx->width[k]];
 
 
 /*:74*/
-// #line 1212 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1213 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 mpx->fbase[f]= 0;mpx->ftop[f]= 0;
 mpx->info_ptr= wp;
@@ -1609,10 +1629,10 @@ return;
 }
 
 /*:68*//*75:*/
-// #line 1310 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1311 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 /*115:*/
-// #line 1910 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1911 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static web_integer mpx_first_par(MPX mpx,unsigned int o){
 switch(o){
@@ -1659,7 +1679,7 @@ return 0;
 }
 
 /*:115*/
-// #line 1311 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1312 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_in_VF(MPX mpx,web_integer f){
 
@@ -1670,7 +1690,7 @@ web_integer limit;
 web_integer w;
 was_vf_reading= mpx->vf_reading;mpx->vf_reading= true;
 /*76:*/
-// #line 1343 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1344 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 p= mpx_get_byte(mpx);
 if(p!=pre)
@@ -1685,10 +1705,10 @@ mpx->tfm_check_sum= mpx_signed_quad(mpx);
 (void)mpx_signed_quad(mpx);
 
 /*:76*/
-// #line 1320 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1321 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 /*77:*/
-// #line 1356 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1357 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->ftop[f]= (web_integer)mpx->vf_ptr;
 if(mpx->vf_ptr==mpx->nfonts)
@@ -1700,7 +1720,7 @@ limit= max_widths-mpx->info_base[f];
 mpx->font_bc[f]= limit;mpx->font_ec[f]= 0
 
 /*:77*/
-// #line 1321 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1322 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 p= mpx_get_byte(mpx);
 while(p>=fnt_def1){
@@ -1713,7 +1733,7 @@ while(p<=242){
 if(feof(mpx->vf_file))
 font_abort("Bad VF file for ",f);
 /*78:*/
-// #line 1366 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1367 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(p==242){
 p= mpx_signed_quad(mpx);c= mpx_signed_quad(mpx);w= mpx_signed_quad(mpx);
@@ -1730,10 +1750,10 @@ if(c> mpx->font_ec[f])mpx->font_ec[f]= c;
 char_width(f,c)= w
 
 /*:78*/
-// #line 1332 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1333 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 /*79:*/
-// #line 1381 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1382 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->n_cmds+(unsigned int)p>=virtual_space)
 mpx_abort(mpx,"DVItoMP capacity exceeded (virtual font space=%d)",virtual_space);
@@ -1747,20 +1767,20 @@ mpx->cmd_buf[mpx->n_cmds]= eop;
 incr(mpx->n_cmds)
 
 /*:79*/
-// #line 1333 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1334 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 p= mpx_get_byte(mpx);
 }
 if(p==post){
 /*80:*/
-// #line 1396 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1397 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->fbase[f]= (web_integer)(mpx->vf_ptr+1);
 mpx->info_ptr= (unsigned int)(mpx->info_base[f]+mpx->font_ec[f]+1)
 
 
 /*:80*/
-// #line 1337 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1338 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 mpx->vf_reading= was_vf_reading;
 return;
@@ -1768,14 +1788,14 @@ return;
 }
 
 /*:75*//*81:*/
-// #line 1410 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1411 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static web_integer mpx_select_font(MPX mpx,web_integer e){
 int f;
 int ff;
 web_integer k;
 /*82:*/
-// #line 1439 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1440 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->cur_ftop<=mpx->nfonts)
 mpx->cur_ftop= mpx->nfonts;
@@ -1787,13 +1807,13 @@ mpx_abort(mpx,"Undefined font selected");
 f= mpx->internal_num[k]
 
 /*:82*/
-// #line 1416 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1417 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 if(mpx->info_base[f]==max_widths){
 ff= mpx_match_font(mpx,(unsigned)f,false);
 if(ff<(int)mpx->nfonts){
 /*83:*/
-// #line 1449 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1450 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 {
 mpx->font_bc[f]= mpx->font_bc[ff];
@@ -1804,16 +1824,16 @@ mpx->ftop[f]= mpx->ftop[ff];
 }
 
 /*:83*/
-// #line 1420 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1421 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 }else{
 /*84:*/
-// #line 1462 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1463 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->cur_name= xstrdup(mpx->font_name[f])
 
 /*:84*/
-// #line 1422 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1423 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 if(mpx_open_vf_file(mpx)){
 mpx_in_VF(mpx,f);
@@ -1824,7 +1844,7 @@ font_abort("No TFM file found for ",f);
 mpx_in_TFM(mpx,f);
 }
 /*85:*/
-// #line 1465 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1466 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 {
 if((mpx->font_check_sum[f]!=0)&&(mpx->tfm_check_sum!=0)&&
@@ -1835,25 +1855,25 @@ font_warn("Checksum mismatch for ",f);
 }
 
 /*:85*/
-// #line 1432 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1433 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 }
 /*99:*/
-// #line 1646 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1647 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->font_used[f]= false;
 
 /*:99*/
-// #line 1434 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1435 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 }
 return f;
 }
 
 /*:81*//*94:*/
-// #line 1590 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1591 "../../../source/texk/web2c/mplibdir/mpxout.w"
 /*103:*/
-// #line 1671 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1672 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_finish_last_char(MPX mpx){
 double m,x,y;
@@ -1872,7 +1892,7 @@ mpx_end_char_string(mpx,40);
 }
 fprintf(mpx->mpxfile,",_n%d,%1.5f,%1.4f,%1.4f,",mpx->str_f,m,x,y);
 /*154:*/
-// #line 2493 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2494 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->color_stack_depth> 0){
 fprintf(mpx->mpxfile," withcolor %s\n",mpx->color_stack[mpx->color_stack_depth]);
@@ -1880,7 +1900,7 @@ fprintf(mpx->mpxfile," withcolor %s\n",mpx->color_stack[mpx->color_stack_depth])
 
 
 /*:154*/
-// #line 1688 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1689 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 fprintf(mpx->mpxfile,");\n");
 }else{
@@ -1903,7 +1923,7 @@ mpx->str_f= -1;
 }
 
 /*:103*/
-// #line 1590 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1591 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_do_set_char(MPX mpx,web_integer f,web_integer c){
 if((c<mpx->font_bc[f])||(c> mpx->font_ec[f]))
@@ -1915,23 +1935,23 @@ if(mpx->str_f>=0){
 mpx_finish_last_char(mpx);
 }else if(!mpx->fonts_used){
 /*98:*/
-// #line 1642 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1643 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx_prepare_font_use(mpx)
 
 
 /*:98*/
-// #line 1600 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1601 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 }
 if(!mpx->font_used[f])
 /*102:*/
-// #line 1665 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1666 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx_first_use(mpx,f);
 
 /*:102*/
-// #line 1603 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1604 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 fprintf(mpx->mpxfile,"_s(");mpx->print_col= 3;
 mpx->str_scale= mpx->dvi_scale;mpx->str_f= f;
@@ -1939,17 +1959,17 @@ mpx->str_v= mpx->v;mpx->str_h1= mpx->h;
 }
 mpx_print_char(mpx,(unsigned char)c);
 mpx->str_h2= (web_integer)(mpx->h+/*72:*/
-// #line 1284 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1285 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 floor(mpx->dvi_scale*mpx->font_scaled_size[f]*char_width(f,c))
 
 /*:72*/
-// #line 1609 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1610 "../../../source/texk/web2c/mplibdir/mpxout.w"
 );
 }
 
 /*:94*//*97:*/
-// #line 1630 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1631 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_prepare_font_use(MPX mpx){
 unsigned k;
@@ -1963,7 +1983,7 @@ fprintf(mpx->mpxfile,
 }
 
 /*:97*//*101:*/
-// #line 1655 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1656 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_first_use(MPX mpx,int f){
 mpx->font_used[f]= true;
@@ -1975,21 +1995,21 @@ fprintf(mpx->mpxfile,";\n");
 }
 
 /*:101*//*104:*/
-// #line 1711 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1712 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_do_set_rule(MPX mpx,web_integer ht,web_integer wd){
 double xx1,yy1,xx2,yy2,ww;
 
 if(wd==1){
 /*106:*/
-// #line 1761 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1762 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 {
 mpx->pic_wd= mpx->h;mpx->pic_dp= mpx->v;mpx->pic_ht= ht-mpx->v;
 }
 
 /*:106*/
-// #line 1716 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1717 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 }else if((ht> 0)||(wd> 0)){
 if(mpx->str_f>=0)
@@ -2002,7 +2022,7 @@ fprintf(mpx->mpxfile,
 "  addto _p doublepath _a withpen pencircle scaled _w _t enddef;");
 }
 /*105:*/
-// #line 1738 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1739 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 xx1= mpx->conv*mpx->h;
 yy1= mpx->conv*(-mpx->v);
@@ -2019,14 +2039,14 @@ xx2= xx1;
 }
 
 /*:105*/
-// #line 1728 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1729 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 if((fabs(xx1)>=4096.0)||(fabs(yy1)>=4096.0)||
 (fabs(xx2)>=4096.0)||(fabs(yy2)>=4096.0)||(ww>=4096.0))
 mpx_warn(mpx,"hrule or vrule is out of range");
 fprintf(mpx->mpxfile,"_r((%1.4f,%1.4f)..(%1.4f,%1.4f), %1.4f,",xx1,yy1,xx2,yy2,ww);
 /*154:*/
-// #line 2493 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2494 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx->color_stack_depth> 0){
 fprintf(mpx->mpxfile," withcolor %s\n",mpx->color_stack[mpx->color_stack_depth]);
@@ -2034,14 +2054,14 @@ fprintf(mpx->mpxfile," withcolor %s\n",mpx->color_stack[mpx->color_stack_depth])
 
 
 /*:154*/
-// #line 1733 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1734 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 fprintf(mpx->mpxfile,");\n");
 }
 }
 
 /*:104*//*108:*/
-// #line 1773 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1774 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_start_picture(MPX mpx){
 mpx->fonts_used= false;
@@ -2065,7 +2085,7 @@ if(mpx->str_f>=0)
 mpx_finish_last_char(mpx);
 if(mpx->mode==mpx_tex_mode){
 /*109:*/
-// #line 1800 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1801 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 dd= -mpx->pic_dp*mpx->conv;
 w= mpx->conv*mpx->pic_wd;
@@ -2075,16 +2095,16 @@ fprintf(mpx->mpxfile,
 " (%1.4f,%1.4f)--(0,%1.4f)--cycle;\n",dd,w,dd,w,h,h)
 
 /*:109*/
-// #line 1795 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1796 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 }
 fprintf(mpx->mpxfile,"_p endgroup\n");
 }
 
 /*:108*//*113:*/
-// #line 1844 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1845 "../../../source/texk/web2c/mplibdir/mpxout.w"
 /*137:*/
-// #line 2293 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2294 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_do_xxx(MPX mpx,web_integer p)
 {
@@ -2098,7 +2118,7 @@ buf[len]= (unsigned char)mpx_get_byte(mpx);
 decr(p);incr(len);
 }
 /*138:*/
-// #line 2324 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2325 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if((len<=5)
 ||(buf[0]!='c')
@@ -2110,14 +2130,14 @@ if((len<=5)
 )goto XXXX;
 
 /*:138*/
-// #line 2305 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2306 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(p> 0){
 color_warn("long \"color\" special ignored");
 goto XXXX;
 }
 if(/*140:*/
-// #line 2342 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2343 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 (len==9)&&
 (buf[6]=='p')&&
@@ -2125,10 +2145,10 @@ if(/*140:*/
 (buf[8]=='p')
 
 /*:140*/
-// #line 2310 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2311 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ){
 /*144:*/
-// #line 2366 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2367 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx_finish_last_char(mpx);
 if(mpx->color_stack_depth> 0){
@@ -2139,10 +2159,10 @@ color_warn("color stack underflow");
 }
 
 /*:144*/
-// #line 2311 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2312 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 }else if(/*139:*/
-// #line 2334 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2335 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 (len>=11)&&
 (buf[6]=='p')&&
@@ -2152,10 +2172,10 @@ color_warn("color stack underflow");
 (buf[10]==' ')
 
 /*:139*/
-// #line 2312 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2313 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ){
 /*145:*/
-// #line 2377 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2378 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx_finish_last_char(mpx);
 if(mpx->color_stack_depth>=max_color_stack_depth)
@@ -2166,7 +2186,7 @@ incr(mpx->color_stack_depth);
 l= 11;
 while((l<len-1)&&(buf[l]==' '))incr(l);
 if(/*146:*/
-// #line 2396 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2397 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 (l+4<len)
 &&(buf[l]=='r')
@@ -2175,10 +2195,10 @@ if(/*146:*/
 &&(buf[l+3]==' ')
 
 /*:146*/
-// #line 2386 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2387 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ){
 /*147:*/
-// #line 2403 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2404 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 l= l+4;
 while((l<len)&&(buf[l]==' '))incr(l);
@@ -2186,7 +2206,7 @@ while((len> l)&&(buf[len-1]==' '))decr(len);
 mpx->color_stack[mpx->color_stack_depth]= xmalloc((size_t)(len-l+3),1);
 k= 0;
 /*152:*/
-// #line 2446 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2447 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->color_stack[mpx->color_stack_depth][k]= '(';
 incr(k);
@@ -2205,14 +2225,14 @@ mpx->color_stack[mpx->color_stack_depth][k]= ')';
 mpx->color_stack[mpx->color_stack_depth][k+1]= 0;
 
 /*:152*/
-// #line 2409 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2410 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 
 /*:147*/
-// #line 2387 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2388 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 }else if(/*150:*/
-// #line 2428 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2429 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 (l+5<len)
 &&(buf[l]=='c')
@@ -2222,10 +2242,10 @@ mpx->color_stack[mpx->color_stack_depth][k+1]= 0;
 &&(buf[l+4]==' ')
 
 /*:150*/
-// #line 2388 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2389 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ){
 /*151:*/
-// #line 2436 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2437 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 l= l+5;
 while((l<len)&&(buf[l]==' '))incr(l);
@@ -2235,7 +2255,7 @@ mpx->color_stack[mpx->color_stack_depth]= xmalloc((size_t)(len-l+7),1);
 strcpy(mpx->color_stack[mpx->color_stack_depth],"cmyk");
 k= 4;
 /*152:*/
-// #line 2446 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2447 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->color_stack[mpx->color_stack_depth][k]= '(';
 incr(k);
@@ -2254,14 +2274,14 @@ mpx->color_stack[mpx->color_stack_depth][k]= ')';
 mpx->color_stack[mpx->color_stack_depth][k+1]= 0;
 
 /*:152*/
-// #line 2444 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2445 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 
 /*:151*/
-// #line 2389 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2390 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 }else if(/*148:*/
-// #line 2411 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2412 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 (l+5<len)
 &&(buf[l]=='g')
@@ -2271,10 +2291,10 @@ mpx->color_stack[mpx->color_stack_depth][k+1]= 0;
 &&(buf[l+4]==' ')
 
 /*:148*/
-// #line 2390 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2391 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ){
 /*149:*/
-// #line 2419 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2420 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 l= l+5;
 while((l<len)&&(buf[l]==' '))incr(l);
@@ -2283,7 +2303,7 @@ mpx->color_stack[mpx->color_stack_depth]= xmalloc((size_t)(len-l+9),1);
 strcpy(mpx->color_stack[mpx->color_stack_depth],"white*");
 k= 6;
 /*152:*/
-// #line 2446 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2447 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->color_stack[mpx->color_stack_depth][k]= '(';
 incr(k);
@@ -2302,15 +2322,15 @@ mpx->color_stack[mpx->color_stack_depth][k]= ')';
 mpx->color_stack[mpx->color_stack_depth][k+1]= 0;
 
 /*:152*/
-// #line 2426 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2427 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 
 /*:149*/
-// #line 2391 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2392 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 }else{
 /*153:*/
-// #line 2466 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2467 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 for(k= l;k<=len-1;k++){
 buf[k-l]= xchr(buf[k]);
@@ -2336,12 +2356,12 @@ mpx->color_stack[mpx->color_stack_depth]= xstrdup((char*)(buf));
 }
 
 /*:153*/
-// #line 2393 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2394 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 }
 
 /*:145*/
-// #line 2313 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2314 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 }else{
 color_warn("unknown \"color\" special ignored");
@@ -2352,7 +2372,7 @@ for(k= 1;k<=p;k++)(void)mpx_get_byte(mpx);
 }
 
 /*:137*/
-// #line 1844 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1845 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_do_push(MPX mpx){
 if(mpx->stk_siz==stack_size)
@@ -2378,7 +2398,7 @@ mpx->y= mpx->ystack[mpx->stk_siz];mpx->z= mpx->zstack[mpx->stk_siz];
 }
 
 /*:113*//*114:*/
-// #line 1874 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1875 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_do_dvi_commands(MPX mpx);
 static void mpx_set_virtual_char(MPX mpx,web_integer f,web_integer c){
@@ -2406,7 +2426,7 @@ mpx->cur_ftop= old_ftop;
 }
 
 /*:114*//*116:*/
-// #line 1957 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1958 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_do_dvi_commands(MPX mpx){
 unsigned int o;
@@ -2419,7 +2439,7 @@ cur_font= max_fnums+1;
 mpx->w= 0;mpx->x= 0;mpx->y= 0;mpx->z= 0;
 while(true){
 /*118:*/
-// #line 1975 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1976 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 {
 o= (unsigned int)mpx_get_byte(mpx);
@@ -2437,12 +2457,12 @@ bad_dvi_two("no font selected for character %d",p);
 
 mpx_set_virtual_char(mpx,cur_font,p);
 mpx->h+= /*73:*/
-// #line 1287 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1288 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 floor(mpx->dvi_scale*mpx->font_scaled_size[cur_font]*char_width(cur_font,p))
 
 /*:73*/
-// #line 1991 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1992 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 }else{
 switch(o){
@@ -2459,7 +2479,7 @@ q= (web_integer)trunc(mpx_signed_quad(mpx)*mpx->dvi_scale);
 mpx_do_set_rule(mpx,(web_integer)trunc(p*mpx->dvi_scale),q);
 break;
 /*119:*/
-// #line 2016 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2017 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 case four_cases(xxx1):
 mpx_do_xxx(mpx,p);
@@ -2470,7 +2490,7 @@ bad_dvi("preamble or postamble within a page!");
 break;
 
 /*:119*//*120:*/
-// #line 2025 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2026 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 case nop:
 break;
@@ -2489,7 +2509,7 @@ mpx_do_pop(mpx);
 break;
 
 /*:120*//*121:*/
-// #line 2042 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2043 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 case four_cases(right1):
 mpx->h+= trunc(p*mpx->dvi_scale);
@@ -2511,7 +2531,7 @@ mpx->z= (web_integer)trunc(p*mpx->dvi_scale);mpx->v+= mpx->z;
 break;
 
 /*:121*//*122:*/
-// #line 2062 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2063 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 case sixty_four_cases(fnt_num_0):case four_cases(fnt1):
 cur_font= mpx_select_font(mpx,p);
@@ -2521,7 +2541,7 @@ mpx_define_font(mpx,p);
 break;
 
 /*:122*/
-// #line 2007 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2008 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 case undefined_commands:
 bad_dvi_two("undefined command %d",o);
@@ -2532,20 +2552,20 @@ break;
 }
 
 /*:118*/
-// #line 1968 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1969 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 }
 }
 
 /*:116*//*123:*/
-// #line 2074 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2075 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int mpx_dvitomp(MPX mpx,char*dviname){
 int k;
 mpx->dviname= dviname;
 mpx_open_dvi_file(mpx);
 /*125:*/
-// #line 2110 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2111 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 {
 int p;
@@ -2558,7 +2578,7 @@ if(p!=id_byte)
 mpx_warn(mpx,"identification in byte 1 should be %d!",id_byte);
 
 /*126:*/
-// #line 2135 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2136 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->numerator= mpx_signed_quad(mpx);mpx->denominator= mpx_signed_quad(mpx);
 if((mpx->numerator<=0)||(mpx->denominator<=0))
@@ -2572,7 +2592,7 @@ mpx->conv= (mpx->numerator/254000.0)*(72.0/mpx->denominator)*mpx->mag;
 mpx->dvi_per_fix= (254000.0/mpx->numerator)*(mpx->denominator/72.27)/1048576.0;
 
 /*:126*/
-// #line 2121 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2122 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 p= mpx_get_byte(mpx);
 while(p> 0){
@@ -2582,14 +2602,14 @@ decr(p);
 }
 
 /*:125*/
-// #line 2079 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2080 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 mpx_open_mpxfile(mpx);
 if(mpx->banner!=NULL)
 fprintf(mpx->mpxfile,"%s\n",mpx->banner);
 while(true){
 /*127:*/
-// #line 2147 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2148 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 do{
 int p;
@@ -2607,12 +2627,12 @@ bad_dvi("missing bop");
 
 
 /*:127*/
-// #line 2084 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2085 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 for(k= 0;k<=10;k++)
 (void)mpx_signed_quad(mpx);
 /*112:*/
-// #line 1836 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1837 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->dvi_scale= 1.0;
 mpx->stk_siz= 0;
@@ -2620,7 +2640,7 @@ mpx->h= 0;mpx->v= 0;
 mpx->Xslant= 0.0;mpx->Xheight= 0.0
 
 /*:112*/
-// #line 2087 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2088 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 mpx_start_picture(mpx);
 mpx_do_dvi_commands(mpx);
@@ -2639,7 +2659,7 @@ return mpx->history;
 }
 
 /*:123*//*133:*/
-// #line 2195 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2196 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_def_named_color(MPX mpx,const char*n,const char*v){
 mpx->num_named_colors++;
@@ -2649,7 +2669,7 @@ mpx->named_colors[mpx->num_named_colors].value= v;
 }
 
 /*:133*//*160:*/
-// #line 2567 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2568 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static char*mpx_find_file(MPX mpx,const char*nam,const char*mode,int ftype){
 (void)mpx;
@@ -2660,7 +2680,7 @@ return NULL;
 }
 
 /*:160*//*163:*/
-// #line 2582 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2583 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static FILE*mpx_fsearch(MPX mpx,const char*nam,int format){
 FILE*f= NULL;
@@ -2673,7 +2693,7 @@ return f;
 }
 
 /*:163*//*166:*/
-// #line 2601 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2602 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int mpx_comp_name(void*p,const void*pa,const void*pb){
 (void)p;
@@ -2701,7 +2721,7 @@ return(void*)q;
 
 
 /*:166*//*167:*/
-// #line 2627 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2628 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static avl_tree mpx_avl_create(MPX mpx){
 avl_tree t;
@@ -2715,7 +2735,7 @@ return t;
 }
 
 /*:167*//*168:*/
-// #line 2644 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2645 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_avl_probe(MPX mpx,avl_tree tab,avl_entry*p){
 avl_entry*r= (avl_entry*)avl_find(p,tab);
@@ -2727,7 +2747,7 @@ mpx_abort(mpx,"Memory allocation failure");
 
 
 /*:168*//*170:*/
-// #line 2663 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2664 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int mpx_get_int(MPX mpx,char*s){
 register int i,d,neg;
@@ -2751,7 +2771,7 @@ return 0;
 }
 
 /*:170*//*171:*/
-// #line 2690 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2691 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int mpx_get_int_map(MPX mpx,char*s){
 register int i;
@@ -2767,7 +2787,7 @@ return 0;
 }
 
 /*:171*//*172:*/
-// #line 2709 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2710 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static float mpx_get_float(MPX mpx,char*s){
 register int d,neg,digits;
@@ -2805,13 +2825,13 @@ return neg?-x:x;
 }
 
 /*:172*//*173:*/
-// #line 2751 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2752 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static float mpx_get_float_map(MPX mpx,char*s){
 if(s!=NULL){
-while(isspace(*s))
+while(isspace((unsigned char)*s))
 s++;
-while(!isspace(*s)&&*s)
+while(!isspace((unsigned char)*s)&&*s)
 s++;
 }
 mpx->arg_tail= s;
@@ -2820,7 +2840,7 @@ return 0;
 
 
 /*:173*//*175:*/
-// #line 2776 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2777 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_read_fmap(MPX mpx,const char*dbase){
 FILE*fin;
@@ -2846,9 +2866,9 @@ tmp->name= xmalloc(1,(size_t)(buf-nam)+1);
 strncpy(tmp->name,nam,(unsigned int)(buf-nam));
 tmp->name[(buf-nam)]= '\0';
 tmp->num= (int)mpx->nfonts++;
-avl_code_t ret = avl_ins(str, mp->trfonts, avl_false);
+avl_code_t ret = avl_ins(tmp, mpx->trfonts, avl_false);
 assert(ret > 0);
-//assert(avl_ins(tmp,mpx->trfonts,avl_false)> 0);
+//VMF assert(avl_ins(tmp,mpx->trfonts,avl_false)> 0);
 if(*buf){
 buf++;
 while(*buf=='\t')buf++;
@@ -2866,7 +2886,7 @@ mpx_fclose(mpx,fin);
 
 
 /*:175*//*176:*/
-// #line 2832 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2833 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_read_char_adj(MPX mpx,const char*adjfile){
 FILE*fin;
@@ -2909,7 +2929,7 @@ mpx_fclose(mpx,fin);
 }
 
 /*:176*//*177:*/
-// #line 2881 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2882 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_read_desc(MPX mpx){
 const char*const k1[]= {
@@ -2973,7 +2993,7 @@ break;
 
 
 /*:177*//*180:*/
-// #line 2962 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 2963 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int mpx_scan_desc_line(MPX mpx,int f,char*lin){
 static int lastcode;
@@ -3013,7 +3033,7 @@ return 1;
 }
 
 /*:180*//*181:*/
-// #line 3003 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3004 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int mpx_read_fontdesc(MPX mpx,char*nam){
 char buf[200];
@@ -3051,7 +3071,7 @@ return f;
 }
 
 /*:181*//*184:*/
-// #line 3054 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3055 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_slant_and_ht(MPX mpx){
 int i= 0;
@@ -3069,7 +3089,7 @@ fprintf(mpx->mpxfile,")");
 
 
 /*:184*//*185:*/
-// #line 3072 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3073 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_set_num_char(MPX mpx,int f,int c){
 float hh,vv;
@@ -3104,7 +3124,7 @@ mpx->dmp_str_h2= hh+(float)char_width(f,c);
 }
 
 /*:185*//*186:*/
-// #line 3107 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3108 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_set_string(MPX mpx,char*cname){
 float hh;
@@ -3123,7 +3143,7 @@ mpx_finish_last_char(mpx);
 }
 
 /*:186*//*188:*/
-// #line 3141 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3142 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static char*mpx_copy_spec_char(MPX mpx,char*cname){
 FILE*deff;
@@ -3172,7 +3192,7 @@ return s;
 
 
 /*:188*//*191:*/
-// #line 3204 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3205 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_set_char(MPX mpx,char*cname){
 int f,c;
@@ -3229,7 +3249,7 @@ fprintf(mpx->mpxfile,";\n");
 }
 
 /*:191*//*192:*/
-// #line 3264 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3265 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_do_font_def(MPX mpx,int n,char*nam){
 int f;
@@ -3254,19 +3274,19 @@ if(mpx->font_num[k]==n)
 mpx->font_num[k]= -1;
 mpx->font_num[f]= n;
 /*99:*/
-// #line 1646 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1647 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->font_used[f]= false;
 
 /*:99*/
-// #line 3287 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3288 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 }
 
 
 
 /*:192*//*193:*/
-// #line 3298 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3299 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static float mpx_b_eval(const float*xx,float t){
 float zz[4];
@@ -3281,13 +3301,13 @@ return zz[0];
 
 
 /*:193*//*194:*/
-// #line 3315 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3316 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static const float xx[]= {1.0,1.0,(float)0.8946431597,(float)0.7071067812};
 static const float yy[]= {0.0,(float)0.2652164899,(float)0.5195704026,(float)0.7071067812};
 
 /*:194*//*195:*/
-// #line 3319 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3320 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static float mpx_circangle(float t){
 float ti;
@@ -3299,7 +3319,7 @@ mpx_b_eval(xx,t))+ti*Speed;
 
 
 /*:195*//*196:*/
-// #line 3332 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3333 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static float mpx_circtime(float a){
 int i;
@@ -3313,7 +3333,7 @@ return t;
 
 
 /*:196*//*198:*/
-// #line 3350 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3351 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_prepare_graphics(MPX mpx){
 
@@ -3325,7 +3345,7 @@ mpx->graphics_used= true;
 
 
 /*:198*//*199:*/
-// #line 3365 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3366 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static char*mpx_do_line(MPX mpx,char*s){
 float dh,dv;
@@ -3343,7 +3363,7 @@ return mpx->arg_tail;
 
 
 /*:199*//*200:*/
-// #line 3388 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3389 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static char*mpx_spline_seg(MPX mpx,char*s){
 float dh1,dv1,dh2,dv2;
@@ -3369,7 +3389,7 @@ return s;
 
 
 /*:200*//*201:*/
-// #line 3414 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3415 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_do_ellipse(MPX mpx,float a,float b){
 
@@ -3382,7 +3402,7 @@ mpx->gx+= a;
 
 
 /*:201*//*202:*/
-// #line 3428 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3429 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static
 void mpx_do_arc(MPX mpx,float cx,float cy,float ax,float ay,float bx,float by){
@@ -3403,7 +3423,7 @@ mpx->gy= cy+by;
 
 
 /*:202*//*203:*/
-// #line 3449 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3450 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_do_graphic(MPX mpx,char*s){
 float h1,v1,h2,v2;
@@ -3474,7 +3494,7 @@ mpx->v= (int)floor(YCORR/mpx->unit+.5-mpx->gy);
 
 
 /*:203*//*204:*/
-// #line 3520 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3521 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_change_font(MPX mpx,int f){
 for(mpx->curfont= 0;mpx->curfont<mpx->nfonts;mpx->curfont++)
@@ -3485,7 +3505,7 @@ mpx_abort(mpx,"Bad font setting");
 
 
 /*:204*//*205:*/
-// #line 3532 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3533 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int mpx_do_x_cmd(MPX mpx,char*s0)
 {
@@ -3557,7 +3577,7 @@ return 1;
 
 
 /*:205*//*206:*/
-// #line 3615 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3616 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int mpx_do_page(MPX mpx,FILE*trf){
 char*buf;
@@ -3696,7 +3716,7 @@ return 0;
 
 
 /*:206*//*207:*/
-// #line 3757 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3758 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int mpx_dmp(MPX mpx,char*infile){
 int more;
@@ -3711,7 +3731,7 @@ fprintf(mpx->mpxfile,"%s\n",mpx->banner);
 if(mpx_do_page(mpx,trf)){
 do{
 /*112:*/
-// #line 1836 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 1837 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx->dvi_scale= 1.0;
 mpx->stk_siz= 0;
@@ -3719,7 +3739,7 @@ mpx->h= 0;mpx->v= 0;
 mpx->Xslant= 0.0;mpx->Xheight= 0.0
 
 /*:112*/
-// #line 3770 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3771 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 mpx_start_picture(mpx);
 more= mpx_do_page(mpx,trf);
@@ -3736,7 +3756,7 @@ return mpx->history;
 
 
 /*:207*//*208:*/
-// #line 3826 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3827 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 
 #define TEXERR "mpxerr.tex"
@@ -3745,7 +3765,7 @@ return mpx->history;
 #define TROFF_OUTERR "mpxerr.t"
 
 /*:208*//*209:*/
-// #line 3833 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3834 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_rename(MPX mpx,const char*a,const char*b){
 mpx_report(mpx,"renaming %s to %s",a,b);
@@ -3753,7 +3773,7 @@ rename(a,b);
 }
 
 /*:209*//*211:*/
-// #line 3845 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3846 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_default_erasetmp(MPX mpx){
 char*wrk;
@@ -3775,18 +3795,20 @@ free(wrk);
 }
 
 /*:211*//*213:*/
-// #line 3868 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3869 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_cleandir(MPX mpx,char*cur_path){
 char*wrk,*p;
 #ifdef _WIN32
 struct _finddata_t c_file;
-long hFile;
+intptr_t hFile;
 #else
-struct dirent*entry;
+#line 3876 "../../../source/texk/web2c/mplibdir/mpxout.w"
+ struct dirent*entry;
 DIR*d;
 #endif
-wrk= xstrdup(mpx->tex);
+#line 3879 "../../../source/texk/web2c/mplibdir/mpxout.w"
+ wrk= xstrdup(mpx->tex);
 p= strrchr(wrk,'.');
 *p= '\0';
 
@@ -3804,7 +3826,8 @@ remove(c_file.name);
 _findclose(hFile);
 }
 #else
-if((d= opendir(cur_path))==NULL){
+#line 3897 "../../../source/texk/web2c/mplibdir/mpxout.w"
+ if((d= opendir(cur_path))==NULL){
 mpx_default_erasetmp(mpx);
 }else{
 while((entry= readdir(d))!=NULL){
@@ -3814,19 +3837,22 @@ remove(entry->d_name);
 closedir(d);
 }
 #endif 
+#line 3907 "../../../source/texk/web2c/mplibdir/mpxout.w"
 free(wrk);
 }
 
 
 /*:213*//*214:*/
-// #line 3917 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3918 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 #ifdef WIN32
 #define GETCWD _getcwd
 #else
+#line 3922 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #define GETCWD getcwd
 #endif
-static void mpx_erasetmp(MPX mpx){
+#line 3924 "../../../source/texk/web2c/mplibdir/mpxout.w"
+ static void mpx_erasetmp(MPX mpx){
 char cur_path[1024];
 if(mpx->debug)
 return;
@@ -3842,7 +3868,7 @@ mpx_cleandir(mpx,cur_path);
 
 
 /*:214*//*215:*/
-// #line 3942 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3943 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static char*mpx_print_command(MPX mpx,int cmdlength,char**cmdline){
 char*s,*t;
@@ -3863,13 +3889,14 @@ return s;
 }
 
 /*:215*//*216:*/
-// #line 3964 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3965 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int do_spawn(MPX mpx,char*icmd,char**options){
 #ifndef WIN32
 pid_t child;
 #endif
-int retcode= -1;
+#line 3970 "../../../source/texk/web2c/mplibdir/mpxout.w"
+ int retcode= -1;
 char*cmd= xmalloc(strlen(icmd)+1,1);
 if(icmd[0]!='"'){
 strcpy(cmd,icmd);
@@ -3892,21 +3919,25 @@ mpx_abort(mpx,"wait failed: %s",strerror(errno));
 }
 }
 #else
-retcode= spawnvp(_P_WAIT,cmd,(const char*const*)options);
+#line 3993 "../../../source/texk/web2c/mplibdir/mpxout.w"
+ retcode= _spawnvp(_P_WAIT,cmd,(const char*const*)options);
 #endif
-xfree(cmd);
+#line 3995 "../../../source/texk/web2c/mplibdir/mpxout.w"
+ xfree(cmd);
 return retcode;
 }
 
 /*:216*//*217:*/
-// #line 3998 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 3999 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 #ifdef WIN32
 #define nuldev "nul"
 #else
+#line 4003 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #define nuldev "/dev/null"
 #endif
-static int mpx_run_command(MPX mpx,char*inname,char*outname,int count,char**cmdl){
+#line 4005 "../../../source/texk/web2c/mplibdir/mpxout.w"
+ static int mpx_run_command(MPX mpx,char*inname,char*outname,int count,char**cmdl){
 char*s;
 int retcode;
 int sav_o,sav_i;
@@ -3922,26 +3953,28 @@ free(s);
 fr= mpx_xfopen(mpx,(inname?inname:nuldev),"r");
 fw= mpx_xfopen(mpx,(outname?outname:nuldev),"wb");
 /*219:*/
-// #line 4035 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4036 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 #ifdef WIN32
 #define DUP _dup
 #define DUPP _dup2
 #else
+#line 4041 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #define DUP dup
 #define DUPP dup2
 #endif
-sav_i= DUP(fileno(stdin));
+#line 4044 "../../../source/texk/web2c/mplibdir/mpxout.w"
+ sav_i= DUP(fileno(stdin));
 sav_o= DUP(fileno(stdout));
 DUPP(fileno(fr),fileno(stdin));
 DUPP(fileno(fw),fileno(stdout))
 
 /*:219*/
-// #line 4019 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4020 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 retcode= do_spawn(mpx,cmdl[0],cmdl);
 /*220:*/
-// #line 4048 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4049 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 DUPP(sav_i,fileno(stdin));
 close(sav_i);
@@ -3949,7 +3982,7 @@ DUPP(sav_o,fileno(stdout));
 close(sav_o)
 
 /*:220*/
-// #line 4021 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4022 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 mpx_fclose(mpx,fr);
 mpx_fclose(mpx,fw);
@@ -3957,7 +3990,7 @@ return retcode;
 }
 
 /*:217*//*221:*/
-// #line 4062 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4063 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static int
 mpx_do_split_command(MPX mpx,char*maincmd,char***cmdline_addr,char target){
@@ -4009,7 +4042,7 @@ return ret;
 }
 
 /*:221*//*223:*/
-// #line 4115 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4116 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_command_cleanup(MPX mpx,char**cmdline){
 (void)mpx;
@@ -4020,7 +4053,7 @@ xfree(cmdline);
 
 
 /*:223*//*224:*/
-// #line 4124 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4125 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 static void mpx_command_error(MPX mpx,int cmdlength,char**cmdline){
 char*s= mpx_print_command(mpx,cmdlength,cmdline);
@@ -4031,7 +4064,7 @@ mpx_abort(mpx,"Command failed: %s; see mpxerr.log",s);
 
 
 /*:224*//*226:*/
-// #line 4153 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4154 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 int mpx_makempx(mpx_options*mpxopt){
 MPX mpx;
@@ -4043,14 +4076,14 @@ int cmdlength= 1;
 int cmdbitlength= 1;
 if(!mpxopt->debug){
 /*229:*/
-// #line 4344 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4345 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(mpx_newer(mpxopt->mpname,mpxopt->mpxname))
 return 0
 
 
 /*:229*/
-// #line 4163 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4164 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 }
 mpx= malloc(sizeof(struct mpx_data));
@@ -4068,7 +4101,7 @@ mpx->maincmd= xstrdup(mpxopt->cmd);
 mpx->mpname= xstrdup(mpxopt->mpname);
 mpx->mpxname= xstrdup(mpxopt->mpxname);
 /*18:*/
-// #line 264 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 263 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(setjmp(mpx->jump_buf)!=0){
 int h= mpx->history;
@@ -4081,7 +4114,7 @@ return h;
 }
 
 /*:18*/
-// #line 4179 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4180 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 
 if(mpx->debug){
@@ -4091,7 +4124,7 @@ mpx->errfile= mpx_xfopen(mpx,MPXLOG,"wb");
 }
 mpx->progname= "makempx";
 /*230:*/
-// #line 4351 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4352 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
  /*@-bufferoverflowhigh@*/ 
 #ifdef HAVE_MKSTEMP
@@ -4103,6 +4136,7 @@ close(i);
 remove(tmpname);
 }
 #else
+#line 4363 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #ifdef HAVE_MKTEMP
 {
 char*tmpstring= mktemp(tmpname);
@@ -4119,27 +4153,30 @@ strncpy(tmpname,tmpstring,i);
 }
 }
 #else
-sprintf(tmpname,"mp%06d",(int)(time(NULL)%1000000));
+#line 4379 "../../../source/texk/web2c/mplibdir/mpxout.w"
+ sprintf(tmpname,"mp%06d",(int)(time(NULL)%1000000));
 #endif
+#line 4381 "../../../source/texk/web2c/mplibdir/mpxout.w"
 #endif
+#line 4382 "../../../source/texk/web2c/mplibdir/mpxout.w"
  /*@+bufferoverflowhigh@*/ /*:230*/
-// #line 4187 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4188 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 if(mpxopt->mptexpre==NULL)
 mpxopt->mptexpre= xstrdup("mptexpre.tex");
 /*32:*/
-// #line 668 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 667 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 mpx_mpto(mpx,tmpname,mpxopt->mptexpre)
 
 /*:32*/
-// #line 4190 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4191 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 if(mpxopt->cmd==NULL)
 goto DONE;
 if(mpx->mode==mpx_tex_mode){
 /*227:*/
-// #line 4283 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4284 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 {
 char log[15];
@@ -4163,7 +4200,7 @@ mpx_command_cleanup(mpx,cmdline);
 }
 
 /*:227*/
-// #line 4194 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4195 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 if(mpx_dvitomp(mpx,infile)){
 mpx_rename(mpx,infile,DVIERR);
@@ -4174,7 +4211,7 @@ DVIERR,mpx->mpxname);
 }
 }else if(mpx->mode==mpx_troff_mode){
 /*228:*/
-// #line 4305 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4306 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 {
 char*cur_in,*cur_out;
@@ -4213,7 +4250,7 @@ strcpy(infile,cur_out);
 }
 
 /*:228*/
-// #line 4203 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4204 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 if(mpx_dmp(mpx,infile)){
 mpx_rename(mpx,infile,TROFF_OUTERR);
@@ -4260,7 +4297,7 @@ mpx->find_file= mpxopt->find_file;
 mpx->mpname= xstrdup(mpxopt->mpname);
 mpx->mpxname= xstrdup(mpxopt->mpxname);
 /*18:*/
-// #line 264 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 263 "../../../source/texk/web2c/mplibdir/mpxout.w"
 
 if(setjmp(mpx->jump_buf)!=0){
 int h= mpx->history;
@@ -4273,7 +4310,7 @@ return h;
 }
 
 /*:18*/
-// #line 4248 "../../../source/texk/web2c/mplibdir/mpxout.w"
+#line 4249 "../../../source/texk/web2c/mplibdir/mpxout.w"
 ;
 if(mpx->debug){
 mpx->errfile= stderr;

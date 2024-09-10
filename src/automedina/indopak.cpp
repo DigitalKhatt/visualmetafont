@@ -51,8 +51,7 @@ void IndoPak::generateSubstEquivGlyphs() {
 
 void IndoPak::generateGlyphs() {
 
-  mp_run_data* _mp_results = mp_rundata(mp);
-  mp_edge_object* edges = _mp_results->edges;
+  mp_edge_object* edges = font->getEdges();
 
   glyphs.clear();
 
@@ -241,7 +240,7 @@ void IndoPak::addchars() {
 
 }
 
-IndoPak::IndoPak(OtLayout* layout, MP mp, bool extended) :Automedina{ layout,mp, extended } {
+IndoPak::IndoPak(OtLayout* layout, Font* font, bool extended) :Automedina{ layout,font, extended } {
 
   //m_metafont = layout->m_font;
   classes["marks"] = {
@@ -498,7 +497,7 @@ IndoPak::IndoPak(OtLayout* layout, MP mp, bool extended) :Automedina{ layout,mp,
   layout->expandableGlyphs["kaf.init.iii"] = { 20,-1.5,0,0 };
   layout->expandableGlyphs["kaf.init.iv"] = { 20,-1.5,0,0 };
   layout->expandableGlyphs["kaf.init.ii.i"] = { 20,-2,0,0 };
-  
+
   layout->expandableGlyphs["lam.init"] = { 20,-1,0,0 };
   layout->expandableGlyphs["meem.init"] = { 20,-0.7,0,0 };
   layout->expandableGlyphs["heh.init"] = { 20,-0.5,0,0 };
@@ -602,7 +601,7 @@ CalcAnchor  IndoPak::getanchorCalcFunctions(QString functionName, Subtable* subt
   }
   else if (functionName == "defaullowmarkanchor") {
     return Defaullowmarkanchor(*this, *(MarkBaseSubtable*)(subtable));
-  }  
+  }
   else if (functionName == "defaultbaseanchorforlow") {
     return Defaulbaseanchorforlow(*this, *(MarkBaseSubtable*)(subtable));
   }
@@ -2671,7 +2670,7 @@ Lookup* IndoPak::glyphalternates() {
   mappingLigaRightOnlys.insert({ "hah.medi.ii","hah.medi" });
   mappingLigaRightOnlys.insert({ "behshape.init.beforereh","behshape.init" });
 
-  
+
 
   for (auto mapping : mappingLigaRightOnlys) {
 

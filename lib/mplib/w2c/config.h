@@ -34,6 +34,11 @@ along with this program; if not, see <http://www.gnu.org/licenses/.  */
 typedef unsigned char boolean;
 #endif
 
+#define FATAL1(str, e1) do {                                            \
+        fprintf (stderr, "fatal: ");                       \
+        fprintf (stderr, str, e1);                                      \
+        fputs (".\n", stderr); exit (1); } while (0)
+
 /* How to open a binary file.  */
 // #include <kpathsea/c-fopen.h>
 

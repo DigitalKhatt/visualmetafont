@@ -23,7 +23,6 @@
 #include "Subtable.h"
 #include "GlyphVis.h"
 
-
 class Defaulbaseanchorfortop : public AnchorCalc {
 public:
   Defaulbaseanchorfortop(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
@@ -53,7 +52,13 @@ public:
 
       QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
-      QPoint anchor = caclAnchor(*originalglyph, className) + adjustoriginal + adjust;
+      QPoint anchor;
+
+
+      anchor = caclAnchor(*originalglyph, *curr, className) + adjustoriginal + adjust;
+
+
+
 
       return anchor;
     }
@@ -62,17 +67,9 @@ public:
 private:
   Automedina& _y;
   MarkBaseSubtable& _subtable;
-  QPoint caclAnchor(GlyphVis& glyph, QString className) {
+  QPoint caclAnchor(GlyphVis& glyph, GlyphVis& curr, QString className) {
 
-    int height = 0;
-
-
-    if (glyph.height > 800) {
-      height = glyph.height + 30;
-    }
-    else {
-      height = std::max((int)glyph.height + _y.spacebasetotopmark, className == "shadda" ? _y.shaddamarkheight : _y.markheigh);
-    }
+    int height = std::max((int)curr.height + _y.spacebasetotopmark, className == "shadda" ? _y.shaddamarkheight : _y.markheigh);    
 
     int width = glyph.width * 0.4;
 
@@ -116,10 +113,14 @@ public:
       curr = curr->getAlternate(parameters);
     }
 
-
     GlyphVis* originalglyph;
 
     QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
+
+    if (curr->originalglyph.contains("isol.expa")) {
+      originalglyph = curr;
+      adjustoriginal = {};
+    }
 
     int depth = std::max((int)-originalglyph->depth + _y.spacebasetobottommark, _y.markdepth);
 
@@ -154,11 +155,13 @@ public:
     int width = curr->width * 0.5;
     int height = 1;
 
+
+
     if (glyphName == "fatha") {
       height -= (curr->width - ori_width) / 7;
     }
 
-    
+
 
     width = width + adjust.x();
     height = height + adjust.y();
@@ -191,7 +194,7 @@ public:
     int width = glyph->width * 0.5;
     int height = glyph->height;
 
-    
+
     if (!adjust.isNull()) {
       std::cout << _subtable.getLookup()->name.toStdString() << "::" << _subtable.name.toStdString() << "::" << className.toStdString() << "::" << glyphName.toStdString() << std::endl;
     }
@@ -258,7 +261,7 @@ public:
   Defaulbaseanchorforsmallalef(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) override {
 
-   
+
 
     GlyphVis* curr = &_y.glyphs[glyphName];
 
@@ -520,4 +523,3 @@ private:
   Automedina& _y;
   MarkBaseSubtable& _subtable;
 };
-

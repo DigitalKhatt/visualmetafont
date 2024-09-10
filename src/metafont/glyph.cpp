@@ -28,6 +28,7 @@
 #include  <cmath>
 
 #include "metafont.h"
+#include <iostream>
 
 Glyph::Param::Param(const Glyph::Param& a) {
   name = a.name;
@@ -76,18 +77,23 @@ Glyph::Param& Glyph::Param::operator=(Glyph::Param&& a) {
   return *this;
 }
 
-Glyph::Glyph(QString code, MP mp, Font* parent) : QObject((QObject*)parent) {
+Glyph::Glyph(QString code, Font* parent) : QObject((QObject*)parent) {
   edge = NULL;
-  this->mp = mp;
   this->font = parent;
   m_unicode = -1;
   m_charcode = -1;
-  m_lefttatweel = 0;
-  m_righttatweel = 0;
 
   this->setSource(code);
 
   m_undoStack = new QUndoStack(this);
+
+  QVariant defaultValue = QVariant::fromValue(AxisType{ 0.0 });
+
+  for (auto axisName : this->axisNames) {
+    QObject::setProperty(axisName.toLocal8Bit(), defaultValue);
+  }
+
+
 }
 
 Glyph::~Glyph() {
@@ -113,9 +119,13 @@ void Glyph::setSource(QString source, bool structureChanged) {
   QList<QByteArray> dynamicProperties = dynamicPropertyNames();
   for (int i = 0; i < dynamicProperties.length(); i++) {
     QByteArray propname = dynamicProperties[i];
-    QVariant variant;
-    setProperty(propname, variant);
+
+    if (std::find(axisNames.begin(), axisNames.end(), propname) == axisNames.end()) {
+      QVariant variant;
+      setProperty(propname, variant);
+    }
   }
+
 
   QHash<Glyph*, ComponentInfo>::iterator comp;
   for (comp = m_components.begin(); comp != m_components.end(); ++comp) {
@@ -152,7 +162,6 @@ QString Glyph::source() {
     edge = NULL;
     QString source;
 
-    //source = QString("%1(%2,%3,%4,%5,%6,%7,%8);\n").arg(beginMacroName()).arg(name()).arg(unicode()).arg(width()).arg(height()).arg(depth()).arg(leftTatweel()).arg(rightTatweel());
     source = QString("%1(%2,%3,%4,%5,%6);\n").arg(beginMacroName()).arg(name()).arg(unicode()).arg(width()).arg(height()).arg(depth());
     //source = source % QString("%%glyphname:%1\n").arg(name());
     if (!image().path.isEmpty()) {
@@ -296,7 +305,7 @@ QString Glyph::source() {
                 }
               }
 
-              
+
               source = source % QString(" ..\n");
             }
             if (nextpoint->leftValue.type == mpgui_given) {
@@ -369,20 +378,7 @@ int Glyph::unicode() const {
 }
 int Glyph::charcode() {
   if (m_charcode == -1) {
-    QString command("show " + name() + ";");
-
-    QByteArray commandBytes = command.toLatin1();
-    //mp->history = mp_spotless;
-    int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());
-    mp_run_data* results = mp_rundata(mp);
-    QString ret(results->term_out.data);
-    ret.trimmed();
-    if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-      mp_finish(mp);
-      throw "Could not get charcode !\n" + ret;
-    }
-
-    m_charcode = ret.mid(3).toInt();
+    m_charcode = font->getNumericVariable(name());
   }
   return m_charcode;
 }
@@ -412,21 +408,10 @@ void Glyph::setDepth(double depth) {
 double Glyph::depth() const {
   return m_depth;
 }
-void Glyph::setleftTatweel(double lefttatweel) {
-  m_lefttatweel = lefttatweel;
-  isDirty = true;
-  emit valueChanged("leftTatweel", true);
-}
-double Glyph::leftTatweel() const {
-  return m_lefttatweel;
-}
-void Glyph::setrightTatweel(double righttatweel) {
-  m_righttatweel = righttatweel;
-  isDirty = true;
-  emit valueChanged("rightTatweel", true);
-}
-double Glyph::rightTatweel() const {
-  return m_righttatweel;
+double Glyph::axis(QString name) {
+  QVariant var = property(name.toLocal8Bit());
+  Glyph::AxisType oldValue = var.value<Glyph::AxisType>();
+  return oldValue.value;
 }
 void Glyph::setImage(Glyph::ImageInfo image) {
   ImageInfo old = m_image;
@@ -469,28 +454,6 @@ Glyph::QHashGlyphComponentInfo Glyph::components() const {
 }
 void Glyph::setBody(QString body, bool autoParam) {
 
-  /*
-        if (autoParam) {
-                static int  tempindex = 1;
-                int adjust = 0;
-
-                QRegularExpression regpair("\\(\\s*(\\d*\\.?\\d*)\\s*,\\s*(\\d*\\.?\\d*)\\s*\\)", QRegularExpression::DotMatchesEverythingOption);
-                QRegularExpressionMatchIterator i = regpair.globalMatch(body);
-                while (i.hasNext()) {
-                        QRegularExpressionMatch match = i.next();
-                        Param param;
-                        param.name = QString("tmpp%1").arg(tempindex++);
-                        param.type = point;
-                        params.append(param);
-                        double x = match.captured(1).toDouble();
-                        double y = match.captured(2).toDouble();
-                        setProperty(param.name.toLatin1(), QPointF(x, y));
-                        QString replace = " " + param.name + " ";
-                        body.replace(match.capturedStart(0) + adjust, match.capturedLength(0), replace);
-                        adjust += replace.length() - match.capturedLength(0);
-                }
-        }*/
-
   m_body = body;
   isDirty = true;
   emit valueChanged("body");
@@ -521,73 +484,9 @@ void Glyph::setComponent(QString name, double x, double y, double t1, double t2,
 }
 void Glyph::parseComponents(QString componentSource) {
 
-  /*
-        isDirty = true;
-
-        QHash<Glyph*, ComponentInfo>::iterator comp;
-        for (comp = m_components.begin(); comp != m_components.end(); ++comp) {
-                Glyph* glyph = comp.key();
-                disconnect(glyph, &Glyph::valueChanged, this, &Glyph::componentChanged);
-        }
-
-        m_components.clear();
-
-        QRegularExpression regcomponents("^drawcomponent\\((.*?),(.*?),(.*?),(.*?),(.*?),(.*?),(.*?)\\);");
-        regcomponents.setPatternOptions(QRegularExpression::MultilineOption);
-        QRegularExpressionMatchIterator i = regcomponents.globalMatch(componentSource);
-        while (i.hasNext()) {
-                QRegularExpressionMatch match = i.next();
-                ComponentInfo component;
-                Glyph* glyph = font->glyphperUnicode[match.captured(1).toLong()];
-                component.pos = QPointF(match.captured(2).toDouble(), match.captured(3).toDouble());
-                QTransform transform(match.captured(4).toDouble(), match.captured(5).toDouble(),
-                        match.captured(6).toDouble(), match.captured(7).toDouble(), 0, 0);
-                component.transform = transform;
-                m_components[glyph] = component;
-                connect(glyph, &Glyph::valueChanged, this, &Glyph::componentChanged);
-        }
-
-        emit valueChanged("components");*/
 }
 void Glyph::parsePaths(QString pathsSource) {
-  /*
-        QRegularExpression regpaths("fill\\s+(.+?)\\s+((?:\\.\\.\\.|\\.\\.|--).*);");
-        QRegularExpression regpair("\\(\\s*([+-]?\\d*\\.?\\d*)\\s*,\\s*([+-]?\\d*\\.?\\d*)\\s*\\)");
-        //QRegularExpression regcontrols("(?:\\{\\(.*?)\\})?(\\.\\.\\s*controls()\\s\\.\\.)(?:\\{\\(.*?)\\})?(.+?)(?:\\.\\.\\.|\\.\\.|--)?");
-        //QRegularExpression regcontrols("(\\.\\.\\s*controls()\\s\\.\\.)(.+?)(?:\\.\\.\\.|\\.\\.|--)?");
-        QString direction = "(?:\\s*\\{(.*?)\\}\\s*)?";
-        QString controltension = "(?:\\.\\.\\s*(controls|tension)(?:((?:(?!\\.\\.).)*?)\\s*and\\s*(.*?)|(.*?))\\.\\.)";
-        QString regcontrolsstr = direction + "(?:" + controltension + "|(--)" + ")" + direction;
-        QRegularExpression regcontrols(regcontrolsstr);
-        regpaths.setPatternOptions(QRegularExpression::MultilineOption | QRegularExpression::DotMatchesEverythingOption);
-        QRegularExpressionMatchIterator i = regpaths.globalMatch(pathsSource);
-        int nbpath = 0;
-        while (i.hasNext()) {
-                QRegularExpressionMatch match = i.next();
-                Knot knot;
-                QMap<int, Knot> newpath;
-                QString value = match.captured(1);
-                QRegularExpressionMatch pairmatch = regpair.match(value);
-                if (pairmatch.hasMatch()) {
-                        newpath[0].isConstant = true;
-                        newpath[0].x = pairmatch.captured(1).toDouble();
-                        newpath[0].y = pairmatch.captured(2).toDouble();
-                }
-                else {
-                        newpath[0].isConstant = false;
-                        newpath[0].value = value;
-                }
 
-                regcontrols.setPatternOptions(QRegularExpression::MultilineOption | QRegularExpression::DotMatchesEverythingOption);
-                QRegularExpressionMatchIterator icontrols = regcontrols.globalMatch(match.captured(2));
-                while (icontrols.hasNext()) {
-                        QRegularExpressionMatch match = icontrols.next();
-                }
-                controlledPaths[nbpath++] = newpath;
-
-        }
-
-        emit valueChanged("paths");*/
 }
 void Glyph::componentChanged(QString name, bool structureChanged) {
   emit valueChanged("component", false);
@@ -626,64 +525,51 @@ void Glyph::setParameter(QString name, MFExpr* exp, bool isEquation, bool isInCo
 
 }
 
-QString Glyph::getError()
+QString Glyph::getLog()
 {
-  mp_run_data* results = mp_rundata(mp);
-  QString ret(results->term_out.data);
-  return ret.trimmed();
+  return font->getLog();
 }
 
-QString Glyph::getLog() {
-  mp_run_data* results = mp_rundata(mp);
-  QString ret(results->log_out.data);
-  return ret.trimmed();
+QString Glyph::getInfo() {
+  QString log;
+
+  log = QString("charcode=%1\n").arg(charcode());
+  auto edge = getEdge();
+  if (edge) {
+    log = log % QString("width=%1").arg(edge->width);
+  }
+
+  return log;
 }
 
-mp_edge_object* Glyph::getEdge(bool resetExpParams)
+mp_edge_object* Glyph::getEdge()
 {
   if (edge && !isDirty)
     return edge;
 
-  auto data = source();
-  /*
-  if (expressions.size() > 0) {
-    QString end = "enddefchar;\n";
-    if (m_beginmacroname == "beginchar") {
-      end = "endchar;\n";
-    }
-    QString addExp;
-    for (int i = 0; i < expressions.size(); ++i) {
-      auto name = expressions.keys().at(i);
-      auto value = expressions.value(name);
-      if (value->type() == QVariant::PointF) {
-        addExp = addExp % QString("tmp_pair_params_%1:=%2;").arg(i).arg(name);
-      }
-    }
-    addExp = addExp % end;
-    data.replace(data.size() - end.size(), end.size(), addExp);
 
-  }*/
+  QString paramsString;
 
-  if (!resetExpParams) {
-    data = QString("ignore_exp_parameters:=1;lefttatweel:=%1;righttatweel:=%2;").arg(leftTatweel()).arg(rightTatweel()) % data;
+  int axisIndex = 0;
+
+  for (auto axisName : this->axisNames) {
+    auto axisValue = axis(axisName);
+    paramsString = paramsString % QString("params%1:=%2;").arg(axisIndex++).arg(axisValue);
   }
 
-  QByteArray commandBytes = data.toLatin1();
-  mp->history = mp_spotless;
-  int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());
-  if (status >= mp_error_message_issued) {
-    QString error = getError();
-    edge = NULL;
+  auto data = paramsString % source();
+
+  try {
+    font->executeMetaPost(data);
+  }
+  catch (QString err) {
+    return nullptr;
+  }
+
+  edge = font->getEdge(charcode());
+
+  if (edge == nullptr) {
     return edge;
-  }
-  mp_run_data* _mp_results = mp_rundata(mp);
-  mp_edge_object* p = _mp_results->edges;
-  while (p) {
-    if (p->charcode == charcode()) {
-      edge = p;
-      break;
-    }
-    p = p->next;
   }
 
   QPointF translate;
@@ -695,7 +581,7 @@ mp_edge_object* Glyph::getEdge(bool resetExpParams)
     if (!param.isInControllePath) {
       auto expr = param.expr.get();
       if (expr->type() != QVariant::Double) {
-        QString varName = !param.affects.isEmpty() ? param.affects : name;       
+        QString varName = !param.affects.isEmpty() ? param.affects : name;
         QPointF point;
         if (font->getPairVariable(varName, point)) {
           param.value = point + translate;

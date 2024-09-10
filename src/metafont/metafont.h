@@ -6,9 +6,10 @@ extern "C"
 #include "AddedFiles/newmp.h"
 #include <w2c/config.h>
 #include "mpmp.h"
-# include "mplib.h"
-# include "mplibps.h"
-# include "mplibsvg.h"
+#include "mplib.h"
+#include "mplibps.h"
+#include "mplibsvg.h"
+#include "mppsout.h"
 }
 
 #endif // METAFONT_H

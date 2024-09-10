@@ -1,5 +1,5 @@
 /*1:*/
-// #line 19 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 22 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 #include <w2c/config.h> 
 #include <stdio.h> 
@@ -53,21 +53,22 @@
 #define one_eighty_deg (180.0*angle_multiplier) 
 #define three_sixty_deg (360.0*angle_multiplier)  \
 
-#define odd(A) ((A) %2==1)  \
+#define odd(A) (abs(A) %2==1)  \
 
 
-// #line 27 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 30 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 
 /*:1*//*2:*/
-// #line 29 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 32 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 /*5:*/
-// #line 50 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 53 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 static void mp_double_scan_fractional_token(MP mp,int n);
 static void mp_double_scan_numeric_token(MP mp,int n);
 static void mp_ab_vs_cd(MP mp,mp_number*ret,mp_number a,mp_number b,mp_number c,mp_number d);
+static void mp_double_ab_vs_cd(MP mp,mp_number*ret,mp_number a,mp_number b,mp_number c,mp_number d);
 static void mp_double_crossing_point(MP mp,mp_number*ret,mp_number a,mp_number b,mp_number c);
 static void mp_number_modulo(mp_number*a,mp_number b);
 static void mp_double_print_number(MP mp,mp_number n);
@@ -80,6 +81,8 @@ static void mp_number_angle_to_scaled(mp_number*A);
 static void mp_number_fraction_to_scaled(mp_number*A);
 static void mp_number_scaled_to_fraction(mp_number*A);
 static void mp_number_scaled_to_angle(mp_number*A);
+static void mp_double_m_unif_rand(MP mp,mp_number*ret,mp_number x_orig);
+static void mp_double_m_norm_rand(MP mp,mp_number*ret);
 static void mp_double_m_exp(MP mp,mp_number*ret,mp_number x_orig);
 static void mp_double_m_log(MP mp,mp_number*ret,mp_number x_orig);
 static void mp_double_pyth_sub(MP mp,mp_number*r,mp_number a,mp_number b);
@@ -131,32 +134,32 @@ static void mp_free_double_math(MP mp);
 static void mp_double_set_precision(MP mp);
 
 /*:5*//*19:*/
-// #line 582 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 590 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 double mp_double_make_fraction(MP mp,double p,double q);
 
 /*:19*//*21:*/
-// #line 603 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 611 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 double mp_double_take_fraction(MP mp,double p,double q);
 
 /*:21*//*24:*/
-// #line 636 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 644 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 double mp_double_make_scaled(MP mp,double p,double q);
 
 
 /*:24*//*26:*/
-// #line 650 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 658 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 static void mp_wrapup_numeric_token(MP mp,unsigned char*start,unsigned char*stop);
 
 /*:26*/
-// #line 30 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 33 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 ;
 
 /*:2*//*7:*/
-// #line 135 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 141 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void*mp_initialize_double_math(MP mp){
 math_data*math= (math_data*)mp_xmalloc(mp,1,sizeof(math_data));
@@ -207,11 +210,11 @@ mp_new_number(mp,&math->one_eighty_deg_t,mp_angle_type);
 math->one_eighty_deg_t.data.dval= one_eighty_deg;
 
 mp_new_number(mp,&math->one_k,mp_scaled_type);
-math->one_k.data.dval= 1024;
+math->one_k.data.dval= 1.0/64;
 mp_new_number(mp,&math->sqrt_8_e_k,mp_scaled_type);
-math->sqrt_8_e_k.data.dval= 112429/65536.0;
+math->sqrt_8_e_k.data.dval= 1.71552776992141359295;
 mp_new_number(mp,&math->twelve_ln_2_k,mp_fraction_type);
-math->twelve_ln_2_k.data.dval= 139548960/65536.0;
+math->twelve_ln_2_k.data.dval= 8.31776616671934371292*256;
 mp_new_number(mp,&math->coef_bound_k,mp_fraction_type);
 math->coef_bound_k.data.dval= coef_bound;
 mp_new_number(mp,&math->coef_bound_minus_1,mp_fraction_type);
@@ -285,6 +288,8 @@ math->velocity= mp_double_velocity;
 math->n_arg= mp_double_n_arg;
 math->m_log= mp_double_m_log;
 math->m_exp= mp_double_m_exp;
+math->m_unif_rand= mp_double_m_unif_rand;
+math->m_norm_rand= mp_double_m_norm_rand;
 math->pyth_add= mp_double_pyth_add;
 math->pyth_sub= mp_double_pyth_sub;
 math->fraction_to_scaled= mp_number_fraction_to_scaled;
@@ -340,7 +345,7 @@ free(mp->math);
 }
 
 /*:7*//*9:*/
-// #line 319 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 327 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_new_number(MP mp,mp_number*n,mp_number_type t){
 (void)mp;
@@ -349,7 +354,7 @@ n->type= t;
 }
 
 /*:9*//*10:*/
-// #line 328 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 336 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_free_number(MP mp,mp_number*n){
 (void)mp;
@@ -357,7 +362,7 @@ n->type= mp_nan_type;
 }
 
 /*:10*//*11:*/
-// #line 336 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 344 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_set_double_from_int(mp_number*A,int B){
 A->data.dval= B;
@@ -451,7 +456,7 @@ A->data.dval= A->data.dval*angle_multiplier;
 
 
 /*:11*//*12:*/
-// #line 430 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 438 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 int mp_number_to_scaled(mp_number A){
 return(int)ROUND(A.data.dval*65536.0);
@@ -482,7 +487,7 @@ return(!(fabs(A.data.dval)==fabs(B.data.dval)));
 }
 
 /*:12*//*15:*/
-// #line 490 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 498 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 char*mp_double_number_tostring(MP mp,mp_number n){
 static char set[64];
@@ -496,7 +501,7 @@ return ret;
 
 
 /*:15*//*16:*/
-// #line 502 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 510 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_print_number(MP mp,mp_number n){
 char*str= mp_double_number_tostring(mp,n);
@@ -508,7 +513,7 @@ free(str);
 
 
 /*:16*//*17:*/
-// #line 516 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 524 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_slow_add(MP mp,mp_number*ret,mp_number x_orig,mp_number y_orig){
 double x,y;
@@ -530,7 +535,7 @@ ret->data.dval= -EL_GORDO;
 }
 
 /*:17*//*18:*/
-// #line 574 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 582 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 double mp_double_make_fraction(MP mp,double p,double q){
 return((p/q)*fraction_multiplier);
@@ -540,7 +545,7 @@ ret->data.dval= mp_double_make_fraction(mp,p.data.dval,q.data.dval);
 }
 
 /*:18*//*20:*/
-// #line 595 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 603 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 double mp_double_take_fraction(MP mp,double p,double q){
 return((p*q)/fraction_multiplier);
@@ -550,7 +555,7 @@ ret->data.dval= mp_double_take_fraction(mp,p.data.dval,q.data.dval);
 }
 
 /*:20*//*22:*/
-// #line 616 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 624 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_number_take_scaled(MP mp,mp_number*ret,mp_number p_orig,mp_number q_orig){
 ret->data.dval= p_orig.data.dval*q_orig.data.dval;
@@ -558,7 +563,7 @@ ret->data.dval= p_orig.data.dval*q_orig.data.dval;
 
 
 /*:22*//*23:*/
-// #line 628 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 636 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 double mp_double_make_scaled(MP mp,double p,double q){
 return p/q;
@@ -568,7 +573,7 @@ ret->data.dval= p_orig.data.dval/q_orig.data.dval;
 }
 
 /*:23*//*27:*/
-// #line 653 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 661 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_wrapup_numeric_token(MP mp,unsigned char*start,unsigned char*stop){
 double result;
@@ -604,7 +609,7 @@ set_cur_cmd((mp_variable_type)mp_numeric_token);
 }
 
 /*:27*//*28:*/
-// #line 687 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 695 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 static void find_exponent(MP mp){
 if(mp->buffer[mp->cur_input.loc_field]=='e'||
@@ -638,7 +643,7 @@ mp_wrapup_numeric_token(mp,start,stop);
 
 
 /*:28*//*29:*/
-// #line 722 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 730 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_scan_numeric_token(MP mp,int n){
 unsigned char*start= &mp->buffer[mp->cur_input.loc_field-1];
@@ -659,7 +664,7 @@ mp_wrapup_numeric_token(mp,start,stop);
 }
 
 /*:29*//*31:*/
-// #line 775 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 783 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_velocity(MP mp,mp_number*ret,mp_number st,mp_number ct,mp_number sf,
 mp_number cf,mp_number t){
@@ -684,22 +689,28 @@ mp_number_to_double(st),mp_number_to_double(ct),
 mp_number_to_double(sf),mp_number_to_double(cf),
 mp_number_to_double(t));
 #endif
+#line 807 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 }
 
 
 /*:31*//*32:*/
-// #line 807 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 815 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_ab_vs_cd(MP mp,mp_number*ret,mp_number a_orig,mp_number b_orig,mp_number c_orig,mp_number d_orig){
 integer q,r;
 integer a,b,c,d;
 (void)mp;
+
+mp_double_ab_vs_cd(mp,ret,a_orig,b_orig,c_orig,d_orig);
+if(1> 0)
+return;
+
 a= a_orig.data.dval;
 b= b_orig.data.dval;
 c= c_orig.data.dval;
 d= d_orig.data.dval;
 /*33:*/
-// #line 849 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 862 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 if(a<0){
 a= -a;
@@ -737,7 +748,7 @@ goto RETURN;
 }
 
 /*:33*/
-// #line 816 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 829 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 ;
 while(1){
 q= a/d;
@@ -767,12 +778,13 @@ fprintf(stdout,"\n%f = ab_vs_cd(%f,%f,%f,%f)",mp_number_to_double(*ret),
 mp_number_to_double(a_orig),mp_number_to_double(b_orig),
 mp_number_to_double(c_orig),mp_number_to_double(d_orig));
 #endif
-return;
+#line 858 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+ return;
 }
 
 
 /*:32*//*34:*/
-// #line 918 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 931 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 static void mp_double_crossing_point(MP mp,mp_number*ret,mp_number aa,mp_number bb,mp_number cc){
 double a,b,c;
@@ -835,12 +847,13 @@ RETURN:
 fprintf(stdout,"\n%f = crossing_point(%f,%f,%f)",mp_number_to_double(*ret),
 mp_number_to_double(aa),mp_number_to_double(bb),mp_number_to_double(cc));
 #endif
-return;
+#line 993 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+ return;
 }
 
 
 /*:34*//*36:*/
-// #line 989 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1002 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 int mp_round_unscaled(mp_number x_orig){
 int x= (int)ROUND(x_orig.data.dval);
@@ -848,14 +861,14 @@ return x;
 }
 
 /*:36*//*37:*/
-// #line 997 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1010 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_number_floor(mp_number*i){
 i->data.dval= floor(i->data.dval);
 }
 
 /*:37*//*38:*/
-// #line 1003 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1016 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_fraction_to_round_scaled(mp_number*x_orig){
 double x= x_orig->data.dval;
@@ -866,14 +879,14 @@ x_orig->data.dval= x/fraction_multiplier;
 
 
 /*:38*//*40:*/
-// #line 1018 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1031 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_square_rt(MP mp,mp_number*ret,mp_number x_orig){
 double x;
 x= x_orig.data.dval;
 if(x<=0){
 /*41:*/
-// #line 1030 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1043 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 {
 if(x<0){
@@ -894,7 +907,7 @@ return;
 
 
 /*:41*/
-// #line 1023 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1036 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 ;
 }else{
 ret->data.dval= sqrt(x);
@@ -903,7 +916,7 @@ ret->data.dval= sqrt(x);
 
 
 /*:40*//*42:*/
-// #line 1051 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1064 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_pyth_add(MP mp,mp_number*ret,mp_number a_orig,mp_number b_orig){
 double a,b;
@@ -919,7 +932,7 @@ ret->data.dval= EL_GORDO;
 
 
 /*:42*//*43:*/
-// #line 1067 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1080 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_pyth_sub(MP mp,mp_number*ret,mp_number a_orig,mp_number b_orig){
 double a,b;
@@ -927,7 +940,7 @@ a= fabs(a_orig.data.dval);
 b= fabs(b_orig.data.dval);
 if(a<=b){
 /*44:*/
-// #line 1081 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1094 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 {
 if(a<b){
@@ -949,7 +962,7 @@ a= 0;
 
 
 /*:44*/
-// #line 1073 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1086 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 ;
 }else{
 a= sqrt(a*a-b*b);
@@ -959,12 +972,12 @@ ret->data.dval= a;
 
 
 /*:43*//*46:*/
-// #line 1110 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1123 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_m_log(MP mp,mp_number*ret,mp_number x_orig){
 if(x_orig.data.dval<=0){
 /*47:*/
-// #line 1119 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1132 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 {
 char msg[256];
@@ -982,7 +995,7 @@ ret->data.dval= 0;
 
 
 /*:47*/
-// #line 1113 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1126 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 ;
 }else{
 ret->data.dval= log(x_orig.data.dval)*256.0;
@@ -990,7 +1003,7 @@ ret->data.dval= log(x_orig.data.dval)*256.0;
 }
 
 /*:46*//*48:*/
-// #line 1138 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1151 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_m_exp(MP mp,mp_number*ret,mp_number x_orig){
 errno= 0;
@@ -1007,12 +1020,12 @@ ret->data.dval= 0;
 
 
 /*:48*//*49:*/
-// #line 1156 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1169 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_n_arg(MP mp,mp_number*ret,mp_number x_orig,mp_number y_orig){
 if(x_orig.data.dval==0.0&&y_orig.data.dval==0.0){
 /*50:*/
-// #line 1173 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1191 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 {
 const char*hlp[]= {
@@ -1026,10 +1039,15 @@ ret->data.dval= 0;
 
 
 /*:50*/
-// #line 1159 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1172 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 ;
 }else{
 ret->type= mp_angle_type;
+
+if(x_orig.data.dval==-0.0)
+x_orig.data.dval= 0.0;
+if(y_orig.data.dval==-0.0)
+y_orig.data.dval= 0.0;
 ret->data.dval= atan2(y_orig.data.dval,x_orig.data.dval)*(180.0/PI)*angle_multiplier;
 if(ret->data.dval==-0.0)
 ret->data.dval= 0.0;
@@ -1037,26 +1055,114 @@ ret->data.dval= 0.0;
 fprintf(stdout,"\nn_arg(%g,%g,%g)",mp_number_to_double(*ret),
 mp_number_to_double(x_orig),mp_number_to_double(y_orig));
 #endif
+#line 1187 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 }
 }
 
 
 /*:49*//*53:*/
-// #line 1203 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1221 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_double_sin_cos(MP mp,mp_number z_orig,mp_number*n_cos,mp_number*n_sin){
 double rad;
-rad= (z_orig.data.dval/angle_multiplier)*PI/180.0;
+rad= (z_orig.data.dval/angle_multiplier);
+if((rad==90.0)||(rad==-270)){
+n_cos->data.dval= 0.0;
+n_sin->data.dval= fraction_multiplier;
+}else if((rad==-90.0)||(rad==270.0)){
+n_cos->data.dval= 0.0;
+n_sin->data.dval= -fraction_multiplier;
+}else if((rad==180.0)||(rad==-180.0)){
+n_cos->data.dval= -fraction_multiplier;
+n_sin->data.dval= 0.0;
+}else{
+rad= rad*PI/180.0;
 n_cos->data.dval= cos(rad)*fraction_multiplier;
 n_sin->data.dval= sin(rad)*fraction_multiplier;
+}
 #if DEBUG
 fprintf(stdout,"\nsin_cos(%f,%f,%f)",mp_number_to_double(z_orig),
 mp_number_to_double(*n_cos),mp_number_to_double(*n_sin));
 #endif
+#line 1243 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 }
 
 /*:53*//*54:*/
-// #line 1217 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+#line 1248 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+
+#define KK 100                     
+#define LL  37                     
+#define MM (1L<<30)                
+#define mod_diff(x,y) (((x)-(y))&(MM-1)) 
+
+static long ran_x[KK];
+
+static void ran_array(long aa[],int n)
+
+
+{
+register int i,j;
+for(j= 0;j<KK;j++)aa[j]= ran_x[j];
+for(;j<n;j++)aa[j]= mod_diff(aa[j-KK],aa[j-LL]);
+for(i= 0;i<LL;i++,j++)ran_x[i]= mod_diff(aa[j-KK],aa[j-LL]);
+for(;i<KK;i++,j++)ran_x[i]= mod_diff(aa[j-KK],ran_x[i-LL]);
+}
+
+
+
+
+#define QUALITY 1009 
+static long ran_arr_buf[QUALITY];
+static long ran_arr_dummy= -1,ran_arr_started= -1;
+static long*ran_arr_ptr= &ran_arr_dummy;
+
+#define TT  70   
+#define is_odd(x)  ((x)&1)          
+
+static void ran_start(long seed)
+
+{
+register int t,j;
+long x[KK+KK-1];
+register long ss= (seed+2)&(MM-2);
+for(j= 0;j<KK;j++){
+x[j]= ss;
+ss<<= 1;if(ss>=MM)ss-= MM-2;
+}
+x[1]++;
+for(ss= seed&(MM-1),t= TT-1;t;){
+for(j= KK-1;j> 0;j--)x[j+j]= x[j],x[j+j-1]= 0;
+for(j= KK+KK-2;j>=KK;j--)
+x[j-(KK-LL)]= mod_diff(x[j-(KK-LL)],x[j]),
+x[j-KK]= mod_diff(x[j-KK],x[j]);
+if(is_odd(ss)){
+for(j= KK;j> 0;j--)x[j]= x[j-1];
+x[0]= x[KK];
+x[LL]= mod_diff(x[LL],x[KK]);
+}
+if(ss)ss>>= 1;else t--;
+}
+for(j= 0;j<LL;j++)ran_x[j+KK-LL]= x[j];
+for(;j<KK;j++)ran_x[j-LL]= x[j];
+for(j= 0;j<10;j++)ran_array(x,KK+KK-1);
+ran_arr_ptr= &ran_arr_started;
+}
+
+#define ran_arr_next() (*ran_arr_ptr>=0? *ran_arr_ptr++: ran_arr_cycle())
+static long ran_arr_cycle(void)
+{
+if(ran_arr_ptr==&ran_arr_dummy)
+ran_start(314159L);
+ran_array(ran_arr_buf,QUALITY);
+ran_arr_buf[KK]= -1;
+ran_arr_ptr= ran_arr_buf+1;
+return ran_arr_buf[0];
+}
+
+
+
+/*:54*//*55:*/
+#line 1322 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 void mp_init_randoms(MP mp,int seed){
 int j,jj,k;
@@ -1077,10 +1183,14 @@ mp->randoms[(i*21)%55].data.dval= j;
 mp_new_randoms(mp);
 mp_new_randoms(mp);
 mp_new_randoms(mp);
+
+ran_start((unsigned long)seed);
+
+
 }
 
-/*:54*//*55:*/
-// #line 1239 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+/*:55*//*56:*/
+#line 1348 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
 
 static double modulus(double left,double right);
 double modulus(double left,double right){
@@ -1093,4 +1203,127 @@ return frac;
 }
 void mp_number_modulo(mp_number*a,mp_number b){
 a->data.dval= modulus(a->data.dval,b.data.dval);
-}/*:55*/
+}
+
+
+
+/*:56*//*57:*/
+#line 1366 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+
+static void mp_next_unif_random(MP mp,mp_number*ret){
+double a;
+unsigned long int op;
+(void)mp;
+op= (unsigned)ran_arr_next();
+a= op/(MM*1.0);
+ret->data.dval= a;
+}
+
+
+
+/*:57*//*58:*/
+#line 1380 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+
+static void mp_next_random(MP mp,mp_number*ret){
+if(mp->j_random==0)
+mp_new_randoms(mp);
+else
+mp->j_random= mp->j_random-1;
+mp_number_clone(ret,mp->randoms[mp->j_random]);
+}
+
+
+/*:58*//*59:*/
+#line 1397 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+
+static void mp_double_m_unif_rand(MP mp,mp_number*ret,mp_number x_orig){
+mp_number y;
+mp_number x,abs_x;
+mp_number u;
+new_fraction(y);
+new_number(x);
+new_number(abs_x);
+new_number(u);
+mp_number_clone(&x,x_orig);
+mp_number_clone(&abs_x,x);
+mp_double_abs(&abs_x);
+mp_next_unif_random(mp,&u);
+y.data.dval= abs_x.data.dval*u.data.dval;
+free_number(u);
+if(mp_number_equal(y,abs_x)){
+mp_number_clone(ret,((math_data*)mp->math)->zero_t);
+}else if(mp_number_greater(x,((math_data*)mp->math)->zero_t)){
+mp_number_clone(ret,y);
+}else{
+mp_number_clone(ret,y);
+mp_number_negate(ret);
+}
+free_number(abs_x);
+free_number(x);
+free_number(y);
+}
+
+
+
+/*:59*//*60:*/
+#line 1431 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+
+static void mp_double_m_norm_rand(MP mp,mp_number*ret){
+mp_number ab_vs_cd;
+mp_number abs_x;
+mp_number u;
+mp_number r;
+mp_number la,xa;
+new_number(ab_vs_cd);
+new_number(la);
+new_number(xa);
+new_number(abs_x);
+new_number(u);
+new_number(r);
+
+do{
+do{
+mp_number v;
+new_number(v);
+mp_next_random(mp,&v);
+mp_number_substract(&v,((math_data*)mp->math)->fraction_half_t);
+mp_double_number_take_fraction(mp,&xa,((math_data*)mp->math)->sqrt_8_e_k,v);
+free_number(v);
+mp_next_random(mp,&u);
+mp_number_clone(&abs_x,xa);
+mp_double_abs(&abs_x);
+}while(!mp_number_less(abs_x,u));
+mp_double_number_make_fraction(mp,&r,xa,u);
+mp_number_clone(&xa,r);
+mp_double_m_log(mp,&la,u);
+mp_set_double_from_substraction(&la,((math_data*)mp->math)->twelve_ln_2_k,la);
+mp_double_ab_vs_cd(mp,&ab_vs_cd,((math_data*)mp->math)->one_k,la,xa,xa);
+}while(mp_number_less(ab_vs_cd,((math_data*)mp->math)->zero_t));
+mp_number_clone(ret,xa);
+free_number(ab_vs_cd);
+free_number(r);
+free_number(abs_x);
+free_number(la);
+free_number(xa);
+free_number(u);
+}
+
+
+
+
+/*:60*//*61:*/
+#line 1479 "../../../source/texk/web2c/mplibdir/mpmathdouble.w"
+
+void mp_double_ab_vs_cd(MP mp,mp_number*ret,mp_number a_orig,mp_number b_orig,mp_number c_orig,mp_number d_orig){
+double ab,cd;
+(void)mp;
+ret->data.dval= 0;
+ab= a_orig.data.dval*b_orig.data.dval;
+cd= c_orig.data.dval*d_orig.data.dval;
+if(ab> cd)
+ret->data.dval= 1;
+else if(ab<cd)
+ret->data.dval= -1;
+return;
+}
+/*:61*/

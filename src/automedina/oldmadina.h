@@ -1,9 +1,12 @@
 #pragma once
 #include "automedina.h"
+#include "GlyphVis.h"
+#include "Subtable.h"
+#include "Lookup.h"
 
 class OldMadina : public Automedina {
 public:
-  OldMadina(OtLayout* layout, MP mp, bool extended);
+  OldMadina(OtLayout* layout, Font* font, bool extended);
   Lookup* getLookup(QString lookupName) override;
   CalcAnchor  getanchorCalcFunctions(QString functionName, Subtable* subtable) override;
   void generateSubstEquivGlyphs() override;
@@ -33,3 +36,4 @@ private:
   void addchars();
   void generateGlyphs();
 };
+

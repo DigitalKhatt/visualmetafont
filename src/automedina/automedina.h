@@ -46,7 +46,7 @@ public:
   const int minwaqfhigh = 900;
 
 public:
-  Automedina(OtLayout* layout, MP mp, bool extended) : glyphs{ layout->glyphs }, m_layout{ layout }, mp{ mp }, extended{ extended } {}
+  Automedina(OtLayout* layout, Font* font, bool extended) : glyphs{ layout->glyphs }, m_layout{ layout }, font{ font }, extended{ extended } {}
 
   QSet<quint16> classtoUnicode(QString className, bool includeExpandables = false);
   QSet<quint16> regexptoUnicode(QString regexp);
@@ -61,17 +61,7 @@ protected:
   OtLayout* m_layout;
 
   QHash<QString, QSet<QString>> classes;
-  //void setAnchorCalcFunctions();
-  void addchar(QString macroname,
-    int charcode,
-    double lefttatweel,
-    double righttatweel,
-    std::optional<double> leftextratio,
-    std::optional<double> rightextratio,
-    std::optional<double> left_tatweeltension,
-    std::optional<double> right_tatweeltension,
-    QString newname,
-    std::optional<int> which_in_baseline);
+
 
   QMap<QString, QSet<quint16>> cachedClasstoUnicode;
   //QMap<QString, AnchorCalc*> anchorCalcFunctions;
@@ -80,7 +70,7 @@ protected:
   QSet<QString> initchar;
   QSet<QString> medichar;
 
-  MP mp;
+  Font* font;
 
   QMap <QString, QMap<quint16, QPoint>> markAnchors;
   QMap <QString, QMap<quint16, QPoint>> entryAnchors;

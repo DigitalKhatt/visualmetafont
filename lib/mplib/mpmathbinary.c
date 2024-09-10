@@ -1,5 +1,5 @@
 /*1:*/
-// #line 12 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 22 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 #include <w2c/config.h> 
 #include <stdio.h> 
@@ -16,7 +16,7 @@
 
 #define mpfr_negative_p(a) (mpfr_sgn((a) ) <0) 
 #define mpfr_positive_p(a) (mpfr_sgn((a) ) > 0) 
-#define checkZero(dec) if(mpfr_zero_p(dec) &&mpfr_negative_p(dec) ) { \
+#define checkZero(dec) if(mpfr_zero_p(dec) ) { \
 mpfr_set_zero(dec,1) ; \
 } \
 
@@ -36,7 +36,7 @@ mpfr_set_zero(dec,1) ; \
 #define equation_threshold 0.001
 #define tfm_warn_threshold 0.0625
 #define warning_limit pow(2.0,52.0) 
-#define epsilon "1E-52"
+#define epsilon pow(2.0,-173.0) 
 #define epsilonf pow(2.0,-52.0) 
 #define EL_GORDO "1E1000000"
 #define one_third_EL_GORDO (EL_GORDO/3.0)  \
@@ -44,14 +44,14 @@ mpfr_set_zero(dec,1) ; \
 #define MAX_PRECISION 1000.0
 #define DEF_PRECISION 34.0 \
 
-#define odd(A) ((A) %2==1)  \
+#define odd(A) (abs(A) %2==1)  \
 
 #define halfp(A) (integer) ((unsigned) (A) >>1)  \
 
 #define set_cur_cmd(A) mp->cur_mod_->type= (A) 
 #define set_cur_mod(A) mpfr_set((mpfr_ptr) (mp->cur_mod_->data.n.data.num) ,A,ROUNDING)  \
 
-#define too_precise(a) 0
+#define too_precise(a) (a> precision_bits) 
 #define fraction_half (fraction_multiplier/2) 
 #define fraction_one (1*fraction_multiplier) 
 #define fraction_two (2*fraction_multiplier) 
@@ -63,18 +63,19 @@ mpfr_set_zero(dec,1) ; \
 #define zero_crossing {mpfr_set(ret->data.num,zero,ROUNDING) ;goto RETURN;} \
 
 
-// #line 20 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 30 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 
 /*:1*//*2:*/
-// #line 22 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 32 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 /*5:*/
-// #line 46 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 71 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 #define DEBUG 0
 static void mp_binary_scan_fractional_token(MP mp,int n);
 static void mp_binary_scan_numeric_token(MP mp,int n);
+static void mp_binary_ab_vs_cd(MP mp,mp_number*ret,mp_number a,mp_number b,mp_number c,mp_number d);
 static void mp_ab_vs_cd(MP mp,mp_number*ret,mp_number a,mp_number b,mp_number c,mp_number d);
 static void mp_binary_crossing_point(MP mp,mp_number*ret,mp_number a,mp_number b,mp_number c);
 static void mp_binary_number_modulo(mp_number*a,mp_number b);
@@ -88,6 +89,8 @@ static void mp_number_angle_to_scaled(mp_number*A);
 static void mp_number_fraction_to_scaled(mp_number*A);
 static void mp_number_scaled_to_fraction(mp_number*A);
 static void mp_number_scaled_to_angle(mp_number*A);
+static void mp_binary_m_unif_rand(MP mp,mp_number*ret,mp_number x_orig);
+static void mp_binary_m_norm_rand(MP mp,mp_number*ret);
 static void mp_binary_m_exp(MP mp,mp_number*ret,mp_number x_orig);
 static void mp_binary_m_log(MP mp,mp_number*ret,mp_number x_orig);
 static void mp_binary_pyth_sub(MP mp,mp_number*r,mp_number a,mp_number b);
@@ -146,7 +149,7 @@ static mpfr_prec_t precision_digits_to_bits(double i);
 static double precision_bits_to_digits(mpfr_prec_t i);
 
 /*:5*//*9:*/
-// #line 196 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 224 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 static mpfr_t zero;
 static mpfr_t one;
@@ -161,28 +164,30 @@ static mpfr_t fraction_one_plus_mpfr_t;
 static mpfr_t PI_mpfr_t;
 static mpfr_t epsilon_mpfr_t;
 static mpfr_t EL_GORDO_mpfr_t;
+static boolean initialized= false;
+
 
 /*:9*//*25:*/
-// #line 804 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 840 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_make_fraction(MP mp,mpfr_t ret,mpfr_t p,mpfr_t q);
 
 /*:25*//*27:*/
-// #line 826 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 862 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_take_fraction(MP mp,mpfr_t ret,mpfr_t p,mpfr_t q);
 
 /*:27*//*31:*/
-// #line 867 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 903 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 static void mp_wrapup_numeric_token(MP mp,unsigned char*start,unsigned char*stop);
 
 /*:31*/
-// #line 23 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 33 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 ;
 
 /*:2*//*6:*/
-// #line 128 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 156 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 int binary_number_check(mpfr_t dec)
 {
@@ -210,7 +215,7 @@ mp->arith_error= binary_number_check(dec);
 
 
 /*:6*//*7:*/
-// #line 156 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 184 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 static double precision_bits;
 mpfr_prec_t precision_digits_to_bits(double i)
@@ -224,9 +229,10 @@ return d*log10(2);
 
 
 /*:7*//*10:*/
-// #line 211 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 241 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void init_binary_constants(void){
+if(!initialized){
 mpfr_inits2(precision_bits,one,minusone,zero,two_mpfr_t,three_mpfr_t,four_mpfr_t,fraction_multiplier_mpfr_t,
 fraction_one_mpfr_t,fraction_one_plus_mpfr_t,angle_multiplier_mpfr_t,PI_mpfr_t,
 epsilon_mpfr_t,EL_GORDO_mpfr_t,(mpfr_ptr)0);
@@ -241,18 +247,21 @@ mpfr_set_si(fraction_one_mpfr_t,fraction_one,ROUNDING);
 mpfr_set_si(fraction_one_plus_mpfr_t,(fraction_one+1),ROUNDING);
 mpfr_set_si(angle_multiplier_mpfr_t,angle_multiplier,ROUNDING);
 mpfr_set_str(PI_mpfr_t,PI_STRING,10,ROUNDING);
-mpfr_set_str(epsilon_mpfr_t,epsilon,10,ROUNDING);
+mpfr_set_d(epsilon_mpfr_t,epsilon,ROUNDING);
 mpfr_set_str(EL_GORDO_mpfr_t,EL_GORDO,10,ROUNDING);
+initialized= true;
+}
 }
 void free_binary_constants(void){
-mpfr_clears(one,minusone,zero,two_mpfr_t,three_mpfr_t,four_mpfr_t,fraction_multiplier_mpfr_t,
-fraction_one_mpfr_t,fraction_one_plus_mpfr_t,angle_multiplier_mpfr_t,PI_mpfr_t,
-epsilon_mpfr_t,EL_GORDO_mpfr_t,(mpfr_ptr)0);
-mpfr_free_cache();
+
+
+
+
+
 }
 
 /*:10*//*11:*/
-// #line 244 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 278 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void*mp_initialize_binary_math(MP mp){
 math_data*math= (math_data*)mp_xmalloc(mp,1,sizeof(math_data));
@@ -267,7 +276,7 @@ mp_new_number(mp,&math->precision_max,mp_scaled_type);
 mpfr_set_d(math->precision_max.data.num,MAX_PRECISION,ROUNDING);
 mp_new_number(mp,&math->precision_min,mp_scaled_type);
 
-mpfr_set_d(math->precision_min.data.num,1.0,ROUNDING);
+mpfr_set_d(math->precision_min.data.num,2.0,ROUNDING);
 
 mp_new_number(mp,&math->epsilon_t,mp_scaled_type);
 mpfr_set(math->epsilon_t.data.num,epsilon_mpfr_t,ROUNDING);
@@ -310,7 +319,7 @@ mp_new_number(mp,&math->one_eighty_deg_t,mp_angle_type);
 mpfr_set_si(math->one_eighty_deg_t.data.num,180*angle_multiplier,ROUNDING);
 
 mp_new_number(mp,&math->one_k,mp_scaled_type);
-mpfr_set_si(math->one_k.data.num,1024,ROUNDING);
+mpfr_set_d(math->one_k.data.num,1.0/64,ROUNDING);
 mp_new_number(mp,&math->sqrt_8_e_k,mp_scaled_type);
 {
 mpfr_set_d(math->sqrt_8_e_k.data.num,112428.82793/65536.0,ROUNDING);
@@ -406,6 +415,8 @@ math->velocity= mp_binary_velocity;
 math->n_arg= mp_binary_n_arg;
 math->m_log= mp_binary_m_log;
 math->m_exp= mp_binary_m_exp;
+math->m_unif_rand= mp_binary_m_unif_rand;
+math->m_norm_rand= mp_binary_m_norm_rand;
 math->pyth_add= mp_binary_pyth_add;
 math->pyth_sub= mp_binary_pyth_sub;
 math->fraction_to_scaled= mp_number_fraction_to_scaled;
@@ -464,7 +475,7 @@ free(mp->math);
 }
 
 /*:11*//*13:*/
-// #line 456 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 492 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_new_number(MP mp,mp_number*n,mp_number_type t){
 (void)mp;
@@ -475,7 +486,7 @@ n->type= t;
 }
 
 /*:13*//*14:*/
-// #line 467 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 503 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_free_number(MP mp,mp_number*n){
 (void)mp;
@@ -487,7 +498,7 @@ n->type= mp_nan_type;
 }
 
 /*:14*//*15:*/
-// #line 479 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 515 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_set_binary_from_int(mp_number*A,int B){
 mpfr_set_si(A->data.num,B,ROUNDING);
@@ -588,7 +599,7 @@ mpfr_mul(A->data.num,A->data.num,angle_multiplier_mpfr_t,ROUNDING);
 
 
 /*:15*//*17:*/
-// #line 584 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 620 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 int mp_number_to_scaled(mp_number A){
 double v= mpfr_get_d(A.data.num,ROUNDING);
@@ -596,7 +607,7 @@ return(int)(v*65536.0);
 }
 
 /*:17*//*18:*/
-// #line 594 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 630 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 int mp_number_to_int(mp_number A){
 int32_t result= 0;
@@ -610,7 +621,7 @@ int32_t result= 0;
 if(mpfr_fits_sint_p(A.data.num,ROUNDING)){
 result= mpfr_get_si(A.data.num,ROUNDING);
 }
-return(result?1:0);
+return result;
 }
 double mp_number_to_double(mp_number A){
 double res= 0.0;
@@ -636,7 +647,7 @@ return!(mpfr_cmpabs(A.data.num,B.data.num)==0);
 }
 
 /*:18*//*21:*/
-// #line 654 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 690 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 char*mp_binnumber_tostring(mpfr_t n){
 char*str= NULL,*buffer= NULL;
@@ -721,7 +732,7 @@ return mp_binnumber_tostring(n.data.num);
 
 
 /*:21*//*22:*/
-// #line 737 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 773 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_print_number(MP mp,mp_number n){
 char*str= mp_binary_number_tostring(mp,n);
@@ -733,14 +744,14 @@ free(str);
 
 
 /*:22*//*23:*/
-// #line 751 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 787 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_slow_add(MP mp,mp_number*ret,mp_number A,mp_number B){
 mpfr_add(ret->data.num,A.data.num,B.data.num,ROUNDING);
 }
 
 /*:23*//*24:*/
-// #line 794 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 830 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_make_fraction(MP mp,mpfr_t ret,mpfr_t p,mpfr_t q){
 mpfr_div(ret,p,q,ROUNDING);
@@ -752,7 +763,7 @@ mp_binary_make_fraction(mp,ret->data.num,p.data.num,q.data.num);
 }
 
 /*:24*//*26:*/
-// #line 817 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 853 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_take_fraction(MP mp,mpfr_t ret,mpfr_t p,mpfr_t q){
 mpfr_mul(ret,p,q,ROUNDING);
@@ -763,7 +774,7 @@ mp_binary_take_fraction(mp,ret->data.num,p.data.num,q.data.num);
 }
 
 /*:26*//*28:*/
-// #line 839 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 875 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_number_take_scaled(MP mp,mp_number*ret,mp_number p_orig,mp_number q_orig){
 mpfr_mul(ret->data.num,p_orig.data.num,q_orig.data.num,ROUNDING);
@@ -771,39 +782,54 @@ mpfr_mul(ret->data.num,p_orig.data.num,q_orig.data.num,ROUNDING);
 
 
 /*:28*//*29:*/
-// #line 851 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+#line 887 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_number_make_scaled(MP mp,mp_number*ret,mp_number p_orig,mp_number q_orig){
 mpfr_div(ret->data.num,p_orig.data.num,q_orig.data.num,ROUNDING);
 mp_check_mpfr_t(mp,ret->data.num);
 }
 
-/*:29*//*32:*/
-// #line 872 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:29*//*38:*/
+#line 914 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_wrapup_numeric_token(MP mp,unsigned char*start,unsigned char*stop){
 int invalid= 0;
 mpfr_t result;
 size_t l= stop-start+1;
+unsigned long lp,lpbit;
 char*buf= mp_xmalloc(mp,l+1,1);
+char*bufp= buf;
 buf[l]= '\0';
 mpfr_init2(result,precision_bits);
 (void)strncpy(buf,(const char*)start,l);
 invalid= mpfr_set_str(result,buf,10,ROUNDING);
 
+lp= (unsigned long)l;
+
+if((*bufp=='-')||(*bufp=='+')||(*bufp=='0')||(*bufp=='.')){lp--;bufp++;}
+
+lp= strchr(bufp,'.')?lp-1:lp;
+
+bufp= buf+l-1;
+while(*bufp=='0'){bufp--;lp= (((lp==0)||(lp==1))?1:lp-1);}
+
+lp= lp> 0?lp:1;
+
+lpbit= (unsigned long)ceil(lp/log10(2)+1);
 free(buf);
+bufp= NULL;
 if(invalid==0){
 set_cur_mod(result);
 
-if(too_precise(l)){
+if(too_precise(lpbit)){
 if(mpfr_positive_p((mpfr_ptr)(internal_value(mp_warning_check).data.num))&&
 (mp->scanner_status!=tex_flushing)){
 char msg[256];
 const char*hlp[]= {"Continue and I'll try to cope",
-"with that big value; but it might be dangerous.",
+"with that value; but it might be dangerous.",
 "(Set warningcheck:=0 to suppress this message.)",
 NULL};
-mp_snprintf(msg,256,"Number is too large (%s)",mp_binary_number_tostring(mp,mp->cur_mod_->data.n));
+mp_snprintf(msg,256,"Required precision is too high (%d vs. numberprecision = %f, required precision=%d bits vs internal precision=%f bits)",(unsigned int)lp,mpfr_get_d(internal_value(mp_number_precision).data.num,ROUNDING),(int)lpbit,precision_bits);
 ;
 mp_error(mp,msg,hlp,true);
 }
@@ -822,8 +848,8 @@ set_cur_cmd((mp_variable_type)mp_numeric_token);
 mpfr_clear(result);
 }
 
-/*:32*//*33:*/
-// #line 914 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:38*//*39:*/
+#line 971 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 static void find_exponent(MP mp){
 if(mp->buffer[mp->cur_input.loc_field]=='e'||
@@ -856,8 +882,8 @@ mp_wrapup_numeric_token(mp,start,stop);
 }
 
 
-/*:33*//*34:*/
-// #line 948 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:39*//*40:*/
+#line 1005 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_scan_numeric_token(MP mp,int n){
 unsigned char*start= &mp->buffer[mp->cur_input.loc_field-1];
@@ -877,8 +903,8 @@ stop= &mp->buffer[mp->cur_input.loc_field-1];
 mp_wrapup_numeric_token(mp,start,stop);
 }
 
-/*:34*//*36:*/
-// #line 1001 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:40*//*42:*/
+#line 1058 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_velocity(MP mp,mp_number*ret,mp_number st,mp_number ct,mp_number sf,
 mp_number cf,mp_number t){
@@ -937,8 +963,8 @@ mp_check_mpfr_t(mp,ret->data.num);
 }
 
 
-/*:36*//*37:*/
-// #line 1064 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:42*//*43:*/
+#line 1121 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_ab_vs_cd(MP mp,mp_number*ret,mp_number a_orig,mp_number b_orig,mp_number c_orig,mp_number d_orig){
 mpfr_t q,r,test;
@@ -950,8 +976,26 @@ mpfr_set(a,(mpfr_ptr)a_orig.data.num,ROUNDING);
 mpfr_set(b,(mpfr_ptr)b_orig.data.num,ROUNDING);
 mpfr_set(c,(mpfr_ptr)c_orig.data.num,ROUNDING);
 mpfr_set(d,(mpfr_ptr)d_orig.data.num,ROUNDING);
-/*38:*/
-// #line 1119 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+
+mpfr_mul(q,a,b,ROUNDING);
+mpfr_mul(r,c,d,ROUNDING);
+cmp= mpfr_cmp(q,r);
+if(cmp==0){
+mpfr_set(ret->data.num,zero,ROUNDING);
+goto RETURN;
+}
+if(cmp> 0){
+mpfr_set(ret->data.num,one,ROUNDING);
+goto RETURN;
+}
+if(cmp<0){
+mpfr_set(ret->data.num,minusone,ROUNDING);
+goto RETURN;
+}
+
+
+/*44:*/
+#line 1194 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 if(mpfr_negative_p(a)){
 mpfr_neg(a,a,ROUNDING);
@@ -994,8 +1038,8 @@ mpfr_set(ret->data.num,minusone,ROUNDING);
 goto RETURN;
 }
 
-/*:38*/
-// #line 1075 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:44*/
+#line 1150 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 ;
 while(1){
 mpfr_div(q,a,d,ROUNDING);
@@ -1034,14 +1078,15 @@ fprintf(stdout,"\n%f = ab_vs_cd(%f,%f,%f,%f)",mp_number_to_double(*ret),
 mp_number_to_double(a_orig),mp_number_to_double(b_orig),
 mp_number_to_double(c_orig),mp_number_to_double(d_orig));
 #endif
-mp_check_mpfr_t(mp,ret->data.num);
+#line 1188 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+ mp_check_mpfr_t(mp,ret->data.num);
 mpfr_clears(q,r,test,a,b,c,d,(mpfr_ptr)0);
 return;
 }
 
 
-/*:37*//*39:*/
-// #line 1194 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:43*//*45:*/
+#line 1269 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 static void mp_binary_crossing_point(MP mp,mp_number*ret,mp_number aa,mp_number bb,mp_number cc){
 mpfr_t a,b,c;
@@ -1111,14 +1156,15 @@ RETURN:
 fprintf(stdout,"\n%f = crossing_point(%f,%f,%f)",mp_number_to_double(*ret),
 mp_number_to_double(aa),mp_number_to_double(bb),mp_number_to_double(cc));
 #endif
-mpfr_clears(a,b,c,x,xx,x0,x1,x2,scratch,(mpfr_ptr)0);
+#line 1338 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+ mpfr_clears(a,b,c,x,xx,x0,x1,x2,scratch,(mpfr_ptr)0);
 mp_check_mpfr_t(mp,ret->data.num);
 return;
 }
 
 
-/*:39*//*41:*/
-// #line 1274 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:45*//*47:*/
+#line 1349 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 int mp_round_unscaled(mp_number x_orig){
 double xx= mp_number_to_double(x_orig);
@@ -1126,15 +1172,15 @@ int x= (int)ROUND(xx);
 return x;
 }
 
-/*:41*//*42:*/
-// #line 1283 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:47*//*48:*/
+#line 1358 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_number_floor(mp_number*i){
 mpfr_rint_floor(i->data.num,i->data.num,MPFR_RNDD);
 }
 
-/*:42*//*43:*/
-// #line 1289 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:48*//*49:*/
+#line 1364 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_fraction_to_round_scaled(mp_number*x_orig){
 x_orig->type= mp_scaled_type;
@@ -1143,13 +1189,13 @@ mpfr_div(x_orig->data.num,x_orig->data.num,fraction_multiplier_mpfr_t,ROUNDING);
 
 
 
-/*:43*//*45:*/
-// #line 1303 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:49*//*51:*/
+#line 1378 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_square_rt(MP mp,mp_number*ret,mp_number x_orig){
 if(!mpfr_positive_p((mpfr_ptr)x_orig.data.num)){
-/*46:*/
-// #line 1314 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*52:*/
+#line 1389 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 {
 if(mpfr_negative_p((mpfr_ptr)x_orig.data.num)){
@@ -1169,8 +1215,8 @@ return;
 }
 
 
-/*:46*/
-// #line 1306 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:52*/
+#line 1381 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 ;
 }else{
 mpfr_sqrt(ret->data.num,x_orig.data.num,ROUNDING);
@@ -1179,8 +1225,8 @@ mp_check_mpfr_t(mp,ret->data.num);
 }
 
 
-/*:45*//*47:*/
-// #line 1335 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:51*//*53:*/
+#line 1410 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_pyth_add(MP mp,mp_number*ret,mp_number a_orig,mp_number b_orig){
 mpfr_t a,b,asq,bsq;
@@ -1195,8 +1241,8 @@ mp_check_mpfr_t(mp,ret->data.num);
 mpfr_clears(a,b,asq,bsq,(mpfr_ptr)0);
 }
 
-/*:47*//*48:*/
-// #line 1351 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:53*//*54:*/
+#line 1426 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_pyth_sub(MP mp,mp_number*ret,mp_number a_orig,mp_number b_orig){
 mpfr_t a,b,asq,bsq;
@@ -1204,8 +1250,8 @@ mpfr_inits2(precision_bits,a,b,asq,bsq,(mpfr_ptr)0);
 mpfr_set(a,(mpfr_ptr)a_orig.data.num,ROUNDING);
 mpfr_set(b,(mpfr_ptr)b_orig.data.num,ROUNDING);
 if(!mpfr_greater_p(a,b)){
-/*49:*/
-// #line 1370 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*55:*/
+#line 1445 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 {
 if(mpfr_less_p(a,b)){
@@ -1226,8 +1272,8 @@ mpfr_set_zero(a,1);
 }
 
 
-/*:49*/
-// #line 1358 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:55*/
+#line 1433 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 ;
 }else{
 mpfr_mul(asq,a,a,ROUNDING);
@@ -1240,13 +1286,13 @@ mp_check_mpfr_t(mp,ret->data.num);
 }
 
 
-/*:48*//*50:*/
-// #line 1393 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:54*//*56:*/
+#line 1468 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_m_log(MP mp,mp_number*ret,mp_number x_orig){
 if(!mpfr_positive_p((mpfr_ptr)x_orig.data.num)){
-/*51:*/
-// #line 1405 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*57:*/
+#line 1480 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 {
 char msg[256];
@@ -1263,8 +1309,8 @@ mpfr_set_zero(ret->data.num,1);
 }
 
 
-/*:51*/
-// #line 1396 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:57*/
+#line 1471 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 ;
 }else{
 mpfr_log(ret->data.num,x_orig.data.num,ROUNDING);
@@ -1274,8 +1320,8 @@ mpfr_mul_si(ret->data.num,ret->data.num,256,ROUNDING);
 mp_check_mpfr_t(mp,ret->data.num);
 }
 
-/*:50*//*52:*/
-// #line 1424 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:56*//*58:*/
+#line 1499 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_m_exp(MP mp,mp_number*ret,mp_number x_orig){
 mpfr_t temp;
@@ -1287,13 +1333,13 @@ mpfr_clear(temp);
 }
 
 
-/*:52*//*53:*/
-// #line 1438 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:58*//*59:*/
+#line 1513 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_n_arg(MP mp,mp_number*ret,mp_number x_orig,mp_number y_orig){
 if(mpfr_zero_p((mpfr_ptr)x_orig.data.num)&&mpfr_zero_p((mpfr_ptr)y_orig.data.num)){
-/*54:*/
-// #line 1461 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*60:*/
+#line 1536 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 {
 const char*hlp[]= {
@@ -1306,8 +1352,8 @@ mpfr_set_zero(ret->data.num,1);
 }
 
 
-/*:54*/
-// #line 1441 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:60*/
+#line 1516 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 ;
 }else{
 mpfr_t atan2val,oneeighty_angle;
@@ -1328,8 +1374,8 @@ mp_check_mpfr_t(mp,ret->data.num);
 }
 
 
-/*:53*//*56:*/
-// #line 1479 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:59*//*62:*/
+#line 1554 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_sin_cos(MP mp,mp_number z_orig,mp_number*n_cos,mp_number*n_sin){
 mpfr_t rad;
@@ -1351,8 +1397,83 @@ mpfr_clear(rad);
 mpfr_clear(one_eighty);
 }
 
-/*:56*//*57:*/
-// #line 1502 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:62*//*63:*/
+#line 1578 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+
+#define KK 100                     
+#define LL  37                     
+#define MM (1L<<30)                
+#define mod_diff(x,y) (((x)-(y))&(MM-1)) 
+
+static long ran_x[KK];
+
+static void ran_array(long aa[],int n)
+
+
+{
+register int i,j;
+for(j= 0;j<KK;j++)aa[j]= ran_x[j];
+for(;j<n;j++)aa[j]= mod_diff(aa[j-KK],aa[j-LL]);
+for(i= 0;i<LL;i++,j++)ran_x[i]= mod_diff(aa[j-KK],aa[j-LL]);
+for(;i<KK;i++,j++)ran_x[i]= mod_diff(aa[j-KK],ran_x[i-LL]);
+}
+
+
+
+
+#define QUALITY 1009 
+static long ran_arr_buf[QUALITY];
+static long ran_arr_dummy= -1,ran_arr_started= -1;
+static long*ran_arr_ptr= &ran_arr_dummy;
+
+#define TT  70   
+#define is_odd(x)  ((x)&1)          
+
+static void ran_start(long seed)
+
+{
+register int t,j;
+long x[KK+KK-1];
+register long ss= (seed+2)&(MM-2);
+for(j= 0;j<KK;j++){
+x[j]= ss;
+ss<<= 1;if(ss>=MM)ss-= MM-2;
+}
+x[1]++;
+for(ss= seed&(MM-1),t= TT-1;t;){
+for(j= KK-1;j> 0;j--)x[j+j]= x[j],x[j+j-1]= 0;
+for(j= KK+KK-2;j>=KK;j--)
+x[j-(KK-LL)]= mod_diff(x[j-(KK-LL)],x[j]),
+x[j-KK]= mod_diff(x[j-KK],x[j]);
+if(is_odd(ss)){
+for(j= KK;j> 0;j--)x[j]= x[j-1];
+x[0]= x[KK];
+x[LL]= mod_diff(x[LL],x[KK]);
+}
+if(ss)ss>>= 1;else t--;
+}
+for(j= 0;j<LL;j++)ran_x[j+KK-LL]= x[j];
+for(;j<KK;j++)ran_x[j-LL]= x[j];
+for(j= 0;j<10;j++)ran_array(x,KK+KK-1);
+ran_arr_ptr= &ran_arr_started;
+}
+
+#define ran_arr_next() (*ran_arr_ptr>=0? *ran_arr_ptr++: ran_arr_cycle())
+static long ran_arr_cycle(void)
+{
+if(ran_arr_ptr==&ran_arr_dummy)
+ran_start(314159L);
+ran_array(ran_arr_buf,QUALITY);
+ran_arr_buf[KK]= -1;
+ran_arr_ptr= ran_arr_buf+1;
+return ran_arr_buf[0];
+}
+
+
+
+
+/*:63*//*64:*/
+#line 1653 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_init_randoms(MP mp,int seed){
 int j,jj,k;
@@ -1373,11 +1494,164 @@ mpfr_set_si(mp->randoms[(i*21)%55].data.num,j,ROUNDING);
 mp_new_randoms(mp);
 mp_new_randoms(mp);
 mp_new_randoms(mp);
+
+ran_start((unsigned long)seed);
+
 }
 
-/*:57*//*58:*/
-// #line 1524 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+/*:64*//*65:*/
+#line 1678 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
 
 void mp_binary_number_modulo(mp_number*a,mp_number b){
-mpfr_remainder(a->data.num,a->data.num,b.data.num,ROUNDING);
-}/*:58*/
+
+
+mpfr_fmod(a->data.num,a->data.num,b.data.num,ROUNDING);
+}
+
+/*:65*//*66:*/
+#line 1687 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+
+static void mp_next_unif_random(MP mp,mp_number*ret){
+mp_number rop;
+unsigned long int op;
+float flt_op;
+(void)mp;
+mp_new_number(mp,&rop,mp_scaled_type);
+op= (unsigned)ran_arr_next();
+flt_op= op/(MM*1.0);
+mpfr_set_d((mpfr_ptr)(rop.data.num),flt_op,ROUNDING);
+mp_number_clone(ret,rop);
+free_number(rop);
+}
+
+
+
+/*:66*//*67:*/
+#line 1705 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+
+static void mp_next_random(MP mp,mp_number*ret){
+if(mp->j_random==0)
+mp_new_randoms(mp);
+else
+mp->j_random= mp->j_random-1;
+mp_number_clone(ret,mp->randoms[mp->j_random]);
+}
+
+/*:67*//*68:*/
+#line 1721 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+
+static void mp_binary_m_unif_rand(MP mp,mp_number*ret,mp_number x_orig){
+mp_number y;
+mp_number x,abs_x;
+mp_number u;
+char*r;mpfr_exp_t e;
+new_fraction(y);
+new_number(x);
+new_number(abs_x);
+new_number(u);
+mp_number_clone(&x,x_orig);
+mp_number_clone(&abs_x,x);
+mp_binary_abs(&abs_x);
+mp_next_unif_random(mp,&u);
+mpfr_mul(y.data.num,abs_x.data.num,u.data.num,ROUNDING);
+free_number(u);
+if(mp_number_equal(y,abs_x)){
+mp_number_clone(ret,((math_data*)mp->math)->zero_t);
+}else if(mp_number_greater(x,((math_data*)mp->math)->zero_t)){
+mp_number_clone(ret,y);
+}else{
+mp_number_clone(ret,y);
+mp_number_negate(ret);
+}
+r= mpfr_get_str(NULL,
+&e,
+10,
+0,
+ret->data.num,
+ROUNDING
+);
+mpfr_free_str(r);
+free_number(abs_x);
+free_number(x);
+free_number(y);
+}
+
+
+
+/*:68*//*69:*/
+#line 1764 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+
+static void mp_binary_m_norm_rand(MP mp,mp_number*ret){
+mp_number ab_vs_cd;
+mp_number abs_x;
+mp_number u;
+mp_number r;
+mp_number la,xa;
+new_number(ab_vs_cd);
+new_number(la);
+new_number(xa);
+new_number(abs_x);
+new_number(u);
+new_number(r);
+
+do{
+do{
+mp_number v;
+new_number(v);
+mp_next_random(mp,&v);
+mp_number_substract(&v,((math_data*)mp->math)->fraction_half_t);
+mp_binary_number_take_fraction(mp,&xa,((math_data*)mp->math)->sqrt_8_e_k,v);
+free_number(v);
+mp_next_random(mp,&u);
+mp_number_clone(&abs_x,xa);
+mp_binary_abs(&abs_x);
+}while(!mp_number_less(abs_x,u));
+mp_binary_number_make_fraction(mp,&r,xa,u);
+mp_number_clone(&xa,r);
+mp_binary_m_log(mp,&la,u);
+mp_set_binary_from_substraction(&la,((math_data*)mp->math)->twelve_ln_2_k,la);
+mp_binary_ab_vs_cd(mp,&ab_vs_cd,((math_data*)mp->math)->one_k,la,xa,xa);
+}while(mp_number_less(ab_vs_cd,((math_data*)mp->math)->zero_t));
+mp_number_clone(ret,xa);
+free_number(ab_vs_cd);
+free_number(r);
+free_number(abs_x);
+free_number(la);
+free_number(xa);
+free_number(u);
+}
+
+
+
+/*:69*//*70:*/
+#line 1811 "../../../source/texk/web2c/mplibdir/mpmathbinary.w"
+
+static void mp_binary_ab_vs_cd(MP mp,mp_number*ret,mp_number a_orig,mp_number b_orig,mp_number c_orig,mp_number d_orig){
+mpfr_t a,b,c,d;
+mpfr_t ab,cd;
+
+int cmp= 0;
+(void)mp;
+mpfr_inits2(precision_bits,a,b,c,d,ab,cd,(mpfr_ptr)0);
+mpfr_set(a,(mpfr_ptr)a_orig.data.num,ROUNDING);
+mpfr_set(b,(mpfr_ptr)b_orig.data.num,ROUNDING);
+mpfr_set(c,(mpfr_ptr)c_orig.data.num,ROUNDING);
+mpfr_set(d,(mpfr_ptr)d_orig.data.num,ROUNDING);
+
+mpfr_mul(ab,a,b,ROUNDING);
+mpfr_mul(cd,c,d,ROUNDING);
+
+mpfr_set(ret->data.num,zero,ROUNDING);
+cmp= mpfr_cmp(ab,cd);
+if(cmp){
+if(cmp> 0)
+mpfr_set(ret->data.num,one,ROUNDING);
+else
+mpfr_set(ret->data.num,minusone,ROUNDING);
+}
+mp_check_mpfr_t(mp,ret->data.num);
+mpfr_clears(a,b,c,d,ab,cd,(mpfr_ptr)0);
+return;
+}
+
+/*:70*/

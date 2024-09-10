@@ -121,8 +121,7 @@ public:
   QPoint getAnchor(QString name, AnchorType type);
 
   bool conatinsAnchor(QString name, AnchorType type);
-  bool expanded = false;
-  mp_graphic_object* copyEdgeBody(mp_graphic_object* source);
+  bool expanded = false;  
   bool isAlternate = false;
 
 private:

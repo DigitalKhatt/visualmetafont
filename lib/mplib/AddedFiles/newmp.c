@@ -82,6 +82,10 @@ double static setParameters(MP mp, mp_edge_object* hh) {
 
   double codechar = hh->charcode;
 
+  hh->charlt = mp_get_numeric_internal(mp, "charlt");
+
+  hh->charrt = mp_get_numeric_internal(mp, "charrt");
+
   hh->lefttatweel = mp_get_numeric_internal(mp, "lefttatweel");
 
   hh->xleftanchor = hh->yleftanchor = hh->xrightanchor = hh->yrightanchor = NAN;
@@ -338,8 +342,13 @@ static mp_node getTokenList(MP mp, char* varName) {
   mp_node root = mp_get_symbolic_node(mp);
   mp_node lastNode = root;
 
+  bool firstToken = true;
+
   int i = 0;
-  while (varName[i] != '\0') {
+  while (varName[i] != '\0') {    
+    while (varName[i] == ' ') {
+      i++;
+    }
     int starti = i;
     while (isalpha(varName[i]) || varName[i] == '_') {
       i++;
@@ -349,7 +358,14 @@ static mp_node getTokenList(MP mp, char* varName) {
       mp_sym  varrSymp = mp_id_lookup(mp, varName + starti, i - starti, false);
       mp_node t = mp_get_symbolic_node(mp);
       set_mp_sym_sym(t, varrSymp);
-      mp_name_type(t) = 0;
+      if (firstToken) {
+        mp_name_type(t) = 0;
+        firstToken = false;
+      }
+      else {
+        mp_name_type(t) = mp_token;
+      }
+      
       mp_link(lastNode) = t;
       lastNode = t;
     }
@@ -422,6 +438,21 @@ bool getMPNumVariable(MP mp, char* varName, double* x) {
   return ret;
 }
 
+bool getMPStringVariable(MP mp, const char* varName, char** x) {
+  bool ret = false;
+  mp_node root = getTokenList(mp, varName);
+
+  mp_node varnode = mp_find_variable(mp, root);
+
+  if (varnode && mp_type(varnode) == mp_string_type) {
+    *x = (char*)varnode->data.str->str;
+    ret = true;
+  }
+
+  mp_flush_token_list(mp, root);
+
+  return ret;
+}
 
 void getPointParam(MP mp, int index, double* x, double* y) {
 

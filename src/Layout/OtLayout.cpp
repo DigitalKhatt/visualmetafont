@@ -92,6 +92,7 @@ QDataStream& operator>>(QDataStream& stream, SuraLocation& location) {
 }
 
 #include "hb-ot-name-table.hh"
+#include <qsettings.h>
 
 static hb_blob_t* harfbuzzGetTables(hb_face_t* face, hb_tag_t tag, void* userData)
 {
@@ -231,7 +232,7 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
       parameters.righttatweel = righttatweel;
 
       pglyph = layout->getAlternate(pglyph->charcode, parameters);
-      
+
     }
 
     auto xadvance = hbFont->em_scale_x(pglyph->width);
@@ -1130,9 +1131,9 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub) {
 }*/
 
 #if DIGITALKHATT_WEBLIB
-OtLayout::OtLayout(MP mp, bool extended) : fsmDriver{ *this }, justTable{ this } {
+OtLayout::OtLayout(Font* font, bool extended) : fsmDriver{ *this }, justTable{ this }, font{ font } {
 #else
-OtLayout::OtLayout(MP mp, bool extended, QObject * parent) :QObject(parent), fsmDriver{ *this }, justTable{ this } {
+OtLayout::OtLayout(Font * font, bool extended, QObject * parent) :QObject(parent), fsmDriver{ *this }, justTable{ this }, font{ font } {
 #endif
 
   this->extended = extended;
@@ -1140,16 +1141,14 @@ OtLayout::OtLayout(MP mp, bool extended, QObject * parent) :QObject(parent), fsm
 
   dirty = true;
 
-  this->mp = mp;
-
-  if (strcmp(mp->job_name, "digitalkhatt") == 0) {
-    automedina = new digitalkhatt(this, mp, extended);
+  if (font->fontName() == "digitalkhatt") {
+    automedina = new digitalkhatt(this, font, extended);
   }
-  else if (strcmp(mp->job_name, "oldmadina") == 0) {
-    automedina = new OldMadina(this, mp, extended);
+  else if (font->fontName() == "oldmadina") {
+    automedina = new OldMadina(this, font, extended);
   }
-  else if (strcmp(mp->job_name, "indopak") == 0) {
-    automedina = new IndoPak(this, mp, extended);
+  else if (font->fontName() == "indopak") {
+    automedina = new IndoPak(this, font, extended);
   }
   else {
     throw new std::runtime_error("invalid font");
@@ -1388,6 +1387,16 @@ void OtLayout::loadLookupFile(std::string fileName) {
 
     parametersStream.close();
     delete[] buffer;
+    QSettings settings;
+    for (auto& feature : allFeatures.keys()) {
+      auto& lookups = allFeatures[feature];
+      for (auto lookup : lookups) {
+        bool disabled = settings.value("DisabledLookups/" + lookup->name).toBool();
+        if (disabled) {
+          disabledLookups.insert(lookup);
+        }
+      }
+    }
 
   }
 
@@ -1575,33 +1584,15 @@ QSet<QString> OtLayout::classtoGlyphName(QString className) {
 }
 
 double OtLayout::nuqta() {
+
   if (_nuqta == -1) {
-    _nuqta = getNumericVariable("nuqta");
+    _nuqta = font->getNumericVariable("nuqta");
   }
 
   return _nuqta;
 }
 
-double OtLayout::getNumericVariable(QString name) {
-  double value;
-  QString command("show " + name + ";");
 
-  QByteArray commandBytes = command.toLatin1();
-  mp->history = mp_spotless;
-  int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());
-  mp_run_data* results = mp_rundata(mp);
-  QString ret(results->term_out.data);
-  ret = ret.trimmed();
-  if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-    mp_finish(mp);
-    throw "Could not get " + name + " !\n" + ret;
-  }
-  else {
-    value = ret.mid(3).toDouble();
-  }
-
-  return value;
-}
 
 #ifndef DIGITALKHATT_WEBLIB
 void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableIndex, quint16 markCode, quint16 baseCode, QPoint displacement, Qt::KeyboardModifiers modifiers) {
@@ -2399,12 +2390,11 @@ void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int 
 
 }
 
-QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification,
-  bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level, JustType justType) {
+QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>&lines, bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level, JustType justType) {
 
 
   if (justType == JustType::Features) {
-    return justifyPageUsingFeatures(emScale, lineWidth, pageWidth, lines, justification, newFace, tajweedColor, changeSize, cluster_level);
+    return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, changeSize, cluster_level);
   }
 
   QList<LineLayoutInfo> page;
@@ -2422,12 +2412,12 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int p
   savedprops.reserved1 = 0;
   savedprops.reserved2 = 0;
 
-  auto initializeBuffer = [&](hb_buffer_t* buffer, hb_segment_properties_t* savedprops, QString& line)
+  auto initializeBuffer = [&](hb_buffer_t* buffer, hb_segment_properties_t* savedprops, const LineToJustify& line)
   {
     hb_buffer_clear_contents(buffer);
     hb_buffer_set_segment_properties(buffer, savedprops);
     hb_buffer_set_cluster_level(buffer, cluster_level);
-    auto newLine = line; //QString("\n") + line + QString("\n");
+    auto newLine = line.text; //QString("\n") + line + QString("\n");
     auto lineLength = newLine.length();
     hb_buffer_add_utf16(buffer, newLine.utf16(), lineLength, 0, lineLength);
   };
@@ -2440,6 +2430,8 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int p
     bool overfull = false;
     currentFont = shapefont;
     double fontSize = emScale;
+    auto lineWidth = line.width;
+    auto justification = line.lineJustification;
 
     uint glyph_count;
 
@@ -2555,6 +2547,8 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int p
 
       currentyPos = currentyPos + (InterLineSpacing << OtLayout::SCALEBY);
 
+      lineLayout.type = line.lineType;
+
       page.append(lineLayout);
     }
   }
@@ -2563,7 +2557,17 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int p
   hb_buffer_destroy(buffer);
 
   return page;
+}
 
+QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification,
+  bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level, JustType justType) {
+
+  QVector<LineToJustify> newLines;
+
+  for (auto& line : lines) {
+    newLines.append({ line,lineWidth ,justification,LineType::Line });
+  }
+  return justifyPage(emScale, pageWidth, newLines, newFace, tajweedColor, changeSize, cluster_level, justType);
 }
 
 QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, int nbPages) {
@@ -3624,20 +3628,6 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
   else {
     std::cout << glyph->name.toStdString() << " is not expandable" << std::endl;
     return glyph;
-
-    /*
-    if (parameters.lefttatweel < -0.5) {
-      parameters.lefttatweel = -0.5;
-    }
-    else if (parameters.lefttatweel > 20) {
-      parameters.lefttatweel = 20;
-    }
-    if (parameters.righttatweel < -0.5) {
-      parameters.righttatweel = -0.5;
-    }
-    else if (parameters.righttatweel > 20) {
-      parameters.righttatweel = 20;
-    }*/
   }
 
   cachedGlyphs = !generateNewGlyph ? &tempGlyphs[glyphCode] : &addedGlyphs[glyphCode];
@@ -3653,22 +3643,9 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
   }
 
   //generate glyph
-  automedina->addchar(glyph->name, AlternatelastCode, parameters.lefttatweel, parameters.righttatweel, parameters.leftextratio, parameters.rightextratio,
-    parameters.left_tatweeltension, parameters.right_tatweeltension, "alternatechar", parameters.which_in_baseline);
+  font->generateAlternate(glyph->name, parameters);
 
-  mp_run_data* _mp_results = mp_rundata(automedina->mp);
-
-
-  mp_edge_object* p = _mp_results->edges;
-
-  mp_edge_object* edge = nullptr;
-  while (p) {
-    if (p->charcode == AlternatelastCode) {
-      edge = p;
-      break;
-    }
-    p = p->next;
-  }
+  mp_edge_object* edge = font->getEdge(AlternatelastCode);
 
   if (edge == nullptr) {
     throw "Error";

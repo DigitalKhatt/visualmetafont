@@ -7,24 +7,30 @@
 #define TEX "tex"
 #define TROFF "soelim | eqn -Tps -d$$ | troff -Tps" \
 
-#define command_line_size 256 \
+#define ARGUMENT_IS(a) STREQ(mpost_options[optionid].name,a) 
+#define option_is(a) STREQ(dvitomp_options[optionid].name,a) 
+#define command_line_size 256
+#define max_command_line_size 0xFFFFFFF \
 
 /*2:*/
-#line 25 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 40 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 #include <w2c/config.h> 
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <string.h> 
-#if (HAVE_SYS_TIME_H)
+#if defined (HAVE_SYS_TIME_H)
 #include <sys/time.h> 
 #elif defined (HAVE_SYS_TIMEB_H)
+#line 48 "../../../source/texk/web2c/mplibdir/mpost.w"
 #include <sys/timeb.h> 
 #endif
+#line 50 "../../../source/texk/web2c/mplibdir/mpost.w"
 #include <time.h>  
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h> 
 #endif
+#line 54 "../../../source/texk/web2c/mplibdir/mpost.w"
 #include <mplib.h> 
 #include <mpxout.h> 
 #include <kpathsea/kpathsea.h> 
@@ -38,10 +44,12 @@ static char*job_name= NULL;
 static char*job_area= NULL;
 static int dvitomp_only= 0;
 static int ini_version_test= false;
-/*24:*/
-#line 756 "../../../source/texk/web2c/mplibdir/mpost.w"
+string output_directory;
+static boolean restricted_mode= false;
 
-#define ARGUMENT_IS(a) STREQ (mpost_options[optionid].name, a)
+/*25:*/
+#line 821 "../../../source/texk/web2c/mplibdir/mpost.w"
+
 
 
 static struct option mpost_options[]
@@ -59,6 +67,7 @@ static struct option mpost_options[]
 {"progname",1,0,0},
 {"version",0,0,0},
 {"recorder",0,&recorder_enabled,1},
+{"restricted",0,0,0},
 {"file-line-error-style",0,0,0},
 {"no-file-line-error-style",0,0,0},
 {"file-line-error",0,0,0},
@@ -76,10 +85,9 @@ static struct option mpost_options[]
 
 
 
-/*:24*//*26:*/
-#line 897 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:25*//*27:*/
+#line 970 "../../../source/texk/web2c/mplibdir/mpost.w"
 
-#define option_is(a) STREQ (dvitomp_options[optionid].name, a)
 
 
 static struct option dvitomp_options[]
@@ -92,37 +100,42 @@ static struct option dvitomp_options[]
 
 
 
-/*:26*/
-#line 52 "../../../source/texk/web2c/mplibdir/mpost.w"
-;
+/*:27*/
+#line 70 "../../../source/texk/web2c/mplibdir/mpost.w"
+
 /*7:*/
-#line 262 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 283 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 void recorder_start(char*jobname);
 
-/*:7*//*18:*/
-#line 663 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:7*//*19:*/
+#line 727 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 void internal_set_option(const char*opt);
 
-/*:18*//*20:*/
-#line 706 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:19*//*21:*/
+#line 770 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 void run_set_list(MP mp);
 
-/*:20*//*36:*/
-#line 1289 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:21*//*37:*/
+#line 1376 "../../../source/texk/web2c/mplibdir/mpost.w"
 
+#define DLLPROC dllmpostmain
 #if defined(WIN32) && !defined(__MINGW32__) && defined(DLLPROC)
 extern __declspec(dllexport)int DLLPROC(int argc,char**argv);
+#else
+#line 1381 "../../../source/texk/web2c/mplibdir/mpost.w"
+#undef DLLPROC
 #endif
+#line 1383 "../../../source/texk/web2c/mplibdir/mpost.w"
 
-/*:36*/
-#line 53 "../../../source/texk/web2c/mplibdir/mpost.w"
-;
+/*:37*/
+#line 71 "../../../source/texk/web2c/mplibdir/mpost.w"
+
 
 /*:2*//*3:*/
-#line 59 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 77 "../../../source/texk/web2c/mplibdir/mpost.w"
 
  /*@only@*/ /*@out@*/ static void*mpost_xmalloc(size_t bytes){
 void*w= malloc(bytes);
@@ -160,7 +173,7 @@ return mpost_xstrdup(res+idx+1);
 
 
 /*:3*//*4:*/
-#line 95 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 113 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 #ifdef WIN32
 static int
@@ -169,7 +182,8 @@ Isspace(char c)
 return(c==' '||c=='\t');
 }
 #endif
-static void mpost_run_editor(MP mp,char*fname,int fline){
+#line 121 "../../../source/texk/web2c/mplibdir/mpost.w"
+ static void mpost_run_editor(MP mp,char*fname,int fline){
 char*temp,*command,*fullcmd,*edit_value;
 char c;
 boolean sdone,ddone;
@@ -179,6 +193,10 @@ char*fp,*ffp,*env,editorname[256],buffer[256];
 int cnt= 0;
 int dontchange= 0;
 #endif
+#line 131 "../../../source/texk/web2c/mplibdir/mpost.w"
+
+if(restricted_mode)
+return;
 
 sdone= ddone= false;
 edit_value= kpse_var_value("MPEDIT");
@@ -201,6 +219,7 @@ if((isalpha(*edit_value)&&*(edit_value+1)==':'
 )
 dontchange= 1;
 #endif
+#line 156 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 while((c= *edit_value++)!=(char)0){
 if(c=='%'){
@@ -259,8 +278,10 @@ temp= command;
 }
 }
 #else
+#line 214 "../../../source/texk/web2c/mplibdir/mpost.w"
 *temp++= c;
 #endif
+#line 216 "../../../source/texk/web2c/mplibdir/mpost.w"
 }
 }
 *temp= '\0';
@@ -287,7 +308,8 @@ strcat(fullcmd,"\"");
 strcat(fullcmd,command);
 }else
 #endif
-fullcmd= command;
+#line 242 "../../../source/texk/web2c/mplibdir/mpost.w"
+ fullcmd= command;
 
 if(system(fullcmd)!=0)
 fprintf(stderr,"! Trouble executing `%s'.\n",command);
@@ -295,7 +317,7 @@ exit(EXIT_FAILURE);
 }
 
 /*:4*//*6:*/
-#line 233 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 254 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 static string normalize_quotes(const char*name,const char*mesg){
 boolean quoted= false;
@@ -324,7 +346,7 @@ return ret;
 }
 
 /*:6*//*8:*/
-#line 265 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 286 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 void recorder_start(char*jobname){
 char cwd[1024];
@@ -347,7 +369,8 @@ else if(IS_KANJI(p))
 p++;
 }
 #endif
-fprintf(recorder_file,"PWD %s\n",cwd);
+#line 308 "../../../source/texk/web2c/mplibdir/mpost.w"
+ fprintf(recorder_file,"PWD %s\n",cwd);
 }else{
 fprintf(recorder_file,"PWD <unknown>\n");
 }
@@ -355,7 +378,7 @@ fprintf(recorder_file,"PWD <unknown>\n");
 
 
 /*:8*//*9:*/
-#line 294 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 315 "../../../source/texk/web2c/mplibdir/mpost.w"
 
  /*@null@*/ static char*makempx_find_file(MPX mpx,const char*nam,
 const char*mode,int ftype){
@@ -383,14 +406,19 @@ return kpse_find_file(nam,fmt,req);
 }
 
 /*:9*//*10:*/
-#line 328 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 349 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 #ifndef MPXCOMMAND
 #define MPXCOMMAND "makempx"
 #endif
-static int mpost_run_make_mpx(MP mp,char*mpname,char*mpxname){
+#line 353 "../../../source/texk/web2c/mplibdir/mpost.w"
+ static int mpost_run_make_mpx(MP mp,char*mpname,char*mpxname){
 int ret;
 char*cnf_cmd= kpse_var_value("MPXCOMMAND");
+if(restricted_mode){
+
+return 0;
+}
 if(cnf_cmd!=NULL&&(strcmp(cnf_cmd,"0")==0)){
 
 ret= 0;
@@ -429,13 +457,16 @@ if(source_stat.st_mtim.tv_sec<target_stat.st_mtim.tv_sec||
 source_stat.st_mtim.tv_nsec<target_stat.st_mtim.tv_nsec))
 nothingtodo= 1;
 #else
-if(source_stat.st_mtime<target_stat.st_mtime)
+#line 398 "../../../source/texk/web2c/mplibdir/mpost.w"
+ if(source_stat.st_mtime<target_stat.st_mtime)
 nothingtodo= 1;
 #endif
+#line 401 "../../../source/texk/web2c/mplibdir/mpost.w"
 }
 if(nothingtodo==1)
 return 1;
 #endif
+#line 405 "../../../source/texk/web2c/mplibdir/mpost.w"
 }
 }
 qmpxname= normalize_quotes(mpxname,"mpxname");
@@ -571,7 +602,7 @@ return ret;
 
 
 /*:10*//*12:*/
-#line 520 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 545 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 static int get_random_seed(void){
 int ret= 0;
@@ -580,29 +611,65 @@ struct timeval tv;
 gettimeofday(&tv,NULL);
 ret= (int)(tv.tv_usec+1000000*tv.tv_usec);
 #elif defined (HAVE_FTIME)
+#line 553 "../../../source/texk/web2c/mplibdir/mpost.w"
 struct timeb tb;
 ftime(&tb);
 ret= (tb.millitm+1000*tb.time);
 #else
-time_t clock= time((time_t*)NULL);
+#line 557 "../../../source/texk/web2c/mplibdir/mpost.w"
+ time_t clock= time((time_t*)NULL);
 struct tm*tmptr= localtime(&clock);
 if(tmptr!=NULL)
 ret= (tmptr->tm_sec+60*(tmptr->tm_min+60*tmptr->tm_hour));
 #endif
-return ret;
+#line 562 "../../../source/texk/web2c/mplibdir/mpost.w"
+ return ret;
 }
 
 /*:12*//*14:*/
-#line 543 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 571 "../../../source/texk/web2c/mplibdir/mpost.w"
+
+static char*mpost_find_in_output_directory(const char*s,const char*fmode)
+{
+if(output_directory&&!kpse_absolute_p(s,false)){
+char*ftemp= concat3(output_directory,DIR_SEP_STRING,s);
+return ftemp;
+}
+return NULL;
+}
+
+
+
+/*:14*//*15:*/
+#line 583 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 static char*mpost_find_file(MP mp,const char*fname,const char*fmode,int ftype){
 size_t l;
 char*s;
+char*ofname;
 (void)mp;
 s= NULL;
-if(fname==NULL||(fmode[0]=='r'&&!kpse_in_name_ok(fname))||
-(fmode[0]=='w'&&!kpse_out_name_ok(fname)))
+ofname= NULL;
+
+
+if(fname==NULL||(fmode[0]=='r'&&!kpse_in_name_ok(fname)))
 return NULL;
+
+
+if(fmode[0]=='w'){
+if(output_directory){
+ofname= mpost_find_in_output_directory(fname,fmode);
+if(ofname==NULL||(fmode[0]=='w'&&!kpse_out_name_ok(ofname))){
+mpost_xfree(ofname);
+return NULL;
+}
+}else{
+if(!kpse_out_name_ok(fname))
+return NULL;
+}
+}
+
+
 if(fmode[0]=='r'){
 if((job_area!=NULL)&&
 (ftype>=mp_filetype_text||ftype==mp_filetype_program)){
@@ -620,7 +687,6 @@ s= kpse_find_file(f,kpse_mf_format,0);
 struct stat source_stat,target_stat;
 char*mpname= mpost_xstrdup(f);
 *(mpname+strlen(mpname)-1)= '\0';
-
 if((stat(f,&target_stat)>=0)&&
 (stat(mpname,&source_stat)>=0)){
 #if HAVE_ST_MTIM
@@ -629,12 +695,15 @@ if(source_stat.st_mtim.tv_sec<=target_stat.st_mtim.tv_sec||
 source_stat.st_mtim.tv_nsec<=target_stat.st_mtim.tv_nsec))
 s= mpost_xstrdup(f);
 #else
-if(source_stat.st_mtime<=target_stat.st_mtime)
+#line 636 "../../../source/texk/web2c/mplibdir/mpost.w"
+ if(source_stat.st_mtime<=target_stat.st_mtime)
 s= mpost_xstrdup(f);
 #endif
+#line 639 "../../../source/texk/web2c/mplibdir/mpost.w"
 }
 mpost_xfree(mpname);
 #endif
+#line 642 "../../../source/texk/web2c/mplibdir/mpost.w"
 }else{
 s= kpse_find_file(f,kpse_mp_format,0);
 }
@@ -674,14 +743,20 @@ break;
 }
 }
 }else{
-if(fname!=NULL)
+
+if(ofname){
+s= mpost_xstrdup(ofname);
+mpost_xfree(ofname);
+}else{
 s= mpost_xstrdup(fname);
+}
+
 }
 return s;
 }
 
-/*:14*//*16:*/
-#line 638 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:15*//*17:*/
+#line 702 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 typedef struct set_list_item{
 int isstring;
@@ -690,13 +765,13 @@ char*value;
 struct set_list_item*next;
 }set_list_item;
 
-/*:16*//*17:*/
-#line 647 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:17*//*18:*/
+#line 711 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 struct set_list_item*set_list= NULL;
 
-/*:17*//*19:*/
-#line 666 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:18*//*20:*/
+#line 730 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 void internal_set_option(const char*opt){
 struct set_list_item*itm;
@@ -733,8 +808,8 @@ itm->next= NULL;
 }
 }
 
-/*:19*//*21:*/
-#line 709 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:20*//*22:*/
+#line 773 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 void run_set_list(MP mp){
 struct set_list_item*itm;
@@ -746,8 +821,9 @@ itm= itm->next;
 }
 
 
-/*:21*//*22:*/
-#line 720 "../../../source/texk/web2c/mplibdir/mpost.w"
+
+/*:22*//*23:*/
+#line 785 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 static void*mpost_open_file(MP mp,const char*fname,const char*fmode,int ftype){
 char realmode[3];
@@ -779,8 +855,8 @@ return ret;
 return NULL;
 }
 
-/*:22*//*32:*/
-#line 1073 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:23*//*33:*/
+#line 1159 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 static int setup_var(int def,const char*var_name,boolean nokpse){
 if(!nokpse){
@@ -796,8 +872,8 @@ return conf_val;
 return def;
 }
 
-/*:32*//*37:*/
-#line 1296 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:33*//*38:*/
+#line 1386 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 static char*cleaned_invocation_name(char*arg)
 {
@@ -811,11 +887,14 @@ if(dot!=NULL){
 return ret;
 }
 int
-#if defined(WIN32) && !defined(__MINGW32__) && defined(DLLPROC)
+#if defined(DLLPROC)
 DLLPROC(int argc,char**argv)
 #else
-main(int argc,char**argv)
+#line 1402 "../../../source/texk/web2c/mplibdir/mpost.w"
+ main(int argc,char**argv)
 #endif
+#line 1404 "../../../source/texk/web2c/mplibdir/mpost.w"
+
 {
 int k;
 int history;
@@ -827,12 +906,19 @@ options->ini_version= (int)false;
 options->print_found_names= (int)true;
 {
 const char*base= cleaned_invocation_name(argv[0]);
+if(FILESTRCASEEQ(base,"rmpost")){
+base++;
+restricted_mode= true;
+}else if(FILESTRCASEEQ(base,"r-mpost")){
+base+= 2;
+restricted_mode= true;
+}
 if(FILESTRCASEEQ(base,"dvitomp"))
 dvitomp_only= 1;
 }
 if(dvitomp_only){
-/*27:*/
-#line 912 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*28:*/
+#line 984 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 {
 int g;
@@ -853,8 +939,8 @@ kpathsea_debug|= (unsigned)atoi(optarg);
 }else if(option_is("progname")){
 user_progname= optarg;
 }else if(option_is("help")){
-/*29:*/
-#line 987 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*30:*/
+#line 1061 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 {
 char*s= mp_metapost_version();
@@ -881,12 +967,12 @@ fprintf(stdout,
 exit(EXIT_SUCCESS);
 }
 
-/*:29*/
-#line 932 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:30*/
+#line 1004 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
 }else if(option_is("version")){
-/*30:*/
-#line 1014 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*31:*/
+#line 1088 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 {
 char*s= mp_metapost_version();
@@ -903,7 +989,8 @@ fprintf(stdout,
 "For more information about these matters, see the file\n"
 "COPYING.LESSER or <http://gnu.org/licenses/lgpl.html>.\n"
 "Original author of MetaPost: John Hobby.\n"
-"Author of the CWEB MetaPost: Taco Hoekwater.\n\n"
+"Author of the CWEB MetaPost: Taco Hoekwater.\n"
+"Current maintainer of MetaPost: Luigi Scarso.\n\n"
 );
 mpost_xfree(s);
 if(!dvitomp_only){
@@ -912,19 +999,19 @@ mp_show_library_versions();
 exit(EXIT_SUCCESS);
 }
 
-/*:30*/
-#line 934 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:31*/
+#line 1006 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
 }
 }
 }
 
-/*:27*/
-#line 1329 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:28*/
+#line 1427 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
 }else{
-/*25:*/
-#line 794 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*26:*/
+#line 859 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 {
 int g;
@@ -984,13 +1071,20 @@ internal_set_option("numbersystem=\"decimal\"");
 }else if(STREQ(optarg,"binary")){
 options->math_mode= mp_math_binary_mode;
 internal_set_option("numbersystem=\"binary\"");
+}else if(STREQ(optarg,"interval")){
+options->math_mode= mp_math_interval_mode;
+internal_set_option("numbersystem=\"interval\"");
 }else{
 fprintf(stdout,"Ignoring unknown argument `%s' to --numbersystem\n",optarg);
 }
+}else if(ARGUMENT_IS("restricted")){
+restricted_mode= true;
+mpost_tex_program= NULL;
 }else if(ARGUMENT_IS("troff")||
 ARGUMENT_IS("T")){
 options->troff_mode= (int)true;
 }else if(ARGUMENT_IS("tex")){
+if(!restricted_mode)
 mpost_tex_program= optarg;
 }else if(ARGUMENT_IS("file-line-error")||
 ARGUMENT_IS("file-line-error-style")){
@@ -1000,8 +1094,8 @@ ARGUMENT_IS("no-file-line-error-style")){
 options->file_line_error_style= false;
 }else if(ARGUMENT_IS("help")){
 if(dvitomp_only){
-/*29:*/
-#line 987 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*30:*/
+#line 1061 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 {
 char*s= mp_metapost_version();
@@ -1028,12 +1122,12 @@ fprintf(stdout,
 exit(EXIT_SUCCESS);
 }
 
-/*:29*/
-#line 869 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:30*/
+#line 941 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
 }else{
-/*28:*/
-#line 940 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*29:*/
+#line 1012 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 {
 char*s= mp_metapost_version();
@@ -1057,7 +1151,7 @@ fprintf(stdout,
 "  -ini                      be inimpost, for dumping mem files\n"
 "  -interaction=STRING       set interaction mode (STRING=batchmode/nonstopmode/\n"
 "                            scrollmode/errorstopmode)\n"
-"  -numbersystem=STRING      set number system mode (STRING=scaled/double/binary/decimal)\n"
+"  -numbersystem=STRING      set number system mode (STRING=scaled/double/binary/interval/decimal)\n"
 "  -jobname=STRING           set the job name to STRING\n"
 "  -progname=STRING          set program (and mem) name to STRING\n"
 "  -tex=TEXPROGRAM           use TEXPROGRAM for text labels\n"
@@ -1069,7 +1163,9 @@ fprintf(stdout,
 "                            the bits of NUMBER\n"
 "  -mem=MEMNAME or &MEMNAME  use MEMNAME instead of program name or a %%& line\n"
 "  -recorder                 enable filename recorder\n"
+"  -restricted               be secure: disable tex, makempx and editor commands\n"
 "  -troff                    set prologues:=1 and assume TEXPROGRAM is really troff\n"
+"  -T                        same as -troff\n"
 "  -s INTERNAL=\"STRING\"      set internal INTERNAL to the string value STRING\n"
 "  -s INTERNAL=NUMBER        set internal INTERNAL to the integer value NUMBER\n"
 "  -help                     display this help and exit\n"
@@ -1080,13 +1176,13 @@ fprintf(stdout,
 exit(EXIT_SUCCESS);
 }
 
-/*:28*/
-#line 871 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:29*/
+#line 943 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
 }
 }else if(ARGUMENT_IS("version")){
-/*30:*/
-#line 1014 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*31:*/
+#line 1088 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 {
 char*s= mp_metapost_version();
@@ -1103,7 +1199,8 @@ fprintf(stdout,
 "For more information about these matters, see the file\n"
 "COPYING.LESSER or <http://gnu.org/licenses/lgpl.html>.\n"
 "Original author of MetaPost: John Hobby.\n"
-"Author of the CWEB MetaPost: Taco Hoekwater.\n\n"
+"Author of the CWEB MetaPost: Taco Hoekwater.\n"
+"Current maintainer of MetaPost: Luigi Scarso.\n\n"
 );
 mpost_xfree(s);
 if(!dvitomp_only){
@@ -1112,8 +1209,8 @@ mp_show_library_versions();
 exit(EXIT_SUCCESS);
 }
 
-/*:30*/
-#line 874 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:31*/
+#line 946 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
 }else if(ARGUMENT_IS("s")){
 if(strchr(optarg,'=')==NULL){
@@ -1124,11 +1221,12 @@ internal_set_option(optarg);
 }
 }else if(ARGUMENT_IS("halt-on-error")){
 options->halt_on_error= true;
+}else if(ARGUMENT_IS("output-directory")){
+output_directory= optarg;
 }else if(ARGUMENT_IS("8bit")||
 ARGUMENT_IS("parse-first-line")){
 
 }else if(ARGUMENT_IS("translate-file")||
-ARGUMENT_IS("output-directory")||
 ARGUMENT_IS("no-parse-first-line")){
 fprintf(stdout,"warning: %s: unimplemented option %s\n",argv[0],argv[optind]);
 }
@@ -1136,8 +1234,8 @@ fprintf(stdout,"warning: %s: unimplemented option %s\n",argv[0],argv[optind]);
 options->ini_version= (int)ini_version_test;
 }
 
-/*:25*/
-#line 1331 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:26*/
+#line 1429 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
 }
 if(dvitomp_only){
@@ -1151,8 +1249,8 @@ mpx= argv[optind++];
 }
 }
 if(dvi==NULL){
-/*29:*/
-#line 987 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*30:*/
+#line 1061 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 {
 char*s= mp_metapost_version();
@@ -1179,8 +1277,8 @@ fprintf(stdout,
 exit(EXIT_SUCCESS);
 }
 
-/*:29*/
-#line 1344 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:30*/
+#line 1442 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
 }else{
 if(!nokpse)
@@ -1195,6 +1293,10 @@ if(!nokpse){
 kpse_set_program_enabled(kpse_mem_format,MAKE_TEX_FMT_BY_DEFAULT,
 kpse_src_compile);
 kpse_set_program_name(argv[0],user_progname);
+if(FILESTRCASEEQ(kpse_program_name,"rmpost"))
+kpse_program_name++;
+else if(FILESTRCASEEQ(kpse_program_name,"r-mpost"))
+kpse_program_name+= 2;
 }
  /*@=nullpass@*/ 
 if(putenv(xstrdup("engine=metapost")))
@@ -1202,8 +1304,8 @@ fprintf(stdout,"warning: could not set up $engine\n");
 options->error_line= setup_var(79,"error_line",nokpse);
 options->half_error_line= setup_var(50,"half_error_line",nokpse);
 options->max_print_line= setup_var(100,"max_print_line",nokpse);
-/*33:*/
-#line 1088 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*34:*/
+#line 1174 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 {
 char*mpversion= mp_metapost_version();
@@ -1226,24 +1328,34 @@ strcat(options->banner,kpsebanner_stop);
 mpost_xfree(mpversion);
 }
 
-/*:33*/
-#line 1365 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:34*/
+#line 1467 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
-/*31:*/
-#line 1045 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*32:*/
+#line 1121 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 {
 mpost_xfree(options->command_line);
 options->command_line= mpost_xmalloc(command_line_size);
 strcpy(options->command_line,"");
 if(optind<argc){
+int optind_aux= optind;
+size_t buflen= 0;
+for(;optind_aux<argc;optind_aux++){
+buflen+= (strlen(argv[optind_aux])+1);
+}
+
+if(buflen> max_command_line_size){
+fprintf(stderr,"length of command line too long!\n");
+exit(EXIT_FAILURE);
+}
+mpost_xfree(options->command_line);
+options->command_line= mpost_xmalloc(buflen);
 k= 0;
 for(;optind<argc;optind++){
 char*c= argv[optind];
 while(*c!='\0'){
-if(k<(command_line_size-1)){
 options->command_line[k++]= *c;
-}
 c++;
 }
 options->command_line[k++]= ' ';
@@ -1258,11 +1370,11 @@ options->command_line[k]= '\0';
 }
 }
 
-/*:31*/
-#line 1366 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:32*/
+#line 1468 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
-/*34:*/
-#line 1117 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*35:*/
+#line 1203 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 {
 char*m= NULL;
@@ -1354,11 +1466,11 @@ if(kpse_program_name!=NULL)
 options->mem_name= mpost_xstrdup(kpse_program_name);
 
 
-/*:34*/
-#line 1367 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:35*/
+#line 1469 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
-/*35:*/
-#line 1213 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*36:*/
+#line 1299 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 {
 char*tmp_job= NULL;
@@ -1432,40 +1544,41 @@ job_name= tmp_job;
 }
 options->job_name= job_name;
 
-/*:35*/
-#line 1368 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:36*/
+#line 1470 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
 /*5:*/
-#line 229 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 250 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 options->run_editor= mpost_run_editor;
 
 /*:5*//*11:*/
-#line 515 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 540 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 if(!nokpse)
 options->run_make_mpx= mpost_run_make_mpx;
 
 
 /*:11*//*13:*/
-#line 540 "../../../source/texk/web2c/mplibdir/mpost.w"
+#line 565 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 options->random_seed= get_random_seed();
 
-/*:13*//*15:*/
-#line 629 "../../../source/texk/web2c/mplibdir/mpost.w"
+
+/*:13*//*16:*/
+#line 693 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 if(!nokpse)
 options->find_file= mpost_find_file;
 
-/*:15*//*23:*/
-#line 751 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:16*//*24:*/
+#line 816 "../../../source/texk/web2c/mplibdir/mpost.w"
 
 if(!nokpse)
 options->open_file= mpost_open_file;
 
-/*:23*/
-#line 1369 "../../../source/texk/web2c/mplibdir/mpost.w"
+/*:24*/
+#line 1471 "../../../source/texk/web2c/mplibdir/mpost.w"
 ;
 mp= mp_initialize(options);
 mpost_xfree(options->command_line);
@@ -1476,13 +1589,18 @@ free(options);
 if(mp==NULL)
 exit(EXIT_FAILURE);
 history= mp_status(mp);
-if(history!=0)
+if(history!=0&&history!=mp_warning_issued)
 exit(history);
 if(set_list!=NULL){
 run_set_list(mp);
 }
 history= mp_run(mp);
 (void)mp_finish(mp);
+if(history!=0&&history!=mp_warning_issued)
 exit(history);
+else
+exit(0);
+
 }
-/*:37*/
+
+/*:38*/

@@ -1,5 +1,5 @@
 /*1:*/
-// #line 19 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 22 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 #include <w2c/config.h> 
 #include <stdio.h> 
@@ -30,13 +30,13 @@
 #define p_over_v_threshold 0x80000
 #define equation_threshold 0.001
 #define tfm_warn_threshold 0.0625
-#define epsilon "1E-52"
+#define epsilon pow(2.0,-173.0) 
 #define epsilonf pow(2.0,-52.0) 
 #define EL_GORDO "1E1000000"
 #define warning_limit "1E1000000"
 #define DECPRECISION_DEFAULT 34 \
 
-#define odd(A) ((A) %2==1)  \
+#define odd(A) (abs(A) %2==1)  \
 
 #define halfp(A) (integer) ((unsigned) (A) >>1)  \
 
@@ -58,19 +58,20 @@
 #define PRECALC_FACTORIALS_CACHESIZE 50 \
 
 
-// #line 27 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 30 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 
 /*:1*//*2:*/
-// #line 29 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 32 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 /*5:*/
-// #line 53 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 56 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 #define DEBUG 0
 static void mp_decimal_scan_fractional_token(MP mp,int n);
 static void mp_decimal_scan_numeric_token(MP mp,int n);
 static void mp_ab_vs_cd(MP mp,mp_number*ret,mp_number a,mp_number b,mp_number c,mp_number d);
+
 static void mp_decimal_crossing_point(MP mp,mp_number*ret,mp_number a,mp_number b,mp_number c);
 static void mp_decimal_number_modulo(mp_number*a,mp_number b);
 static void mp_decimal_print_number(MP mp,mp_number n);
@@ -83,6 +84,8 @@ static void mp_number_angle_to_scaled(mp_number*A);
 static void mp_number_fraction_to_scaled(mp_number*A);
 static void mp_number_scaled_to_fraction(mp_number*A);
 static void mp_number_scaled_to_angle(mp_number*A);
+static void mp_decimal_m_unif_rand(MP mp,mp_number*ret,mp_number x_orig);
+static void mp_decimal_m_norm_rand(MP mp,mp_number*ret);
 static void mp_decimal_m_exp(MP mp,mp_number*ret,mp_number x_orig);
 static void mp_decimal_m_log(MP mp,mp_number*ret,mp_number x_orig);
 static void mp_decimal_pyth_sub(MP mp,mp_number*r,mp_number a,mp_number b);
@@ -137,7 +140,7 @@ static int decNumber_check(decNumber*dec,decContext*context);
 static char*mp_decnumber_tostring(decNumber*n);
 
 /*:5*//*10:*/
-// #line 345 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 355 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 static decNumber zero;
 static decNumber one;
@@ -154,28 +157,28 @@ static decNumber epsilon_decNumber;
 static decNumber EL_GORDO_decNumber;
 static decNumber**factorials= NULL;
 static int last_cached_factorial= 0;
-
+static boolean initialized= false;
 /*:10*//*25:*/
-// #line 933 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 948 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_make_fraction(MP mp,decNumber*ret,decNumber*p,decNumber*q);
 
 /*:25*//*27:*/
-// #line 955 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 970 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_take_fraction(MP mp,decNumber*ret,decNumber*p,decNumber*q);
 
 /*:27*//*31:*/
-// #line 996 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1011 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 static void mp_wrapup_numeric_token(MP mp,unsigned char*start,unsigned char*stop);
 
 /*:31*/
-// #line 30 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 33 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 ;
 
 /*:2*//*6:*/
-// #line 126 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 132 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 int decNumber_check(decNumber*dec,decContext*context)
 {
@@ -220,7 +223,7 @@ mp->arith_error= decNumber_check(dec,context);
 
 
 /*:6*//*7:*/
-// #line 174 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 180 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 static decContext set;
 static decContext limitedset;
@@ -265,9 +268,8 @@ free(buffer);
 return 0.0;
 }
 }
-
 /*:7*//*8:*/
-// #line 237 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 247 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 static void decNumberAtan(decNumber*result,decNumber*x_orig,decContext*set)
 {
@@ -349,7 +351,7 @@ decNumberMinus(result,result,set);
 }
 
 /*:8*//*11:*/
-// #line 362 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 372 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void*mp_initialize_decimal_math(MP mp){
 math_data*math= (math_data*)mp_xmalloc(mp,1,sizeof(math_data));
@@ -362,6 +364,8 @@ limitedset.emax= 999999;
 limitedset.emin= -999999;
 set.digits= DECPRECISION_DEFAULT;
 limitedset.digits= DECPRECISION_DEFAULT;
+if(!initialized){
+initialized= true;
 decNumberFromInt32(&one,1);
 decNumberFromInt32(&minusone,-1);
 decNumberFromInt32(&zero,0);
@@ -373,11 +377,12 @@ decNumberFromInt32(&fraction_one_decNumber,fraction_one);
 decNumberFromInt32(&fraction_one_plus_decNumber,(fraction_one+1));
 decNumberFromInt32(&angle_multiplier_decNumber,angle_multiplier);
 decNumberFromString(&PI_decNumber,PI_STRING,&set);
-decNumberFromString(&epsilon_decNumber,epsilon,&set);
+decNumberFromDouble(&epsilon_decNumber,epsilon);
 decNumberFromString(&EL_GORDO_decNumber,EL_GORDO,&set);
 factorials= (decNumber**)mp_xmalloc(mp,PRECALC_FACTORIALS_CACHESIZE,sizeof(decNumber*));
 factorials[0]= (decNumber*)mp_xmalloc(mp,1,sizeof(decNumber));
 decNumberCopy(factorials[0],&one);
+}
 
 
 math->allocate= mp_new_number;
@@ -387,7 +392,7 @@ decNumberFromInt32(math->precision_default.data.num,DECPRECISION_DEFAULT);
 mp_new_number(mp,&math->precision_max,mp_scaled_type);
 decNumberFromInt32(math->precision_max.data.num,DECNUMDIGITS);
 mp_new_number(mp,&math->precision_min,mp_scaled_type);
-decNumberFromInt32(math->precision_min.data.num,1);
+decNumberFromInt32(math->precision_min.data.num,2);
 
 mp_new_number(mp,&math->epsilon_t,mp_scaled_type);
 decNumberCopy(math->epsilon_t.data.num,&epsilon_decNumber);
@@ -432,7 +437,7 @@ mp_new_number(mp,&math->one_eighty_deg_t,mp_angle_type);
 decNumberFromInt32(math->one_eighty_deg_t.data.num,180*angle_multiplier);
 
 mp_new_number(mp,&math->one_k,mp_scaled_type);
-decNumberFromInt32(math->one_k.data.num,1024);
+decNumberFromDouble(math->one_k.data.num,1.0/64);
 mp_new_number(mp,&math->sqrt_8_e_k,mp_scaled_type);
 {
 decNumberFromDouble(math->sqrt_8_e_k.data.num,112428.82793/65536.0);
@@ -528,6 +533,8 @@ math->velocity= mp_decimal_velocity;
 math->n_arg= mp_decimal_n_arg;
 math->m_log= mp_decimal_m_log;
 math->m_exp= mp_decimal_m_exp;
+math->m_unif_rand= mp_decimal_m_unif_rand;
+math->m_norm_rand= mp_decimal_m_norm_rand;
 math->pyth_add= mp_decimal_pyth_add;
 math->pyth_sub= mp_decimal_pyth_sub;
 math->fraction_to_scaled= mp_number_fraction_to_scaled;
@@ -558,7 +565,6 @@ limitedset.digits= i;
 }
 
 void mp_free_decimal_math(MP mp){
-int i;
 free_number(((math_data*)mp->math)->three_sixty_deg_t);
 free_number(((math_data*)mp->math)->one_eighty_deg_t);
 free_number(((math_data*)mp->math)->fraction_one_t);
@@ -584,15 +590,16 @@ free_number(((math_data*)mp->math)->near_zero_angle_t);
 free_number(((math_data*)mp->math)->p_over_v_threshold_t);
 free_number(((math_data*)mp->math)->equation_threshold_t);
 free_number(((math_data*)mp->math)->tfm_warn_threshold_t);
-for(i= 0;i<=last_cached_factorial;i++){
-free(factorials[i]);
-}
-free(factorials);
+
+
+
+
+
 free(mp->math);
 }
 
 /*:11*//*13:*/
-// #line 605 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 620 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_new_number(MP mp,mp_number*n,mp_number_type t){
 (void)mp;
@@ -602,7 +609,7 @@ n->type= t;
 }
 
 /*:13*//*14:*/
-// #line 615 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 630 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_free_number(MP mp,mp_number*n){
 (void)mp;
@@ -612,7 +619,7 @@ n->type= mp_nan_type;
 }
 
 /*:14*//*15:*/
-// #line 625 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 640 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_set_decimal_from_int(mp_number*A,int B){
 decNumberFromInt32(A->data.num,B);
@@ -732,7 +739,7 @@ decNumberMultiply(A->data.num,A->data.num,&angle_multiplier_decNumber,&set);
 
 
 /*:15*//*17:*/
-// #line 749 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 764 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 int mp_number_to_scaled(mp_number A){
 int32_t result;
@@ -745,7 +752,7 @@ return result;
 }
 
 /*:17*//*18:*/
-// #line 764 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 779 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 int mp_number_to_int(mp_number A){
 int32_t result;
@@ -766,9 +773,9 @@ result= decNumberToUInt32(A.data.num,&set);
 if(set.status==DEC_Invalid_operation){
 set.status= 0;
 
-return 0;
+return mp_false_code;
 }else{
-return(result?1:0);
+return result;
 }
 }
 double mp_number_to_double(mp_number A){
@@ -812,7 +819,7 @@ return!decNumberIsZero(&res);
 }
 
 /*:18*//*21:*/
-// #line 851 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 866 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 char*mp_decnumber_tostring(decNumber*n){
 decNumber corrected;
@@ -829,7 +836,7 @@ return mp_decnumber_tostring(n.data.num);
 
 
 /*:21*//*22:*/
-// #line 866 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 881 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_print_number(MP mp,mp_number n){
 char*str= mp_decimal_number_tostring(mp,n);
@@ -841,14 +848,14 @@ free(str);
 
 
 /*:22*//*23:*/
-// #line 880 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 895 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_slow_add(MP mp,mp_number*ret,mp_number A,mp_number B){
 decNumberAdd(ret->data.num,A.data.num,B.data.num,&set);
 }
 
 /*:23*//*24:*/
-// #line 923 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 938 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_make_fraction(MP mp,decNumber*ret,decNumber*p,decNumber*q){
 decNumberDivide(ret,p,q,&set);
@@ -860,7 +867,7 @@ mp_decimal_make_fraction(mp,ret->data.num,p.data.num,q.data.num);
 }
 
 /*:24*//*26:*/
-// #line 946 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 961 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_take_fraction(MP mp,decNumber*ret,decNumber*p,decNumber*q){
 decNumberMultiply(ret,p,q,&set);
@@ -871,7 +878,7 @@ mp_decimal_take_fraction(mp,ret->data.num,p.data.num,q.data.num);
 }
 
 /*:26*//*28:*/
-// #line 968 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 983 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_number_take_scaled(MP mp,mp_number*ret,mp_number p_orig,mp_number q_orig){
 decNumberMultiply(ret->data.num,p_orig.data.num,q_orig.data.num,&set);
@@ -879,7 +886,7 @@ decNumberMultiply(ret->data.num,p_orig.data.num,q_orig.data.num,&set);
 
 
 /*:28*//*29:*/
-// #line 980 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 995 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_number_make_scaled(MP mp,mp_number*ret,mp_number p_orig,mp_number q_orig){
 decNumberDivide(ret->data.num,p_orig.data.num,q_orig.data.num,&set);
@@ -887,7 +894,7 @@ mp_check_decNumber(mp,ret->data.num,&set);
 }
 
 /*:29*//*32:*/
-// #line 1002 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1017 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_wrapup_numeric_token(MP mp,unsigned char*start,unsigned char*stop){
 decNumber result;
@@ -934,7 +941,7 @@ set_cur_cmd((mp_variable_type)mp_numeric_token);
 }
 
 /*:32*//*33:*/
-// #line 1047 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1062 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 static void find_exponent(MP mp){
 if(mp->buffer[mp->cur_input.loc_field]=='e'||
@@ -968,7 +975,7 @@ mp_wrapup_numeric_token(mp,start,stop);
 
 
 /*:33*//*34:*/
-// #line 1081 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1096 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_scan_numeric_token(MP mp,int n){
 unsigned char*start= &mp->buffer[mp->cur_input.loc_field-1];
@@ -989,7 +996,7 @@ mp_wrapup_numeric_token(mp,start,stop);
 }
 
 /*:34*//*36:*/
-// #line 1134 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1149 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_velocity(MP mp,mp_number*ret,mp_number st,mp_number ct,mp_number sf,
 mp_number cf,mp_number t){
@@ -1051,23 +1058,34 @@ mp_number_to_double(st),mp_number_to_double(ct),
 mp_number_to_double(sf),mp_number_to_double(cf),
 mp_number_to_double(t));
 #endif
-mp_check_decNumber(mp,ret->data.num,&set);
+#line 1210 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+ mp_check_decNumber(mp,ret->data.num,&set);
 }
 
 
 /*:36*//*37:*/
-// #line 1204 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1219 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_ab_vs_cd(MP mp,mp_number*ret,mp_number a_orig,mp_number b_orig,mp_number c_orig,mp_number d_orig){
 decNumber q,r,test;
 decNumber a,b,c,d;
+decNumber ab,cd;
 (void)mp;
 decNumberCopy(&a,(decNumber*)a_orig.data.num);
 decNumberCopy(&b,(decNumber*)b_orig.data.num);
 decNumberCopy(&c,(decNumber*)c_orig.data.num);
 decNumberCopy(&d,(decNumber*)d_orig.data.num);
+
+decNumberMultiply(&ab,(decNumber*)a_orig.data.num,(decNumber*)b_orig.data.num,&set);
+decNumberMultiply(&cd,(decNumber*)c_orig.data.num,(decNumber*)d_orig.data.num,&set);
+decNumberCompare(ret->data.num,&ab,&cd,&set);
+mp_check_decNumber(mp,ret->data.num,&set);
+if(1> 0)
+return;
+
+
 /*38:*/
-// #line 1256 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1281 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 if(decNumberIsNegative(&a)){
 decNumberCopyNegate(&a,&a);
@@ -1111,7 +1129,7 @@ goto RETURN;
 }
 
 /*:38*/
-// #line 1213 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1238 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 ;
 while(1){
 decNumberDivide(&q,&a,&d,&set);
@@ -1150,13 +1168,14 @@ fprintf(stdout,"\n%f = ab_vs_cd(%f,%f,%f,%f)",mp_number_to_double(*ret),
 mp_number_to_double(a_orig),mp_number_to_double(b_orig),
 mp_number_to_double(c_orig),mp_number_to_double(d_orig));
 #endif
-mp_check_decNumber(mp,ret->data.num,&set);
+#line 1276 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+ mp_check_decNumber(mp,ret->data.num,&set);
 return;
 }
 
 
 /*:37*//*39:*/
-// #line 1331 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1356 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 static void mp_decimal_crossing_point(MP mp,mp_number*ret,mp_number aa,mp_number bb,mp_number cc){
 decNumber a,b,c;
@@ -1226,13 +1245,14 @@ RETURN:
 fprintf(stdout,"\n%f = crossing_point(%f,%f,%f)",mp_number_to_double(*ret),
 mp_number_to_double(aa),mp_number_to_double(bb),mp_number_to_double(cc));
 #endif
-mp_check_decNumber(mp,ret->data.num,&set);
+#line 1425 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+ mp_check_decNumber(mp,ret->data.num,&set);
 return;
 }
 
 
 /*:39*//*41:*/
-// #line 1410 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1435 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 int mp_round_unscaled(mp_number x_orig){
 double xx= mp_number_to_double(x_orig);
@@ -1241,17 +1261,17 @@ return x;
 }
 
 /*:41*//*42:*/
-// #line 1419 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1444 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_number_floor(mp_number*i){
 int round= set.round;
-set.round= DEC_ROUND_DOWN;
+set.round= DEC_ROUND_FLOOR;
 decNumberToIntegralValue(i->data.num,i->data.num,&set);
 set.round= round;
 }
 
 /*:42*//*43:*/
-// #line 1428 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1453 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_fraction_to_round_scaled(mp_number*x_orig){
 x_orig->type= mp_scaled_type;
@@ -1261,14 +1281,14 @@ decNumberDivide(x_orig->data.num,x_orig->data.num,&fraction_multiplier_decNumber
 
 
 /*:43*//*45:*/
-// #line 1442 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1467 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_square_rt(MP mp,mp_number*ret,mp_number x_orig){
 decNumber x;
 decNumberCopy(&x,x_orig.data.num);
 if(!decNumberIsPositive(&x)){
 /*46:*/
-// #line 1455 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1480 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 {
 if(decNumberIsNegative(&x)){
@@ -1289,7 +1309,7 @@ return;
 
 
 /*:46*/
-// #line 1447 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1472 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 ;
 }else{
 decNumberSquareRoot(ret->data.num,&x,&set);
@@ -1299,7 +1319,7 @@ mp_check_decNumber(mp,ret->data.num,&set);
 
 
 /*:45*//*47:*/
-// #line 1476 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1501 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_pyth_add(MP mp,mp_number*ret,mp_number a_orig,mp_number b_orig){
 decNumber a,b;
@@ -1318,7 +1338,7 @@ mp_check_decNumber(mp,ret->data.num,&set);
 }
 
 /*:47*//*48:*/
-// #line 1495 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1520 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_pyth_sub(MP mp,mp_number*ret,mp_number a_orig,mp_number b_orig){
 decNumber a,b;
@@ -1326,7 +1346,7 @@ decNumberCopyAbs(&a,a_orig.data.num);
 decNumberCopyAbs(&b,b_orig.data.num);
 if(!decNumberGreater(&a,&b)){
 /*49:*/
-// #line 1514 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1539 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 {
 if(decNumberLess(&a,&b)){
@@ -1348,7 +1368,7 @@ decNumberZero(&a);
 
 
 /*:49*/
-// #line 1501 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1526 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 ;
 }else{
 decNumber asq,bsq;
@@ -1363,12 +1383,12 @@ mp_check_decNumber(mp,ret->data.num,&set);
 
 
 /*:48*//*50:*/
-// #line 1537 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1562 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_m_log(MP mp,mp_number*ret,mp_number x_orig){
 if(!decNumberIsPositive((decNumber*)x_orig.data.num)){
 /*51:*/
-// #line 1551 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1576 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 {
 char msg[256];
@@ -1386,7 +1406,7 @@ decNumberZero(ret->data.num);
 
 
 /*:51*/
-// #line 1540 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1565 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 ;
 }else{
 decNumber twofivesix;
@@ -1399,7 +1419,7 @@ mp_check_decNumber(mp,ret->data.num,&set);
 }
 
 /*:50*//*52:*/
-// #line 1570 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1595 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_m_exp(MP mp,mp_number*ret,mp_number x_orig){
 decNumber temp,twofivesix;
@@ -1421,12 +1441,12 @@ limitedset.status= 0;
 
 
 /*:52*//*53:*/
-// #line 1593 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1618 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_n_arg(MP mp,mp_number*ret,mp_number x_orig,mp_number y_orig){
 if(decNumberIsZero((decNumber*)x_orig.data.num)&&decNumberIsZero((decNumber*)y_orig.data.num)){
 /*54:*/
-// #line 1619 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1644 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 {
 const char*hlp[]= {
@@ -1440,7 +1460,7 @@ decNumberZero(ret->data.num);
 
 
 /*:54*/
-// #line 1596 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1621 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 ;
 }else{
 decNumber atan2val,oneeighty_angle;
@@ -1453,19 +1473,21 @@ decNumberAtan2(&atan2val,y_orig.data.num,x_orig.data.num,&set);
 #if DEBUG
 fprintf(stdout,"\n%g = atan2(%g,%g)",decNumberToDouble(&atan2val),mp_number_to_double(x_orig),mp_number_to_double(y_orig));
 #endif
-decNumberMultiply(ret->data.num,&atan2val,&oneeighty_angle,&set);
+#line 1633 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+ decNumberMultiply(ret->data.num,&atan2val,&oneeighty_angle,&set);
 checkZero(ret->data.num);
 #if DEBUG
 fprintf(stdout,"\nn_arg(%g,%g,%g)",mp_number_to_double(*ret),
 mp_number_to_double(x_orig),mp_number_to_double(y_orig));
 #endif
+#line 1639 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 }
 mp_check_decNumber(mp,ret->data.num,&set);
 }
 
 
 /*:53*//*55:*/
-// #line 1640 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1665 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 static void sinecosine(decNumber*theangle,decNumber*c,decNumber*s)
 {
@@ -1517,17 +1539,18 @@ decNumberAdd(c,c,&pxa,&set);
 }
 
 /*:55*//*56:*/
-// #line 1691 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1716 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_sin_cos(MP mp,mp_number z_orig,mp_number*n_cos,mp_number*n_sin){
 decNumber rad;
+double tmp;
 decNumber one_eighty;
-decNumberFromInt32(&one_eighty,180*16);
+tmp= mp_number_to_double(z_orig)/16.0;
+
 #if DEBUG
 fprintf(stdout,"\nsin_cos(%f)",mp_number_to_double(z_orig));
 #endif
-decNumberMultiply(&rad,z_orig.data.num,&PI_decNumber,&set);
-decNumberDivide(&rad,&rad,&one_eighty,&set);
+#line 1726 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 #if 0
 if(decNumberIsNegative(&rad)){
 while(decNumberLess(&rad,&PI_decNumber))
@@ -1537,19 +1560,109 @@ while(decNumberGreater(&rad,&PI_decNumber))
 decNumberSubtract(&rad,&rad,&PI_decNumber,&set);
 }
 #endif
+#line 1735 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+ if((tmp==90.0)||(tmp==-270)){
+decNumberZero(n_cos->data.num);
+decNumberCopy(n_sin->data.num,&fraction_multiplier_decNumber);
+}else if((tmp==-90.0)||(tmp==270.0)){
+decNumberZero(n_cos->data.num);
+decNumberCopyNegate(n_sin->data.num,&fraction_multiplier_decNumber);
+}else if((tmp==180.0)||(tmp==-180.0)){
+decNumberCopyNegate(n_cos->data.num,&fraction_multiplier_decNumber);
+decNumberZero(n_sin->data.num);
+}else{
+decNumberFromInt32(&one_eighty,180*16);
+decNumberMultiply(&rad,z_orig.data.num,&PI_decNumber,&set);
+decNumberDivide(&rad,&rad,&one_eighty,&set);
 sinecosine(&rad,n_sin->data.num,n_cos->data.num);
 decNumberMultiply(n_cos->data.num,n_cos->data.num,&fraction_multiplier_decNumber,&set);
 decNumberMultiply(n_sin->data.num,n_sin->data.num,&fraction_multiplier_decNumber,&set);
+}
 #if DEBUG
 fprintf(stdout,"\nsin_cos(%f,%f,%f)",decNumberToDouble(&rad),
 mp_number_to_double(*n_cos),mp_number_to_double(*n_sin));
 #endif
-mp_check_decNumber(mp,n_cos->data.num,&set);
+#line 1756 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+ mp_check_decNumber(mp,n_cos->data.num,&set);
 mp_check_decNumber(mp,n_sin->data.num,&set);
 }
 
 /*:56*//*57:*/
-// #line 1723 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+#line 1763 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+
+#define KK 100                     
+#define LL  37                     
+#define MM (1L<<30)                
+#define mod_diff(x,y) (((x)-(y))&(MM-1)) 
+
+static long ran_x[KK];
+
+static void ran_array(long aa[],int n)
+
+
+{
+register int i,j;
+for(j= 0;j<KK;j++)aa[j]= ran_x[j];
+for(;j<n;j++)aa[j]= mod_diff(aa[j-KK],aa[j-LL]);
+for(i= 0;i<LL;i++,j++)ran_x[i]= mod_diff(aa[j-KK],aa[j-LL]);
+for(;i<KK;i++,j++)ran_x[i]= mod_diff(aa[j-KK],ran_x[i-LL]);
+}
+
+
+
+
+#define QUALITY 1009 
+static long ran_arr_buf[QUALITY];
+static long ran_arr_dummy= -1,ran_arr_started= -1;
+static long*ran_arr_ptr= &ran_arr_dummy;
+
+#define TT  70   
+#define is_odd(x)  ((x)&1)          
+
+static void ran_start(long seed)
+
+{
+register int t,j;
+long x[KK+KK-1];
+register long ss= (seed+2)&(MM-2);
+for(j= 0;j<KK;j++){
+x[j]= ss;
+ss<<= 1;if(ss>=MM)ss-= MM-2;
+}
+x[1]++;
+for(ss= seed&(MM-1),t= TT-1;t;){
+for(j= KK-1;j> 0;j--)x[j+j]= x[j],x[j+j-1]= 0;
+for(j= KK+KK-2;j>=KK;j--)
+x[j-(KK-LL)]= mod_diff(x[j-(KK-LL)],x[j]),
+x[j-KK]= mod_diff(x[j-KK],x[j]);
+if(is_odd(ss)){
+for(j= KK;j> 0;j--)x[j]= x[j-1];
+x[0]= x[KK];
+x[LL]= mod_diff(x[LL],x[KK]);
+}
+if(ss)ss>>= 1;else t--;
+}
+for(j= 0;j<LL;j++)ran_x[j+KK-LL]= x[j];
+for(;j<KK;j++)ran_x[j-LL]= x[j];
+for(j= 0;j<10;j++)ran_array(x,KK+KK-1);
+ran_arr_ptr= &ran_arr_started;
+}
+
+#define ran_arr_next() (*ran_arr_ptr>=0? *ran_arr_ptr++: ran_arr_cycle())
+static long ran_arr_cycle(void)
+{
+if(ran_arr_ptr==&ran_arr_dummy)
+ran_start(314159L);
+ran_array(ran_arr_buf,QUALITY);
+ran_arr_buf[KK]= -1;
+ran_arr_ptr= ran_arr_buf+1;
+return ran_arr_buf[0];
+}
+
+
+
+/*:57*//*58:*/
+#line 1837 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_init_randoms(MP mp,int seed){
 int j,jj,k;
@@ -1570,11 +1683,149 @@ decNumberFromInt32(mp->randoms[(i*21)%55].data.num,j);
 mp_new_randoms(mp);
 mp_new_randoms(mp);
 mp_new_randoms(mp);
+
+ran_start((unsigned long)seed);
+
 }
 
-/*:57*//*58:*/
-// #line 1745 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+/*:58*//*59:*/
+#line 1862 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
 
 void mp_decimal_number_modulo(mp_number*a,mp_number b){
 decNumberRemainder(a->data.num,a->data.num,b.data.num,&set);
-}/*:58*/
+}
+
+
+/*:59*//*60:*/
+#line 1870 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+
+static void mp_next_unif_random(MP mp,mp_number*ret){
+decNumber a;
+decNumber b;
+unsigned long int op;
+(void)mp;
+op= (unsigned)ran_arr_next();
+decNumberFromInt32(&a,op);
+decNumberFromInt32(&b,MM);
+decNumberDivide(&a,&a,&b,&set);
+decNumberCopy(ret->data.num,&a);
+mp_check_decNumber(mp,ret->data.num,&set);
+}
+
+
+/*:60*//*61:*/
+#line 1887 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+
+static void mp_next_random(MP mp,mp_number*ret){
+if(mp->j_random==0)
+mp_new_randoms(mp);
+else
+mp->j_random= mp->j_random-1;
+mp_number_clone(ret,mp->randoms[mp->j_random]);
+}
+
+
+/*:61*//*62:*/
+#line 1904 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+
+static void mp_decimal_m_unif_rand(MP mp,mp_number*ret,mp_number x_orig){
+mp_number y;
+mp_number x,abs_x;
+mp_number u;
+new_fraction(y);
+new_number(x);
+new_number(abs_x);
+new_number(u);
+mp_number_clone(&x,x_orig);
+mp_number_clone(&abs_x,x);
+mp_decimal_abs(&abs_x);
+mp_next_unif_random(mp,&u);
+decNumberMultiply(y.data.num,abs_x.data.num,u.data.num,&set);
+free_number(u);
+if(mp_number_equal(y,abs_x)){
+mp_number_clone(ret,((math_data*)mp->math)->zero_t);
+}else if(mp_number_greater(x,((math_data*)mp->math)->zero_t)){
+mp_number_clone(ret,y);
+}else{
+mp_number_clone(ret,y);
+mp_number_negate(ret);
+}
+free_number(abs_x);
+free_number(x);
+free_number(y);
+}
+
+
+
+/*:62*//*63:*/
+#line 1938 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+
+static void mp_decimal_m_norm_rand(MP mp,mp_number*ret){
+mp_number ab_vs_cd;
+mp_number abs_x;
+mp_number u;
+mp_number r;
+mp_number la,xa;
+new_number(ab_vs_cd);
+new_number(la);
+new_number(xa);
+new_number(abs_x);
+new_number(u);
+new_number(r);
+
+do{
+do{
+mp_number v;
+new_number(v);
+mp_next_random(mp,&v);
+mp_number_substract(&v,((math_data*)mp->math)->fraction_half_t);
+mp_decimal_number_take_fraction(mp,&xa,((math_data*)mp->math)->sqrt_8_e_k,v);
+free_number(v);
+mp_next_random(mp,&u);
+mp_number_clone(&abs_x,xa);
+mp_decimal_abs(&abs_x);
+}while(!mp_number_less(abs_x,u));
+mp_decimal_number_make_fraction(mp,&r,xa,u);
+mp_number_clone(&xa,r);
+mp_decimal_m_log(mp,&la,u);
+mp_set_decimal_from_substraction(&la,((math_data*)mp->math)->twelve_ln_2_k,la);
+mp_ab_vs_cd(mp,&ab_vs_cd,((math_data*)mp->math)->one_k,la,xa,xa);
+}while(mp_number_less(ab_vs_cd,((math_data*)mp->math)->zero_t));
+mp_number_clone(ret,xa);
+free_number(ab_vs_cd);
+free_number(r);
+free_number(abs_x);
+free_number(la);
+free_number(xa);
+free_number(u);
+}
+
+
+
+
+/*:63*//*64:*/
+#line 1988 "../../../source/texk/web2c/mplibdir/mpmathdecimal.w"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*:64*/
