@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -57,8 +57,9 @@ private:
 	void setPath();
 	
 	Glyph* glyph;
-	QGraphicsPathItem* path = NULL;
+	QGraphicsPathItem* path = nullptr;	
 	GlyphCellHeaderItem* header;
-	
+	QPicture picture;
+	QTransform m;
 };
 #endif // GLYPHCELLITEM_H

@@ -61,6 +61,10 @@ lookup miscellaneoussubst {
     sub  tatweel smallhighnoon by smallhighnoon;         
   } miscellaneoussubst.l1;
 
+   lookup miscellaneoussubst.l2 {
+     sub yehshape.isol by alefmaksura.isol; 
+   } miscellaneoussubst.l2;
+
   sub cgj'lookup miscellaneoussubst.l1 hamzaabove' cgj';
 
   sub [smallalef] cgj'lookup miscellaneoussubst.l1 hamzaabove';
@@ -73,6 +77,8 @@ lookup miscellaneoussubst {
   # Can be implemented in normalize (keeped here to adhere to the standard in case we want to generate an OpenType font)
 
   sub  cgj'lookup miscellaneoussubst.l1 smallhighseen'; 
+
+  sub yehshape.isol'lookup miscellaneoussubst.l2  cgj hamzaabove;
     
 
 } miscellaneoussubst;
@@ -785,7 +791,7 @@ lookup isolkern {
     pos rubelhizb <100 0 100 0>;
     pos /^alef.isol/ <100 0 100 0>;
     pos /^alef.fina/ <100 0 100 0>;
-    pos /^aya/ <100 0 100 0>;
+    pos /^endofaya/ <100 0 100 0>;
   } isolkern.o1;
 
   lookup isolkern.o2 {			
@@ -803,7 +809,7 @@ lookup isolkern {
   
   pos /^reh|^waw/';
 
-  pos /^aya/'lookup isolkern.o1 rubelhizb;
+  pos /^endofaya/'lookup isolkern.o1 rubelhizb;
 
   pos [/[.]isol/ /[.]fina/ smallwaw smallyeh rubelhizb]'lookup isolkern.o1  [/[.]init/ /[.]isol/ smallwaw smallyeh placeofsajdah];	
 
@@ -1003,7 +1009,7 @@ lookup tajweedcolor {
 
     pos [smallwaw smallyeh smallalef.joined smallalef.isol smallalef.replacement]'lookup red1 @bases;
 
-    pos ([/^alef/ /^waw/ /^smallalef/ smallwaw smallyeh] maddahabove)' space /^aya|endofaya/;
+    pos ([/^alef/ /^waw/ /^smallalef/ smallwaw smallyeh] maddahabove)' space /^endofaya/;
 
     pos ([/^lam/ /^meem/ ] maddahabove)'lookup red4;
 
@@ -1011,9 +1017,9 @@ lookup tajweedcolor {
 
     pos (/^behshape/  twodotsdown maddahabove)'lookup red3;
 
-    pos  /^waw/'lookup red2 (sukun | NULL)'lookup red2 @bases @marks ( @marks | NULL ) space /^aya|endofaya/;
-    pos  (/^behshape/ twodotsdown)'lookup red2 (sukun | NULL)'lookup red2 @bases @marks ( @marks | NULL ) space /^aya|endofaya/;
-    pos  [/^alef/ smallalef.joined]'lookup red2 (sukun | NULL)'lookup red2 @bases @marks ( @marks | NULL ) space /^aya|endofaya/;
+    pos  /^waw/'lookup red2 (sukun | NULL)'lookup red2 @bases @marks ( @marks | NULL ) space /^endofaya/;
+    pos  (/^behshape/ twodotsdown)'lookup red2 (sukun | NULL)'lookup red2 @bases @marks ( @marks | NULL ) space /^endofaya/;
+    pos  [/^alef/ smallalef.joined]'lookup red2 (sukun | NULL)'lookup red2 @bases @marks ( @marks | NULL ) space /^endofaya/;
     
     pos  (/^behshape/ twodotsdown)'lookup red2 /^meem/ kasra linefeed;
 
@@ -1042,8 +1048,8 @@ lookup tajweedcolor {
     # http://www.dar-alquran.com/Detail.aspx?ArticleID=365
 
     # Dont Tafkhim
-    pos kasra /^reh/'lookup black @marks ( @marks | NULL ) ( @marks | NULL ) space /^aya|endofaya/;
-    pos /^behshape/ twodotsdown (sukun | NULL) /^reh/'lookup black  @marks ( @marks | NULL ) ( @marks | NULL ) space /^aya|endofaya/;
+    pos kasra /^reh/'lookup black @marks ( @marks | NULL ) ( @marks | NULL ) space /^endofaya/;
+    pos /^behshape/ twodotsdown (sukun | NULL) /^reh/'lookup black  @marks ( @marks | NULL ) ( @marks | NULL ) space /^endofaya/;
 
     pos /^reh/'lookup tafkim 
       (shadda | NULL)'lookup tafkim 
@@ -1053,10 +1059,10 @@ lookup tajweedcolor {
     pos wasla (/^reh/ sukun)'lookup tafkim;	
 
     pos [fatha damma] @bases (/dot/ | NULL) sukun  (/^reh/ sukun)'lookup tafkim;	
-    pos [fatha damma] @bases (/dot/ | NULL) sukun  /^reh/'lookup tafkim  @marks ( @marks | NULL ) ( @marks | NULL ) space /^aya|endofaya/;
+    pos [fatha damma] @bases (/dot/ | NULL) sukun  /^reh/'lookup tafkim  @marks ( @marks | NULL ) ( @marks | NULL ) space /^endofaya/;
 
     pos [fatha damma] ([/^alef/ /^waw/] | NULL) (/^reh/ sukun)'lookup tafkim;	
-    pos [fatha damma] ([/^alef/ /^waw/] | NULL) /^reh/'lookup tafkim  @marks ( @marks | NULL ) ( @marks | NULL ) space /^aya|endofaya/;
+    pos [fatha damma] ([/^alef/ /^waw/] | NULL) /^reh/'lookup tafkim  @marks ( @marks | NULL ) ( @marks | NULL ) space /^endofaya/;
 
     pos kasra (/^reh/ sukun)'lookup tafkim [/^sad/ /^tah/] | [/^ain/ /^hah/] onedotup | /^fehshape/ twodotsup;
 
@@ -1072,7 +1078,7 @@ lookup tajweedcolor {
 
     lookupflag UseMarkFilteringSet [onedotdown twodotsup];
 
-    pos ([ /^tah/ /^qaf/ /^dal/ ] |  /^fehshape/ twodotsup | /^hah/ onedotdown | /^behshape/ onedotdown )'lookup lkalkala space /^aya|endofaya/;
+    pos ([ /^tah/ /^qaf/ /^dal/ ] |  /^fehshape/ twodotsup | /^hah/ onedotdown | /^behshape/ onedotdown )'lookup lkalkala space /^endofaya/;
 
   } lkalkala1;
 
@@ -1330,7 +1336,7 @@ lookup adjustmkmk {
   pos /^noon.isol/' dammatanidgham' space' [/^kaf.init.beforelam/ /^kaf.init/]'lookup adjustmkmk.space.1;
 
   pos [/^alef.isol/ /^alef.fina/]'lookup adjustmkmk.space.1  hamzaabove' [/fatha/ damma]' space' alef.isol' wasla';
-  pos [/^heh.isol/ /^hamza.isol/]'lookup adjustmkmk.space.1 (twodotsup?)' (dammatanidgham|(damma meemiqlab))' (@waqfmarks?)' space' [/^lam.init/ /^aya/]';
+  pos [/^heh.isol/ /^hamza.isol/]'lookup adjustmkmk.space.1 (twodotsup?)' (dammatanidgham|(damma meemiqlab))' (@waqfmarks?)' space' [/^lam.init/ /^endofaya/]';
   pos /^reh.fina/' (onedotup?)' fathatan' /^alef.isol/'lookup adjustmkmk.space.1 (@waqfmarks?)' space' /^alef.isol/' /^hamzabelow/';
   #pos /^alef.fina/'lookup adjustmkmk.space.1 maddahabove' space' /^alef.isol/' /^hamzaabove/;
 
@@ -1740,7 +1746,8 @@ feature curs {
 
 
 feature kern {	  
-  lookup variouskern;        
+  lookup variouskern;  
+  #lookup ayanumberskern;      
 } kern;
 
 feature mark {  

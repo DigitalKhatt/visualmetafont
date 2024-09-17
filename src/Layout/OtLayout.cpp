@@ -327,18 +327,7 @@ static void get_glyph_h_advances_custom(hb_font_t* font, void* font_data,
 
 
   for (unsigned int i = 0; i < count; i++)
-  {
-    //TEST
-    /*
-          QString name = layout->glyphNamePerCode[glyphs[i].codepoint];
-          if (name == "behshape.init") {
-              glyphs[i].lefttatweel = 12;
-          }else if (name == "lam.medi") {
-              glyphs[i].lefttatweel = 6;
-              glyphs[i].righttatweel = 6;
-          }*/
-
-          //positions[i].x_advance = getGlyphHorizontalAdvance(font, font_data, glyphs[i].codepoint, glyphs[i].lefttatweel, glyphs[i].righttatweel, user_data);
+  {   
 
     double leftTatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].lefttatweel, true);
     double righttatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].righttatweel, false);
@@ -3051,9 +3040,9 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
     //int tt = match.lastCapturedIndex();
 
 
-    beginsajdas.insert(startOffset);
+    beginsajdas.insert(startOffset);    
 
-    while (this->glyphGlobalClasses[quran[endOffset].unicode()] == OtLayout::MarkGlyph)
+    while (quran[endOffset].isMark())
       endOffset--;
 
     endsajdas.insert(endOffset);

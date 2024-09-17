@@ -32,6 +32,7 @@
 #include "exp.hpp"
 #include "pathpointexp.hpp"
 #include <unordered_set>
+#include "qpicture.h"
 
 
 class Font;
@@ -273,8 +274,6 @@ public:
 
 	void setPropertyWithUndo(const QString& name, const QVariant& value);
 
-	QPainterPath getPath();
-
 	bool isDirty;
 
 	ComputedValues getComputedValues();
@@ -282,8 +281,16 @@ public:
 	bool setProperty(const char* name, const QVariant& value, bool updateParam = false);
 
 	double axis(QString name);
+#ifndef DIGITALKHATT_WEBLIB
+	QPainterPath getPath();
+	QPicture getPicture();
 
+	static QPicture getPicture(mp_edge_object* h);
 
+	static QPainterPath mp_dump_solved_path(mp_gr_knot h);
+
+	static QPainterPath getPath(mp_edge_object* h);
+#endif
 signals:
 	void valueChanged(QString name, bool structureChanged = false);
 
@@ -296,7 +303,7 @@ private slots:
 private:
 
 	QPainterPath getPathFromEdge(mp_edge_object* h);
-	QPainterPath mp_dump_solved_path(mp_gr_knot h);
+	//QPainterPath mp_dump_solved_path(mp_gr_knot h);
 
 	QString m_source;
 	QString m_name;

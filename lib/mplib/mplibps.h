@@ -122,6 +122,8 @@ char* charname;
 double charlt;
 double charrt;
 char* originalglyph;
+char* coloredglyph;
+int glyphtype;
 double xpart;
 double ypart;
 int numAnchors;

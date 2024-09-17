@@ -24,7 +24,7 @@ private:
   Lookup* defaultdotmarks();
   Lookup* defaultmarkdotmarks();
   Lookup* defaultmkmk();
-  Lookup* ayanumbers();
+  Lookup* ayanumbers();  
   Lookup* ayanumberskern();
   Lookup* rehwawcursivecpp();
   Lookup* tajweedcolorcpp();

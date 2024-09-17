@@ -19,7 +19,7 @@
 
 #include "GlyphVis.h"
 #include "font.hpp"
-
+#include "glyph.hpp"
 #ifndef DIGITALKHATT_WEBLIB
 #include "qpainterpath.h"
 #include "qpainter.h"
@@ -29,6 +29,7 @@
 #include "automedina/automedina.h"
 #include <cmath>
 #include "metafont.h";
+
 
 GlyphVis::GlyphVis() {
   m_edge = nullptr;
@@ -55,6 +56,8 @@ GlyphVis::~GlyphVis()
 GlyphVis::GlyphVis(const GlyphVis& other) {
   name = other.name;
   originalglyph = other.originalglyph;
+  coloredglyph = other.coloredglyph;
+  glyphtype = other.glyphtype;
   charcode = other.charcode;
   width = other.width;
   height = other.height;
@@ -88,6 +91,30 @@ GlyphVis::GlyphVis(const GlyphVis& other) {
   isAlternate = other.isAlternate;
 }
 
+bool GlyphVis::isColored() {
+  return glyphtype == GlyphType::GlyphTypeColored;
+}
+
+GlyphVis* GlyphVis::getColoredGlyph() {
+
+  GlyphVis* coloredGlyph = nullptr;
+
+  if (!coloredglyph.isEmpty()) {
+    if (m_otLayout->glyphs.contains(coloredglyph)) {
+      coloredGlyph = &m_otLayout->glyphs[coloredglyph];
+    }
+  }
+
+  return coloredGlyph;
+}
+
+GlyphType GlyphVis::getGlypfType() {
+  if (m_edge != nullptr) {
+    return (GlyphType)m_edge->glyphtype;
+  }
+  return GlyphType::Unknown;
+}
+
 GlyphVis* GlyphVis::getAlternate(GlyphParameters parameters) {
   return m_otLayout->getAlternate(charcode, parameters);
 }
@@ -97,6 +124,8 @@ GlyphVis::GlyphVis(GlyphVis&& other)
 
   name = other.name;
   originalglyph = other.originalglyph;
+  coloredglyph = other.coloredglyph;
+  glyphtype = other.glyphtype;
   charcode = other.charcode;
   width = other.width;
   height = other.height;
@@ -133,6 +162,8 @@ GlyphVis& GlyphVis::operator=(const GlyphVis& other) {
 
   name = other.name;
   originalglyph = other.originalglyph;
+  coloredglyph = other.coloredglyph;
+  glyphtype = other.glyphtype;
   charcode = other.charcode;
   width = other.width;
   height = other.height;
@@ -167,81 +198,6 @@ GlyphVis& GlyphVis::operator=(const GlyphVis& other) {
   return *this;
 }
 
-#ifndef DIGITALKHATT_WEBLIB
-void GlyphVis::refresh(QHash<QString, GlyphVis>& glyphs)
-{
-
-  GlyphVis& endofaya = glyphs["endofaya"];
-  auto ayaPicture = endofaya.picture;
-
-
-  if (charcode >= Automedina::AyaNumberCode && charcode <= Automedina::AyaNumberCode + 286) {
-
-    QPicture picture;
-    QPainter painter;
-
-
-    painter.begin(&picture);
-    painter.drawPicture(0, 0, ayaPicture);
-    painter.setBrush(Qt::black);
-    int ayaNumber = (charcode - Automedina::AyaNumberCode) + 1;
-
-    int digitheight = 120;
-
-    if (ayaNumber < 10) {
-      auto& onesglyph = glyphs[m_otLayout->glyphNamePerCode[1632 + ayaNumber]];
-      auto position = glyphs["endofaya"].width / 2 - (onesglyph.width) / 2;
-      painter.translate(position, digitheight);
-
-      painter.drawPath(onesglyph.path);
-    }
-    else if (ayaNumber < 100) {
-      int onesdigit = ayaNumber % 10;
-      int tensdigit = ayaNumber / 10;
-
-      auto& onesglyph = glyphs[m_otLayout->glyphNamePerCode[1632 + onesdigit]];
-      auto& tensglyph = glyphs[m_otLayout->glyphNamePerCode[1632 + tensdigit]];
-
-      auto position = glyphs["endofaya"].width / 2 - (onesglyph.width + tensglyph.width + 40) / 2;
-      painter.translate(position, digitheight);
-      painter.drawPath(tensglyph.path);
-      painter.translate(tensglyph.width + 40, 0);
-      painter.drawPath(onesglyph.path);
-
-    }
-    else {
-      int onesdigit = ayaNumber % 10;
-      int tensdigit = (ayaNumber / 10) % 10;
-      int hundredsdigit = ayaNumber / 100;
-
-      auto& onesglyph = glyphs[m_otLayout->glyphNamePerCode[1632 + onesdigit]];
-      auto& tensglyph = glyphs[m_otLayout->glyphNamePerCode[1632 + tensdigit]];
-      auto& hundredsglyph = glyphs[m_otLayout->glyphNamePerCode[1632 + hundredsdigit]];
-
-      auto position = glyphs["endofaya"].width / 2 - (onesglyph.width + tensglyph.width + hundredsglyph.width + 80) / 2;
-      painter.translate(position, digitheight);
-      painter.drawPath(hundredsglyph.path);
-      painter.translate(hundredsglyph.width + 40, 0);
-      painter.drawPath(tensglyph.path);
-      painter.translate(tensglyph.width + 40, 0);
-      painter.drawPath(onesglyph.path);
-
-    }
-
-
-    painter.resetTransform();
-
-
-
-
-
-
-    painter.end();
-
-    this->picture = picture;
-  }
-}
-#endif
 bool GlyphVis::isAyaNumber()
 {
   return (charcode >= Automedina::AyaNumberCode && charcode <= Automedina::AyaNumberCode + 286);
@@ -260,6 +216,10 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
   depth = m_edge->depth;
   charlt = m_edge->charlt;
   charrt = m_edge->charrt;
+  if (m_edge->coloredglyph) {
+    coloredglyph = QString(m_edge->coloredglyph);
+  }
+  glyphtype = (GlyphType)m_edge->glyphtype;
 
   if (edge->body == nullptr) {
     bbox.llx = 0;
@@ -291,12 +251,12 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
   //matrix = getMatrix(m_otLayout->mp, charcode);
   matrix = { m_edge->xpart,m_edge->ypart };
 #ifndef DIGITALKHATT_WEBLIB
-  if (name != "endofaya") {
-    path = getPath(m_edge);
+  if (!isColored()) {
+    path = Glyph::getPath(m_edge);
   }
   else {
-    picture = getPicture(m_edge);
-    path = getPath(m_edge);
+    picture = Glyph::getPicture(m_edge);
+    path = Glyph::getPath(m_edge);
   }
 #endif
   auto body = m_edge != nullptr ? m_edge->body : nullptr;
@@ -326,103 +286,3 @@ bool GlyphVis::conatinsAnchor(QString name, AnchorType type) {
 QPoint GlyphVis::getAnchor(QString name, AnchorType type) {
   return anchors.value({ name,type }).anchor;
 }
-
-
-#ifndef DIGITALKHATT_WEBLIB
-QPainterPath GlyphVis::getPath(mp_edge_object* h) {
-
-  QPainterPath localpath;
-
-  localpath.setFillRule(Qt::WindingFill);
-
-
-  if (h) {
-    mp_graphic_object* body = h->body;
-
-
-    if (body) {
-
-      do {
-        switch (body->type)
-        {
-        case mp_fill_code: {
-          QPainterPath subpath = mp_dump_solved_path(((mp_fill_object*)body)->path_p);
-          localpath.addPath(subpath);
-
-
-          break;
-        }
-        default:
-          break;
-        }
-
-      } while (body = body->next);
-    }
-  }
-
-  return localpath;
-}
-QPicture GlyphVis::getPicture(mp_edge_object* h)
-{
-
-  QPicture pic;
-  QPainter painter;
-
-  painter.begin(&pic);
-
-  if (h) {
-    mp_graphic_object* body = h->body;
-
-
-    if (body) {
-
-      do {
-        switch (body->type)
-        {
-        case mp_fill_code: {
-          auto fillobject = (mp_fill_object*)body;
-          QPainterPath subpath = mp_dump_solved_path(fillobject->path_p);
-          if (fillobject->color_model == mp_rgb_model) {
-            //painter.setBrush(QColor(fillobject->color.a_val, fillobject->color.b_val, fillobject->color.c_val));
-            painter.fillPath(subpath, QColor(fillobject->color.a_val * 255, fillobject->color.b_val * 255, fillobject->color.c_val * 255));
-          }
-          else {
-            int t = 5;
-          }
-
-
-          break;
-        }
-        default:
-          break;
-        }
-
-      } while (body = body->next);
-    }
-  }
-
-  painter.end();
-
-  return pic;
-}
-
-QPainterPath GlyphVis::mp_dump_solved_path(mp_gr_knot h) {
-  mp_gr_knot p, q;
-  QPainterPath path;
-  //path.setFillRule(Qt::OddEvenFill);
-  if (h == NULL) return path;
-
-  path.moveTo(h->x_coord, h->y_coord);
-  p = h;
-  do {
-    q = p->next;
-    path.cubicTo(p->right_x, p->right_y, q->left_x, q->left_y, q->x_coord, q->y_coord);
-
-    p = q;
-  } while (p != h);
-  if (h->data.types.left_type != mp_endpoint)
-    path.closeSubpath();
-
-  return path;
-}
-#endif

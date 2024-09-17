@@ -3,6 +3,7 @@
 
 #include <QPainterPath>
 #include <QWidget>
+#include "QPicture"
 
 class Glyph;
 
@@ -24,7 +25,8 @@ protected:
 
 private:
   Glyph* glyph;
-  QPainterPath path;
+  //QPainterPath path;
+  QPicture picture;
 };
 
 #endif // PATHVIEW_H

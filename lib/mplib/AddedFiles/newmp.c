@@ -92,9 +92,13 @@ double static setParameters(MP mp, mp_edge_object* hh) {
 
   hh->charname = mp_get_string_internal(mp, "charname")->str;
 
-  hh->originalglyph = mp_get_string_internal(mp, "originalglyph")->str;
+  hh->originalglyph = mp_get_string_internal(mp, "originalglyph")->str;  
 
   hh->numAnchors = mp_get_numeric_internal(mp, "number_of_anchors");
+
+  hh->coloredglyph = mp_get_string_internal(mp, "coloredglyph")->str;
+
+  hh->glyphtype = mp_get_numeric_internal(mp, "glyphtype");
 
   /*
   char* glyphsName = "glyphs";

@@ -129,10 +129,6 @@ void IndoPak::generateGlyphs() {
 
     glyph.name = name;
     glyph.charcode = ayacharcode++;
-#ifndef DIGITALKHATT_WEBLIB
-    glyph.refresh(glyphs);
-#endif
-
     m_layout->glyphNamePerCode.insert(glyph.charcode, glyph.name);
     m_layout->glyphCodePerName.insert(glyph.name, glyph.charcode);
 

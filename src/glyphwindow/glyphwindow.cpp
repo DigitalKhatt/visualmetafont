@@ -82,7 +82,7 @@ void GlyphWindow::glyphChanged(QString name)
   //cursor.setPosition(pos);
 
   //mpostEdit->setTextCursor(cursor);
-  mpostEdit->verticalScrollBar()->setValue(pos - 1);
+  mpostEdit->verticalScrollBar()->setValue(pos);
 
   pos = mpostEdit->verticalScrollBar()->value();
 

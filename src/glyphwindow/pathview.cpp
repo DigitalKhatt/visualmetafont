@@ -21,13 +21,16 @@ PathView::PathView(Glyph* glyph, QWidget* parent)
   //auto box = this->path.boundingRect();
   //this->path = this->path.translated(-box.left(), box.top());
 
-  this->path = glyph->getPath();
-  path.setFillRule(Qt::WindingFill);
+  //this->path = glyph->getPath();
+  //path.setFillRule(Qt::WindingFill);
+
+  this->picture = glyph->getPicture();
 
 }
 void PathView::glyphChanged(QString name) {
-  path = glyph->getPath();
-  path.setFillRule(Qt::WindingFill);
+  /*path = glyph->getPath();
+  path.setFillRule(Qt::WindingFill);*/
+  this->picture = glyph->getPicture();
   update();
 }
 /*
@@ -53,12 +56,12 @@ void PathView::paintEvent(QPaintEvent*)
   auto widthh = width() ;
   auto heighth = height();
 
-  auto box = this->path.boundingRect();
+  //auto box = this->path.boundingRect();
 
-  auto scalew = widthh / box.width();
-  auto scaleh = heighth / box.height();
+  auto box = this->picture.boundingRect();
 
-  
+  auto scalew = (double)widthh / box.width();
+  auto scaleh = (double)heighth / box.height();  
 
   auto scale = scalew < scaleh ? scalew : scaleh;
 
@@ -66,5 +69,7 @@ void PathView::paintEvent(QPaintEvent*)
 
   painter.setPen(Qt::NoPen);  
   painter.setBrush(Qt::black);
-  painter.drawPath(path * transform);
+  //painter.drawPath(path * transform);
+  painter.setTransform(transform);
+  painter.drawPicture(0,0,picture);
 }

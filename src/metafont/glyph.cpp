@@ -22,7 +22,7 @@
 #include "glyph.hpp"
 #include "font.hpp"
 #include "commands.h"
-
+#include "qpainter.h"
 #include "GlyphParser/glyphdriver.h"
 #include "qcoreevent.h"
 #include  <cmath>
@@ -668,6 +668,119 @@ QPainterPath Glyph::getPathFromEdge(mp_edge_object* h) {
 
   return localpath;
 }
+bool Glyph::setProperty(const char* name, const QVariant& value, bool updateParam) {
+  if (updateParam) {
+    auto param = this->params.find(name);
+    if (param != this->params.end()) {
+      auto expr = param->second.expr.get();
+      if (expr->isConstant(0)) {
+        expr->setConstantValue(0, value);
+      }
+    }
+  }
+  return QObject::setProperty(name, value);
+}
+#ifndef DIGITALKHATT_WEBLIB
+QPainterPath Glyph::getPath() {
+  return getPath(getEdge());
+}
+QPicture Glyph::getPicture() {
+  return getPicture(getEdge());
+}
+QPainterPath Glyph::getPath(mp_edge_object* h) {
+
+  QPainterPath localpath;
+
+  localpath.setFillRule(Qt::WindingFill);
+
+
+  if (h) {
+    mp_graphic_object* body = h->body;
+
+
+    if (body) {
+
+      do {
+        switch (body->type)
+        {
+        case mp_fill_code: {
+          QPainterPath subpath = mp_dump_solved_path(((mp_fill_object*)body)->path_p);
+          localpath.addPath(subpath);
+
+
+          break;
+        }
+        default:
+          break;
+        }
+
+      } while (body = body->next);
+    }
+  }
+
+  return localpath;
+}
+QPicture Glyph::getPicture(mp_edge_object* h)
+{
+
+  QPicture pic;
+  QPainter painter;
+
+  painter.begin(&pic);
+
+  if (h) {
+    mp_graphic_object* body = h->body;
+
+
+    if (body) {
+      QPainterPath foregroudpath;
+      foregroudpath.setFillRule(Qt::FillRule::WindingFill);
+
+      do {
+        switch (body->type)
+        {
+        case mp_fill_code: {
+          auto fillobject = (mp_fill_object*)body;
+          /*auto done = false;
+          if (fillobject->pre_script && strcmp(fillobject->pre_script, "begincomponent") == 0) {
+            auto comp = QString(fillobject->post_script).split(",");
+            QString name = comp[0];
+            GlyphVis& compGlyph = m_otLayout->glyphs[name];
+            if (!compGlyph.isColored()) {
+              auto initPosX = comp[1].toDouble() + matrix.xpart;
+              auto initPosY = comp[2].toDouble() + matrix.ypart;
+              painter.save();
+              painter.translate(initPosX, initPosY);
+              painter.fillPath(compGlyph.path, QColor(Qt::black));
+              painter.restore();
+              body = body->next;
+              while (body->type != mp_stroked_code || ((mp_stroked_object*)body)->pre_script == nullptr || strcmp(((mp_stroked_object*)body)->pre_script, "endcomponent")) body = body->next;
+              done = true;
+            }
+
+          }
+          if (!done) {*/
+          QPainterPath subpath = mp_dump_solved_path(fillobject->path_p);
+          if (fillobject->color_model == mp_rgb_model) {
+            painter.fillPath(subpath, QColor(fillobject->color.a_val * 255, fillobject->color.b_val * 255, fillobject->color.c_val * 255));
+          }
+          else if (fillobject->color_model == mp_no_model) {
+            foregroudpath.addPath(subpath);
+          }
+          //}
+        }
+        }
+      } while (body = body->next);
+
+      painter.fillPath(foregroudpath, QColor(Qt::black));
+    }
+  }
+
+  painter.end();
+
+  return pic;
+}
+
 QPainterPath Glyph::mp_dump_solved_path(mp_gr_knot h) {
   mp_gr_knot p, q;
   QPainterPath path;
@@ -687,31 +800,4 @@ QPainterPath Glyph::mp_dump_solved_path(mp_gr_knot h) {
 
   return path;
 }
-QPainterPath Glyph::getPath() {
-  QPainterPath localpath;
-  QHash<Glyph*, Glyph::ComponentInfo>::iterator comp;
-  for (comp = m_components.begin(); comp != m_components.end(); ++comp) {
-    Glyph* compglyph = comp.key();
-    QPainterPath compath = compglyph->getPath();
-    compath.translate(comp.value().pos);
-    compath = comp.value().transform.map(compath);
-    localpath.addPath(compath);
-  }
-
-  localpath.addPath(getPathFromEdge(getEdge()));
-
-  return localpath;
-}
-
-bool Glyph::setProperty(const char* name, const QVariant& value, bool updateParam) {
-  if (updateParam) {
-    auto param = this->params.find(name);
-    if (param != this->params.end()) {
-      auto expr = param->second.expr.get();
-      if (expr->isConstant(0)) {
-        expr->setConstantValue(0, value);
-      }
-    }
-  }
-  return QObject::setProperty(name, value);
-}
+#endif

@@ -298,7 +298,7 @@ beginchar(cgj,847,-1,-1,-1);
 %847
 charwd := 0;
 endchar;
-defchar(space,32,-1,0,0);
+defchar(space,32,-1,-1,-1);
 %%beginbody
 
 
@@ -7111,7 +7111,7 @@ fill (0.0,0.0)
  .. controls (270.0,0.0) and (270.0,0.0) .. (250.0,0.0)
  .. controls (172.0,0.0) and (78.0,0.0) .. cycle;
 endchar;
-beginchar(tatweel.fina,-1,250,104,0);
+beginchar(tatweel.fina,-1,-1,-1,-1);
 %%beginbody
 % glyphname:tatweel
 %%begincomponents

@@ -39,6 +39,12 @@ public:
   ToOpenType(OtLayout* layout);
   bool GenerateFile(QString fileName, std::string  lokkupsFileName = "automedina.fea");
 
+  struct SubrGlyphInfo {
+    int offset;
+    double lastx;
+    double lasty;
+  };
+
   struct GlobalValues {
     int16_t ascender;
     int16_t descender;
@@ -58,7 +64,7 @@ public:
     int major;
     int minor;
     QString familyName;
-    QString subFamilyName;    
+    QString subFamilyName;
     QString Copyright;
     QString License;
     QString fullName() {
@@ -324,22 +330,22 @@ private:
   void int_to_cff2(QByteArray& cff, int val);
   void fixed_to_cff2(QByteArray& cff, double val);
   QByteArray charStrings(bool iscff2);
-  QByteArray charString(mp_graphic_object* object, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ContourLimits contourLimits);
+  QByteArray charString(GlyphVis& glyph, bool colored, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ContourLimits contourLimits);
   void initiliazeGlobals();
 
   int nbSubrs = 0;
   QByteArray subrs;
   QVector<int> subrOffsets;
   int subIndexBias = 107;
-  void setGIds();
-  void setAyaGlyphPaths();
-  QMap<uint16_t, int> subrByGlyph;
+  void setGIds();  
+  void generateComponents();
+  QMap<uint16_t, SubrGlyphInfo> subrByGlyph;
   QMap<uint16_t, QByteArray> replacedGlyphs;
 
-  void dumpPath(QByteArray& data, mp_fill_object* fill, double& currentx, double& currenty, PathLimits& pathLimits);
+  void dumpPath(GlyphVis& glyph, QByteArray& data, mp_fill_object* fill, double& currentx, double& currenty, PathLimits& pathLimits, GlyphVis** compGlyph);
 
   QByteArray getSubrs();
-  QByteArray getAyaMono();
+
 
   bool uniformAxis;
   std::unordered_map<ValueLimits, int> regionSubtables;

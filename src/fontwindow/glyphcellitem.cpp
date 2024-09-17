@@ -35,7 +35,7 @@ GlyphCellItem::GlyphCellItem(QGraphicsItem* parent) : QGraphicsObject(parent) {
   double scale = 0.5;
 
   path = new QGraphicsPathItem(this);
-  QTransform m;
+
   m.translate(300, 700);
   m.scale(scale, -scale);
   path->setTransform(m);
@@ -45,12 +45,8 @@ GlyphCellItem::GlyphCellItem(QGraphicsItem* parent) : QGraphicsObject(parent) {
 
   header = new GlyphCellHeaderItem(this);
   header->setFlag(QGraphicsItem::ItemStacksBehindParent);
-  //header->setFlags(ItemIgnoresTransformations);
-  //QTextOption option = header->document()->defaultTextOption();
-  //option.setAlignment(Qt::AlignCenter);
-  //header->document()->setDefaultTextOption(option);
 
-  glyph = NULL;
+  glyph = nullptr;
 
 }
 
@@ -81,9 +77,18 @@ void GlyphCellItem::glyphChanged(QString name) {
   setPath();
 }
 void GlyphCellItem::setPath() {
-  QPainterPath path = glyph->getPath();
-  path.setFillRule(Qt::WindingFill);
-  this->path->setPath(path);
+
+  if (glyph->getEdge() && glyph->getEdge()->glyphtype == 5) {
+    picture = glyph->getPicture(glyph->getEdge());
+    this->path->setPath({});
+  }
+  else {
+    auto path = glyph->getPath();
+    path.setFillRule(Qt::WindingFill);
+    this->path->setPath(path);
+    picture = QPicture();
+  }
+
 }
 
 Glyph* GlyphCellItem::getGlyph() {
@@ -109,23 +114,12 @@ void GlyphCellItem::paint(QPainter* painter,
     painter->fillRect(boundingRect(), selectionColor);
   }
 
-  /*
-  QGraphicsScene* scene = this->scene();
-  if (scene) {
-    QGraphicsView *view = scene->views().first();
-    qreal height = view->viewportTransform().inverted().mapRect(QRectF(0, 0, 15, 15)).height();
-    QRectF rect(0, 0, 1000, height);
-    painter->setBrush(Qt::lightGray);
-    painter->drawRect(rect);
-
-
-    qreal factor = 1 / (view->transform().mapRect(QRectF(0, 0, 1, 1)).width());
-
-    painter->scale(factor, factor);
-    QRectF textRect(50 / factor, 0, 900 / factor, height / factor);
-
-    painter->drawText(textRect, Qt::AlignCenter | Qt::TextSingleLine, glyph->getName());// , QTextOption(Qt::AlignCenter | Qt::TextSingleLine));
-  }*/
+  if (!picture.isNull()) {
+    painter->save();
+    painter->setTransform(m, true);
+    painter->drawPicture(0, 0, picture);
+    painter->restore();
+  }
 
 
 }
@@ -158,26 +152,26 @@ void GlyphCellItem::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
   QStyleOptionGraphicsItem option;
 
   double grabwidth = 50;
-
-
-  QRectF rect = path->boundingRect();
   QPixmap pixmap(grabwidth, grabwidth);
   pixmap.fill(Qt::white);
-
+  QPainter painter(&pixmap);
+  painter.setRenderHint(QPainter::Antialiasing);
+  QRectF rect = picture.isNull() ? path->boundingRect() : picture.boundingRect();
   double scalex = grabwidth / rect.width();
   double scaley = grabwidth / rect.height();
 
   double scale = qMin(scalex, scaley);
 
-  QPainter painter(&pixmap);
+
   painter.translate(-scale * rect.x(), grabwidth + scale * rect.y());
   painter.scale(scale, -scale);
-  painter.setRenderHint(QPainter::Antialiasing);
 
-
-
-  path->paint(&painter, &option, 0);
-
+  if (picture.isNull()) {
+    path->paint(&painter, &option, 0);    
+  }
+  else {
+    painter.drawPicture(0, 0, picture);
+  }
   painter.end();
 
   pixmap.setMask(pixmap.createHeuristicMask());

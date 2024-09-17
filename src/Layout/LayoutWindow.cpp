@@ -375,10 +375,6 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended) {
 
   OtLayout layout = OtLayout(m_font, extended);
 
-  //layout.isOTVar = false;
-
-  layout.loadLookupFile("automedina.fea");
-
   layout.toOpenType->isCff2 = true;
 
   auto ret = layout.toOpenType->GenerateFile(otfFileName);
@@ -603,7 +599,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
 
   LayoutPages result;
   QStringList originalPage;
-  
+
 
   QString suraWord = "سُورَةُ";
   QString bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
@@ -620,7 +616,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
 
 
   QString sajdapatterns = "(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)"; // sajdapatterns.replace("\u0657", "\u08F0").replace("\u065E", "\u08F1").replace("\u0656", "\u08F2");
- 
+
   sajdapatterns = sajdapatterns.replace("\u0626", "\u0626\u034F");
 
   QRegularExpression sajdaRe = QRegularExpression(sajdapatterns, QRegularExpression::MultilineOption);
@@ -919,7 +915,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
     for (int lineIndex = 0; lineIndex < shapedPage.size(); lineIndex++) {
       auto& lineLayoutInfo = shapedPage[lineIndex];
 
-      auto match = surabism.match(lines[lineIndex]);      
+      auto match = surabism.match(lines[lineIndex]);
 
       newface = false;
 
@@ -932,9 +928,9 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
 
           int startOffset = match.capturedStart(match.lastCapturedIndex()); // startOffset == 6
           int endOffset = match.capturedEnd(match.lastCapturedIndex()) - 1; // endOffset == 9
+          
 
-
-          while (layout->glyphGlobalClasses[lines[lineIndex][endOffset].unicode()] == OtLayout::MarkGlyph)
+          while (lines[lineIndex][endOffset].isMark())
             endOffset--;
 
           bool beginDone = false;
@@ -960,7 +956,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
         }
       }
 
-      if (lineIndex == 0 && (pagenum == 0 || pagenum == 1)) {        
+      if (lineIndex == 0 && (pagenum == 0 || pagenum == 1)) {
         lineLayoutInfo.ystartposition = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1)) << OtLayout::SCALEBY;
       }
       else {

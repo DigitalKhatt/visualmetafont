@@ -29,12 +29,8 @@
 #include "automedina/automedina.h"
 #include <stdexcept>
 #include <map>
+#include "metafont.h";
 
-extern "C"
-{
-#include "mplibps.h"
-#include "mppsout.h"
-}
 
 ToOpenType::ToOpenType(OtLayout* layout) :ot_layout{ layout }
 {
@@ -349,21 +345,10 @@ void ToOpenType::setGIds() {
       }
       newCodes.insert(code, newCode);
       auto glyph = &ot_layout->glyphs[name];
-      if (glyph->charcode != code) {
-        int stop = 5;
-      }
       glyph->charcode = newCode;
       newCode++;
     }
   }
-  /*
-  for(auto& glyph : ot_layout->glyphs){
-    if(glyph.name != "notdef" && glyph.name != "null" ){
-      newCodes.insert(glyph.charcode,newCode);
-      glyph.charcode = newCode;
-      newCode++;
-    }
-  }*/
 
   QMap<quint16, quint16>::const_iterator iter = newCodes.constBegin();
   while (iter != newCodes.constEnd()) {
@@ -510,8 +495,8 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
 
 
   glyphs.clear();
-  for (auto& glyph : ot_layout->glyphs) {
-    glyphs.insert(glyph.charcode, &glyph);
+  for (auto it = ot_layout->glyphCodePerName.keyValueBegin(); it != ot_layout->glyphCodePerName.keyValueEnd(); ++it) {
+    glyphs.insert(it->second, &ot_layout->glyphs[it->first]);
   }
 
   initiliazeGlobals();
@@ -519,7 +504,7 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
   QVector<Table> tables;
   QByteArray cffArray;
 
-  setAyaGlyphPaths();
+  generateComponents();
 
   //generate new color glyphs
   if (isCff2) {
@@ -558,20 +543,17 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
     if (ot_layout->extended) {
       tables.append({ JTST(),HB_TAG('J', 'T', 'S', 'T') });
     }
-
-
   }
-  //TODO 
-  if (!fileName.contains("oldmadina")) {
-    if (!layers.isEmpty()) {
-      QByteArray cpal;
-      QByteArray colr;
-      if (colrcpal(colr, cpal)) {
-        tables.append({ colr,HB_TAG('C','O','L','R') });
-        tables.append({ cpal,HB_TAG('C','P','A','L') });
-      }
+
+  if (!layers.isEmpty()) {
+    QByteArray cpal;
+    QByteArray colr;
+    if (colrcpal(colr, cpal)) {
+      tables.append({ colr,HB_TAG('C','O','L','R') });
+      tables.append({ cpal,HB_TAG('C','P','A','L') });
     }
   }
+
 
   uint16_t numTables = tables.size();
 
@@ -659,6 +641,7 @@ uint32_t ToOpenType::calcTableChecksum(uint32_t* table, uint32_t length)
 }
 
 bool ToOpenType::colrcpal(QByteArray& colr, QByteArray& cpal) {
+
   if (layers.isEmpty()) return false;
 
   QMap<Color, uint16_t> colormap;
@@ -721,8 +704,6 @@ bool ToOpenType::colrcpal(QByteArray& colr, QByteArray& cpal) {
     cpal << (uint8_t)color.red;
     cpal << (uint8_t)color.alpha;
   }
-
-
 
   return true;
 
@@ -1048,7 +1029,37 @@ QByteArray ToOpenType::post() {
 
   return data;
 }
-void ToOpenType::dumpPath(QByteArray& data, mp_fill_object* fill, double& currentx, double& currenty, PathLimits& pathLimits) {
+void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_fill_object* fill, double& currentx, double& currenty, PathLimits& pathLimits, GlyphVis** compGlyphVis) {
+
+
+
+  if (fill->pre_script && strcmp(fill->pre_script, "begincomponent") == 0) {
+    auto comp = QString(fill->post_script).split(",");
+    QString name = comp[0];
+    GlyphVis& compGlyph = ot_layout->glyphs[name];
+    auto initPosX = comp[1].toDouble() + glyph.matrix.xpart;
+    auto initPosY = comp[2].toDouble() + glyph.matrix.ypart;
+    auto dx = initPosX - currentx;
+    auto dy = initPosY - currenty;
+
+    if (subrByGlyph.contains(compGlyph.charcode)) {
+      auto subrByGlyphInfo = subrByGlyph.value(compGlyph.charcode);
+
+
+      fixed_to_cff2(data, dx);
+      fixed_to_cff2(data, dy);
+      data << (uint8_t)21; // rmoveto;    
+      int_to_cff2(data, subrByGlyphInfo.offset - subIndexBias);
+      data << (uint8_t)10; // callsubr;
+
+      currentx = initPosX + subrByGlyphInfo.lastx;
+      currenty = initPosY + subrByGlyphInfo.lasty;
+
+      *compGlyphVis = &compGlyph;
+
+      return;
+    }
+  }
 
   auto path = fill->path_p;
 
@@ -1142,9 +1153,10 @@ void ToOpenType::dumpPath(QByteArray& data, mp_fill_object* fill, double& curren
   }
 
 }
-QByteArray ToOpenType::charString(mp_graphic_object* body, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ToOpenType::ContourLimits contourLimits) {
+QByteArray ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ToOpenType::ContourLimits contourLimits) {
 
 
+  auto body = glyph.copiedPath;
   QByteArray data;
 
   Color ayablue = Color{ 255,240,220,255 };
@@ -1159,29 +1171,44 @@ QByteArray ToOpenType::charString(mp_graphic_object* body, bool iscff2, QVector<
         QByteArray layerArray;
         mp_fill_object* fillobject = (mp_fill_object*)body;
 
+        if (!colored) {
+          if (iscff2) {
+            pathlimits.maxLeft = contourLimits.maxLeft != nullptr ? ((mp_fill_object*)contourLimits.maxLeft)->path_p : nullptr;
+            pathlimits.minLeft = contourLimits.minLeft != nullptr ? ((mp_fill_object*)contourLimits.minLeft)->path_p : nullptr;
+            pathlimits.maxRight = contourLimits.maxRight != nullptr ? ((mp_fill_object*)contourLimits.maxRight)->path_p : nullptr;
+            pathlimits.minRight = contourLimits.minRight != nullptr ? ((mp_fill_object*)contourLimits.minRight)->path_p : nullptr;
+          }
+          GlyphVis* compGlyphVis = nullptr;
+          dumpPath(glyph, layerArray, fillobject, currentx, currenty, pathlimits, &compGlyphVis);
 
-        if (iscff2) {
-          pathlimits.maxLeft = contourLimits.maxLeft != nullptr ? ((mp_fill_object*)contourLimits.maxLeft)->path_p : nullptr;
-          pathlimits.minLeft = contourLimits.minLeft != nullptr ? ((mp_fill_object*)contourLimits.minLeft)->path_p : nullptr;
-          pathlimits.maxRight = contourLimits.maxRight != nullptr ? ((mp_fill_object*)contourLimits.maxRight)->path_p : nullptr;
-          pathlimits.minRight = contourLimits.minRight != nullptr ? ((mp_fill_object*)contourLimits.minRight)->path_p : nullptr;
-        }
-
-
-        dumpPath(layerArray, fillobject, currentx, currenty, pathlimits);
-        if (layerArray.size() != 0) {
           data.append(layerArray);
+
+          if (compGlyphVis) {
+            body = body->next;
+            while (body->type != mp_stroked_code || ((mp_stroked_object*)body)->pre_script == nullptr || strcmp(((mp_stroked_object*)body)->pre_script, "endcomponent")) body = body->next;
+          }
+        }
+        else {
           Layer layer;
           QByteArray newGlyphArray;
           double tempx = 0;
           double tempy = 0;
           PathLimits tempPathLimits;
-          dumpPath(newGlyphArray, fillobject, tempx, tempy, tempPathLimits);
+          GlyphVis* compGlyphVis = nullptr;
+          dumpPath(glyph, newGlyphArray, fillobject, tempx, tempy, tempPathLimits, &compGlyphVis);
           layer.charString = newGlyphArray;
+          if (compGlyphVis) {
+            body = body->next;
+            while (body->type != mp_stroked_code || ((mp_stroked_object*)body)->pre_script == nullptr || strcmp(((mp_stroked_object*)body)->pre_script, "endcomponent")) body = body->next;
+          }
+
           if (fillobject->color_model == mp_rgb_model) {
             layer.color.red = toInt(fillobject->color.a_val * 255);
             layer.color.green = toInt(fillobject->color.b_val * 255);
             layer.color.blue = toInt(fillobject->color.c_val * 255);
+          }
+          else if (fillobject->color_model == mp_no_model) {
+            layer.color.foreground = true;
           }
           layers.append(layer);
         }
@@ -1216,13 +1243,17 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
 
   int glyphCount = glyphs.lastKey() + 1;
 
+  std::map<int, QString> coloredglyphs;
+
   for (int i = 0; i < glyphCount; i++) {
     QByteArray glyphArray;
 
     if (glyphs.contains(i)) {
       auto& glyph = *glyphs.value(i);
 
-      QVector<Layer> layers;
+      if (glyph.edge() && glyph.edge()->coloredglyph != nullptr && strcmp(glyph.edge()->coloredglyph, "")) {
+        coloredglyphs.insert({ glyph.charcode,QString(glyph.edge()->coloredglyph) });
+      }
 
       QByteArray glyphData;
 
@@ -1231,15 +1262,14 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
 
       int regionSubtable = 0;
 
-      if (replacedGlyphs.contains(glyph.charcode)) {
-        glyphData = replacedGlyphs.value(glyph.charcode);
+      if (subrByGlyph.contains(glyph.charcode)) {
+        int_to_cff2(glyphData, subrByGlyph.value(glyph.charcode).offset - subIndexBias);
+        glyphData << (uint8_t)10; // callsubr;
       }
       else {
         ContourLimits contourLimits;
 
         const auto& ff = ot_layout->expandableGlyphs.find(glyph.name);
-
-
 
         if (ff != ot_layout->expandableGlyphs.end()) {
 
@@ -1294,22 +1324,8 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
 
           }
         }
-        glyphData = charString(glyph.copiedPath, iscff2, layers, currentx, currenty, contourLimits);
-      }
-
-      bool needColor = false;
-
-      Color black;
-
-      for (auto& layer : layers) {
-        if (!(layer.color == black)) {
-          needColor = true;
-          break;
-        }
-      }
-
-      if (needColor) {
-        this->layers.insert(i, layers);
+        QVector<Layer> layers;
+        glyphData = charString(glyph, false, iscff2, layers, currentx, currenty, contourLimits);
       }
 
       if (glyphData.size() == 0) {
@@ -1344,6 +1360,30 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
     offsets.append(offset);
     offset += glyphArray.size();
     objectData.append(glyphArray);
+  }
+
+  for (auto coloredGlyp : coloredglyphs) {
+    GlyphVis& glyph = ot_layout->glyphs[coloredGlyp.second];
+    QVector<Layer> layers;
+
+    QByteArray glyphData;
+
+    double currentx = 0.0;
+    double currenty = 0.0;
+
+
+    if (subrByGlyph.contains(glyph.charcode)) {
+      int_to_cff2(glyphData, subrByGlyph.value(glyph.charcode).offset - subIndexBias);
+      glyphData << (uint8_t)10; // callsubr;
+    }
+    else {
+      ContourLimits contourLimits;
+      glyphData = charString(glyph, true, iscff2, layers, currentx, currenty, contourLimits);
+    }
+
+    if (layers.size() > 0) {
+      this->layers.insert(coloredGlyp.first, layers);
+    }
   }
 
 
@@ -1837,266 +1877,45 @@ QByteArray ToOpenType::getSubrs() {
   return data;
 
 }
-QByteArray ToOpenType::getAyaMono() {
 
-  QVector<Layer> ayaLayers;
+void ToOpenType::generateComponents() {
 
-  double endofayax = 0.0;
-  double endofayay = 0.0;
+  std::set<QString> components;
 
-  GlyphVis& endofaya = ot_layout->glyphs["endofaya"];
+  for (auto& glyph : glyphs) {
+    auto body = glyph->copiedPath;
 
-  QByteArray endofayaArray = charString(endofaya.copiedPath, this->isCff2, ayaLayers, endofayax, endofayay, ContourLimits{});
+    if (!body) continue;
 
-  auto monoPath = (mp_fill_object*)mp_new_graphic_object(ot_layout->font->mp, mp_fill_code);
-
-
-  auto source = endofaya.copiedPath->next;
-  auto dest = monoPath;
-  dest->path_p = ((mp_fill_object*)endofaya.copiedPath)->path_p;
-
-  int pathIndex = 1;
-
-  do {
-    if (source->type == mp_fill_code && pathIndex != 6 && pathIndex != 7 && pathIndex != 8 && pathIndex != 9) {
-      auto newpath = (mp_fill_object*)mp_new_graphic_object(ot_layout->font->mp, mp_fill_code);
-      newpath->path_p = ((mp_fill_object*)source)->path_p;
-      dest->next = (mp_graphic_object*)newpath;
-      dest = newpath;
-    }
-    source = source->next;
-    pathIndex++;
-
-  } while (source != nullptr);
-
-  endofayax = 0.0;
-  endofayay = 0.0;
-
-  QByteArray endofayaMonoArray = charString((mp_graphic_object*)monoPath, this->isCff2, ayaLayers, endofayax, endofayay, ContourLimits{});
-
-
-  while (monoPath != nullptr) {
-    auto q = monoPath->next;
-    free(monoPath);
-    monoPath = (mp_fill_object*)q;
+    do {
+      switch (body->type)
+      {
+      case mp_fill_code: {
+        mp_fill_object* fillobject = (mp_fill_object*)body;
+        if (fillobject->pre_script && strcmp(fillobject->pre_script, "begincomponent") == 0) {
+          components.insert(QString(fillobject->post_script).split(",")[0]);
+        }
+      }
+      }
+      body = body->next;
+    } while (body != nullptr);
   }
 
-  return endofayaMonoArray;
-
-}
-void ToOpenType::setAyaGlyphPaths() {
-  GlyphVis& endofaya = ot_layout->glyphs["endofaya"];
-
-  QVector<Layer> ayaLayers;
-  QVector<Layer> layers;
-
-  double endofayax = 0.0;
-  double endofayay = 0.0;
-
-  QByteArray endofayaArray = charString(endofaya.copiedPath, this->isCff2, ayaLayers, endofayax, endofayay, ContourLimits{});
-
-  QByteArray endofayaMonoArray = getAyaMono();
-
-  this->layers.insert(endofaya.charcode, ayaLayers);
-  replacedGlyphs.insert(endofaya.charcode, endofayaMonoArray);
-  QByteArray endofayaArraySubr;
-  endofayaArraySubr.append(endofayaMonoArray);
-  if (!isCff2) {
-    endofayaArraySubr << (uint8_t)11; // return
-  }
-
-
-  subrByGlyph.insert(endofaya.charcode, subrOffsets.size());
-  subrOffsets.append(subrs.size() + 1);
-  subrs.append(endofayaArraySubr);
-
-  for (int i = 0; i < 10; i++) {
-
+  for (auto& componentName : components) {
+    GlyphVis& glyph = ot_layout->glyphs[componentName];
     double currentx = 0.0;
     double currenty = 0.0;
 
-    auto digit = glyphs[ot_layout->unicodeToGlyphCode.value(0x0660 + i)];
-    QByteArray charStringArray = charString(digit->copiedPath, this->isCff2, layers, currentx, currenty, ContourLimits{});
+    if (glyph.getGlypfType() == GlyphType::GlyphTypeColored) continue;
+
+    QVector<Layer> layers;
+    QByteArray charStringArray = charString(glyph, false, this->isCff2, layers, currentx, currenty, ContourLimits{});
     if (!isCff2) {
       charStringArray << (uint8_t)11; // return
     }
-    subrByGlyph.insert(digit->charcode, subrOffsets.size());
+    subrByGlyph.insert(glyph.charcode, { subrOffsets.size(),currentx,currenty });
     subrOffsets.append(subrs.size() + 1);
     subrs.append(charStringArray);
-  }
-
-  int yOffset = 110;
-
-  for (auto glyph : glyphs) {
-    if (!glyph->name.startsWith("aya")) continue;
-
-    auto ayaNumber = glyph->name.mid(3).toInt();
-
-    if (ayaNumber < 10) {
-      auto onesglyph = glyphs[ot_layout->unicodeToGlyphCode.value(1632 + ayaNumber)];
-      auto position = endofaya.width / 2 - (onesglyph->width) / 2;
-      QByteArray charStringArray;
-      charStringArray.append(endofayaArray);
-      fixed_to_cff2(charStringArray, position);
-      fixed_to_cff2(charStringArray, 0);
-      charStringArray << (uint8_t)21; // rmoveto;
-
-      double currentx = 0.0;
-      double currenty = 0.0;
-
-      QByteArray oneDigitArray = charString(onesglyph->copiedPath, this->isCff2, layers, currentx, currenty, ContourLimits{});
-      charStringArray.append(oneDigitArray);
-
-
-      QVector<Layer> newlayers = ayaLayers;
-
-      QByteArray addDigitArray;
-      fixed_to_cff2(addDigitArray, position);
-      fixed_to_cff2(addDigitArray, yOffset);
-      addDigitArray << (uint8_t)21; // rmoveto;
-      //addDigitArray.append(oneDigitArray);
-      int_to_cff2(addDigitArray, subrByGlyph.value(onesglyph->charcode) - subIndexBias);
-      addDigitArray << (uint8_t)10; // callsubr;
-      Layer newlayer;
-      newlayer.charString = addDigitArray;
-      newlayer.color.foreground = true;
-      newlayers.append(newlayer);
-
-      this->layers.insert(glyph->charcode, newlayers);
-
-      QByteArray monoChromeArray;
-
-      int_to_cff2(monoChromeArray, subrByGlyph.value(endofaya.charcode) - subIndexBias);
-      monoChromeArray << (uint8_t)10; // callsubr;
-
-      fixed_to_cff2(monoChromeArray, -endofayax);
-      fixed_to_cff2(monoChromeArray, -endofayay);
-      monoChromeArray << (uint8_t)21; // rmoveto;
-      monoChromeArray.append(addDigitArray);
-
-      replacedGlyphs.insert(glyph->charcode, monoChromeArray);
-
-    }
-    else if (ayaNumber < 100) {
-      int onesdigit = ayaNumber % 10;
-      int tensdigit = ayaNumber / 10;
-
-      auto onesglyph = glyphs[ot_layout->unicodeToGlyphCode.value(1632 + onesdigit)];
-      auto tensglyph = glyphs[ot_layout->unicodeToGlyphCode.value(1632 + tensdigit)];
-      auto position = endofaya.width / 2 - (onesglyph->width + tensglyph->width + 40) / 2;
-
-      QVector<Layer> newlayers = ayaLayers;
-
-      double lastx = 0.0;
-      double lasty = 0.0;
-      double currentx = 0.0;
-      double currenty = 0.0;
-      QByteArray onesDigitArray = charString(onesglyph->copiedPath, this->isCff2, layers, currentx, currenty, ContourLimits{});
-      QByteArray tensDigitArray = charString(tensglyph->copiedPath, this->isCff2, layers, lastx, lasty, ContourLimits{});
-
-      QByteArray addDigitArray;
-      fixed_to_cff2(addDigitArray, position);
-      fixed_to_cff2(addDigitArray, yOffset);
-      addDigitArray << (uint8_t)21; // rmoveto;
-      //addDigitArray.append(tensDigitArray);
-      int_to_cff2(addDigitArray, subrByGlyph.value(tensglyph->charcode) - subIndexBias);
-      addDigitArray << (uint8_t)10; // callsubr;
-
-      fixed_to_cff2(addDigitArray, tensglyph->width + 40 - lastx);
-      fixed_to_cff2(addDigitArray, 0 - lasty);
-      addDigitArray << (uint8_t)21; // rmoveto;
-
-      //addDigitArray.append(onesDigitArray);
-      int_to_cff2(addDigitArray, subrByGlyph.value(onesglyph->charcode) - subIndexBias);
-      addDigitArray << (uint8_t)10; // callsubr;
-
-      Layer newlayer;
-      newlayer.charString = addDigitArray;
-      newlayer.color.foreground = true;
-      newlayers.append(newlayer);
-
-      this->layers.insert(glyph->charcode, newlayers);
-
-      QByteArray monoChromeArray;
-
-      int_to_cff2(monoChromeArray, subrByGlyph.value(endofaya.charcode) - subIndexBias);
-      monoChromeArray << (uint8_t)10; // callsubr;
-
-      fixed_to_cff2(monoChromeArray, -endofayax);
-      fixed_to_cff2(monoChromeArray, -endofayay);
-      monoChromeArray << (uint8_t)21; // rmoveto;
-      monoChromeArray.append(addDigitArray);
-
-      replacedGlyphs.insert(glyph->charcode, monoChromeArray);
-
-
-    }
-    else {
-      int onesdigit = ayaNumber % 10;
-      int tensdigit = (ayaNumber / 10) % 10;
-      int hundredsdigit = ayaNumber / 100;
-
-      auto onesglyph = glyphs[ot_layout->unicodeToGlyphCode.value(1632 + onesdigit)];
-      auto tensglyph = glyphs[ot_layout->unicodeToGlyphCode.value(1632 + tensdigit)];
-      auto hundredsglyph = glyphs[ot_layout->unicodeToGlyphCode.value(1632 + hundredsdigit)];
-
-      auto position = endofaya.width / 2 - (onesglyph->width + tensglyph->width + hundredsglyph->width + 80) / 2;
-
-      QVector<Layer> newlayers = ayaLayers;
-
-      double tensx = 0.0;
-      double tensy = 0.0;
-      double hundredsx = 0.0;
-      double hundredsy = 0.0;
-      double currentx = 0.0;
-      double currenty = 0.0;
-      QByteArray onesDigitArray = charString(onesglyph->copiedPath, this->isCff2, layers, currentx, currenty, ContourLimits{});
-      QByteArray tensDigitArray = charString(tensglyph->copiedPath, this->isCff2, layers, tensx, tensy, ContourLimits{});
-      QByteArray hundredsDigitArray = charString(hundredsglyph->copiedPath, this->isCff2, layers, hundredsx, hundredsy, ContourLimits{});
-
-      QByteArray addDigitArray;
-      fixed_to_cff2(addDigitArray, position);
-      fixed_to_cff2(addDigitArray, yOffset);
-      addDigitArray << (uint8_t)21; // rmoveto;
-      //addDigitArray.append(hundredsDigitArray);
-      int_to_cff2(addDigitArray, subrByGlyph.value(hundredsglyph->charcode) - subIndexBias);
-      addDigitArray << (uint8_t)10; // callsubr;
-
-      fixed_to_cff2(addDigitArray, hundredsglyph->width + 40 - hundredsx);
-      fixed_to_cff2(addDigitArray, 0 - hundredsy);
-      addDigitArray << (uint8_t)21; // rmoveto;
-      //addDigitArray.append(tensDigitArray);
-      int_to_cff2(addDigitArray, subrByGlyph.value(tensglyph->charcode) - subIndexBias);
-      addDigitArray << (uint8_t)10; // callsubr;
-
-      fixed_to_cff2(addDigitArray, tensglyph->width + 40 - tensx);
-      fixed_to_cff2(addDigitArray, 0 - tensy);
-      addDigitArray << (uint8_t)21; // rmoveto;
-
-      //addDigitArray.append(onesDigitArray);
-      int_to_cff2(addDigitArray, subrByGlyph.value(onesglyph->charcode) - subIndexBias);
-      addDigitArray << (uint8_t)10; // callsubr;
-
-      Layer newlayer;
-      newlayer.charString = addDigitArray;
-      newlayer.color.foreground = true;
-      newlayers.append(newlayer);
-
-      this->layers.insert(glyph->charcode, newlayers);
-
-      QByteArray monoChromeArray;
-
-      int_to_cff2(monoChromeArray, subrByGlyph.value(endofaya.charcode) - subIndexBias);
-      monoChromeArray << (uint8_t)10; // callsubr;
-
-      fixed_to_cff2(monoChromeArray, -endofayax);
-      fixed_to_cff2(monoChromeArray, -endofayay);
-      monoChromeArray << (uint8_t)21; // rmoveto;
-      monoChromeArray.append(addDigitArray);
-
-      replacedGlyphs.insert(glyph->charcode, monoChromeArray);
-
-    }
   }
 }
 QByteArray ToOpenType::fvar() {
@@ -2900,43 +2719,5 @@ QByteArray ToOpenType::getItemVariationStore(const std::vector<std::map<std::vec
   itemVariationStore.append(ItemVariationDatas);
 
   return itemVariationStore;
-
-  /*
-  if (defaultDeltaSets.size() > 0) {
-
-    itemVarStoreOffset = markGlyphSetsDefOffset + MarkGlyphSetsTable.size();
-
-    QByteArray itemVariationData;
-
-    //subtable 0
-    itemVariationData << (uint16_t)defaultDeltaSets.size(); //itemCount
-    itemVariationData << (uint16_t)4; //shortDeltaCount
-    itemVariationData << (uint16_t)4; //regionIndexCount
-    for (int i = 0; i < 4; i++) {
-      itemVariationData << (uint16_t)i; //regionIndexes
-    }
-    std::map<int, DefaultDelta> delatSets;
-    for (auto& it : defaultDeltaSets) {
-      delatSets.insert({ it.second,it.first });
-    }
-    for (auto& it : delatSets) {
-      itemVariationData << (uint16_t)it.second.maxLeft << (uint16_t)it.second.minLeft << (uint16_t)it.second.maxRight << (uint16_t)it.second.minRight;
-    }
-
-
-    QByteArray variationRegionList = getVariationRegionList();
-
-    auto itemVariationDataCount = 1;
-    auto startOffset = 8 + 4 * itemVariationDataCount;
-
-    itemVariationStore << (uint16_t)1; //format
-    itemVariationStore << (uint32_t)startOffset; //variationRegionListOffset
-    itemVariationStore << (uint16_t)itemVariationDataCount; //itemVariationDataCount
-    itemVariationStore << (uint32_t)(startOffset + variationRegionList.size()); //itemVariationDataOffsets[0]
-    itemVariationStore.append(variationRegionList);
-    itemVariationStore.append(itemVariationData);
-
-  }*/
-
 
 }

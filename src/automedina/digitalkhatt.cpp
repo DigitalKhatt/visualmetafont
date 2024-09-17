@@ -26,104 +26,54 @@ void digitalkhatt::generateGlyphs() {
     if (name != "alternatechar") {
       GlyphVis& glyph = *glyphs.insert(name, GlyphVis(m_layout, edges));
 
+      if (edges->glyphtype != (int)GlyphType::GlyphTypeColored && edges->glyphtype != (int)GlyphType::GlyphTypeTemp) {
+        m_layout->glyphNamePerCode[glyph.charcode] = glyph.name;
+        m_layout->glyphCodePerName[glyph.name] = glyph.charcode;
+        m_layout->unicodeToGlyphCode.insert(glyph.charcode, glyph.charcode);
 
-      m_layout->glyphNamePerCode[glyph.charcode] = glyph.name;
-      m_layout->glyphCodePerName[glyph.name] = glyph.charcode;
-      m_layout->unicodeToGlyphCode.insert(glyph.charcode, glyph.charcode);
+        if (edges->glyphtype == (int)GlyphType::GlyphTypeMark) {
+          classes["marks"].insert(glyph.name);
+          m_layout->glyphGlobalClasses[glyph.charcode] = OtLayout::MarkGlyph;
+        }
+        else if (classes["marks"].contains(glyph.name)) {
+          m_layout->glyphGlobalClasses[glyph.charcode] = OtLayout::MarkGlyph;
+        }
+        else if (edges->glyphtype == (int)GlyphType::GlyphTypeBase || edges->glyphtype == (int)GlyphType::GlyphTypeLigature) {
+          classes["bases"].insert(glyph.name);
+          m_layout->glyphGlobalClasses[glyph.charcode] = (OtLayout::GDEFClasses)edges->glyphtype;
+        }
+        else if (edges->glyphtype == (int)GlyphType::GlyphTypeComponent) {
+          m_layout->glyphGlobalClasses[glyph.charcode] = OtLayout::ComponentGlyph;
+        }
 
-      //if (glyph.name.contains("space")) {
-
-      //}
-      //else
-      if (!classes["marks"].contains(glyph.name)) {
-        classes["bases"].insert(glyph.name);
-        m_layout->glyphGlobalClasses[glyph.charcode] = OtLayout::BaseGlyph;
-      }
-      else {
-        m_layout->glyphGlobalClasses[glyph.charcode] = OtLayout::MarkGlyph;
-      }
-
-      //uint totalAnchors = getTotalAnchors(mp, glyph.charcode);
-      /*
-            if (edges->numAnchors > 10) {
-                    throw "error";
-    }*/
-
-      for (int i = 0; i < edges->numAnchors; i++) {
-        AnchorPoint anchor = edges->anchors[i];
-        if (anchor.anchorName) {
-          switch (anchor.type)
-          {
-          case 1:
-            markAnchors[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
-            break;
-          case 2:
-            entryAnchors[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
-            break;
-          case 3:
-            exitAnchors[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
-          case 4:
-            entryAnchorsRTL[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
-            break;
-          case 5:
-            exitAnchorsRTL[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
-          default:
-            break;
+        for (int i = 0; i < edges->numAnchors; i++) {
+          AnchorPoint anchor = edges->anchors[i];
+          if (anchor.anchorName) {
+            switch (anchor.type)
+            {
+            case 1:
+              markAnchors[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
+              break;
+            case 2:
+              entryAnchors[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
+              break;
+            case 3:
+              exitAnchors[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
+            case 4:
+              entryAnchorsRTL[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
+              break;
+            case 5:
+              exitAnchorsRTL[anchor.anchorName][glyph.charcode] = QPoint(anchor.x, anchor.y);
+            default:
+              break;
+            }
           }
         }
       }
     }
 
-
-
     edges = edges->next;
   }
-
-
-  auto ayaGlyph = glyphs["endofaya"];
-
-  int ayacharcode = AyaNumberCode;
-
-  for (int i = 1; i <= 286; i++) {
-
-    QString name = QString("aya%1").arg(i);
-
-    // Amine very temporary for test
-    auto& glyph = *glyphs.insert(name, ayaGlyph);
-
-    glyph.name = name;
-    glyph.charcode = ayacharcode++;
-#ifndef DIGITALKHATT_WEBLIB
-    glyph.refresh(glyphs);
-#endif
-
-    m_layout->glyphNamePerCode.insert(glyph.charcode, glyph.name);
-    m_layout->glyphCodePerName.insert(glyph.name, glyph.charcode);
-
-    m_layout->glyphGlobalClasses.insert(glyph.charcode, OtLayout::LigatureGlyph);
-  }
-
-
-  /*
-         "0622": [ "alef.isol", "maddahabove" ],
-        "0623": [ "alef.isol", "hamzaabove" ],
-        "0624": [ "waw.isol", "hamzaabove" ],
-        "0625": [ "alef.isol", "hamzabelow" ],
-        "0626": [ "alefmaksura.isol", "hamzaabove" ],
-        "0628": [ "behshape.isol", "onedotdown" ],
-        "0629": [ "heh.isol", "twodotsup" ],
-        "062A": [ "behshape.isol", "twodotsup" ],
-        "062B": [ "behshape.isol", "three_dots" ],
-        "062C": [ "hah.isol", "onedotdown" ],
-        "062E": [ "hah.isol", "onedotup" ],
-        "0630": [ "dal.isol", "onedotup" ],
-        "0632": [ "reh.isol", "onedotup" ],
-        "0634": [ "seen.isol", "three_dots" ],
-        "0636": [ "sad.isol", "onedotup" ],
-        "0638": [ "tah.isol", "onedotup" ],
-        "063A": [ "ain.isol", "onedotup" ],
-        "0671": [ "alef.isol", "wasla" ]*/
-
 
   auto addFake = [this](QString glyphName, quint16 unicode, quint16 codechar) {
     auto code = unicode; //codechar; //layout.glyphNamePerCode.lastKey();
@@ -168,45 +118,7 @@ void digitalkhatt::generateGlyphs() {
 
 
 void digitalkhatt::addchars() {
-
-  /*
-        for (auto key : classes["haslefttatweel"]) {
-                QString name = QStringLiteral("%1.beforeheh").arg(key);
-                addchar(key, -1, 200 / 100.0, {}, {}, {}, {}, {}, name, 2);
-        }*/
-        /*
-              for (auto key : classes["haslefttatweel"]) {
-                      for (float i = 100; i <= 500; i = i + 100) {
-                              QString name = QStringLiteral("%1.pluslt_%2").arg(key).arg((int)(i * 1));
-                              addchar(key, -1, i / 100.0, {}, {}, {}, {}, {}, name, 2);
-                      }
-
-
-                      // for (float i = 10; i <= 200; i = i + 10) {
-                      //	QString name = QStringLiteral("%1.minuslt_%2").arg(key).arg((int)(i * 1));
-                      //	addchar(key, -1, -i / 100.0, {}, {}, {}, {}, {}, name, 2);
-                      //}
-
-                      QString metapostcode = QString("vardef %1.pluslt_[]_(expr lt,rt) = %1_(lt,rt);enddef;").arg(key);
-
-                      QByteArray commandBytes = metapostcode.toLatin1();
-
-                      int status = mp_execute(mp, commandBytes.data(), commandBytes.size());
-                      if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-                              mp_run_data * results = mp_rundata(mp);
-                              QString ret(results->term_out.data);
-                              ret.trimmed();
-                              mp_finish(mp);
-                              throw "Could not initialize MetaPost library instance!\n" + ret;
-                      }
-              }*/
-
-
-              //addchar("lam.medi", -1, {}, -0.2, {}, {}, {}, {}, "lam.medi.afterhah", 2);
-  //addchar("behshape.init", -1, -110 / 100.0, {}, {}, {}, {}, {}, "behshape.init.minuslt_110", 2);
-
-
-
+  generateAyas("endofaya");
 }
 
 digitalkhatt::digitalkhatt(OtLayout* layout, Font* font, bool extended) :Automedina{ layout,font, extended } {
@@ -1539,6 +1451,181 @@ Lookup* digitalkhatt::pointmarks() {
 
 Lookup* digitalkhatt::ayanumberskern() {
 
+  short digitheight = 120;
+  short digitKern = 40;
+  auto& ayaGlyph = glyphs["endofaya"];
+  //main lokkup
+
+  Lookup* lookup = new Lookup(m_layout);
+  lookup->name = "ayanumberskern";
+  lookup->feature = "kern";
+  lookup->type = Lookup::chainingpos;
+  lookup->flags = 0;
+
+  auto getDigitName = [](int code) {
+    switch (code) {
+    case 0: return "zeroindic";
+    case 1: return "oneindic";
+    case 2: return "twoindic";
+    case 3: return "threeindic";
+    case 4: return "fourindic";
+    case 5: return "fiveindic";
+    case 6: return "sixindic";
+    case 7: return "sevenindic";
+    case 8: return "eightindic";
+    case 9: return "nineindic";
+    default: return "";
+    };
+  };
+
+
+  for (int ayaNumber = 286; ayaNumber >= 1; ayaNumber--) {
+    if (ayaNumber < 10) {
+
+      Lookup* sublookup = new Lookup(m_layout);
+      sublookup->name = QString("ayanumberskern.l%1").arg(ayaNumber);
+      sublookup->feature = "";
+      sublookup->type = Lookup::singleadjustment;
+      m_layout->addLookup(sublookup);
+
+      SingleAdjustmentSubtable* singleadjsubtable = new SingleAdjustmentSubtable(sublookup);
+      sublookup->subtables.append(singleadjsubtable);
+
+      singleadjsubtable->name = sublookup->name;
+
+
+      auto& onesglyph = glyphs[getDigitName(ayaNumber)];
+      auto position = (short)(ayaGlyph.width / 2 - (onesglyph.width) / 2);
+
+      auto disp = (short)(-onesglyph.width - position);
+
+      //singleadjsubtable->singlePos[onesglyph.charcode] = { disp ,digitheight,(short)-onesglyph.width,0 };
+      singleadjsubtable->singlePos[onesglyph.charcode] = { disp ,digitheight,(short)-onesglyph.width,0 };
+
+      ChainingSubtable* subtable = new ChainingSubtable(lookup);
+      lookup->subtables.append(subtable);
+      subtable->name = singleadjsubtable->name;
+      subtable->compiledRule = ChainingSubtable::CompiledRule();
+      subtable->compiledRule.input = { {(uint16_t)ayaGlyph.charcode},{(uint16_t)onesglyph.charcode} };
+      subtable->compiledRule.lookupRecords.append({ 1,QString("l%1").arg(ayaNumber) });
+
+    }
+    else if (ayaNumber < 100) {
+
+      int onesdigit = ayaNumber % 10;
+      int tensdigit = ayaNumber / 10;
+
+
+      Lookup* sublookup1 = new Lookup(m_layout);
+      sublookup1->name = QString("ayanumberskern.l%1.1").arg(ayaNumber);
+      sublookup1->feature = "";
+      sublookup1->type = Lookup::singleadjustment;
+      m_layout->addLookup(sublookup1);
+
+      SingleAdjustmentSubtable* singleadjsubtable1 = new SingleAdjustmentSubtable(sublookup1);
+      sublookup1->subtables.append(singleadjsubtable1);
+
+      singleadjsubtable1->name = sublookup1->name;
+
+      Lookup* sublookup2 = new Lookup(m_layout);
+      sublookup2->name = QString("ayanumberskern.l%1.2").arg(ayaNumber);
+      sublookup2->feature = "";
+      sublookup2->type = Lookup::singleadjustment;
+      m_layout->addLookup(sublookup2);
+
+      SingleAdjustmentSubtable* singleadjsubtable2 = new SingleAdjustmentSubtable(sublookup2);
+      sublookup2->subtables.append(singleadjsubtable2);
+
+      singleadjsubtable2->name = sublookup2->name;
+
+      auto& onesglyph = glyphs[getDigitName(onesdigit)];
+      auto& tensglyph = glyphs[getDigitName(tensdigit)];
+
+      auto digitswidth = onesglyph.width + tensglyph.width + digitKern;
+
+      auto position = (short)(ayaGlyph.width / 2 - digitswidth / 2);
+
+      auto disp = (short)(-digitswidth - position);
+
+      singleadjsubtable2->singlePos[tensglyph.charcode] = { disp ,digitheight,disp,0 };
+      singleadjsubtable1->singlePos[onesglyph.charcode] = { digitKern ,digitheight,(short)(digitKern + position),0 };
+
+      ChainingSubtable* subtable = new ChainingSubtable(lookup);
+      lookup->subtables.append(subtable);
+      subtable->name = QString("ayanumberskern.l%1").arg(ayaNumber);
+      subtable->compiledRule = ChainingSubtable::CompiledRule();
+      subtable->compiledRule.input = { {(uint16_t)ayaGlyph.charcode} ,{(uint16_t)tensglyph.charcode},{(uint16_t)onesglyph.charcode} };
+      subtable->compiledRule.lookupRecords.append({ 1,QString("l%1.2").arg(ayaNumber) });
+      subtable->compiledRule.lookupRecords.append({ 2,QString("l%1.1").arg(ayaNumber) });
+
+
+    }
+    else {
+
+      Lookup* sublookup1 = new Lookup(m_layout);
+      sublookup1->name = QString("ayanumberskern.l%1.1").arg(ayaNumber);
+      sublookup1->feature = "";
+      sublookup1->type = Lookup::singleadjustment;
+      m_layout->addLookup(sublookup1);
+      SingleAdjustmentSubtable* singleadjsubtable1 = new SingleAdjustmentSubtable(sublookup1);
+      sublookup1->subtables.append(singleadjsubtable1);
+      singleadjsubtable1->name = sublookup1->name;
+
+      Lookup* sublookup2 = new Lookup(m_layout);
+      sublookup2->name = QString("ayanumberskern.l%1.2").arg(ayaNumber);
+      sublookup2->feature = "";
+      sublookup2->type = Lookup::singleadjustment;
+      m_layout->addLookup(sublookup2);
+      SingleAdjustmentSubtable* singleadjsubtable2 = new SingleAdjustmentSubtable(sublookup2);
+      sublookup2->subtables.append(singleadjsubtable2);
+      singleadjsubtable2->name = sublookup2->name;
+
+      Lookup* sublookup3 = new Lookup(m_layout);
+      sublookup3->name = QString("ayanumberskern.l%1.3").arg(ayaNumber);
+      sublookup3->feature = "";
+      sublookup3->type = Lookup::singleadjustment;
+      m_layout->addLookup(sublookup3);
+      SingleAdjustmentSubtable* singleadjsubtable3 = new SingleAdjustmentSubtable(sublookup3);
+      sublookup3->subtables.append(singleadjsubtable3);
+      singleadjsubtable3->name = sublookup3->name;
+
+      int onesdigit = ayaNumber % 10;
+      int tensdigit = (ayaNumber / 10) % 10;
+      int hundredsdigit = ayaNumber / 100;
+
+      auto& onesglyph = glyphs[getDigitName(onesdigit)];
+      auto& tensglyph = glyphs[getDigitName(tensdigit)];
+      auto& hundredsglyph = glyphs[getDigitName(hundredsdigit)];
+
+      auto digitswidth = onesglyph.width + tensglyph.width + hundredsglyph.width + 2 * digitKern;
+
+      auto position = (short)(ayaGlyph.width / 2 - digitswidth / 2);
+
+      auto disp = (short)(-digitswidth - position);
+
+      singleadjsubtable3->singlePos[hundredsglyph.charcode] = { disp ,digitheight,disp,0 };
+      singleadjsubtable2->singlePos[tensglyph.charcode] = { digitKern ,digitheight,digitKern,0 };
+      singleadjsubtable1->singlePos[onesglyph.charcode] = { digitKern ,digitheight,(short)(digitKern + position),0 };
+
+
+      ChainingSubtable* subtable = new ChainingSubtable(lookup);
+      lookup->subtables.append(subtable);
+      subtable->name = QString("ayanumberskern.l%1").arg(ayaNumber);
+      subtable->compiledRule = ChainingSubtable::CompiledRule();
+      subtable->compiledRule.input = { {(uint16_t)ayaGlyph.charcode},{(uint16_t)hundredsglyph.charcode} ,{(uint16_t)tensglyph.charcode} ,{(uint16_t)onesglyph.charcode} };
+      subtable->compiledRule.lookupRecords.append({ 1,QString("l%1.3").arg(ayaNumber) });
+      subtable->compiledRule.lookupRecords.append({ 2,QString("l%1.2").arg(ayaNumber) });
+      subtable->compiledRule.lookupRecords.append({ 3,QString("l%1.1").arg(ayaNumber) });
+    }
+
+  }
+
+  return lookup;
+}
+
+/*
+Lookup* digitalkhatt::ayanumberskern() {
+
 
 
   auto& ayaGlyph = glyphs["endofaya"];
@@ -1663,11 +1750,13 @@ Lookup* digitalkhatt::ayanumberskern() {
   return lookup;
 
 
-}
+}*/
 
 Lookup* digitalkhatt::ayanumbers() {
 
-  quint16 endofaya = m_layout->glyphCodePerName["endofaya"];
+  QString ayaName = "endofaya";
+
+  quint16 endofaya = m_layout->glyphCodePerName[ayaName];
 
   // ligature
   Lookup* ligature = new Lookup(m_layout);
@@ -1681,7 +1770,7 @@ Lookup* digitalkhatt::ayanumbers() {
   ligaturesubtable->name = ligature->name;
 
   for (quint16 i = 286; i > 99; i--) {
-    quint16 code = m_layout->glyphCodePerName[QString("aya%1").arg(i)];
+    quint16 code = m_layout->glyphCodePerName[QString("%1%2").arg(ayaName).arg(i)];
 
     int onesdigit = i % 10;
     int tensdigit = (i / 10) % 10;
@@ -1715,7 +1804,7 @@ Lookup* digitalkhatt::ayanumbers() {
   ligaturesubtable->name = ligature->name;
 
   for (quint16 i = 99; i > 9; i--) {
-    quint16 code = m_layout->glyphCodePerName[QString("aya%1").arg(i)];
+    quint16 code = m_layout->glyphCodePerName[QString("%1%2").arg(ayaName).arg(i)];
     int onesdigit = i % 10;
     int tensdigit = i / 10;
     if (extended) {
@@ -1730,24 +1819,6 @@ Lookup* digitalkhatt::ayanumbers() {
     }
 
   }
-  /*if (extended) {
-    // Single substitution
-    Lookup* single = new Lookup(m_layout);
-    single->name = "ayanumbers.l3";
-    single->feature = "";
-    single->type = Lookup::single;
-    m_layout->addLookup(single);
-
-    SingleSubtable* singlesubtable = new SingleSubtable(single);
-    single->subtables.append(singlesubtable);
-    singlesubtable->name = single->name;
-
-    for (int i = 1; i < 10; i++) {
-      singlesubtable->subst[(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i))] = glyphs[QString("aya%1").arg(i)].charcode;
-    }
-
-  }
-  else {*/
 
   // ligature
   ligature = new Lookup(m_layout);
@@ -1761,13 +1832,10 @@ Lookup* digitalkhatt::ayanumbers() {
   ligaturesubtable->name = ligature->name;
 
   for (int i = 1; i < 10; i++) {
-    quint16 code = m_layout->glyphCodePerName[QString("aya%1").arg(i)];
+    quint16 code = m_layout->glyphCodePerName[QString("%1%2").arg(ayaName).arg(i)];
     ligaturesubtable->ligatures.append({ code,{endofaya,(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i))} });
     ligaturesubtable->ligatures.append({ code,{(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i)),endofaya} });
   }
-
-  //}
-
 
   //main lokkup
 

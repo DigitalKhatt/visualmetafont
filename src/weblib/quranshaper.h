@@ -422,12 +422,9 @@ public:
 
 
             int startOffset = match.capturedStart(match.lastCapturedIndex()); // startOffset == 6
-            int endOffset = match.capturedEnd(match.lastCapturedIndex()) - 1; // endOffset == 9
+            int endOffset = match.capturedEnd(match.lastCapturedIndex()) - 1; // endOffset == 9            
 
-
-
-
-            while (layout->glyphGlobalClasses[lines[i][endOffset].unicode()] == OtLayout::MarkGlyph)
+            while (lines[i][endOffset].isMark())
               endOffset--;
 
             bool beginDone = false;

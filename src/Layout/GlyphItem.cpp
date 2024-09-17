@@ -24,92 +24,92 @@
 #include <QGraphicsSceneMouseEvent>
 #include "qdebug.h"
 
-GlyphItem::GlyphItem(double scale, GlyphVis* glyph, OtLayout * layout, quint32 lookup, quint32 subtable, quint16 baseChar, double lefttatweel, double righttatweel, QGraphicsItem * parent) :QGraphicsPathItem(parent)
+GlyphItem::GlyphItem(double scale, GlyphVis* glyph, OtLayout* layout, quint32 lookup, quint32 subtable, quint16 baseChar, double lefttatweel, double righttatweel, QGraphicsItem* parent) :QGraphicsPathItem(parent)
 {
 
-	m_glyph = glyph;
-	m_layout = layout;
-	m_lookup = lookup;
-	m_subtable = subtable;
-	m_lefttatweel = lefttatweel;
-	m_righttatweel = righttatweel;
-	m_baseChar = baseChar;
-
-	
-
-	auto path = glyph->path;
-
-	if (lefttatweel != 0 || righttatweel != 0) {
-		GlyphParameters parameters{};
-
-		parameters.lefttatweel = lefttatweel;
-		parameters.righttatweel = righttatweel;
-
-		path = glyph->getAlternate(parameters)->path;
-	}
-
-	path.setFillRule(Qt::WindingFill);
-
-	if (m_glyph->name.contains("aya")) {
-		path.setFillRule(Qt::OddEvenFill);
-	}
-
-
-	setPath(path);
-
-
-	setBrush(Qt::black);
-	setPen(Qt::NoPen);
-	m_scale = scale;
+  m_glyph = glyph;
+  m_layout = layout;
+  m_lookup = lookup;
+  m_subtable = subtable;
+  m_lefttatweel = lefttatweel;
+  m_righttatweel = righttatweel;
+  m_baseChar = baseChar;
 
 
 
-	QTransform m;
-	m.scale(scale, -scale);
+  auto path = glyph->path;
 
-	setTransform(m);
+  if (lefttatweel != 0 || righttatweel != 0) {
+    GlyphParameters parameters{};
+
+    parameters.lefttatweel = lefttatweel;
+    parameters.righttatweel = righttatweel;
+
+    path = glyph->getAlternate(parameters)->path;
+  }
+
+  path.setFillRule(Qt::WindingFill);
+
+  if (m_glyph->name.contains("aya")) {
+    path.setFillRule(Qt::OddEvenFill);
+  }
+
+
+  setPath(path);
+
+
+  setBrush(Qt::black);
+  setPen(Qt::NoPen);
+  m_scale = scale;
+
+
+
+  QTransform m;
+  m.scale(scale, -scale);
+
+  setTransform(m);
 
 
 }
-void GlyphItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-	lastPos = event->scenePos();
-	lastdiff = QPoint(0, 0);
+void GlyphItem::mousePressEvent(QGraphicsSceneMouseEvent* event) {
+  lastPos = event->scenePos();
+  lastdiff = QPoint(0, 0);
 }
 
-void GlyphItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
+void GlyphItem::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
 {
 
-	Qt::KeyboardModifiers modifiers = event->modifiers();
+  Qt::KeyboardModifiers modifiers = event->modifiers();
 
-	QPointF diff = event->scenePos() - lastPos;
+  QPointF diff = event->scenePos() - lastPos;
 
-	diff = QPoint(diff.x() / m_scale, diff.y() / m_scale);
+  diff = QPoint(diff.x() / m_scale, diff.y() / m_scale);
 
-	QPoint newdiff(diff.x(), -diff.y());
+  QPoint newdiff(diff.x(), -diff.y());
 
-	//qDebug() << "newdiff" << newdiff << "lastdiff : " << lastdiff;
+  //qDebug() << "newdiff" << newdiff << "lastdiff : " << lastdiff;
 
-	QPoint disp = newdiff - lastdiff;
+  QPoint disp = newdiff - lastdiff;
 
-	lastdiff = newdiff;
+  lastdiff = newdiff;
 
-	m_layout->setParameter(m_glyph->charcode, m_lookup, m_subtable, m_glyph->charcode, m_baseChar, disp, modifiers);
+  m_layout->setParameter(m_glyph->charcode, m_lookup, m_subtable, m_glyph->charcode, m_baseChar, disp, modifiers);
 
 
 
-	//glyph->setProperty(param.name.toLatin1(), pair);
+  //glyph->setProperty(param.name.toLatin1(), pair);
 }
 
 GlyphItem::~GlyphItem()
 {
 }
-void GlyphItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget * widget) {
-	if (m_glyph->name.contains("aya")) {
-		painter->drawPicture(0, 0, m_glyph->picture);
-		//QGraphicsPathItem::paint(painter, option, widget);
-	}
-	else {
-		QGraphicsPathItem::paint(painter, option, widget);
-	}
+void GlyphItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) {
+  auto coloredGlyph = m_glyph->getColoredGlyph();
+  if (coloredGlyph) {
+    painter->drawPicture(0, 0, coloredGlyph->picture);
+  }
+  else {
+    QGraphicsPathItem::paint(painter, option, widget);
+  }
 }
 

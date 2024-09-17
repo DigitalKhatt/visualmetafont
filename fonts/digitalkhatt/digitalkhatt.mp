@@ -1,4 +1,4 @@
-defchar(allah,-1,-1,-1,-1);
+defchar(allah,-1,-1,6,-1);
 %%backgroundimage:images/Allah.jpg,-82,-1107.77,1,0,0,1
 %%beginparams
 z1 = (369,47);
@@ -49,10 +49,8 @@ fill
 ;
 
 %%endpaths
-%%beginbody
-
 enddefchar;
-defchar(behmediyehfina,-1,1100,-1,-1);
+defchar(behmediyehfina,-1,1100,6,-1);
 %%backgroundimage:images/behmediyehfina.jpg,-377.193,-1073.9,1,0,0,1
 %%beginparams
 z1 = (358,155);
@@ -104,43 +102,7 @@ fill
 
 %%endpaths
 enddefchar;
-defchar(lambeh,-1,-1,-1,-1);
-%%backgroundimage:images/lambeh.jpg,-1930.52,-1062.46,1,0,0,1
-%%beginparams
-z1 = (392,106);
-z2 = (383,22);
-
-%%beginverbatim
-
-
-%%endverbatim
-
-%%beginpaths
-
-fill
-(248.271,156.613) .. tension 2.27944 and 1 ..
- {right}z1 .. tension 1 and 1 ..
- {up}(431.48,140.456) .. tension 1.91164 and 1 ..
-(377.276,416.817) .. tension 1.60378 and 4.88301 ..
-(315.313,729.762) .. tension 1 and 1 ..
- {up}(292.48,800.456) .. tension 2.979 and 3.41913 ..
- {right}(341.48,867.974) .. tension 1.67864 and 1 ..
-(352.866,848.9) .. tension 0.962492 and 2.61092 ..
- {down}(407.112,755.724) .. tension 1.16661 and 3.2402 ..
- {down}(368.759,693.502) .. tension 4.05608 and 1.25437 ..
- {down}(470.091,199.789) .. tension 1 and 1.20739 ..
- {left}z2 .. tension 1 and 5.7357 ..
- {left}(221.424,74.2986) .. tension 1.11091 and 1 ..
-bldmv ( (194.638,58.3333), (-6,-1.2), (0,0) ) .. tension 1 and 1 ..
-bldmv ( (122.924,18.7893), (-111.6,-38.4), (36.8055,2.77782) ) leftjoin
-bldmv ( (127.258,99.7893), (-232.8,-63.6), (47.2222,2.77778) ) .. tension 1 and 1 ..
-(193.045,129.66) .. tension 1 and 1.84186 ..
- {right} cycle
-;
-
-%%endpaths
-enddefchar;
-defchar(lamalef.isol,-1,680,-1,-1);
+defchar(lamalef.isol,-1,680,6,-1);
 %%backgroundimage:images/lamalef.jpg,-25,-1160,1,0,0,1
 %%beginparams
 z1 = (501.494,87.1866);
@@ -184,6 +146,43 @@ z2 .. tension 27.3804 and 21.246 ..
 
 glyphs[lamalef.isol].points[1] := z1;
 glyphs[lamalef.isol].points[2] := z2;
+
+enddefchar;
+defchar(lambeh,-1,-1,6,-1);
+%%backgroundimage:images/lambeh.jpg,-1930.52,-1062.46,1,0,0,1
+%%beginparams
+z1 = (392,106);
+z2 = (383,22);
+
+%%beginverbatim
+
+
+%%endverbatim
+
+%%beginpaths
+
+fill
+(248.271,156.613) .. tension 2.27944 and 1 ..
+ {right}z1 .. tension 1 and 1 ..
+ {up}(431.48,140.456) .. tension 1.91164 and 1 ..
+(377.276,416.817) .. tension 1.60378 and 4.88301 ..
+(315.313,729.762) .. tension 1 and 1 ..
+ {up}(292.48,800.456) .. tension 2.979 and 3.41913 ..
+ {right}(341.48,867.974) .. tension 1.67864 and 1 ..
+(352.866,848.9) .. tension 0.962492 and 2.61092 ..
+ {down}(407.112,755.724) .. tension 1.16661 and 3.2402 ..
+ {down}(368.759,693.502) .. tension 4.05608 and 1.25437 ..
+ {down}(470.091,199.789) .. tension 1 and 1.20739 ..
+ {left}z2 .. tension 1 and 5.7357 ..
+ {left}(221.424,74.2986) .. tension 1.11091 and 1 ..
+bldmv ( (194.638,58.3333), (-6,-1.2), (0,0) ) .. tension 1 and 1 ..
+bldmv ( (122.924,18.7893), (-111.6,-38.4), (36.8055,2.77782) ) leftjoin
+bldmv ( (127.258,99.7893), (-232.8,-63.6), (47.2222,2.77778) ) .. tension 1 and 1 ..
+(193.045,129.66) .. tension 1 and 1.84186 ..
+ {right} cycle
+;
+
+%%endpaths
 enddefchar;
 beginchar(notdef,0,-1,-1,-1);
 %%backgroundimage:images/nodef.png,-752.949,-1178.7,8,0,0,8
@@ -234,7 +233,7 @@ beginchar(cgj,847,-1,-1,-1);
 %847
 charwd := 0;
 endchar;
-defchar(space,32,-1,0,0);
+defchar(space,32,-1,-1,-1);
 %%beginbody
 
 
@@ -341,25 +340,20 @@ fill
 
 %%endpaths
 endchar;
-beginchar(endofaya,1757,1,-1,-1);
+defchar(endofaya,1757,-1,-1,-1);
 %%backgroundimage:images/aya.jpg,-368.206,-1170.09,1,0,0,1
 %%beginparams
-z1 = (516.686,563.695);
-z2 = (959.421,241.222);
-z3 = (925.62,247.222);
-z4 = (515.6,832.751);
-z5 = (523.167,854.762);
-z6 = (529.585,691.277);
-z7 = (526.377,712.656);
-z8 = (546.464,-281.019);
-z9 = (545.667,-259.973);
+z1 = (540.412,885.435);
+z2 = (529.914,603.596);
+z2.2 = (551.163,578.358);
+z3 = (952.322,270.743);
+z4 = (934.574,274.684);
+z8 = (560.353,-249.19);
+z9 = (559.556,-228.144);
 
 %%beginverbatim
 
-y3 := y2;
-x4 := x1 + 8;
-x5 := x4;
-x9 := x8 := x6 := x7 := x5;
+penwidth_ := 20;
 
 color bluecolor[];
 
@@ -370,86 +364,90 @@ bluecolor2 := (73/255,190/255,233/255); %49BEE9
 %bluecolor3 := (127/255,205/255,241/255);
 bluecolor3 := (220/255,240/255,255/255); % DCF0FF
 
-
+y2.2 := y2;
+y4 := y3;
+x9 := x8 := x1;
 
 %%endverbatim
 
 %%beginpaths
 
-controlledPath (13,0)(_outer)(
-z1 .. tension 0.962423 and 0.773801 ..
- {right}(659.838,666.917) .. tension 1.4109 and 0.927449 ..
- {down}z2 .. tension 1.7294 and 1.42232 ..
- {up}z3 .. tension 1.14593 and 1 ..
-(764.586,467.229) .. tension 1 and 5.3754 ..
- {up}(659.945,499.558) .. tension 1 and 9.93853 ..
- {up}(706.25,563.889) .. tension 4.21269 and 1.80814 ..
- {left}(649.036,582.547) .. tension 1 and 1 ..
- {down}(642.463,577.871) .. tension 2.6966 and 1 ..
- {down}(652.083,549.306) .. tension 1 and 1 ..
- {left}(585.423,483.883) .. tension 0.918294 and 1 ..
+controlledPath (0,0)(_first)(
+z1 .. tension 0.962423 and 0.774639 ..
+ {dir -36.5158}(564.911,873.931) .. tension 0.75 and 1.88674 ..
+ {dir -34.7967}(593.239,830.932) .. tension 1.0101 and 0.75 ..
+ {dir -21.541}(640.901,818.287) .. tension 1.18315 and 1.09907 ..
+ {dir -36.1529}(685.208,763.698) .. tension 1.30835 and 0.976457 ..
+ {dir -66.3023}(726.361,730.837) .. tension 1.09434 and 1.3339 ..
+ {left}(725.574,678.145) .. tension 1 and 0.75 ..
+ {up}(714.554,694.511) .. tension 1 and 1.15011 ..
+ {left}(651.412,754.046) .. tension 0.987105 and 2.3316 ..
+ {left}(595.249,736.39) .. tension 1 and 1 ..
+ {up}(584.778,743.765) .. tension 1.3004 and 5.42692 ..
+ {up}(647.768,777.042) .. tension 1 and 1 ..
+ {left}(599.368,804.109) .. tension 0.870873 and 1.68424 ..
+ {left}(550.27,782.986) .. tension 1 and 1 ..
+ {up}(543.198,791.879) .. tension 1 and 1 ..
+ {up}(566.108,826.389) .. tension 1 and 2.23473 ..
+ {left}(x1,868.018) .. tension 2.55249 and 1.77211 ..
+ {right} cycle
+);
+controlledPath (1,0)(_second)(
+z2 .. tension 1.18369 and 0.75 ..
+ {right}(654.902,696) .. tension 1.15254 and 1 ..
+ {down}(x3 + penwidth_,y3) .. tension 1 and 1 ..
+ {up}z3 .. tension 1.0457 and 1.25544 ..
+ {left}(653.898,676) .. tension 1 and 1.19354 ..
+ {down}z2.2 .. tension 1.51346 and 1.12156 ..
  {up} cycle
 );
-controlledPath (14,0)(_inner)(
-(536.214,569.034) .. tension 1 and 1 ..
- {right}(586.264,504.791) .. tension 1.51708 and 1 ..
- {up}(628.376,545.428) .. tension 1 and 1 ..
- {left}(607.362,568.704) .. tension 1 and 2.02801 ..
- {left}(585.81,534.642) .. tension 1.59049 and 1 ..
-(578.222,576.293) .. tension 1 and 1 ..
- {right}(623.071,599.922) .. tension 0.923118 and 2.54885 ..
- {down}(829.754,497.255) .. tension 1 and 2.16566 ..
- {left}(823.527,483.948) .. tension 3.75177 and 0.923179 ..
- {left}(741.223,541.088) .. tension 1 and 2.89856 ..
- {down}(700.459,517.333) .. tension 3.85631 and 0.75 ..
-(799.011,479.183) .. tension 1.08099 and 1 ..
-(903.666,377.039) .. tension 1 and 6.32556 ..
- {right}(914.147,361.056) .. tension 1 and 1 ..
- {up}(917.728,366.995) .. tension 2.72107 and 0.936863 ..
- {left}(644.29,647.184) .. tension 0.918795 and 1.44182 ..
- {down} cycle
+controlledPath (2,0)(_third)(
+z2 .. tension 1.67732 and 1.25959 ..
+ {down}(x2 + penwidth_,y2) .. tension 1 and 1 ..
+ {right}(597.867,536.362) .. tension 1 and 1 ..
+ {up}(639.923,578) .. tension 1 and 1 ..
+ {left}(622.942,599.418) .. tension 0.784245 and 1.23656 ..
+ {left}(594.938,567.13) .. tension 1.22994 and 1 ..
+ {up}(585.104,592.712) .. tension 0.975096 and 0.810412 ..
+ {right}(635.025,634.838) .. tension 0.75 and 1 ..
+(743.508,613.426) .. tension 1 and 2.11677 ..
+ {down}(842.853,528.935) .. tension 1 and 1 ..
+ {left}(836.119,516.932) .. tension 1.93273 and 0.75 ..
+ {left}(747.242,570.481) .. tension 0.944676 and 3.50312 ..
+ {down}(710.413,552.662) .. tension 1.38947 and 0.75 ..
+(742.004,536.008) .. tension 1.09089 and 0.979245 ..
+ {down}(x4 + penwidth_,y3) .. tension 1 and 1 ..
+ {up}z4 .. tension 1.05278 and 1.10586 ..
+ {left}(690.59,519.465) .. tension 0.893841 and 1.5798 ..
+ {up}(672.159,533.803) .. tension 1 and 4.84862 ..
+ {up}(716.772,594.215) .. tension 2.5596 and 1.37305 ..
+ {left}(662.176,614.005) .. tension 1 and 1 ..
+ {down}(655.377,611.111) .. tension 6.15106 and 0.75 ..
+ {down}(662.572,579.429) .. tension 0.900067 and 1 ..
+ {left}(597.049,512.999) .. tension 1.2806 and 0.75 ..
+ {up} cycle
 );
-controlledPath (15,0)(_flower)(
-z5 .. tension 1 and 1 ..
-(556.6,840.929) .. tension 1 and 2.2342 ..
-(580.457,801.724) .. tension 1.86343 and 1 ..
-(630.948,787.01) .. tension 1 and 1.72823 ..
-(673.005,736.023) .. tension 1.6601 and 0.75 ..
-(710.654,705.63) .. tension 1 and 1 ..
- {down}(726.128,642.386) .. tension 1 and 1 ..
-(704.142,653.571) .. tension 1 and 1.08751 ..
- {left}(649.306,723.04) .. tension 1 and 2.53645 ..
- {left}(590.278,706.944) .. tension 1 and 1 ..
- {up}(572.917,714.583) .. tension 1.39584 and 3.46967 ..
- {up}(636.806,747.917) .. tension 1 and 1 ..
- {left}(587.964,772.247) .. tension 1 and 4.15927 ..
- {left}(537.5,753.472) .. tension 1 and 1 ..
- {up}(528.472,759.722) .. tension 1 and 1 ..
- {up}(554.861,798.611) .. tension 1 and 1 ..
- {left}z4 .. tension 1 and 1 ..
+controlledPath (3,0)(_fourth)(
+(x1,742.369) .. tension 1.1291 and 1.17856 ..
+ {down}(603.205,684.827) .. tension 1.74043 and 1.14421 ..
+ {up}(582.438,681.667) .. tension 1 and 1 ..
+ {left}(x1,721.053) .. tension 1.30224 and 1.24712 ..
  {right} cycle
 );
-controlledPath (16,0)(_circle)(
-z7 .. tension 1.20827 and 1.2275 ..
- {down}(593.171,650.559) .. tension 1.6671 and 1.30051 ..
- {up}(570.988,642.361) .. tension 1 and 1 ..
- {left}z6 .. tension 1 and 1 ..
- {right} cycle
-);
-controlledPath (17,0)(_bottom)(
+controlledPath (4,0)(_fifth)(
 z9 .. tension 1.20827 and 1 ..
-(564.303,-248.494) .. tension 1 and 1.2275 ..
- {right}(581.597,-230.518) .. tension 1.6671 and 1 ..
- {right}(626.152,-236.076) .. tension 1 and 1 ..
-(665.027,-207.369) .. tension 1 and 1 ..
-(718.557,-183.738) .. tension 1 and 1 ..
- {up}(720.968,-159.626) .. tension 3.23302 and 2.76018 ..
- {down}(755.061,-145.319) .. tension 1 and 1 ..
-(699.173,-218.796) .. tension 1 and 1 ..
-(679.575,-224.663) .. tension 1 and 1.30051 ..
- {left}(638.879,-252.808) .. tension 1 and 1 ..
- {left}(605.241,-254.174) .. tension 1 and 1 ..
-(571.671,-267.918) .. tension 1 and 1 ..
+(578.192,-216.665) .. tension 1 and 1.2275 ..
+ {right}(595.486,-198.689) .. tension 1.6671 and 1 ..
+ {right}(640.041,-203.247) .. tension 1 and 1 ..
+(678.916,-175.54) .. tension 1 and 1 ..
+(732.446,-151.909) .. tension 1 and 1 ..
+ {up}(736.014,-131.27) .. tension 3.23302 and 2.76018 ..
+ {down}(764.899,-118.12) .. tension 1 and 1 ..
+(713.062,-186.967) .. tension 1 and 1 ..
+(693.464,-192.834) .. tension 1 and 1.30051 ..
+ {left}(652.768,-220.979) .. tension 1 and 1 ..
+ {left}(619.13,-222.345) .. tension 1 and 1 ..
+(585.56,-236.089) .. tension 1 and 1 ..
  {left}z8 .. tension 1 and 1 ..
  {right} cycle
 );
@@ -457,106 +455,111 @@ z9 .. tension 1.20827 and 1 ..
 %%endpaths
 %%beginbody
 
+path _paths[],_paths[].r;
+_paths0 := _first;_paths1 := _second;_paths2 := _third;_paths3 := _fourth;_paths4 := _fifth;	
 
-path _paths[];
+_paths0.1.r := _paths0 reflectedabout (z1,z1+(0,10));_paths0.1:=reverse _paths0.1.r;
+_paths1.1.r := _paths1 reflectedabout (z1,z1+(0,10));_paths1.1:=reverse _paths1.1.r;
+_paths2.1.r := _paths2 reflectedabout (z1,z1+(0,10));_paths2.1:=reverse _paths2.1.r;
+_paths3.1.r := _paths3 reflectedabout (z1,z1+(0,10));_paths3.1:=reverse _paths3.1.r;
+_paths4.1.r := _paths4 reflectedabout (z1,z1+(0,10));_paths4.1:=reverse _paths4.1.r;
 
-_paths0 := _outer;
-_paths1 := _inner;
-_paths2 := _flower;
-_paths3 := _circle;
-_paths4 := _bottom;
+_paths1.2.r :=  _paths1 reflectedabout (z3,z3+(10,0));_paths1.2:=reverse _paths1.2.r;
+_paths2.2.r :=  _paths2 reflectedabout (z3,z3+(10,0));_paths2.2:=reverse _paths2.2.r;
+_paths1.3.r :=  _paths1.1 reflectedabout (z3,z3+(10,0));_paths1.3:=reverse _paths1.3.r;
+_paths2.3.r :=  _paths2.1 reflectedabout (z3,z3+(10,0));_paths2.3:=reverse _paths2.3.r;
 
-_paths0.1 := _paths0 reflectedabout (z2,z3);
-_paths0.2 := _paths0  reflectedabout (z2,z3) reflectedabout (z4, z5);
-_paths0.3 := _paths0 reflectedabout (z4, z5);
+fill _paths0;fill _paths1;fill _paths2;fill _paths3;fill _paths4;
+fill _paths0.1;fill _paths1.1;fill _paths2.1;fill _paths3.1;fill _paths4.1;
+fill _paths1.2;fill _paths2.2;fill _paths1.3;fill _paths2.3;
 
+savepicture := 1;
 
-fill _paths0.1;
-fill _paths1 reflectedabout (z2,z3) withcolor white;
-fill _paths0.2;
-fill _paths1 reflectedabout (z2,z3) reflectedabout (z4, z5) withcolor white;
-fill _paths0.3;
-fill _paths1 reflectedabout (z4, z5) withcolor white;
+%coloredglyph:="endofaya.colored";
 
+enddefchar;
+defchar(endofaya.colored,-1,-1,5,-1);
+%%backgroundimage:images/aya.jpg,-368.206,-1170.09,1,0,0,1
+%%beginbody
 
-numeric x_[];
-numeric y_[];
-(x_1,y_1)=reverse _paths2  intersectiontimes _paths0;
-(x_2,y_2)=_paths0 intersectiontimes _paths0 reflectedabout (z4, z5);
-(x_3,y_3)=reverse (_paths2  reflectedabout (z4, z5)) intersectiontimes _paths0 reflectedabout (z4, z5);
-(x_4,y_4)=reverse (_paths2  reflectedabout (z4, z5)) intersectiontimes reverse _paths2;
+endofaya_(0,0);
 
-fill subpath (0,x_1) of reverse _paths2 .. subpath(y_1,x_2) of _paths0 
-..  subpath(y_2,y_3) of _paths0 reflectedabout (z4, z5)  
-..  subpath(x_3,x_4) of reverse (_paths2  reflectedabout (z4, z5)) 
-.. cycle withcolor bluecolor3;
+color ayacolor[];
 
-_paths8 := _paths2;
-_paths2 := _paths3;
+ayacolor1 := convRGB("edf7ff");
+ayacolor2 := tint(ayacolor1,-1);
+ayacolor3 := tint(ayacolor1,-5);
 
-numeric x_[];
-numeric y_[];
-(x_1,y_1)=reverse _paths2  intersectiontimes _paths0;
-(x_2,y_2)=_paths0 intersectiontimes _paths0 reflectedabout (z4, z5);
-(x_3,y_3)=reverse (_paths2  reflectedabout (z4, z5)) intersectiontimes _paths0 reflectedabout (z4, z5);
-(x_4,y_4)=reverse (_paths2  reflectedabout (z4, z5)) intersectiontimes reverse _paths2;
+_paths0.r := reverse _paths0;
+_paths1.r := reverse _paths1;
+_paths2.r := reverse _paths2;
+_paths3.r := reverse _paths3;
+_paths4.r := reverse _paths4;
 
-fill subpath (0,x_1) of reverse _paths2 .. subpath(y_1,x_2) of _paths0 
-..  subpath(y_2,y_3) of _paths0 reflectedabout (z4, z5)  
-..  subpath(x_3,x_4) of reverse (_paths2  reflectedabout (z4, z5)) 
-.. cycle withcolor bluecolor2;
+z1.int = _paths3.r  intersectiontimes _paths1;
+z2.int = _paths1   intersectiontimes _paths1.1;
+z3.int = _paths3.1   intersectiontimes _paths1.1;
 
-_paths2 := _paths8;
+fill (subpath (1,x3.int) of  _paths3.1  .. subpath(y3.int,y2.int) of _paths1.1 
+..  subpath(x2.int,y1.int) of _paths1  
+..  reverse subpath(1,x1.int) of _paths3.r
+.. cycle)  withcolor ayacolor3;
 
-(x_5,y_5)= _paths4  intersectiontimes _paths0.1;
-(x_6,y_6)=_paths0.1 intersectiontimes _paths0.2;
-(x_7,y_7)=_paths0.2 intersectiontimes _paths4  reflectedabout (z4, z5);
-(x_8,y_8)=(_paths4  reflectedabout (z4, z5)) intersectiontimes _paths4;
+z4.int = _paths0.r   intersectiontimes _paths1;
+z5.int = _paths1.r   intersectiontimes _paths3;
+z6.int =  _paths3.1.r  intersectiontimes _paths1.1;
+z7.int =  _paths1.1.r intersectiontimes _paths0.1;
 
+fill subpath (1,x4.int) of reverse _paths0
+.. subpath (length _paths1 - y4.int,x5.int) of _paths1.r
+.. subpath (length _paths3 - y5.int, length _paths3) of _paths3.r
+.. subpath (0,x6.int) of  _paths3.1.r
+.. subpath (length _paths1.1 - y6.int,x7.int) of _paths1.1.r
+.. subpath (length _paths0.1 - y7.int,length _paths0.1) of  _paths0.1.r
+.. cycle withcolor ayacolor2;
 
-fill subpath (0,x_5) of  _paths4 .. subpath(y_5,x_6) of _paths0.1 
-..  subpath(y_6 ,x_7) of _paths0.2
-..  subpath(y_7,x_8) of _paths4  reflectedabout (z4, z5)
-.. cycle withcolor bluecolor3;
+z8.int = subpath(2,length _paths2) of  _paths2 intersectionpoint  subpath(2,length _paths2) of _paths2.1.r;
+z9.int = subpath(2,length _paths2) of  _paths2.2.r   intersectionpoint  subpath(2,length _paths2) of _paths2.3;
 
-%fill inside
+z4.ref = z4  reflectedabout (z1,z1+(0,10));
 
-(x_9,y_9)= reverse  _paths0  intersectiontimes reverse _paths0.1;
-(x_10,y_10)= reverse  _paths0.1  intersectiontimes reverse _paths0.2;
-(x_11,y_11)= reverse  _paths0.2  intersectiontimes reverse _paths0.3;
-(x_12,y_12)= reverse  _paths0.3  intersectiontimes reverse _paths0;
+fill subpath(xpart (_paths2.r intersectiontimes z8.int),xpart (_paths2.r intersectiontimes z4)) of _paths2.r
+.. subpath(xpart ( _paths2.2.r intersectiontimes z4),xpart ( _paths2.2.r intersectiontimes z9.int)) of  _paths2.2.r
+.. subpath(xpart ( _paths2.3.r intersectiontimes z9.int),xpart ( _paths2.3.r intersectiontimes z4.ref)) of  _paths2.3.r
+.. subpath(xpart ( _paths2.1.r intersectiontimes  z4.ref),xpart ( _paths2.1.r intersectiontimes z8.int)) of  _paths2.1.r
+.. cycle withcolor ayacolor2;
 
-fill subpath (y_9,x_10) of   reverse _paths0.1 
-.. subpath(y_10,x_11) of  reverse _paths0.2
-..  subpath(y_11 ,x_12) of reverse _paths0.3
-..  subpath(y_12,x_9) of  reverse  _paths0
-.. cycle withcolor bluecolor3;
+z10.int = subpath(2,length _paths1.2) of  _paths1.2 intersectionpoint  subpath(2,length _paths1.3) of _paths1.3.r;
+z11.int =_paths1.2.r   intersectiontimes _paths4;
+z12.int =_paths4.1.r   intersectiontimes _paths1.3;
 
-fill _paths2 reflectedabout (z4, z5);
-fill _paths3 reflectedabout (z4, z5);
-fill _paths4 reflectedabout (z4, z5);
+fill subpath(xpart (_paths1.2.r intersectiontimes z10.int),x11.int) of _paths1.2.r
+.. subpath(length _paths4 - y11.int,length _paths4 ) of _paths4.r
+.. subpath(0, x12.int ) of _paths4.1.r
+.. subpath (length _paths1.3 - y12.int, xpart ( reverse _paths1.3 intersectiontimes z10.int)) of _paths1.3.r
+.. cycle withcolor ayacolor2;
 
+z13.int = subpath(2,length _paths1) of  _paths1 intersectionpoint  subpath(2,14) of _paths2;
 
-fill _paths0;
-fill _paths1 withcolor white;
-fill _paths2;
-fill _paths3;
-fill _paths4;
+_paths5 := subpath(1,xpart ( _paths1.r intersectiontimes z13.int)) of _paths1.r
+.. subpath(xpart ( _paths2.r intersectiontimes z13.int),length _paths2.r) of _paths2.r
+.. cycle;
 
-currentpicture := currentpicture shifted(-xpart (llcorner currentpicture),-ypart (llcorner currentpicture) );	
-	
-numeric _depth, _margin; _depth := -250;
-leftbearing := 0;
-rightbearing := 0;
-	
-currentpicture := currentpicture shifted (leftbearing,_depth);
-	
-charwd := xpart (lrcorner currentpicture) - xpart (llcorner currentpicture) + leftbearing + rightbearing;
+_paths5.1 := _paths5 reflectedabout (z1,z1+(0,10));
+_paths5.2 := _paths5 reflectedabout (z3,z3+(10,0));
+_paths5.3 := _paths5.1 reflectedabout (z3,z3+(10,0));
 
+fill _paths5 withcolor ayacolor1;
+fill _paths5.1 withcolor ayacolor1;
+fill _paths5.2 withcolor ayacolor1;
+fill _paths5.3 withcolor ayacolor1;
 
+savepicture := 1;
+coloredglyph := "";
 
+setAnchor(dbal,z13.int);
 
-endchar;
+enddefchar;
 beginchar(one_dot,-1,-1,-1,-1);
 %%backgroundimage:images/onedot.jpg,-1477.93,-1030.32,1,0,0,1
 %%beginparams
@@ -2252,12 +2255,6 @@ bldmv ( (198.612,114.489), (0,0), (2.79082,-6.04677) ) .. tension 0.856689 and 1
 ;
 
 %%endpaths
-%%beginbody
-
-
-
-
-
 enddefchar;
 defchar(behshape.init.beforebeh,-1,-1,-1,-1);
 %%backgroundimage:images/beh.init_beh.jpg,-2195.59,-1032.19,1,0,0,1
@@ -7715,7 +7712,7 @@ fill
 %%beginbody
 
 tr_ := tr_ shifted (0,-ypart llcorner currentpicture + 80) ;
-
+savepicture:=1;
 endchar;
 beginchar(oneindic,1633,-1,-1,-1);
 %%backgroundimage:images/10,-40.6745,-438.867,1,0,0,1
@@ -7737,7 +7734,7 @@ fill
 %%beginbody
 
 tr_ := tr_ shifted (0,-ypart llcorner currentpicture);
-
+savepicture:=1;
 endchar;
 beginchar(twoindic,1634,-1,-1,-1);
 %%backgroundimage:images/23.jpg,-45.9906,-350.326,1,0,0,1
@@ -7766,6 +7763,7 @@ fill
 leftbearing := 0;
 rightbearing := 0;
 tr_ := tr_ shifted (0,-ypart llcorner currentpicture);
+savepicture:=1;
 endchar;
 beginchar(threeindic,1635,-1,-1,-1);
 %%backgroundimage:images/23.jpg,-184,-355.582,1,0,0,1
@@ -7796,7 +7794,7 @@ fill
 %%beginbody
 
 tr_ := tr_ shifted (0,-ypart llcorner currentpicture);
-
+savepicture:=1;
 endchar;
 beginchar(fourindic,1636,-1,-1,-1);
 %%backgroundimage:images/45.jpg,-44.9953,-355.867,1,0,0,1
@@ -7827,7 +7825,7 @@ fill
 
 
 tr_ := tr_ shifted (0,-ypart llcorner currentpicture + 0) ;
-
+savepicture:=1;
 endchar;
 beginchar(fiveindic,1637,-1,-1,-1);
 %%backgroundimage:images/45,-231.681,-154.177,1,0,0,1
@@ -7854,7 +7852,7 @@ fill
 
 
 tr_ := tr_ shifted (0,-ypart llcorner currentpicture + 58) ;
-
+savepicture:=1;
 endchar;
 beginchar(sixindic,1638,-1,-1,-1);
 %%backgroundimage:images/67.jpg,-35.5177,-346.731,1,0,0,1
@@ -7881,7 +7879,7 @@ fill
 %%beginbody
 
 tr_ := tr_ shifted (0,-ypart llcorner currentpicture ) ;
-
+savepicture:=1;
 endchar;
 beginchar(sevenindic,1639,-1,-1,-1);
 %%backgroundimage:images/67.jpg,-222.665,-354.316,1,0,0,1
@@ -7909,7 +7907,7 @@ fill
 
 
 tr_ := tr_ shifted (0,-ypart llcorner currentpicture + 0) ;
-
+savepicture:=1;
 endchar;
 beginchar(eightindic,1640,-1,-1,-1);
 %%backgroundimage:images/89.jpg,-50.7167,-276.869,1,0,0,1
@@ -7933,7 +7931,7 @@ fill
 %%endpaths
 %%beginbody
 tr_ := tr_ shifted (0,-ypart llcorner currentpicture + 0) ;
-
+savepicture:=1;
 endchar;
 beginchar(nineindic,1641,-1,-1,-1);
 %%backgroundimage:images/89,-240.316,-354.014,1,0,0,1
@@ -7962,7 +7960,7 @@ fill
 %%beginbody
 
 tr_ := tr_ shifted (0,-ypart llcorner currentpicture + 0) ;
-
+savepicture:=1;
 endchar;
 beginchar(tatweel,1600,-1,-1,-1);
 
@@ -7984,7 +7982,7 @@ z2 --
 %%beginbody
 savepicture:=1;
 endchar;
-beginchar(tatweel.fina,-1,250,104,0);
+beginchar(tatweel.fina,-1,-1,-1,-1);
 %%beginbody
 draw tatweel.pic;
 endchar;

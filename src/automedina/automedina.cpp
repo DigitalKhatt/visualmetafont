@@ -37,17 +37,10 @@ QSet<quint16> Automedina::regexptoUnicode(QString regexp) {
   QSet<quint16> unicodes;
 
   QRegularExpression re(regexp);
-  for (auto& glyph : m_layout->glyphs) {
-    if (re.match(glyph.name).hasMatch()) {
-      unicodes.insert(glyph.charcode);
-      /*
-      auto t = m_layout->nojustalternatePaths.find(glyph.charcode);
-      if (t != m_layout->nojustalternatePaths.end()) {
-        auto& second = t->second;
-        for (auto& addedGlyph : second) {
-          unicodes.insert(addedGlyph.second->charcode);
-        }
-      }*/
+
+  for (auto it = m_layout->glyphCodePerName.keyValueBegin(); it != m_layout->glyphCodePerName.keyValueEnd(); ++it) {
+    if (re.match(it->first).hasMatch()) {
+      unicodes.insert(it->second);
     }
   }
 
@@ -62,13 +55,13 @@ QSet<quint16> Automedina::classtoUnicode(QString className, bool includeExpandab
   QSet<quint16> unicodes;
 
   if (!classes.contains(className)) {
-    if (m_layout->glyphs.contains(className)) {
-      auto& glyph = m_layout->glyphs[className];
-      unicodes.insert(glyph.charcode);
+    if (m_layout->glyphCodePerName.contains(className)) {
+      auto charcode = m_layout->glyphCodePerName[className];
+      unicodes.insert(charcode);
 
       if (includeExpandables) {
-        auto set = m_layout->getSubsts(glyph.charcode);
-        unicodes.unite(set);      
+        auto set = m_layout->getSubsts(charcode);
+        unicodes.unite(set);
       }
     }
     else {
@@ -76,9 +69,9 @@ QSet<quint16> Automedina::classtoUnicode(QString className, bool includeExpandab
       quint16 uniode = className.toUInt(&ok, 16);
       if (!ok) {
         QRegularExpression re(className);
-        for (auto& glyph : m_layout->glyphs) {
-          if (re.match(glyph.name).hasMatch()) {
-            unicodes.insert(glyph.charcode);
+        for (auto it = m_layout->glyphCodePerName.keyValueBegin(); it != m_layout->glyphCodePerName.keyValueEnd(); ++it) {
+          if (re.match(it->first).hasMatch()) {
+            unicodes.insert(it->second);
           }
         }
       }
@@ -105,21 +98,19 @@ QSet<QString> Automedina::classtoGlyphName(QString className) {
   QSet<QString> names;
   //TODO use classtoUnicode
   if (!classes.contains(className)) {
-    if (m_layout->glyphs.contains(className)) {
-      auto& glyph = m_layout->glyphs[className];
-      names.insert(glyph.name);
+    if (m_layout->glyphCodePerName.contains(className)) {
+      names.insert(className);
     }
     else {
       QRegularExpression re(className);
-      for (auto& glyph : m_layout->glyphs) {
-        if (re.match(glyph.name).hasMatch()) {
-          names.insert(glyph.name);
+      for (auto it = m_layout->glyphCodePerName.keyValueBegin(); it != m_layout->glyphCodePerName.keyValueEnd(); ++it) {
+        if (re.match(it->first).hasMatch()) {
+          names.insert(it->first);
         }
       }
     }
   }
   else {
-
     for (auto name : classes[className]) {
       names.unite(classtoGlyphName(name));
     }
@@ -127,4 +118,14 @@ QSet<QString> Automedina::classtoGlyphName(QString className) {
 
   return names;
 
+}
+
+void Automedina::generateAyas(QString ayaName) {  
+  for (int ayaNumber = 1; ayaNumber <= 286; ayaNumber++) {        
+    QString setcolored = QString("coloredglyph:=\"%1.colored%2\"").arg(ayaName).arg(ayaNumber);
+    QString data = QString("beginchar(%1%2,-1,-1,2,-1);\n%%beginbody\ngenAyaNumber(%1, %2);%3;endchar;").arg(ayaName).arg(ayaNumber).arg(setcolored);
+    m_layout->font->executeMetaPost(data);
+    data = QString("beginchar(%1.colored%2,-1,-1,5,-1);\n%%beginbody\ngenAyaNumber(%1.colored, %2);endchar;").arg(ayaName).arg(ayaNumber);
+    m_layout->font->executeMetaPost(data);
+  }
 }

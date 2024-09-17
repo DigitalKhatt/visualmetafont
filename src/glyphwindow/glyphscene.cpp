@@ -718,7 +718,15 @@ void GlyphScene::addnewPath(QPointF newpoint, QString dir) {
   right.type = Glyph::mpgui_open;
   newknot->leftValue = left;
   newknot->rightValue = right;
-  newknot->expr = std::make_unique<PairPathPointExp>(QPointF(newpoint.x(), -newpoint.y()));
+
+  auto edge = m_glyph->getEdge();
+
+  QPointF matrix;
+
+  if (edge) {
+    matrix = { edge->xpart,edge->ypart };
+  }
+  newknot->expr = std::make_unique<PairPathPointExp>(QPointF(newpoint.x(), -newpoint.y()) - matrix);  
 
   int numpath = m_glyph->controlledPaths.size();
   newpath[0] = newknot;

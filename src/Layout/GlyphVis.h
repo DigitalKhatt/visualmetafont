@@ -49,6 +49,15 @@ struct GlyphVisAnchor {
   int type;
 };
 
+enum class  GlyphType {
+  Unknown = 0,
+  GlyphTypeBase = 1,
+  GlyphTypeLigature = 2,
+  GlyphTypeMark = 3,
+  GlyphTypeComponent = 4,
+  GlyphTypeColored = 5,
+  GlyphTypeTemp = 6,
+};
 
 class GlyphVis {
   friend class MyQPdfEnginePrivate;
@@ -75,6 +84,8 @@ public:
 
   QString name;
   QString originalglyph;
+  QString coloredglyph;
+  GlyphType glyphtype;
   int charcode = 0;
   double width = 0;
   double height = 0;
@@ -88,8 +99,7 @@ public:
 
 #ifndef DIGITALKHATT_WEBLIB
   QPainterPath path;
-  QPicture picture;
-  void refresh(QHash<QString, GlyphVis>& glyphs);
+  QPicture picture;  
 #endif
 
   enum class  AnchorType {
@@ -114,24 +124,22 @@ public:
     return m_edge;
   }
 
+  GlyphType getGlypfType();
 
+  bool isColored();
+
+  GlyphVis* getColoredGlyph();
 
   GlyphVis* getAlternate(GlyphParameters parameters);
 
   QPoint getAnchor(QString name, AnchorType type);
 
   bool conatinsAnchor(QString name, AnchorType type);
-  bool expanded = false;  
+  bool expanded = false;
   bool isAlternate = false;
+  
 
 private:
-#ifndef DIGITALKHATT_WEBLIB
-  QPainterPath getPath(mp_edge_object* h);
-  QPicture getPicture(mp_edge_object* h);
-  QPainterPath mp_dump_solved_path(mp_gr_knot h);
-
-#endif
-
 
   bool isdirty = true;
   mp_edge_object* m_edge = nullptr;
