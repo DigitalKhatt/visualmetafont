@@ -279,7 +279,7 @@
                     0
                 ],
                 "hamzaabove": [
-                    16,
+                    -3,
                     8,
                     0,
                     0
@@ -291,14 +291,14 @@
         "subtable1": {
             "parameters": {
                 "damma": [
-                    -20,
+                    -40,
                     6,
                     0,
                     0
                 ],
                 "fatha": [
-                    -3,
-                    2,
+                    3,
+                    -31,
                     0,
                     0
                 ]
@@ -309,8 +309,8 @@
         "subtable1": {
             "parameters": {
                 "shadda": [
+                    21,
                     24,
-                    8,
                     0,
                     0
                 ]
@@ -1718,12 +1718,12 @@
                         23
                     ],
                     "noon.fina.expa.afterbeh": [
-                        233,
-                        21
+                        67,
+                        8
                     ],
                     "noon.isol.expa": [
-                        -311,
-                        -61
+                        119,
+                        -20
                     ],
                     "reh.fina": [
                         130,
@@ -1821,7 +1821,7 @@
                     ],
                     "alef.fina.laf": [
                         -60,
-                        0
+                        -19
                     ],
                     "alef.fina.lamalef": [
                         29,
@@ -2000,8 +2000,8 @@
                         -71
                     ],
                     "lam.init.lamalef": [
-                        54,
-                        -43
+                        108,
+                        -112
                     ],
                     "lam.isol": [
                         81,
@@ -2497,6 +2497,10 @@
                         -132,
                         -8
                     ],
+                    "hah.fina": [
+                        -27,
+                        -97
+                    ],
                     "hah.init": [
                         -35,
                         -69
@@ -2506,8 +2510,8 @@
                         -69
                     ],
                     "hah.isol": [
-                        81,
-                        0
+                        40,
+                        -41
                     ],
                     "hah.medi": [
                         -86,
@@ -2757,6 +2761,10 @@
                         -83,
                         -100
                     ],
+                    "meem.isol": [
+                        39,
+                        -5
+                    ],
                     "meem.isol.ii": [
                         104,
                         -34
@@ -2974,6 +2982,16 @@
                 }
             }
         },
+        "defaultmkmksmalllowmeem": {
+            "smalllowmeem": {
+                "baseparameters": {
+                    "kasra": [
+                        -28,
+                        80
+                    ]
+                }
+            }
+        },
         "defaultmkmktop": {
             "topmarks": {
                 "baseparameters": {
@@ -3114,7 +3132,7 @@
             "smallhighwaw": {
                 "baseparameters": {
                     "seen.medi": [
-                        23,
+                        -46,
                         -95
                     ]
                 }
@@ -4072,8 +4090,8 @@
                         263
                     ],
                     "meem.isol": [
-                        92,
-                        474
+                        65,
+                        507
                     ],
                     "meem.isol.ii": [
                         -29,
@@ -4287,8 +4305,8 @@
         "subtable1": {
             "parameters": {
                 "smalllowmeem": [
-                    -168,
-                    254,
+                    -139,
+                    334,
                     0,
                     0
                 ]
@@ -4517,6 +4535,10 @@
                 "lam.init.beforeyeh": [
                     28,
                     -28
+                ],
+                "meem.isol": [
+                    0,
+                    41
                 ],
                 "meem.isol.ii": [
                     -5,

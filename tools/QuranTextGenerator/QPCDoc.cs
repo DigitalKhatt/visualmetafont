@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -225,10 +226,10 @@ namespace QuranTextGenerator
       // suppress tatweel in لِّـجِبۡرِيلَ page 15 line 7
       newline = newline.Replace("\u0650\u0640\u062C\u0650\u0628", "\u0650\u062C\u0650\u0628");
 
-      // miss letter in لِيَسُـۥٓـُٔوا۟ 
+      // miss letter in لِيَسُـۥٓـُٔوا۟ page 282 line 14
       newline = newline.Replace("\u0633\u064F\u0640\u0654\u064F", "\u0633\u064F\u034F\u08F3\u0653\u0640\u0654\u064F");
 
-      // 0648  ARABIC LETTER WAW + ‎0655  ARABIC HAMZA BELOW -> 0624  ARABIC LETTER WAW WITH HAMZA ABOVE
+      // 0648  ARABIC LETTER WAW + 0655  ARABIC HAMZA BELOW -> 0624  ARABIC LETTER WAW WITH HAMZA ABOVE
       newline = newline.Replace("\u0648\u0655", "\u0624");
 
       //ARABIC LETTER YEH WITH HAMZA ABOVE
@@ -278,31 +279,17 @@ namespace QuranTextGenerator
 
       //decomposition
 
-      //newline = newline.Replace("\u0622", "\u0627\u0653"); // ARABIC LETTER ALEF WITH MADDA ABOVE
-      //newline = newline.Replace("\u0623", "\u0627\u0654"); // ARABIC LETTER ALEF WITH HAMZA ABOVE
-      //newline = newline.Replace("\u0624", "\u0648\u0654"); // ARABIC LETTER WAW WITH HAMZA ABOVE
-      //newline = newline.Replace("\u0625", "\u0627\u0655"); // ARABIC LETTER ALEF WITH HAMZA BELOW
-      //newline = newline.Replace("\u0626", "\u064A\u0654"); // ARABIC LETTER ALEF WITH HAMZA BELOW
+      newline = newline.Replace("\u0622", "\u0627\u0653"); // ARABIC LETTER ALEF WITH MADDA ABOVE
+      newline = newline.Replace("\u0623", "\u0627\u0654"); // ARABIC LETTER ALEF WITH HAMZA ABOVE
+      newline = newline.Replace("\u0624", "\u0648\u0654"); // ARABIC LETTER WAW WITH HAMZA ABOVE
+      newline = newline.Replace("\u0625", "\u0627\u0655"); // ARABIC LETTER ALEF WITH HAMZA BELOW
+      newline = newline.Replace("\u0626", "\u064A\u0654"); // ARABIC LETTER YEH WITH HAMZA ABOVE
 
-      /* 0623 : ARABIC LETTER ALEF WITH HAMZA ABOVE + 0653 : ARABIC MADDAH ABOVE 
-       * -> 0640 : ARABIC TATWEEL 
-       * -> 0654 : ARABIC HAMZA ABOVE
-       * -> 064E : ARABIC FATHA
-       * -> 0627 : ARABIC LETTER ALEF */
-      // disable newline = newline.Replace("\u0623\u0653", "\u0640\u0654\u064E\u0627");                                  
-      //newline = newline.Replace("\u064E\u06E2", "\u064B\u06E2"); // 064E : ARABIC FATHA + 06E2 : ARABIC SMALL HIGH MEEM ISOLATED FORM -> 064B :  ARABIC FATHATAN + 06E2
-      //newline = newline.Replace("\u064F\u06E2", "\u064C\u06E2");
-      //newline = newline.Replace("\u0650\u06E2", "\u064D\u06ED");
-
-      //not needed any more already changed in version 13
-      //newline = newline.Replace('\u200D', '\u0640');
-
-      //corrected in version 13 "سُورَةُ التِّينِ" "بِّسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ" 
-      //newline = newline.Replace("\u0650\u0651", "\u0651\u0650"); // 0650  ARABIC KASRA + 0651  ARABIC SHADDA -> 0651  ARABIC SHADDA + 0650  ARABIC KASRA                                       
-
-      //newline = newline.Replace("\u065C", "\u06EA"); // 065C  ARABIC VOWEL SIGN DOT BELOW -> 06EA ARABIC EMPTY CENTRE LOW STOP
-
-      //newline = newline.Replace("\u06E1\u06DC", "\u06E1\u034F\u06DC");
+      // Avoid normalization to match text <-> glyph unambiguously in order to correctly apply features and styles
+      newline = newline.Replace("\u0627\u0653", "\u0627\u034F\u0653");
+      newline = newline.Replace("\u0627\u0654", "\u0627\u034F\u0654\u034F");
+      newline = newline.Replace("\u0648\u0654", "\u0648\u034F\u0654\u034F");      
+      newline = newline.Replace("\u064A\u0654", "\u064A\u034F\u0654\u034F");
 
       return newline;
 

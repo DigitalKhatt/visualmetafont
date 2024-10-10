@@ -1054,8 +1054,8 @@
                         -11
                     ],
                     "behshape.init.beforehah": [
-                        16,
-                        28
+                        -1,
+                        -14
                     ],
                     "behshape.init.beforeseen": [
                         -115,
@@ -1241,7 +1241,7 @@
                 "baseparameters": {
                     "lam.init.lamalef": [
                         -32,
-                        -325
+                        -365
                     ],
                     "lam.medi.laf": [
                         -311,
@@ -1817,6 +1817,10 @@
                         -32,
                         -13
                     ],
+                    "lam.init.beforebeh": [
+                        -119,
+                        -65
+                    ],
                     "lam.init.beforedal": [
                         -69,
                         -18
@@ -1834,8 +1838,8 @@
                         16
                     ],
                     "lam.init.lamalef": [
-                        68,
-                        13
+                        137,
+                        -56
                     ],
                     "lam.isol": [
                         140,
@@ -2176,8 +2180,8 @@
                         -280
                     ],
                     "tah.medi": [
-                        263,
-                        -260
+                        247,
+                        -468
                     ]
                 }
             },
@@ -2194,6 +2198,10 @@
                     "tah.isol": [
                         458,
                         -347
+                    ],
+                    "tah.medi": [
+                        234,
+                        -358
                     ]
                 }
             }
@@ -2299,7 +2307,7 @@
                     ],
                     "dal.fina": [
                         17,
-                        -83
+                        -19
                     ],
                     "dal.fina.afterlam": [
                         0,
@@ -2486,8 +2494,8 @@
                         -18
                     ],
                     "lam.init.beforebeh": [
-                        -125,
-                        19
+                        -116,
+                        -50
                     ],
                     "lam.init.beforedal": [
                         -101,
@@ -2502,8 +2510,8 @@
                         -65
                     ],
                     "lam.init.lam_hah": [
-                        -212,
-                        48
+                        -185,
+                        -48
                     ],
                     "lam.init.lamalef": [
                         102,
@@ -2856,8 +2864,8 @@
                         24
                     ],
                     "dal.fina": [
-                        54,
-                        -6
+                        14,
+                        58
                     ],
                     "dal.fina.afterlam": [
                         -40,
@@ -3933,6 +3941,10 @@
                         125,
                         -288
                     ],
+                    "hah.init.beforeyeh": [
+                        132,
+                        83
+                    ],
                     "reh.isol": [
                         -81,
                         0
@@ -4080,6 +4092,10 @@
         },
         "rehfinaafterseen": {
             "entryParameters": {
+                "hah.init.beforeyeh": [
+                    -76,
+                    41
+                ],
                 "kaf.init.beforelam": [
                     -173,
                     0

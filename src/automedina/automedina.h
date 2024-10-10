@@ -82,6 +82,6 @@ protected:
 
   QVector< QMap<quint16, QVector<ExtendedGlyph> >> cvxxfeatures;
 
-  void generateAyas(QString ayaName);
+  void generateAyas(QString ayaName, bool colored);
 
 };

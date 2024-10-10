@@ -5,6 +5,6 @@
     <DebuggerFlavor>ProjectDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup>
-    <ActiveDebugProfile>Tarteel</ActiveDebugProfile>
+    <ActiveDebugProfile>QuranCPP</ActiveDebugProfile>
   </PropertyGroup>
 </Project>

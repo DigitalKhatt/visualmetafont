@@ -20,18 +20,20 @@
 %mpost -numbersystem double -mem mpguifont
 %math_mode
 
-%if known MPGUI:
-	input mfplain.mp;
-%fi
+input mfplain.mp;
 
 def drawoptions(text t) =
   def _op_ = t enddef;
 enddef;
 
-drawoptions();
+if known MPGUI:
+	drawoptions(withcolor false);
+else:
+  drawoptions();
+fi
 
-def fill expr c = addto currentpicture contour c enddef;
-def fillc expr c = addto currentpicture contour c if _addedpostscript <> "" : withpostscript  _addedpostscript fi enddef;
+def fill expr c = addto currentpicture contour c _op_ enddef;
+def fillc expr c = addto currentpicture contour c _op_ if _addedpostscript <> "" : withpostscript  _addedpostscript fi enddef;
 
 newinternal string _addedpostscript;
 def addwithpostscript(expr t) =
@@ -44,11 +46,11 @@ vardef round primary u =
  else: u fi enddef;
 
 newinternal nextunicode, lefttatweel,righttatweel, leftbearing, rightbearing,  nuqta, which_in_baseline, totalglyphs, savepicture, number_of_anchors; 
-newinternal string charname,originalglyph;
+newinternal string charname,originalglyph,coloredglyph;
 newinternal showAnchors,digitscale;
 pair lefttatweel_const, righttatweel_const;
 newinternal minLeft,maxLeft,minRight,maxRight, maxLii, maxRii;
-newinternal charlt,charrt;
+newinternal charlt,charrt,glyphtype;
 
 %For parametric kashida
 newinternal leftVerticalRatio,leftVerticalRatioNeg,rightVerticalRatio,rightVerticalRatioNeg;
@@ -68,13 +70,20 @@ def EntryAnchorRTL = 4 enddef;
 def ExitAnchorRTL = 5 enddef;
 def Anchor = 6 enddef;
 
+def GlyphTypeBase = 1 enddef;
+def GlyphTypeLigature = 2 enddef;
+def GlyphTypeMark = 3 enddef;
+def GlyphTypeComponent = 4 enddef;
+def GlyphTypeColored = 5 enddef;
+def GlyphTypeTemp = 6 enddef;
+
 def generateAlternate(suffix macroname)(suffix params) =
 beginchar(alternatechar,983040,-1,-1,-1);charlt:=params0;charrt:=params1;macroname(params);endchar;
 enddef;
 
 primarydef w ?? d = if known w : w else : d fi enddef;
 
-def makechardef(suffix name)(expr c,w_sharp)(text t) =    
+def makechardef(suffix name)(expr c,w_sharp,g_type)(text t) =    
   vardef name$(suffix params) =    
     interim lefttatweel := params0 ?? 0;
     interim righttatweel := params1 ?? 0;   	  
@@ -87,7 +96,7 @@ def makechardef(suffix name)(expr c,w_sharp)(text t) =
     _params1 :=_rt;   	  
     name$(_params);    
   enddef;
-  beginchar(name,c,w_sharp,-1,-1);
+  beginchar(name,c,w_sharp,g_type,-1);
     charlt := params0;
     charrt := params1;   	   
     name$(params);
@@ -95,14 +104,15 @@ def makechardef(suffix name)(expr c,w_sharp)(text t) =
 enddef;
 delimiters begindefchar enddefchar;
 
-def defchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =  
-  makechardef(name)(c,w_sharp) begindefchar
+def defchar(suffix name)(expr c,w_sharp,g_type,d_sharp) =  
+  makechardef(name)(c,w_sharp,g_type) begindefchar
 enddef;
 
-def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
+def beginchar(suffix name)(expr c,w_sharp,g_type,d_sharp) =
  clearxy;
  begingroup
- originalglyph := "";
+ originalglyph := ""; coloredglyph:="";
+ glyphtype:= if g_type = -1 : GlyphTypeBase else: g_type fi;
  charcode:=if known c: byte c else: -1 fi; 
  if (charcode = -1) and (unknown name): 
   charcode := incr nextunicode; name:= charcode; 
@@ -121,8 +131,7 @@ def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
  leftbearing := 0;
  rightbearing := 0;
  lefttatweel_const := righttatweel_const := (0,0);
- charwd:=w_sharp;      charht:=h_sharp;       chardp:=d_sharp;
- w:=charwd; h:=charht; d:=chardp;
+ charwd:=w_sharp;
  charic:=0;  clearit; %clearpen; %clearxy; 
  number_of_anchors := 0;
  left_tatweeltension := 0;
@@ -132,7 +141,6 @@ def beginchar(suffix name)(expr c,w_sharp,h_sharp,d_sharp) =
  which_in_baseline := 3;
  _addedpostscript := "";
  savepicture := 0; 
-
  save anchors,minA,maxA;
  string anchors[]anchorname;
  pair anchors[]pairvalue;
@@ -237,12 +245,7 @@ def endchar =
     if showAnchors <> 0 :
       setlabel(anchors[i].anchorname,anchors[i].pairvalue);      
     fi
-  endfor;
-
-  %if showAnchors <> 0 :      
-  %  if known leftanchor : setlabel("leftanchor",leftanchor); fi
-  %  if known rightanchor : setlabel("rightanchor",rightanchor); fi
-  %fi
+  endfor;  
   
 	shipit;
 	endgroup 
@@ -251,20 +254,10 @@ enddef;
 pair tmp_pair_params_[];
 numeric tmp_num_params_[];
 
-
-def drawcomponent(suffix charcode)(expr x,y,xx,xy,yx,yy) =  
-	begingroup
-		if unknown MPGUI :
-			transform T_;
-			xpart T_ = x; ypart T_ = y; xxpart T_ =  xx; xypart T_ = xy; yxpart T_ = yx; yypart T_ = yy;
-			draw glyphs[charcode] transformed T_ withprescript "begin component " & decimal charcode withpostscript "end component " & decimal charcode;
-		fi ;
-	endgroup
-enddef;
-
 def drawcomp(suffix charcode)(expr T) =  
 	begingroup		
-    draw scantokens str charcode pic transformed T withprescript "begin component " & decimal charcode withpostscript "end component " & decimal charcode;		
+    draw charcode.pic transformed T withprescript "begincomponent" withpostscript str charcode & "," & decimal xpart T & "," & decimal ypart T;	
+    draw (0,0) transformed T withprescript "endcomponent";  	
 	endgroup
 enddef;
 
@@ -933,6 +926,85 @@ vardef calcDeltasPic(expr pic) =
     endfor
     currentpicture
 enddef;
+vardef getWidth(expr pic) =
+  xpart (urcorner pic) - xpart (ulcorner pic)
+enddef;
+vardef getDigitName(expr digit) =
+  if digit = 0 : "zeroindic"
+  elseif digit = 1 : "oneindic"
+  elseif digit = 2 : "twoindic"
+  elseif digit = 3 : "threeindic"
+  elseif digit = 4 : "fourindic"
+  elseif digit = 5 : "fiveindic"
+  elseif digit = 6 : "sixindic"
+  elseif digit = 7 : "sevenindic"
+  elseif digit = 8 : "eightindic"
+  elseif digit = 9 : "nineindic"
+  else : ""
+  fi
+enddef;
+
+vardef genAyaNumber(suffix ayaname)(expr ayaNumber) =
+
+  save ayapic,position,digitheight,digittrans,digitname,digitvalue,digitkern;
+  string digitname[];
+  picture ayapic,digitspic[]; 
+  transform digittrans[];
+  numeric  digitvalue[];
+  ayapic := ayaname.pic;
+  digitheight := 120;
+  digitkern := 40;
+  if ayaNumber < 10 :
+    digitname.1 := getDigitName(ayaNumber);
+    digitspic.1 := scantokens(digitname.1)pic;
+    position := getWidth(ayapic)/2 - getWidth(digitspic.1)/2;
+    digittrans.1 := identity shifted (position,digitheight);
+  elseif ayaNumber < 100 : 
+    digitvalue.1 := ayaNumber mod 10;
+    digitvalue.2 := ayaNumber div 10;
+    digitname.1 := getDigitName(digitvalue.1);
+    digitname.2 := getDigitName(digitvalue.2);
+    digitspic.1 := scantokens(digitname.1)pic;
+    digitspic.2 := scantokens(digitname.2)pic;
+    position := getWidth(ayapic)/2 - (getWidth(digitspic.1) + getWidth(digitspic.2) + digitkern)/2;
+    digittrans.2 := identity shifted (position,digitheight);
+    digittrans.1 := identity shifted (position + getWidth(digitspic.2) + digitkern,digitheight);
+  else:
+    digitvalue.1 := ayaNumber mod 10;
+    digitvalue.2 := (ayaNumber div 10) mod 10;
+    digitvalue.3 := ayaNumber div 100;
+    digitname.1 := getDigitName(digitvalue.1);
+    digitname.2 := getDigitName(digitvalue.2);
+    digitname.3 := getDigitName(digitvalue.3);
+    digitspic.1 := scantokens(digitname.1)pic;
+    digitspic.2 := scantokens(digitname.2)pic;
+    digitspic.3 := scantokens(digitname.3)pic;
+    position := getWidth(ayapic)/2 - (getWidth(digitspic.1) + getWidth(digitspic.2) + getWidth(digitspic.3) + 2digitkern)/2;
+    digittrans.3 := identity shifted (position,digitheight);
+    digittrans.2 := identity shifted (position + getWidth(digitspic.3) + digitkern,digitheight);
+    digittrans.1 := identity shifted (position + getWidth(digitspic.3) + getWidth(digitspic.2) + 2*digitkern,digitheight);
+  fi
+
+  drawcomp(ayaname,identity);
+  if known digittrans.1 : drawcomp(scantokens digitname.1,digittrans.1); fi
+  if known digittrans.2 : drawcomp(scantokens digitname.2,digittrans.2); fi
+  if known digittrans.3 : drawcomp(scantokens digitname.3,digittrans.3); fi
+
+
+enddef;
+vardef convRGB(expr rgb)=
+  (hex substring (0,2) of rgb/255,hex substring (2,4) of rgb/255,hex substring (4,6) of rgb/255)
+enddef;	
+vardef tint(expr srgb,factor)=
+  save currentR,currentG,blue,currentB,newR,newG,newB,inv;
+  currentR := redpart srgb ** 2.2;
+  currentG := greenpart srgb ** 2.2;
+  currentB := bluepart srgb ** 2.2;
+  newR := currentR + (1 - currentR) * factor;
+  newG := currentG + (1 - currentG) * factor;
+  newB := currentB + (1 - currentB) * factor;
+  inv := 1/2.2;
+  (newR ** inv,newG ** inv,newB ** inv)
+enddef;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 input myfontbase.mp;
-input ayah.mp;

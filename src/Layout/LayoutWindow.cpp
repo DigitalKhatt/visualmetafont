@@ -2847,7 +2847,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
         GlyphVis& currentGlyph = *m_otlayout->getGlyph(glyphName, glyphLayout.lefttatweel, glyphLayout.righttatweel);
         QPoint pos = linePositions[g];
         QPainterPath path;
-        if (!glyphName.contains("space")) {
+        if (!glyphName.contains("space") && !glyphName.contains("cgj")) {
           auto gg = qt_graphicsItem_shapeFromPath(currentGlyph.path, pen);
           path = pathtransform.map(gg);
           path.translate(pos);

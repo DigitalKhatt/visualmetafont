@@ -444,7 +444,7 @@ fill
 leftbearing:=0;
 rightbearing:=100;
 endchar;
-beginchar(endofaya,1757,-1,-1,-1);
+defchar(endofaya,1757,-1,-1,-1);
 %%backgroundimage:images/aya2.JPG,-205.054,-919.225,1,0,0,1
 %%beginparams
 thickness_ := 20;
@@ -525,8 +525,8 @@ fill _p1 .. reverse  (_p1 reflectedabout (z1,z1+(0,50))) .. cycle withcolor whit
 savepicture:=1;
 
 currentpicture := currentpicture shifted (0,20) scaled 0.95;
-show currentwidth;
-endchar;
+
+enddefchar;
 beginchar(endofaya.ii,-1,-1,-1,-1);
 %%backgroundimage:images/hizb.jpg,-1277.59,-1060.2,1,0,0,1
 %%beginparams

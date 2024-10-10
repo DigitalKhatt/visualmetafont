@@ -118,13 +118,14 @@ void digitalkhatt::generateGlyphs() {
 
 
 void digitalkhatt::addchars() {
-  generateAyas("endofaya");
+  generateAyas("endofaya", false);
 }
 
 digitalkhatt::digitalkhatt(OtLayout* layout, Font* font, bool extended) :Automedina{ layout,font, extended } {
 
   //m_metafont = layout->m_font;
   classes["marks"] = {
+      //"cgj",
       "onedotup",
       "onedotdown",
       "twodotsup",

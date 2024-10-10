@@ -48,13 +48,16 @@ lookup miscellaneoussubst {
   
   feature ccmp; 
 
-  @joinedmarks = [smallalef smallalef.joined hamzaabove.joined smallhighyeh  smallhighnoon];
+  @joinedmarks = [smallalef smallalef.joined hamzaabove.joined smallhighyeh  smallhighnoon maddahabove];
 
   lookup miscellaneoussubst.l1 {
     sub  cgj hamzaabove cgj by hamzaabove; 
+    sub  cgj maddahabove cgj by maddahabove; 
     sub  cgj hamzaabove by hamzaabove; 
     sub  cgj smallhighseen by smallhighseen; 
+    sub  cgj maddahabove by maddahabove; 
     sub  hamzaabove cgj by hamzaabove;  
+    sub  maddahabove cgj by maddahabove;      
     sub  tatweel smallalef by smallalef.joined; 
     sub  tatweel hamzaabove by hamzaabove.joined;      
     sub  tatweel smallhighyeh by smallhighyeh;      
@@ -65,18 +68,18 @@ lookup miscellaneoussubst {
      sub yehshape.isol by alefmaksura.isol; 
    } miscellaneoussubst.l2;
 
-  sub cgj'lookup miscellaneoussubst.l1 hamzaabove' cgj';
+  sub cgj'lookup miscellaneoussubst.l1 [hamzaabove maddahabove]' cgj';
 
-  sub [smallalef] cgj'lookup miscellaneoussubst.l1 hamzaabove';
+  sub [smallalef] cgj'lookup miscellaneoussubst.l1 hamzaabove';  
 
-  sub hamzaabove'lookup miscellaneoussubst.l1 cgj';
+  sub [hamzaabove maddahabove]'lookup miscellaneoussubst.l1 cgj';
 
   sub tatweel'lookup miscellaneoussubst.l1 [smallalef hamzaabove smallhighyeh smallhighnoon];
 
   # needed to prevent reordering (since 0x034F deleted otherwise space inserted) when applying justification (page 282 line 14)
   # Can be implemented in normalize (keeped here to adhere to the standard in case we want to generate an OpenType font)
 
-  sub  cgj'lookup miscellaneoussubst.l1 smallhighseen'; 
+  sub  cgj'lookup miscellaneoussubst.l1 [smallhighseen maddahabove]'; 
 
   sub yehshape.isol'lookup miscellaneoussubst.l2  cgj hamzaabove;
     
@@ -1089,7 +1092,7 @@ lookup joinedsmallletters {
   lookupflag UseMarkFilteringSet [hamzaabove.joined smallalef.joined maddahabove smallhighwaw];
 
   lookup joinedsmallletters.l1 {			
-    pos base  seen.medi  <anchor function joinedsmalllettersbaseanchor>  markClass smallhighwaw <anchor function defaultopmarkanchor> @smallhighwaw ;
+    pos base  /^seen.medi/  <anchor function joinedsmalllettersbaseanchor>  markClass smallhighwaw <anchor function defaultopmarkanchor> @smallhighwaw ;
     pos base  /init|medi/ <anchor function joinedsmalllettersbaseanchor> markClass [hamzaabove.joined smallalef.joined] <anchor function defaultopmarkanchor> @jsl;		
   } joinedsmallletters.l1;
 
@@ -1747,7 +1750,7 @@ feature curs {
 
 feature kern {	  
   lookup variouskern;  
-  #lookup ayanumberskern;      
+  //lookup ayanumberskern;      
 } kern;
 
 feature mark {  

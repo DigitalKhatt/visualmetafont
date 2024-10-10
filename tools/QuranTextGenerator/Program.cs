@@ -106,7 +106,7 @@ namespace GenerateTexFromTanzil
     {
       Console.OutputEncoding = Encoding.UTF8;
 
-      string arg = "";
+      string arg = "cpp";
       if (args.Length > 0)
       {
         arg = args[0];

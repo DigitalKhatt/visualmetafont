@@ -1251,8 +1251,8 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
     if (glyphs.contains(i)) {
       auto& glyph = *glyphs.value(i);
 
-      if (glyph.edge() && glyph.edge()->coloredglyph != nullptr && strcmp(glyph.edge()->coloredglyph, "")) {
-        coloredglyphs.insert({ glyph.charcode,QString(glyph.edge()->coloredglyph) });
+      if (!glyph.coloredglyph.isEmpty()) {
+        coloredglyphs.insert({ glyph.charcode,glyph.coloredglyph });
       }
 
       QByteArray glyphData;
@@ -1771,7 +1771,7 @@ QByteArray ToOpenType::cff2() {
 
   return ret;
 }
-//https://docs.microsoft.com/en-us/typography/opentype/spec/cff2#charStrings
+//https://learn.microsoft.com/en-us/typography/opentype/otspec190/cff2charstr
 //Table 3 Operand Encoding
 void ToOpenType::int_to_cff2(QByteArray& cff, int val) {
 
@@ -1797,11 +1797,21 @@ void ToOpenType::int_to_cff2(QByteArray& cff, int val) {
     cff << (int32_t)val;
   }
 }
-
 void ToOpenType::fixed_to_cff2(QByteArray& cff, double val) {
+  /*
   int v = roundf(val * 65536.f);
   cff << (uint8_t)255;
-  cff << (int32_t)v;
+  cff << (int32_t)v;*/
+
+  double intpart;  
+  if (std::modf(val, &intpart) == 0.0) {
+    int_to_cff2(cff, val);
+  }
+  else {
+    int v = roundf(val * 65536.f);
+    cff << (uint8_t)255;
+    cff << (int32_t)v;
+  }
 }
 
 QByteArray ToOpenType::dsig() {

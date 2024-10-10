@@ -29,6 +29,7 @@ enddef;
 if known MPGUI:
 	drawoptions(withcolor false);
 else:
+  numeric params;params[0]:=0;params[1]:=0;params[2]:=0;
   drawoptions();
 fi
 
@@ -345,7 +346,7 @@ mode_setup;
 
 prologues := 3;
 %outputformat := "svg";
-%outputtemplate := "automedinaoutput\%j-%c.svg";
+%outputtemplate := "%j-%c.svg";
 fontmaking:=0;
 tracingonline:=1;
 

@@ -487,7 +487,7 @@ endofaya_(0,0);
 color ayacolor[];
 
 ayacolor1 := convRGB("edf7ff");
-ayacolor2 := tint(ayacolor1,-1);
+ayacolor2 := tint(ayacolor1,-0.5);
 ayacolor3 := tint(ayacolor1,-5);
 
 _paths0.r := reverse _paths0;
@@ -515,7 +515,7 @@ fill subpath (1,x4.int) of reverse _paths0
 .. subpath (length _paths3 - y5.int, length _paths3) of _paths3.r
 .. subpath (0,x6.int) of  _paths3.1.r
 .. subpath (length _paths1.1 - y6.int,x7.int) of _paths1.1.r
-.. subpath (length _paths0.1 - y7.int,length _paths0.1) of  _paths0.1.r
+.. subpath (length _paths0.1 - y7.int,length _paths0.1 - 1) of  _paths0.1.r
 .. cycle withcolor ayacolor2;
 
 z8.int = subpath(2,length _paths2) of  _paths2 intersectionpoint  subpath(2,length _paths2) of _paths2.1.r;
@@ -542,7 +542,7 @@ fill subpath(xpart (_paths1.2.r intersectiontimes z10.int),x11.int) of _paths1.2
 z13.int = subpath(2,length _paths1) of  _paths1 intersectionpoint  subpath(2,14) of _paths2;
 
 _paths5 := subpath(1,xpart ( _paths1.r intersectiontimes z13.int)) of _paths1.r
-.. subpath(xpart ( _paths2.r intersectiontimes z13.int),length _paths2.r) of _paths2.r
+.. subpath(xpart ( _paths2.r intersectiontimes z13.int),length _paths2.r - 1) of _paths2.r
 .. cycle;
 
 _paths5.1 := _paths5 reflectedabout (z1,z1+(0,10));

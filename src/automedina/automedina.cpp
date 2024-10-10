@@ -120,12 +120,17 @@ QSet<QString> Automedina::classtoGlyphName(QString className) {
 
 }
 
-void Automedina::generateAyas(QString ayaName) {  
-  for (int ayaNumber = 1; ayaNumber <= 286; ayaNumber++) {        
-    QString setcolored = QString("coloredglyph:=\"%1.colored%2\"").arg(ayaName).arg(ayaNumber);
+void Automedina::generateAyas(QString ayaName, bool colored) {
+  for (int ayaNumber = 1; ayaNumber <= 286; ayaNumber++) {
+    QString setcolored;
+    if (colored) {
+      setcolored = QString("coloredglyph:=\"%1.colored%2\"").arg(ayaName).arg(ayaNumber);
+    }
     QString data = QString("beginchar(%1%2,-1,-1,2,-1);\n%%beginbody\ngenAyaNumber(%1, %2);%3;endchar;").arg(ayaName).arg(ayaNumber).arg(setcolored);
     m_layout->font->executeMetaPost(data);
-    data = QString("beginchar(%1.colored%2,-1,-1,5,-1);\n%%beginbody\ngenAyaNumber(%1.colored, %2);endchar;").arg(ayaName).arg(ayaNumber);
-    m_layout->font->executeMetaPost(data);
+    if (colored) {
+      data = QString("beginchar(%1.colored%2,-1,-1,5,-1);\n%%beginbody\ngenAyaNumber(%1.colored, %2);endchar;").arg(ayaName).arg(ayaNumber);
+      m_layout->font->executeMetaPost(data);
+    }
   }
 }

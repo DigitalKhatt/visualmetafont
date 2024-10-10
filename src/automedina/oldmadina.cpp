@@ -67,10 +67,6 @@ void OldMadina::generateGlyphs() {
       m_layout->glyphCodePerName[glyph.name] = glyph.charcode;
       m_layout->unicodeToGlyphCode.insert(glyph.charcode, glyph.charcode);
 
-      //if (glyph.name.contains("space")) {
-
-      //}
-      //else
       if (!classes["marks"].contains(glyph.name)) {
         classes["bases"].insert(glyph.name);
         m_layout->glyphGlobalClasses[glyph.charcode] = OtLayout::BaseGlyph;
@@ -78,12 +74,6 @@ void OldMadina::generateGlyphs() {
       else {
         m_layout->glyphGlobalClasses[glyph.charcode] = OtLayout::MarkGlyph;
       }
-
-      //uint totalAnchors = getTotalAnchors(mp, glyph.charcode);
-      /*
-            if (edges->numAnchors > 10) {
-                    throw "error";
-    }*/
 
       for (int i = 0; i < edges->numAnchors; i++) {
         AnchorPoint anchor = edges->anchors[i];
@@ -114,49 +104,6 @@ void OldMadina::generateGlyphs() {
 
     edges = edges->next;
   }
-
-
-  auto ayaGlyph = glyphs["endofaya"];
-
-  int ayacharcode = AyaNumberCode;
-
-  for (int i = 1; i <= 286; i++) {
-
-    QString name = QString("aya%1").arg(i);
-
-    // Amine very temporary for test
-    auto& glyph = *glyphs.insert(name, ayaGlyph);
-
-    glyph.name = name;
-    glyph.charcode = ayacharcode++;
-
-    m_layout->glyphNamePerCode.insert(glyph.charcode, glyph.name);
-    m_layout->glyphCodePerName.insert(glyph.name, glyph.charcode);
-
-    m_layout->glyphGlobalClasses.insert(glyph.charcode, OtLayout::LigatureGlyph);
-  }
-
-
-  /*
-         "0622": [ "alef.isol", "maddahabove" ],
-        "0623": [ "alef.isol", "hamzaabove" ],
-        "0624": [ "waw.isol", "hamzaabove" ],
-        "0625": [ "alef.isol", "hamzabelow" ],
-        "0626": [ "alefmaksura.isol", "hamzaabove" ],
-        "0628": [ "behshape.isol", "onedotdown" ],
-        "0629": [ "heh.isol", "twodotsup" ],
-        "062A": [ "behshape.isol", "twodotsup" ],
-        "062B": [ "behshape.isol", "three_dots" ],
-        "062C": [ "hah.isol", "onedotdown" ],
-        "062E": [ "hah.isol", "onedotup" ],
-        "0630": [ "dal.isol", "onedotup" ],
-        "0632": [ "reh.isol", "onedotup" ],
-        "0634": [ "seen.isol", "three_dots" ],
-        "0636": [ "sad.isol", "onedotup" ],
-        "0638": [ "tah.isol", "onedotup" ],
-        "063A": [ "ain.isol", "onedotup" ],
-        "0671": [ "alef.isol", "wasla" ]*/
-
 
   auto addFake = [this](QString glyphName, quint16 unicode, quint16 codechar) {
     auto code = unicode; //codechar; //layout.glyphNamePerCode.lastKey();
@@ -197,41 +144,16 @@ void OldMadina::generateGlyphs() {
 
 void OldMadina::addchars() {
 
-  /*
-        for (auto key : classes["haslefttatweel"]) {
-                QString name = QStringLiteral("%1.beforeheh").arg(key);
-                addchar(key, -1, 200 / 100.0, {}, {}, {}, {}, {}, name, 2);
-        }*/
-        /*
-              for (auto key : classes["haslefttatweel"]) {
-                      for (float i = 100; i <= 500; i = i + 100) {
-                              QString name = QStringLiteral("%1.pluslt_%2").arg(key).arg((int)(i * 1));
-                              addchar(key, -1, i / 100.0, {}, {}, {}, {}, {}, name, 2);
-                      }
+  QString ayaName = "endofaya";
 
-
-                      // for (float i = 10; i <= 200; i = i + 10) {
-                      //	QString name = QStringLiteral("%1.minuslt_%2").arg(key).arg((int)(i * 1));
-                      //	addchar(key, -1, -i / 100.0, {}, {}, {}, {}, {}, name, 2);
-                      //}
-
-                      QString metapostcode = QString("vardef %1.pluslt_[]_(expr lt,rt) = %1_(lt,rt);enddef;").arg(key);
-
-                      QByteArray commandBytes = metapostcode.toLatin1();
-
-                      int status = mp_execute(mp, commandBytes.data(), commandBytes.size());
-                      if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-                              mp_run_data * results = mp_rundata(mp);
-                              QString ret(results->term_out.data);
-                              ret.trimmed();
-                              mp_finish(mp);
-                              throw "Could not initialize MetaPost library instance!\n" + ret;
-                      }
-              }*/
-
-
-              //addchar("lam.medi", -1, {}, -0.2, {}, {}, {}, {}, "lam.medi.afterhah", 2);
-  //addchar("behshape.init", -1, -110 / 100.0, {}, {}, {}, {}, {}, "behshape.init.minuslt_110", 2);
+  for (int ayaNumber = 1; ayaNumber <= 286; ayaNumber++) {
+    QString setcolored = ""; // QString("coloredglyph:=\"%1.colored%2\"").arg(ayaName).arg(ayaNumber);
+    QString data = QString("beginchar(%1%2,-1,-1,2,-1);\n%%beginbody\ngenAyaNumber(%1, %2);%3;endchar;").arg(ayaName).arg(ayaNumber).arg(setcolored);    
+    m_layout->font->executeMetaPost(data);
+    /*
+    data = QString("beginchar(%1.colored%2,-1,-1,5,-1);\n%%beginbody\ngenAyaNumber(%1.colored, %2);endchar;").arg(ayaName).arg(ayaNumber);
+    m_layout->font->executeMetaPost(data);*/
+  }
 
 
 
@@ -1698,7 +1620,9 @@ Lookup* OldMadina::ayanumberskern() {
 
 Lookup* OldMadina::ayanumbers() {
 
-  quint16 endofaya = m_layout->glyphCodePerName["endofaya"];
+  QString ayaName = "endofaya";
+
+  quint16 endofaya = m_layout->glyphCodePerName[ayaName];
 
   // ligature
   Lookup* ligature = new Lookup(m_layout);
@@ -1712,7 +1636,7 @@ Lookup* OldMadina::ayanumbers() {
   ligaturesubtable->name = ligature->name;
 
   for (quint16 i = 286; i > 99; i--) {
-    quint16 code = m_layout->glyphCodePerName[QString("aya%1").arg(i)];
+    quint16 code = m_layout->glyphCodePerName[QString("%1%2").arg(ayaName).arg(i)];
 
     int onesdigit = i % 10;
     int tensdigit = (i / 10) % 10;
@@ -1746,7 +1670,7 @@ Lookup* OldMadina::ayanumbers() {
   ligaturesubtable->name = ligature->name;
 
   for (quint16 i = 99; i > 9; i--) {
-    quint16 code = m_layout->glyphCodePerName[QString("aya%1").arg(i)];
+    quint16 code = m_layout->glyphCodePerName[QString("%1%2").arg(ayaName).arg(i)];
     int onesdigit = i % 10;
     int tensdigit = i / 10;
     if (extended) {
@@ -1761,24 +1685,6 @@ Lookup* OldMadina::ayanumbers() {
     }
 
   }
-  /*if (extended) {
-    // Single substitution
-    Lookup* single = new Lookup(m_layout);
-    single->name = "ayanumbers.l3";
-    single->feature = "";
-    single->type = Lookup::single;
-    m_layout->addLookup(single);
-
-    SingleSubtable* singlesubtable = new SingleSubtable(single);
-    single->subtables.append(singlesubtable);
-    singlesubtable->name = single->name;
-
-    for (int i = 1; i < 10; i++) {
-      singlesubtable->subst[(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i))] = glyphs[QString("aya%1").arg(i)].charcode;
-    }
-
-  }
-  else {*/
 
   // ligature
   ligature = new Lookup(m_layout);
@@ -1792,13 +1698,10 @@ Lookup* OldMadina::ayanumbers() {
   ligaturesubtable->name = ligature->name;
 
   for (int i = 1; i < 10; i++) {
-    quint16 code = m_layout->glyphCodePerName[QString("aya%1").arg(i)];
+    quint16 code = m_layout->glyphCodePerName[QString("%1%2").arg(ayaName).arg(i)];
     ligaturesubtable->ligatures.append({ code,{endofaya,(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i))} });
     ligaturesubtable->ligatures.append({ code,{(quint16)(m_layout->unicodeToGlyphCode.value(1632 + i)),endofaya} });
   }
-
-  //}
-
 
   //main lokkup
 
