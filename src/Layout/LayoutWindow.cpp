@@ -25,7 +25,7 @@
 
 #include <QTreeView>
 #include <QFile>
-
+#include <QtSql>
 
 #include "JustificationContext.h"
 
@@ -123,15 +123,146 @@ LayoutWindow::LayoutWindow(Font* font, QWidget* parent, Qt::WindowFlags flags) :
   createActions();
   createDockWindows();
 
-  setQutranText(1);
+  setQuranText(1);
 
   integerSpinBox->setValue(3);
+
+  layoutDatabase();
 
 }
 
 LayoutWindow::~LayoutWindow()
 {
 }
+
+void LayoutWindow::layoutDatabase() {
+
+  auto db = QSqlDatabase::database();
+
+  if (!db.isValid()) {
+
+    QDir appDir(QCoreApplication::applicationDirPath());
+    QString dbPath = appDir.absoluteFilePath("quran-data.sqlite");
+    QFile dbFile(dbPath);
+    if (!dbFile.exists()) {
+      QFile rsDb(":/quran-data.sqlite");
+      if (!rsDb.copy(dbPath)) {
+        qDebug() << rsDb.error() << rsDb.errorString();
+      }
+    }
+
+    db = QSqlDatabase::addDatabase("QSQLITE");
+    db.setDatabaseName(dbPath);
+    db.open();
+
+    /*
+    db = QSqlDatabase::addDatabase("QSQLITE");
+    db.setDatabaseName(":memory:");
+    db.open();
+
+    QString data;
+    QString dbName(":/quran-data.sqlite.sql");
+
+    QFile file(dbName);
+    if (!file.open(QIODevice::ReadOnly)) {
+      qDebug() << "filenot opened" << endl;
+    }
+    else
+    {
+      QString data = file.readAll();
+      auto commands = data.split(";", Qt::SkipEmptyParts);
+      for (auto& command : commands) {
+        auto query = db.exec(command);
+        auto error = query.lastError();
+        if (error.isValid()) {
+          qDebug() << command << ":" << error;
+        }
+      }
+    }
+    file.close();*/
+  }
+
+  mushafLayouts = new QComboBox;
+
+  QSqlQuery query("SELECT name FROM sqlite_master WHERE type='table';");
+  while (query.next()) {
+    QString tableName = query.value(0).toString();
+    if (tableName != "words") {
+      mushafLayouts->addItem(tableName);
+    }
+  }
+
+  connect(mushafLayouts, &QComboBox::currentTextChanged, [&](QString text) {
+    QSettings settings;
+    settings.setValue("LastMushafLayout", text);
+    loadMushafLayout(text);
+  });
+
+  fileToolBar->addWidget(mushafLayouts);
+
+  QSettings settings;
+  QString lastLayout = settings.value("LastMushafLayout").value<QString>();
+  if (!lastLayout.isEmpty()) {
+    mushafLayouts->setCurrentText(lastLayout);
+  }
+  else {
+    mushafLayouts->setCurrentText("qpc_v2_layout");
+  }
+
+  auto currentLayout = mushafLayouts->currentText();
+
+  loadMushafLayout(currentLayout);
+}
+
+void LayoutWindow::loadMushafLayout(QString layoutName) {
+  auto textCol = layoutName.startsWith("indopak") ? "nastaleeq" : layoutName == "qpc_v1_layout" ? "dk_v1" : "dk_v2";
+
+  auto queryString = QString("SELECT page,line,%1 as text from %2 as l LEFT JOIN words w ON l.type = \"ayah\" AND l.range_start <= w.word_number_all AND l.range_end >= w.word_number_all order by page,line,word_number_all")
+    .arg(textCol).arg(layoutName);
+
+  currentQuranText.clear();
+  suraNameByPage.clear();
+
+  QSqlQuery query(queryString);
+  int lastPage = 1;
+  int lastLine = 1;
+  QString currentPage;
+  while (query.next()) {
+    int page = query.value(0).toInt();
+    int line = query.value(1).toInt();
+    QString word = query.value(2).toString();
+    if (textCol == "indopak") {
+      word.replace("\u06E0", "\u08D6");
+      word.replace("\u06EA", "\u08D5");
+      word.replace("\u06D7", "\u08D7");
+      word.replace("\uF64B", "");
+      
+    }
+
+    if (lastPage != page) {
+      currentQuranText.append(currentPage);
+      suraNameByPage.append("");
+      lastPage = page;
+      lastLine = 1;
+      currentPage = word;
+    }
+    else if (lastLine != line) {
+      currentPage += "\n" + word;
+      lastLine = line;
+    }
+    else if (currentPage.isEmpty()) {
+      currentPage = word;
+    }
+    else {
+      currentPage += " " + word;
+    }
+  }
+  currentQuranText.append(currentPage);
+  suraNameByPage.append("");
+  integerSpinBox->setRange(1, currentQuranText.size());
+  integerSpinBox->valueChanged(integerSpinBox->value());
+}
+
 
 void LayoutWindow::createActions()
 {
@@ -147,7 +278,7 @@ void LayoutWindow::createActions()
   typeGroup->addButton(medinabutton, 1);
   typeGroup->addButton(texbutton, 2);
 
-  connect(typeGroup, static_cast<void(QButtonGroup::*)(int)>(&QButtonGroup::idClicked), this, &LayoutWindow::setQutranText);
+  connect(typeGroup, static_cast<void(QButtonGroup::*)(int)>(&QButtonGroup::idClicked), this, &LayoutWindow::setQuranText);
 
   auto pagesToolbar = addToolBar(tr("Pages type"));
   pagesToolbar->addWidget(medinabutton);
@@ -223,33 +354,34 @@ void LayoutWindow::createActions()
   fileMenu->addAction(action);
   fileToolBar->addAction(action);
   fileToolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+#endif
 
-  icon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
-  action = new QAction(icon, tr("&Generate Medina Quran HTML"), this);
-  connect(action, &QAction::triggered, this, [&]() {
+  QIcon genMedinaIcon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
+  QAction* genMedinaAction = new QAction(genMedinaIcon, tr("&Generate Medina Quran HTML"), this);
+  connect(genMedinaAction, &QAction::triggered, this, [&]() {
     generateMushafMadina(true);
   });
-  fileMenu->addAction(action);
-  fileToolBar->addAction(action);
+  fileMenu->addAction(genMedinaAction);
+  fileToolBar->addAction(genMedinaAction);
   fileToolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
 
-  icon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
-  action = new QAction(icon, tr("&Generate Layout Info"), this);
-  connect(action, &QAction::triggered, this, &LayoutWindow::generateLayoutInfo);
-  fileMenu->addAction(action);
-  fileToolBar->addAction(action);
+  QIcon genLayoutIcon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
+  QAction* genLayoutAction = new QAction(genLayoutIcon, tr("&Generate Layout Info"), this);
+  connect(genLayoutAction, &QAction::triggered, this, &LayoutWindow::generateLayoutInfo);
+  fileMenu->addAction(genLayoutAction);
+  fileToolBar->addAction(genLayoutAction);
   fileToolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
 
-  icon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
-  action = new QAction(icon, tr("&Save Collision"), this);
-  connect(action, &QAction::triggered, this, [&]() {
+  QIcon saveCollIcon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
+  QAction* saveCollAction = new QAction(saveCollIcon, tr("&Save Collision"), this);
+  connect(saveCollAction, &QAction::triggered, this, [&]() {
     saveCollision();
   });
-  fileMenu->addAction(action);
-  fileToolBar->addAction(action);
+  fileMenu->addAction(saveCollAction);
+  fileToolBar->addAction(saveCollAction);
   fileToolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
 
-#endif
+
 
   fontSizeSpinBox = new QSpinBox;
   fontSizeSpinBox->setRange(1, 500);
@@ -928,7 +1060,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
 
           int startOffset = match.capturedStart(match.lastCapturedIndex()); // startOffset == 6
           int endOffset = match.capturedEnd(match.lastCapturedIndex()) - 1; // endOffset == 9
-          
+
 
           while (lines[lineIndex][endOffset].isMark())
             endOffset--;
@@ -1016,23 +1148,6 @@ bool LayoutWindow::generateMadinaVARHTML() {
   auto& cv01feature = layout.automedina->cvxxfeatures[0];
 
   QMap<quint16, quint16> unicodeMappings;
-
-  /*
-  unicodeMappings.insert(layout.glyphCodePerName["behshape.onedotdown.isol"], layout.glyphCodePerName["behshape.isol"]);
-  unicodeMappings.insert(layout.glyphCodePerName["behshape.twodotsup.isol"], layout.glyphCodePerName["behshape.isol"]);
-  unicodeMappings.insert(layout.glyphCodePerName["behshape.three_dots.isol"], layout.glyphCodePerName["behshape.isol"]);
-  unicodeMappings.insert(layout.glyphCodePerName["heh.twodotsup.isol"], layout.glyphCodePerName["heh.isol"]);
-  unicodeMappings.insert(layout.glyphCodePerName["hah.onedotdown.isol"], layout.glyphCodePerName["hah.isol"]);
-  unicodeMappings.insert(layout.glyphCodePerName["hah.onedotup.isol"], layout.glyphCodePerName["hah.isol"]);
-  unicodeMappings.insert(layout.glyphCodePerName["dal.onedotup.isol"], layout.glyphCodePerName["dal.isol"]);
-  unicodeMappings.insert(layout.glyphCodePerName["reh.onedotup.isol"], layout.glyphCodePerName["reh.isol"]);
-  unicodeMappings.insert(layout.glyphCodePerName["seen.three_dots.isol"], layout.glyphCodePerName["seen.isol"]);
-  unicodeMappings.insert(layout.glyphCodePerName["sad.onedotup.isol"], layout.glyphCodePerName["sad.isol"]);
-  unicodeMappings.insert(layout.glyphCodePerName["tah.onedotup.isol"], layout.glyphCodePerName["tah.isol"]);
-  unicodeMappings.insert(layout.glyphCodePerName["ain.onedotup.isol"], layout.glyphCodePerName["ain.isol"]);*/
-
-
-  //layout.isOTVar = false;
 
   layout.loadLookupFile("automedina.fea");
 
@@ -1755,9 +1870,7 @@ void LayoutWindow::createDockWindows()
 
   connect(integerSpinBox, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged),
     [=](int i) {
-    //const char* tt = qurantext[i - 1] + 1;
     auto textt = currentQuranText[i - 1];
-    textt = textt.replace("\u0626", "\u064A\u0654\u034F");
     textEdit->setPlainText(textt);
     suraName->setText(suraNameByPage[i - 1]);
     executeRunText(false, 1);
@@ -2232,9 +2345,10 @@ void LayoutWindow::calculateMinimumSize() {
 
 }
 
-void LayoutWindow::setQutranText(int type) {
+void LayoutWindow::setQuranText(int type) {
 
   currentQuranText.clear();
+  suraNameByPage.clear();
 
   if (type == 1) {
     for (int i = 0; i < 604; i++) {

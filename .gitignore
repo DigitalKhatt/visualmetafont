@@ -45,3 +45,8 @@ lib/QtPropertyBrowser/qt6/
 fonts/oldmadina/output/
 fonts/digitalkhatt/output
 fonts.code-workspace
+CMakePresets.json
+CMakeUserPresets.json
+visualmetafont.code-workspace
+src/Resources/quran-data.sqlite
+fonts/indopak/output/

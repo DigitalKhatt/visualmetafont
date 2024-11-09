@@ -1137,7 +1137,7 @@ OtLayout::OtLayout(Font * font, bool extended, QObject * parent) :QObject(parent
     automedina = new OldMadina(this, font, extended);
   }
   else if (font->fontName() == "indopak") {
-    automedina = new IndoPak(this, font, extended);
+    automedina = new indopak::IndoPak(this, font, extended);
   }
   else {
     throw new std::runtime_error("invalid font");

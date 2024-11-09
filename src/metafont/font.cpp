@@ -31,6 +31,7 @@
 #include "hb.hh"
 #include "metafont.h"
 #include <filesystem>
+#include <format>
 
 namespace fs = std::filesystem;
 
@@ -70,11 +71,16 @@ bool Font::loadFile(const QString& fileName) {
 
   fs::path p1 = fileName.toStdString();
 
-  std::filesystem::current_path(p1.parent_path()); //setting path
+  auto parentPath = p1.parent_path();
+  std::filesystem::current_path(parentPath); //setting path
 
-  QByteArray commandBytes = "MPGUI:=1;input mpguifont.mp;";
 
-  int status = mp_execute(mp, commandBytes.data(), commandBytes.size());
+  auto mpguifont = parentPath.append("mpguifont.mp");  
+
+  std::string command = std::format("MPGUI:=1;input \"{0}\";", mpguifont.string());
+
+
+  int status = mp_execute(mp, command.data(), command.size());
   if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
     mp_run_data* results = mp_rundata(mp);
     QString ret(results->term_out.data);
@@ -121,7 +127,7 @@ bool Font::loadFile(const QString& fileName) {
 }
 double Font::lineHeight() {
 
-  double lineheight = getNumericVariable("lineheight");
+  double lineheight = getInternalNumericVariable("lineheight");
 
   return lineheight;
 }
@@ -134,6 +140,14 @@ double Font::getNumericVariable(QString name) {
 
   return x;
 }
+double Font::getInternalNumericVariable(QString name) {
+  
+  auto ba = name.toStdString();
+  double x = mp_get_numeric_internal(mp, (char*)ba.c_str());
+
+  return x;
+}
+
 QString Font::familyName() {
 
   char* name = nullptr;
@@ -206,25 +220,6 @@ bool Font::saveFile() {
     }
 
     outunicode << "}";
-
-    /*
-    QMap<int, int> testMap;
-
-    for (int i = 0; i < glyphs.length(); i++) {
-      if (glyphs[i]->unicode() != -1) {
-        testMap.insert(glyphs[i]->unicode(), glyphs[i]->unicode());
-      }
-    }
-
-    for (int i = 0; i < glyphs.length(); i++) {
-      if (glyphs[i]->unicode() != -1) {
-        auto value = testMap[glyphs[i]->unicode()];
-        outunicode << "\ncharProps[" << QString("0x%1").arg(value, 4, 16, QLatin1Char('0')).toUpper() << "] = {"<< glyphs[i]->getPath().toSubpathPolygons().count() << "}; // " << glyphs[i]->name();
-      }
-
-    }*/
-
-
 
     file.close();
     unicodesfile.close();

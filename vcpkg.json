@@ -1,17 +1,32 @@
 {
-  "name": "luadigitalkhatt",
   "dependencies": [
-    {
-      "name": "lua"
-    },
+    "lua",
     "zlib",
-	"protobuf"
+    "protobuf"
   ],
   "overrides": [
     {
       "name": "lua",
       "version": "5.3.5-5"
+    },
+    {
+      "name": "protobuf",
+      "version": "3.21.12#4"
     }
   ],
-  "builtin-baseline": "cf1fda5443f2acfa976d5bda70c50fa22c26fe80"
+  "features": {
+    "shared": {
+      "description": "Use shared Qt5",
+      "dependencies": [
+        {
+          "name": "qt5",
+          "default-features": false,
+          "features": [
+            "svg"
+          ]
+        }
+      ]
+    }
+  },
+  "builtin-baseline": "07b30b49e5136a36100a2ce644476e60d7f3ddc1"
 }

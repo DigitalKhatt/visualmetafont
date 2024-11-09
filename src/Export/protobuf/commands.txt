@@ -1,2 +1,2 @@
-D:\projects\tools\vcpkg\installed\x64-windows\tools\protobuf\protoc.exe --cpp_out=. quran.proto
-D:\projects\tools\protoc-3.20.1-win64\bin\protoc.exe --js_out=import_style=commonjs,binary:. quran.proto
+build\vcpkg_installed\x64-windows\tools\protobuf\protoc.exe" --cpp_out=. quran.proto
+build\vcpkg_installed\x64-windows\tools\protobuf\protoc.exe" --cpp_out=. quran.proto --js_out=import_style=commonjs,binary:. quran.proto

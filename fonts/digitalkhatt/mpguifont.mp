@@ -61,8 +61,6 @@ digitscale := 0.80;
 nextunicode := 58000; % 57343; %hex"E000"-1; % the first code for aya numbers
 
 string nametable.familyName;
-nametable.familyName := "DigitalKhatt New Madina";
-
 
 def MarkAnchor = 1 enddef;
 def EntryAnchor = 2 enddef;
@@ -510,7 +508,7 @@ if ypart p < ypart q :
   hide(   
     z_0:= p; 
     z_0:= round z_0;    
-    z_1 := z_0 + joinvector; %(0,lineheight);    % pendirection
+    z_1 := z_0 + joinvector; 
     leftanchor := z_0; 
   )
 	z_0 
@@ -520,7 +518,7 @@ else:
 	hide(    
     z_4:= q;    
     z_4 := round z_4;   
-    z_3 := z_4 + joinvector; % (0,lineheight);  pendirection; 
+    z_3 := z_4 + joinvector; 
     rightanchor := z_4;
   )
 	p .. tension atleast right_tatweeltension .. z_3
@@ -714,10 +712,9 @@ vardef diratpoint expr pt of p =
   fi
 enddef;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-newinternal numeric residu, lineheight, left_verticalextratio, left_verticalconst,right_verticalextratio, right_verticalconst, left_tatweeltension, right_tatweeltension,
-penangle, pendirection, penwidth;
+newinternal numeric residu, lineheight, left_verticalextratio, left_verticalconst,right_verticalextratio, right_verticalconst, left_tatweeltension, right_tatweeltension,penwidth;
 
-pair pendirection, joinvector,ljoinvector,rjoinvector;
+pair joinvector,ljoinvector,rjoinvector;
 
 def rotatepen primary a =
 + (penwidth,0 ) rotated a
@@ -727,26 +724,9 @@ enddef;
 left_verticalextratio := right_verticalextratio := 12;
 left_verticalconst := right_verticalconst := 0;
 
-
-
-%penangle := 85;
 residu :=5;
-lineheight := 88;
-penwidth := 88;
-%adjacent := penwidth+-+lineheight;
-%sind penangle * penwidth = lineheight;
-%penwidth = lineheight++aaaa;
-%penangle := angle (adjacent,lineheight);
-pendirection := (penwidth,0) rotated penangle;
-joinvector := ljoinvector := rjoinvector := (16,lineheight);
-nuqta := 1.4penwidth;
 
-%penwidth = lineheight++(lineheight/2);
 
-%pair pendirection;
-
-%pendirection := (lineheight/2,lineheight);
-%penangle := angle pendirection;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 vardef component expr index of pic =
 save i_,p;
@@ -1009,3 +989,8 @@ vardef tint(expr srgb,factor)=
 enddef;	
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 input myfontbase.mp;
+nametable.familyName := "DigitalKhatt New Madina";
+lineheight := 88;
+penwidth := 88;
+joinvector := ljoinvector := rjoinvector := (16,lineheight);
+nuqta := 1.4penwidth;

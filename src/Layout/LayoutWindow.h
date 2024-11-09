@@ -23,6 +23,7 @@
 #include "qmainwindow.h"
 #include "OtLayout.h"
 #include <qcombobox.h>
+#include "qsqldatabase.h"
 
 class Font;
 class GlyphVis;
@@ -97,9 +98,11 @@ private:
   void generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pages,const QList<QStringList>& originalPages,const QVector<OverlapResult>& result);
   void editLookup(QString lookupName);
   void saveCollision();
+  void layoutDatabase();
+  void loadMushafLayout(QString layoutName);
 
 
-	void setQutranText(int type);
+	void setQuranText(int type);
   QComboBox* justCombo;
 	QDockWidget* textRun;
 	QDockWidget* lookupTree;
@@ -136,5 +139,7 @@ private:
 	bool applyCollisionDetection = false;
   bool applyFontSize = false;
   bool applyForce = false;
-  bool applyTeXAlgo = false;
+  bool applyTeXAlgo = false;  
+
+  QComboBox* mushafLayouts;
 };

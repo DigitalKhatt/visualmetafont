@@ -557,7 +557,7 @@ mp_edge_object* Glyph::getEdge()
     paramsString = paramsString % QString("params%1:=%2;").arg(axisIndex++).arg(axisValue);
   }
 
-  auto data = paramsString % source();
+  QString data = paramsString % source();
 
   try {
     font->executeMetaPost(data);

@@ -457,7 +457,7 @@ bool KnotControlledItem::RemoveLerp(int valueType) {
       auto& knotentryexit = knotItem == parentItem->left ? parentItem->m_glyphknot->leftValue : parentItem->m_glyphknot->rightValue;
 
       // direction
-      if (valueType == 1) {
+      if (valueType == 1 || valueType == 0) {
         auto expr = dynamic_cast<FunctionMFExp*>(knotentryexit.dirExpr.get());
         if (expr) {
           auto expr2 = expr->getFirst()->clone();
@@ -478,7 +478,7 @@ bool KnotControlledItem::RemoveLerp(int valueType) {
         }
       }
       //tension
-      else if (valueType == 2) {
+      if (valueType == 2 || valueType == 0) {
         auto expr = dynamic_cast<FunctionMFExp*>(knotentryexit.tensionExpr.get());
         if (expr) {
           auto expr2 = expr->getFirst()->clone();

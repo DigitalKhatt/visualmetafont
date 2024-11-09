@@ -29,38 +29,7 @@ if (NOT EMSCRIPTEN)
 
   find_package(Protobuf REQUIRED)
 
-  find_package(Qt5 COMPONENTS Core OpenGL Svg PrintSupport Widgets REQUIRED)
-
-
-
-  #[[
-
-  get_target_property(
-    linked_libs
-    Qt5::Widgets
-    INTERFACE_LINK_LIBRARIES
-    )
-
-
-  set(debug "${_Qt5Widgets_install_prefix}/lib/qtpcre2d.lib;"
-    "${_Qt5Widgets_install_prefix}/lib/Qt5ThemeSupportd.lib;"
-    "${_Qt5Widgets_install_prefix}/lib/Qt5EventDispatcherSupportd.lib;"
-    "${_Qt5Widgets_install_prefix}/lib/Qt5AccessibilitySupportd.lib;"
-    "${_Qt5Widgets_install_prefix}/lib/Qt5WindowsUIAutomationSupportd.lib;"
-    "${_Qt5Widgets_install_prefix}/lib/Qt5FontDatabaseSupportd.lib;")
-  set(nondebug "${_Qt5Widgets_install_prefix}/lib/qtpcre2.lib"
-    "${_Qt5Widgets_install_prefix}/lib/Qt5ThemeSupport.lib;"
-    "${_Qt5Widgets_install_prefix}/lib/Qt5EventDispatcherSupport.lib;"
-    "${_Qt5Widgets_install_prefix}/lib/Qt5AccessibilitySupport.lib;"
-    "${_Qt5Widgets_install_prefix}/lib/Qt5WindowsUIAutomationSupport.lib;"
-    "${_Qt5Widgets_install_prefix}/lib/Qt5FontDatabaseSupport.lib;")
-
-  set(debug_gen_expr "$<$<CONFIG:Debug>:${debug}>")
-  set(nondebug_gen_expr "$<$<NOT:$<CONFIG:Debug>>:${nondebug}>")
-  set(gen_expr "${debug_gen_expr};${nondebug_gen_expr}")
-
-  set_target_properties(Qt5::Widgets  PROPERTIES INTERFACE_LINK_LIBRARIES "${gen_expr};${linked_libs}")
-  ]]
+  find_package(Qt5 COMPONENTS Core OpenGL Svg PrintSupport Widgets Sql REQUIRED)
 
 else()
   set(Qt5_DIR "${QTBuild}/lib/cmake/Qt5")
@@ -198,7 +167,7 @@ set(Layout
   )
 source_group("Layout" FILES ${Layout})
 
-IF(DEFINED ENV{ENABLE_PDF_GENERATION})
+if(ENABLE_PDF_GENERATION)
 set(Pdf
   Pdf/qpdf.cpp
   Pdf/qpdf.h
@@ -349,8 +318,18 @@ if (NOT EMSCRIPTEN)
   #target_compile_definitions(${WEBLIB_NAME} PRIVATE HAVE_BOOLEAN)
 endif()
 
-IF(DEFINED ENV{ENABLE_PDF_GENERATION})
+if(ENABLE_PDF_GENERATION)
 target_compile_definitions(${PROJECT_NAME} PRIVATE ENABLE_PDF_GENERATION)
+endif()
+
+if (QT_SHARED_BUILD)
+target_compile_definitions(${PROJECT_NAME} PRIVATE QT_SHARED_BUILD)
+else()
+set(QT_STATIC_PLUGINS
+  Qt5::QJpegPlugin
+  Qt5::QSvgPlugin
+  Qt5::QSvgIconPlugin
+)
 endif()
 
 add_dependencies(${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser)
@@ -371,66 +350,36 @@ target_link_libraries(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wl,--excl
 #target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_JUSTIFICATION)
 
 if (NOT EMSCRIPTEN)
-# Link with other targets.
-target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser     
-  Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport Qt5::Widgets
-  Qt5::QJpegPlugin
-  Qt5::QSvgPlugin
-  Qt5::QSvgIconPlugin
-  ZLIB::ZLIB
+  # Link with other targets.
+  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser     
+    Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport Qt5::Widgets Qt5::Sql
+    ${QT_STATIC_PLUGINS}
+    ZLIB::ZLIB
   )
-#Qt5_import_plugins(${PROJECT_NAME} INCLUDE Qt5::QSvgPlugin INCLUDE Qt5::QSvgIconPlugin)
 else()
-target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser     
-  Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport Qt5::Widgets
-  Qt5::QJpegPlugin
-  Qt5::QSvgPlugin
-  Qt5::QSvgIconPlugin
-  )
+  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser     
+    Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport Qt5::Widgets
+    Qt5::QJpegPlugin
+    Qt5::QSvgPlugin
+    Qt5::QSvgIconPlugin
+    )
 endif()
 
-target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib # QtPropertyBrowser     
-  Qt5::Core  # Qt5::Widgets Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport
-  #Qt5::QJpegPlugin Qt5::QSvgPlugin Qt5::QSvgIconPlugin
-
-  )
+target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib Qt5::Core)
 
 target_link_libraries(${LUATEX_NAME} PUBLIC harfbuzz mplib Qt5::Core)
-#target_link_libraries(${LUATEX_NAME} PRIVATE ${LUA_LIBRARIES})
+
 target_link_libraries(${LUATEX_NAME} PRIVATE lualib)
-#set_property(TARGET ${LUATEX_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-
-
 
 if (NOT EMSCRIPTEN)
 
-  #edit and continue (disable for now. slower)
-  #if(MSVC)
-  #  target_compile_options(${PROJECT_NAME} PUBLIC "/ZI")
-  #  target_link_options(${PROJECT_NAME} PUBLIC "/INCREMENTAL")
-  #endif()
-
-  #target_link_libraries(${PROJECT_NAME} PUBLIC ZLIB::ZLIB
-    #Qt5::QWindowsIntegrationPlugin
-    #imm32 version Dwmapi Mincore winmm Wtsapi32
-  #  )
-
-  #target_link_libraries(${WEBLIB_NAME} PUBLIC ZLIB::ZLIB
-    # Freetype::Freetype
-    # Qt5::QWindowsIntegrationPlugin
-    #imm32 version Dwmapi Mincore winmm Wtsapi32
-  #  )
-
   if (WIN32)
-    target_link_libraries(${PROJECT_NAME} PUBLIC imm32 version Dwmapi Mincore winmm Wtsapi32 Qt5::QWindowsIntegrationPlugin)
+    target_link_libraries(${PROJECT_NAME} PUBLIC imm32 version Dwmapi Mincore winmm Wtsapi32)
+    if (NOT QT_SHARED_BUILD)
+      target_link_libraries(${PROJECT_NAME} PUBLIC Qt5::QWindowsIntegrationPlugin)
+    endif()
     target_link_libraries(${WEBLIB_NAME} PUBLIC imm32 version Dwmapi Mincore winmm Wtsapi32 Qt5::QWindowsIntegrationPlugin)
-  endif (WIN32)
-  #[[
-  if (NOT WIN32)
-    target_link_libraries(${PROJECT_NAME} PUBLIC PNG::PNG )
-    target_link_libraries(${WEBLIB_NAME} PUBLIC PNG::PNG )
-  endif()
-  ]]
+  endif (WIN32) 
 
   target_link_libraries(${PROJECT_NAME} PRIVATE protobuf::libprotobuf)
 

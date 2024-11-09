@@ -805,6 +805,8 @@ lookup isolkern {
 
   pos [alef.fina.laf]' [hah.init]'<0 0 -100 0>;
 
+  pos [alef.fina.lamalef]' [hah.init hah.init.ii]'<0 0 -100 0>;
+
   pos alef.isol' lam.init.lam_hah';
 
   pos [alef.isol /^alef.fina/]'lookup isolkern.o2 [/^lam.init/ /^alef.isol/]'lookup isolkern.o2;
@@ -889,6 +891,8 @@ lookup variouskern {
   pos [waw.fina reh.isol]' @marks' [behshape.init]'<0 0 100 0> [hamzabelow]' [kasra]' ;
 
   pos [alef.isol]'<0 0 50 0> [hamzabelow]' [kasra]';
+
+  pos [waw.fina]' [alef.isol]'<70 0 -20 0> [smallhighroundedzero]' ;
   
 
 } variouskern;

@@ -23,93 +23,46 @@
 
 #include "font.hpp"
 #include "OtLayout.h"
-/*
-int main(int argc, char *argv[])
-{
-	QApplication a(argc, argv);
-	QtTemp4 w;
-	w.show();
-	return a.exec();
-}*/
 
-int mainold(int argc, char* argv[]) {
-#ifdef _WIN32
-	Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
-#endif
-
-	QApplication app(argc, argv);
-
-	Font* font = new Font();
-	if (!font->loadFile("medinafont.mp")) {
-		return 1;
-	}
-
-	for (int i = 0; i < font->glyphs.length(); i++) {
-		Glyph* glyph = font->glyphs[i];
-		glyph->getEdge();
-	}
-
-	OtLayout* layout = new OtLayout(font, true);
-
-	return app.exec();
-}
 
 int main(int argc, char* argv[])
 {
 
-	//::SetProcessDPIAware();
-	//QApplication::setAttribute(Qt::AA_DisableHighDpiScaling);
-	//QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-
-
-
 #ifndef __EMSCRIPTEN__
-#ifdef _WIN32
-	Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
+#if defined(_WIN32) && not defined (QT_SHARED_BUILD)
+  Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 #endif
 #else
-	Q_IMPORT_PLUGIN(QWasmIntegrationPlugin)
+  Q_IMPORT_PLUGIN(QWasmIntegrationPlugin)
 #endif
 
+#ifndef QT_SHARED_BUILD
+  Q_IMPORT_PLUGIN(QSvgIconPlugin)
+  Q_IMPORT_PLUGIN(QSvgPlugin)
+  Q_IMPORT_PLUGIN(QJpegPlugin)
+#endif
 
-   Q_IMPORT_PLUGIN(QSvgIconPlugin)
-   Q_IMPORT_PLUGIN(QSvgPlugin)
-    Q_IMPORT_PLUGIN(QJpegPlugin)
-    //	Q_IMPORT_PLUGIN(QGl)
+  QApplication app(argc, argv);
 
-    QApplication app(argc, argv);
+  QTextEdit console;
 
-	QTextEdit console;
+  QScreen* srn = QApplication::screens().at(0);
 
-	//new Q_DebugStream(std::cout, &console); //Redirect Console output to QTextEdit
-	//new Q_DebugStream(std::cerr, &console); //Redirect Console output to QTextEdit
+  double ff = srn->physicalDotsPerInch();
+  double gg = srn->physicalDotsPerInchX();
+  double hh = srn->physicalDotsPerInchY();
+  QSizeF ss = srn->physicalSize();
 
-	//console.setWindowTitle("Console");
-	//console.showMaximized();
+  QApplication::setOrganizationName("digitalkhatt");
+  QApplication::setOrganizationDomain("digitalkhatt.org");
+  QApplication::setApplicationName("visualmetafont");
 
+  MainWindow mainWin;
+  mainWin.showMaximized();
 
+  mainWin.openLatestRecentFile();
 
-
-
-	QScreen* srn = QApplication::screens().at(0);
-
-	double ff = srn->physicalDotsPerInch();
-	double gg = srn->physicalDotsPerInchX();
-	double hh = srn->physicalDotsPerInchY();
-	QSizeF ss = srn->physicalSize();
-
-	QApplication::setOrganizationName("digitalkhatt");
-	QApplication::setOrganizationDomain("digitalkhatt.org");
-	QApplication::setApplicationName("visualmetafont");
-
-	MainWindow mainWin;
-	mainWin.showMaximized();
-
-	mainWin.openLatestRecentFile();
-
-	return app.exec();
-
-
+  return app.exec();
 
 }
 

@@ -24,7 +24,7 @@
 
 
 
-double static mp_get_numeric_internal(MP mp, char* n) {
+double mp_get_numeric_internal(MP mp, char* n) {
   double ret = 0;
   size_t l = strlen(n);
   char err[256];
@@ -429,6 +429,10 @@ bool getMPPairVariable(MP mp, char* varName, double* x, double* y) {
 bool getMPNumVariable(MP mp, char* varName, double* x) {
   bool ret = false;
   mp_node root = getTokenList(mp, varName);
+
+  if (!root->data.sym) {
+    return false;
+  }
 
   mp_node varnode = mp_find_variable(mp, root);
 

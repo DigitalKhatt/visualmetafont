@@ -50,6 +50,7 @@ public:
 	QString fontName();
 	double lineHeight();
 	double getNumericVariable(QString name);
+	double getInternalNumericVariable(QString name);
 	bool getPairVariable(QString name, QPointF& point);
 	Glyph* getGlyph(uint code);	
 	QString path() {
