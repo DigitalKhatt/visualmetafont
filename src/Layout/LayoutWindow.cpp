@@ -70,7 +70,7 @@
 #include "to_opentype.h"
 #include <unordered_set>
 #include <Subtable.h>
-
+#include  <set>
 
 //#include "hb.hh"
 //#include "hb-ot-shape.hh"
@@ -196,7 +196,7 @@ void LayoutWindow::layoutDatabase() {
     QSettings settings;
     settings.setValue("LastMushafLayout", text);
     loadMushafLayout(text);
-  });
+    });
 
   fileToolBar->addWidget(mushafLayouts);
 
@@ -214,14 +214,131 @@ void LayoutWindow::layoutDatabase() {
   loadMushafLayout(currentLayout);
 }
 
+static void changeText(QString textCol, QString& word) {
+
+  static auto re = QRegularExpression("([٠١٢٣٤٥٦٧٨٩]+)");
+  static auto reRem = QRegularExpression("[\u0020\u06DF\uF64B\uf64c\uf64d\uf64e\uf650\uf652\uf651\uf662\uf663\uf64f]");
+  static auto ayaCodes = QRegularExpression("[\uF500-\uF61D]");
+  static auto meemIqlab = QRegularExpression("[\uf64a\uf65d\uf65b\uf66a]");
+  static auto lowMeemIqlab = QRegularExpression("[\uf66b\uf66d]");
+  static auto ayaWordWithWaqfs = QRegularExpression("(.+)([\uF500-\uF61D])");
+
+
+  static QString waqfChars = "࣢ࣛࣝࣞۖۚۙؔۘۛؕࣕࣖࣗؗ";
+  static QRegularExpression waqfSeq(QString("([٠١٢٣٤٥٦٧٨٩]*)([%1]+)").arg(waqfChars));
+
+  if (textCol == "indopak") {
+    word.remove(reRem);
+    word.replace(ayaWordWithWaqfs, "\\2\\1");
+    QRegularExpressionMatch match = ayaCodes.match(word);
+    if (match.hasMatch()) {
+      auto matched = match.captured(0).at(0);
+      int ayaNumber = matched.unicode() - 0xF4FF;
+      int unite = ayaNumber % 10;
+      int dizaine = ayaNumber / 10 % 10;
+      int centaine = ayaNumber / 100 % 10;
+      QString ayaString = "\u06DD";
+      ayaString += centaine ? QString(centaine + 0x0660) : "";
+      ayaString += centaine || dizaine ? QString(dizaine + 0x0660) : "";
+      ayaString += QString(unite + 0x0660);
+
+      word.replace(match.capturedStart(), match.capturedLength(), ayaString);
+    }
+    word.replace(meemIqlab, "\u06E2");
+    word.replace(lowMeemIqlab, "\u06ED");
+    word.replace("\uF61E", "\u06DD");
+    word.replace("\u06E0", "\u08D6");
+    word.replace("\u06EA", "\u08D5");
+    word.replace("\u06D7", "\u08D7");
+    word.replace("\u06EB", "\u08DE"); // ARABIC EMPTY CENTRE HIGH STOP => ARABIC SMALL HIGH WORD QIF
+    word.replace("\u06EA", "\u08D5"); // ARABIC EMPTY CENTRE LOW STOP => 08D5 ARABIC SMALL HIGH SAD
+    word.replace("\u0653", "\u089C"); // ARABIC MADDAH ABOVE => ARABIC MADDA WAAJIB
+    word.replace("\u06E4", "\u0653"); // ARABIC SMALL HIGH MADDA => ARABIC MADDAH ABOVE
+    word.replace("\u06EC", "\u08E2"); // ARABIC ROUNDED HIGH STOP WITH FILLED CENTRE => ARABIC DISPUTED END OF AYAH
+    word.replace("\u06E5", "\u08DF"); // 06E5 ARABIC SMALL WAW => 08DF ARABIC SMALL HIGH WORD WAQFA
+    word.replace("\u06D9\u08E2\u06E6", "\u0666\u08E2\u06D9"); // ARABIC SMALL YEH => ARABIC-INDIC DIGIT SIX
+    word.replace("\u065a", "\u08DD"); // 065A ARABIC VOWEL SIGN SMALL V ABOVE => 08DD ARABIC SMALL HIGH WORD SAKTA
+    word.replace("\uF664", "نْثٰي");
+    word.replace("\uF61F", "\u0627\u08D9");
+    word.replace("\u06E1", "\u06DF"); // 06E1 ARABIC SMALL HIGH DOTLESS HEAD OF KHAH => 06DF ARABIC SMALL HIGH ROUNDED ZERO
+    word.replace("\uf653", "\u06E6\u064E"); // => 06E6 ARABIC SMALL YEH + 064E ARABIC FATHA
+    word.replace("\uF65E\u0646\u064F\u0640", "\u0646\u064F\u0640\u06E8\u0652"); // نُـۨجِي
+    word.replace("\uF657", "\u0654\u064D");
+    word.replace("\uf63c", "۝١٧١ࣖۚۛ");
+    word.replace("\uf658", "وَلْيَتَؔلَطَّفْ");
+    word.replace("\uf665", "نْثٰٓي");
+    word.replace("\uf669", "كّٰٓي");
+    word.replace("\uf666", "ثُلُثَيِ");
+    word.replace("\uf667", "لّٰ࢜ـِٔيْ");
+    word.replace("\uf694", "ِٔ");
+    word.replace("\uf634", "۝٣١ۙۚۛ");
+    word.replace("\uf690", "۝٣٦ؔ");
+    word.replace("\uf691", "۝٩١ۚۖۛ");
+    word.replace("\uf68e", "۝٢٠٦ࣛࣖ");
+    word.replace("\uf681", "۝١٥ࣛ");
+    word.replace("\uf688", "۝٥٠ࣛࣖ");
+    word.replace("\uf68d", "۝١٠٩ࣛ");
+    word.replace("\uf689", "۝٥٨ࣛ");
+    word.replace("\uf692", "۝١٨ࣛؕ");
+    word.replace("\uf693", "۝٧٧ࣛۚ");
+    word.replace("\uf68f", "ࣕۙ");
+    word.replace("\uf697", "ۙࣕ");
+    word.replace("\uf638", "۝٥٨ۙۚۛ");
+    word.replace("\uf68a", "۝٦٠ࣛࣖ");
+    word.replace("\uf63d", "۝٢٠٨ࣗۖۛ");
+    word.replace("\uf686", "۝٢٦ࣛ");
+    word.replace("\uf633", "۝١٨ؔ");
+    word.replace("\uf639", "۝٦٠ۚۖۛ");
+    word.replace("\uf685", "۝٢٤ࣛ");
+    word.replace("\uf631", "۝٦ۘؔ");
+    word.replace("\uf63a", "۝٦٩ۚۖۛ");
+    word.replace("\uf687", "۝٣٨ࣛ");
+    word.replace("\uf636", "۝٤٤ۚۖۛ");
+    word.replace("\uf63e", "ۛࣞۚ࣢");
+    word.replace("\uf637", "۝٥٤ࣗؗ");
+    word.replace("\uf668", "فّٰٓي");
+    word.replace("\uf68c", "۝٦٢ࣛࣖ");
+    word.replace("\uf654", "ۛۖۚ࣢");
+    word.replace("\uf684", "۝٢١ࣛؕ");
+    word.replace("\uf632", "۝١١ࣕۙ");
+    word.replace("\uf699", "ۙࣕ࣢");
+    word.replace("\uf683", "۝١٩ࣛࣖ");
+    word.replace("نْۢ", "نۢ͏ْ");
+
+    auto iter = waqfSeq.globalMatch(word);
+    while (iter.hasNext()) {
+      QRegularExpressionMatch match = iter.next();
+      QString ayaNum = match.captured(1);
+      auto isAya = !ayaNum.isEmpty();
+      QString seq = match.captured(2);
+      if (seq.size() < 2) continue;
+      if (!isAya && seq != "ۚؗ") {
+        std::reverse(seq.begin(), seq.end());
+      }
+      word.replace(match.capturedStart(2), match.capturedLength(2), seq);
+
+    }
+    word.replace("آٰ", "اٰ͏ٓ");
+  }
+  else if (textCol == "nastaleeq") {
+    word.replace(re, "\u06DD\\1");
+    word.replace("\uFDA8", "\u08DE"); // ARABIC SMALL HIGH WORD QIF
+    word.replace("\uFD74", "\u08DE"); // ARABIC SMALL HIGH WORD QIF
+    word.replace("\u0653", "\u089C"); // ARABIC MADDAH ABOVE => ARABIC MADDA WAAJIB
+    word.replace("\u0658", "\u0653"); // ARABIC MARK NOON GHUNNA => ARABIC MADDAH ABOVE
+  }
+}
+
 void LayoutWindow::loadMushafLayout(QString layoutName) {
-  auto textCol = layoutName.startsWith("indopak") ? "nastaleeq" : layoutName == "qpc_v1_layout" ? "dk_v1" : "dk_v2";
+  auto textCol = layoutName.startsWith("indopak") ? "indopak" : layoutName == "qpc_v1_layout" ? "dk_v1" : "dk_v2";
 
   auto queryString = QString("SELECT page,line,%1 as text from %2 as l LEFT JOIN words w ON l.type = \"ayah\" AND l.range_start <= w.word_number_all AND l.range_end >= w.word_number_all order by page,line,word_number_all")
     .arg(textCol).arg(layoutName);
 
   currentQuranText.clear();
   suraNameByPage.clear();
+
+
 
   QSqlQuery query(queryString);
   int lastPage = 1;
@@ -231,13 +348,8 @@ void LayoutWindow::loadMushafLayout(QString layoutName) {
     int page = query.value(0).toInt();
     int line = query.value(1).toInt();
     QString word = query.value(2).toString();
-    if (textCol == "indopak") {
-      word.replace("\u06E0", "\u08D6");
-      word.replace("\u06EA", "\u08D5");
-      word.replace("\u06D7", "\u08D7");
-      word.replace("\uF64B", "");
-      
-    }
+
+    changeText(textCol, word);
 
     if (lastPage != page) {
       currentQuranText.append(currentPage);
@@ -350,7 +462,7 @@ void LayoutWindow::createActions()
   QAction* action = new QAction(icon, tr("&Generate Medina Quran..."), this);
   connect(action, &QAction::triggered, [&]() {
     generateMushafMadina(false);
-  });
+    });
   fileMenu->addAction(action);
   fileToolBar->addAction(action);
   fileToolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -360,7 +472,7 @@ void LayoutWindow::createActions()
   QAction* genMedinaAction = new QAction(genMedinaIcon, tr("&Generate Medina Quran HTML"), this);
   connect(genMedinaAction, &QAction::triggered, this, [&]() {
     generateMushafMadina(true);
-  });
+    });
   fileMenu->addAction(genMedinaAction);
   fileToolBar->addAction(genMedinaAction);
   fileToolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -376,7 +488,7 @@ void LayoutWindow::createActions()
   QAction* saveCollAction = new QAction(saveCollIcon, tr("&Save Collision"), this);
   connect(saveCollAction, &QAction::triggered, this, [&]() {
     saveCollision();
-  });
+    });
   fileMenu->addAction(saveCollAction);
   fileToolBar->addAction(saveCollAction);
   fileToolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -392,10 +504,10 @@ void LayoutWindow::createActions()
   connect(fontSizeSpinBox, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged),
     [=](int i) {
 
-    OtLayout::EMSCALE = (double)i / 100;
+      OtLayout::EMSCALE = (double)i / 100;
 
-    executeRunText(true, 1);
-  });
+      executeRunText(true, 1);
+    });
 
 
 
@@ -431,7 +543,7 @@ void LayoutWindow::createActions()
     m_otlayout->applyJustification = applyJustification;
     settings.setValue("LastJust", justCombo->currentText());
     executeRunText(true, 1);
-  });
+    });
 
   /*
   QPushButton* toggleButton = new QPushButton(tr("&Justification"));
@@ -453,7 +565,7 @@ void LayoutWindow::createActions()
   connect(toggleButton, &QPushButton::toggled, [&](bool checked) {
     applyFontSize = checked;
     executeRunText(true, 1);
-  });
+    });
 
   jutifyToolbar->addWidget(toggleButton);
 
@@ -464,7 +576,7 @@ void LayoutWindow::createActions()
   connect(toggleButton, &QPushButton::toggled, [&](bool checked) {
     applyCollisionDetection = checked;
     executeRunText(true, 1);
-  });
+    });
 
   fileToolBar->addWidget(toggleButton);
 
@@ -476,7 +588,7 @@ void LayoutWindow::createActions()
   connect(toggleButton, &QPushButton::toggled, [&](bool checked) {
     applyTeXAlgo = checked;
     executeRunText(true, 1);
-  });
+    });
 
 
 
@@ -489,7 +601,7 @@ void LayoutWindow::createActions()
   connect(toggleButton, &QPushButton::toggled, [&](bool checked) {
     applyForce = checked;
     executeRunText(true, 1);
-  });
+    });
 
   fileToolBar->addWidget(toggleButton);
 
@@ -724,6 +836,84 @@ static QMap<int, double> madinaLineWidths =
   { 604 * 15 + 15, 0.5 },
 };
 
+LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level) {
+  loadLookupFile("automedina.fea");
+
+  LayoutPages result;
+  QStringList originalPage;
+
+  bool newface = true;
+
+
+  auto justification = LineJustification::Distribute;
+
+  QString suraWord = "سُورَةُ";
+  QString bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
+
+  QString surapattern = "^("
+    + suraWord + " .*|"
+    + bism
+    + "|" + "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+    + ")$";
+
+  QRegularExpression surabism(surapattern, QRegularExpression::MultilineOption);
+
+  for (int pagenum = 0; pagenum < currentQuranText.size(); pagenum++) {
+
+    auto& pageText = currentQuranText[pagenum];
+
+    auto lines = pageText.split(char(10), Qt::SkipEmptyParts);
+    QVector<LineToJustify> newLines;
+
+    for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
+      auto newJustification = justification;
+      auto line = QStringList{ lines[lineIndex] };
+      int key = (pagenum + 1) * 15 + (lineIndex + 1);
+      int lineWidth = pageWidth;
+      auto match = surabism.match(lines[lineIndex]);
+
+      LineType lineType = LineType::Line;
+
+      if (match.hasMatch()) {
+        if (match.captured(0).startsWith("سُ")) {
+          lineType = LineType::Sura;
+        }
+        else {
+          lineType = LineType::Bism;
+        }
+
+        if (!((pagenum == 0 || pagenum == 1) && lineIndex == 1)) {
+          lineWidth = 0;
+          newJustification = LineJustification::Center;
+        }
+
+      }
+
+      if (madinaLineWidths.contains(key))
+      {
+        double ratio = madinaLineWidths.value(key);
+
+        if (ratio < 1) {
+          lineWidth = pageWidth * ratio;
+          newJustification = LineJustification::Center;
+        }
+      }
+
+      newLines.append({ lines[lineIndex] ,lineWidth ,newJustification,lineType });
+    }
+
+
+
+    auto shapedPage = layout->justifyPage(scale, pageWidth, newLines, newface, true, false, cluster_level, justCombo->currentData().value<JustType>());
+    newface = false;
+    result.pages.append(shapedPage);
+    result.originalPages.append(lines);
+
+  }
+
+  return result;
+
+}
 
 LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level) {
 
@@ -1605,8 +1795,7 @@ void LayoutWindow::saveCollision() {
   cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS;
 
 
-  auto result = shapeMedina(scale, lineWidth, m_otlayout, cluster_level);
-
+  auto result = shapeMushaf(scale, lineWidth, m_otlayout, cluster_level);
 
   adjustOverlapping(result.pages, lineWidth, result.originalPages, scale, true);
 
@@ -1855,12 +2044,12 @@ void LayoutWindow::createDockWindows()
   executeRunButton = new QPushButton("&Reload Opentype lookups", textRun);
   connect(executeRunButton, &QPushButton::clicked, [=](int i) {
     executeRunText(true, 2);
-  });
+    });
 
   auto refreshButton = new QPushButton("&Refresh", textRun);
   connect(refreshButton, &QPushButton::clicked, [=](int i) {
     executeRunText(true, 1);
-  });
+    });
 
   integerSpinBox = new QSpinBox;
   integerSpinBox->setRange(1, 604);
@@ -1870,11 +2059,11 @@ void LayoutWindow::createDockWindows()
 
   connect(integerSpinBox, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged),
     [=](int i) {
-    auto textt = currentQuranText[i - 1];
-    textEdit->setPlainText(textt);
-    suraName->setText(suraNameByPage[i - 1]);
-    executeRunText(false, 1);
-  });
+      auto textt = currentQuranText[i - 1];
+      textEdit->setPlainText(textt);
+      suraName->setText(suraNameByPage[i - 1]);
+      executeRunText(false, 1);
+    });
 
   suraName = new QLabel;
   auto lfont = suraName->font();
@@ -1944,6 +2133,12 @@ void LayoutWindow::createDockWindows()
 
   otherMenu->addAction(action);
 
+  action = new QAction(tr("Compare Indopak Fonts"), this);
+  action->setStatusTip(tr("Compare Indopak Fonts"));
+  connect(action, &QAction::triggered, this, &LayoutWindow::compareIndopakFonts);
+
+  otherMenu->addAction(action);
+
 
   m_otlayout = new OtLayout(m_font, true, this);
   m_otlayout->useNormAxisValues = false;
@@ -1988,7 +2183,7 @@ void LayoutWindow::createDockWindows()
     this->executeRunText(true, 1);
     this->lokkupTreeWidget->blockSignals(false);
 
-  });
+    });
 
   connect(lokkupTreeWidget, &QTreeWidget::itemDoubleClicked, [&, this](QTreeWidgetItem* item, int column) {
     auto lookupName = item->text(0);
@@ -1998,7 +2193,7 @@ void LayoutWindow::createDockWindows()
 
     }
 
-  });
+    });
 
   lookupTree->setWidget(lokkupTreeWidget);
 
@@ -2051,6 +2246,333 @@ void LayoutWindow::serializeTexPages() {
   out << locations;
 
 }
+void LayoutWindow::createDataBase() {
+
+  QDir appDir(QCoreApplication::applicationDirPath());
+  QString dbPath = appDir.absoluteFilePath("quran-data.sqlite");
+  QString dbNewPath = appDir.absoluteFilePath("quran-data-new.sqlite");
+
+  QFile newFile{ dbNewPath };
+
+  if (newFile.exists()) {
+    if (!newFile.remove()) {
+      qDebug() << newFile.errorString();
+    }
+  }
+
+  QFile::copy(dbPath, dbNewPath);
+
+  newFile.setPermissions(QFile::ReadOther | QFile::WriteOther);
+
+
+  auto newDb = QSqlDatabase::addDatabase("QSQLITE", "NewDataBase");
+  newDb.setDatabaseName(dbNewPath);
+  newDb.open();
+  //newDb.exec("PRAGMA synchronous = OFF");
+  //newDb.exec("PRAGMA journal_mode = MEMORY");
+
+  QSqlQuery query{ newDb };
+
+  query.exec(QString("ALTER TABLE words ADD COLUMN dk_indopak STRING"));
+  auto error = query.lastError();
+  if (error.isValid()) {
+    qDebug() << error;
+  }
+
+  query.exec("SELECT word_number_all,indopak FROM words");
+
+  QSqlQuery update{ newDb };
+  update.prepare("UPDATE words set dk_indopak = :word where word_number_all = :id");
+
+  QVariantList ids;
+  QVariantList words;
+
+
+  while (query.next()) {
+    int word_number = query.value(0).toInt();
+    QString indopak = query.value(1).toString();   
+
+    changeText("indopak", indopak);
+
+    ids << word_number;
+    words << indopak;
+  }
+
+  update.addBindValue(words);
+  update.addBindValue(ids);
+
+  newDb.transaction();
+
+  if (!update.execBatch()) {
+    qDebug() << update.lastError();
+    newDb.rollback();
+  }
+
+  newDb.commit();
+
+  newDb.close();
+}
+void LayoutWindow::compareFonts(QString layoutName, QString textCol) {
+  QFile file("output/comparefonts/compare_" + layoutName + "_" + textCol + ".html");
+  file.open(QIODevice::WriteOnly | QIODevice::Text);
+  QTextStream out(&file);
+  out.setCodec("UTF-8");
+
+  out << "<html>" << '\n';
+  out << "<head>" << '\n';
+  out << "<meta charset='utf-8'>" << '\n';
+  out << "<title>Compare fonts</title>" << '\n';
+  out << "<link rel='stylesheet' href='comparefonts.css'>" << '\n';
+  out << "</head>" << '\n';
+  out << "<body>" << '\n';
+  out << "<table style='font-size:50px;'>" << '\n';
+
+  auto queryString = QString("SELECT page,line,indopak,nastaleeq,surah_number,ayah_number from %2 as l LEFT JOIN words w ON l.type = \"ayah\" AND l.range_start <= w.word_number_all AND l.range_end >= w.word_number_all order by page,line,word_number_all")
+    .arg(layoutName);
+
+
+
+  hb_font_t* font = m_otlayout->createFont(1000);
+
+  QSqlQuery query(queryString);
+
+  hb_buffer_t* buffer = hb_buffer_create();
+
+  std::set<int> chars;
+  while (query.next()) {
+    int page = query.value(0).toInt();
+    int line = query.value(1).toInt();
+    QString word = query.value(textCol).toString();
+
+
+    int surah_number = query.value("surah_number").toInt();
+    int ayah_number = query.value("ayah_number").toInt();
+
+    if (word.isEmpty()) continue;
+
+    hb_buffer_clear_contents(buffer);
+
+
+    hb_buffer_set_direction(buffer, HB_DIRECTION_RTL);
+    hb_buffer_set_script(buffer, HB_SCRIPT_ARABIC);
+    hb_buffer_set_language(buffer, hb_language_from_string("ar", strlen("ar")));
+    hb_buffer_set_cluster_level(buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+
+    hb_buffer_add_utf16(buffer, word.utf16(), word.length(), 0, word.length());
+
+    hb_shape(font, buffer, NULL, 0);
+
+    uint glyph_count;
+    hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
+
+    for (int i = glyph_count - 1; i >= 0; i--) {
+      auto glyph = glyph_info[i];
+      if (glyph.codepoint == 0) {
+        auto unicode = word[glyph.cluster].unicode();
+        if (!chars.contains(unicode)) {
+          chars.insert(unicode);
+          auto hexv = std::format("{:04x}", unicode);
+          QString newWord = word;
+          changeText(textCol, newWord);
+
+          QString otherColumn = textCol == "indopak" ? "nastaleeq" : "indopak";
+          QString otherWord = query.value(otherColumn).toString();
+          /*QString newOtherWord = otherWord;
+          changeText(otherColumn, newOtherWord);*/
+
+          out << "<tr>\n";
+          out << "<td>" << surah_number << "</td>\n";
+          out << "<td>" << ayah_number << "</td>\n";
+          out << "<td>" << page << "</td>\n";
+          out << "<td>" << line << "</td>\n";
+          out << "<td>" << QString(hexv.c_str()) << "</td>\n";
+          if (textCol == "indopak") {
+            out << "<td  class='indopakalquran'><a target='_blank' href='https://quranwbw.com/" << surah_number << "#" << ayah_number << "'>" << word << "</a></td>\n";
+            out << "<td  class='hafsnastaleeq'>" << otherWord << "</td>\n";
+          }
+          else {
+            out << "<td  class='indopakalquran'><a target='_blank' href='https://quranwbw.com/" << surah_number << "#" << ayah_number << "'>" << otherWord << "</a></td>\n";
+            out << "<td  class='hafsnastaleeq'>" << word << "</td>\n";
+          }
+
+          out << "<td  class='indopak'>" << newWord << "</td>\n";
+          out << "</tr>\n";
+
+        }
+      }
+    }
+
+
+  }
+
+  out << "</html>" << '\n';
+  out << "</body>" << '\n';
+  out << "</table>" << '\n';
+
+  hb_buffer_destroy(buffer);
+  hb_font_destroy(font);
+}
+
+void LayoutWindow::compareWaqfs(QString layoutName, QString textCol) {
+  QFile file("output/comparefonts/comparewaqfs_" + layoutName + "_" + textCol + ".html");
+  file.open(QIODevice::WriteOnly | QIODevice::Text);
+  QTextStream out(&file);
+  QString ayaString;
+  QTextStream ayaMarksStream(&ayaString);
+  QString finaString;
+  QTextStream finaMarkStream(&finaString);
+  QString meemiqlabString;
+  QTextStream meemiqlabStream(&meemiqlabString);
+  QString smalllowmeemString;
+  QTextStream smalllowmeemStream(&smalllowmeemString);
+
+
+  out.setCodec("UTF-8");
+
+  out << "<html>" << '\n';
+  out << "<head>" << '\n';
+  out << "<meta charset='utf-8'>" << '\n';
+  out << "<title>Compare Marks</title>" << '\n';
+  out << "<link rel='stylesheet' href='comparefonts.css'>" << '\n';
+  out << "</head>" << '\n';
+  out << "<body>" << '\n';
+
+
+  QString waqfChars = "࣢ࣛࣝࣞۖۚۙؔۘۛؕࣕࣖࣗؗ";
+
+  QString meemIqlab = "\u06E2";
+
+  QString smalllowmeem = "\u06ED";
+
+  auto queryString = QString("SELECT page,line,indopak,nastaleeq,surah_number,ayah_number from %2 as l LEFT JOIN words w ON l.type = \"ayah\" AND l.range_start <= w.word_number_all AND l.range_end >= w.word_number_all order by page,line,word_number_all")
+    .arg(layoutName);
+
+
+  QSqlQuery query(queryString);
+
+  QRegularExpression waqfSeq(QString("([٠١٢٣٤٥٦٧٨٩]*)([%1]+)").arg(waqfChars + meemIqlab));
+
+  std::set<QString> ayaSeqs;
+  std::set<QString> finaSeqs;
+  int lineNum = 0;
+  while (query.next()) {
+    int page = query.value(0).toInt();
+    int line = query.value(1).toInt();
+    QString word = query.value(textCol).toString();
+
+
+    int surah_number = query.value("surah_number").toInt();
+    int ayah_number = query.value("ayah_number").toInt();
+
+    if (word.isEmpty()) continue;
+
+    QString newWord = word;
+    changeText(textCol, newWord);
+
+    QString indopakWord, nastaleeqWord;
+
+    if (textCol == "indopak") {
+      indopakWord = word;
+      nastaleeqWord = query.value("nastaleeq").toString();
+    }
+    else {
+      nastaleeqWord = word;
+      indopakWord = query.value("indopak").toString();
+    }
+
+    auto iter = waqfSeq.globalMatch(newWord);
+    while (iter.hasNext()) {
+      QRegularExpressionMatch match = iter.next();
+      QString ayaNum = match.captured(1);
+      auto isAya = !ayaNum.isEmpty();
+      QString seq = match.captured(2);
+      if (seq.size() < 2) continue;
+
+      if ((isAya && !ayaSeqs.contains(seq)) || (!isAya && !finaSeqs.contains(seq))) {
+        if (isAya) {
+          ayaSeqs.insert(seq);
+        }
+        else {
+          finaSeqs.insert(seq);
+        }
+
+        QTextStream& outStream = isAya ? ayaMarksStream : finaMarkStream;
+
+        outStream << "<tr>\n";
+        outStream << "<td>" << surah_number << "</td>\n";
+        outStream << "<td>" << ayah_number << "</td>\n";
+        outStream << "<td>" << page << "</td>\n";
+        outStream << "<td>" << line << "</td>\n";
+        outStream << "<td  class='indopak'>" << newWord << "</td>\n";
+        outStream << "<td  class='indopakalquran'><a target='_blank' href='https://quranwbw.com/" << surah_number << "#" << ayah_number << "'>" << indopakWord << "</a></td>\n";
+        outStream << "<td  class='hafsnastaleeq'>" << nastaleeqWord << "</td>\n";
+        outStream << "</tr>\n";
+      }
+    }
+
+    if (newWord.contains(meemIqlab)) {
+      meemiqlabStream << "<tr>\n";
+      meemiqlabStream << "<td>" << surah_number << "</td>\n";
+      meemiqlabStream << "<td>" << ayah_number << "</td>\n";
+      meemiqlabStream << "<td>" << page << "</td>\n";
+      meemiqlabStream << "<td>" << line << "</td>\n";
+      meemiqlabStream << "<td  class='indopak'>" << newWord << "</td>\n";
+      meemiqlabStream << "<td  class='indopakalquran'><a target='_blank' href='https://quranwbw.com/" << surah_number << "#" << ayah_number << "'>" << indopakWord << "</a></td>\n";
+      meemiqlabStream << "<td  class='hafsnastaleeq'>" << nastaleeqWord << "</td>\n";
+      meemiqlabStream << "</tr>\n";
+    }
+    if (newWord.contains(smalllowmeem)) {
+      smalllowmeemStream << "<tr>\n";
+      smalllowmeemStream << "<td>" << surah_number << "</td>\n";
+      smalllowmeemStream << "<td>" << ayah_number << "</td>\n";
+      smalllowmeemStream << "<td>" << page << "</td>\n";
+      smalllowmeemStream << "<td>" << line << "</td>\n";
+      smalllowmeemStream << "<td  class='indopak'>" << newWord << "</td>\n";
+      smalllowmeemStream << "<td  class='indopakalquran'><a target='_blank' href='https://quranwbw.com/" << surah_number << "#" << ayah_number << "'>" << indopakWord << "</a></td>\n";
+      smalllowmeemStream << "<td  class='hafsnastaleeq'>" << nastaleeqWord << "</td>\n";
+      smalllowmeemStream << "</tr>\n";
+    }
+
+  }
+  out << "<div style='font-size:30px;'>Final Waqf Marks</div>" << '\n';
+  out << "<table style='font-size:50px;'>" << '\n';
+  out << finaString;
+  out << "</table>" << '\n';
+
+  out << "<div style='font-size:30px;'>Aya Waqf Marks</div>" << '\n';
+  out << "<table style='font-size:50px;'>" << '\n';
+  out << ayaString;
+  out << "</table>" << '\n';
+
+  out << "<div style='font-size:30px;'>High Meem Iqlab</div>" << '\n';
+  out << "<table style='font-size:50px;'>" << '\n';
+  out << meemiqlabString;
+  out << "</table>" << '\n';
+
+  out << "<div style='font-size:30px;'>Low Meem Iqlab</div>" << '\n';
+  out << "<table style='font-size:50px;'>" << '\n';
+  out << smalllowmeemString;
+  out << "</table>" << '\n';
+
+  out << "</html>" << '\n';
+  out << "</body>" << '\n';
+
+}
+
+
+void LayoutWindow::compareIndopakFonts() {
+
+  auto layoutName = mushafLayouts->currentText();
+
+  compareFonts(layoutName, "indopak");
+  compareWaqfs(layoutName, "indopak");
+  createDataBase();
+  //compareFonts(layoutName, "nastaleeq");
+
+
+}
+
+
 
 void LayoutWindow::serializeMedinaPages() {
 
@@ -3382,7 +3904,7 @@ void LayoutWindow::generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pa
 
   std::sort(posSubtables.begin(), posSubtables.end(), [](const QVector<GlyphPos>& a, const QVector<GlyphPos>& b) {
     return a.size() > b.size();
-  });
+    });
 
   QString mainLookup;
   for (auto& posSubtable : posSubtables) {

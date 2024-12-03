@@ -296,31 +296,7 @@ public:
     QPoint anchor = caclAnchor(originalglyph) + adjustoriginal + adjust;
 
     return anchor;
-
-    /*
-    int height;
-    int width;
-
-    QPoint anchor;
-
-    if (!curr.originalglyph.isEmpty() && (curr.charlt != 0 || curr.charrt != 0)) {
-      QPoint adjustoriginal;
-      QString originalName = curr.originalglyph;
-      if (_subtable.classes[className].baseparameters.contains(originalName)) {
-        adjustoriginal = _subtable.classes[className].baseparameters[originalName];
-      }
-
-      GlyphVis& original = _y.glyphs[originalName];
-      double xshift = curr.matrix.xpart - original.matrix.xpart;
-      double yshift = curr.matrix.ypart - original.matrix.ypart;
-
-      anchor = caclAnchor(&original) + adjustoriginal + QPoint(xshift / 2, yshift / 2);
-    }
-    else {
-      anchor = caclAnchor(&curr);
-    }
-
-    return anchor + adjust;*/
+   
   };
 private:
   Automedina& _y;

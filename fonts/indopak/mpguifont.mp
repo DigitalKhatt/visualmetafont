@@ -790,7 +790,7 @@ fi
 enddef;
 vardef leii[](expr dft,dmax) =
 _maxA := maxA@ ?? 20;
-_minA := minA@ ?? -1;
+_minA := minA@ ?? 0;
 factor_ := (params@ - _minA) / (_maxA - _minA);
 dft + factor_ * dmax
 enddef;

@@ -815,15 +815,10 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
   QByteArray coverage;
   QByteArray substituteGlyphIDs;
 
-
-
   quint16 glyphCount = singlePos.size();
   quint16 coverage_offset = 2 + 2 + 2 + 2 + (2 * 4) * glyphCount;
   quint16 valueFormat = 0xF;
 
-  if (format == 3) {
-    int h = 0;
-  }
 
   root << format;
   root << coverage_offset;

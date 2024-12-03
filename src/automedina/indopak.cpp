@@ -88,7 +88,7 @@ namespace indopak {
       m_layout->unicodeToGlyphCode.insert(unicode, glyph.charcode);
 
 
-    };
+      };
     addFake("alef.maddahabove.isol", 0x0622, m_layout->glyphNamePerCode.lastKey() + 1);
     addFake("alef.hamzaabove.isol", 0x0623, m_layout->glyphNamePerCode.lastKey() + 1);
     addFake("waw.hamzaabove.isol", 0x0624, m_layout->glyphNamePerCode.lastKey() + 1);
@@ -111,7 +111,6 @@ namespace indopak {
     addFake("feh.onedotup.isol", 0x0641, m_layout->glyphNamePerCode.lastKey() + 1);
     addFake("qaf.twodotsup.isol", 0x0642, m_layout->glyphNamePerCode.lastKey() + 1);
     addFake("yehfarsi.isol", 0x06CC, m_layout->glyphNamePerCode.lastKey() + 1);
-
 
     m_layout->glyphs = glyphs;
 
@@ -163,7 +162,6 @@ namespace indopak {
       "fathatan",
       "kasratan",
       "smallalef",
-      "smallalef.replacement",
       "smallalef.joined",
       "meemiqlab",
       "smalllowmeem",
@@ -178,23 +176,30 @@ namespace indopak {
       "smallhighroundedzero",
       "rectangularzero",
       "smallhighseen",
-      "smalllowseen",
       "smallhighnoon",
       "waqf.meem",
       "waqf.lam",
-      "waqf.qaf",
       "waqf.jeem",
       "waqf.sad",
       "waqf.smallhighthreedots",
       "roundedfilledhigh",
       "roundedfilledlow",
       "space.ii",
-      "highmadda",
+      "maddawaajib",
       "smallhightah",
       "smallhighsad",
       "smallhighain",
       "smallhighqaf",
-      "smallhighzain"
+      "smallhighzain",
+      "inverteddamma",
+      "subalef",
+      "takhallus",
+      "sakta",
+      "sajda",
+      "smalllownoon",
+      "waqf.qif",
+      "waqfa",
+      "hamzabelow.joined"
     };
 
     classes["topmarks"] = {
@@ -212,7 +217,6 @@ namespace indopak {
       "maddahabove",
       "fathatan",
       "smallalef",
-      "smallalef.replacement",
       "smallalef.joined",
       "meemiqlab",
       "smallhighyeh",
@@ -227,6 +231,8 @@ namespace indopak {
       "smallhighnoon",
       "roundedfilledhigh",
       "hamzaabove.joined",
+      "maddawaajib",
+      "inverteddamma"        
     };
 
     classes["lowmarks"] = {
@@ -236,9 +242,10 @@ namespace indopak {
       "kasra",
       "kasratan",
       "hamzabelow",
-      "smalllowseen",
       "roundedfilledlow",
-      "smalllowmeem"
+      "smalllowmeem",
+      "subalef",
+      "smalllownoon"
     };
 
     classes["kasras"] = {
@@ -248,18 +255,27 @@ namespace indopak {
     };
 
     classes["waqfmarks"] = {
-        "waqf.meem",
+        "takhallus",
         "waqf.lam",
-        "waqf.qaf",
         "waqf.jeem",
         "waqf.sad",
+        "waqf.qif",
+        "sakta",
+        "sajda",
+        "waqf.meem",
         "waqf.smallhighthreedots",
         "smallhightah",
         "smallhighsad",
         "smallhighain",
         "smallhighqaf",
-        "smallhighzain"
+        "smallhighzain",
+        "waqfa",
+        "meemiqlab",
     };
+
+    classes["waqfmarksfina"] = classes["waqfmarks"];
+    classes["waqfmarksfina"].remove("sajda");
+    classes["waqfmarksaya"] = classes["waqfmarks"];
 
     classes["dotmarks"] = {
         "onedotup",
@@ -523,11 +539,11 @@ namespace indopak {
     else if (functionName == "defaullowmarkanchor") {
       return Defaullowmarkanchor(*this, *(MarkBaseSubtable*)(subtable));
     }
-    else if (functionName == "defaultwaqfmarkabovemark") {
-      return Defaultwaqfmarkabovemark(*this, *(MarkBaseSubtable*)(subtable));
+    else if (functionName == "waqffinabasemark") {
+      return Waqffinabasemark(*this, *(MarkBaseSubtable*)(subtable));
     }
-    else if (functionName == "defaultmarkbelowwaqfmark") {
-      return Defaultmarkbelowwaqfmark(*this, *(MarkBaseSubtable*)(subtable));
+    else if (functionName == "waqffinamark") {
+      return Waqffinamark(*this, *(MarkBaseSubtable*)(subtable));
     }
     else if (functionName == "defaultbaseanchorforlow") {
       return Defaulbaseanchorforlow(*this, *(MarkBaseSubtable*)(subtable));
@@ -535,9 +551,14 @@ namespace indopak {
     else if (functionName == "defaulbaseanchorfortop") {
       return Defaulbaseanchorfortop(*this, *(MarkBaseSubtable*)(subtable));
     }
-
     else if (functionName == "joinedsmalllettersbaseanchor") {
       return Joinedsmalllettersbaseanchor(*this, *(MarkBaseSubtable*)(subtable));
+    }
+    else if (functionName == "waqfbasebelow") {
+      return Waqfbasebelow(*this, *(MarkBaseSubtable*)(subtable));
+    }
+    else if (functionName == "waqfmarkabove") {
+      return Waqfmarkabove(*this, *(MarkBaseSubtable*)(subtable));
     }
   }
 
@@ -546,20 +567,17 @@ namespace indopak {
     if (lookupName == "defaultmarkpositioncpp") {
       return defaultmarkposition();
     }
-    else if (lookupName == "defaultwaqfmarktobase") {
-      return defaultwaqfmarktobase();
+    else if (lookupName == "waqfmarkpositioning") {
+      return waqfMarkPositioning();
     }
-    else if (lookupName == "forsmalllalef") {
-      return forsmalllalef();
+    else if (lookupName == "waqfmkmkpositioning") {
+      return waqfMkmkPositioning();
     }
     else if (lookupName == "forhamza") {
       return forhamza();
     }
     else if (lookupName == "forheh") {
       return forheh();
-    }
-    else if (lookupName == "forwaw") {
-      return forwaw();
     }
     else if (lookupName == "cursivejoin") {
       return cursivejoin();
@@ -576,9 +594,6 @@ namespace indopak {
     else if (lookupName == "pointmarks") {
       return pointmarks();
     }
-    else if (lookupName == "defaultwaqfmarkabovemarkprecise") {
-      return defaultwaqfmarkabovemarkprecise();
-    }
     else if (lookupName == "defaultmarkdotmarks") {
       return defaultmarkdotmarks();
     }
@@ -593,9 +608,6 @@ namespace indopak {
     }
     else if (lookupName == "shrinkstretchlt") {
       return shrinkstretchlt();
-    }
-    else if (lookupName == "tajweedcolorcpp") {
-      return tajweedcolorcpp();
     }
     else if (lookupName == "forsmallhighwaw") {
       return forsmallhighwaw();
@@ -617,7 +629,7 @@ namespace indopak {
     lookup->type = Lookup::cursive;
     lookup->flags = Lookup::Flags::IgnoreMarks; // | Lookup::Flags::RightToLeft;
 
-    int kern = 150;
+    int kern = 0;
 
     class CustomCursiveSubtable : public CursiveSubtable {
     public:
@@ -761,10 +773,7 @@ namespace indopak {
     lookup->flags = 0;
 
     auto topmarks = classes["topmarks"];
-
-    topmarks.remove("smallalef");
     topmarks.remove("smallalef.joined");
-    topmarks.remove("smallalef.replacement");
     topmarks.remove("smallhighyeh");
     topmarks.remove("smallhighwaw");
     topmarks.remove("smallhighnoon");
@@ -776,10 +785,12 @@ namespace indopak {
     topmarks.remove("maddahabove");
     topmarks.remove("smallhighseen");
     topmarks.remove("shadda");
+    topmarks.remove("meemiqlab");
+
 
     auto lowmarks = classes["lowmarks"];
     lowmarks.remove("hamzabelow");
-    lowmarks.remove("smalllowseen");
+    lowmarks.remove("hamzaabove.joined");
 
 
     //meem.fina.afterkaf
@@ -849,6 +860,34 @@ namespace indopak {
     newsubtable->classes["hamzaabove"].basefunction = Defaulbaseanchorforsmallalef(*this, *newsubtable);
     newsubtable->classes["hamzaabove"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
 
+    //hamzabelow.joined
+    newsubtable = new MarkBaseSubtable(lookup);
+    lookup->subtables.append(newsubtable);
+    newsubtable->name = "hamzabelow.joined";
+    newsubtable->base = { ".init|.medi" };
+    newsubtable->classes["hamzabelow"].mark = { "hamzabelow.joined" };
+    newsubtable->classes["hamzabelow"].basefunction = [this](QString glyphName, QString className, QPoint adjust, double lefttatweel, double righttatweel) -> QPoint {
+      GlyphVis* curr = &glyphs[glyphName];
+
+      if (lefttatweel != 0.0 || righttatweel != 0.0) {
+        GlyphParameters parameters{};
+
+        parameters.lefttatweel = lefttatweel;
+        parameters.righttatweel = righttatweel;
+
+        curr = curr->getAlternate(parameters);
+      }
+
+      int width = 100 + adjust.x();
+      int height = curr->depth + adjust.y();
+
+      return QPoint(width, height);
+      };
+    newsubtable->classes["hamzabelow"].markfunction = [this](QString glyphName, QString className, QPoint adjust, double lefttatweel, double righttatweel) -> QPoint {
+      GlyphVis* curr = &glyphs[glyphName];      
+      return QPoint(adjust.x(), adjust.y() + 100 + curr->height);
+      };
+
     //default
     newsubtable = new MarkBaseSubtable(lookup);
     lookup->subtables.append(newsubtable);
@@ -891,17 +930,6 @@ namespace indopak {
     newsubtable->classes["hamzaabove"].mark = { "hamzaabove","hamzaabove.small" };
     newsubtable->classes["hamzaabove"].basefunction = Defaulbaseanchorfortop(*this, *newsubtable);
     newsubtable->classes["hamzaabove"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
-
-    //smallalef.replacement
-
-    newsubtable = new MarkBaseSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-
-    newsubtable->name = "smallalefreplacement";
-    newsubtable->base = { "alef|waw|yehshape|behshape" };
-    newsubtable->classes["smallalefreplacement"].mark = { "smallalef.replacement" };
-    newsubtable->classes["smallalefreplacement"].basefunction = Defaulbaseanchorfortop(*this, *newsubtable);
-    newsubtable->classes["smallalefreplacement"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
 
     //roundedfilledhigh
 
@@ -964,65 +992,295 @@ namespace indopak {
     newsubtable->classes["wasla"].basefunction = Defaulbaseanchorfortop(*this, *newsubtable);
     newsubtable->classes["wasla"].markfunction = Defaultopmarkanchor(*this, *newsubtable);
 
-    //smalllowseen
+    //takhallus
     newsubtable = new MarkBaseSubtable(lookup);
     lookup->subtables.append(newsubtable);
 
-    newsubtable->name = "smalllowseen";
-    newsubtable->base = { "^sad[.]medi" };
-    newsubtable->classes["smalllowseen"].mark = { "smalllowseen" };
-    newsubtable->classes["smalllowseen"].basefunction = Defaulbaseanchorforlow(*this, *newsubtable);
-    newsubtable->classes["smalllowseen"].markfunction = Defaullowmarkanchor(*this, *newsubtable);
+    newsubtable->name = "takhallus";
+    newsubtable->base = { "bases" };
+    newsubtable->classes["takhallus"].mark = { "takhallus" };
+    newsubtable->classes["takhallus"].basefunction = [this](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
+      GlyphVis& curr = glyphs[glyphName];
 
+      auto disp = 1000;
+
+      int width = adjust.x() + curr.width / 2;
+      int height = disp  + adjust.y();
+
+      return QPoint(width, height);
+      };
+    newsubtable->classes["takhallus"].markfunction = [this](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
+      GlyphVis& curr = glyphs[glyphName];
+      return QPoint(adjust.x() + curr.width / 2, adjust.y());
+      };
+
+    //aya waqf
+    newsubtable = new MarkBaseSubtable(lookup);
+    lookup->subtables.append(newsubtable);
+
+    newsubtable->name = "waqfsubtable";
+    newsubtable->base = { "aya" };
+    newsubtable->classes["waqfmarksaya"].mark = { "waqfmarksaya" };
+    newsubtable->classes["waqfmarksaya"].basefunction = [this](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
+      GlyphVis& curr = glyphs[glyphName];
+
+      int width = curr.width / 2 + adjust.x();
+      int height = 50 + curr.height + adjust.y();
+
+      return QPoint(width, height);
+      };
+    newsubtable->classes["waqfmarksaya"].markfunction = [this](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
+      GlyphVis& curr = glyphs[glyphName];
+      return QPoint(adjust.x() + curr.width / 2, adjust.y());
+      };
+
+
+    //fina waqf
+    newsubtable = new MarkBaseSubtable(lookup);
+    lookup->subtables.append(newsubtable);
+
+    newsubtable->name = "waqfsubtable";
+    newsubtable->base = { "waqfbase.isol","disputedeoa" };
+    newsubtable->classes["waqfmarksfina"].mark = { "waqfmarksfina" };
+    newsubtable->classes["waqfmarksfina"].basefunction = [this](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
+      GlyphVis& curr = glyphs[glyphName];
+
+      auto disp = glyphName == "waqfbase.isol" ? 330 : 30;
+
+      int width = adjust.x() + curr.width / 2;
+      int height = disp + curr.height + adjust.y();
+
+      return QPoint(width, height);
+      };
+    newsubtable->classes["waqfmarksfina"].markfunction = [this](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
+      GlyphVis& curr = glyphs[glyphName];
+      int width = adjust.x() + curr.width / 2;
+      int height = adjust.y();
+      return QPoint(width, height);
+      };
 
     return lookup;
-
-
-
   }
-  Lookup* IndoPak::defaultwaqfmarktobase() {
-    Lookup* lookup = new Lookup(m_layout);
-    lookup->name = "defaultwaqfmarktobase";
-    lookup->feature = "mark";
-    lookup->type = Lookup::mark2base;
+  Lookup* IndoPak::waqfMarkPositioning() {
+    return nullptr;
+  }
+  Lookup* IndoPak::waqfMkmkPositioning() {
 
+    auto endWordClass = "space|isol|fina|smallwaw|smallyeh";
+    auto waqfCodes = m_layout->classtoUnicode("waqfmarksfina");
+    auto endWordCodes = m_layout->classtoUnicode(endWordClass);
+    auto ayaCodes = m_layout->classtoUnicode("aya");
+
+
+    auto addLookup = [this, &waqfCodes, &endWordCodes, &endWordClass](int numMarks) -> void {
+      Lookup* lookup = new Lookup(m_layout);
+      lookup->name = QString("waqfmkmkpositioning.l%1").arg(numMarks);
+      lookup->feature = "";
+      lookup->type = Lookup::chainingpos;
+      lookup->flags = Lookup::Flags::UseMarkFilteringSet;
+      lookup->markGlyphSetIndex = m_layout->addMarkSet(waqfCodes.toList());
+      m_layout->addLookup(lookup);
+
+      QVector<QVector<quint16>> waqfSequences{ {} };
+
+      for (int i = 1; i <= numMarks; i++) {
+        auto tempWaqfSequences = waqfSequences;
+        waqfSequences.clear();
+        for (auto code : waqfCodes) {
+          for (auto seq : tempWaqfSequences) {
+            if (!seq.contains(code)) {
+              seq.append(code);
+              waqfSequences.append(seq);
+            }
+          }
+        }
+      }
+
+      int subtableNum = 0;
+
+      for (auto& seq : waqfSequences) {
+
+        int maxWidth = 0;
+
+        for (auto glyphCode : seq) {
+          GlyphVis* curr = m_layout->getGlyph(glyphCode);
+
+          maxWidth = std::max((int)curr->width, maxWidth);
+        }
+
+        ChainingSubtable* subtable = new ChainingSubtable(lookup);
+        lookup->subtables.append(subtable);
+        subtable->name = QString("subtable%1").arg(++subtableNum);
+        subtable->compiledRule = ChainingSubtable::CompiledRule();
+        subtable->compiledRule.input = { endWordCodes,{seq[0]} };
+
+        auto lkernName = QString("lkern%1").arg(subtableNum);
+        auto lmarkName = QString("lmark%1").arg(subtableNum);
+
+        subtable->compiledRule.lookupRecords.append({ 0,lkernName });
+        subtable->compiledRule.lookupRecords.append({ 1,lmarkName });
+
+        for (quint16 i = 2; i <= numMarks; i++) {
+          subtable->compiledRule.input.append({ seq[i - 1] });
+          subtable->compiledRule.lookupRecords.append({ i,QString("waqfmkmkpositioning.lmkmk") });
+        }
+
+        Lookup* sublookup = new Lookup(m_layout);
+        sublookup->name = lookup->name + "." + lkernName;
+        sublookup->feature = "";
+        sublookup->type = Lookup::singleadjustment;
+        m_layout->addLookup(sublookup);
+
+        SingleAdjustmentSubtable* singleadjsubtable = new SingleAdjustmentSubtable(sublookup);
+        sublookup->subtables.append(singleadjsubtable);
+
+        singleadjsubtable->name = sublookup->name;
+
+        for (auto endWordCode : endWordCodes) {
+          singleadjsubtable->singlePos[endWordCode] = { (qint16)maxWidth ,0,(qint16)maxWidth,0 };
+        }
+
+        sublookup = new Lookup(m_layout);
+        sublookup->name = lookup->name + "." + lmarkName;
+        sublookup->feature = "";
+        sublookup->type = Lookup::mark2base;
+        m_layout->addLookup(sublookup);
+
+
+
+        auto markGlyph = m_layout->getGlyph(seq[0]);
+
+        int waqfKern = 100 + markGlyph->width + (maxWidth - markGlyph->width) / 2;
+        int waqfHeight = seq.size() == 1 ? 200 : seq.size() == 2 ? 300 : seq.size() == 3 ? 400 : 500;
+
+        auto basefunction = [this, waqfKern, waqfHeight](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
+          GlyphVis& curr = glyphs[glyphName];
+
+          int height = waqfHeight;
+          auto width = -waqfKern; // curr.bbox.llx;
+
+
+          width = width + adjust.x();
+          height = height + adjust.y();
+
+          return QPoint(width, height);
+          };
+
+        auto markfunction = [this](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
+          GlyphVis& curr = glyphs[glyphName];
+
+          int height = 0;
+          int width = 0;
+
+
+          width = width + adjust.x();
+          height = height + adjust.y();
+
+          return QPoint(width, height);
+          };
+
+        MarkBaseSubtable* markSubtabe = new MarkBaseSubtable(sublookup);
+        sublookup->subtables.append(markSubtabe);
+
+        markSubtabe->name = "subtable1";
+        auto markName = m_layout->glyphNamePerCode[seq[0]];
+        markSubtabe->base = { endWordClass };
+
+
+        markSubtabe->classes["waqfmarksfina"].mark = { markName };
+        markSubtabe->classes["waqfmarksfina"].basefunction = basefunction;
+        markSubtabe->classes["waqfmarksfina"].markfunction = markfunction;
+
+      }
+
+
+
+      };
+
+    Lookup* lookup = new Lookup(m_layout);
+    lookup->name = "waqfmkmkpositioning";
+    lookup->feature = "mkmk";
+    lookup->type = Lookup::chainingpos;
+    lookup->flags = Lookup::Flags::UseMarkFilteringSet;
+    lookup->markGlyphSetIndex = m_layout->addMarkSet(waqfCodes.toList());
+
+    /*
+    auto subtable = new ChainingSubtable(lookup);
+    lookup->subtables.append(subtable);
+    subtable->name = QString("waqffina4");
+    subtable->compiledRule = ChainingSubtable::CompiledRule();
+    subtable->compiledRule.input = { endWordCodes,waqfCodes,waqfCodes,waqfCodes,waqfCodes };
+    subtable->compiledRule.lookupRecords.append({ 0,QString("l4") });
+    addLookup(4);
+    */
+
+    /*
+    auto subtable = new ChainingSubtable(lookup);
+    lookup->subtables.append(subtable);
+    subtable->name = QString("waqffina3");
+    subtable->compiledRule = ChainingSubtable::CompiledRule();
+    subtable->compiledRule.input = { endWordCodes ,waqfCodes ,waqfCodes ,waqfCodes };
+    subtable->compiledRule.lookupRecords.append({ 0,QString("l3") });
+    addLookup(3);*/
+
+    auto subtable = new ChainingSubtable(lookup);
+    lookup->subtables.append(subtable);
+    subtable->name = QString("waqffina2");
+    subtable->compiledRule = ChainingSubtable::CompiledRule();
+    subtable->compiledRule.input = { endWordCodes,waqfCodes,waqfCodes };
+    subtable->compiledRule.lookupRecords.append({ 0,QString("l2") });
+    addLookup(2);
+
+    subtable = new ChainingSubtable(lookup);
+    lookup->subtables.append(subtable);
+    subtable->name = QString("waqffina1");
+    subtable->compiledRule = ChainingSubtable::CompiledRule();
+    subtable->compiledRule.input = { endWordCodes,waqfCodes };
+    subtable->compiledRule.lookupRecords.append({ 0,QString("l1") });
+    addLookup(1);
+
+    Lookup* sublookup = new Lookup(m_layout);
+    sublookup->name = "waqfmkmkpositioning.lmkmk";
+    sublookup->feature = "";
+    sublookup->type = Lookup::mark2mark;
+    m_layout->addLookup(sublookup);
 
     auto basefunction = [this](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
       GlyphVis& curr = glyphs[glyphName];
 
-      int height = std::max((int)curr.height + spacebasetotopmark, minwaqfhigh);
-      int width = 0; // curr.bbox.llx;
+      int height = 0; // (int)curr.height + spacebasetotopmark;
+      int width = curr.width / 2;
 
 
       width = width + adjust.x();
       height = height + adjust.y();
 
       return QPoint(width, height);
-    };
+      };
 
     auto markfunction = [this](QString glyphName, QString className, QPoint adjust, double, double) -> QPoint {
       GlyphVis& curr = glyphs[glyphName];
 
-      int height = 0;
-      int width = 0;
+      int height = (int)curr.height + 50;
+      int width = curr.width / 2;
 
 
       width = width + adjust.x();
       height = height + adjust.y();
 
       return QPoint(width, height);
-    };
+      };
 
-    MarkBaseSubtable* newsubtable = new MarkBaseSubtable(lookup);
-    lookup->subtables.append(newsubtable);
+    auto markSubtabe = new MarkBaseSubtable(sublookup);
+    sublookup->subtables.append(markSubtabe);
 
-    newsubtable->name = "defaultwaqfmarktobase";
-    newsubtable->base = { "space|isol|fina|smallwaw|smallyeh" };
+    markSubtabe->name = "subtable1";
+    markSubtabe->base = { "waqfmarksfina" };
 
 
-    newsubtable->classes["waqfmarks"].mark = { "waqfmarks" };
-    newsubtable->classes["waqfmarks"].basefunction = basefunction;
-    newsubtable->classes["waqfmarks"].markfunction = markfunction;
+    markSubtabe->classes["waqfmarksfina"].mark = { "waqfmarksfina" };
+    markSubtabe->classes["waqfmarksfina"].basefunction = basefunction;
+    markSubtabe->classes["waqfmarksfina"].markfunction = markfunction;
 
     return lookup;
   }
@@ -1036,17 +1294,6 @@ namespace indopak {
 
     MarkBaseSubtable* newsubtable = new MarkBaseSubtable(lookup);
     lookup->subtables.append(newsubtable);
-
-    /*classes["topdotmarks"] = {
-                  "onedotup",
-                  "twodotsup",
-                  "three_dots"
-          };
-
-          classes["downdotmarks"] = {
-                  "onedotdown",
-                  "twodotsdown"
-          };*/
 
     newsubtable->name = "onedotup";
     newsubtable->base = { "^behshape|^hah|^fehshape|^dal|^reh|^sad|^tah|^ain|^noon|^feh[.]" };
@@ -1101,7 +1348,7 @@ namespace indopak {
     lookup->subtables.append(subtable);
 
     subtable->name = "defaultmkmktop";
-    subtable->base = { "hamzaabove","hamzaabove.small","hamzaabove.joined","hamzaabove.lamalef", "shadda","smallalef","smallalef.joined","smallalef.replacement","smallhighseen", "smallhighwaw","smallhighyeh" };
+    subtable->base = { "hamzaabove","hamzaabove.small","hamzaabove.joined","hamzaabove.lamalef", "shadda","smallalef","smallalef.joined","smallhighseen", "smallhighwaw","smallhighyeh","smallhighnoon"};
 
     subtable->classes["topmarks"].mark = { "topmarks" };
     subtable->classes["topmarks"].basefunction = Defaultmarkabovemark(*this, *subtable);
@@ -1111,17 +1358,27 @@ namespace indopak {
     lookup->subtables.append(subtable);
 
     subtable->name = "defaultmkmkbottom";
-    subtable->base = { "hamzabelow","hamzaabove.joined","smallhighyeh" };
+    subtable->base = { "hamzabelow","hamzabelow.joined", "hamzaabove.joined","smallhighyeh" };
 
     subtable->classes["lowmarks"].mark = { "lowmarks" };
     subtable->classes["lowmarks"].basefunction = Defaulbaseanchorforlow(*this, *subtable);
     subtable->classes["lowmarks"].markfunction = Defaullowmarkanchor(*this, *subtable);
+    
+    subtable = new MarkBaseSubtable(lookup);
+    lookup->subtables.append(subtable);
+
+    subtable->name = "sukunmaddahabove";
+    subtable->base = { "sukun","inverteddamma","fatha"};
+
+    subtable->classes["maddahabove"].mark = { "maddahabove","maddawaajib"};
+    subtable->classes["maddahabove"].basefunction = Defaultmarkabovemark(*this, *subtable);
+    subtable->classes["maddahabove"].markfunction = Defaultopmarkanchor(*this, *subtable);
 
     subtable = new MarkBaseSubtable(lookup);
     lookup->subtables.append(subtable);
 
-    subtable->name = "defaultmkmkmeemiqlab";
-    subtable->base = { "fatha","damma","onedotup" };
+    subtable->name = "noonmeemiqlab";
+    subtable->base = { "onedotup" };
 
     subtable->classes["meemiqlab"].mark = { "meemiqlab" };
     subtable->classes["meemiqlab"].basefunction = Defaultmarkabovemark(*this, *subtable);
@@ -1130,44 +1387,22 @@ namespace indopak {
     subtable = new MarkBaseSubtable(lookup);
     lookup->subtables.append(subtable);
 
+    subtable->name = "meemiqlabsukun";
+    subtable->base = { "meemiqlab" };
+
+    subtable->classes["sukun"].mark = { "sukun" };
+    subtable->classes["sukun"].basefunction = Defaultmarkabovemark(*this, *subtable);
+    subtable->classes["sukun"].markfunction = Defaultopmarkanchor(*this, *subtable);
+
+    subtable = new MarkBaseSubtable(lookup);
+    lookup->subtables.append(subtable);
+
     subtable->name = "defaultmkmksmalllowmeem";
-    subtable->base = { "kasra" };
+    subtable->base = { "kasratan" };
 
     subtable->classes["smalllowmeem"].mark = { "smalllowmeem" };
     subtable->classes["smalllowmeem"].basefunction = Defaultmarkbelowmark(*this, *subtable);
     subtable->classes["smalllowmeem"].markfunction = Defaullowmarkanchor(*this, *subtable);
-
-    subtable = new MarkBaseSubtable(lookup);
-    lookup->subtables.append(subtable);
-
-    subtable->name = "smallhighseenwaqf.qaf";
-    subtable->base = { "smallhighseen" };
-
-    subtable->classes["waqf.qaf"].mark = { "waqf.qaf" };
-    subtable->classes["waqf.qaf"].basefunction = Defaultmarkabovemark(*this, *subtable);
-    subtable->classes["waqf.qaf"].markfunction = Defaultopmarkanchor(*this, *subtable);
-
-    /*
-    m_layout->addLookup(lookup);
-
-    // hamzaabove.joined
-
-    lookup = new Lookup(m_layout);
-    lookup->name = "smallalefjoined";
-    lookup->feature = "mkmk";
-    lookup->type = Lookup::mark2mark;
-    lookup->markGlyphSetIndex = m_layout->addMarkSet({ (quint16)glyphs["smallalef.joined"].charcode , (quint16)glyphs["hamzaabove.joined"].charcode });
-    lookup->flags = lookup->flags | Lookup::Flags::UseMarkFilteringSet;
-
-    subtable = new MarkBaseSubtable(lookup);
-    lookup->subtables.append(subtable);
-
-    subtable->name = "smallalefjoined";
-    subtable->base = { "hamzaabove.joined" };
-
-    subtable->classes["smallalef.joined"].mark = { "smallalef.joined" };
-    //subtable->classes["smallalef.joined"].baseanchors = { { "smallalef.joined", 1 } }
-    subtable->classes["smallalef.joined"].markanchors = { { "smallalef.joined", QPoint(200,0) } };*/
 
     return lookup;
 
@@ -1199,7 +1434,7 @@ namespace indopak {
       height = height + adjust.y();
 
       return QPoint(width, height);
-    };
+      };
 
     auto topmarks = classes["topmarks"];
     topmarks.remove("shadda");
@@ -1238,7 +1473,7 @@ namespace indopak {
       depth = depth - adjust.y();
 
       return QPoint(width, -depth);
-    };
+      };
 
     bottomsubtable->classes["lowmarks"].mark = { "lowmarks" };
     bottomsubtable->classes["lowmarks"].basefunction = basedownfunction;
@@ -1248,175 +1483,6 @@ namespace indopak {
     return lookup;
 
   }
-  Lookup* IndoPak::defaultwaqfmarkabovemarkprecise() {
-    Lookup* lookup = new Lookup(m_layout);
-    lookup->name = "defaultwaqfmarkabovemarkprecise";
-    lookup->feature = "mark";
-    lookup->type = Lookup::chainingpos;
-    lookup->flags = 0;
-
-    QSet<quint16> waqfmarks = classtoUnicode("waqfmarks");
-    QSet<quint16> bases = classtoUnicode("bases");
-
-    for (auto topmark : classes["topmarks"]) {
-
-      QString sublookupName = topmark;
-
-      Lookup* sublookup = new Lookup(m_layout);
-      sublookup->name = lookup->name + "." + sublookupName;
-      sublookup->feature = "";
-      sublookup->type = Lookup::mark2base;
-      sublookup->flags = 0;
-
-      m_layout->addLookup(sublookup);
-
-      MarkBaseSubtable* marksubtable = new MarkBaseSubtable(sublookup);
-      sublookup->subtables.append(marksubtable);
-
-      marksubtable->name = sublookup->name;
-      marksubtable->base = { "bases" };
-
-
-      marksubtable->classes["waqfmarks"].mark = { "waqfmarks" };
-      marksubtable->classes["waqfmarks"].basefunction = Defaulbaseanchorfortop(*this, *marksubtable);
-      marksubtable->classes["waqfmarks"].markfunction = Defaultopmarkanchor(*this, *marksubtable);
-
-
-      ChainingSubtable* newsubtable = new ChainingSubtable(lookup);
-      lookup->subtables.append(newsubtable);
-
-
-
-      newsubtable->name = "topmarks_" + topmark;
-
-      newsubtable->compiledRule = ChainingSubtable::CompiledRule();
-
-      newsubtable->compiledRule.backtrack.append(bases);
-      newsubtable->compiledRule.backtrack.append(QSet{ (quint16)glyphs[topmark].charcode });
-      newsubtable->compiledRule.input.append(waqfmarks);
-
-      newsubtable->compiledRule.lookupRecords.append({ 0,sublookupName });
-    }
-
-
-
-    return lookup;
-
-  }
-  Lookup* IndoPak::tajweedcolorcpp() {
-
-    Lookup* single = new Lookup(m_layout);
-    single->name = "tajweedcolor.green";
-    single->feature = "";
-    single->type = Lookup::singleadjustment;
-    m_layout->addLookup(single);
-
-    ValueRecord green{ 99, 200, 77, 0 };
-    ValueRecord gray{ 200, 200, 200, 0 };
-    ValueRecord lkalkala{ 200, 200, 200, 0 };
-
-    SingleAdjustmentSubtable* newsubtable = new SingleAdjustmentSubtable(single, 3);
-    single->subtables.append(newsubtable);
-    newsubtable->name = single->name;
-    for (auto className : { "bases" ,"marks" }) {
-      auto  unicodes = m_layout->classtoUnicode(className);
-      for (auto unicode : unicodes) {
-
-        newsubtable->singlePos[unicode] = green;
-      }
-    }
-
-    single = new Lookup(m_layout);
-    single->name = "tajweedcolor.lgray";
-    single->feature = "";
-    single->type = Lookup::singleadjustment;
-    m_layout->addLookup(single);
-
-    newsubtable = new SingleAdjustmentSubtable(single, 3);
-    single->subtables.append(newsubtable);
-    newsubtable->name = single->name;
-    for (auto className : { "^meem|^behshape|onedotup|^noon" ,"marks" }) {
-      auto  unicodes = m_layout->classtoUnicode(className);
-      for (auto unicode : unicodes) {
-
-        newsubtable->singlePos[unicode] = gray;
-      }
-    }
-
-    single = new Lookup(m_layout);
-    single->name = "tajweedcolor.lkalkala";
-    single->feature = "";
-    single->type = Lookup::singleadjustment;
-    m_layout->addLookup(single);
-
-    newsubtable = new SingleAdjustmentSubtable(single, 3);
-    single->subtables.append(newsubtable);
-    newsubtable->name = single->name;
-    for (auto className : { "^tah|^behshape|^dal|^hah|^kaf|^fehshape" ,"marks" }) {
-      auto  unicodes = m_layout->classtoUnicode(className);
-      for (auto unicode : unicodes) {
-        newsubtable->singlePos[unicode] = lkalkala;
-      }
-    }
-
-
-    Lookup* lookup = new Lookup(m_layout);
-    lookup->name = "tajweedcolor";
-    lookup->feature = "mkmk";
-    lookup->type = Lookup::chainingpos;
-    lookup->flags = 0;
-
-    //tajweedcolor_meemiqlab1
-    ChainingSubtable* chainingsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(chainingsubtable);
-
-    chainingsubtable->name = "tajweedcolor_meemiqlab1";
-
-    chainingsubtable->compiledRule = ChainingSubtable::CompiledRule();
-
-    chainingsubtable->compiledRule.input.append(classtoUnicode("^noon"));
-    chainingsubtable->compiledRule.input.append(classtoUnicode("meemiqlab"));
-
-    chainingsubtable->compiledRule.lookupRecords.append({ 0,"lgray" });
-    chainingsubtable->compiledRule.lookupRecords.append({ 1,"green" });
-
-    //tajweedcolor_meemiqlab2
-    chainingsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(chainingsubtable);
-
-    chainingsubtable->name = "tajweedcolor_meemiqlab2";
-
-    chainingsubtable->compiledRule = ChainingSubtable::CompiledRule();
-
-    chainingsubtable->compiledRule.input.append(classtoUnicode("^behshape"));
-    chainingsubtable->compiledRule.input.append(classtoUnicode("onedotup"));
-    chainingsubtable->compiledRule.input.append(classtoUnicode("meemiqlab"));
-
-    chainingsubtable->compiledRule.lookupRecords.append({ 0,"lgray" });
-    chainingsubtable->compiledRule.lookupRecords.append({ 1,"lgray" });
-    chainingsubtable->compiledRule.lookupRecords.append({ 2,"green" });
-
-    //tajweedcolor_meemnoon
-    chainingsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(chainingsubtable);
-
-    chainingsubtable->name = "tajweedcolor_meemnoon";
-
-    chainingsubtable->compiledRule = ChainingSubtable::CompiledRule();
-
-    chainingsubtable->compiledRule.input.append(classtoUnicode("^meem|^noon"));
-    chainingsubtable->compiledRule.input.append(classtoUnicode("shadda"));
-    chainingsubtable->compiledRule.input.append(classtoUnicode("marks"));
-
-    chainingsubtable->compiledRule.lookupRecords.append({ 0,"green" });
-    chainingsubtable->compiledRule.lookupRecords.append({ 1,"green" });
-    chainingsubtable->compiledRule.lookupRecords.append({ 2,"green" });
-
-
-    return lookup;
-
-
-  }
   Lookup* IndoPak::pointmarks() {
 
     Lookup* lookup = new Lookup(m_layout);
@@ -1424,8 +1490,6 @@ namespace indopak {
     lookup->feature = "mark";
     lookup->type = Lookup::chainingpos;
     lookup->flags = 0;
-    //lookup->markGlyphSetIndex = m_layout->addMarkSet({ (quint16)glyphs["smallalef"].charcode });
-    //lookup->flags = lookup->flags | Lookup::Flags::UseMarkFilteringSet;
 
     for (auto pointmark : classes["dotmarks"]) {
 
@@ -1505,7 +1569,7 @@ namespace indopak {
       case 9: return "nineindic";
       default: return "";
       };
-    };
+      };
 
 
     for (int ayaNumber = 286; ayaNumber >= 1; ayaNumber--) {
@@ -1875,8 +1939,6 @@ namespace indopak {
     lookup->feature = "rlig";
     lookup->type = Lookup::chainingsub;
     lookup->flags = 0;
-    //lookup->markGlyphSetIndex = m_layout->addMarkSet({ (quint16)glyphs["smallalef"].charcode });
-    //lookup->flags = lookup->flags | Lookup::Flags::IgnoreMarks;
 
     auto digitySet = classtoUnicode("digits");
 
@@ -1959,9 +2021,7 @@ namespace indopak {
     lookup->name = "forheh";
     lookup->feature = "rlig";
     lookup->type = Lookup::chainingsub;
-    lookup->flags = 0;
-    //lookup->markGlyphSetIndex = m_layout->addMarkSet({ (quint16)glyphs["smallalef"].charcode });
-    lookup->flags = lookup->flags | Lookup::Flags::IgnoreMarks;
+    lookup->flags = Lookup::Flags::IgnoreMarks;
 
     ChainingSubtable* newsubtable = new ChainingSubtable(lookup);
     lookup->subtables.append(newsubtable);
@@ -2283,206 +2343,6 @@ namespace indopak {
     return lookup;
 
   }
-  Lookup* IndoPak::forsmalllalef() {
-
-    Lookup* single = new Lookup(m_layout);
-    single->name = "forsmallalef.l1";
-    single->feature = "";
-    single->type = Lookup::single;
-
-    m_layout->addLookup(single);
-
-    float tatweel = 1;
-
-    SingleSubtable* singlesubtable = new SingleSubtable(single);
-    single->subtables.append(singlesubtable);
-    singlesubtable->name = single->name;
-
-    for (auto& glyph : glyphs) {
-      if (classes["haslefttatweel"].contains(glyph.name)) {
-        QString destName = QStringLiteral("%1.pluslt_%2").arg(glyph.name).arg((int)((glyph.charlt + tatweel) * 100));
-        if (glyphs.contains(destName)) {
-          singlesubtable->subst[glyphs[glyph.name].charcode] = glyphs[destName].charcode;
-        }
-      }
-      else if (classes["haslefttatweel"].contains(glyph.originalglyph) && glyph.name.contains("pluslt")) {
-        QString destName = QStringLiteral("%1.pluslt_%2").arg(glyph.originalglyph).arg((int)((glyph.charlt + tatweel) * 100));
-        if (glyphs.contains(destName)) {
-          singlesubtable->subst[glyphs[glyph.name].charcode] = glyphs[destName].charcode;
-        }
-      }
-    }
-
-    singlesubtable->subst[glyphs["smallalef"].charcode] = glyphs["smallalef.joined"].charcode;
-
-    //followed by maddahabove
-    single = new Lookup(m_layout);
-    single->name = "forsmallalef.l2";
-    single->feature = "";
-    single->type = Lookup::single;
-
-    m_layout->addLookup(single);
-
-    tatweel = 2;
-
-    singlesubtable = new SingleSubtable(single);
-    single->subtables.append(singlesubtable);
-    singlesubtable->name = single->name;
-
-    for (auto& glyph : glyphs) {
-      if (classes["haslefttatweel"].contains(glyph.name)) {
-        QString destName = QStringLiteral("%1.pluslt_%2").arg(glyph.name).arg((int)((glyph.charlt + tatweel) * 100));
-        if (glyphs.contains(destName)) {
-          singlesubtable->subst[glyphs[glyph.name].charcode] = glyphs[destName].charcode;
-        }
-      }
-      else if (classes["haslefttatweel"].contains(glyph.originalglyph) && glyph.name.contains("pluslt")) {
-        QString destName = QStringLiteral("%1.pluslt_%2").arg(glyph.originalglyph).arg((int)((glyph.charlt + tatweel) * 100));
-        if (glyphs.contains(destName)) {
-          singlesubtable->subst[glyphs[glyph.name].charcode] = glyphs[destName].charcode;
-        }
-      }
-    }
-
-    //main lookup
-    Lookup* lookup = new Lookup(m_layout);
-    lookup->name = "forsmallalef";
-    lookup->feature = "rlig";
-    lookup->type = Lookup::chainingsub;
-    lookup->flags = 0;
-    lookup->markGlyphSetIndex = m_layout->addMarkSet({ (quint16)glyphs["smallalef"].charcode , (quint16)glyphs["maddahabove"].charcode });
-    lookup->flags = lookup->flags | Lookup::Flags::UseMarkFilteringSet;
-
-
-
-    //forsmallalefwithmaddah
-    ChainingSubtable* newsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-
-    newsubtable->name = "forsmallalefwithmaddah";
-
-    newsubtable->compiledRule = ChainingSubtable::CompiledRule();
-
-    //newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
-    auto keys = singlesubtable->subst.keys();
-    if (!keys.isEmpty()) {
-      newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
-    }
-
-    newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["smallalef"].charcode });
-    newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["maddahabove"].charcode });
-
-    newsubtable->compiledRule.lookupRecords.append({ 0,"l2" });
-    newsubtable->compiledRule.lookupRecords.append({ 1,"l1" });
-
-    //forsmallalef
-    newsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-
-    newsubtable->name = "forsmallalef";
-
-    newsubtable->compiledRule = ChainingSubtable::CompiledRule();
-
-    //newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
-    keys = singlesubtable->subst.keys();
-    if (!keys.isEmpty()) {
-      newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
-    }
-
-    newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["smallalef"].charcode });
-
-
-    newsubtable->compiledRule.lookupRecords.append({ 0,"l1" });
-    newsubtable->compiledRule.lookupRecords.append({ 1,"l1" });
-
-    //forsmallalef
-    newsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-
-    newsubtable->name = "forsmallalef";
-
-    newsubtable->compiledRule = ChainingSubtable::CompiledRule();
-
-    //newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
-    keys = singlesubtable->subst.keys();
-    if (!keys.isEmpty()) {
-      newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
-    }
-
-    newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["maddahabove"].charcode });
-    newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["smallalef"].charcode });
-
-
-    newsubtable->compiledRule.lookupRecords.append({ 0,"l1" });
-    newsubtable->compiledRule.lookupRecords.append({ 2,"l1" });
-
-
-
-    return lookup;
-
-  }
-
-  Lookup* IndoPak::forwaw() {
-
-    Lookup* single = new Lookup(m_layout);
-    single->name = "forwaw.l1";
-    single->feature = "";
-    single->type = Lookup::single;
-
-    m_layout->addLookup(single);
-
-    SingleSubtable* singlesubtable = new SingleSubtable(single);
-    single->subtables.append(singlesubtable);
-    singlesubtable->name = single->name;
-
-    float tatweel = 1;
-
-    for (auto& glyph : glyphs) {
-      if (classes["haslefttatweel"].contains(glyph.name)) {
-        QString destName = QStringLiteral("%1.pluslt_%2").arg(glyph.name).arg((int)((glyph.charlt + tatweel) * 100));
-        if (glyphs.contains(destName)) {
-          singlesubtable->subst[glyphs[glyph.name].charcode] = glyphs[destName].charcode;
-        }
-      }
-      else if (classes["haslefttatweel"].contains(glyph.originalglyph) && glyph.name.contains("pluslt")) {
-        QString destName = QStringLiteral("%1.pluslt_%2").arg(glyph.originalglyph).arg((int)((glyph.charlt + tatweel) * 100));
-        if (glyphs.contains(destName)) {
-          singlesubtable->subst[glyphs[glyph.name].charcode] = glyphs[destName].charcode;
-        }
-      }
-    }
-
-
-    Lookup* lookup = new Lookup(m_layout);
-    lookup->name = "forwaw";
-    lookup->feature = "rlig";
-    lookup->type = Lookup::chainingsub;
-    lookup->flags = 0;
-    //lookup->markGlyphSetIndex = m_layout->addMarkSet({ (quint16)glyphs["smallalef"].charcode });
-    //lookup->flags = lookup->flags | Lookup::Flags::UseMarkFilteringSet;
-    lookup->flags = lookup->flags | Lookup::Flags::IgnoreMarks;
-
-    ChainingSubtable* newsubtable = new ChainingSubtable(lookup);
-    lookup->subtables.append(newsubtable);
-
-    newsubtable->name = "forwaw";
-
-    newsubtable->compiledRule = ChainingSubtable::CompiledRule();
-
-    //newsubtable->compiledRule.input.append(singlesubtable->subst.keys().toSet());
-    auto keys = singlesubtable->subst.keys();
-    if (!keys.isEmpty()) {
-      newsubtable->compiledRule.input.append(QSet(keys.begin(), keys.end()));
-    }
-
-    newsubtable->compiledRule.input.append(QSet{ (quint16)glyphs["waw.fina"].charcode });
-
-    newsubtable->compiledRule.lookupRecords.append({ 0,"l1" });
-
-    return lookup;
-  }
-
-
 
   Lookup* IndoPak::populatecvxx() {
     int cvNumber = 1;

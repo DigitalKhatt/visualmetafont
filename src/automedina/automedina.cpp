@@ -48,6 +48,7 @@ QSet<quint16> Automedina::regexptoUnicode(QString regexp) {
 }
 QSet<quint16> Automedina::classtoUnicode(QString className, bool includeExpandables) {
 
+
   if (cachedClasstoUnicode.contains(className)) {
     return cachedClasstoUnicode[className];
   }
@@ -59,10 +60,10 @@ QSet<quint16> Automedina::classtoUnicode(QString className, bool includeExpandab
       auto charcode = m_layout->glyphCodePerName[className];
       unicodes.insert(charcode);
 
-      if (includeExpandables) {
+      //if (includeExpandables) {
         auto set = m_layout->getSubsts(charcode);
         unicodes.unite(set);
-      }
+      //}
     }
     else {
       bool ok;
