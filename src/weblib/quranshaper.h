@@ -69,7 +69,7 @@ public:
 
       layout->useNormAxisValues = false;
 
-      loadLookupFile("automedina.fea");
+      loadLookupFile("features.fea");
     }
 
 

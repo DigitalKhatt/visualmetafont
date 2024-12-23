@@ -61,8 +61,8 @@ QSet<quint16> Automedina::classtoUnicode(QString className, bool includeExpandab
       unicodes.insert(charcode);
 
       //if (includeExpandables) {
-        auto set = m_layout->getSubsts(charcode);
-        unicodes.unite(set);
+      auto set = m_layout->getSubsts(charcode);
+      unicodes.unite(set);
       //}
     }
     else {
@@ -127,10 +127,10 @@ void Automedina::generateAyas(QString ayaName, bool colored) {
     if (colored) {
       setcolored = QString("coloredglyph:=\"%1.colored%2\"").arg(ayaName).arg(ayaNumber);
     }
-    QString data = QString("beginchar(%1%2,-1,-1,2,-1);\n%%beginbody\ngenAyaNumber(%1, %2);%3;endchar;").arg(ayaName).arg(ayaNumber).arg(setcolored);
+    QString data = QString("beginchar(%1%2,-1,-1,2,-1);\n%%beginbody\ngenAyaNumber(%1, %2,3000);%3;endchar;").arg(ayaName).arg(ayaNumber).arg(setcolored);
     m_layout->font->executeMetaPost(data);
     if (colored) {
-      data = QString("beginchar(%1.colored%2,-1,-1,5,-1);\n%%beginbody\ngenAyaNumber(%1.colored, %2);endchar;").arg(ayaName).arg(ayaNumber);
+      data = QString("beginchar(%1.colored%2,-1,-1,5,-1);\n%%beginbody\ngenAyaNumber(%1.colored, %2,3000);endchar;").arg(ayaName).arg(ayaNumber);
       m_layout->font->executeMetaPost(data);
     }
   }

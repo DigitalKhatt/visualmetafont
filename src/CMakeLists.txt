@@ -65,13 +65,14 @@ endif()
 set(Automedina
   automedina/automedina.h
   automedina/automedina.cpp
-  automedina/digitalkhatt.h
-  automedina/digitalkhatt.cpp
-  automedina/oldmadina.h
-  automedina/oldmadina.cpp
-  automedina/indopak.h
-  automedina/indopak.cpp
   automedina/defaultmarkpositions.h
+  ../../madinafont/madina.h
+  ../../madinafont/madina.cpp
+  ../../oldmadinafont/oldmadina.h
+  ../../oldmadinafont/oldmadina.cpp
+  ../../indopakfont/indopak.h
+  ../../indopakfont/indopak.cpp
+  
   )
 
 source_group("Automedina" FILES ${Automedina})
@@ -172,6 +173,7 @@ set(Pdf
   Pdf/qpdf.cpp
   Pdf/qpdf.h
   Pdf/quranpdfwriter.cpp
+  Pdf/quranpdfwriter.h
   )
 endif()
 
@@ -181,6 +183,7 @@ set(QuranText
   qurantext/quran.cpp
   qurantext/quran.h
   qurantext/qurancomplex.cpp
+  qurantext/surahs.cpp
   )
 source_group("QuranText" FILES ${QuranText})
 
@@ -264,6 +267,10 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/metafont"
   "${CMAKE_CURRENT_SOURCE_DIR}/fontwindow"
   "${CMAKE_CURRENT_SOURCE_DIR}/glyphwindow"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Automedina"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../madinafont"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../oldmadinafont"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../indopakfont"
   )
 
 target_include_directories(${WEBLIB_NAME} PUBLIC 
@@ -274,6 +281,10 @@ target_include_directories(${WEBLIB_NAME} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/metafont"
   "${CMAKE_CURRENT_SOURCE_DIR}/fontwindow"
   "${CMAKE_CURRENT_SOURCE_DIR}/glyphwindow"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Automedina"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../madinafont"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../oldmadinafont"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../indopakfont"
   )
 
 add_library(lualib SHARED IMPORTED)
@@ -491,7 +502,7 @@ else()
 
   
   add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/automedina.fea" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
+    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/features.fea" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/ayah.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/mfplain.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/digitalkhatt.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"

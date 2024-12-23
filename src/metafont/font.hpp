@@ -56,6 +56,9 @@ public:
 	QString path() {
 		return m_path;
 	}
+	QString currentDir() {
+		return m_currentDir;
+	}
 	QString executeMetaPost(QString command);
 	mp_edge_object* getEdges();
 	mp_edge_object* getEdge(int charCode);
@@ -71,5 +74,6 @@ public:
 private:
 	QString m_path;
 	QString m_fontName;
+	QString m_currentDir;
 };
 #endif // FONT_H

@@ -194,10 +194,10 @@ public:
     int width = glyph->width * 0.5;
     int height = glyph->height;
 
-
+    /*
     if (!adjust.isNull()) {
       std::cout << _subtable.getLookup()->name.toStdString() << "::" << _subtable.name.toStdString() << "::" << className.toStdString() << "::" << glyphName.toStdString() << std::endl;
-    }
+    }*/
 
     width = width + adjust.x();
     height = height + adjust.y();

@@ -28,10 +28,13 @@
 #include "LayoutWindow.h"
 #include "hb.hh"
 #include "qregularexpression.h"
+#include <qfileinfo.h>
+
 
 extern "C"
 {
 #include "mplibps.h"
+
 }
 
 
@@ -64,7 +67,9 @@ struct std::hash<QColor>
 void ExportToHTML::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int lineWidth, QList<QStringList> originalText, int scale) {
   bool newHtml = true;
 
-  QFile file("output/pages.component.ts.html");
+  auto path = m_otlayout->font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QFile file(fileInfo.path() + "/output/pages.component.ts.html");
   file.open(QIODevice::WriteOnly | QIODevice::Text);
   QTextStream out(&file);   // we will serialize the data into the file
   out.setCodec("UTF-8");
@@ -187,7 +192,7 @@ void ExportToHTML::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int li
     out << "</div>" << '\n';
   }
 
-  QFile qtFile("output/quran_text.js");
+  QFile qtFile(fileInfo.path() + "/output/quran_text.js");
   qtFile.open(QIODevice::WriteOnly | QIODevice::Text);
   QTextStream qtOut(&qtFile);   // we will serialize the data into the file
   qtOut.setCodec("UTF-8");

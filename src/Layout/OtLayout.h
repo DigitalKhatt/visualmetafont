@@ -267,7 +267,7 @@ public:
   QMap<QString, int> lookupsIndexByName;
 
   QByteArray scriptList;
-  Font* m_font;
+  
   hb_face_t* face;
 
   bool dirty;

@@ -89,7 +89,7 @@ private:
   bool generateOpenTypeCff2(bool extended);
 	bool exportpdf();
 	bool generateAllQuranTexBreaking();
-	bool generateMushafMadina(bool isHTML);
+	bool generateMushaf(bool isHTML);
   bool generateMadinaVARHTML();
   bool generateLayoutInfo();
 	LayoutPages shapeMedina(double scale, int lineWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);

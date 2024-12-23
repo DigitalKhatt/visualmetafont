@@ -51,7 +51,7 @@ Subtable::Subtable(Lookup* lookup)
 {
   m_lookup = lookup;
   m_layout = lookup->layout;
-  metafont = m_layout->m_font;
+  metafont = m_layout->font;
 
 }
 
@@ -477,7 +477,7 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
       array << (uint8_t)0; // distance : How far back to process
       array << lookupListIndex; // lookup :	Lookup id to execute
     }
-  };
+    };
 
   for (auto it = dfa.states.cbegin(); it != dfa.states.cend(); it++) {
     auto& state = *it;
@@ -1954,7 +1954,7 @@ QPoint MarkBaseSubtable::getBaseAnchor(QString baseGlyphName, QString className,
       else if (markClass.baseanchors.contains(baseGlyphName)) {
         coordinate += markClass.baseanchors[baseGlyphName];
       }
-    }  
+    }
   }
 
   return coordinate;
@@ -2011,7 +2011,7 @@ QPoint MarkBaseSubtable::getMarkAnchor(QString markGlyphName, QString className,
       else if (markClass.markanchors.contains(markGlyphName)) {
         coordinate += markClass.markanchors[markGlyphName];
       }
-    }   
+    }
   }
 
   return coordinate;

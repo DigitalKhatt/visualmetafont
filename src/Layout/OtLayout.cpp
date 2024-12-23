@@ -56,12 +56,12 @@
 #include <QtCore/qmath.h>
 #include <fstream>
 #include "metafont.h"
-#include "automedina/digitalkhatt.h"
-#include "automedina/oldmadina.h"
-#include "automedina/indopak.h"
+#include "madina.h"
+#include "oldmadina.h"
+#include "indopak.h"
 
 #include <cfenv>
-
+#include <filesystem>
 
 int OtLayout::SCALEBY = 0;
 double OtLayout::EMSCALE = 1;
@@ -93,6 +93,7 @@ QDataStream& operator>>(QDataStream& stream, SuraLocation& location) {
 
 #include "hb-ot-name-table.hh"
 #include <qsettings.h>
+#include <qdir.h>
 
 static hb_blob_t* harfbuzzGetTables(hb_face_t* face, hb_tag_t tag, void* userData)
 {
@@ -327,7 +328,7 @@ static void get_glyph_h_advances_custom(hb_font_t* font, void* font_data,
 
 
   for (unsigned int i = 0; i < count; i++)
-  {   
+  {
 
     double leftTatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].lefttatweel, true);
     double righttatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].righttatweel, false);
@@ -1130,8 +1131,8 @@ OtLayout::OtLayout(Font * font, bool extended, QObject * parent) :QObject(parent
 
   dirty = true;
 
-  if (font->fontName() == "digitalkhatt") {
-    automedina = new digitalkhatt(this, font, extended);
+  if (font->fontName() == "madina") {
+    automedina = new Madina(this, font, extended);
   }
   else if (font->fontName() == "oldmadina") {
     automedina = new OldMadina(this, font, extended);
@@ -1150,7 +1151,7 @@ OtLayout::OtLayout(Font * font, bool extended, QObject * parent) :QObject(parent
   /*
   if (!extended) {
 
-    loadLookupFile("automedina.fea");
+    loadLookupFile("features.fea");
 
     QSet<QString> newhaslefttatweel = automedina->classes["haslefttatweel"];
 
@@ -1351,9 +1352,24 @@ void OtLayout::addLookup(Lookup * lookup) {
 
 void OtLayout::loadLookupFile(std::string fileName) {
 
-  parseFeatureFile(fileName);
+  std::string absoluteFileName;
 
-  std::ifstream parametersStream("parameters.json", std::ios::binary);
+  std::filesystem::path p1 = fileName;
+
+  if (p1.is_relative()) {
+    std::filesystem::path p2 = font->currentDir().toStdString();
+    p2 /= p1;
+    absoluteFileName = p2.string();
+  }
+  else {
+    absoluteFileName = std::move(fileName);
+  }
+
+  parseFeatureFile(absoluteFileName);
+
+  auto parametersFileName = QDir(font->currentDir()).filePath("parameters.json");
+
+  std::ifstream parametersStream(parametersFileName.toStdString(), std::ios::binary);
 
   if (parametersStream) {
     // get length of file:
@@ -1366,7 +1382,7 @@ void OtLayout::loadLookupFile(std::string fileName) {
     parametersStream.read(buffer, length);
 
     if (!parametersStream) {
-      std::cout << "Problem reading file." << fileName;
+      std::cout << "Problem reading file." << absoluteFileName;
     }
     else {
       QJsonDocument mDocument = QJsonDocument::fromJson(QByteArray::fromRawData(buffer, length));
@@ -2211,21 +2227,21 @@ void OtLayout::jutifyLine_old(hb_font_t * shapefont, hb_buffer_t * text_buffer, 
   double nuqta = this->nuqta() * emScale;
 
   auto  copy_buffer_properties = [](hb_buffer_t* dst, hb_buffer_t* src)
-  {
-    hb_segment_properties_t props;
-    hb_buffer_get_segment_properties(src, &props);
-    hb_buffer_set_segment_properties(dst, &props);
-    hb_buffer_set_flags(dst, hb_buffer_get_flags(src));
-    hb_buffer_set_cluster_level(dst, hb_buffer_get_cluster_level(src));
-  };
+    {
+      hb_segment_properties_t props;
+      hb_buffer_get_segment_properties(src, &props);
+      hb_buffer_set_segment_properties(dst, &props);
+      hb_buffer_set_flags(dst, hb_buffer_get_flags(src));
+      hb_buffer_set_cluster_level(dst, hb_buffer_get_cluster_level(src));
+    };
 
 
   auto copyBuffer = [&](hb_buffer_t* des_buffer, hb_buffer_t* source_buffer)
-  {
-    hb_buffer_clear_contents(des_buffer);
-    copy_buffer_properties(des_buffer, source_buffer);
-    hb_buffer_append(des_buffer, source_buffer, 0, -1);
-  };
+    {
+      hb_buffer_clear_contents(des_buffer);
+      copy_buffer_properties(des_buffer, source_buffer);
+      hb_buffer_append(des_buffer, source_buffer, 0, -1);
+    };
 
   hb_feature_t color_fea{ HB_TAG('t', 'j', 'w', 'd'),0,0,(uint)-1 };
   if (tajweedColor) {
@@ -2402,14 +2418,14 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
   savedprops.reserved2 = 0;
 
   auto initializeBuffer = [&](hb_buffer_t* buffer, hb_segment_properties_t* savedprops, const LineToJustify& line)
-  {
-    hb_buffer_clear_contents(buffer);
-    hb_buffer_set_segment_properties(buffer, savedprops);
-    hb_buffer_set_cluster_level(buffer, cluster_level);
-    auto newLine = line.text; //QString("\n") + line + QString("\n");
-    auto lineLength = newLine.length();
-    hb_buffer_add_utf16(buffer, newLine.utf16(), lineLength, 0, lineLength);
-  };
+    {
+      hb_buffer_clear_contents(buffer);
+      hb_buffer_set_segment_properties(buffer, savedprops);
+      hb_buffer_set_cluster_level(buffer, cluster_level);
+      auto newLine = line.text; //QString("\n") + line + QString("\n");
+      auto lineLength = newLine.length();
+      hb_buffer_add_utf16(buffer, newLine.utf16(), lineLength, 0, lineLength);
+    };
 
   hb_font_t* currentFont = nullptr;
 
@@ -2665,7 +2681,7 @@ QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageF
       return candidates[a].lineNumber < candidates[b].lineNumber;
     }
 
-  };
+    };
 
   for (int i = glyph_count - 1; i >= 0; i--) {
 
@@ -3040,7 +3056,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
     //int tt = match.lastCapturedIndex();
 
 
-    beginsajdas.insert(startOffset);    
+    beginsajdas.insert(startOffset);
 
     while (quran[endOffset].isMark())
       endOffset--;
@@ -3220,7 +3236,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
         return candidates[a].lineNumber < candidates[b].lineNumber;
       }
 
-    });
+      });
 
   }
 
@@ -3649,6 +3665,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
   else {
     //Add glyph to font
     quint16 charcode = glyphNamePerCode.keys().last() + 1;
+
     QString name = QString("%1.added_%2").arg(glyph->name).arg(charcode);
 
     GlyphVis& temp = *glyphs.insert(name, GlyphVis(this, edge, true));

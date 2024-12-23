@@ -756,11 +756,9 @@ static void stretchLine(const LineTextInfo& lineTextInfo, JustInfo& justInfo) {
     applyKashidasSubWords(lineTextInfo, justInfo, StretchType::SecondKashidaSameSubWord, 2);
 }
 
-static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t* font, double fontSizeLineWidthRatio) {
+static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t* font, double fontSizeLineWidthRatio, double spaceWidth) {
 
   auto desiredWidth = FONTSIZE / fontSizeLineWidthRatio;
-
-  auto defaultSpaceWidth = SPACEWIDTH;
 
   auto lineText = lineTextInfo.lineText;
 
@@ -780,16 +778,16 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
   auto diff = desiredWidth - currentLineWidth;
 
   double fontSizeRatio = 1;
-  double simpleSpacing = SPACEWIDTH;
-  double ayaSpacing = SPACEWIDTH;
+  double simpleSpacing = spaceWidth;
+  double ayaSpacing = spaceWidth;
 
   JustInfo justInfo{ .fontFeatures = {},.desiredWidth = desiredWidth,.textLineWidth = currentLineWidth, .layoutResult = layOutResult, .font = font };
 
   if (diff > 0) {
     // stretch   
 
-    double maxStretchBySpace = defaultSpaceWidth * 1;
-    double maxStretchByAyaSpace = defaultSpaceWidth * 2;
+    double maxStretchBySpace = min(100, spaceWidth * 1);
+    double maxStretchByAyaSpace = min(200, spaceWidth * 2);
 
     double maxStretch = maxStretchBySpace * lineTextInfo.simpleSpaceIndexes.size() + maxStretchByAyaSpace * lineTextInfo.ayaSpaceIndexes.size();
 
@@ -798,8 +796,8 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
     auto stretchBySpace = spaceRatio * maxStretchBySpace;
     auto stretchByByAyaSpace = spaceRatio * maxStretchByAyaSpace;
 
-    double simpleSpaceWidth = defaultSpaceWidth + stretchBySpace;
-    double ayaSpaceWidth = defaultSpaceWidth + stretchByByAyaSpace;
+    double simpleSpaceWidth = spaceWidth + stretchBySpace;
+    double ayaSpaceWidth = spaceWidth + stretchByByAyaSpace;
 
     currentLineWidth += stretch;
 
@@ -951,7 +949,7 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
 
   vector<LineTextInfo> linesTextInfo;
 
-
+  double spaceWidth = getWidth(" ", justifyFont, {});
 
   for (auto lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
     auto& line = lines[lineIdx];
@@ -986,7 +984,7 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
 
     auto fontSizeLineWidthRatio = line.width != 0 ? (double)FONTSIZE * emScale / line.width : 1;
 
-    auto justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * maxFontSizeRatioWithoutOverflow);
+    auto justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * maxFontSizeRatioWithoutOverflow, spaceWidth);
     justResultByLine.fontSizeRatio = line.width != 0 ? justResultByLine.fontSizeRatio * maxFontSizeRatioWithoutOverflow : 1;
     hb_font_t* shapeFont = defaultShapefont;
     auto newEmScale = emScale;

@@ -17,5 +17,9 @@
     <file>images/downloadpdf.png</file>
     <file>images/opentype.jpg</file>
     <file>quran-data.sqlite</file>
+    <file>metafont/mfplain.mp</file>
+    <file>metafont/mpost.mp</file>
+    <file>metafont/vmf.mp</file>
+    <file>images/surahframe.svg</file>
   </qresource>
 </RCC>

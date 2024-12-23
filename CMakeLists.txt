@@ -13,7 +13,7 @@ if (STATICMSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-file(GLOB OTHERS files/*.mp files/*.fea  files/images/*.jpg files/*.json)
+file(GLOB_RECURSE OTHERS ../madinafont/*.* ../oldmadinafont/*.* ../indopakfont/*.* )
 
 add_custom_target(files SOURCES ${OTHERS})
 

@@ -256,7 +256,7 @@ static void changeText(QString textCol, QString& word) {
     word.replace("\u06E4", "\u0653"); // ARABIC SMALL HIGH MADDA => ARABIC MADDAH ABOVE
     word.replace("\u06EC", "\u08E2"); // ARABIC ROUNDED HIGH STOP WITH FILLED CENTRE => ARABIC DISPUTED END OF AYAH
     word.replace("\u06E5", "\u08DF"); // 06E5 ARABIC SMALL WAW => 08DF ARABIC SMALL HIGH WORD WAQFA
-    word.replace("\u06D9\u08E2\u06E6", "\u0666\u08E2\u06D9"); // ARABIC SMALL YEH => ARABIC-INDIC DIGIT SIX
+    word.replace("\u06D9\u08E2\u06E6", "\u202E\u0666\u08E2\u06D9"); // ARABIC SMALL YEH => ARABIC-INDIC DIGIT SIX
     word.replace("\u065a", "\u08DD"); // 065A ARABIC VOWEL SIGN SMALL V ABOVE => 08DD ARABIC SMALL HIGH WORD SAKTA
     word.replace("\uF664", "نْثٰي");
     word.replace("\uF61F", "\u0627\u08D9");
@@ -319,20 +319,31 @@ static void changeText(QString textCol, QString& word) {
 
     }
     word.replace("آٰ", "اٰ͏ٓ");
+    word.replace("\u06CC", "\u064A"); // replace Yeh farsi by Arabic Yeh    
   }
   else if (textCol == "nastaleeq") {
+    //TODO complete conversion
     word.replace(re, "\u06DD\\1");
     word.replace("\uFDA8", "\u08DE"); // ARABIC SMALL HIGH WORD QIF
     word.replace("\uFD74", "\u08DE"); // ARABIC SMALL HIGH WORD QIF
     word.replace("\u0653", "\u089C"); // ARABIC MADDAH ABOVE => ARABIC MADDA WAAJIB
     word.replace("\u0658", "\u0653"); // ARABIC MARK NOON GHUNNA => ARABIC MADDAH ABOVE
   }
+  else if (textCol == "dk_v1") {
+    word.replace("\u06D6\u06D6", "\u06D6"); // duplicate 06D6
+  }
+
+  // Resolve Tajweed coloring and justification due to reording marks (otherwise for example fatha get stretched in لِئَلَّا)
+  word.replace("\u0627\u0653", "\u0627\u034F\u0653");
+  word.replace("\u0627\u0654", "\u0627\u034F\u0654\u034F");
+  word.replace("\u0648\u0654", "\u0648\u034F\u0654\u034F");
+  word.replace("\u064A\u0654", "\u064A\u034F\u0654\u034F");
 }
 
 void LayoutWindow::loadMushafLayout(QString layoutName) {
   auto textCol = layoutName.startsWith("indopak") ? "indopak" : layoutName == "qpc_v1_layout" ? "dk_v1" : "dk_v2";
 
-  auto queryString = QString("SELECT page,line,%1 as text from %2 as l LEFT JOIN words w ON l.type = \"ayah\" AND l.range_start <= w.word_number_all AND l.range_end >= w.word_number_all order by page,line,word_number_all")
+  auto queryString = QString("SELECT page,line,type, %1 as text from %2 as l LEFT JOIN words w ON l.type = \"ayah\" AND l.range_start <= w.word_number_all AND l.range_end >= w.word_number_all order by page,line,word_number_all")
     .arg(textCol).arg(layoutName);
 
   currentQuranText.clear();
@@ -343,13 +354,35 @@ void LayoutWindow::loadMushafLayout(QString layoutName) {
   QSqlQuery query(queryString);
   int lastPage = 1;
   int lastLine = 1;
+  int lastSurahNumber = 0;
   QString currentPage;
+
   while (query.next()) {
     int page = query.value(0).toInt();
     int line = query.value(1).toInt();
-    QString word = query.value(2).toString();
+    QString type = query.value(2).toString();
+    QString word = query.value(3).toString();
 
-    changeText(textCol, word);
+
+    if (type == "surah_name") {
+      word = QString::fromStdString(surahNames[lastSurahNumber]);
+      if (textCol == "indopak") {
+        word.replace("\u064E\u0670", "\u0670");
+        word.replace("\u0627\u0655\u0650", "\u0627\u0650");
+      }
+      lastSurahNumber++;
+    }
+    else if (type == "basmallah") {
+      if (textCol != "indopak") {
+        word = "\nبِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
+      }
+      else {
+        word = "\nبِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ ۝";
+      }
+    }
+    else {
+      changeText(textCol, word);
+    }
 
     if (lastPage != page) {
       currentQuranText.append(currentPage);
@@ -459,9 +492,9 @@ void LayoutWindow::createActions()
   fileToolBar->addAction(generateAllPDF);
 
   QIcon icon = QIcon::fromTheme("document-save", QIcon(":/images/downloadpdf.png"));
-  QAction* action = new QAction(icon, tr("&Generate Medina Quran..."), this);
+  QAction* action = new QAction(icon, tr("&Generate Mushaf..."), this);
   connect(action, &QAction::triggered, [&]() {
-    generateMushafMadina(false);
+    generateMushaf(false);
     });
   fileMenu->addAction(action);
   fileToolBar->addAction(action);
@@ -471,7 +504,7 @@ void LayoutWindow::createActions()
   QIcon genMedinaIcon = QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
   QAction* genMedinaAction = new QAction(genMedinaIcon, tr("&Generate Medina Quran HTML"), this);
   connect(genMedinaAction, &QAction::triggered, this, [&]() {
-    generateMushafMadina(true);
+    generateMushaf(true);
     });
   fileMenu->addAction(genMedinaAction);
   fileToolBar->addAction(genMedinaAction);
@@ -679,7 +712,7 @@ bool LayoutWindow::generateOpenType() {
   layout.useNormAxisValues = true;
   layout.toOpenType->isCff2 = true;
 
-  layout.loadLookupFile("automedina.fea");
+  layout.loadLookupFile("features.fea");
 
   return layout.toOpenType->GenerateFile(otfFileName);
 
@@ -688,7 +721,9 @@ bool LayoutWindow::generateOpenType() {
 bool LayoutWindow::save() {
   QApplication::setOverrideCursor(Qt::WaitCursor);
 
-  QFile file("parameters.json");
+  auto parametersFileName = QDir(m_font->currentDir()).filePath("parameters.json");
+
+  QFile file(parametersFileName);
   if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
     return false;
 
@@ -707,7 +742,7 @@ bool LayoutWindow::exportpdf() {
 
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
-  loadLookupFile("automedina.fea");
+  loadLookupFile("features.fea");
 
   QString textt = textEdit->toPlainText();
 
@@ -793,7 +828,10 @@ bool LayoutWindow::exportpdf() {
 
   //auto rec = pageLayout.fullRectPixels(4800 << OtLayout::SCALEBY);
 #if defined(ENABLE_PDF_GENERATION)
-  QuranPdfWriter quranWriter("quran.pdf", m_otlayout);
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString outputFileName = fileInfo.path() + "/output/quran.pdf";
+  QuranPdfWriter quranWriter(outputFileName, m_otlayout);
   quranWriter.setPageLayout(pageLayout);
   quranWriter.setResolution(4800 << OtLayout::SCALEBY);
 
@@ -837,7 +875,7 @@ static QMap<int, double> madinaLineWidths =
 };
 
 LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level) {
-  loadLookupFile("automedina.fea");
+  loadLookupFile("features.fea");
 
   LayoutPages result;
   QStringList originalPage;
@@ -917,7 +955,7 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth, OtLayout* lay
 
 LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level) {
 
-  loadLookupFile("automedina.fea");
+  loadLookupFile("features.fea");
 
   LayoutPages result;
   QStringList originalPage;
@@ -1304,7 +1342,7 @@ bool LayoutWindow::generateLayoutInfo() {
   OtLayout layout = OtLayout(m_font, true);
   layout.useNormAxisValues = false;
 
-  layout.loadLookupFile("automedina.fea");
+  layout.loadLookupFile("features.fea");
 
   int calScale = 1 << OtLayout::SCALEBY;
 
@@ -1339,7 +1377,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
   QMap<quint16, quint16> unicodeMappings;
 
-  layout.loadLookupFile("automedina.fea");
+  layout.loadLookupFile("features.fea");
 
   int calScale = 1 << OtLayout::SCALEBY;
 
@@ -1801,7 +1839,7 @@ void LayoutWindow::saveCollision() {
 
 }
 
-bool LayoutWindow::generateMushafMadina(bool isHTML) {
+bool LayoutWindow::generateMushaf(bool isHTML) {
 
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
@@ -1813,7 +1851,7 @@ bool LayoutWindow::generateMushafMadina(bool isHTML) {
     cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS;
   }
 
-  auto result = shapeMedina(scale, lineWidth, m_otlayout, cluster_level);
+  auto result = shapeMushaf(scale, lineWidth, m_otlayout, cluster_level);
 
   if (this->applyCollisionDetection) {
     adjustOverlapping(result.pages, lineWidth, result.originalPages, scale, false);
@@ -1823,29 +1861,17 @@ bool LayoutWindow::generateMushafMadina(bool isHTML) {
     applyDirectedForceLayout(result.pages, result.originalPages, lineWidth, 0, 1, scale);
   }
 
-
-  QFile file("output/quran_medina_inputtext.txt");
-  file.open(QIODevice::WriteOnly | QIODevice::Text);
-  QTextStream out(&file);   // we will serialize the data into the file
-  out.setCodec("UTF-8");
-  //out.setEncoding(QStringConverter::Utf8);
-
-  for (auto page : result.originalPages) {
-    for (auto line : page) {
-      //out << line.replace("\u06E5","").replace("\u06E6", "") << "\n";   // serialize a string
-
-      out << line.replace("\u0640", "") << "\n";   // serialize a string
-    }
-  }
-
-  file.close();
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
 
   if (!isHTML) {
     auto res = 4800 << OtLayout::SCALEBY;
     QPageSize pageSize{ { 90.2 ,144.5  },QPageSize::Millimeter, "MedianQuranBook" };
     QPageLayout pageLayout{ pageSize , QPageLayout::Portrait,QMarginsF(0, 0, 0, 0) };
 #if defined(ENABLE_PDF_GENERATION)
-    QuranPdfWriter quranWriter("output/quranMedina.pdf", m_otlayout);
+
+    QString outputFileName = fileInfo.path() + "/output/mushaf.pdf";
+    QuranPdfWriter quranWriter(outputFileName, m_otlayout);
     quranWriter.setPageLayout(pageLayout);
     quranWriter.setResolution(4800 << OtLayout::SCALEBY);
     //quranWriter.setResolution(72);
@@ -1859,7 +1885,8 @@ bool LayoutWindow::generateMushafMadina(bool isHTML) {
     extohtml.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
   }
 
-  QFile file2("output/medinashaping.dat");
+
+  QFile file2(fileInfo.path() + "/output/medinashaping.dat");
   file2.open(QIODevice::WriteOnly);
   QDataStream out2(&file2);   // we will serialize the data into the file
   out2 << OtLayout::EMSCALE;
@@ -1887,7 +1914,7 @@ bool LayoutWindow::generateMushafMadina(bool isHTML) {
 
 bool LayoutWindow::generateAllQuranTexBreaking() {
 
-  loadLookupFile("automedina.fea");
+  loadLookupFile("features.fea");
 
   int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
@@ -1958,7 +1985,10 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
   QPageLayout pageLayout{ pageSize , QPageLayout::Portrait,QMarginsF(0, 0, 0, 0) };
 
 #if defined(ENABLE_PDF_GENERATION)
-  QuranPdfWriter quranWriter("output/allquran.pdf", m_otlayout);
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString outputFileName = fileInfo.path() + "/output/allquran.pdf";
+  QuranPdfWriter quranWriter(outputFileName, m_otlayout);
   quranWriter.setPageLayout(pageLayout);
   quranWriter.setResolution(4800 << OtLayout::SCALEBY);
 
@@ -2290,7 +2320,7 @@ void LayoutWindow::createDataBase() {
 
   while (query.next()) {
     int word_number = query.value(0).toInt();
-    QString indopak = query.value(1).toString();   
+    QString indopak = query.value(1).toString();
 
     changeText("indopak", indopak);
 
@@ -2313,7 +2343,11 @@ void LayoutWindow::createDataBase() {
   newDb.close();
 }
 void LayoutWindow::compareFonts(QString layoutName, QString textCol) {
-  QFile file("output/comparefonts/compare_" + layoutName + "_" + textCol + ".html");
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString fileName = fileInfo.path() + "/output/comparefonts/compare_" + layoutName + "_" + textCol + ".html";
+
+  QFile file(fileName);
   file.open(QIODevice::WriteOnly | QIODevice::Text);
   QTextStream out(&file);
   out.setCodec("UTF-8");
@@ -2414,7 +2448,10 @@ void LayoutWindow::compareFonts(QString layoutName, QString textCol) {
 }
 
 void LayoutWindow::compareWaqfs(QString layoutName, QString textCol) {
-  QFile file("output/comparefonts/comparewaqfs_" + layoutName + "_" + textCol + ".html");
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString fileName = fileInfo.path() + "/output/comparefonts/comparewaqfs_" + layoutName + "_" + textCol + ".html";
+  QFile file(fileName);
   file.open(QIODevice::WriteOnly | QIODevice::Text);
   QTextStream out(&file);
   QString ayaString;
@@ -2424,7 +2461,9 @@ void LayoutWindow::compareWaqfs(QString layoutName, QString textCol) {
   QString meemiqlabString;
   QTextStream meemiqlabStream(&meemiqlabString);
   QString smalllowmeemString;
-  QTextStream smalllowmeemStream(&smalllowmeemString);
+  QTextStream smalllowmeemStream(&smalllowmeemString); \
+    QString yehFarsiString;
+  QTextStream yehFarsiStream(&yehFarsiString);
 
 
   out.setCodec("UTF-8");
@@ -2532,7 +2571,18 @@ void LayoutWindow::compareWaqfs(QString layoutName, QString textCol) {
       smalllowmeemStream << "<td  class='hafsnastaleeq'>" << nastaleeqWord << "</td>\n";
       smalllowmeemStream << "</tr>\n";
     }
-
+    /*
+    if (word.contains("\u06CC")) {
+      yehFarsiStream << "<tr>\n";
+      yehFarsiStream << "<td>" << surah_number << "</td>\n";
+      yehFarsiStream << "<td>" << ayah_number << "</td>\n";
+      yehFarsiStream << "<td>" << page << "</td>\n";
+      yehFarsiStream << "<td>" << line << "</td>\n";
+      yehFarsiStream << "<td  class='indopak'>" << newWord << "</td>\n";
+      yehFarsiStream << "<td  class='indopakalquran'><a target='_blank' href='https://quranwbw.com/" << surah_number << "#" << ayah_number << "'>" << indopakWord << "</a></td>\n";
+      yehFarsiStream << "<td  class='hafsnastaleeq'>" << nastaleeqWord << "</td>\n";
+      yehFarsiStream << "</tr>\n";
+    }*/
   }
   out << "<div style='font-size:30px;'>Final Waqf Marks</div>" << '\n';
   out << "<table style='font-size:50px;'>" << '\n';
@@ -2553,6 +2603,12 @@ void LayoutWindow::compareWaqfs(QString layoutName, QString textCol) {
   out << "<table style='font-size:50px;'>" << '\n';
   out << smalllowmeemString;
   out << "</table>" << '\n';
+
+  /*
+  out << "<div style='font-size:30px;'>Yeh Farsi</div>" << '\n';
+  out << "<table style='font-size:50px;'>" << '\n';
+  out << yehFarsiString;
+  out << "</table>" << '\n';*/
 
   out << "</html>" << '\n';
   out << "</body>" << '\n';
@@ -2669,7 +2725,7 @@ void LayoutWindow::testKasheda() {
 }
 
 void LayoutWindow::findOverflows(bool overfull) {
-  loadLookupFile("automedina.fea");
+  loadLookupFile("features.fea");
 
 
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
@@ -2786,7 +2842,7 @@ void LayoutWindow::findOverflows(bool overfull) {
 }
 
 void LayoutWindow::calculateMinimumSize() {
-  loadLookupFile("automedina.fea");
+  loadLookupFile("features.fea");
 
 
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
@@ -2879,7 +2935,7 @@ void LayoutWindow::setQuranText(int type) {
     }
   }
   else {
-    loadLookupFile("automedina.fea");
+    loadLookupFile("features.fea");
 
     int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
     int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
@@ -3005,10 +3061,10 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 
   if (refresh == 2) {
     newFace = true;
-    loadLookupFile("automedina.fea");
+    loadLookupFile("features.fea");
     if (!m_otlayout->extended) {
       m_otlayout->generateSubstEquivGlyphs();
-      loadLookupFile("automedina.fea");
+      loadLookupFile("features.fea");
     }
   }
 
@@ -3394,7 +3450,10 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
     delete t;
   }
 #if defined(ENABLE_PDF_GENERATION)
-  QuranPdfWriter allquran_overlapping("output/overlapping.pdf", m_otlayout);
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString outputFileName = fileInfo.path() + "/output/overlapping.pdf";
+  QuranPdfWriter allquran_overlapping(outputFileName, m_otlayout);
   allquran_overlapping.setPageLayout(pageLayout);
   allquran_overlapping.setResolution(4800 << OtLayout::SCALEBY);
 
@@ -3606,7 +3665,12 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
   }
 }
 void LayoutWindow::generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pages, const QList<QStringList>& originalPages, const QVector<OverlapResult>& result) {
-  QFile file("output/overlaps.txt");
+
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString outputFileName = fileInfo.path() + "/output/overlaps.txt";
+
+  QFile file(outputFileName);
   file.open(QIODevice::WriteOnly | QIODevice::Text);
   QTextStream out(&file);   // we will serialize the data into the file
   out.setCodec("UTF-8");

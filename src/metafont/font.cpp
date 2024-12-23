@@ -21,6 +21,7 @@
 #include "font.hpp"
 #include "glyph.hpp"
 
+#include "qdir.h"
 
 
 #include "qtextstream.h"
@@ -32,6 +33,7 @@
 #include "metafont.h"
 #include <filesystem>
 #include <format>
+#include "qdebug.h"
 
 namespace fs = std::filesystem;
 
@@ -58,6 +60,7 @@ bool Font::loadFile(const QString& fileName) {
   _mp_options->ini_version = true;
   _mp_options->math_mode = mp_math_double_mode;
   _mp_options->job_name = (char*)"VisualMetaFont";
+
   //_mp_options->interaction = mp_nonstop_mode;
   //_mp_options->mem_name = "plain";
   //_mp_options->mem_name = "automedina";
@@ -69,16 +72,48 @@ bool Font::loadFile(const QString& fileName) {
 
   if (!mp) throw "Could not initialize MetaPost library instance!";
 
+  QFile rsmfplain(":/metafont/mfplain.mp");
+  QFile rsmpost(":/metafont/mpost.mp");
+  QFile rsvmf(":/metafont/vmf.mp");
+  QString initMF = "MPGUI:=1;";
+  if (!rsmfplain.open(QIODevice::ReadOnly)) {
+    qDebug() << "mfplain.mp file not opened" << endl;
+    return false;
+  }
+  else
+  {
+    initMF.append(rsmfplain.readAll());
+  }
+
+  if (!rsmpost.open(QIODevice::ReadOnly)) {
+    qDebug() << "mpost.mp file not opened" << endl;
+    return false;
+  }
+  else
+  {
+    initMF.append(rsmpost.readAll());
+  }
+
+  if (!rsvmf.open(QIODevice::ReadOnly)) {
+    qDebug() << "vmf.mp file not opened" << endl;
+    return false;
+  }
+  else
+  {
+    initMF.append(rsvmf.readAll());
+  }
+
+  initMF.append(file.readAll());
+
   fs::path p1 = fileName.toStdString();
 
   auto parentPath = p1.parent_path();
+  m_currentDir = QString::fromStdString(parentPath.string());
+  auto currentPath = std::filesystem::current_path();
+
   std::filesystem::current_path(parentPath); //setting path
 
-
-  auto mpguifont = parentPath.append("mpguifont.mp");  
-
-  std::string command = std::format("MPGUI:=1;input \"{0}\";", mpguifont.string());
-
+  QByteArray command = initMF.toLocal8Bit();
 
   int status = mp_execute(mp, command.data(), command.size());
   if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
@@ -102,7 +137,15 @@ bool Font::loadFile(const QString& fileName) {
 
   m_fontName = mp->job_name;
 
-  QTextStream in(&file);
+  QString glyphsPath = QString::fromStdString(p1.parent_path().append("glyphs.mp").string());
+
+  QFile glyphsFile(glyphsPath);
+
+  if (!glyphsFile.open(QFile::ReadOnly | QFile::Text)) {
+    return false;
+  }
+
+  QTextStream in(&glyphsFile);
   QApplication::setOverrideCursor(Qt::WaitCursor);
 
   QString code = in.readAll();
@@ -123,6 +166,8 @@ bool Font::loadFile(const QString& fileName) {
 
   file.close();
 
+  std::filesystem::current_path(currentPath);
+
   return true;
 }
 double Font::lineHeight() {
@@ -141,7 +186,7 @@ double Font::getNumericVariable(QString name) {
   return x;
 }
 double Font::getInternalNumericVariable(QString name) {
-  
+
   auto ba = name.toStdString();
   double x = mp_get_numeric_internal(mp, (char*)ba.c_str());
 
@@ -198,7 +243,7 @@ bool Font::saveFile() {
   if (!m_path.isEmpty()) {
 
     QFileInfo fileInfo(m_path);
-    QFile file(m_path);
+    QFile file(fileInfo.path() + "/glyphs.mp");
 
     QString unicodefileName = fileInfo.absolutePath() + "/output/" + fileInfo.baseName() + "_unicodes.lua";
 
@@ -315,52 +360,52 @@ mp_graphic_object* Font::copyEdgeBody(mp_graphic_object* body) {
   mp_graphic_object* result = nullptr;
 
   auto copypath = [this](mp_gr_knot knot)
-  {
-    mp_gr_knot p, current, ret;
+    {
+      mp_gr_knot p, current, ret;
 
-    ret = nullptr;
+      ret = nullptr;
 
-    if (knot == nullptr) return ret;
+      if (knot == nullptr) return ret;
 
-    ret = (mp_gr_knot)mp_xmalloc(mp, 1, sizeof(struct mp_gr_knot_data)); //new mp_gr_knot_data();
+      ret = (mp_gr_knot)mp_xmalloc(mp, 1, sizeof(struct mp_gr_knot_data)); //new mp_gr_knot_data();
 
-    ret->x_coord = knot->x_coord;
-    ret->y_coord = knot->y_coord;
-    ret->left_x = knot->left_x;
-    ret->left_y = knot->left_y;
-    ret->right_x = knot->right_x;
-    ret->right_y = knot->right_y;
-    ret->data.types.left_type = knot->data.types.left_type;
-    ret->next = nullptr;
+      ret->x_coord = knot->x_coord;
+      ret->y_coord = knot->y_coord;
+      ret->left_x = knot->left_x;
+      ret->left_y = knot->left_y;
+      ret->right_x = knot->right_x;
+      ret->right_y = knot->right_y;
+      ret->data.types.left_type = knot->data.types.left_type;
+      ret->next = nullptr;
 
-    current = ret;
+      current = ret;
 
-    p = knot->next;
-    while (p != knot) {
-
-
-      mp_gr_knot tmp = (mp_gr_knot)mp_xmalloc(mp, 1, sizeof(struct mp_gr_knot_data)); // new mp_gr_knot_data();
-
-      tmp->left_x = p->left_x;
-      tmp->left_y = p->left_y;
-      tmp->x_coord = p->x_coord;
-      tmp->y_coord = p->y_coord;
-      tmp->right_x = p->right_x;
-      tmp->right_y = p->right_y;
-      tmp->data.types.left_type = p->data.types.left_type;
+      p = knot->next;
+      while (p != knot) {
 
 
+        mp_gr_knot tmp = (mp_gr_knot)mp_xmalloc(mp, 1, sizeof(struct mp_gr_knot_data)); // new mp_gr_knot_data();
 
-      current->next = tmp;
-      current = tmp;
+        tmp->left_x = p->left_x;
+        tmp->left_y = p->left_y;
+        tmp->x_coord = p->x_coord;
+        tmp->y_coord = p->y_coord;
+        tmp->right_x = p->right_x;
+        tmp->right_y = p->right_y;
+        tmp->data.types.left_type = p->data.types.left_type;
 
-      p = p->next;
-    }
 
-    current->next = ret;
 
-    return ret;
-  };
+        current->next = tmp;
+        current = tmp;
+
+        p = p->next;
+      }
+
+      current->next = ret;
+
+      return ret;
+    };
 
 
 

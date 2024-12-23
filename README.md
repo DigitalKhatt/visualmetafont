@@ -14,7 +14,7 @@ In this section, an overview of the key workflow steps for designing a new Digit
 
 As an example we will design a new font based on the IndoPak Mushaf.
 
-A font project in VisualMetaFont is composed of MetaFont files (.mf), a feature file (automedina.fea), a parameters.json file, C++ files and image files. The C++ files are under the folder [src/automedina](src/automedina) and the other files are under the folder [fonts/<`fontName`>](fonts).
+A font project in VisualMetaFont is composed of MetaFont files (.mf), a feature file (features.fea), a parameters.json file, C++ files and image files. The C++ files are under the folder [src/automedina](src/automedina) and the other files are under the folder [fonts/<`fontName`>](fonts).
 
  To create the new IndoPak font, first you copy the folder of an existing font such as [fonts/oldmadina](fonts/oldmadina) to the new directory fonts/indopak and replace oldmadina.mp by indopak.mp. Then you create indopak.cpp and indopak.h from [oldmadina.cpp](src/automedina/oldmadina.cpp) and [oldmadina.h](src/automedina/oldmadina.h) respectively, and change the class `OldMadina`by `IndoPak`. The two new file names should be added to the file [CMakeLists.txt](src/CMakeLists.txt#L96) under the variable `Automedina`. Finally, you add the support of the new font in [OtLayout.cpp](src/Layout/OtLayout.cpp#L1146) :
  
@@ -54,7 +54,7 @@ https://github.com/user-attachments/assets/dacc15ea-ad77-402e-b52c-cfc516244d49
 
 ### Specify the substitution and positioning rules
 
-Once the glyph shapes are ready, you have to define the [OpenType substitution and positioning](https://learn.microsoft.com/en-us/typography/script-development/arabic) rules that specify, given a list of Unicode characters, which glyph forms to output and in what position based on their surrounding characters.  All the rules are defined in the file automedina.fea. VisualMetaFont is based on [Adobe OpenType™ Feature File Specification](https://adobe-type-tools.github.io/afdko/OpenTypeFeatureFileSpecification.html) to define such rules with some additions such as :
+Once the glyph shapes are ready, you have to define the [OpenType substitution and positioning](https://learn.microsoft.com/en-us/typography/script-development/arabic) rules that specify, given a list of Unicode characters, which glyph forms to output and in what position based on their surrounding characters.  All the rules are defined in the file features.fea. VisualMetaFont is based on [Adobe OpenType™ Feature File Specification](https://adobe-type-tools.github.io/afdko/OpenTypeFeatureFileSpecification.html) to define such rules with some additions such as :
 
 - Perl regular expressions on glyph names to define a set of glyphs. A glyph name follow the pattern `<Arabic Character>.<Positional Variant>...`. So to select all the medial Lams, one can use the following regular expression: `/^lam\.medi/`.
 - Optional (`?`) and repetition operators (`{min,max}`) to define a sequence of character sets as follows
@@ -148,7 +148,7 @@ Also since `behshape.medi.afterbeh` is left expandable it must be added to the a
 ```cpp
 layout->expandableGlyphs["behshape.medi.afterbeh"] = { 20,-0.5,0,0 };
 ````
-and to the class `@haslefttatweel`in automedina.fea.
+and to the class `@haslefttatweel`in features.fea.
 
 Next you need to define the OpenType rules that specify when the ligature is applied. For this, a calligrapher or Arabic designer will be of great help. Otherwise by analyzing the Mushaf we can come out with certain calligraphic rules for this specific naskh script. For this example we consider that the ligature is always applied unless it is followed by a Seen or a Beh shape. In this case we should have the following shape defined by the `behshapeseen` lookup (.i.e arrangement of rules).
 
@@ -198,9 +198,9 @@ Here the result for the words `يَٰبَنِيٓ يَتْلُونَ وَتَن�
 
 During the development of DigitalKhatt, three justification techniques have been experimented. In this section, a brief description of each technique is presented. For further details, please refer to the code. Once they become more stable more detail will be put in this section.
 
-The first justification algorithm is implemented in [an extended version of HarfBuzz](https://github.com/DigitalKhatt/harfbuzz/blob/justification/src/hb-ot-layout-jtst-context.cc#L48) using [a new justification table syntax](https://github.com/DigitalKhatt/visualmetafont/blob/master/fonts/digitalkhatt/automedina.fea#L2268). It uses two variables, `lefttatweel` and `righttatweel`, to specify an extended version of a glyph. Please refer to  [TUGboat article](https://www.tug.org/TUGboat/tb42-3/tb132anane-variable.pdf) for more details. A demo based on this approach using WebAssembly is available at [https://digitalkhatt.org/digitalmushaf](https://digitalkhatt.org/digitalmushaf)
+The first justification algorithm is implemented in [an extended version of HarfBuzz](https://github.com/DigitalKhatt/harfbuzz/blob/justification/src/hb-ot-layout-jtst-context.cc#L48) using [a new justification table syntax](https://github.com/DigitalKhatt/visualmetafont/blob/master/fonts/digitalkhatt/features.fea#L2268). It uses two variables, `lefttatweel` and `righttatweel`, to specify an extended version of a glyph. Please refer to  [TUGboat article](https://www.tug.org/TUGboat/tb42-3/tb132anane-variable.pdf) for more details. A demo based on this approach using WebAssembly is available at [https://digitalkhatt.org/digitalmushaf](https://digitalkhatt.org/digitalmushaf)
 
-Since the first approach needs a deployment of a custom version of HarfBuzz, a second technique was developed using only standard OpenType. For each expandable glyph, multiple alternates having different widths are generated into the font. The justification rules are defined using standard OpenType rules and organized into [features](https://github.com/DigitalKhatt/visualmetafont/blob/master/fonts/oldmadina/automedina.fea#L2570). The justification algorithm, which is external to the font, choose which feature to apply by word.A demo based on this approach is available at https://digitalkhatt.org/otf/oldmedina.
+Since the first approach needs a deployment of a custom version of HarfBuzz, a second technique was developed using only standard OpenType. For each expandable glyph, multiple alternates having different widths are generated into the font. The justification rules are defined using standard OpenType rules and organized into [features](https://github.com/DigitalKhatt/visualmetafont/blob/master/fonts/oldmadina/features.fea#L2570). The justification algorithm, which is external to the font, choose which feature to apply by word.A demo based on this approach is available at https://digitalkhatt.org/otf/oldmedina.
 
 A [third approach](https://github.com/DigitalKhatt/digitalkhatt.org/blob/master/ClientApp/src/app/components/hboldmedina/just.service.ts#L229) has been experimented where the justification rules are also external to the font. In this case the client has total control over the justification by choosing which character should be extended and by what value. To do this, it is necessary to be able to specify OpenType features by character in the same run which is not widely supported natively as for common browsers. A demo based on this approach is available at https://digitalkhatt.org/hb/oldmedina
 

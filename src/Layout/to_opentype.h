@@ -37,7 +37,7 @@ class ToOpenType
 {
 public:
   ToOpenType(OtLayout* layout);
-  bool GenerateFile(QString fileName, std::string  lokkupsFileName = "automedina.fea");
+  bool GenerateFile(QString fileName, std::string  lokkupsFileName = "features.fea");
 
   struct SubrGlyphInfo {
     int offset;
