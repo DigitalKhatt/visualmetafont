@@ -20,6 +20,8 @@
 %mpost -numbersystem double -mem mpguifont
 %math_mode
 
+string newline; newline = char 10;
+
 def drawoptions(text t) =
   def _op_ = t enddef;
 enddef;
@@ -59,6 +61,7 @@ digitscale := 0.80;
 nextunicode := 58000; % 57343; %hex"E000"-1; % the first code for aya numbers
 
 string nametable.familyName;
+string nametable.copyright;
 
 def MarkAnchor = 1 enddef;
 def EntryAnchor = 2 enddef;

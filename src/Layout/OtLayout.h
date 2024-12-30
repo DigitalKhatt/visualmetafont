@@ -41,7 +41,7 @@
 
 
 
-class Lookup;
+struct Lookup;
 class QJsonObject;
 class Font;
 struct hb_font_t;
@@ -49,7 +49,7 @@ struct hb_face_t;
 class Automedina;
 class GlyphVis;
 struct Subtable;
-class MarkBaseSubtable;
+struct MarkBaseSubtable;
 
 struct hb_buffer_t;
 

@@ -207,6 +207,20 @@ QString Font::familyName() {
   return ret;
 
 }
+QString Font::copyright() {
+
+  char* name = nullptr;
+  QString ret;
+
+  auto found = getMPStringVariable(mp, "nametable copyright", &name);
+
+  if (found) {
+    ret = QString::fromUtf8(name);
+  }
+
+  return ret;
+
+}
 bool Font::getPairVariable(QString name, QPointF& point) {
   QPointF value;
   if (name[0] == 'z' && (name.size() == 1 || name[1].isDigit() || name[1] == '.')) {

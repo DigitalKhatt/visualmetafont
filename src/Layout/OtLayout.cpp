@@ -1131,6 +1131,10 @@ OtLayout::OtLayout(Font * font, bool extended, QObject * parent) :QObject(parent
 
   dirty = true;
 
+  auto path = font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString fileName = fileInfo.path() + "/" + fileInfo.baseName() + ".dll";
+
   if (font->fontName() == "madina") {
     automedina = new Madina(this, font, extended);
   }
@@ -1138,6 +1142,22 @@ OtLayout::OtLayout(Font * font, bool extended, QObject * parent) :QObject(parent
     automedina = new OldMadina(this, font, extended);
   }
   else if (font->fontName() == "indopak") {
+    /*
+    auto ff = fileName.toStdString();
+    HINSTANCE hGetProcIDDLL = LoadLibrary(ff.c_str());
+    if (!hGetProcIDDLL) {
+      std::cout << "could not load the dynamic library " << ff << std::endl;
+      throw std::runtime_error("could not load the dynamic library");
+    }
+    else {
+      typedef Automedina*(__stdcall* f_funci)(OtLayout* layout, Font* font, bool extended);
+      f_funci funci = (f_funci)GetProcAddress(hGetProcIDDLL, "font_create");
+      if (!funci) {
+        std::cout << "could not locate the function" << std::endl;
+        throw std::runtime_error("could not locate the function");
+      }
+      automedina = funci(this, font, extended);
+    }*/
     automedina = new indopak::IndoPak(this, font, extended);
   }
   else {

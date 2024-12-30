@@ -69,6 +69,7 @@ public:
 	MP mp = nullptr;
 
 	QString familyName();
+	QString copyright();
 
 
 private:
