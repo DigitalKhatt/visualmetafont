@@ -44,6 +44,7 @@ public:
 	~Font();
 	bool loadFile(const QString& fileName);
 	bool saveFile();
+	bool saveUnicodes();
 	QVector<Glyph*> glyphs;
 	QHash<QString, Glyph*> glyphperName;
 	QString filePath();

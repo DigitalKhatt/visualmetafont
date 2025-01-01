@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2015-2020 Amine Anane. http: //digitalkhatt/license
  * This file is part of DigitalKhatt.
  *
@@ -55,9 +55,7 @@ void FontScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *mouseEvent) {
 			}
 		}
 	}
-	else {
-		QGraphicsScene::mouseReleaseEvent(mouseEvent);
-	}
+	QGraphicsScene::mouseReleaseEvent(mouseEvent);
 
 	isDoubleClick = false;
 	

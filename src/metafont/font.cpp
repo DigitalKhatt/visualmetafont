@@ -253,35 +253,51 @@ bool Font::getPairVariable(QString name, QPointF& point) {
   }
   return false;
 }
+bool Font::saveUnicodes() {
+
+  if (m_path.isEmpty()) return false;
+
+  QFileInfo fileInfo(m_path);
+
+  QString unicodefileName = fileInfo.absolutePath() + "/output/" + fileInfo.baseName() + "_unicodes.lua";
+
+  QFile unicodesfile(unicodefileName);
+
+  if (!unicodesfile.open(QIODevice::WriteOnly | QIODevice::Text))
+    return false;
+
+  QTextStream outunicode(&unicodesfile);
+
+  outunicode << fileInfo.baseName() << ".unicodes = {\n";
+
+  for (int i = 0; i < glyphs.length(); i++) {
+    outunicode << "  [\"" << glyphs[i]->name() << "\"] = " << glyphs[i]->charcode() << ",\n";
+  }
+
+  outunicode << "}";
+
+  unicodesfile.close();
+
+  return true;
+
+}
 bool Font::saveFile() {
   if (!m_path.isEmpty()) {
 
     QFileInfo fileInfo(m_path);
     QFile file(fileInfo.path() + "/glyphs.mp");
 
-    QString unicodefileName = fileInfo.absolutePath() + "/output/" + fileInfo.baseName() + "_unicodes.lua";
 
-    QFile unicodesfile(unicodefileName);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
       return false;
 
-    if (!unicodesfile.open(QIODevice::WriteOnly | QIODevice::Text))
-      return false;
-
     QTextStream out(&file);
-    QTextStream outunicode(&unicodesfile);
-
-    outunicode << fileInfo.baseName() << ".unicodes = {\n";
 
     for (int i = 0; i < glyphs.length(); i++) {
       out << glyphs[i]->source();
-      outunicode << "  [\"" << glyphs[i]->name() << "\"] = " << glyphs[i]->charcode() << ",\n";
     }
 
-    outunicode << "}";
-
     file.close();
-    unicodesfile.close();
 
     return true;
 
