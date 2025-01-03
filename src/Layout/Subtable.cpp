@@ -1458,6 +1458,9 @@ optional<QPoint> CursiveSubtable::getExit(quint16 glyph_id, double lefttatweel, 
     else if (curr->conatinsAnchor(this->name, anchorType)) {
       exit = curr->getAnchor(this->name, anchorType);
     }
+    else if (entryexit.exitFunction) {
+      exit = entryexit.exitFunction(false, originalglyph, curr);
+    }
     else {
       exit = entryexit.exit;
       //exit = calculateEntry(originalglyph, curr, entry);
@@ -1498,6 +1501,9 @@ optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, double lefttatweel,
     }
     else if (curr->conatinsAnchor(this->name, anchorType)) {
       entry = curr->getAnchor(this->name, anchorType);
+    }
+    else if (entryexit.entryFunction) {
+      entry = entryexit.entryFunction(true, originalglyph, curr);
     }
     else {
       entry = entryexit.entry;

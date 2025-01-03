@@ -159,10 +159,13 @@ struct LineToJustify {
 };
 
 using CalcAnchor = std::function<QPoint(QString, QString, QPoint, double, double)>;
+using CursiveAnchorFunc = std::function<QPoint(bool, GlyphVis*, GlyphVis*)>;
 
 class AnchorCalc {
 public:
-  virtual QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) { return QPoint(0, 0); };
+  virtual QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) {
+    return QPoint(0, 0);
+  };
   QPoint getAdjustment(Automedina& y, MarkBaseSubtable& subtable, GlyphVis* curr, QString className, QPoint adjust, double lefttatweel, double righttatweel, GlyphVis** poriginalglyph);
 
 };
@@ -267,7 +270,7 @@ public:
   QMap<QString, int> lookupsIndexByName;
 
   QByteArray scriptList;
-  
+
   hb_face_t* face;
 
   bool dirty;
@@ -286,6 +289,7 @@ public:
 
   //QMap<QString, AnchorCalc*> anchorCalcFunctions;
   CalcAnchor getanchorCalcFunctions(QString functionName, Subtable* subtable);
+  CursiveAnchorFunc getCursiveFunctions(QString functionName, Subtable* subtable);
   void setParameter(quint16 glyphCode, quint32 lookup, quint32 subtable, quint16 markCode, quint16 baseCode, QPoint displacement, Qt::KeyboardModifiers modifiers);
 
   QHash<QString, GlyphVis> glyphs;
@@ -484,6 +488,6 @@ private:
 
 
 
-  };
+};
 
 #endif // OTLAYOUT_H

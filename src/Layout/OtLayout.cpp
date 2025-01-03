@@ -1256,6 +1256,9 @@ void OtLayout::clearAlternates() {
 CalcAnchor OtLayout::getanchorCalcFunctions(QString functionName, Subtable * subtable) {
   return automedina->getanchorCalcFunctions(functionName, subtable);
 }
+CursiveAnchorFunc OtLayout::getCursiveFunctions(QString functionName, Subtable* subtable) {
+  return automedina->getCursiveFunctions(functionName, subtable);
+}
 /*
 void OtLayout::prepareJSENgine() {
 

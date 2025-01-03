@@ -228,10 +228,10 @@ struct CursiveSubtable : Subtable {
 
   struct EntryExit {
     std::optional<QPoint> entry;
-    CalcAnchor entryFunction;
+    CursiveAnchorFunc entryFunction;
     QString entryName;
     std::optional<QPoint> exit;
-    CalcAnchor exitFunction;
+    CursiveAnchorFunc exitFunction;
     QString exitName;
   };
   CursiveSubtable(Lookup* lookup) : Subtable{ lookup } {}
