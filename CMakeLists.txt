@@ -13,9 +13,9 @@ if (STATICMSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-file(GLOB_RECURSE OTHERS ../madinafont/*.* ../oldmadinafont/*.* ../indopakfont/*.* )
+#file(GLOB_RECURSE OTHERS ../madinafont/*.* ../oldmadinafont/*.* ../indopakfont/*.* )
 
-add_custom_target(files SOURCES ${OTHERS})
+#add_custom_target(files SOURCES ${OTHERS})
 
 
 add_compile_options($<$<C_COMPILER_ID:MSVC>:/Zc:__cplusplus>)

@@ -319,7 +319,11 @@ static void changeText(QString textCol, QString& word) {
 
     }
     word.replace("آٰ", "اٰ͏ٓ");
-    word.replace("\u06CC", "\u064A"); // replace Yeh farsi by Arabic Yeh    
+    word.replace("\u06CC", "\u064A"); // replace Yeh farsi by Arabic Yeh
+    // decomposition
+    word.replace("\u0623", "\u0627\u0654"); // ARABIC LETTER ALEF WITH HAMZA ABOVE
+    word.replace("\u0624", "\u0648\u0654"); // ARABIC LETTER WAW WITH HAMZA ABOVE    
+    word.replace("\u0626", "\u064A\u0654"); // ARABIC LETTER YEH WITH HAMZA ABOVE
   }
   else if (textCol == "nastaleeq") {
     //TODO complete conversion
@@ -355,6 +359,7 @@ void LayoutWindow::loadMushafLayout(QString layoutName) {
   int lastPage = 1;
   int lastLine = 1;
   int lastSurahNumber = 0;
+  int wordNumberInLine = 1;
   QString currentPage;
 
   while (query.next()) {
@@ -391,15 +396,18 @@ void LayoutWindow::loadMushafLayout(QString layoutName) {
       lastLine = 1;
       currentPage = word;
     }
-    else if (lastLine != line) {
+    else if (lastLine != line && !(lastPage == 213 && lastLine  == 4 && wordNumberInLine <= 11)) {
       currentPage += "\n" + word;
       lastLine = line;
+      wordNumberInLine = 1;
     }
     else if (currentPage.isEmpty()) {
       currentPage = word;
+      wordNumberInLine++;
     }
     else {
       currentPage += " " + word;
+      wordNumberInLine++;
     }
   }
   currentQuranText.append(currentPage);
@@ -2859,20 +2867,18 @@ void LayoutWindow::calculateMinimumSize() {
 
   QMap<double, QVector<Line>> alloverflows;
 
-  double scale = 0.8;
+  double scale = 0.75;
 
   while (scale <= 0.94) {
 
     double emScale = (1 << OtLayout::SCALEBY) * scale;
 
-    //const int minSpace = OtLayout::MINSPACEWIDTH * emScale;
-    //const int  defaultSpace = OtLayout::SPACEWIDTH * emScale;
-
     QVector<Line> overflows;
 
-    for (int pagenum = 0; pagenum <= 603; pagenum++) {
+    
+    for (int pagenum = 0; pagenum < currentQuranText.size(); pagenum++) {
 
-      QString textt = QString::fromUtf8(qurantext[pagenum] + 1);
+      QString textt = currentQuranText[pagenum];
 
       auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
@@ -2883,7 +2889,7 @@ void LayoutWindow::calculateMinimumSize() {
 
         auto line = page[linenum];
 
-        if (line.overfull != 0) {
+        if (line.overfull > 0) {
           overflows.append({ pagenum + 1,linenum + 1, line.overfull / emScale });
         }
       }
@@ -2898,10 +2904,12 @@ void LayoutWindow::calculateMinimumSize() {
 
   hb_buffer_destroy(buffer);
 
-  QString fileName = "output/overflows.csv";
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString fileName = fileInfo.path() + "/output/overflows.csv"; 
 
   if (applyJustification) {
-    fileName = "output/overflows_with_just.csv";
+    fileName = fileInfo.path() + "/output/overflows_with_just.csv";
   }
 
   QFile file(fileName);

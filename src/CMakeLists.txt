@@ -66,13 +66,12 @@ set(Automedina
   automedina/automedina.h
   automedina/automedina.cpp
   automedina/defaultmarkpositions.h
-  ../../madinafont/madina.h
-  ../../madinafont/madina.cpp
-  ../../oldmadinafont/oldmadina.h
-  ../../oldmadinafont/oldmadina.cpp
-  ../../indopakfont/indopak.h
-  ../../indopakfont/indopak.cpp
-  
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../madinafont/madina.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../madinafont/madina.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../oldmadinafont/oldmadina.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../oldmadinafont/oldmadina.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../indopakfont/indopak.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../indopakfont/indopak.cpp  
   )
 
 source_group("Automedina" FILES ${Automedina})

@@ -181,7 +181,7 @@ subpath : point {$$.insert(driver.numpoint,$point);}
 	}
 	$point->leftValue = $pathjoin->rightValue; 
 	delete $pathjoin;
-	if($point->leftValue.macrovalue == "leftjoin"){
+	if($point->leftValue.macrovalue.startsWith("leftjoin")){
 		$1.insert($1.lastKey() + 4,$point);
 	}else if($point->leftValue.macrovalue == "rightjoin"){
 		$1.insert($1.lastKey() + 4,$point);
