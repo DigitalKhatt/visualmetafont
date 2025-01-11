@@ -2421,8 +2421,8 @@ void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int 
 QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>&lines, bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level, JustType justType) {
 
 
-  if (justType == JustType::Features) {
-    return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, changeSize, cluster_level);
+  if (justType == JustType::Madina || justType == JustType::IndoPak || justType == JustType::Experimental) {
+    return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, changeSize, cluster_level, justType);
   }
 
   QList<LineLayoutInfo> page;

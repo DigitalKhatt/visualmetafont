@@ -563,7 +563,9 @@ void LayoutWindow::createActions()
 
   justCombo->addItem("No Justification", qVariantFromValue(JustType::None));
   justCombo->addItem("HarfBuzz", qVariantFromValue(JustType::HarfBuzz));
-  justCombo->addItem("Features", qVariantFromValue(JustType::Features));
+  justCombo->addItem("Madina", qVariantFromValue(JustType::Madina));
+  justCombo->addItem("IndoPak", qVariantFromValue(JustType::IndoPak));
+  justCombo->addItem("Experimental", qVariantFromValue(JustType::Experimental));
 
   jutifyToolbar->addWidget(justCombo);
 
