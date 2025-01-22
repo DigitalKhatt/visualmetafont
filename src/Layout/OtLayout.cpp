@@ -55,10 +55,8 @@
 
 #include <QtCore/qmath.h>
 #include <fstream>
+
 #include "metafont.h"
-#include "madina.h"
-#include "oldmadina.h"
-#include "indopak.h"
 
 #include <cfenv>
 #include <filesystem>
@@ -1133,71 +1131,29 @@ OtLayout::OtLayout(Font * font, bool extended, QObject * parent) :QObject(parent
 
   auto path = font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
-  QString fileName = fileInfo.path() + "/" + fileInfo.baseName() + ".dll";
+#ifdef NDEBUG
+  QString debugPostfix = "";
+#else
+  QString debugPostfix = "d";
+#endif  
+  QString fileName = fileInfo.path() + "/" + fileInfo.baseName() + debugPostfix + SLEXT;
 
-  if (font->fontName() == "madina") {
-    automedina = new Madina(this, font, extended);
-  }
-  else if (font->fontName() == "oldmadina") {
-    automedina = new OldMadina(this, font, extended);
-  }
-  else if (font->fontName() == "indopak") {
-    /*
-    auto ff = fileName.toStdString();
-    HINSTANCE hGetProcIDDLL = LoadLibrary(ff.c_str());
-    if (!hGetProcIDDLL) {
-      std::cout << "could not load the dynamic library " << ff << std::endl;
-      throw std::runtime_error("could not load the dynamic library");
-    }
-    else {
-      typedef Automedina*(__stdcall* f_funci)(OtLayout* layout, Font* font, bool extended);
-      f_funci funci = (f_funci)GetProcAddress(hGetProcIDDLL, "font_create");
-      if (!funci) {
-        std::cout << "could not locate the function" << std::endl;
-        throw std::runtime_error("could not locate the function");
-      }
-      automedina = funci(this, font, extended);
-    }*/
-    automedina = new indopak::IndoPak(this, font, extended);
+  auto ff = fileName.toStdString();
+  dlhandle slhandle = dlopen(ff.c_str(),0);
+  if (!slhandle) {
+    std::cout << "could not load the dynamic library " << ff << std::endl;
+    throw std::runtime_error("could not load the dynamic library");
   }
   else {
-    throw new std::runtime_error("invalid font");
-  }
-
-
-
-  nuqta();
-
-  /*
-  if (!extended) {
-
-    loadLookupFile("features.fea");
-
-    QSet<QString> newhaslefttatweel = automedina->classes["haslefttatweel"];
-
-    for (auto name : automedina->classes["haslefttatweel"]) {
-
-      auto code = glyphCodePerName.value(name);
-      GlyphParameters parameters{};
-
-      auto tatweels = { 1.0,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5 };
-
-      for (auto tatweel : tatweels) {
-        parameters.lefttatweel = tatweel;
-        parameters.righttatweel = 0;
-
-        GlyphVis* glyph = getAlternate(code, parameters);
-        if (tatweel <= 4) {
-          newhaslefttatweel.insert(glyph->name);
-        }
-
-      }
+    typedef Automedina* (__stdcall* f_funci)(OtLayout* layout, Font* font, bool extended);
+    f_funci funci = (f_funci)dlsym(slhandle, "font_create");
+    if (!funci) {
+      std::cout << "could not locate the function" << std::endl;
+      throw std::runtime_error("could not locate the function");
     }
-
-    automedina->classes["haslefttatweel"] = newhaslefttatweel;
-
-
-  }*/
+    automedina = funci(this, font, extended);
+  }
+  nuqta();
 
   toOpenType = new ToOpenType(this);
 

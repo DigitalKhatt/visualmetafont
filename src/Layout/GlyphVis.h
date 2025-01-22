@@ -59,7 +59,7 @@ enum class  GlyphType {
   GlyphTypeTemp = 6,
 };
 
-class GlyphVis {
+class  GlyphVis {
   friend class MyQPdfEnginePrivate;
   friend class ExportToHTML;
 public:

@@ -24,6 +24,7 @@ set(CMAKE_AUTOUIC ON)
 set(WEBLIB_NAME VisualMetaFontWasm)
 
 set(LUATEX_NAME luadigitalkhatt)
+set(VMF_SL vmfsl)
 
 if (NOT EMSCRIPTEN)
 
@@ -66,12 +67,6 @@ set(Automedina
   automedina/automedina.h
   automedina/automedina.cpp
   automedina/defaultmarkpositions.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../madinafont/madina.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../madinafont/madina.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../oldmadinafont/oldmadina.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../oldmadinafont/oldmadina.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../indopakfont/indopak.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../indopakfont/indopak.cpp  
   )
 
 source_group("Automedina" FILES ${Automedina})
@@ -129,7 +124,7 @@ set(Export
   )
 source_group("Export" FILES ${Export})
 
-set(Layout_WithoutGUI
+set(Layout
   Layout/JustificationContext.cpp
   Layout/JustificationContext.h
   #Layout/GlyphItem.cpp
@@ -156,8 +151,7 @@ set(Layout_WithoutGUI
 
 
 
-set(Layout
-  ${Layout_WithoutGUI}
+set(LayoutWindow  
   Layout/GlyphItem.cpp
   Layout/GraphicsSceneAdjustment.cpp
   Layout/GraphicsViewAdjustment.cpp
@@ -165,7 +159,7 @@ set(Layout
   Layout/apply_force.cpp
   Layout/LookupEdit.cpp
   )
-source_group("Layout" FILES ${Layout})
+source_group("Layout" FILES ${LayoutWindow})
 
 if(ENABLE_PDF_GENERATION)
 set(Pdf
@@ -205,9 +199,12 @@ set(FontWindow
   )
 source_group("FontWindow" FILES ${FontWindow})
 
-set(GlyphWindow
+set(GlyphCommands
   glyphwindow/commands.cpp
   glyphwindow/commands.h
+)
+
+set(GlyphWindow 
   glyphwindow/componentitem.cpp
   glyphwindow/contouritem.cpp
   glyphwindow/glyphparametercontroller.cpp
@@ -237,15 +234,17 @@ source_group("MetaFont" FILES ${MetaFont})
 
 
 
-set(ALL_FILES  ${Automedina} ${GlyphWindow} ${FeaParser} ${MetaFont} ${FontWindow}
-  ${GlyphParser} ${Export} ${Layout} ${Main} ${Pdf} ${QuranText} ${Generated_Files} ${Resource_Files})
+set(ALL_FILES ${Automedina} ${GlyphCommands} ${FeaParser} ${MetaFont} ${GlyphParser} ${QuranText} ${Layout} 
+  ${GlyphWindow}  ${FontWindow}
+  ${Export} ${LayoutWindow} ${Main} ${Pdf}  ${Generated_Files} ${Resource_Files}
+)
 
 
 set(WEBLIB_FILES  ${Automedina} ${FeaParser}  
-  ${Layout_WithoutGUI} ${QuranText} ${Header_Files} ${Resource_Files} weblib/visualmetafontwasm.cpp weblib/quranshaper.h)
+  ${Layout} ${QuranText} ${Header_Files} ${Resource_Files} weblib/visualmetafontwasm.cpp weblib/quranshaper.h)
 
 set(LUATEX_FILES
-#${Automedina} ${FeaParser} ${Layout_WithoutGUI} ${QuranText} ${Header_Files} ${Resource_Files}
+#${Automedina} ${FeaParser} ${Layout} ${QuranText} ${Header_Files} ${Resource_Files}
   luatex/luadigitalkhatt/blob.c luatex/luadigitalkhatt/buffer.c luatex/luadigitalkhatt/class_utils.c luatex/luadigitalkhatt/class_utils.c
   luatex/luadigitalkhatt/direction.c luatex/luadigitalkhatt/face.c luatex/luadigitalkhatt/feature.c
   luatex/luadigitalkhatt/font.c luatex/luadigitalkhatt/language.c luatex/luadigitalkhatt/luadigitalkhatt.c
@@ -258,6 +257,33 @@ add_library(${LUATEX_NAME} SHARED  ${LUATEX_FILES})
 
 add_executable(${PROJECT_NAME} ${ALL_FILES})
 
+
+add_library(${VMF_SL} SHARED  ${Automedina} ${GlyphCommands} ${FeaParser} ${MetaFont} ${GlyphParser} ${QuranText} ${Layout})
+
+target_include_directories(${VMF_SL} PUBLIC 
+  "${CMAKE_CURRENT_SOURCE_DIR}/."
+  "${CMAKE_CURRENT_SOURCE_DIR}/Layout"
+  "${CMAKE_CURRENT_SOURCE_DIR}/FeaParser"
+  "${CMAKE_CURRENT_SOURCE_DIR}/GlyphParser"
+  "${CMAKE_CURRENT_SOURCE_DIR}/metafont"
+  "${CMAKE_CURRENT_SOURCE_DIR}/fontwindow"
+  "${CMAKE_CURRENT_SOURCE_DIR}/glyphwindow"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Automedina"
+)
+target_include_directories(${VMF_SL} PRIVATE ${FLEX_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/FeaParser ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser)
+add_dependencies(${VMF_SL} harfbuzz mplib)
+target_compile_options(${VMF_SL} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
+target_compile_definitions(${VMF_SL} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR)
+target_link_libraries(${VMF_SL} PUBLIC harfbuzz mplib Qt5::Core Qt5::Gui Qt5::Widgets)
+#add_dependencies(${PROJECT_NAME} ${VMF_SL})
+set_target_properties(${VMF_SL}  PROPERTIES ENABLE_EXPORTS 1 WINDOWS_EXPORT_ALL_SYMBOLS 1)
+set_target_properties(${PROJECT_NAME}  PROPERTIES ENABLE_EXPORTS 1 WINDOWS_EXPORT_ALL_SYMBOLS 1)
+export(TARGETS ${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser FILE ${CMAKE_CURRENT_BINARY_DIR}/visualmetafontConfig.cmake)
+#export(TARGETS ${VMF_SL} harfbuzz mplib QtPropertyBrowser FILE ${CMAKE_CURRENT_BINARY_DIR}/vmfsl.cmake)
+
+
+
+
 target_include_directories(${PROJECT_NAME} PUBLIC 
   "${CMAKE_CURRENT_SOURCE_DIR}/."
   "${CMAKE_CURRENT_SOURCE_DIR}/Layout"
@@ -267,9 +293,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/fontwindow"
   "${CMAKE_CURRENT_SOURCE_DIR}/glyphwindow"
   "${CMAKE_CURRENT_SOURCE_DIR}/Automedina"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../madinafont"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../oldmadinafont"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../indopakfont"
   )
 
 target_include_directories(${WEBLIB_NAME} PUBLIC 
@@ -281,9 +304,6 @@ target_include_directories(${WEBLIB_NAME} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/fontwindow"
   "${CMAKE_CURRENT_SOURCE_DIR}/glyphwindow"
   "${CMAKE_CURRENT_SOURCE_DIR}/Automedina"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../madinafont"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../oldmadinafont"
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../indopakfont"
   )
 
 add_library(lualib SHARED IMPORTED)
@@ -318,15 +338,11 @@ target_compile_options(${PROJECT_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>
 target_compile_options(${WEBLIB_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_compile_options(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR)
-target_compile_definitions(${WEBLIB_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR DIGITALKHATT_WEBLIB)
-target_compile_definitions(${LUATEX_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR)
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR COMPILING_DLL)
+target_compile_definitions(${WEBLIB_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR DIGITALKHATT_WEBLIB COMPILING_DLL)
+target_compile_definitions(${LUATEX_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR COMPILING_DLL)
 
-if (NOT EMSCRIPTEN)
-  #target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_BOOLEAN)
-  #target_compile_definitions(${WEBLIB_NAME} PRIVATE HAVE_BOOLEAN)
-endif()
 
 if(ENABLE_PDF_GENERATION)
 target_compile_definitions(${PROJECT_NAME} PRIVATE ENABLE_PDF_GENERATION)
@@ -355,20 +371,16 @@ target_link_libraries(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wl,--excl
 #target_link_libraries(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-static-libgcc>)
 #target_link_libraries(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-static-libstdc++>)
 
-
-
-#target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_JUSTIFICATION)
-
 if (NOT EMSCRIPTEN)
   # Link with other targets.
-  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser     
-    Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport Qt5::Widgets Qt5::Sql
+  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib PRIVATE  QtPropertyBrowser     
+    Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::Svg Qt5::PrintSupport Qt5::Widgets Qt5::Sql
     ${QT_STATIC_PLUGINS}
     ZLIB::ZLIB
   )
 else()
   target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser     
-    Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::OpenGL  Qt5::Svg Qt5::PrintSupport Qt5::Widgets
+    Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::Svg Qt5::PrintSupport Qt5::Widgets
     Qt5::QJpegPlugin
     Qt5::QSvgPlugin
     Qt5::QSvgIconPlugin
@@ -384,7 +396,7 @@ target_link_libraries(${LUATEX_NAME} PRIVATE lualib)
 if (NOT EMSCRIPTEN)
 
   if (WIN32)
-    target_link_libraries(${PROJECT_NAME} PUBLIC imm32 version Dwmapi Mincore winmm Wtsapi32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE imm32 version Dwmapi Mincore winmm Wtsapi32)
     if (NOT QT_SHARED_BUILD)
       target_link_libraries(${PROJECT_NAME} PUBLIC Qt5::QWindowsIntegrationPlugin)
     endif()
@@ -512,3 +524,6 @@ else()
   
 
 endif()
+
+
+include(CPack)

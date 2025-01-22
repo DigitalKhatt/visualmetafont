@@ -38,7 +38,7 @@
 #include <stdexcept>
 #include <iostream>
 #include "hb.h"
-
+#include "global.h"
 
 
 struct Lookup;

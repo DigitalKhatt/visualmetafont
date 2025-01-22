@@ -396,7 +396,7 @@ void LayoutWindow::loadMushafLayout(QString layoutName) {
       lastLine = 1;
       currentPage = word;
     }
-    else if (lastLine != line && !(lastPage == 213 && lastLine  == 4 && wordNumberInLine <= 11)) {
+    else if (lastLine != line && !(lastPage == 213 && lastLine == 4 && wordNumberInLine <= 11)) {
       currentPage += "\n" + word;
       lastLine = line;
       wordNumberInLine = 1;
@@ -2749,6 +2749,15 @@ void LayoutWindow::findOverflows(bool overfull) {
     double percentage;
   };
 
+  struct PageWidths {
+    int pageNumber;
+    float minWidth;
+    float maxWidth;
+    float diff;
+    int minLine;
+    int maxLine;
+  };
+
   QMap<double, QMap<double, Line>> alloverflows;
 
   double scale = OtLayout::EMSCALE;
@@ -2760,29 +2769,51 @@ void LayoutWindow::findOverflows(bool overfull) {
 
   QMap<double, Line> measures;
 
-  QString suraWord = "سُورَةُ";
-  QString bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
-
-  QString surapattern = "^("
-    + suraWord + " .*|"
-    + bism
+  QString surapattern = QString("^(")
+    + "سُورَةُ" + " .*"
+    + "|" + "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
     + "|" + "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+    + "|" + "بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ ۝"
     + ")$";
 
   QRegularExpression surabism(surapattern, QRegularExpression::MultilineOption);
 
-  for (int pagenum = 0; pagenum <= 603; pagenum++) {
+  std::vector<PageWidths> widths;
 
-    QString textt = QString::fromUtf8(qurantext[pagenum] + 1);
+  for (int pagenum = 0; pagenum < currentQuranText.size(); pagenum++) {
+
+    QString textt = currentQuranText[pagenum];
 
     auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
     auto page = m_otlayout->justifyPage(emScale, lineWidth, lineWidth, lines, LineJustification::Distribute, false, true);
 
 
+    PageWidths minmax{ 0,std::numeric_limits<float>::max() ,std::numeric_limits<float>::min() ,0,0,0 };
+
+
     for (int linenum = 0; linenum < lines.length(); linenum++) {
 
-      auto line = page[linenum];
+      auto& line = page[linenum];
+
+      auto match = surabism.match(lines[linenum]);
+
+      if (pagenum + 1 == 573) {
+        std::cout << "Amine" << std::endl;
+      }
+
+      if (!match.hasMatch()) {
+        auto textWidth = lineWidth - line.overfull;
+        if (textWidth < minmax.minWidth) {
+          minmax.minWidth = textWidth;
+          minmax.minLine = linenum + 1;
+        }
+        if (textWidth > minmax.maxWidth) {
+          minmax.maxWidth = textWidth;
+          minmax.maxLine = linenum + 1;
+        }
+      }
+
       if (overfull) {
         if (line.overfull > 0) {
           auto overflow = line.overfull / emScale;
@@ -2793,8 +2824,6 @@ void LayoutWindow::findOverflows(bool overfull) {
         }
       }
       else {
-
-        auto match = surabism.match(lines[linenum]);
 
         LineType lineType = LineType::Line;
 
@@ -2814,13 +2843,14 @@ void LayoutWindow::findOverflows(bool overfull) {
 
 
     }
+    widths.push_back({ pagenum + 1, minmax.minWidth ,minmax.maxWidth ,minmax.maxWidth - minmax.minWidth,minmax.minLine,minmax.maxLine });
   }
 
   if (measures.count() > 0) {
     alloverflows[scale] = measures;
   }
-
-
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
 
 
   QString name = overfull ? "output/overfulls" : "output/underfulls";
@@ -2829,14 +2859,11 @@ void LayoutWindow::findOverflows(bool overfull) {
     name = name + QString("_with_just");
   }
 
-  QString fileName = name + QString("_%1.csv").arg(scale);
-
-
+  QString fileName = fileInfo.path() + "/" + name + QString("_%1.csv").arg(scale);
   QFile file(fileName);
   file.open(QIODevice::WriteOnly | QIODevice::Text);
-  QTextStream out(&file);   // we will serialize the data into the file
+  QTextStream out(&file);
   out.setCodec("ISO 8859-1");
-  //out.setEncoding(QStringConverter::Latin1);
 
   for (auto key : alloverflows.keys()) {
     auto overflow = alloverflows.value(key);
@@ -2844,10 +2871,18 @@ void LayoutWindow::findOverflows(bool overfull) {
       out << key << "," << line.pageNumber << "," << line.lineNumber << "," << (line.overflow) << "," << (line.percentage) << "%" << "\n";
     }
   }
-
   file.close();
 
-
+  std::sort(widths.begin(), widths.end(), [](const PageWidths& a, const PageWidths& b) { return a.diff > b.diff; });
+  QString diffFileName = fileInfo.path() + "/output/minmaxwidths.csv";
+  QFile fileDiff(diffFileName);
+  fileDiff.open(QIODevice::WriteOnly | QIODevice::Text);
+  QTextStream outDiff(&fileDiff);
+  outDiff.setCodec("ISO 8859-1");
+  for (auto width : widths) {
+    outDiff << width.pageNumber << "," << width.diff << "," << width.minWidth << "," << width.maxWidth << "," << width.minLine << "," << width.maxLine << "\n";
+  }
+  fileDiff.close();
 
 }
 
@@ -2877,7 +2912,7 @@ void LayoutWindow::calculateMinimumSize() {
 
     QVector<Line> overflows;
 
-    
+
     for (int pagenum = 0; pagenum < currentQuranText.size(); pagenum++) {
 
       QString textt = currentQuranText[pagenum];
@@ -2908,7 +2943,7 @@ void LayoutWindow::calculateMinimumSize() {
 
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
-  QString fileName = fileInfo.path() + "/output/overflows.csv"; 
+  QString fileName = fileInfo.path() + "/output/overflows.csv";
 
   if (applyJustification) {
     fileName = fileInfo.path() + "/output/overflows_with_just.csv";

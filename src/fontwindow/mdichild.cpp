@@ -49,7 +49,7 @@
 ****************************************************************************/
 
 #include <QtWidgets>
-#include <QtOpenGL>
+
 
 #include "mdichild.h"
 #include "glyphview.hpp"
