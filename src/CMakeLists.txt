@@ -147,6 +147,8 @@ set(Layout
   Layout/FSMDriver.cpp
   Layout/commontypes.h
   Layout/just_features.cpp
+  Layout/gllobal_strings.h
+  Layout/gllobal_strings.cpp
   )
 
 

@@ -34,7 +34,7 @@
 
 ToOpenType::ToOpenType(OtLayout* layout) :ot_layout{ layout }
 {
-  setUniformAxis(true);
+  setUniformAxis(ot_layout->isOTVar);
 
 }
 void ToOpenType::setUniformAxis(bool uniform) {
@@ -77,7 +77,7 @@ void ToOpenType::setUniformAxis(bool uniform) {
 
       regions.push_back(region);
       return size;
-    };
+      };
 
     std::map<int, ValueLimits> orderedRegionSubtables;
     for (auto& subtable : regionSubtables) {
@@ -746,7 +746,7 @@ QByteArray ToOpenType::name() {
       ub++;
     }
 
-  };
+    };
 
   QVector<Name> names;
 
@@ -1179,59 +1179,61 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
       else {
         ContourLimits contourLimits;
 
-        const auto& ff = ot_layout->expandableGlyphs.find(glyph.name);
+        if (ot_layout->isOTVar) {
+          const auto& ff = ot_layout->expandableGlyphs.find(glyph.name);
 
-        if (ff != ot_layout->expandableGlyphs.end()) {
+          if (ff != ot_layout->expandableGlyphs.end()) {
 
-          auto& jj = ff->second;
-          contourLimits.limits = jj;
+            auto& jj = ff->second;
+            contourLimits.limits = jj;
 
-          if (uniformAxis) {
-            regionSubtable = regionSubtables[jj];
-            if (regionSubtable == 7) {
-              int tt = 5;
+            if (uniformAxis) {
+              regionSubtable = regionSubtables[jj];
+              if (regionSubtable == 7) {
+                int tt = 5;
+              }
             }
-          }
 
-          if (jj.maxLeft != 0) {
-            GlyphParameters parameters{};
+            if (jj.maxLeft != 0) {
+              GlyphParameters parameters{};
 
-            parameters.lefttatweel = jj.maxLeft;
-            parameters.righttatweel = 0.0;
+              parameters.lefttatweel = jj.maxLeft;
+              parameters.righttatweel = 0.0;
 
-            auto alternate = glyph.getAlternate(parameters);
-            contourLimits.maxLeft = alternate->copiedPath;
+              auto alternate = glyph.getAlternate(parameters);
+              contourLimits.maxLeft = alternate->copiedPath;
 
-          }
-          if (jj.minLeft != 0) {
-            GlyphParameters parameters{};
+            }
+            if (jj.minLeft != 0) {
+              GlyphParameters parameters{};
 
-            parameters.lefttatweel = jj.minLeft;
-            parameters.righttatweel = 0.0;
+              parameters.lefttatweel = jj.minLeft;
+              parameters.righttatweel = 0.0;
 
-            auto alternate = glyph.getAlternate(parameters);
-            contourLimits.minLeft = alternate->copiedPath;
+              auto alternate = glyph.getAlternate(parameters);
+              contourLimits.minLeft = alternate->copiedPath;
 
-          }
-          if (jj.maxRight != 0) {
-            GlyphParameters parameters{};
+            }
+            if (jj.maxRight != 0) {
+              GlyphParameters parameters{};
 
-            parameters.lefttatweel = 0.0;
-            parameters.righttatweel = jj.maxRight;
+              parameters.lefttatweel = 0.0;
+              parameters.righttatweel = jj.maxRight;
 
-            auto alternate = glyph.getAlternate(parameters);
-            contourLimits.maxRight = alternate->copiedPath;
+              auto alternate = glyph.getAlternate(parameters);
+              contourLimits.maxRight = alternate->copiedPath;
 
-          }
-          if (jj.minRight != 0) {
-            GlyphParameters parameters{};
+            }
+            if (jj.minRight != 0) {
+              GlyphParameters parameters{};
 
-            parameters.lefttatweel = 0.0;
-            parameters.righttatweel = jj.minRight;
+              parameters.lefttatweel = 0.0;
+              parameters.righttatweel = jj.minRight;
 
-            auto alternate = glyph.getAlternate(parameters);
-            contourLimits.minRight = alternate->copiedPath;
+              auto alternate = glyph.getAlternate(parameters);
+              contourLimits.minRight = alternate->copiedPath;
 
+            }
           }
         }
         QVector<Layer> layers;
@@ -1713,7 +1715,7 @@ void ToOpenType::fixed_to_cff2(QByteArray& cff, double val) {
   cff << (uint8_t)255;
   cff << (int32_t)v;*/
 
-  double intpart;  
+  double intpart;
   if (std::modf(val, &intpart) == 0.0) {
     int_to_cff2(cff, val);
   }

@@ -71,19 +71,7 @@
 #include <unordered_set>
 #include <Subtable.h>
 #include  <set>
-
-//#include "hb.hh"
-//#include "hb-ot-shape.hh"
-//#include "hb-ot-layout-gsub-table.hh"
-
-
-
-
-
-
-
-
-//#include "hb-buffer-private.hh"
+#include "gllobal_strings.h"
 
 
 
@@ -469,10 +457,10 @@ void LayoutWindow::createActions()
   connect(otfcff2Act, &QAction::triggered, this, &LayoutWindow::generateOpenTypeCff2Extended);
   fileMenu->addAction(otfcff2Act);
 
-
-
-
-
+  otfcff2Act = new QAction(otfcff2Icon, tr("&Generate OpenType CFF2 Standard No Var"), this);
+  otfcff2Act->setStatusTip(tr("Generate OpenType CFF2 Standard No Var"));
+  connect(otfcff2Act, &QAction::triggered, this, &LayoutWindow::generateOpenTypeCff2StandardWithoutVar);
+  fileMenu->addAction(otfcff2Act);
 
   auto tt = QImageReader::supportedImageFormats();
 
@@ -650,17 +638,20 @@ void LayoutWindow::createActions()
 
 }
 bool LayoutWindow::generateOpenTypeCff2Standard() {
-  return generateOpenTypeCff2(false);
+  return generateOpenTypeCff2(false, true);
 }
 bool LayoutWindow::generateOpenTypeCff2Extended() {
-  return generateOpenTypeCff2(true);
+  return generateOpenTypeCff2(true, true);
 }
-bool LayoutWindow::generateOpenTypeCff2(bool extended) {
+bool LayoutWindow::generateOpenTypeCff2StandardWithoutVar() {
+  return generateOpenTypeCff2(false, false);
+}
+bool LayoutWindow::generateOpenTypeCff2(bool extended, bool generateVariableOpenType) {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
   QString otfFileName = fileInfo.path() + "/output/" + fileInfo.completeBaseName() + ".otf";
 
-  OtLayout layout = OtLayout(m_font, extended);
+  OtLayout layout = OtLayout(m_font, extended, extended ? true : generateVariableOpenType);
 
   layout.toOpenType->isCff2 = true;
 
@@ -713,18 +704,320 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended) {
 
 
 }
+
+void LayoutWindow::generateTestFile() {
+
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString fileName = fileInfo.path() + "/output/test" + fileInfo.completeBaseName() + "font.tex";
+
+  QFile file(fileName);
+  file.open(QIODevice::WriteOnly | QIODevice::Text);
+  QTextStream out(&file);
+  out.setCodec("UTF-8");
+
+  auto startSection = "{\\sloppy\\huge\\myfont\\pagedir TRT\\pardir TRT\\bodydir TRT\\textdir TRT\\fontdimen2\\font=2ex\\linespread{2}\\selectfont\\vskip-30pt\n";
+
+  out << GlobalStrings::textHeader;
+
+  out << "\\title{" << fileInfo.completeBaseName() << ".otf Font Test }\n";
+  out << "\\newfontfamily\\myfont[Renderer=OpenType,Script=Arabic]{" << fileInfo.completeBaseName() << ".otf}" << "\n";
+  out << "\\begin{document}\n\\maketitle";
+
+
+  out << "\\section{Joined Marks}\n";
+  out << startSection;
+
+
+  QRegularExpression smallseen("(\\S*[ٜۣۧۜۨࣳـ۬]\\S*)");
+
+  QString smallseenWords;
+
+  QString output;
+
+  QSet<QString> words;
+
+  for (auto& text : currentQuranText) {
+    QRegularExpressionMatchIterator i = smallseen.globalMatch(text);
+    while (i.hasNext()) {
+      QRegularExpressionMatch match = i.next();
+      int startOffset = match.capturedStart(match.lastCapturedIndex()); // startOffset == 6
+      int endOffset = match.capturedEnd(match.lastCapturedIndex()) - 1; // endOffset == 9
+      QString c0 = match.captured(0);
+      QString captured = match.captured(match.lastCapturedIndex());
+
+      QString word = match.captured(0);
+
+      if (!words.contains(word)) {
+        words.insert(word);
+        smallseenWords = smallseenWords.isEmpty() ? word : smallseenWords + " " + word;
+        if (smallseenWords.length() > 60) {
+          output = output.isEmpty() ? smallseenWords : output + "\n" + smallseenWords;
+          smallseenWords = "";
+        }
+      }
+    }
+  }
+
+  out << output << "\n" << smallseenWords << "\\par\n";
+  out << "}\n";
+
+  out << "\\section{Alternates}\n\n";
+  out << startSection;
+
+  QString alternates = "نفقكيصضبتثسش";
+  QString fatha = "َ";
+
+  for (auto start : { QString(""),QString("بَ") }) {
+    for (auto alternate : alternates) {
+      out << "\\noindent\\{}";
+      for (auto i : { 0,1,2,3,4,5,6,7,8,9,10,11,12 }) {
+        out << start << "\\setfea{" << alternate << "}{cv01=" << i << "}";
+        out << "\\setfea{" << fatha << "}{cv01=" << 1 + (int)std::floor(i / 3) << "}";
+        out << " ";
+      }
+      out << "\\par\n";
+    }
+  }
+
+  out << "}\n";
+
+  out << "\\end{document}";
+
+
+}
 bool LayoutWindow::generateOpenType() {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
   QString otfFileName = fileInfo.path() + "/output/" + fileInfo.completeBaseName() + "-cff1.otf";
 
-  OtLayout layout = OtLayout(m_font, false);
+  OtLayout layout = OtLayout(m_font, false, true);
   layout.useNormAxisValues = true;
   layout.toOpenType->isCff2 = true;
 
   layout.loadLookupFile("features.fea");
 
   return layout.toOpenType->GenerateFile(otfFileName);
+
+}
+
+struct BaseMarkPair {
+  QString baseName;
+  double baseLeftTatweel = 0;
+  double baseRightTatweel = 0;
+  QString markName;
+  double markLeftTatweel = 0;
+  double markRighttTatweel = 0;
+  bool operator==(const BaseMarkPair& other) const {
+    return (
+      baseName == other.baseName
+      && baseLeftTatweel == other.baseLeftTatweel
+      && baseRightTatweel == other.baseRightTatweel
+      && markName == other.markName
+      && markLeftTatweel == other.markLeftTatweel
+      && markRighttTatweel == other.markRighttTatweel
+      );
+  }
+};
+
+namespace std {
+  template<>
+  struct hash<BaseMarkPair> {
+    const size_t operator()(const BaseMarkPair& x) const
+    {
+      return std::hash<QString>()(x.baseName) ^ std::hash<double>()(x.baseLeftTatweel) ^ std::hash<double>()(x.baseRightTatweel)
+        ^ std::hash<QString>()(x.markName) ^ std::hash<double>()(x.markLeftTatweel) ^ std::hash<double>()(x.markRighttTatweel);
+    }
+  };
+}
+
+
+
+void LayoutWindow::checkOffMarks() {
+  double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
+
+  int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+
+  auto result = shapeMushaf(scale, lineWidth, m_otlayout, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+
+  struct CheckResult {
+    int pageIndex;
+    int lineIndex;
+    int baseGlyphIndex;
+    int markGlyphIndex;
+    QString  baseGlyphName;
+    double baseLeftTatweel = 0;
+    double baseRightTatweel = 0;
+    QString  markGlyphName;
+    double markLeftTatweel = 0;
+    double markRighttTatweel = 0;
+    QString word;
+  };
+
+
+
+
+
+
+  QVector<CheckResult> results;
+
+  for (int p = 0; p < result.pages.size(); p++) {
+    auto& page = result.pages[p];
+
+    QList<QList<QPoint>> pagePositions;
+    bool intersection = false;
+
+    for (int l = 0; l < page.size(); l++) {
+      auto& line = page[l];
+
+      int currentxPos = -line.xstartposition;
+      int currentyPos = line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
+
+      QList<QPoint> linePositions;
+
+      for (int g = 0; g < line.glyphs.size(); g++) {
+
+        auto& glyphLayout = line.glyphs[g];
+
+        QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+        currentxPos -= glyphLayout.x_advance;
+        QPoint pos(currentxPos + (glyphLayout.x_offset), currentyPos - (glyphLayout.y_offset));
+
+        linePositions.append(QPoint{ pos.x(),pos.y() });
+
+      }
+
+      pagePositions.append(linePositions);
+
+    }
+
+    for (int l = 0; l < page.size(); l++) {
+
+      auto& line = page[l];
+
+      double scale = line.fontSize;
+
+      QList<QPoint>& linePositions = pagePositions[l];
+      LineLayoutInfo suraName;
+
+      QVector<QPainterPath> paths;
+
+      GlyphVis* baseGlyph = nullptr;
+      QPoint basePos;
+      int baseIndex;
+
+      for (int g = 0; g < line.glyphs.size(); g++) {
+
+        auto& glyphLayout = line.glyphs[g];
+
+        QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+
+        bool isMark = m_otlayout->automedina->classes["marks"].contains(glyphName);
+
+        if (!isMark) {
+          baseGlyph = m_otlayout->getGlyph(glyphName, glyphLayout.lefttatweel, glyphLayout.righttatweel);
+          baseIndex = g;
+          basePos = linePositions[baseIndex];
+          continue;
+        }
+
+        if (!baseGlyph) {
+          throw std::runtime_error("Error");
+        }
+
+        GlyphVis* markGlyph = m_otlayout->getGlyph(glyphName, glyphLayout.lefttatweel, glyphLayout.righttatweel);
+        QPointF markPos = linePositions[g];
+
+        double markXStart = markPos.x() + markGlyph->bbox.llx * scale;
+        double markWidth = (markGlyph->bbox.urx - markGlyph->bbox.llx) * scale;
+        double markXEnd = markXStart + markWidth;
+
+
+        double baseXStart = basePos.x() + baseGlyph->bbox.llx * scale;
+        double baseWidth = (baseGlyph->bbox.urx - baseGlyph->bbox.llx) * scale;
+        double baseXEnd = baseXStart + baseWidth;
+        double leftOff = baseXStart - markXStart;
+        double rightOff = markXEnd - baseXEnd;
+
+        auto maxAcceptOff = markWidth * 0.25;
+
+        if ((leftOff > maxAcceptOff || rightOff > maxAcceptOff) && baseWidth > 1.5 * markWidth) {
+          QString text = result.originalPages[p][l];
+          int startCluster = 0;
+          int endCluster = text.size();
+
+          for (int i = baseIndex; i >= 0; i--) {
+            auto& glyphLayout = line.glyphs[i];
+            QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+            if (glyphName.contains("space")) {
+              startCluster = glyphLayout.cluster + 1;
+              break;
+            }
+          }
+          for (int i = g; i < line.glyphs.size(); i++) {
+            auto& glyphLayout = line.glyphs[i];
+            QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+            if (glyphName.contains("space")) {
+              endCluster = glyphLayout.cluster;
+              break;
+            }
+          }
+
+          QString  word = text.mid(startCluster, endCluster - startCluster);
+
+          auto baseGlyphName = baseGlyph->name == "alternatechar" ? baseGlyph->originalglyph : baseGlyph->name;
+          auto markGlyphName = markGlyph->name == "alternatechar" ? markGlyph->originalglyph : markGlyph->name;
+
+          results.append({ p,l,baseIndex,g,
+            baseGlyphName,baseGlyph->charlt, baseGlyph->charrt,
+            markGlyphName,markGlyph->charlt,markGlyph->charrt,
+            word });
+        }
+      }
+    }
+  }
+
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString outputFileName = fileInfo.path() + "/output/offmarks.txt";
+
+  QFile file(outputFileName);
+  file.open(QIODevice::WriteOnly | QIODevice::Text);
+  QTextStream out(&file);   // we will serialize the data into the file
+  out.setCodec("UTF-8");
+
+  std::unordered_set<BaseMarkPair> duplicates;
+
+  QVector<QString> words;
+
+  for (auto result : results) {
+
+    BaseMarkPair pair{ result.baseGlyphName,result.baseLeftTatweel,result.baseRightTatweel,
+      result.markGlyphName,result.markLeftTatweel,result.markRighttTatweel };
+    if (!duplicates.contains(pair)) {
+      out << "Page=" << result.pageIndex + 1 << ",Line=" << result.lineIndex + 1
+        << ",baseGlyph=" << result.baseGlyphName
+        << ",markGlyph=" << result.markGlyphName
+        << ",Word=" << result.word << "\n";
+      duplicates.insert(pair);
+      words.append(result.word);
+    }
+  }
+
+  out << "**************************************words**************\n";
+  int nbWordbyline = 0;
+  for (auto& word : words) {
+    if (nbWordbyline == 8) {
+      out << '\n';
+      nbWordbyline = 0;
+    }
+    else if (nbWordbyline != 0) {
+      out << ' ';
+    }
+    out << word;
+    nbWordbyline++;
+
+  }
 
 }
 
@@ -1349,7 +1642,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
 }
 bool LayoutWindow::generateLayoutInfo() {
 
-  OtLayout layout = OtLayout(m_font, true);
+  OtLayout layout = OtLayout(m_font, true, true);
   layout.useNormAxisValues = false;
 
   layout.loadLookupFile("features.fea");
@@ -1377,7 +1670,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
 
-  OtLayout layout = OtLayout(m_font, true);
+  OtLayout layout = OtLayout(m_font, true, true);
 
   layout.automedina->cvxxfeatures.clear();
 
@@ -1817,10 +2110,6 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
   QString otfFileName = fileInfo.path() + "/" + fileInfo.completeBaseName() + "-quran.otf";
 
-  //OtLayout layout = OtLayout(m_otlayout->mp, extended);
-
-  //layout.isOTVar = false;
-
   layout.loadLookupFile("automedina-html.fea");
 
   layout.toOpenType->isCff2 = true;
@@ -1838,12 +2127,7 @@ void LayoutWindow::saveCollision() {
 
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
-  hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS;
-
-  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS;
-
-
-  auto result = shapeMushaf(scale, lineWidth, m_otlayout, cluster_level);
+  auto result = shapeMushaf(scale, lineWidth, m_otlayout, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
   adjustOverlapping(result.pages, lineWidth, result.originalPages, scale, true);
 
@@ -2176,6 +2460,18 @@ void LayoutWindow::createDockWindows()
   action = new QAction(tr("Compare Indopak Fonts"), this);
   action->setStatusTip(tr("Compare Indopak Fonts"));
   connect(action, &QAction::triggered, this, &LayoutWindow::compareIndopakFonts);
+
+  otherMenu->addAction(action);
+
+  action = new QAction(tr("Generate Test File"), this);
+  action->setStatusTip(tr("Generate Test File"));
+  connect(action, &QAction::triggered, this, &LayoutWindow::generateTestFile);
+
+  otherMenu->addAction(action);
+
+  action = new QAction(tr("Check Off Marks"), this);
+  action->setStatusTip(tr("Check Off Marks"));
+  connect(action, &QAction::triggered, this, &LayoutWindow::checkOffMarks);
 
   otherMenu->addAction(action);
 

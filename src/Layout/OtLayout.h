@@ -230,7 +230,7 @@ public:
 #if defined DIGITALKHATT_WEBLIB
   OtLayout(Font* font, bool extended);
 #else
-  OtLayout(Font* font, bool extended, QObject* parent = Q_NULLPTR);
+  OtLayout(Font* font, bool extended, bool generateVariableOpenType, QObject* parent = Q_NULLPTR);
 #endif
   ~OtLayout();
 
@@ -484,7 +484,6 @@ private:
   std::vector<Lookup*> tables;
 
   FSMDriver fsmDriver;
-
 
   //std::unordered_map<DefaultDelta, int> defaultDeltaSets;
 

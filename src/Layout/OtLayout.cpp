@@ -1121,7 +1121,8 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub) {
 #if DIGITALKHATT_WEBLIB
 OtLayout::OtLayout(Font* font, bool extended) : fsmDriver{ *this }, justTable{ this }, font{ font } {
 #else
-OtLayout::OtLayout(Font * font, bool extended, QObject * parent) :QObject(parent), fsmDriver{ *this }, justTable{ this }, font{ font } {
+OtLayout::OtLayout(Font * font, bool extended, bool generateVariableOpenType, QObject * parent) :QObject(parent), fsmDriver{ *this },
+  justTable{ this }, font{ font }, isOTVar{ generateVariableOpenType } {
 #endif
 
   this->extended = extended;
@@ -1139,7 +1140,7 @@ OtLayout::OtLayout(Font * font, bool extended, QObject * parent) :QObject(parent
   QString fileName = fileInfo.path() + "/" + fileInfo.baseName() + debugPostfix + SLEXT;
 
   auto ff = fileName.toStdString();
-  dlhandle slhandle = dlopen(ff.c_str(),0);
+  dlhandle slhandle = dlopen(ff.c_str(), 0);
   if (!slhandle) {
     std::cout << "could not load the dynamic library " << ff << std::endl;
     throw std::runtime_error("could not load the dynamic library");
@@ -1212,7 +1213,7 @@ void OtLayout::clearAlternates() {
 CalcAnchor OtLayout::getanchorCalcFunctions(QString functionName, Subtable * subtable) {
   return automedina->getanchorCalcFunctions(functionName, subtable);
 }
-CursiveAnchorFunc OtLayout::getCursiveFunctions(QString functionName, Subtable* subtable) {
+CursiveAnchorFunc OtLayout::getCursiveFunctions(QString functionName, Subtable * subtable) {
   return automedina->getCursiveFunctions(functionName, subtable);
 }
 /*

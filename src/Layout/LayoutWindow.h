@@ -85,8 +85,9 @@ private:
 	bool save();
 	bool generateOpenType();
   bool generateOpenTypeCff2Standard();
+  bool generateOpenTypeCff2StandardWithoutVar();
   bool generateOpenTypeCff2Extended();
-  bool generateOpenTypeCff2(bool extended);
+  bool generateOpenTypeCff2(bool extended, bool generateVariableOpenType);
 	bool exportpdf();
 	bool generateAllQuranTexBreaking();
 	bool generateMushaf(bool isHTML);
@@ -105,7 +106,8 @@ private:
   void saveCollision();
   void layoutDatabase();
   void loadMushafLayout(QString layoutName);
-
+  void generateTestFile();
+  void checkOffMarks();
 
 	void setQuranText(int type);
   QComboBox* justCombo;
