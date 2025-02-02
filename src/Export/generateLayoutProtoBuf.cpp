@@ -15,6 +15,8 @@
 #include "protobuf/quran.pb.h"
 #include <fstream>
 
+#include "qfileinfo.h"
+
 extern "C"
 {
 #include "mplibps.h"
@@ -267,13 +269,20 @@ void GenerateLayout::generateLayoutProtoBuf(int lineWidth, int scale) {
     }
   }
 
-  std::fstream layoutOutput("output/layout.protobuf", std::ios::out | std::ios::trunc | std::ios::binary);
+  
+  auto path = this->m_otlayout->font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+
+
+
+  std::fstream layoutOutput(fileInfo.path().toStdString() + "/output/layout.protobuf", std::ios::out | std::ios::trunc | std::ios::binary);
   if (!layout.SerializeToOstream(&layoutOutput)) {
     throw std::runtime_error("ERROR");
   }
 
-  std::fstream fontOutput("output/font.protobuf", std::ios::out | std::ios::trunc | std::ios::binary);
+  std::fstream fontOutput(fileInfo.path().toStdString() + "/output/font.protobuf", std::ios::out | std::ios::trunc | std::ios::binary);
   if (!font.SerializeToOstream(&fontOutput)) {
     throw std::runtime_error("ERROR");
   }
+
 }

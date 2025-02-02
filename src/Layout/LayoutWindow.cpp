@@ -330,6 +330,8 @@ static void changeText(QString textCol, QString& word) {
   word.replace("\u0627\u0654", "\u0627\u034F\u0654\u034F");
   word.replace("\u0648\u0654", "\u0648\u034F\u0654\u034F");
   word.replace("\u064A\u0654", "\u064A\u034F\u0654\u034F");
+  word.replace("\u0640\u0654", "\u0640\u0654\u034F");
+  word.replace("\u0627\u0655", "\u0627\u0655\u034F");
 }
 
 void LayoutWindow::loadMushafLayout(QString layoutName) {
@@ -576,31 +578,30 @@ void LayoutWindow::createActions()
     executeRunText(true, 1);
     });
 
-  /*
-  QPushButton* toggleButton = new QPushButton(tr("&Justification"));
-  toggleButton->setCheckable(true);
-  toggleButton->setChecked(true);
+  justStyleCombo = new QComboBox;
 
-  connect(toggleButton, &QPushButton::toggled, [&](bool checked) {
-    applyJustification = checked;
-    m_otlayout->applyJustification = checked;
-    executeRunText(true, 1);
-  });
+  justStyleCombo->addItem("No Style", qVariantFromValue(JustStyle::None));
+  justStyleCombo->addItem("Same Size By page", qVariantFromValue(JustStyle::SameSizeByPage));
+  justStyleCombo->addItem("XScale", qVariantFromValue(JustStyle::XScale));
+  justStyleCombo->addItem("FontSize", qVariantFromValue(JustStyle::FontSize));
 
-  jutifyToolbar->addWidget(toggleButton);*/
+  jutifyToolbar->addWidget(justStyleCombo);
 
-  QPushButton* toggleButton = new QPushButton(tr("&Font Size"));
-  toggleButton->setCheckable(true);
-  toggleButton->setChecked(false);
+  QString lastJustStyle = settings.value("LastJustStyle").value<QString>();
+  if (!lastJustStyle.isEmpty()) {
+    justStyleCombo->setCurrentText(lastJustStyle);
+  }
+  else {
+    justStyleCombo->setCurrentIndex(1);
+  }
 
-  connect(toggleButton, &QPushButton::toggled, [&](bool checked) {
-    applyFontSize = checked;
+  connect(justStyleCombo, qOverload<int>(&QComboBox::currentIndexChanged), [&](int index) {
+    QSettings settings;
+    settings.setValue("LastJustStyle", justStyleCombo->currentText());
     executeRunText(true, 1);
     });
 
-  jutifyToolbar->addWidget(toggleButton);
-
-  toggleButton = new QPushButton(tr("&Collision Detection"));
+  QPushButton* toggleButton = new QPushButton(tr("&Collision Detection"));
   toggleButton->setCheckable(true);
   toggleButton->setChecked(false);
 
@@ -770,7 +771,7 @@ void LayoutWindow::generateTestFile() {
 
   for (auto start : { QString(""),QString("بَ") }) {
     for (auto alternate : alternates) {
-      out << "\\noindent\\{}";
+      out << "\\noindent{}";
       for (auto i : { 0,1,2,3,4,5,6,7,8,9,10,11,12 }) {
         out << start << "\\setfea{" << alternate << "}{cv01=" << i << "}";
         out << "\\setfea{" << fatha << "}{cv01=" << 1 + (int)std::floor(i / 3) << "}";
@@ -915,7 +916,7 @@ void LayoutWindow::checkOffMarks() {
         bool isMark = m_otlayout->automedina->classes["marks"].contains(glyphName);
 
         if (!isMark) {
-          baseGlyph = m_otlayout->getGlyph(glyphName, glyphLayout.lefttatweel, glyphLayout.righttatweel);
+          baseGlyph = m_otlayout->getGlyph(glyphName, { .lefttatweel = glyphLayout.lefttatweel, .righttatweel = glyphLayout.righttatweel });
           baseIndex = g;
           basePos = linePositions[baseIndex];
           continue;
@@ -925,7 +926,7 @@ void LayoutWindow::checkOffMarks() {
           throw std::runtime_error("Error");
         }
 
-        GlyphVis* markGlyph = m_otlayout->getGlyph(glyphName, glyphLayout.lefttatweel, glyphLayout.righttatweel);
+        GlyphVis* markGlyph = m_otlayout->getGlyph(glyphName, { .lefttatweel = glyphLayout.lefttatweel, .righttatweel = glyphLayout.righttatweel });
         QPointF markPos = linePositions[g];
 
         double markXStart = markPos.x() + markGlyph->bbox.llx * scale;
@@ -1053,7 +1054,9 @@ bool LayoutWindow::exportpdf() {
 
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
-  auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, true, true, applyFontSize, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, justCombo->currentData().value<JustType>());
+  auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, true, true,
+    justStyleCombo->currentData().value<JustStyle>(), HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES,
+    justCombo->currentData().value<JustType>());
 
   QList<QList<LineLayoutInfo>> pages{ page };
   QList<QStringList> originalPages{ lines };
@@ -1245,7 +1248,7 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth, OtLayout* lay
 
 
 
-    auto shapedPage = layout->justifyPage(scale, pageWidth, newLines, newface, true, false, cluster_level, justCombo->currentData().value<JustType>());
+    auto shapedPage = layout->justifyPage(scale, pageWidth, newLines, newface, true, justStyleCombo->currentData().value<JustStyle>(), cluster_level, justCombo->currentData().value<JustType>());
     newface = false;
     result.pages.append(shapedPage);
     result.originalPages.append(lines);
@@ -1573,7 +1576,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth, OtLayout* lay
       newLines.append({ lines[lineIndex] ,lineWidth ,newJustification,lineType });
     }
 
-    auto shapedPage = layout->justifyPage(scale, pageWidth, newLines, newface, true, false, cluster_level, justCombo->currentData().value<JustType>());
+    auto shapedPage = layout->justifyPage(scale, pageWidth, newLines, newface, true, justStyleCombo->currentData().value<JustStyle>(), cluster_level, justCombo->currentData().value<JustType>());
 
     for (int lineIndex = 0; lineIndex < shapedPage.size(); lineIndex++) {
       auto& lineLayoutInfo = shapedPage[lineIndex];
@@ -2476,7 +2479,7 @@ void LayoutWindow::createDockWindows()
   otherMenu->addAction(action);
 
 
-  m_otlayout = new OtLayout(m_font, true, this);
+  m_otlayout = new OtLayout(m_font, true, false, this);
   m_otlayout->useNormAxisValues = false;
   m_otlayout->extended = true;
   m_otlayout->applyJustification = applyJustification;
@@ -3424,7 +3427,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
     lines = textt.split(char(10), Qt::SkipEmptyParts);
   }
 
-  auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, newFace, true, applyFontSize, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS, justCombo->currentData().value<JustType>());
+  auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, newFace, true, justStyleCombo->currentData().value<JustStyle>(), HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS, justCombo->currentData().value<JustType>());
 
   QVector<int> set;
 
@@ -3468,19 +3471,20 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
   //QString glyphName = m_otlayout->glyphNamePerCode[57357];
 
   for (auto line : page) {
-    int currentxPos = line.xstartposition;
-    int currentyPos = line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
+    double currentxPos = line.xstartposition;
+    double currentyPos = line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
+    double xScale = line.fontSize * line.xscale;
+    double yScale = line.fontSize * -1;
     for (auto glyphLayout : line.glyphs) {
       QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
       if (m_otlayout->glyphs.contains(glyphName)) {
         GlyphVis& glyph = m_otlayout->glyphs[glyphName];
 
-        //auto tt = m_otlayout->automedina->classes["bases"].contains(glyphName);
 
         GlyphItem* glyphItem = nullptr;
         if (refresh) {
-          glyphItem = new GlyphItem(line.fontSize, &glyph, m_otlayout, glyphLayout.lookup_index, glyphLayout.subtable_index, glyphLayout.base_codepoint, glyphLayout.lefttatweel, glyphLayout.righttatweel);
+          glyphItem = new GlyphItem(xScale, yScale, &glyph, m_otlayout, glyphLayout.lookup_index, glyphLayout.subtable_index, glyphLayout.base_codepoint, glyphLayout.lefttatweel, glyphLayout.righttatweel);
           glyphItem->setFlag(QGraphicsItem::ItemIsMovable);
           glyphItem->setFlag(QGraphicsItem::ItemIsSelectable);
           m_graphicsScene->addItem(glyphItem);
@@ -3505,8 +3509,8 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
           }
 
 
-          currentxPos -= glyphLayout.x_advance;
-          QPoint pos(currentxPos + (glyphLayout.x_offset), currentyPos - (glyphLayout.y_offset));
+          currentxPos -= glyphLayout.x_advance * line.xscale;
+          QPoint pos(currentxPos + (glyphLayout.x_offset * line.xscale), currentyPos - (glyphLayout.y_offset));
           glyphItem->setPos(pos);
         }
       }
@@ -3658,7 +3662,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
     for (auto& line : page) {
       for (auto& glyph : line.glyphs) {
         //GlyphVis* currentGlyph = 
-        m_otlayout->getGlyph(glyph.codepoint, glyph.lefttatweel, glyph.righttatweel);
+        m_otlayout->getGlyph(glyph.codepoint, { .lefttatweel = glyph.lefttatweel, .righttatweel = glyph.righttatweel });
       }
     }
   }
@@ -3880,7 +3884,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
         QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
-        GlyphVis& currentGlyph = *m_otlayout->getGlyph(glyphName, glyphLayout.lefttatweel, glyphLayout.righttatweel);
+        GlyphVis& currentGlyph = *m_otlayout->getGlyph(glyphName, { .lefttatweel = glyphLayout.lefttatweel, .righttatweel = glyphLayout.righttatweel });
         QPoint pos = linePositions[g];
         QPainterPath path;
         if (!glyphName.contains("space") && !glyphName.contains("cgj")) {
@@ -3926,7 +3930,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
             if ((isMark || isPrevMark) && !isPrevrSpace) { //|| isIsol || isPrevIsol
 
-              GlyphVis& otherGlyph = *m_otlayout->getGlyph(prev_glyphName, prev_glyphLayout.lefttatweel, prev_glyphLayout.righttatweel); //m_otlayout->glyphs[prev_glyphName];
+              GlyphVis& otherGlyph = *m_otlayout->getGlyph(prev_glyphName, { .lefttatweel = prev_glyphLayout.lefttatweel, .righttatweel = prev_glyphLayout.righttatweel }); //m_otlayout->glyphs[prev_glyphName];
               QPoint otherpos = prev_linePositions[prev_g];
 
               QPainterPath otherpath = pathtransform.map(otherGlyph.path);
@@ -3969,7 +3973,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
 
 
-          GlyphVis& otherGlyph = *m_otlayout->getGlyph(otherglyphName, otherglyphLayout.lefttatweel, otherglyphLayout.righttatweel); //glyphs[otherglyphName];
+          GlyphVis& otherGlyph = *m_otlayout->getGlyph(otherglyphName, { .lefttatweel = otherglyphLayout.lefttatweel, .righttatweel = otherglyphLayout.righttatweel }); //glyphs[otherglyphName];
           QPointF otherpos = linePositions[gg];
 
           QPainterPath& otherpath = paths[gg];

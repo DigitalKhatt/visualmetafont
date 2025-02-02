@@ -1054,3 +1054,15 @@ vardef roundwidth expr pic =
   endfor
   currentpicture
 enddef;
+newinternal number_of_axes;
+string axes[]name,axes[]tag,axes[]equivExpr;
+numeric axes[]minValue, axes[]defaultValue, axes[]maxValue;
+def defAxis(expr pname,ptag,pminValue,pdefaultValue,pmaxValue,pequivExpr) =
+  axes[number_of_axes].name = pname;
+  axes[number_of_axes].tag = ptag;
+  axes[number_of_axes].minValue = pminValue;
+  axes[number_of_axes].defaultValue = pdefaultValue;
+  axes[number_of_axes].maxValue = pmaxValue;
+  axes[number_of_axes].equivExpr = pequivExpr;
+  number_of_axes := incr number_of_axes;
+enddef;

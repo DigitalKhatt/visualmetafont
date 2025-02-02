@@ -160,7 +160,7 @@ struct LinkForce : Force {
         }
         else if (link.linkType == LinkType::RightMarkLeftmark) {
           auto width = intersection.boundingRect().width();
-          link.firstNode->vx += width / 2 ;
+          link.firstNode->vx += width / 2;
           link.secondNode->vx -= width / 2;
         }
       }
@@ -235,12 +235,12 @@ void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
     return topmarks.contains(glyphName)
       || waqfmarks.contains(glyphName)
       || topdotmarks.contains(glyphName);
-  };
+    };
 
   auto isBottomMark = [topmarks, lowmarks, waqfmarks, topdotmarks, downdotmarks](QString glyphName) {
     return lowmarks.contains(glyphName)
       || downdotmarks.contains(glyphName);
-  };
+    };
 
   for (int p = beginPage; p < beginPage + nbPages; p++) {
     auto& page = pages[p];
@@ -273,7 +273,7 @@ void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
 
         QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
-        GlyphVis* currentGlyph = m_otlayout->getGlyph(glyphName, glyphLayout.lefttatweel, glyphLayout.righttatweel);
+        GlyphVis* currentGlyph = m_otlayout->getGlyph(glyphName, { .lefttatweel = glyphLayout.lefttatweel, .righttatweel = glyphLayout.righttatweel });
 
         currentxPos -= glyphLayout.x_advance;
         QPoint pos(currentxPos + (glyphLayout.x_offset), currentyPos - (glyphLayout.y_offset));

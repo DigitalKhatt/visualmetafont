@@ -34,131 +34,184 @@
 
 ToOpenType::ToOpenType(OtLayout* layout) :ot_layout{ layout }
 {
-  setUniformAxis(ot_layout->isOTVar);
-
 }
-void ToOpenType::setUniformAxis(bool uniform) {
-  uniformAxis = uniform;
-  regionSubtables.clear();
+void ToOpenType::setAxes() {
+
+  uniformAxis = ot_layout->isOTVar;
   regions.clear();
-  subRegions.clear();
+  glyphParametersByRegion.clear();
   GDEFDeltaSets.clear();
+  regionIndexesIndexByGlyph.clear();
 
-  regions.push_back({ {0,getF2DOT14(1.0),getF2DOT14(1.0)},{0,0,0 } });
-  regions.push_back({ {getF2DOT14(-1.0),getF2DOT14(-1.0),0},{0,0,0} });
-  regions.push_back({ {0,0,0 },{0,getF2DOT14(1.0),getF2DOT14(1.0)} });
-  regions.push_back({ {0,0,0 },{getF2DOT14(-1.0),getF2DOT14(-1.0),0} });
-  subRegions.push_back({ 0,1,2,3 });
-  if (!uniformAxis) {
-    axisLimits.minLeft = -12;
-    axisLimits.maxLeft = 12;
-    axisLimits.minRight = -12;
-    axisLimits.maxRight = 12;
-    GDEFDeltaSets.resize(1);
+  if (!ot_layout->isOTVar) {
+    axisCount = 0;
+    return;
   }
-  else {
-    axisLimits.minLeft = -20;
-    axisLimits.maxLeft = 20;
-    axisLimits.minRight = -20;
-    axisLimits.maxRight = 20;
 
-    for (auto& expandable : ot_layout->expandableGlyphs) {
-      const auto& ff = regionSubtables.find(expandable.second);
-      if (ff == regionSubtables.end()) {
-        regionSubtables.insert({ expandable.second ,regionSubtables.size() + 1 });
-      }
-    }
+  auto& axes = ot_layout->font->axes;
 
-    auto getRegionIndex = [&regions = regions](VariationRegion region) {
-      int size = regions.size();
-      for (int i = 0; i < size; i++) {
-        if (regions[i] == region) return i;
-      }
+  this->axisCount = axes.size();
 
-      regions.push_back(region);
-      return size;
-      };
+  if (axisCount == 0) return;
 
-    std::map<int, ValueLimits> orderedRegionSubtables;
-    for (auto& subtable : regionSubtables) {
-      orderedRegionSubtables.insert({ subtable.second,subtable.first });
-    }
-
-    for (auto& subtable : orderedRegionSubtables) {
-      auto& limits = subtable.second;
-      std::vector<int> subRegion;
-      if (limits.maxLeft != 0.0) {
-        if (limits.maxLeft > axisLimits.maxLeft) {
-          throw new std::runtime_error("maxLeft exceeds axis Limit");
-        }
-        else if (limits.maxLeft == axisLimits.maxLeft) {
-          subRegion.push_back(0);
-        }
-        else {
-          int16_t normalLimit = getF2DOT14(limits.maxLeft / axisLimits.maxLeft);
-          VariationRegion region1 = { {0,normalLimit,normalLimit},{0,0,0 } };
-          subRegion.push_back(getRegionIndex(region1));
-          VariationRegion region2 = { {(short)(normalLimit + 1),getF2DOT14(1),getF2DOT14(1)},{0,0,0  } };
-          subRegion.push_back(getRegionIndex(region2));
-          VariationRegion region3 = { {(short)(normalLimit + 1),(short)(normalLimit + 1),getF2DOT14(1)},{0,0,0 } };
-          subRegion.push_back(getRegionIndex(region3));
-        }
-      }
-      if (limits.minLeft != 0.0) {
-        if (limits.minLeft < axisLimits.minLeft) {
-          throw new std::runtime_error("minLeft exceeds axis Limit");
-        }
-        else if (limits.minLeft == axisLimits.minLeft) {
-          subRegion.push_back(1);
-        }
-        else {
-          int16_t normalLimit = getF2DOT14(-limits.minLeft / axisLimits.minLeft);
-          VariationRegion region1 = { {normalLimit,normalLimit,0},{0,0,0 } };
-          subRegion.push_back(getRegionIndex(region1));
-          VariationRegion region2 = { {getF2DOT14(-1),(short)(normalLimit - 1),(short)(normalLimit - 1)},{0,0,0  } };
-          subRegion.push_back(getRegionIndex(region2));
-          VariationRegion region3 = { {getF2DOT14(-1),getF2DOT14(-1),(short)(normalLimit - 1)},{0,0,0  } };
-          subRegion.push_back(getRegionIndex(region3));
-        }
-      }
-      if (limits.maxRight != 0.0) {
-        if (limits.maxRight > axisLimits.maxRight) {
-          throw new std::runtime_error("maxRight exceeds axis Limit");
-        }
-        else if (limits.maxRight == axisLimits.maxRight) {
-          subRegion.push_back(2);
-        }
-        else {
-          int16_t normalLimit = getF2DOT14(limits.maxRight / axisLimits.maxRight);
-          VariationRegion region1 = { {0,0,0  } , {0,normalLimit,normalLimit} };
-          subRegion.push_back(getRegionIndex(region1));
-          VariationRegion region2 = { {0,0,0  } , {(short)(normalLimit + 1),getF2DOT14(1),getF2DOT14(1)} };
-          subRegion.push_back(getRegionIndex(region2));
-          VariationRegion region3 = { {0,0,0  } , {(short)(normalLimit + 1),(short)(normalLimit + 1),getF2DOT14(1)} };
-          subRegion.push_back(getRegionIndex(region3));
-        }
-      }
-      if (limits.minRight != 0.0) {
-        if (limits.minRight < axisLimits.minRight) {
-          throw new std::runtime_error("minRight exceeds axis Limit");
-        }
-        else if (limits.minRight == axisLimits.minRight) {
-          subRegion.push_back(3);
-        }
-        else {
-          int16_t normalLimit = getF2DOT14(-limits.minRight / axisLimits.minRight);
-          VariationRegion region1 = { {0,0,0  }, {normalLimit,normalLimit,0} };
-          subRegion.push_back(getRegionIndex(region1));
-          VariationRegion region2 = { {0,0,0 } , {getF2DOT14(-1),(short)(normalLimit - 1),(short)(normalLimit - 1)} };
-          subRegion.push_back(getRegionIndex(region2));
-          VariationRegion region3 = { {0,0,0 }, {getF2DOT14(-1),getF2DOT14(-1),(short)(normalLimit - 1)} };
-          subRegion.push_back(getRegionIndex(region3));
-        }
-      }
-      subRegions.push_back(subRegion);
-    }
-    GDEFDeltaSets.resize(subRegions.size());
+  int axisNameId = this->AxisNameId;
+  for (auto axis : axes) {
+    axisNameIds.push_back(axisNameId++);
   }
+
+  auto getVariationRegion = [&regions = regions, axisCount = this->axisCount](unsigned int axisIndex, RegionAxisCoordinate coordinate) {
+
+    VariationRegion region;
+
+    for (int i = 0; i < axisCount; i++) {
+      if (i == axisIndex) {
+        region.push_back(coordinate);
+      }
+      else {
+        region.push_back({ 0,0,0 });
+      }
+    }
+    return region;
+    };
+
+  auto getAxisIndex = [&axes = axes](QString axisName) {
+    for (int i = 0; i < axes.size(); i++) {
+      auto& axis = axes[i];
+      if (axis.name == axisName) {
+        return i;
+      }
+    }
+    return -1;
+    };
+
+  auto leftTatweelIndex = getAxisIndex("leftTatweel");
+  auto rightTatweelIndex = getAxisIndex("rightTatweel");
+  auto scaleXIndex = getAxisIndex("scaleX");
+
+  auto getRegionIndex = [&regions = regions, &glyphParametersByRegion = glyphParametersByRegion](VariationRegion region, GlyphParameters parameters) {
+    int size = regions.size();
+    for (int i = 0; i < size; i++) {
+      if (regions[i] == region) return i;
+    }
+
+    regions.push_back(region);
+    glyphParametersByRegion.push_back(parameters);
+    return size;
+    };
+
+  auto getRegionIndexesIndex = [&regionIndexesArray = regionIndexesArray](std::vector<int> regionIndexes) {
+    int size = regionIndexesArray.size();
+    for (int i = 0; i < size; i++) {
+      if (regionIndexesArray[i] == regionIndexes) return i;
+    }
+
+    regionIndexesArray.push_back(regionIndexes);
+    return size;
+    };
+
+
+  for (auto it = ot_layout->glyphCodePerName.keyValueBegin(); it != ot_layout->glyphCodePerName.keyValueEnd(); ++it) {
+    auto glyphName = it->first;
+    auto glyphCode = it->second;
+    auto* glyph = &ot_layout->glyphs[it->first];
+    std::vector<int> regionIndexes;
+    if (leftTatweelIndex != -1 || rightTatweelIndex != -1) {
+      auto ff = ot_layout->expandableGlyphs.find(glyphName);
+      if (ff != ot_layout->expandableGlyphs.end()) {
+        auto& limits = ff->second;
+        if (leftTatweelIndex != -1) {
+          auto& leftAxis = axes[leftTatweelIndex];
+          if (limits.maxLeft != 0.0) {
+            if (limits.maxLeft > leftAxis.maxValue) {
+              throw new std::runtime_error("maxLeft exceeds axis Limit");
+            }
+            else if (limits.maxLeft == leftAxis.maxValue) {
+              VariationRegion region = getVariationRegion(leftTatweelIndex, { 0, getF2DOT14(1.0), getF2DOT14(1.0) });
+              regionIndexes.push_back(getRegionIndex(region, { .lefttatweel = limits.maxLeft }));
+            }
+            else {
+              int16_t normalLimit = getF2DOT14(limits.maxLeft / leftAxis.maxValue);
+              VariationRegion region = getVariationRegion(leftTatweelIndex, { 0, normalLimit, normalLimit });
+              regionIndexes.push_back(getRegionIndex(region, { .lefttatweel = limits.maxLeft }));
+              region = getVariationRegion(leftTatweelIndex, { (short)(normalLimit + 1),getF2DOT14(1),getF2DOT14(1) });
+              regionIndexes.push_back(getRegionIndex(region, { .lefttatweel = limits.maxLeft }));
+              region = getVariationRegion(leftTatweelIndex, { (short)(normalLimit + 1),(short)(normalLimit + 1),getF2DOT14(1) });
+              regionIndexes.push_back(getRegionIndex(region, { .lefttatweel = limits.maxLeft }));
+            }
+          }
+          if (limits.minLeft != 0.0) {
+            if (limits.minLeft < leftAxis.minValue) {
+              throw new std::runtime_error("minLeft exceeds axis Limit");
+            }
+            else if (limits.minLeft == leftAxis.minValue) {
+              VariationRegion region = getVariationRegion(leftTatweelIndex, { getF2DOT14(-1.0),getF2DOT14(-1.0),0 });
+              regionIndexes.push_back(getRegionIndex(region, { .lefttatweel = limits.minLeft }));
+            }
+            else {
+              int16_t normalLimit = getF2DOT14(-limits.minLeft / leftAxis.minValue);
+              VariationRegion region = getVariationRegion(leftTatweelIndex, { normalLimit,normalLimit,0 });
+              regionIndexes.push_back(getRegionIndex(region, { .lefttatweel = limits.minLeft }));
+              region = getVariationRegion(leftTatweelIndex, { getF2DOT14(-1),(short)(normalLimit - 1),(short)(normalLimit - 1) });
+              regionIndexes.push_back(getRegionIndex(region, { .lefttatweel = limits.minLeft }));
+              region = getVariationRegion(leftTatweelIndex, { getF2DOT14(-1),getF2DOT14(-1),(short)(normalLimit - 1) });
+              regionIndexes.push_back(getRegionIndex(region, { .lefttatweel = limits.minLeft }));
+            }
+          }
+        }
+        if (rightTatweelIndex != -1) {
+          auto& rightAxis = axes[rightTatweelIndex];
+          if (limits.maxRight != 0.0) {
+            if (limits.maxRight > limits.maxRight) {
+              throw new std::runtime_error("maxRight exceeds axis Limit");
+            }
+            else if (limits.maxRight == rightAxis.maxValue) {
+              VariationRegion region = getVariationRegion(rightTatweelIndex, { 0, getF2DOT14(1.0), getF2DOT14(1.0) });
+              regionIndexes.push_back(getRegionIndex(region, { .righttatweel = limits.maxRight }));
+            }
+            else {
+              int16_t normalLimit = getF2DOT14(limits.maxRight / rightAxis.maxValue);
+              VariationRegion region = getVariationRegion(rightTatweelIndex, { 0, normalLimit, normalLimit });
+              regionIndexes.push_back(getRegionIndex(region, { .righttatweel = limits.maxRight }));
+              region = getVariationRegion(rightTatweelIndex, { (short)(normalLimit + 1),getF2DOT14(1),getF2DOT14(1) });
+              regionIndexes.push_back(getRegionIndex(region, { .righttatweel = limits.maxRight }));
+              region = getVariationRegion(rightTatweelIndex, { (short)(normalLimit + 1),(short)(normalLimit + 1),getF2DOT14(1) });
+              regionIndexes.push_back(getRegionIndex(region, { .righttatweel = limits.maxRight }));
+            }
+          }
+          if (limits.minRight != 0.0) {
+            if (limits.minRight < rightAxis.minValue) {
+              throw new std::runtime_error("minRight exceeds axis Limit");
+            }
+            else if (limits.minRight == rightAxis.minValue) {
+              VariationRegion region = getVariationRegion(rightTatweelIndex, { getF2DOT14(-1.0),getF2DOT14(-1.0),0 });
+              regionIndexes.push_back(getRegionIndex(region, { .righttatweel = limits.minRight }));
+            }
+            else {
+              int16_t normalLimit = getF2DOT14(-limits.minRight / rightAxis.minValue);
+              VariationRegion region = getVariationRegion(rightTatweelIndex, { normalLimit,normalLimit,0 });
+              regionIndexes.push_back(getRegionIndex(region, { .righttatweel = limits.minRight }));
+              region = getVariationRegion(rightTatweelIndex, { getF2DOT14(-1),(short)(normalLimit - 1),(short)(normalLimit - 1) });
+              regionIndexes.push_back(getRegionIndex(region, { .righttatweel = limits.minRight }));
+              region = getVariationRegion(rightTatweelIndex, { getF2DOT14(-1),getF2DOT14(-1),(short)(normalLimit - 1) });
+              regionIndexes.push_back(getRegionIndex(region, { .righttatweel = limits.minRight }));
+            }
+          }
+        }
+      }
+    }
+    if (scaleXIndex != -1) {
+      auto& scaleXAxis = axes[scaleXIndex];
+      VariationRegion region = getVariationRegion(scaleXIndex, { 0, getF2DOT14(1.0), getF2DOT14(1.0) });
+      regionIndexes.push_back(getRegionIndex(region, { .scalex = scaleXAxis.maxValue }));
+      region = getVariationRegion(scaleXIndex, { getF2DOT14(-1.0),getF2DOT14(-1.0),0 });
+      regionIndexes.push_back(getRegionIndex(region, { .scalex = scaleXAxis.minValue }));
+    }
+    auto regionIndexesIndex = getRegionIndexesIndex(regionIndexes);
+    regionIndexesIndexByGlyph.insert({ glyphName, regionIndexesIndex });
+  }
+
+  GDEFDeltaSets.resize(regionIndexesArray.size());
+
 }
 
 void ToOpenType::populateGlyphs() {
@@ -401,6 +454,8 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
 
   setGIds();
 
+  setAxes();
+
   ot_layout->loadLookupFile(lokkupsFileName);
 
 
@@ -414,7 +469,8 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
   QVector<Table> tables;
   QByteArray cffArray;
 
-  generateComponents();
+  // TODO blend component to support OpenType variations
+  //generateComponents();
 
   //generate new color glyphs
   if (isCff2) {
@@ -446,8 +502,15 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
   tables.append({ gposData,HB_TAG('G','P','O','S') });
   tables.append({ dsig(),HB_TAG('D','S','I','G') });
   if (isCff2) {
-    tables.append({ fvar(),HB_TAG('f','v','a','r') });
-    tables.append({ HVAR(),HB_TAG('H','V','A','R') });
+    auto data = fvar();
+    if (data.size() > 0) {
+      tables.append({ data,HB_TAG('f','v','a','r') });
+    }
+    data = HVAR();
+    if (data.size() > 0) {
+      tables.append({ data,HB_TAG('H','V','A','R') });
+    }
+
     //tables.append({ MVAR(),HB_TAG('M','V','A','R') });
     tables.append({ STAT(),HB_TAG('S','T','A','T') });
     if (ot_layout->extended) {
@@ -774,8 +837,10 @@ QByteArray ToOpenType::name() {
   names.append(Name{ 21,globalValues.familyName });
   names.append(Name{ 22,globalValues.subFamilyName });
 
-  names.append(Name{ LTATNameId,"Left Elongation" });
-  names.append(Name{ RTATNameId,"Right Elongation" });
+  for (int i = 0; i < axisCount; i++) {
+    names.append(Name{ (ushort)axisNameIds[i] ,ot_layout->font->axes[i].name });
+  }
+
 
   QByteArray stringStorage;
   uint16_t offset = 0;
@@ -941,8 +1006,6 @@ QByteArray ToOpenType::post() {
 }
 void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_fill_object* fill, double& currentx, double& currenty, PathLimits& pathLimits, GlyphVis** compGlyphVis) {
 
-
-
   if (fill->pre_script && strcmp(fill->pre_script, "begincomponent") == 0) {
     auto comp = QString(fill->post_script).split(",");
     QString name = comp[0];
@@ -982,14 +1045,14 @@ void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_fill_object* fil
   fixed_to_cff2(data, defaultt);
   if (isCff2) {
     auto delta = pathLimits.x_coord() - pathLimits.currentx - defaultt;
-    data.append(blend(delta, pathLimits.limits));
+    data.append(blend(delta));
   }
 
   defaultt = path->y_coord - currenty;
   fixed_to_cff2(data, defaultt);
   if (isCff2) {
     auto delta = pathLimits.y_coord() - pathLimits.currenty - defaultt;
-    data.append(blend(delta, pathLimits.limits));
+    data.append(blend(delta));
   }
 
   data << (uint8_t)21; // rmoveto;
@@ -1004,42 +1067,42 @@ void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_fill_object* fil
     fixed_to_cff2(data, defaultt);
     if (isCff2) {
       auto deltax = pLimits.right_x() - pLimits.x_coord() - defaultt;
-      data.append(blend(deltax, pathLimits.limits));
+      data.append(blend(deltax));
     }
 
     defaultt = p->right_y - p->y_coord;
     fixed_to_cff2(data, defaultt);
     if (isCff2) {
       auto deltay = pLimits.right_y() - pLimits.y_coord() - defaultt;
-      data.append(blend(deltay, pathLimits.limits));
+      data.append(blend(deltay));
     }
 
     defaultt = q->left_x - p->right_x;
     fixed_to_cff2(data, defaultt);
     if (isCff2) {
       auto delta = qLimits.left_x() - pLimits.right_x() - defaultt;
-      data.append(blend(delta, pathLimits.limits));
+      data.append(blend(delta));
     }
 
     defaultt = q->left_y - p->right_y;
     fixed_to_cff2(data, defaultt);
     if (isCff2) {
       auto delta = qLimits.left_y() - pLimits.right_y() - defaultt;
-      data.append(blend(delta, pathLimits.limits));
+      data.append(blend(delta));
     }
 
     defaultt = q->x_coord - q->left_x;
     fixed_to_cff2(data, defaultt);
     if (isCff2) {
       auto delta = qLimits.x_coord() - qLimits.left_x() - defaultt;
-      data.append(blend(delta, pathLimits.limits));
+      data.append(blend(delta));
     }
 
     defaultt = q->y_coord - q->left_y;
     fixed_to_cff2(data, defaultt);
     if (isCff2) {
       auto delta = qLimits.y_coord() - qLimits.left_y() - defaultt;
-      data.append(blend(delta, pathLimits.limits));
+      data.append(blend(delta));
     }
 
     if (!isCff2) {
@@ -1070,8 +1133,7 @@ QByteArray ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QV
   QByteArray data;
 
   Color ayablue = Color{ 255,240,220,255 };
-  PathLimits pathlimits;
-  pathlimits.limits = contourLimits.limits;
+
 
   if (body) {
     do {
@@ -1080,13 +1142,19 @@ QByteArray ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QV
       case mp_fill_code: {
         QByteArray layerArray;
         mp_fill_object* fillobject = (mp_fill_object*)body;
-
+        PathLimits pathlimits;
         if (!colored) {
           if (iscff2) {
-            pathlimits.maxLeft = contourLimits.maxLeft != nullptr ? ((mp_fill_object*)contourLimits.maxLeft)->path_p : nullptr;
-            pathlimits.minLeft = contourLimits.minLeft != nullptr ? ((mp_fill_object*)contourLimits.minLeft)->path_p : nullptr;
-            pathlimits.maxRight = contourLimits.maxRight != nullptr ? ((mp_fill_object*)contourLimits.maxRight)->path_p : nullptr;
-            pathlimits.minRight = contourLimits.minRight != nullptr ? ((mp_fill_object*)contourLimits.minRight)->path_p : nullptr;
+            for (auto contour : contourLimits.contours) {
+              if (contour != nullptr) {
+                pathlimits.knots.push_back(((mp_fill_object*)contour)->path_p);
+              }
+              else {
+                pathlimits.knots.push_back(nullptr);
+              }
+              pathlimits.currentx.deltas.push_back(currentx);
+              pathlimits.currenty.deltas.push_back(currenty);
+            }
           }
           GlyphVis* compGlyphVis = nullptr;
           dumpPath(glyph, layerArray, fillobject, currentx, currenty, pathlimits, &compGlyphVis);
@@ -1130,10 +1198,9 @@ QByteArray ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QV
       }
       body = body->next;
       if (iscff2) {
-        contourLimits.maxLeft = contourLimits.maxLeft != nullptr ? contourLimits.maxLeft->next : nullptr;
-        contourLimits.minLeft = contourLimits.minLeft != nullptr ? contourLimits.minLeft->next : nullptr;
-        contourLimits.maxRight = contourLimits.maxRight != nullptr ? contourLimits.maxRight->next : nullptr;
-        contourLimits.minRight = contourLimits.minRight != nullptr ? contourLimits.minRight->next : nullptr;
+        for (int i = 0; i < contourLimits.contours.size(); i++) {
+          contourLimits.contours[i] = contourLimits.contours[i] != nullptr ? contourLimits.contours[i]->next : nullptr;
+        }
       }
 
     } while (body != nullptr);
@@ -1170,7 +1237,7 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
       double currentx = 0.0;
       double currenty = 0.0;
 
-      int regionSubtable = 0;
+      int regionIndexesArrayIndex = 0;
 
       if (subrByGlyph.contains(glyph.charcode)) {
         int_to_cff2(glyphData, subrByGlyph.value(glyph.charcode).offset - subIndexBias);
@@ -1180,59 +1247,20 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
         ContourLimits contourLimits;
 
         if (ot_layout->isOTVar) {
-          const auto& ff = ot_layout->expandableGlyphs.find(glyph.name);
 
-          if (ff != ot_layout->expandableGlyphs.end()) {
 
-            auto& jj = ff->second;
-            contourLimits.limits = jj;
+          const auto& ff = regionIndexesIndexByGlyph.find(glyph.name);
 
-            if (uniformAxis) {
-              regionSubtable = regionSubtables[jj];
-              if (regionSubtable == 7) {
-                int tt = 5;
-              }
-            }
+          if (ff != regionIndexesIndexByGlyph.end()) {
 
-            if (jj.maxLeft != 0) {
-              GlyphParameters parameters{};
+            regionIndexesArrayIndex = ff->second;
 
-              parameters.lefttatweel = jj.maxLeft;
-              parameters.righttatweel = 0.0;
+            auto& regionIndexes = regionIndexesArray[regionIndexesArrayIndex];
 
+            for (auto regionIndex : regionIndexes) {
+              auto& parameters = glyphParametersByRegion[regionIndex];
               auto alternate = glyph.getAlternate(parameters);
-              contourLimits.maxLeft = alternate->copiedPath;
-
-            }
-            if (jj.minLeft != 0) {
-              GlyphParameters parameters{};
-
-              parameters.lefttatweel = jj.minLeft;
-              parameters.righttatweel = 0.0;
-
-              auto alternate = glyph.getAlternate(parameters);
-              contourLimits.minLeft = alternate->copiedPath;
-
-            }
-            if (jj.maxRight != 0) {
-              GlyphParameters parameters{};
-
-              parameters.lefttatweel = 0.0;
-              parameters.righttatweel = jj.maxRight;
-
-              auto alternate = glyph.getAlternate(parameters);
-              contourLimits.maxRight = alternate->copiedPath;
-
-            }
-            if (jj.minRight != 0) {
-              GlyphParameters parameters{};
-
-              parameters.lefttatweel = 0.0;
-              parameters.righttatweel = jj.minRight;
-
-              auto alternate = glyph.getAlternate(parameters);
-              contourLimits.minRight = alternate->copiedPath;
-
+              contourLimits.contours.push_back(alternate->copiedPath);
             }
           }
         }
@@ -1248,8 +1276,8 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
       }
       else {
         if (iscff2) {
-          if (regionSubtable != 0) {
-            int_to_cff2(glyphArray, toInt(regionSubtable)); // regionSubtable
+          if (regionIndexesArrayIndex != 0) {
+            int_to_cff2(glyphArray, toInt(regionIndexesArrayIndex)); // regionSubtable
             glyphArray << (uint8_t)15; // vsindex;
           }
           glyphArray.append(glyphData);
@@ -1843,7 +1871,7 @@ void ToOpenType::generateComponents() {
 QByteArray ToOpenType::fvar() {
   QByteArray data;
 
-  int axisCount = 2;
+  if (axisCount == 0) return data;
 
   data << (uint16_t)1; // majorVersion
   data << (uint16_t)0; // minorVersion
@@ -1852,25 +1880,19 @@ QByteArray ToOpenType::fvar() {
   data << (uint16_t)axisCount; // axisCount
   data << (uint16_t)20; // axisSize
   data << (uint16_t)0; // instanceCount
-  data << (uint16_t)12; // instanceSize : axisCount * sizeof(Fixed) + 4
+  data << (uint16_t)(axisCount * 4 + 4); // instanceSize : axisCount * sizeof(Fixed) + 4
 
-  //VariationAxisRecord[0]
-  data << (uint32_t)HB_TAG('L', 'T', 'A', 'T');
-  data << getFixed(axisLimits.minLeft); // minValue
-  data << getFixed(0); // defaultValue
-  data << getFixed(axisLimits.maxLeft); // maxValue
-  data << (uint16_t)0; // flags
-  data << (uint16_t)LTATNameId; // axisNameID
+  auto& axes = ot_layout->font->axes;
 
-  //VariationAxisRecord[1]
-  data << (uint32_t)HB_TAG('R', 'T', 'A', 'T');
-  data << getFixed(axisLimits.minRight); // minValue
-  data << getFixed(0); // defaultValue
-  data << getFixed(axisLimits.maxRight); // maxValue
-  data << (uint16_t)0; // flags
-  data << (uint16_t)RTATNameId; // axisNameID
-
-
+  for (int i = 0; i < axisCount; i++) {
+    auto& axis = axes[i];
+    data << (uint32_t)axis.axisTag;
+    data << getFixed(axis.minValue); // minValue
+    data << getFixed(axis.defaultValue); // defaultValue
+    data << getFixed(axis.maxValue); // maxValue
+    data << (uint16_t)0; // flags
+    data << (uint16_t)axisNameIds[i]; // axisNameID
+  }
 
   return data;
 }
@@ -1886,19 +1908,20 @@ QByteArray ToOpenType::STAT() {
   data << (uint16_t)1; // majorVersion
   data << (uint16_t)2; // minorVersion
   data << (uint16_t)8; // designAxisSize
-  data << (uint16_t)2; // designAxisCount
+  data << (uint16_t)axisCount; // designAxisCount
   data << (uint32_t)20; // designAxesOffset
   data << (uint16_t)0; // axisValueCount
   data << (uint32_t)0; // offsetToAxisValueOffsets
   data << (uint16_t)2; // elidedFallbackNameID
 
-  data << (uint32_t)HB_TAG('L', 'T', 'A', 'T'); //axisTag
-  data << (uint16_t)LTATNameId; // axisNameID
-  data << (uint16_t)0; // axisOrdering
+  auto& axes = ot_layout->font->axes;
 
-  data << (uint32_t)HB_TAG('R', 'T', 'A', 'T'); //axisTag
-  data << (uint16_t)RTATNameId; // axisNameID
-  data << (uint16_t)1; // axisOrdering
+  for (int i = 0; i < axisCount; i++) {
+    auto& axis = axes[i];
+    data << (uint32_t)axis.axisTag; //axisTag
+    data << (uint16_t)axisNameIds[i]; // axisNameID
+    data << (uint16_t)i; // axisOrdering
+  }
 
   return data;
 
@@ -1911,17 +1934,17 @@ QByteArray ToOpenType::CFF2VariationStore() {
   QByteArray itemVariationStore;
   QByteArray ItemVariationDatas;
 
-  int variationRegionListOffset = 2 /* format*/ + 4 /*variationRegionListOffset*/ + 2 /*itemVariationDataCount*/ + 4 * subRegions.size() /* itemVariationDataOffsets[itemVariationDataCount]*/;
+  int variationRegionListOffset = 2 /* format*/ + 4 /*variationRegionListOffset*/ + 2 /*itemVariationDataCount*/ + 4 * regionIndexesArray.size() /* itemVariationDataOffsets[itemVariationDataCount]*/;
 
   itemVariationStore << (uint16_t)1; //format
   itemVariationStore << (uint32_t)variationRegionListOffset; //variationRegionListOffset
-  itemVariationStore << (uint16_t)(subRegions.size()); //itemVariationDataCount
+  itemVariationStore << (uint16_t)(regionIndexesArray.size()); //itemVariationDataCount
 
   QByteArray variationRegionList = getVariationRegionList();
 
   int itemVariationDataOffsets = variationRegionListOffset + variationRegionList.size();
 
-  for (auto& subRegion : subRegions) {
+  for (auto& regionIndexes : regionIndexesArray) {
 
     itemVariationStore << (uint32_t)(itemVariationDataOffsets); //itemVariationDataOffsets[itemVariationDataCount]
 
@@ -1929,8 +1952,8 @@ QByteArray ToOpenType::CFF2VariationStore() {
     //subtable
     ItemVariationData << (uint16_t)0; //itemCount
     ItemVariationData << (uint16_t)0; //shortDeltaCount
-    ItemVariationData << (uint16_t)(subRegion.size()); //regionIndexCount
-    for (auto index : subRegion) {
+    ItemVariationData << (uint16_t)(regionIndexes.size()); //regionIndexCount
+    for (auto index : regionIndexes) {
       ItemVariationData << (uint16_t)index; //regionIndexes
     }
 
@@ -2035,16 +2058,22 @@ QByteArray ToOpenType::MVAR() {
 
 QByteArray ToOpenType::HVAR() {
 
+  QByteArray data;
+
+  if (regionIndexesArray.size() == 0) {
+    return data;
+  }
+
   int glyphCount = glyphs.lastKey() + 1;
 
   std::vector<std::map<std::vector<int>, int>> deltaSets;
   std::map<int, std::pair<int, int>> advaceLookup;
   std::map<int, std::pair<int, int>> lsbLookup;
 
-  deltaSets.resize(subRegions.size());
+  deltaSets.resize(regionIndexesArray.size());
 
   std::vector<int> defaultValue;
-  defaultValue.resize(4);
+  defaultValue.resize(axisCount * 2);
 
   deltaSets[0].insert({ defaultValue ,0 });
 
@@ -2056,65 +2085,21 @@ QByteArray ToOpenType::HVAR() {
 
       auto& glyph = *glyphs.value(i);
 
-      const auto& ff = ot_layout->expandableGlyphs.find(glyph.name);
-
-      if (ff != ot_layout->expandableGlyphs.end()) {
-
+      auto find = regionIndexesIndexByGlyph.find(glyph.name);
+      if (find != regionIndexesIndexByGlyph.end()) {
         DefaultDelta advanceDelta;
         DefaultDelta lsbDelta;
+        auto regionIndexesArrayIndex = find->second;
+        auto& regionIndexes = regionIndexesArray[regionIndexesArrayIndex];
 
-        auto& jj = ff->second;
-        if (jj.maxLeft != 0) {
-          GlyphParameters parameters{};
-
-          parameters.lefttatweel = jj.maxLeft;
-          parameters.righttatweel = 0.0;
-
+        for (auto regionIndex : regionIndexes) {
+          auto& parameters = glyphParametersByRegion[regionIndex];
           auto alternate = glyph.getAlternate(parameters);
-
-          advanceDelta.maxLeft = toInt(alternate->width) - toInt(glyph.width);
-          lsbDelta.maxLeft = toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx);
-
+          advanceDelta.push_back(toInt(alternate->width) - toInt(glyph.width));
+          lsbDelta.push_back(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
         }
-        if (jj.minLeft != 0) {
-          GlyphParameters parameters{};
-
-          parameters.lefttatweel = jj.minLeft;
-          parameters.righttatweel = 0.0;
-
-          auto alternate = glyph.getAlternate(parameters);
-
-          advanceDelta.minLeft = toInt(alternate->width) - toInt(glyph.width);
-          lsbDelta.minLeft = toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx);
-
-        }
-        if (jj.maxRight != 0) {
-          GlyphParameters parameters{};
-
-          parameters.lefttatweel = 0.0;
-          parameters.righttatweel = jj.maxRight;
-
-          auto alternate = glyph.getAlternate(parameters);
-
-          advanceDelta.maxRight = toInt(alternate->width) - toInt(glyph.width);
-          lsbDelta.maxRight = toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx);
-
-        }
-        if (jj.minRight != 0) {
-          GlyphParameters parameters{};
-
-          parameters.lefttatweel = 0.0;
-          parameters.righttatweel = jj.minRight;
-
-          auto alternate = glyph.getAlternate(parameters);
-
-          advanceDelta.minRight = toInt(alternate->width) - toInt(glyph.width);
-          lsbDelta.minRight = toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx);
-
-        }
-
-        auto advPos = getDeltaSetEntry(advanceDelta, jj, deltaSets);
-        auto lsbPos = getDeltaSetEntry(lsbDelta, jj, deltaSets);
+        auto advPos = getDeltaSetEntry(advanceDelta, regionIndexesArrayIndex, deltaSets);
+        auto lsbPos = getDeltaSetEntry(lsbDelta, regionIndexesArrayIndex, deltaSets);
 
         advaceLookup.insert({ i,advPos });
         lsbLookup.insert({ i,lsbPos });
@@ -2157,201 +2142,6 @@ QByteArray ToOpenType::HVAR() {
 
 
   //hvar
-  QByteArray data;
-
-  data << (uint16_t)1; //majorVersion
-  data << (uint16_t)0; //minorVersion
-  data << (uint32_t)20; //itemVariationStoreOffset
-  data << (uint32_t)(20 + itemVariationStore.size()); //advanceWidthMappingOffset
-  data << (uint32_t)(20 + itemVariationStore.size() + advanceMapping.size()); //lsbMappingOffset
-  //data << (uint32_t)(20 + itemVariationStore.size() + advanceMapping.size() + lsbMapping.size()); //rsbMappingOffset
-  data << (uint32_t)0; //rsbMappingOffset
-  data.append(itemVariationStore);
-  data.append(advanceMapping);
-  data.append(lsbMapping);
-  //data.append(lsbMapping);
-
-  return data;
-
-}
-
-QByteArray ToOpenType::HVAR_Old() {
-
-  struct EntryValue {
-    int32_t value1 = 0;
-    int32_t value2 = 0;
-    int32_t value3 = 0;
-    int32_t value4 = 0;
-  };
-
-  std::unordered_map<uint32_t, EntryValue> lsbs;
-
-  QByteArray variationRegionList = getVariationRegionList();
-  QByteArray aWidthVariationData;
-  QByteArray lsbVariationData;
-
-  int glyphCount = glyphs.lastKey() + 1;
-
-  //subtable 0
-  aWidthVariationData << (uint16_t)glyphCount; //itemCount
-  aWidthVariationData << (uint16_t)4; //shortDeltaCount
-  aWidthVariationData << (uint16_t)4; //regionIndexCount
-  for (int i = 0; i < 4; i++) {
-    aWidthVariationData << (uint16_t)i; //regionIndexes
-  }
-  //subtable 1
-  lsbVariationData << (uint16_t)glyphCount; //itemCount
-  lsbVariationData << (uint16_t)4; //shortDeltaCount
-  lsbVariationData << (uint16_t)4; //regionIndexCount
-  for (int i = 0; i < 4; i++) {
-    lsbVariationData << (uint16_t)i; //regionIndexes
-  }
-
-  for (int i = 0; i < glyphCount; i++) {
-    QByteArray glyphArray;
-
-    bool entryExist = false;
-
-    if (glyphs.contains(i)) {
-      auto& glyph = *glyphs.value(i);
-      /*
-      if (!ot_layout->glyphs.contains(it.first)) {
-        throw new std::runtime_error("Glyph name "+ it.first.toStdString() + " does not exist");
-      }*/
-
-      const auto& ff = ot_layout->expandableGlyphs.find(glyph.name);
-
-      DefaultDelta advanceDelta;
-      DefaultDelta lsbDelta;
-
-      if (ff != ot_layout->expandableGlyphs.end()) {
-        entryExist = true;
-        auto& jj = ff->second;
-        if (jj.maxLeft != 0) {
-          GlyphParameters parameters{};
-
-          parameters.lefttatweel = jj.maxLeft;
-          parameters.righttatweel = 0.0;
-
-          auto alternate = glyph.getAlternate(parameters);
-
-          advanceDelta.maxLeft = toInt(alternate->width) - toInt(glyph.width);
-          lsbDelta.maxLeft = toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx);
-
-          aWidthVariationData << (uint16_t)(toInt(alternate->width) - toInt(glyph.width));
-          lsbVariationData << (uint16_t)(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
-
-        }
-        else {
-          aWidthVariationData << (uint16_t)0;
-          lsbVariationData << (uint16_t)0;
-        }
-        if (jj.minLeft != 0) {
-          GlyphParameters parameters{};
-
-          parameters.lefttatweel = jj.minLeft;
-          parameters.righttatweel = 0.0;
-
-          auto alternate = glyph.getAlternate(parameters);
-
-          advanceDelta.minLeft = toInt(alternate->width) - toInt(glyph.width);
-          lsbDelta.minLeft = toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx);
-
-          aWidthVariationData << (uint16_t)(toInt(alternate->width) - toInt(glyph.width));
-          lsbVariationData << (uint16_t)(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
-
-        }
-        else {
-          aWidthVariationData << (uint16_t)0;
-          lsbVariationData << (uint16_t)0;
-        }
-        if (jj.maxRight != 0) {
-          GlyphParameters parameters{};
-
-          parameters.lefttatweel = 0.0;
-          parameters.righttatweel = jj.maxRight;
-
-          auto alternate = glyph.getAlternate(parameters);
-
-          advanceDelta.maxRight = toInt(alternate->width) - toInt(glyph.width);
-          lsbDelta.maxRight = toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx);
-
-          aWidthVariationData << (uint16_t)(toInt(alternate->width) - toInt(glyph.width));
-          lsbVariationData << (uint16_t)(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
-
-        }
-        else {
-          aWidthVariationData << (uint16_t)0;
-          lsbVariationData << (uint16_t)0;
-        }
-        if (jj.minRight != 0) {
-          GlyphParameters parameters{};
-
-          parameters.lefttatweel = 0.0;
-          parameters.righttatweel = jj.minRight;
-
-          auto alternate = glyph.getAlternate(parameters);
-
-          advanceDelta.minRight = toInt(alternate->width) - toInt(glyph.width);
-          lsbDelta.minRight = toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx);
-
-          aWidthVariationData << (uint16_t)(toInt(alternate->width) - toInt(glyph.width));
-          lsbVariationData << (uint16_t)(toInt(alternate->bbox.llx) - toInt(glyph.bbox.llx));
-
-        }
-        else {
-          aWidthVariationData << (uint16_t)0;
-          lsbVariationData << (uint16_t)0;
-        }
-      }
-    }
-
-    if (!entryExist) {
-      aWidthVariationData << (uint16_t)0;
-      aWidthVariationData << (uint16_t)0;
-      aWidthVariationData << (uint16_t)0;
-      aWidthVariationData << (uint16_t)0;
-
-      lsbVariationData << (uint16_t)0;
-      lsbVariationData << (uint16_t)0;
-      lsbVariationData << (uint16_t)0;
-      lsbVariationData << (uint16_t)0;
-    }
-  }
-
-  QByteArray itemVariationStore;
-
-  auto itemVariationDataCount = 2;
-  auto startOffset = 8 + 4 * itemVariationDataCount;
-
-  itemVariationStore << (uint16_t)1; //format
-  itemVariationStore << (uint32_t)startOffset; //variationRegionListOffset
-  itemVariationStore << (uint16_t)itemVariationDataCount; //itemVariationDataCount
-  itemVariationStore << (uint32_t)(startOffset + variationRegionList.size()); //itemVariationDataOffsets[0]
-  itemVariationStore << (uint32_t)(startOffset + variationRegionList.size() + aWidthVariationData.size()); //itemVariationDataOffsets[1]  
-  itemVariationStore.append(variationRegionList);
-  itemVariationStore.append(aWidthVariationData);
-  itemVariationStore.append(lsbVariationData);
-
-  QByteArray advanceMapping;
-  advanceMapping << (uint16_t)0x3F; //entryFormat : 2 byte for outer, 2 byte for inner
-  advanceMapping << (uint16_t)glyphCount; //entryFormat : 1 byte for outer, 2 byte for inner
-  for (int i = 0; i < glyphCount; i++) {
-    advanceMapping << (uint16_t)0;
-    advanceMapping << (uint16_t)i;
-  }
-
-  QByteArray lsbMapping;
-  lsbMapping << (uint16_t)0x3F; //entryFormat : 2 byte for outer, 2 byte for inner
-  lsbMapping << (uint16_t)glyphCount; //entryFormat : 1 byte for outer, 2 byte for inner
-  for (int i = 0; i < glyphCount; i++) {
-    lsbMapping << (uint16_t)1;
-    lsbMapping << (uint16_t)i;
-  }
-
-
-  //hvar
-  QByteArray data;
 
   data << (uint16_t)1; //majorVersion
   data << (uint16_t)0; //minorVersion
@@ -2373,138 +2163,88 @@ QByteArray ToOpenType::HVAR_Old() {
 inline ToOpenType::PathLimits ToOpenType::PathLimits::next()
 {
   PathLimits nn{};
-  if (maxLeft != nullptr) {
-    nn.maxLeft = maxLeft->next;
-  }
-  if (minLeft != nullptr) {
-    nn.minLeft = minLeft->next;
-  }
-  if (maxRight != nullptr) {
-    nn.maxRight = maxRight->next;
-  }
-  if (minRight != nullptr) {
-    nn.minRight = minRight->next;
+  for (auto v : knots) {
+    if (v != nullptr) {
+      nn.knots.push_back(v->next);
+    }
+    else {
+      nn.knots.push_back(nullptr);
+    }
   }
   return nn;
 }
 
 inline ToOpenType::DeltaValues ToOpenType::PathLimits::x_coord() {
   DeltaValues nn{};
-  if (maxLeft != nullptr) {
-    nn.deltas[0] = maxLeft->x_coord;
-    nn.active[0] = true;
-  }
-  if (minLeft != nullptr) {
-    nn.deltas[1] = minLeft->x_coord;
-    nn.active[1] = true;
-  }
-  if (maxRight != nullptr) {
-    nn.deltas[2] = maxRight->x_coord;
-    nn.active[2] = true;
-  }
-  if (minRight != nullptr) {
-    nn.deltas[3] = minRight->x_coord;
-    nn.active[3] = true;
+  for (auto v : knots) {
+    if (v != nullptr) {
+      nn.deltas.push_back(v->x_coord);
+    }
+    else {
+      nn.deltas.push_back(0.0);
+    }
   }
   return nn;
 }
 inline ToOpenType::DeltaValues ToOpenType::PathLimits::y_coord() {
   DeltaValues nn{};
-  if (maxLeft != nullptr) {
-    nn.deltas[0] = maxLeft->y_coord;
-    nn.active[0] = true;
+  for (auto v : knots) {
+    if (v != nullptr) {
+      nn.deltas.push_back(v->y_coord);
+    }
+    else {
+      nn.deltas.push_back(0.0);
+    }
+
   }
-  if (minLeft != nullptr) {
-    nn.deltas[1] = minLeft->y_coord;
-    nn.active[1] = true;
-  }
-  if (maxRight != nullptr) {
-    nn.deltas[2] = maxRight->y_coord;
-    nn.active[2] = true;
-  }
-  if (minRight != nullptr) {
-    nn.deltas[3] = minRight->y_coord;
-    nn.active[3] = true;
-  }
+
   return nn;
 }
 inline ToOpenType::DeltaValues ToOpenType::PathLimits::left_x() {
   DeltaValues nn{};
-  if (maxLeft != nullptr) {
-    nn.deltas[0] = maxLeft->left_x;
-    nn.active[0] = true;
-  }
-  if (minLeft != nullptr) {
-    nn.deltas[1] = minLeft->left_x;
-    nn.active[1] = true;
-  }
-  if (maxRight != nullptr) {
-    nn.deltas[2] = maxRight->left_x;
-    nn.active[2] = true;
-  }
-  if (minRight != nullptr) {
-    nn.deltas[3] = minRight->left_x;
-    nn.active[3] = true;
+  for (auto v : knots) {
+    if (v != nullptr) {
+      nn.deltas.push_back(v->left_x);
+    }
+    else {
+      nn.deltas.push_back(0.0);
+    }
   }
   return nn;
 }
 inline ToOpenType::DeltaValues ToOpenType::PathLimits::left_y() {
   DeltaValues nn{};
-  if (maxLeft != nullptr) {
-    nn.deltas[0] = maxLeft->left_y;
-    nn.active[0] = true;
-  }
-  if (minLeft != nullptr) {
-    nn.deltas[1] = minLeft->left_y;
-    nn.active[1] = true;
-  }
-  if (maxRight != nullptr) {
-    nn.deltas[2] = maxRight->left_y;
-    nn.active[2] = true;
-  }
-  if (minRight != nullptr) {
-    nn.deltas[3] = minRight->left_y;
-    nn.active[3] = true;
+  for (auto v : knots) {
+    if (v != nullptr) {
+      nn.deltas.push_back(v->left_y);
+    }
+    else {
+      nn.deltas.push_back(0.0);
+    }
   }
   return nn;
 }
 inline ToOpenType::DeltaValues ToOpenType::PathLimits::right_x() {
   DeltaValues nn{};
-  if (maxLeft != nullptr) {
-    nn.deltas[0] = maxLeft->right_x;
-    nn.active[0] = true;
-  }
-  if (minLeft != nullptr) {
-    nn.deltas[1] = minLeft->right_x;
-    nn.active[1] = true;
-  }
-  if (maxRight != nullptr) {
-    nn.deltas[2] = maxRight->right_x;
-    nn.active[2] = true;
-  }
-  if (minRight != nullptr) {
-    nn.deltas[3] = minRight->right_x;
-    nn.active[3] = true;
+  for (auto v : knots) {
+    if (v != nullptr) {
+      nn.deltas.push_back(v->right_x);
+    }
+    else {
+      nn.deltas.push_back(0.0);
+    }
   }
   return nn;
 }
 inline ToOpenType::DeltaValues ToOpenType::PathLimits::right_y() {
   DeltaValues nn{};
-  if (maxLeft != nullptr) {
-    nn.deltas[0] = maxLeft->right_y;
-    nn.active[0] = true;
-  }
-  if (minLeft != nullptr) {
-    nn.deltas[1] = minLeft->right_y;
-    nn.active[1] = true;
-  }
-  if (maxRight != nullptr) {
-    nn.deltas[2] = maxRight->right_y;
-    nn.active[2] = true;
-  }
-  if (minRight != nullptr) {
-    nn.deltas[3] = minRight->right_y;
-    nn.active[3] = true;
+  for (auto v : knots) {
+    if (v != nullptr) {
+      nn.deltas.push_back(v->right_y);
+    }
+    else {
+      nn.deltas.push_back(0.0);
+    }
   }
   return nn;
 }
@@ -2512,7 +2252,7 @@ inline ToOpenType::DeltaValues ToOpenType::PathLimits::right_y() {
 QByteArray ToOpenType::getVariationRegionList() {
   QByteArray variationRegionList;
 
-  variationRegionList << (uint16_t)2; //axisCount
+  variationRegionList << (uint16_t)axisCount; //axisCount
   variationRegionList << (uint16_t)regions.size(); //regionCount
 
   for (auto& region : regions) {
@@ -2526,61 +2266,17 @@ QByteArray ToOpenType::getVariationRegionList() {
   return variationRegionList;
 }
 
-std::pair<int, int> ToOpenType::getDeltaSetEntry(DefaultDelta delta, const ValueLimits& limits, std::vector<std::map<std::vector<int>, int>>& delatSets) {
-
-  std::vector<int> deltaVector;
-
-  int subregionIndex = 0;
-
-  if (!uniformAxis) {
-    deltaVector.push_back(delta.maxLeft);
-    deltaVector.push_back(delta.minLeft);
-    deltaVector.push_back(delta.maxRight);
-    deltaVector.push_back(delta.minRight);
-  }
-  else {
-    subregionIndex = regionSubtables[limits];
-    if (limits.maxLeft != 0.0) {
-      deltaVector.push_back(delta.maxLeft);
-      if (limits.maxLeft != axisLimits.maxLeft) {
-        deltaVector.push_back(delta.maxLeft);
-        deltaVector.push_back(delta.maxLeft);
-      }
-    }
-    if (limits.minLeft != 0.0) {
-      deltaVector.push_back(delta.minLeft);
-      if (limits.minLeft != axisLimits.minLeft) {
-        deltaVector.push_back(delta.minLeft);
-        deltaVector.push_back(delta.minLeft);
-      }
-    }
-    if (limits.maxRight != 0.0) {
-      deltaVector.push_back(delta.maxRight);
-      if (limits.maxRight != axisLimits.maxRight) {
-        deltaVector.push_back(delta.maxRight);
-        deltaVector.push_back(delta.maxRight);
-      }
-    }
-    if (limits.minRight != 0.0) {
-      deltaVector.push_back(delta.minRight);
-      if (limits.minRight != axisLimits.minRight) {
-        deltaVector.push_back(delta.minRight);
-        deltaVector.push_back(delta.minRight);
-      }
-    }
-
-    //assert(deltaVector.size() == subRegions[subregionIndex].size());
-  }
+std::pair<int, int> ToOpenType::getDeltaSetEntry(DefaultDelta delta, const int subregionIndex, std::vector<std::map<std::vector<int>, int>>& delatSets) {
 
   auto& subRegionDataSet = delatSets[subregionIndex];
 
-  const auto& it = subRegionDataSet.find(deltaVector);
+  const auto& it = subRegionDataSet.find(delta);
   if (it != subRegionDataSet.end()) {
     return { subregionIndex,it->second };
   }
   else {
     int val = subRegionDataSet.size();
-    subRegionDataSet.insert({ deltaVector ,val });
+    subRegionDataSet.insert({ delta ,val });
     return { subregionIndex,val };
   }
 }
@@ -2593,38 +2289,40 @@ QByteArray ToOpenType::getItemVariationStore(const std::vector<std::map<std::vec
   QByteArray itemVariationStore;
   QByteArray ItemVariationDatas;
 
-  int variationRegionListOffset = 2 /* format*/ + 4 /*variationRegionListOffset*/ + 2 /*itemVariationDataCount*/ + 4 * subRegions.size() /* itemVariationDataOffsets[itemVariationDataCount]*/;
+  int variationRegionListOffset = 2 /* format*/ + 4 /*variationRegionListOffset*/ + 2 /*itemVariationDataCount*/ + 4 * regionIndexesArray.size() /* itemVariationDataOffsets[itemVariationDataCount]*/;
 
   itemVariationStore << (uint16_t)1; //format
   itemVariationStore << (uint32_t)variationRegionListOffset; //variationRegionListOffset
-  itemVariationStore << (uint16_t)(subRegions.size()); //itemVariationDataCount
+  itemVariationStore << (uint16_t)(regionIndexesArray.size()); //itemVariationDataCount
 
   QByteArray variationRegionList = getVariationRegionList();
 
   int itemVariationDataOffsets = variationRegionListOffset + variationRegionList.size();
 
-  for (int subregionIndex = 0; subregionIndex < subRegions.size(); subregionIndex++) {
+  for (int subregionIndex = 0; subregionIndex < regionIndexesArray.size(); subregionIndex++) {
 
-    auto& subRegion = subRegions[subregionIndex];
+    auto& subRegion = regionIndexesArray[subregionIndex];
     auto& defaultDeltaSet = delatSets[subregionIndex];
 
     itemVariationStore << (uint32_t)(itemVariationDataOffsets); //itemVariationDataOffsets[itemVariationDataCount]
 
-    std::map<int, std::vector<int>> delatSets;
+    std::map<int, std::vector<int>> localDelatSets;
     for (auto& it : defaultDeltaSet) {
-      delatSets.insert({ it.second,it.first });
+      localDelatSets.insert({ it.second,it.first });
     }
+
+    assert(localDelatSets.size() == defaultDeltaSet.size());
 
     QByteArray ItemVariationData;
     //subtable
-    ItemVariationData << (uint16_t)delatSets.size(); //itemCount
+    ItemVariationData << (uint16_t)localDelatSets.size(); //itemCount
     ItemVariationData << (uint16_t)subRegion.size(); //shortDeltaCount
     ItemVariationData << (uint16_t)(subRegion.size()); //regionIndexCount
 
     for (auto index : subRegion) {
       ItemVariationData << (uint16_t)index; //regionIndexes
     }
-    for (auto& it : delatSets) {
+    for (auto& it : localDelatSets) {
       assert(subRegion.size() == it.second.size());
       for (auto value : it.second) {
         ItemVariationData << (uint16_t)value;
@@ -2642,4 +2340,64 @@ QByteArray ToOpenType::getItemVariationStore(const std::vector<std::map<std::vec
 
   return itemVariationStore;
 
+}
+
+QByteArray ItemVariationStore::getVariationRegionList() {
+  QByteArray variationRegionList;
+
+  variationRegionList << (uint16_t)axisCount; //axisCount
+  variationRegionList << (uint16_t)regions.size(); //regionCount
+
+  for (auto& region : regions) {
+    for (auto& axis : region) {
+      variationRegionList << axis.startCoord; // startCoord
+      variationRegionList << axis.peakCoord; // peakCoord
+      variationRegionList << axis.endCoord; // endCoord
+    }
+  }
+
+  return variationRegionList;
+}
+QByteArray ItemVariationStore::getOpenTypeTable() {
+  QByteArray itemVariationStore;
+  QByteArray ItemVariationDatas;
+
+  int variationRegionListOffset = 2 /* format*/ + 4 /*variationRegionListOffset*/ + 2 /*itemVariationDataCount*/ + 4 * subRegions.size() /* itemVariationDataOffsets[itemVariationDataCount]*/;
+
+  itemVariationStore << (uint16_t)1; //format
+  itemVariationStore << (uint32_t)variationRegionListOffset; //variationRegionListOffset
+  itemVariationStore << (uint16_t)(subRegions.size()); //itemVariationDataCount
+
+  QByteArray variationRegionList = getVariationRegionList();
+
+  int itemVariationDataOffsets = variationRegionListOffset + variationRegionList.size();
+
+  for (auto& subRegion : subRegions) {
+
+    itemVariationStore << (uint32_t)(itemVariationDataOffsets); //itemVariationDataOffsets[itemVariationDataCount]
+
+    QByteArray ItemVariationData;
+    //subtable
+    ItemVariationData << (uint16_t)0; //itemCount
+    ItemVariationData << (uint16_t)0; //shortDeltaCount
+    ItemVariationData << (uint16_t)(subRegion.size()); //regionIndexCount
+    for (auto index : subRegion) {
+      ItemVariationData << (uint16_t)index; //regionIndexes
+    }
+
+    itemVariationDataOffsets += ItemVariationData.size();
+
+    ItemVariationDatas.append(ItemVariationData);
+
+  }
+
+  itemVariationStore.append(variationRegionList);
+  itemVariationStore.append(ItemVariationDatas);
+
+  QByteArray varStore;
+
+  varStore << (uint16_t)itemVariationStore.size();
+  varStore.append(itemVariationStore);
+
+  return varStore;
 }

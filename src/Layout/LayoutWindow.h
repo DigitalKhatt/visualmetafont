@@ -111,6 +111,7 @@ private:
 
 	void setQuranText(int type);
   QComboBox* justCombo;
+  QComboBox* justStyleCombo;
 	QDockWidget* textRun;
 	QDockWidget* lookupTree;
 	QPlainTextEdit * textEdit;
@@ -143,8 +144,7 @@ private:
 	QList<QString> suraNameByPage;
 
 	bool applyJustification;
-	bool applyCollisionDetection = false;
-  bool applyFontSize = false;
+	bool applyCollisionDetection = false;  
   bool applyForce = false;
   bool applyTeXAlgo = false;  
 

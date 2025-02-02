@@ -245,12 +245,12 @@ struct CursiveSubtable : Subtable {
   QMap<quint16, QPoint> exitParameters;
   QMap<quint16, QPoint> entryParameters;
 
-  virtual std::optional<QPoint> getEntry(quint16 glyph_id, double lefttatweel, double righttatweel);
+  virtual std::optional<QPoint> getEntry(quint16 glyph_id, GlyphParameters parameters);
 
 
   virtual QPoint calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint entry);
 
-  virtual std::optional<QPoint> getExit(quint16 glyph_id, double lefttatweel, double righttatweel);
+  virtual std::optional<QPoint> getExit(quint16 glyph_id, GlyphParameters parameters);
 
 
 
@@ -289,10 +289,10 @@ struct MarkBaseSubtable : Subtable {
   QMap<quint16, quint16> markCodes;
   QMap<quint16, QString> classNamebyIndex;
 
-  virtual std::optional<QPoint> getBaseAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel);
-  virtual QPoint getBaseAnchor(QString baseGlyphName, QString className, double lefttatweel, double righttatweel);
-  virtual std::optional<QPoint> getMarkAnchor(quint16 mark_id, quint16 base_id, double lefttatweel, double righttatweel);
-  QPoint getMarkAnchor(QString markGlyphName, QString className, double lefttatweel, double righttatweel);
+  virtual std::optional<QPoint> getBaseAnchor(quint16 mark_id, quint16 base_id, GlyphParameters parameters);
+  virtual QPoint getBaseAnchor(QString baseGlyphName, QString className, GlyphParameters parameters);
+  virtual std::optional<QPoint> getMarkAnchor(quint16 mark_id, quint16 base_id, GlyphParameters parameters);
+  QPoint getMarkAnchor(QString markGlyphName, QString className, GlyphParameters parameters);
 };
 
 struct ChainingSubtable : Subtable {

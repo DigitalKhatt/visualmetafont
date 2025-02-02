@@ -72,8 +72,11 @@ public:
 	QString familyName();
 	QString copyright();
 
+	QVector<VarAxis> axes;
+
 
 private:
+	void readAxes();
 	QString m_path;
 	QString m_fontName;
 	QString m_currentDir;

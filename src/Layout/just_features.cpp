@@ -78,7 +78,7 @@ struct JustResultByLine {
   map<int, vector<TextFontFeatures>> fontFeatures = {}; /* FontFeatures by character index in the line */
   double simpleSpacing;
   double ayaSpacing;
-  double fontSizeRatio;
+  double xScale;
 };
 
 struct JustInfo {
@@ -857,7 +857,11 @@ static const QRegularExpression regExprAlt(patternAlt);
 
 static boolean  applySimpleJust(const LineTextInfo& lineTextInfo,
   JustInfo& justInfo,
-  int type) {
+  bool firstWordIncluded,
+  bool wordByWord,
+  int nbLevelAlt,
+  int nbLevelKashida)
+{
 
   auto& wordInfos = lineTextInfo.wordInfos;
   auto& lineText = lineTextInfo.lineText;
@@ -870,7 +874,7 @@ static boolean  applySimpleJust(const LineTextInfo& lineTextInfo,
 
   vector<SubWordMatch> matchresult;
 
-  auto firstWordIndex = type == 1 ? 0 : 1;
+  auto firstWordIndex = firstWordIncluded ? 0 : 1;
 
   for (int wordIndex = 0; wordIndex < wordInfos.size(); wordIndex++) {
     auto& wordInfo = wordInfos[wordIndex];
@@ -913,9 +917,6 @@ static boolean  applySimpleJust(const LineTextInfo& lineTextInfo,
   }
 
   auto stretchedWords = std::map<int, boolean>();
-
-  auto nbLevelAlt = 2;
-  auto nbLevelKashida = 2;
 
   for (int level = 1; level <= max(nbLevelAlt, nbLevelKashida); level++) {
     for (int wordIndex = wordInfos.size() - 1; wordIndex >= firstWordIndex; wordIndex--) {
@@ -961,7 +962,7 @@ static boolean  applySimpleJust(const LineTextInfo& lineTextInfo,
         return true;
       }
       else if (appliedResult == AppliedResult::Positive) {
-        if (type != 1) {
+        if (wordByWord) {
           stretchedWords.insert({ wordIndex, true });
         }
       }
@@ -994,10 +995,10 @@ static void applyExperimentalJust(const LineTextInfo& lineTextInfo, JustInfo& ju
 static void stretchLine(const LineTextInfo& lineTextInfo, JustInfo& justInfo, JustType justType) {
 
   if (justType == JustType::Madina) {
-    applySimpleJust(lineTextInfo, justInfo, 1);
+    applySimpleJust(lineTextInfo, justInfo, true, false, 2, 2);
   }
   else if (justType == JustType::IndoPak) {
-    applySimpleJust(lineTextInfo, justInfo, 2);
+    applySimpleJust(lineTextInfo, justInfo, false, true, 2, 2);
   }
   else {
     applyExperimentalJust(lineTextInfo, justInfo);
@@ -1029,7 +1030,7 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
 
   auto diff = desiredWidth - currentLineWidth;
 
-  double fontSizeRatio = 1;
+  double xScale = 1;
   double simpleSpacing = spaceWidth;
   double ayaSpacing = spaceWidth;
 
@@ -1080,11 +1081,11 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
   }
   else {
     //shrink
-    fontSizeRatio = desiredWidth / currentLineWidth;
+    xScale = desiredWidth / currentLineWidth;
 
   }
 
-  return { .fontFeatures = justInfo.fontFeatures,.simpleSpacing = simpleSpacing, .ayaSpacing = ayaSpacing, .fontSizeRatio = fontSizeRatio };
+  return { .fontFeatures = justInfo.fontFeatures,.simpleSpacing = simpleSpacing, .ayaSpacing = ayaSpacing, .xScale = xScale };
 
 }
 
@@ -1190,21 +1191,22 @@ static LineLayoutInfo shapeLine(OtLayout* layout, int lineWidth, int pageWidth,
 }
 
 QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pageWidth, const QVector<LineToJustify>& lines,
-  bool newFace, bool tajweedColor, bool changeSize,
+  bool newFace, bool tajweedColor,
   hb_buffer_cluster_level_t  cluster_level,
-  JustType justType) {
+  JustType justType, JustStyle justStyle) {
 
   QList<LineLayoutInfo> page;
 
   hb_font_t* defaultShapefont = this->createFont(emScale, newFace);
   hb_font_t* justifyFont = this->createFont(1, false);
 
-  auto maxFontSizeRatioWithoutOverflow = 1.0;
-  // get max font size  for the page
-
   vector<LineTextInfo> linesTextInfo;
+  vector<double> fontSizeRatios;
 
   double spaceWidth = getWidth(" ", justifyFont, {});
+
+  auto minRatio = 1000.0;
+  auto maxRatio = 0.00000001;
 
   for (auto lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
     auto& line = lines[lineIdx];
@@ -1222,37 +1224,54 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
 
       auto currentLineWidth = getWidth(lineTextInfo.lineText, justifyFont, {});
 
-      if (desiredWidth < currentLineWidth) {
-        maxFontSizeRatioWithoutOverflow = min(
-          desiredWidth / currentLineWidth,
-          maxFontSizeRatioWithoutOverflow,
-          );
-      }
+      auto ratio = desiredWidth / currentLineWidth;
+      fontSizeRatios.emplace_back(ratio);
+
+      minRatio = min(ratio, minRatio);
+      maxRatio = max(ratio, maxRatio);
+    }
+    else {
+      fontSizeRatios.emplace_back(1);
     }
   }
 
-
   int currentyPos = TopSpace << OtLayout::SCALEBY;
 
-  for (auto& line : lines) {
+  for (auto lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
+    auto& line = lines[lineIdx];
+
     auto lineTextInfo = analyzeLineForJust(line.text);
 
     auto fontSizeLineWidthRatio = line.width != 0 ? (double)FONTSIZE * emScale / line.width : 1;
 
-    auto justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * maxFontSizeRatioWithoutOverflow, spaceWidth, justType);
-    justResultByLine.fontSizeRatio = line.width != 0 ? justResultByLine.fontSizeRatio * maxFontSizeRatioWithoutOverflow : 1;
-    hb_font_t* shapeFont = defaultShapefont;
+    auto defaultFontRatio = justStyle == JustStyle::SameSizeByPage ? 1.0 : 1.0; // (minRatio + maxRatio) / 2
+
+    double fontRatio;
+
+    if (justStyle == JustStyle::SameSizeByPage) {
+      fontRatio = min(minRatio, defaultFontRatio);
+    }
+    else {
+      fontRatio = 1; // min(fontSizeRatios[lineIdx], defaultFontRatio);
+    }
+
+    auto justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * fontRatio, spaceWidth, justType);    
+    hb_font_t* shapeFont = defaultShapefont;    
     auto newEmScale = emScale;
-    if (justResultByLine.fontSizeRatio != 1) {
-      newEmScale = emScale * justResultByLine.fontSizeRatio;
+    if (fontRatio != 1) {
+      newEmScale = emScale * fontRatio;
       shapeFont = this->createFont(newEmScale, false);
     }
 
+
     auto lineLayoutInfo = shapeLine(this, line.width, pageWidth, lineTextInfo, justResultByLine, tajweedColor, newEmScale, shapeFont, line.lineJustification, currentyPos);
 
-    if (justResultByLine.fontSizeRatio != 1) {
+    if (fontRatio != 1) {
       hb_font_destroy(shapeFont);
     }
+
+    lineLayoutInfo.xscale = justResultByLine.xScale;
+
 
 
     page.append(lineLayoutInfo);

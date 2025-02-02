@@ -22,6 +22,45 @@
 
 #include <math.h>
 
+struct GlyphParameters {
+  double lefttatweel{ 0.0 };
+  double righttatweel{ 0.0 };
+  double third{ 0.0 };
+  double fourth{ 0.0 };
+  double fifth{ 0.0 };
+  double scalex{ 0.0 };
+
+  bool operator==(const GlyphParameters& r) const {
+    return r.lefttatweel == lefttatweel && r.righttatweel == righttatweel && r.third == third && r.fourth == fourth
+      && r.fifth == fifth
+      && r.scalex == scalex;
+  }
+};
+namespace std {
+  template<>
+  struct hash<GlyphParameters> {
+    size_t operator()(const GlyphParameters& r) const
+    {
+      return hash<double>{}(r.lefttatweel)
+        ^ hash<double>{}(r.righttatweel)
+        ^ hash<double>{}(r.third)
+        ^ hash<double>{}(r.fourth)
+        ^ hash<double>{}(r.fifth)
+        ^ hash<double>{}(r.scalex);
+    }
+  };
+
+  template<>
+  struct equal_to<GlyphParameters> {
+    bool operator()(const GlyphParameters& r, const GlyphParameters& r2) const
+    {
+      return r == r2;
+    }
+  };
+}
+
+
+
 struct RegionAxisCoordinate {
   int16_t startCoord = 0;
   int16_t peakCoord = 0;
@@ -45,16 +84,22 @@ struct ValueLimits {
   }
 };
 
+using DefaultDelta = std::vector<int>;
+
+/*
 struct DefaultDelta {
   int maxLeft = 0;
   int minLeft = 0;
   int maxRight = 0;
   int minRight = 0;
+  int maxScaleX = 0;
+  int minScaleX = 0;
 
   bool operator==(const DefaultDelta& r) const {
-    return r.maxLeft == maxLeft && r.minLeft == minLeft && r.maxRight == maxRight && r.minRight == minRight;
+    return r.maxLeft == maxLeft && r.minLeft == minLeft && r.maxRight == maxRight && r.minRight == minRight
+      && r.maxScaleX == maxScaleX && r.minScaleX == minScaleX;;
   }
-};
+};*/
 
 
 inline int32_t getFixed(float val) {
@@ -73,7 +118,7 @@ inline int toInt(double value) {
 
 namespace std
 {
-  template<> struct hash<DefaultDelta>
+  /*template<> struct hash<DefaultDelta>
   {
     std::size_t operator()(DefaultDelta const& s) const noexcept
     {
@@ -91,7 +136,7 @@ namespace std
     {
       return r == r2;
     }
-  };
+  };*/
 
   template<> struct hash<ValueLimits>
   {
@@ -134,5 +179,14 @@ namespace std
 
 
 }
+
+struct VarAxis {
+  QString name;
+  uint32_t axisTag = 0;
+  float minValue = 0.0;
+  float defaultValue = 0.0;
+  float maxValue = 0.0;
+  QString equivExpr;
+};
 
 #endif // H_COMMONTYPES

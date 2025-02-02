@@ -357,7 +357,7 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
     double righttatweel = layout->normalToParameter(context->glyph_id, context->righttatweel, false);
 
     if (context->type == hb_cursive_anchor_context_t::entry) {
-      auto anchor = subtableTable->getEntry(context->glyph_id, lefttatweel, righttatweel);
+      auto anchor = subtableTable->getEntry(context->glyph_id, { .lefttatweel = lefttatweel,.righttatweel = righttatweel });
       if (anchor) {
 
         *x = anchor->x();
@@ -371,7 +371,7 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
       }
     }
     else if (context->type == hb_cursive_anchor_context_t::exit) {
-      auto anchor = subtableTable->getExit(context->glyph_id, lefttatweel, righttatweel);
+      auto anchor = subtableTable->getExit(context->glyph_id, { .lefttatweel = lefttatweel,.righttatweel = righttatweel });
       if (anchor) {
 
         *x = anchor->x();
@@ -403,7 +403,7 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
 
       GlyphVis& curr = layout->glyphs[baseGlyphName];
 
-      auto anchor = subtableTable->getBaseAnchor(context->glyph_id, context->base_glyph_id, lefttatweel, righttatweel);
+      auto anchor = subtableTable->getBaseAnchor(context->glyph_id, context->base_glyph_id, { .lefttatweel = lefttatweel, .righttatweel = righttatweel });
       if (anchor) {
 
         *x = anchor->x();
@@ -423,7 +423,7 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
 
       GlyphVis& curr = layout->glyphs[markGlyphName];
 
-      auto anchor = subtableTable->getMarkAnchor(context->glyph_id, context->base_glyph_id, lefttatweel, righttatweel);
+      auto anchor = subtableTable->getMarkAnchor(context->glyph_id, context->base_glyph_id, { .lefttatweel = lefttatweel, .righttatweel = righttatweel });
       if (anchor) {
 
         *x = anchor->x();
@@ -637,7 +637,7 @@ static hb_font_funcs_t* getFontFunctions(hb_font_t* font, bool otVar)
   return harfbuzzCoreTextFontFuncs;
 }
 
-QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, GlyphVis* curr, QString className, QPoint adjust, double lefttatweel, double righttatweel, GlyphVis** poriginalglyph) {
+QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, GlyphVis* curr, QString className, QPoint adjust, GlyphParameters parameters, GlyphVis** poriginalglyph) {
 
   GlyphVis* originalglyph = curr;
 
@@ -669,14 +669,10 @@ QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, Glyp
 
 }
 
-GlyphVis* OtLayout::getGlyph(QString name, double lefttatweel, double righttatweel) {
+GlyphVis* OtLayout::getGlyph(QString name, GlyphParameters parameters) {
   GlyphVis* pglyph = &this->glyphs[name];
 
-  if (lefttatweel != 0 || righttatweel != 0) {
-    GlyphParameters parameters{};
-
-    parameters.lefttatweel = lefttatweel;
-    parameters.righttatweel = righttatweel;
+  if (parameters.lefttatweel != 0 || parameters.righttatweel != 0) {
 
     pglyph = getAlternate(pglyph->charcode, parameters);
   }
@@ -684,20 +680,10 @@ GlyphVis* OtLayout::getGlyph(QString name, double lefttatweel, double righttatwe
   return pglyph;
 }
 
-GlyphVis* OtLayout::getGlyph(int code, double lefttatweel, double righttatweel) {
+GlyphVis* OtLayout::getGlyph(int code, GlyphParameters parameters) {
 
   if (glyphNamePerCode.contains(code)) {
-    if (lefttatweel != 0 || righttatweel != 0) {
-      GlyphParameters parameters{};
-
-      parameters.lefttatweel = lefttatweel;
-      parameters.righttatweel = righttatweel;
-
-      return getAlternate(code, parameters);
-    }
-    else {
-      return getGlyph(glyphNamePerCode[code], lefttatweel, righttatweel);
-    }
+    return getGlyph(glyphNamePerCode[code], parameters);
   }
 
   return nullptr;
@@ -1122,7 +1108,7 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub) {
 OtLayout::OtLayout(Font* font, bool extended) : fsmDriver{ *this }, justTable{ this }, font{ font } {
 #else
 OtLayout::OtLayout(Font * font, bool extended, bool generateVariableOpenType, QObject * parent) :QObject(parent), fsmDriver{ *this },
-  justTable{ this }, font{ font }, isOTVar{ generateVariableOpenType } {
+justTable{ this }, font{ font }, isOTVar{ generateVariableOpenType } {
 #endif
 
   this->extended = extended;
@@ -2375,11 +2361,11 @@ void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int 
 
 }
 
-QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>&lines, bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level, JustType justType) {
+QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>&lines, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType) {
 
 
   if (justType == JustType::Madina || justType == JustType::IndoPak || justType == JustType::Experimental) {
-    return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, changeSize, cluster_level, justType);
+    return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, cluster_level, justType, justStyle);
   }
 
   QList<LineLayoutInfo> page;
@@ -2518,7 +2504,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
         hb_font_destroy(currentFont);
         overfull = false;
       }
-      else if (changeSize) {
+      else if (justStyle == JustStyle::FontSize) {
         if (lineLayout.overfull > 0) {
           double ratio = (double)lineWidth / currentlineWidth;
           if (ratio > 0.01) {
@@ -2529,7 +2515,12 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
           }
         }
       }
-
+      else if (justStyle == JustStyle::XScale) {
+        //if (lineLayout.overfull > 0) {
+        double ratio = (double)lineWidth / currentlineWidth;
+        lineLayout.xscale = ratio;
+        //}
+      }
       currentyPos = currentyPos + (InterLineSpacing << OtLayout::SCALEBY);
 
       lineLayout.type = line.lineType;
@@ -2545,14 +2536,14 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
 }
 
 QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification,
-  bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level, JustType justType) {
+  bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType) {
 
   QVector<LineToJustify> newLines;
 
   for (auto& line : lines) {
     newLines.append({ line,lineWidth ,justification,LineType::Line });
   }
-  return justifyPage(emScale, pageWidth, newLines, newFace, tajweedColor, changeSize, cluster_level, justType);
+  return justifyPage(emScale, pageWidth, newLines, newFace, tajweedColor, justStyle, cluster_level, justType);
 }
 
 QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, int nbPages) {

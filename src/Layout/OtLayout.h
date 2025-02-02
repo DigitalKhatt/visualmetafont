@@ -55,38 +55,6 @@ struct hb_buffer_t;
 
 typedef struct MP_instance* MP;
 
-struct GlyphParameters {
-  double lefttatweel = 0.0;
-  double righttatweel = 0.0;
-  double third = 0.0;
-  double fourth = 0.0;
-  double fifth = 0.0;
-
-  bool operator==(const GlyphParameters& r) const {
-    return r.lefttatweel == lefttatweel && r.righttatweel == righttatweel && r.third == third && r.fourth == fourth && r.fifth == fifth;
-  }
-};
-namespace std {
-  template<>
-  struct hash<GlyphParameters> {
-    size_t operator()(const GlyphParameters& r) const
-    {
-      return hash<double>{}(r.lefttatweel)
-        ^ hash<double>{}(r.righttatweel)
-        ^ hash<double>{}(r.third)
-        ^ hash<double>{}(r.fourth)
-        ^ hash<double>{}(r.fifth);
-    }
-  };
-
-  template<>
-  struct equal_to<GlyphParameters> {
-    bool operator()(const GlyphParameters& r, const GlyphParameters& r2) const
-    {
-      return r == r2;
-    }
-  };
-}
 
 
 struct ExtendedGlyph {
@@ -128,6 +96,7 @@ struct LineLayoutInfo {
   LineType type = LineType::Line;
   float overfull;
   double fontSize;
+  double xscale = 1;
 };
 
 struct LayoutPages {
@@ -158,15 +127,15 @@ struct LineToJustify {
   LineType lineType;
 };
 
-using CalcAnchor = std::function<QPoint(QString, QString, QPoint, double, double)>;
+using CalcAnchor = std::function<QPoint(QString, QString, QPoint, GlyphParameters)>;
 using CursiveAnchorFunc = std::function<QPoint(bool, GlyphVis*, GlyphVis*)>;
 
 class AnchorCalc {
 public:
-  virtual QPoint operator()(QString glyphName, QString className, QPoint adjust, double lefttatweel = 0.0, double righttatweel = 0.0) {
+  virtual QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) {
     return QPoint(0, 0);
   };
-  QPoint getAdjustment(Automedina& y, MarkBaseSubtable& subtable, GlyphVis* curr, QString className, QPoint adjust, double lefttatweel, double righttatweel, GlyphVis** poriginalglyph);
+  QPoint getAdjustment(Automedina& y, MarkBaseSubtable& subtable, GlyphVis* curr, QString className, QPoint adjust, GlyphParameters parameters, GlyphVis** poriginalglyph);
 
 };
 
@@ -197,8 +166,16 @@ enum class JustType {
   IndoPak,
   Experimental
 };
-
 Q_DECLARE_METATYPE(JustType)
+enum class JustStyle {
+  None,
+  SameSizeByPage,
+  XScale,
+  FontSize
+};
+Q_DECLARE_METATYPE(JustStyle)
+
+
 
 #ifdef DIGITALKHATT_WEBLIB
 class OtLayout {
@@ -315,20 +292,21 @@ public:
 
 
   GlyphVis* getGlyph(int code);
-  GlyphVis* getGlyph(QString name, double lefttatweel, double righttatweel);
-  GlyphVis* getGlyph(int code, double lefttatweel, double righttatweel);
+  GlyphVis* getGlyph(QString name, GlyphParameters parameters);
+  GlyphVis* getGlyph(int code, GlyphParameters parameters);
 
   int tajweedcolorindex = 0xFFFF;
 
   QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor) {
-    return justifyPage(emScale, lineWidth, pageWidth, lines, justification, newFace, tajweedColor, false, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, JustType::HarfBuzz);
+    return justifyPage(emScale, lineWidth, pageWidth, lines, justification, newFace, tajweedColor, JustStyle::None, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, JustType::HarfBuzz);
   }
 
-  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level, JustType justType);
-  QList<LineLayoutInfo> justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level, JustType justType);
+  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType);
+  QList<LineLayoutInfo> justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType);
 
 
-  QList<LineLayoutInfo> justifyPageUsingFeatures(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, bool changeSize, hb_buffer_cluster_level_t  cluster_level, JustType justType);
+  QList<LineLayoutInfo> justifyPageUsingFeatures(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor,
+    hb_buffer_cluster_level_t  cluster_level, JustType justType, JustStyle justStyle);
   LayoutPages pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
   QList<QStringList> pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, QSet<int> forcedBreaks, int nbPages);
   QList<QStringList> pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, int nbPages);
@@ -357,7 +335,7 @@ public:
 
   JustificationContext justificationContext;
 
-  bool isOTVar = true;
+  bool isOTVar = false;
 
   bool useNormAxisValues = true;
 
@@ -365,19 +343,8 @@ public:
 
   std::unordered_map<QString, ValueLimits> expandableGlyphs;
 
-  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const ValueLimits& limits) {
-    return toOpenType->getDeltaSetEntry(delta, limits);
-    /*
-    const auto& it = defaultDeltaSets.find(delta);
-    if (it != defaultDeltaSets.end()) {
-      return { 0,it->second };
-    }
-    else {
-      int val = defaultDeltaSets.size();
-      defaultDeltaSets.insert({ delta ,val });
-      return { 0,val };
-    }*/
-
+  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const int subregionIndex) {
+    return toOpenType->getDeltaSetEntry(delta, subregionIndex);
   }
 
   QByteArray JTST();

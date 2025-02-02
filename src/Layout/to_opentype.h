@@ -33,6 +33,15 @@ struct mp_graphic_object;
 struct mp_fill_object;
 typedef struct mp_gr_knot_data* mp_gr_knot;
 
+struct ItemVariationStore {
+  QByteArray getVariationRegionList();
+  QByteArray getOpenTypeTable();
+  std::unordered_map<ValueLimits, int> regionSubtables;
+  std::vector<VariationRegion> regions;
+  std::vector<std::vector<int>> subRegions;
+  int axisCount;
+};
+
 class ToOpenType
 {
 public:
@@ -72,28 +81,31 @@ public:
     }
   };
 
-  struct DeltaValues {
-    std::vector<double> deltas{ 0.0,0.0,0.0,0.0 };
-    std::vector<bool> active{ false,false,false,false };
+  std::pair<std::vector<GlyphParameters>, int> getGlyphParameters(QString glypheName) {
+    std::vector<GlyphParameters> ret;
+    int regionIndexesArrayIndex = -1;    
+    auto find = regionIndexesIndexByGlyph.find(glypheName);
+    if (find != regionIndexesIndexByGlyph.end()) {
+      regionIndexesArrayIndex = find->second;
+      auto& regionIndexes = regionIndexesArray[regionIndexesArrayIndex];
 
-    bool isEmpty() {
-      for (int i = 0; i < deltas.size(); i++) {
-        if (active[i] && deltas[i] != 0.0) {
-          return false;
-        }
+      for (auto regionIndex : regionIndexes) {
+        auto& parameters = glyphParametersByRegion[regionIndex];
+        ret.push_back(parameters);
       }
-      return true;
     }
+    return { ret, regionIndexesArrayIndex };
+  }
+
+  struct DeltaValues {
+    std::vector<double> deltas;
 
     DeltaValues& operator+=(const DeltaValues& rhs)
     {
       assert(rhs.deltas.size() == deltas.size());
 
       for (int i = 0; i < deltas.size(); i++) {
-        assert(rhs.active[i] == this->active[i]);
-        if (active[i]) {
-          deltas[i] += rhs.deltas[i];
-        }
+        deltas[i] += rhs.deltas[i];
       }
 
       return *this; // return the result by reference
@@ -104,10 +116,7 @@ public:
       assert(rhs.deltas.size() == deltas.size());
 
       for (int i = 0; i < deltas.size(); i++) {
-        //assert(rhs.active[i] == this->active[i]);
-        if (active[i]) {
-          deltas[i] -= rhs.deltas[i];
-        }
+        deltas[i] -= rhs.deltas[i];
       }
 
       return *this; // return the result by reference
@@ -117,9 +126,7 @@ public:
       double value)
     {
       for (int i = 0; i < lhs.deltas.size(); i++) {
-        if (lhs.active[i]) {
-          lhs.deltas[i] += value;
-        }
+        lhs.deltas[i] += value;
       }
       return lhs; // return the result by value (uses move constructor)
     }
@@ -128,9 +135,7 @@ public:
       double value)
     {
       for (int i = 0; i < lhs.deltas.size(); i++) {
-        if (lhs.active[i]) {
-          lhs.deltas[i] -= value;
-        }
+        lhs.deltas[i] -= value;
       }
       return lhs; // return the result by value (uses move constructor)
     }
@@ -150,51 +155,18 @@ public:
       return lhs; // return the result by value (uses move constructor)
     }
   };
-
-  QByteArray blend(DeltaValues delta, ValueLimits limits) {
+  QByteArray blend(DeltaValues deltas) {
     QByteArray data;
     bool isEmpty = true;
-    if (!uniformAxis) {
-      for (int i = 0; i < delta.deltas.size(); i++) {
-        if (delta.active[i] && delta.deltas[i] != 0.0) {
-          isEmpty = false;
-          fixed_to_cff2(data, delta.deltas[i]);
-        }
-        else {
-          int_to_cff2(data, 0);
-        }
+    for (int i = 0; i < deltas.deltas.size(); i++) {
+      if (deltas.deltas[i] != 0.0) {
+        fixed_to_cff2(data, deltas.deltas[i]);
+        isEmpty = false;
+      }
+      else {
+        int_to_cff2(data, 0);
       }
     }
-    else {
-      std::vector<bool> onlyOne;
-      delta.active[0] = limits.maxLeft != 0.0; onlyOne.push_back(limits.maxLeft == axisLimits.maxLeft);
-      delta.active[1] = limits.minLeft != 0.0; onlyOne.push_back(limits.minLeft == axisLimits.minLeft);
-      delta.active[2] = limits.maxRight != 0.0; onlyOne.push_back(limits.maxRight == axisLimits.maxRight);
-      delta.active[3] = limits.minRight != 0.0; onlyOne.push_back(limits.minRight == axisLimits.minRight);
-
-      for (int i = 0; i < delta.deltas.size(); i++) {
-        if (delta.active[i]) {
-          isEmpty = false;
-          if (delta.deltas[i] != 0.0) {
-            fixed_to_cff2(data, delta.deltas[i]);
-            if (!onlyOne[i]) {
-              fixed_to_cff2(data, delta.deltas[i]);
-              fixed_to_cff2(data, delta.deltas[i]);
-            }
-
-          }
-          else {
-            int_to_cff2(data, 0);
-            if (!onlyOne[i]) {
-              int_to_cff2(data, 0);
-              int_to_cff2(data, 0);
-            }
-          }
-        }
-
-      }
-    }
-
     if (isEmpty) {
       data.clear();
     }
@@ -206,23 +178,15 @@ public:
   }
 
   struct ContourLimits {
-    mp_graphic_object* maxLeft = nullptr;
-    mp_graphic_object* minLeft = nullptr;
-    mp_graphic_object* maxRight = nullptr;
-    mp_graphic_object* minRight = nullptr;
-    ValueLimits limits;
+    std::vector<mp_graphic_object*> contours;
   };
 
 
 
   struct PathLimits {
-    ValueLimits limits;
     DeltaValues currentx;
     DeltaValues currenty;
-    mp_gr_knot maxLeft = nullptr;
-    mp_gr_knot minLeft = nullptr;
-    mp_gr_knot maxRight = nullptr;
-    mp_gr_knot minRight = nullptr;
+    std::vector<mp_gr_knot> knots;
 
     inline PathLimits next();
     inline DeltaValues x_coord();
@@ -282,7 +246,6 @@ public:
   QByteArray dsig();
   QByteArray fvar();
   QByteArray HVAR();
-  QByteArray HVAR_Old();
   QByteArray STAT();
   QByteArray MVAR();
   QByteArray JTST();
@@ -296,19 +259,15 @@ public:
   void populateGlyphs();
   QByteArray getVariationRegionList();
 
+  ValueLimits axisLimits = { 20,-20,20,-20 };
 
+  const uint16_t AxisNameId = 256;
 
+  void setAxes();
 
-  const uint16_t LTATNameId = 256;
-  const uint16_t RTATNameId = 257;
-
-  ValueLimits axisLimits;
-
-  void setUniformAxis(bool uniform);
-
-  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const ValueLimits& limits, std::vector<std::map<std::vector<int>, int>>& delatSets);
-  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const ValueLimits& limits) {
-    return getDeltaSetEntry(delta, limits, GDEFDeltaSets);
+  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const int subregionIndex, std::vector<std::map<std::vector<int>, int>>& delatSets);
+  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const int subregionIndex) {
+    return getDeltaSetEntry(delta, subregionIndex, GDEFDeltaSets);
   }
 
   QByteArray getGDEFItemVariationStore() {
@@ -337,7 +296,7 @@ private:
   QByteArray subrs;
   QVector<int> subrOffsets;
   int subIndexBias = 107;
-  void setGIds();  
+  void setGIds();
   void generateComponents();
   QMap<uint16_t, SubrGlyphInfo> subrByGlyph;
   QMap<uint16_t, QByteArray> replacedGlyphs;
@@ -348,11 +307,17 @@ private:
 
 
   bool uniformAxis;
-  std::unordered_map<ValueLimits, int> regionSubtables;
   std::vector<VariationRegion> regions;
-  std::vector<std::vector<int>> subRegions;
+  std::vector<GlyphParameters> glyphParametersByRegion;
+
+  std::vector<std::vector<int>> regionIndexesArray;
+  std::unordered_map<QString, int> regionIndexesIndexByGlyph;
 
   std::vector<std::map<std::vector<int>, int>> GDEFDeltaSets;
+
+  int axisCount = 0;
+
+  std::vector<int> axisNameIds;
 };
 
 inline bool operator<(const ToOpenType::Color& a, const ToOpenType::Color& b)

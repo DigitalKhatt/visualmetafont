@@ -168,6 +168,8 @@ bool Font::loadFile(const QString& fileName) {
 
   std::filesystem::current_path(currentPath);
 
+  readAxes();
+
   return true;
 }
 double Font::lineHeight() {
@@ -496,5 +498,58 @@ QString Font::getLog()
   mp_run_data* results = mp_rundata(mp);
   QString ret(results->term_out.data);
   return ret.trimmed();
+}
+
+void Font::readAxes() {
+
+  axes.clear();
+
+  auto numAxes = getInternalNumericVariable("number_of_axes");
+
+  for (int i = 0; i < numAxes; i++) {
+    VarAxis axis;
+    char* value;
+    auto varname = std::format("axes {} name", i);
+    auto found = getMPStringVariable(mp, varname.c_str(), &value);
+    if (found) {
+      axis.name = QString::fromUtf8(value);
+    }
+    varname = std::format("axes {} tag", i);
+    found = getMPStringVariable(mp, varname.c_str(), &value);
+    if (found) {
+      axis.axisTag = hb_tag_from_string(value, 4);
+    }
+
+    varname = std::format("axes {} equivExpr", i);
+    found = getMPStringVariable(mp, varname.c_str(), &value);
+    if (found) {
+      axis.equivExpr = QString::fromUtf8(value);
+    }
+    double dbValue = 0.0;
+
+    varname = std::format("axes {} minValue", i);    
+    found = getMPNumVariable(mp, varname.c_str(), &dbValue);
+    if (found) {
+      axis.minValue = dbValue;
+    }
+
+    varname = std::format("axes {} defaultValue", i);
+    found = getMPNumVariable(mp, varname.c_str(), &dbValue);
+    if (found) {
+      axis.defaultValue = dbValue;
+    }
+
+    varname = std::format("axes {} maxValue", i);
+    found = getMPNumVariable(mp, varname.c_str(), &dbValue);
+    if (found) {
+      axis.maxValue = dbValue;
+    }
+
+    
+
+    axes.append(axis);
+
+  }
+
 }
 

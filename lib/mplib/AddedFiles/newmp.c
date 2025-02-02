@@ -426,7 +426,7 @@ bool getMPPairVariable(MP mp, char* varName, double* x, double* y) {
   return ret;
 }
 
-bool getMPNumVariable(MP mp, char* varName, double* x) {
+bool getMPNumVariable(MP mp, const char* varName, double* x) {
   bool ret = false;
   mp_node root = getTokenList(mp, varName);
 

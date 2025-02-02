@@ -116,7 +116,12 @@ GlyphType GlyphVis::getGlypfType() {
 }
 
 GlyphVis* GlyphVis::getAlternate(GlyphParameters parameters) {
-  return m_otLayout->getAlternate(charcode, parameters);
+  if (parameters.lefttatweel != 0.0 || parameters.righttatweel != 0.0) {
+    return m_otLayout->getAlternate(charcode, parameters);
+  }
+  else {
+    return this;
+  }
 }
 
 GlyphVis::GlyphVis(GlyphVis&& other)
