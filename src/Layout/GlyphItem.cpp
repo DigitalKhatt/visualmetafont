@@ -24,29 +24,18 @@
 #include <QGraphicsSceneMouseEvent>
 #include "qdebug.h"
 
-GlyphItem::GlyphItem(double xscale, double yscale, GlyphVis* glyph, OtLayout* layout, quint32 lookup, quint32 subtable, quint16 baseChar, double lefttatweel, double righttatweel, QGraphicsItem* parent) :QGraphicsPathItem(parent)
+GlyphItem::GlyphItem(double xscale, double yscale, GlyphVis* glyph, OtLayout* layout, GlyphParameters parameters, quint32 lookup, quint32 subtable, quint16 baseChar, QGraphicsItem* parent) :QGraphicsPathItem(parent)
 {
 
   m_glyph = glyph;
   m_layout = layout;
   m_lookup = lookup;
   m_subtable = subtable;
-  m_lefttatweel = lefttatweel;
-  m_righttatweel = righttatweel;
+  m_parameters = parameters;
   m_baseChar = baseChar;
 
+  auto path = glyph->getAlternate(parameters)->path;
 
-
-  auto path = glyph->path;
-
-  if (lefttatweel != 0 || righttatweel != 0) {
-    GlyphParameters parameters{};
-
-    parameters.lefttatweel = lefttatweel;
-    parameters.righttatweel = righttatweel;
-
-    path = glyph->getAlternate(parameters)->path;
-  }
 
   path.setFillRule(Qt::WindingFill);
 

@@ -373,19 +373,46 @@ mp_edge_object* Font::getEdge(int charCode) {
   return edge;
 }
 
-void Font::generateAlternate(QString macroname, GlyphParameters params) {
+void Font::generateAlternate(QString macroname, GlyphParameters params, QString sourceCode) {
 
-  QString metapostString = QString("save params;params0:=%1;params1:=%2;params3:=%3;params4:=%4;params5:=%5;")
+  QString metaParams = QString("save params;params0:=%1;params1:=%2;params3:=%3;params4:=%4;params5:=%5;params100:=%6;")
     .arg(params.lefttatweel)
     .arg(params.righttatweel)
     .arg(params.third)
     .arg(params.fourth)
-    .arg(params.fifth);
+    .arg(params.fifth)
+    .arg(params.scalex);
 
+  if (!sourceCode.isEmpty()) {
+    auto source = metaParams + sourceCode;
+    executeMetaPost(source);
+    return;
+  }
 
-  metapostString = metapostString + QString("generateAlternate(%1$,params);").arg(macroname);
+  if (params.lefttatweel != 0 || params.righttatweel != 0) {
 
-  executeMetaPost(metapostString);
+    auto metapostString = QString("%1generateAlternate(%2$,params);").arg(metaParams).arg(macroname);
+
+    executeMetaPost(metapostString);
+  }
+  else if (params.scalex != 0) {
+    if (glyphperName.contains(macroname)) {
+      auto glyph = glyphperName[macroname];
+      auto source = metaParams + glyph->source();
+      /* auto beginChar = QString("%1(%2,%3").arg(glyph->beginMacroName()).arg(glyph->name()).arg(glyph->unicode());
+
+      source.replace(beginChar, QString("%1%2(alternatechar,%3").arg(metaParams).arg(glyph->beginMacroName()).arg(OtLayout::AlternatelastCode));
+      auto index = source.indexOf("\n");
+      source.insert(index, QString("originalglyph := \"%1\";").arg(macroname));*/
+      
+      executeMetaPost(source);
+
+    }
+    else {
+      throw std::runtime_error("Error");
+    }
+  }
+
 
 }
 mp_graphic_object* Font::copyEdgeBody(mp_graphic_object* body) {
@@ -481,6 +508,37 @@ mp_graphic_object* Font::copyEdgeBody(mp_graphic_object* body) {
 
         break;
       }
+      case mp_stroked_code: {
+
+        mp_stroked_object* fillobject = (mp_stroked_object*)body;
+        mp_gr_knot newpath = copypath(fillobject->path_p);
+
+        mp_fill_object* nextObject = (mp_fill_object*)mp_new_graphic_object(mp, mp_fill_code); // new mp_fill_object;
+        nextObject->type = mp_fill_code;
+        nextObject->path_p = newpath;
+        nextObject->next = nullptr;
+        nextObject->pre_script = nullptr;
+        nextObject->post_script = nullptr;
+        nextObject->pen_p = nullptr;
+        nextObject->htap_p = nullptr;
+
+        if (fillobject->color_model == mp_rgb_model) {
+          nextObject->color_model = mp_rgb_model;
+          nextObject->color = fillobject->color;
+        }
+
+        if (currObject == nullptr) {
+          currObject = (mp_graphic_object*)nextObject;
+          result = currObject;
+        }
+        else {
+          currObject->next = (mp_graphic_object*)nextObject;
+          currObject = currObject->next;
+        }
+
+
+        break;
+      }
       default:
         break;
       }
@@ -527,7 +585,7 @@ void Font::readAxes() {
     }
     double dbValue = 0.0;
 
-    varname = std::format("axes {} minValue", i);    
+    varname = std::format("axes {} minValue", i);
     found = getMPNumVariable(mp, varname.c_str(), &dbValue);
     if (found) {
       axis.minValue = dbValue;
@@ -545,7 +603,7 @@ void Font::readAxes() {
       axis.maxValue = dbValue;
     }
 
-    
+
 
     axes.append(axis);
 

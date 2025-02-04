@@ -207,7 +207,7 @@ static hb_position_t floatToHarfBuzzPosition(double value)
   return static_cast<hb_position_t>(value * (1 << OtLayout::SCALEBY));
 }
 
-static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData, hb_codepoint_t glyph, double lefttatweel, double righttatweel, void* userData)
+static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData, hb_codepoint_t glyph, GlyphParameters parameters, void* userData)
 {
   OtLayout* layout = reinterpret_cast<OtLayout*>(fontData);
 
@@ -224,14 +224,8 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
 
     GlyphVis* pglyph = &layout->glyphs[name];
 
-    if (lefttatweel != 0 || righttatweel != 0) {
-      GlyphParameters parameters{};
-
-      parameters.lefttatweel = lefttatweel;
-      parameters.righttatweel = righttatweel;
-
+    if (parameters.lefttatweel != 0 || parameters.righttatweel != 0) {
       pglyph = layout->getAlternate(pglyph->charcode, parameters);
-
     }
 
     auto xadvance = hbFont->em_scale_x(pglyph->width);
@@ -252,8 +246,8 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
 
 }
 
-hb_position_t OtLayout::gethHorizontalAdvance(hb_font_t* hbFont, hb_codepoint_t glyph, double lefttatweel, double righttatweel, void* userData) {
-  return getGlyphHorizontalAdvance(hbFont, this, glyph, lefttatweel, righttatweel, userData);
+hb_position_t OtLayout::gethHorizontalAdvance(hb_font_t* hbFont, hb_codepoint_t glyph, GlyphParameters parameters, void* userData) {
+  return getGlyphHorizontalAdvance(hbFont, this, glyph, parameters, userData);
 }
 
 static void
@@ -331,7 +325,7 @@ static void get_glyph_h_advances_custom(hb_font_t* font, void* font_data,
     double leftTatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].lefttatweel, true);
     double righttatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].righttatweel, false);
 
-    positions[i].x_advance = getGlyphHorizontalAdvance(font, font_data, glyphs[i].codepoint, leftTatweel, righttatweel, user_data);
+    positions[i].x_advance = getGlyphHorizontalAdvance(font, font_data, glyphs[i].codepoint, { .lefttatweel = leftTatweel, .righttatweel = righttatweel }, user_data);
 
 
   }
@@ -672,7 +666,7 @@ QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, Glyp
 GlyphVis* OtLayout::getGlyph(QString name, GlyphParameters parameters) {
   GlyphVis* pglyph = &this->glyphs[name];
 
-  if (parameters.lefttatweel != 0 || parameters.righttatweel != 0) {
+  if (parameters.lefttatweel != 0 || parameters.righttatweel != 0 || parameters.scalex != 0) {
 
     pglyph = getAlternate(pglyph->charcode, parameters);
   }
@@ -1003,11 +997,10 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
           subtableArray = subtable->getOptOpenTypeTable(extended);
         }
 
-
-
-
         if (lookup->type != Lookup::fsmgsub && subtableArray.size() > 0xFFFF) {
-          std::cout << lookup->name.toStdString() << " : Subtable " << subtable->name.toStdString() << " exceeds the limit of 64K" << std::endl;
+          std::cout << lookup->name.toStdString() << " : Subtable " << subtable->name.toStdString()
+            << " exceeds the limit of 64K : " << subtableArray.size()
+            << std::endl;
           //throw std::runtime_error{ "Subtable exeeded the limit of 64K" };
         }
 
@@ -1814,7 +1807,7 @@ void OtLayout::applyJustFeature(hb_buffer_t * buffer, bool& needgpos, double& di
           newWidth += glyph_pos[index].x_advance;
         }
         else {
-          newWidth += getGlyphHorizontalAdvance(shapefont, this, justificationContext.Substitutes[i], glyph_pos[index].lefttatweel, glyph_pos[index].righttatweel, nullptr); // substitute.width* emScale;
+          newWidth += getGlyphHorizontalAdvance(shapefont, this, justificationContext.Substitutes[i], { .lefttatweel = glyph_pos[index].lefttatweel, .righttatweel = glyph_pos[index].righttatweel }, nullptr); // substitute.width* emScale;
         }
 
         groupExpa.weight += expa.weight;
@@ -2027,7 +2020,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t * buffer, bool& needgpos, double
           else {
             double leftTatweel = glyph_pos[index].lefttatweel + expa.MinLeftTatweel > 0 ? expa.MinLeftTatweel : 0;
             double rightTatweel = glyph_pos[index].righttatweel + expa.MinRightTatweel > 0 ? expa.MinRightTatweel : 0;
-            newWidth += getGlyphHorizontalAdvance(shapefont, this, justificationContext.Substitutes[i], leftTatweel, rightTatweel, nullptr); // substitute.width* emScale;
+            newWidth += getGlyphHorizontalAdvance(shapefont, this, justificationContext.Substitutes[i], { .lefttatweel = leftTatweel, .righttatweel = rightTatweel }, nullptr); // substitute.width* emScale;
           }
 
 
@@ -3601,8 +3594,8 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
       parameters.righttatweel = expnadable->second.maxRight;
     }
   }
-  else {
-    std::cout << glyph->name.toStdString() << " is not expandable" << std::endl;
+  else if (parameters.scalex == 0) {
+    std::cout << "No parameter is set for glyph " << glyph->name.toStdString() << std::endl;
     return glyph;
   }
 
@@ -3618,8 +3611,15 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
     return tryfind2->second;
   }
 
-  //generate glyph
-  font->generateAlternate(glyph->name, parameters);
+  if (automedina->addedGlyphs.contains(glyph->name)) {
+    font->generateAlternate(glyph->name, parameters, automedina->addedGlyphs.value(glyph->name));
+  } else if (!font->glyphperName.contains(glyph->name)) {
+    //std::cout << glyph->name.toStdString() << " is auto generated. It dows not exist in the original font" <<  std::endl;
+    return glyph;
+  }
+  else {
+    font->generateAlternate(glyph->name, parameters);
+  } 
 
   mp_edge_object* edge = font->getEdge(AlternatelastCode);
 

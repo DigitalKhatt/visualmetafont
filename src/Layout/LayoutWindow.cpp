@@ -584,6 +584,9 @@ void LayoutWindow::createActions()
   justStyleCombo->addItem("Same Size By page", qVariantFromValue(JustStyle::SameSizeByPage));
   justStyleCombo->addItem("XScale", qVariantFromValue(JustStyle::XScale));
   justStyleCombo->addItem("FontSize", qVariantFromValue(JustStyle::FontSize));
+  //justStyleCombo->addItem("SCLX Axis", qVariantFromValue(JustStyle::SCLX));
+
+
 
   jutifyToolbar->addWidget(justStyleCombo);
 
@@ -2005,7 +2008,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
           position = "";
 
           if (position_relative) {
-            auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, glyph->lefttatweel, glyph->righttatweel, nullptr);
+            auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, { .lefttatweel = glyph->lefttatweel,.righttatweel = glyph->righttatweel }, nullptr);
 
             if (defaultAdvance != 0) {
               position = QString("width:%1em;").arg(defaultAdvance / (scale * 1000.0));
@@ -2028,7 +2031,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
           }
           else {
 
-            auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, glyph->lefttatweel, glyph->righttatweel, nullptr);
+            auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, { .lefttatweel = glyph->lefttatweel,.righttatweel = glyph->righttatweel }, nullptr);
 
             if (defaultAdvance != 0) {
               position = QString("width:%1em;").arg(defaultAdvance / (scale * 1000.0));
@@ -2061,7 +2064,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
           QString position = "";
 
           if (position_relative) {
-            auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, glyph->lefttatweel, glyph->righttatweel, nullptr);
+            auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, { .lefttatweel = glyph->lefttatweel,.righttatweel = glyph->righttatweel }, nullptr);
 
             if (defaultAdvance != 0) {
               position = QString("width:%1em;").arg(defaultAdvance / (scale * 1000.0));
@@ -2080,7 +2083,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
           else {
 
 
-            auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, glyph->lefttatweel, glyph->righttatweel, nullptr);
+            auto defaultAdvance = layout.gethHorizontalAdvance(hbfont, glyph->codepoint, { .lefttatweel = glyph->lefttatweel,.righttatweel = glyph->righttatweel }, nullptr);
 
             if (defaultAdvance != 0) {
               position = QString("width:%1em;").arg(defaultAdvance / (scale * 1000.0));
@@ -2479,7 +2482,7 @@ void LayoutWindow::createDockWindows()
   otherMenu->addAction(action);
 
 
-  m_otlayout = new OtLayout(m_font, true, false, this);
+  m_otlayout = new OtLayout(m_font, true, true, this);
   m_otlayout->useNormAxisValues = false;
   m_otlayout->extended = true;
   m_otlayout->applyJustification = applyJustification;
@@ -3474,8 +3477,8 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
     double currentxPos = line.xstartposition;
     double currentyPos = line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
     double xScale = line.fontSize * line.xscale;
-    double yScale = line.fontSize * -1;
-    for (auto glyphLayout : line.glyphs) {
+    double yScale = line.fontSize * -1;    
+    for (auto& glyphLayout : line.glyphs) {
       QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
       if (m_otlayout->glyphs.contains(glyphName)) {
@@ -3484,7 +3487,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 
         GlyphItem* glyphItem = nullptr;
         if (refresh) {
-          glyphItem = new GlyphItem(xScale, yScale, &glyph, m_otlayout, glyphLayout.lookup_index, glyphLayout.subtable_index, glyphLayout.base_codepoint, glyphLayout.lefttatweel, glyphLayout.righttatweel);
+          glyphItem = new GlyphItem(xScale, yScale, &glyph, m_otlayout, { .lefttatweel = glyphLayout.lefttatweel, .righttatweel = glyphLayout.righttatweel, .scalex = 0 }, glyphLayout.lookup_index, glyphLayout.subtable_index, glyphLayout.base_codepoint);
           glyphItem->setFlag(QGraphicsItem::ItemIsMovable);
           glyphItem->setFlag(QGraphicsItem::ItemIsSelectable);
           m_graphicsScene->addItem(glyphItem);
@@ -3884,7 +3887,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
         QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
-        GlyphVis& currentGlyph = *m_otlayout->getGlyph(glyphName, { .lefttatweel = glyphLayout.lefttatweel, .righttatweel = glyphLayout.righttatweel });
+        GlyphVis& currentGlyph = *m_otlayout->getGlyph(glyphName, { .lefttatweel = glyphLayout.lefttatweel, .righttatweel = glyphLayout.righttatweel, .scalex = line.xscaleparameter });
         QPoint pos = linePositions[g];
         QPainterPath path;
         if (!glyphName.contains("space") && !glyphName.contains("cgj")) {
@@ -3930,7 +3933,11 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
             if ((isMark || isPrevMark) && !isPrevrSpace) { //|| isIsol || isPrevIsol
 
-              GlyphVis& otherGlyph = *m_otlayout->getGlyph(prev_glyphName, { .lefttatweel = prev_glyphLayout.lefttatweel, .righttatweel = prev_glyphLayout.righttatweel }); //m_otlayout->glyphs[prev_glyphName];
+              GlyphVis& otherGlyph = *m_otlayout->getGlyph(prev_glyphName, {
+                .lefttatweel = prev_glyphLayout.lefttatweel,
+                .righttatweel = prev_glyphLayout.righttatweel,
+                .scalex = line.xscaleparameter }); //m_otlayout->glyphs[prev_glyphName];
+
               QPoint otherpos = prev_linePositions[prev_g];
 
               QPainterPath otherpath = pathtransform.map(otherGlyph.path);

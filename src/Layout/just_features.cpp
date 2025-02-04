@@ -3,6 +3,8 @@
 #include "hb-buffer.hh"
 #include <qregularexpression.h>
 
+#include "hb-font.hh"
+
 using namespace std;
 
 static const int PAGE_WIDTH = 17000;
@@ -74,6 +76,7 @@ struct TextFontFeatures {
 };
 
 struct JustResultByLine {
+  float sclxAxis = 0;
   vector<TextFontFeatures> globalFeatures = {};
   map<int, vector<TextFontFeatures>> fontFeatures = {}; /* FontFeatures by character index in the line */
   double simpleSpacing;
@@ -619,9 +622,12 @@ static AppliedResult applyKashida(
     cv01Value = ff->value;
   }
 
-  auto cv02Value = cv01Value;
+  int cv02Value;
 
   if (finalAscendant.contains(chark4) && subWordInfo.baseIndexes.back() == secondMatchIndex) {
+    cv02Value = cv01Value;
+  }
+  else {
     cv02Value = 2 * cv01Value;
   }
 
@@ -1008,7 +1014,9 @@ static void stretchLine(const LineTextInfo& lineTextInfo, JustInfo& justInfo, Ju
 
 static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t* font, double fontSizeLineWidthRatio,
   double spaceWidth,
-  JustType justType
+  JustType justType,
+  JustStyle justStyle,
+  OtLayout* layout
 ) {
 
   auto desiredWidth = FONTSIZE / fontSizeLineWidthRatio;
@@ -1030,9 +1038,11 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
 
   auto diff = desiredWidth - currentLineWidth;
 
-  double xScale = 1;
-  double simpleSpacing = spaceWidth;
-  double ayaSpacing = spaceWidth;
+  JustResultByLine result;
+
+  result.xScale = 1;
+  result.simpleSpacing = spaceWidth;
+  result.ayaSpacing = spaceWidth;
 
   JustInfo justInfo{ .fontFeatures = {},.desiredWidth = desiredWidth,.textLineWidth = currentLineWidth, .layoutResult = layOutResult, .font = font };
 
@@ -1074,18 +1084,36 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
       ayaSpaceWidth += addToSpace;
     }
 
-    simpleSpacing = simpleSpaceWidth;
-    ayaSpacing = ayaSpaceWidth;
+    result.simpleSpacing = simpleSpaceWidth;
+    result.ayaSpacing = ayaSpaceWidth;
 
 
   }
   else {
     //shrink
-    xScale = desiredWidth / currentLineWidth;
+    if (justStyle == JustStyle::SCLX) {
+      float xScale = desiredWidth / currentLineWidth;
+      auto ff = layout->createFont(font->x_scale / 1000, false);
+      hb_font_set_variation(ff, HB_TAG('S', 'C', 'L', 'X'), xScale * 100);
+      auto newCurrentLineWidth = getWidth(lineText, ff, {});
+
+      hb_font_destroy(ff);
+      if (newCurrentLineWidth < currentLineWidth) {
+        result.sclxAxis = 80; // xScale * 100;
+        result.xScale = desiredWidth / newCurrentLineWidth;
+        std::cout << "result.xScale=" << result.xScale << " result.sclxAxis=" << result.sclxAxis << " currentLineWidth=" << currentLineWidth << " newCurrentLineWidth = " << newCurrentLineWidth << std::endl;
+      }
+
+    }
+    else {
+      result.xScale = desiredWidth / currentLineWidth;
+    }
+
 
   }
+  result.fontFeatures = justInfo.fontFeatures;
 
-  return { .fontFeatures = justInfo.fontFeatures,.simpleSpacing = simpleSpacing, .ayaSpacing = ayaSpacing, .xScale = xScale };
+  return result;
 
 }
 
@@ -1255,23 +1283,36 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
       fontRatio = 1; // min(fontSizeRatios[lineIdx], defaultFontRatio);
     }
 
-    auto justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * fontRatio, spaceWidth, justType);    
-    hb_font_t* shapeFont = defaultShapefont;    
+    auto justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * fontRatio, spaceWidth, justType, justStyle, this);
+    hb_font_t* shapeFont = defaultShapefont;
     auto newEmScale = emScale;
+    auto newFont = false;
     if (fontRatio != 1) {
+      newFont = true;
       newEmScale = emScale * fontRatio;
       shapeFont = this->createFont(newEmScale, false);
     }
-
+    if (justResultByLine.sclxAxis != 0) {
+      if (!newFont) {
+        newFont = true;
+        shapeFont = this->createFont(emScale, false);
+      }
+      hb_font_set_variation(shapeFont, HB_TAG('S', 'C', 'L', 'X'), justResultByLine.sclxAxis);
+    }
 
     auto lineLayoutInfo = shapeLine(this, line.width, pageWidth, lineTextInfo, justResultByLine, tajweedColor, newEmScale, shapeFont, line.lineJustification, currentyPos);
 
-    if (fontRatio != 1) {
+    if (newFont) {
       hb_font_destroy(shapeFont);
     }
-
-    lineLayoutInfo.xscale = justResultByLine.xScale;
-
+    if (justStyle == JustStyle::SCLX) {
+      lineLayoutInfo.fontSize = lineLayoutInfo.fontSize * justResultByLine.xScale;
+      lineLayoutInfo.xscale = 1;
+      lineLayoutInfo.xscaleparameter = justResultByLine.sclxAxis;
+    }
+    else {
+      lineLayoutInfo.xscale = justResultByLine.xScale;
+    }
 
 
     page.append(lineLayoutInfo);

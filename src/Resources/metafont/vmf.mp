@@ -216,16 +216,29 @@ def endchar =
   currentpicture := currentpicture transformed tr_;
   
   charht := ypart (ulcorner currentpicture);if charht < 0 : charht := 0; fi ;  
-  chardp := ypart (llcorner currentpicture);if chardp > 0 : chardp := 0; fi ;   
+  chardp := ypart (llcorner currentpicture);if chardp > 0 : chardp := 0; fi ;
+
+  % Need to split rtlcursive when generating multiple alternate glyphs with sklx axis otherwise it overlows
+  if known leftanchor and known rightanchor :
+    defAnchor(rtlcursiveinitmedi,rightanchor,EntryAnchorRTL);
+
+    defAnchor(rtlcursivemedifina,leftanchor,ExitAnchorRTL);
+    defAnchor(rtlcursivemedimedi,rightanchor,EntryAnchorRTL);
+    defAnchor(rtlcursivemedimedi,leftanchor,ExitAnchorRTL);      
+  elseif known leftanchor :
+    defAnchor(rtlcursiveinitmedi,leftanchor,ExitAnchorRTL);
+    defAnchor(rtlcursiveinitfina,leftanchor,ExitAnchorRTL);
+  elseif known rightanchor :      
+    defAnchor(rtlcursivemedifina,rightanchor,EntryAnchorRTL);
+    defAnchor(rtlcursiveinitfina,rightanchor,EntryAnchorRTL); 
+  fi    
   
-  if known leftanchor :
-    %leftanchor := leftanchor transformed tr_;
-    defAnchor(rtlcursive,leftanchor,ExitAnchorRTL); 
-  fi
-  if known rightanchor :  
-    %rightanchor := rightanchor transformed tr_;
-    defAnchor(rtlcursive,rightanchor,EntryAnchorRTL); 
-  fi  
+  %if known leftanchor :    
+  %  defAnchor(rtlcursive,leftanchor,ExitAnchorRTL); 
+  %fi
+  %if known rightanchor :      
+  %  defAnchor(rtlcursive,rightanchor,EntryAnchorRTL); 
+  %fi  
 
   if savepicture = 1 :
 	  expandafter picture scantokens charname pic; 
@@ -246,6 +259,29 @@ def endchar =
       setlabel(anchors[i].anchorname,anchors[i].pairvalue);      
     fi
   endfor;
+
+  if known params100 :
+    if params100 <> 0 :
+      charcode := 983040;      
+      originalglyph := charname;
+      charname := "alternatechar";
+      scalex_ := params100/100;
+      charwd := charwd * scalex_;
+      currentpicture := currentpicture xscaled scalex_;
+      tr_ := identity shifted (xpart tr_ * scalex_,ypart tr_);
+      %charht := ypart (ulcorner currentpicture);if charht < 0 : charht := 0; fi ;  
+      %chardp := ypart (llcorner currentpicture);if chardp > 0 : chardp := 0; fi ;
+      for i = 0 upto (number_of_anchors - 1): 
+        anchors[i].pairvalue := anchors[i].pairvalue xscaled scalex_;    
+      endfor;
+      if known leftanchor :        
+        leftanchor := leftanchor xscaled scalex_;   
+      fi
+      if known rightanchor :  
+        rightanchor := rightanchor xscaled scalex_;   
+      fi  
+    fi
+  fi
   
 	shipit;
 	endgroup 

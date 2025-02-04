@@ -63,7 +63,7 @@ public:
 	QString executeMetaPost(QString command);
 	mp_edge_object* getEdges();
 	mp_edge_object* getEdge(int charCode);
-	void generateAlternate(QString macroname, GlyphParameters params);
+	void generateAlternate(QString macroname, GlyphParameters params, QString sourceCode = "");
 	mp_graphic_object* copyEdgeBody(mp_graphic_object* source);
 	QString getLog();
 	//TODO protected:

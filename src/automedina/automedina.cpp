@@ -129,9 +129,11 @@ void Automedina::generateAyas(QString ayaName, bool colored) {
     }
     QString data = QString("beginchar(%1%2,-1,-1,2,-1);\n%%beginbody\ngenAyaNumber(%1, %2,3000);%3;endchar;").arg(ayaName).arg(ayaNumber).arg(setcolored);
     m_layout->font->executeMetaPost(data);
+    addedGlyphs.insert(QString("%1%2").arg(ayaName).arg(ayaNumber), data);
     if (colored) {
       data = QString("beginchar(%1.colored%2,-1,-1,5,-1);\n%%beginbody\ngenAyaNumber(%1.colored, %2,3000);endchar;").arg(ayaName).arg(ayaNumber);
       m_layout->font->executeMetaPost(data);
+      addedGlyphs.insert(QString("%1.colored%2").arg(ayaName).arg(ayaNumber), data);
     }
   }
 }

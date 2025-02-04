@@ -97,6 +97,7 @@ struct LineLayoutInfo {
   float overfull;
   double fontSize;
   double xscale = 1;
+  double xscaleparameter = 0;
 };
 
 struct LayoutPages {
@@ -171,7 +172,8 @@ enum class JustStyle {
   None,
   SameSizeByPage,
   XScale,
-  FontSize
+  FontSize,
+  SCLX
 };
 Q_DECLARE_METATYPE(JustStyle)
 
@@ -315,7 +317,7 @@ public:
 
   GlyphVis* getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph = false, bool addToEquivSubst = false);
   std::unordered_map<GlyphParameters, GlyphVis*>& getSubstEquivGlyphs(int glyphCode);
-  hb_position_t gethHorizontalAdvance(hb_font_t* hbFont, hb_codepoint_t glyph, double lefttatweel, double righttatweel, void* userData);
+  hb_position_t gethHorizontalAdvance(hb_font_t* hbFont, hb_codepoint_t glyph, GlyphParameters parameters, void* userData);
 
   void clearAlternates();
 
@@ -402,7 +404,7 @@ public:
     }
 
   }
-
+  static int AlternatelastCode;
   bool isExtended() { return extended; }
 
   QSet<quint16> getSubsts(int charCode);
@@ -412,7 +414,7 @@ signals:
   void parameterChanged();
 #endif
 
-
+  
 
 private:
   //void evaluateImport();
@@ -432,7 +434,7 @@ private:
 
   QSet<Lookup*> disabledLookups;
 
-  static int AlternatelastCode;
+  
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> tempGlyphs;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> addedGlyphs;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> substEquivGlyphs;

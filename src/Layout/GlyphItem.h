@@ -20,7 +20,7 @@
 #pragma once
 
 #include <QGraphicsPathItem>
-
+#include "commontypes.h"
 
 class GlyphVis;
 class OtLayout;
@@ -29,27 +29,26 @@ class GlyphItem : public QGraphicsPathItem
 {
   friend class GraphicsViewAdjustment;
 public:
-	GlyphItem(double xscale, double yscale, GlyphVis* glyph, OtLayout * layout, quint32 lookup = 0, quint32 subtable = 0, quint16 baseChar = 0,double lefttatweel = 0.0, double righttatweel = 0.0, QGraphicsItem * parent = Q_NULLPTR);
-	~GlyphItem();
-	//QRectF boundingRect() const Q_DECL_OVERRIDE;
-	//void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) Q_DECL_OVERRIDE;
+  GlyphItem(double xscale, double yscale, GlyphVis* glyph, OtLayout* layout, GlyphParameters parameters, quint32 lookup = 0, quint32 subtable = 0, quint16 baseChar = 0, QGraphicsItem* parent = Q_NULLPTR);
+  ~GlyphItem();
+  //QRectF boundingRect() const Q_DECL_OVERRIDE;
+  //void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) Q_DECL_OVERRIDE;
 
 protected:
-	void mouseMoveEvent(QGraphicsSceneMouseEvent *event) Q_DECL_OVERRIDE;
-	void mousePressEvent(QGraphicsSceneMouseEvent *event) Q_DECL_OVERRIDE;
-	void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *) override;
+  void mouseMoveEvent(QGraphicsSceneMouseEvent* event) Q_DECL_OVERRIDE;
+  void mousePressEvent(QGraphicsSceneMouseEvent* event) Q_DECL_OVERRIDE;
+  void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget*) override;
 
 
 private:
-	GlyphVis* m_glyph;
-	OtLayout* m_layout;
-	quint32 m_lookup;
-	quint32 m_subtable;
-	quint16 m_baseChar;
-	QPointF lastPos;
-	QPoint lastdiff;
-	double m_scale;
-	double m_lefttatweel;
-	double m_righttatweel;
-	//QPainterPath path;
+  GlyphVis* m_glyph;
+  OtLayout* m_layout;
+  quint32 m_lookup;
+  quint32 m_subtable;
+  quint16 m_baseChar;
+  QPointF lastPos;
+  QPoint lastdiff;
+  double m_scale;
+  GlyphParameters m_parameters;
+  //QPainterPath path;
 };

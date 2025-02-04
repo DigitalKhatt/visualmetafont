@@ -61,6 +61,8 @@ public:
   }
   virtual void generateSubstEquivGlyphs() {}
 
+  QMap<QString, QString> addedGlyphs;
+
 protected:
   OtLayout* m_layout;
 

@@ -34,6 +34,7 @@
 
 ToOpenType::ToOpenType(OtLayout* layout) :ot_layout{ layout }
 {
+  setAxes();
 }
 void ToOpenType::setAxes() {
 
@@ -199,7 +200,7 @@ void ToOpenType::setAxes() {
         }
       }
     }
-    if (scaleXIndex != -1) {
+    if (scaleXIndex != -1 /* && !glyphName.contains(".added_")*/) {
       auto& scaleXAxis = axes[scaleXIndex];
       VariationRegion region = getVariationRegion(scaleXIndex, { 0, getF2DOT14(1.0), getF2DOT14(1.0) });
       regionIndexes.push_back(getRegionIndex(region, { .scalex = scaleXAxis.maxValue }));
@@ -1006,6 +1007,8 @@ QByteArray ToOpenType::post() {
 }
 void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_fill_object* fill, double& currentx, double& currenty, PathLimits& pathLimits, GlyphVis** compGlyphVis) {
 
+  //TODo support variations
+  /*
   if (fill->pre_script && strcmp(fill->pre_script, "begincomponent") == 0) {
     auto comp = QString(fill->post_script).split(",");
     QString name = comp[0];
@@ -1021,7 +1024,7 @@ void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_fill_object* fil
 
       fixed_to_cff2(data, dx);
       fixed_to_cff2(data, dy);
-      data << (uint8_t)21; // rmoveto;    
+      data << (uint8_t)21; // rmoveto;
       int_to_cff2(data, subrByGlyphInfo.offset - subIndexBias);
       data << (uint8_t)10; // callsubr;
 
@@ -1032,7 +1035,7 @@ void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_fill_object* fil
 
       return;
     }
-  }
+  }*/
 
   auto path = fill->path_p;
 
@@ -1128,12 +1131,16 @@ void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_fill_object* fil
 }
 QByteArray ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ToOpenType::ContourLimits contourLimits) {
 
-
   auto body = glyph.copiedPath;
   QByteArray data;
 
   Color ayablue = Color{ 255,240,220,255 };
 
+  PathLimits pathlimits;
+  for (auto contour : contourLimits.contours) {
+    pathlimits.currentx.deltas.push_back(currentx);
+    pathlimits.currenty.deltas.push_back(currenty);
+  }
 
   if (body) {
     do {
@@ -1142,9 +1149,10 @@ QByteArray ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QV
       case mp_fill_code: {
         QByteArray layerArray;
         mp_fill_object* fillobject = (mp_fill_object*)body;
-        PathLimits pathlimits;
+
         if (!colored) {
           if (iscff2) {
+            pathlimits.knots.clear();
             for (auto contour : contourLimits.contours) {
               if (contour != nullptr) {
                 pathlimits.knots.push_back(((mp_fill_object*)contour)->path_p);
@@ -1152,8 +1160,6 @@ QByteArray ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QV
               else {
                 pathlimits.knots.push_back(nullptr);
               }
-              pathlimits.currentx.deltas.push_back(currentx);
-              pathlimits.currenty.deltas.push_back(currenty);
             }
           }
           GlyphVis* compGlyphVis = nullptr;
