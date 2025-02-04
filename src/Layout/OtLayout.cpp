@@ -3595,7 +3595,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
     }
   }
   else if (parameters.scalex == 0) {
-    std::cout << "No parameter is set for glyph " << glyph->name.toStdString() << std::endl;
+    //std::cout << "No parameter is set for glyph " << glyph->name.toStdString() << std::endl;
     return glyph;
   }
 

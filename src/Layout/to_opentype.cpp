@@ -201,11 +201,19 @@ void ToOpenType::setAxes() {
       }
     }
     if (scaleXIndex != -1 /* && !glyphName.contains(".added_")*/) {
-      auto& scaleXAxis = axes[scaleXIndex];
-      VariationRegion region = getVariationRegion(scaleXIndex, { 0, getF2DOT14(1.0), getF2DOT14(1.0) });
-      regionIndexes.push_back(getRegionIndex(region, { .scalex = scaleXAxis.maxValue }));
-      region = getVariationRegion(scaleXIndex, { getF2DOT14(-1.0),getF2DOT14(-1.0),0 });
-      regionIndexes.push_back(getRegionIndex(region, { .scalex = scaleXAxis.minValue }));
+      bool includeglyph = true;
+      if (glyphName.contains(".added_")) {        
+        if (glyph->charlt > 3 || glyph->charrt > 0) {
+          includeglyph = false;
+        }
+      }
+      if (includeglyph) {
+        auto& scaleXAxis = axes[scaleXIndex];
+        VariationRegion region = getVariationRegion(scaleXIndex, { 0, getF2DOT14(1.0), getF2DOT14(1.0) });
+        regionIndexes.push_back(getRegionIndex(region, { .scalex = scaleXAxis.maxValue }));
+        region = getVariationRegion(scaleXIndex, { getF2DOT14(-1.0),getF2DOT14(-1.0),0 });
+        regionIndexes.push_back(getRegionIndex(region, { .scalex = scaleXAxis.minValue }));
+      }      
     }
     auto regionIndexesIndex = getRegionIndexesIndex(regionIndexes);
     regionIndexesIndexByGlyph.insert({ glyphName, regionIndexesIndex });
