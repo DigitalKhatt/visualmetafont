@@ -322,10 +322,22 @@ static void get_glyph_h_advances_custom(hb_font_t* font, void* font_data,
   for (unsigned int i = 0; i < count; i++)
   {
 
-    double leftTatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].lefttatweel, true);
-    double righttatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].righttatweel, false);
+    GlyphParameters parameters;
 
-    positions[i].x_advance = getGlyphHorizontalAdvance(font, font_data, glyphs[i].codepoint, { .lefttatweel = leftTatweel, .righttatweel = righttatweel }, user_data);
+    parameters.lefttatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].lefttatweel, true);
+    parameters.righttatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].righttatweel, false);
+
+    /*
+    unsigned int num_coords = 0;
+
+    const float* coords = hb_font_get_var_coords_design(font, &num_coords);
+    if (num_coords == 1)
+    {
+      parameters.scalex = coords[0] /  100; // *65536.f;
+      //std::cout << "coords[0]=" << coords[0] << ";";
+    }*/
+
+    positions[i].x_advance = getGlyphHorizontalAdvance(font, font_data, glyphs[i].codepoint, parameters, user_data);
 
 
   }
@@ -3619,7 +3631,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
   }
   else {
     font->generateAlternate(glyph->name, parameters);
-  } 
+  }
 
   mp_edge_object* edge = font->getEdge(AlternatelastCode);
 

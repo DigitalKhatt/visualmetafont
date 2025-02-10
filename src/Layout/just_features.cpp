@@ -1099,7 +1099,7 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
 
       hb_font_destroy(ff);
       if (newCurrentLineWidth < currentLineWidth) {
-        result.sclxAxis = 80; // xScale * 100;
+        result.sclxAxis = xScale * 100;
         result.xScale = desiredWidth / newCurrentLineWidth;
         std::cout << "result.xScale=" << result.xScale << " result.sclxAxis=" << result.sclxAxis << " currentLineWidth=" << currentLineWidth << " newCurrentLineWidth = " << newCurrentLineWidth << std::endl;
       }
