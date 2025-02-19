@@ -3832,9 +3832,10 @@ static QPainterPath qt_graphicsItem_shapeFromPath(const QPainterPath& path, cons
 
 void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, int beginPage, int nbPages, QVector<int>& set, double emScale, QVector<OverlapResult>& result, bool onlySameLine) {
 
-  QPen pen = Qt::NoPen;
-  pen = QPen();
-  pen.setWidth(10 * emScale);
+  double minDistance = 10;
+  
+  QPen pen = QPen();
+  pen.setWidth(std::ceil(minDistance * emScale));
 
 
   for (int p = beginPage; p < beginPage + nbPages; p++) {

@@ -181,11 +181,11 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
       parameters.lefttatweel = (double)expan.MinLeftTatweel;
       parameters.righttatweel = (double)expan.MinRightTatweel;
 
-      auto& addedGlyphs = m_layout->getSubstEquivGlyphs(substGlyph);
+      auto& addedSubstGlyphs = m_layout->getSubstEquivGlyphs(substGlyph);
 
-      auto found = addedGlyphs.find(parameters);
+      auto found = addedSubstGlyphs.find(parameters);
 
-      if (found != addedGlyphs.end()) {
+      if (found != addedSubstGlyphs.end()) {
 
         /*
         auto name = m_layout->glyphNamePerCode[found->second->charcode];
@@ -200,6 +200,8 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
         newsubst.insert(glyphCode, found->second->charcode);
       }
 
+      auto& addedGlyphs = m_layout->getSubstEquivGlyphs(glyphCode);
+
       for (auto& addedGlyph : addedGlyphs) {
 
         GlyphParameters parameters;
@@ -207,9 +209,9 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
         parameters.lefttatweel = addedGlyph.second->charlt + (double)expan.MinLeftTatweel;
         parameters.righttatweel = addedGlyph.second->charrt + (double)expan.MinRightTatweel;
 
-        auto found = addedGlyphs.find(parameters);
+        auto found = addedSubstGlyphs.find(parameters);
 
-        if (found != addedGlyphs.end()) {
+        if (found != addedSubstGlyphs.end()) {
 
           newexpansion.insert(addedGlyph.second->charcode, oldExpaIter.value());
           newsubst.insert(addedGlyph.second->charcode, found->second->charcode);
