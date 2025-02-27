@@ -884,8 +884,10 @@ void LayoutWindow::checkOffMarks() {
         auto& glyphLayout = line.glyphs[g];
 
         QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-        currentxPos -= glyphLayout.x_advance;
-        QPoint pos(currentxPos + (glyphLayout.x_offset), currentyPos - (glyphLayout.y_offset));
+
+        currentxPos -= glyphLayout.x_advance * line.xscale;
+        QPoint pos(currentxPos + (glyphLayout.x_offset * line.xscale), currentyPos - (glyphLayout.y_offset));
+
 
         linePositions.append(QPoint{ pos.x(),pos.y() });
 
@@ -1653,12 +1655,11 @@ bool LayoutWindow::generateLayoutInfo() {
 
   layout.loadLookupFile("features.fea");
 
-  int calScale = 1 << OtLayout::SCALEBY;
+  double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
-  int scale = calScale * OtLayout::EMSCALE;
   int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
-  auto result = shapeMedina(scale, lineWidth, &layout);
+  auto result = shapeMushaf(scale, lineWidth, &layout, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
   GenerateLayout generateLayout{ &layout,result };
 
@@ -2135,7 +2136,7 @@ void LayoutWindow::saveCollision() {
 
   auto result = shapeMushaf(scale, lineWidth, m_otlayout, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
-  adjustOverlapping(result.pages, lineWidth, result.originalPages, scale, true);
+  adjustOverlapping(result.pages, lineWidth, result.originalPages, scale, true, true);
 
 }
 
@@ -2154,7 +2155,7 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
   auto result = shapeMushaf(scale, lineWidth, m_otlayout, cluster_level);
 
   if (this->applyCollisionDetection) {
-    adjustOverlapping(result.pages, lineWidth, result.originalPages, scale, false);
+    adjustOverlapping(result.pages, lineWidth, result.originalPages, scale, true, true);
   }
 
   if (this->applyForce) {
@@ -2278,7 +2279,7 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
   }
 
   if (this->applyCollisionDetection) {
-    adjustOverlapping(pages.pages, lineWidth, pages.originalPages, scale, false);
+    adjustOverlapping(pages.pages, lineWidth, pages.originalPages, scale, true, true);
   }
 
   QPageSize pageSize{ { 90.2,144.5 },QPageSize::Millimeter, "MedianQuranBook" };
@@ -3444,7 +3445,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 
   if (this->applyCollisionDetection) {
     QVector<OverlapResult> result;
-    adjustOverlapping(pages, lineWidth, 0, 1, set, scale, result, false);
+    adjustOverlapping(pages, lineWidth, 0, 1, set, scale, result, true, true);
   }
 
   page = pages[0];
@@ -3477,7 +3478,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
     double currentxPos = line.xstartposition;
     double currentyPos = line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
     double xScale = line.fontSize * line.xscale;
-    double yScale = line.fontSize * -1;    
+    double yScale = line.fontSize * -1;
     for (auto& glyphLayout : line.glyphs) {
       QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
@@ -3643,7 +3644,7 @@ void LayoutWindow::adjustPage(QString text, hb_font_t* shapeFont, hb_buffer_t* b
 
 }
 
-void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, QList<QStringList> originalPages, double emScale, bool onlySameLine) {
+void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, QList<QStringList> originalPages, double emScale, bool sameLine, bool interLine) {
 
   //QPageSize pageSize{ { 90.2,144.5 },QPageSize::Millimeter, "MedianQuranBook" };
   QPageSize pageSize{ { 90.2,147.5 },QPageSize::Millimeter, "MedianQuranBook" };
@@ -3688,7 +3689,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
     overlapResults.push_back(result1);
 
 
-    QThread* thread = QThread::create([this, &pages, &result1, begin, pageperthread, set, lineWidth, emScale, onlySameLine] { adjustOverlapping(pages, lineWidth, begin, pageperthread, *set, emScale, *result1, onlySameLine); });
+    QThread* thread = QThread::create([this, &pages, &result1, begin, pageperthread, set, lineWidth, emScale, sameLine, interLine] { adjustOverlapping(pages, lineWidth, begin, pageperthread, *set, emScale, *result1, sameLine, interLine); });
 
     threads.push_back(thread);
 
@@ -3830,10 +3831,10 @@ static QPainterPath qt_graphicsItem_shapeFromPath(const QPainterPath& path, cons
 }
 
 
-void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, int beginPage, int nbPages, QVector<int>& set, double emScale, QVector<OverlapResult>& result, bool onlySameLine) {
+void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, int beginPage, int nbPages, QVector<int>& set, double emScale, QVector<OverlapResult>& result, bool sameLine, bool interLine) {
 
   double minDistance = 10;
-  
+
   QPen pen = QPen();
   pen.setWidth(std::ceil(minDistance * emScale));
 
@@ -3857,8 +3858,8 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
         auto& glyphLayout = line.glyphs[g];
 
         QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-        currentxPos -= glyphLayout.x_advance;
-        QPoint pos(currentxPos + (glyphLayout.x_offset), currentyPos - (glyphLayout.y_offset));
+        currentxPos -= glyphLayout.x_advance * line.xscale;
+        QPoint pos(currentxPos + (glyphLayout.x_offset * line.xscale), currentyPos - (glyphLayout.y_offset));
 
         linePositions.append(QPoint{ pos.x(),pos.y() });
 
@@ -3870,12 +3871,10 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
     for (int l = 0; l < page.size(); l++) {
 
-      auto& line = page[l];
-
-      double scale = line.fontSize; //(1 << OtLayout::SCALEBY) * 1; // 0.85;		  
+      auto& line = page[l];      	  
 
       QTransform pathtransform;
-      pathtransform = pathtransform.scale(scale * 1.00, -scale * 1.00);
+      pathtransform = pathtransform.scale(line.fontSize * line.xscale * 1.00, -line.fontSize * 1.00);
 
       QList<QPoint>& linePositions = pagePositions[l];
       LineLayoutInfo suraName;
@@ -3903,7 +3902,6 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
         }
 
 
-
         if (glyphName.contains("space") || glyphName.contains("linefeed") || !m_otlayout->glyphs.contains(glyphName)) continue;
 
         //bool isIsol = glyphName.contains("isol");
@@ -3918,7 +3916,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
         // verify with the line above
         //if (l > 0 && false) {
-        if (l > 0 && !onlySameLine) {
+        if (interLine && l > 0) {
           int prev_index = l - 1;
           QList<QPoint>& prev_linePositions = pagePositions[prev_index];
           auto& prev_line = page[prev_index];
@@ -3931,7 +3929,6 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
             bool isPrevrSpace = prev_glyphName.contains("space") || prev_glyphName.contains("linefeed");
             //bool isPrevIsol = prev_glyphName.contains("isol");
 
-
             if ((isMark || isPrevMark) && !isPrevrSpace) { //|| isIsol || isPrevIsol
 
               GlyphVis& otherGlyph = *m_otlayout->getGlyph(prev_glyphName, {
@@ -3940,6 +3937,9 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
                 .scalex = line.xscaleparameter }); //m_otlayout->glyphs[prev_glyphName];
 
               QPoint otherpos = prev_linePositions[prev_g];
+
+              //auto gg = qt_graphicsItem_shapeFromPath(otherGlyph.path, pen);
+              //QPainterPath otherpath = pathtransform.map(gg);
 
               QPainterPath otherpath = pathtransform.map(otherGlyph.path);
               otherpath.translate(otherpos);
@@ -3955,58 +3955,58 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int li
 
         }
 
-        bool isSameWord = true;
+        if (sameLine) {
+          bool isSameWord = true;
 
-        for (int gg = g - 1; gg >= 0; gg--) {
+          for (int gg = g - 1; gg >= 0; gg--) {
 
-          auto& otherglyphLayout = line.glyphs[gg];
-          QString otherglyphName = m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
+            auto& otherglyphLayout = line.glyphs[gg];
+            QString otherglyphName = m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
 
-          bool isOtherSpace = otherglyphName.contains("space") || otherglyphName.contains("linefeed");
+            bool isOtherSpace = otherglyphName.contains("space") || otherglyphName.contains("linefeed");
 
-          if (isOtherSpace) {
-            isSameWord = false;
-            continue;
+            if (isOtherSpace) {
+              isSameWord = false;
+              continue;
+            }
+
+            if (isSameWord) {
+              //TODO include lam.init kaf.medi for example
+
+              bool isPrevInit = otherglyphName.contains(".init");
+              bool isPrevMedi = otherglyphName.contains(".medi");
+
+              if (glyphName.contains(".fina") && (isPrevMedi || isPrevInit)) continue;
+              if (glyphName.contains(".medi") && (isPrevMedi || isPrevInit)) continue;
+            }
+
+
+
+            GlyphVis& otherGlyph = *m_otlayout->getGlyph(otherglyphName, { .lefttatweel = otherglyphLayout.lefttatweel, .righttatweel = otherglyphLayout.righttatweel }); //glyphs[otherglyphName];
+            QPointF otherpos = linePositions[gg];
+
+            QPainterPath& otherpath = paths[gg];
+
+            if (path.intersects(otherpath)) {
+
+              glyphLayout.color = 0xFF000000;
+
+              otherglyphLayout.color = 0xFF000000;
+              intersection = true;
+
+              OverlapResult overlap;
+
+              overlap.pageIndex = p;
+              overlap.lineIndex = l;
+              overlap.nextGlyph = g;
+              overlap.prevGlyph = gg;
+
+              result.append(overlap);
+
+            }
+
           }
-
-          if (isSameWord) {
-            //TODO include lam.init kaf.medi for example
-
-            bool isPrevInit = otherglyphName.contains(".init");
-            bool isPrevMedi = otherglyphName.contains(".medi");
-
-            if (glyphName.contains(".fina") && (isPrevMedi || isPrevInit)) continue;
-            if (glyphName.contains(".medi") && (isPrevMedi || isPrevInit)) continue;
-          }
-
-
-
-          GlyphVis& otherGlyph = *m_otlayout->getGlyph(otherglyphName, { .lefttatweel = otherglyphLayout.lefttatweel, .righttatweel = otherglyphLayout.righttatweel }); //glyphs[otherglyphName];
-          QPointF otherpos = linePositions[gg];
-
-          QPainterPath& otherpath = paths[gg];
-
-          if (path.intersects(otherpath)) {
-
-            glyphLayout.color = 0xFF000000;
-
-            otherglyphLayout.color = 0xFF000000;
-            intersection = true;
-
-            OverlapResult overlap;
-
-            overlap.pageIndex = p;
-            overlap.lineIndex = l;
-            overlap.nextGlyph = g;
-            overlap.prevGlyph = gg;
-
-            result.append(overlap);
-
-          }
-
         }
-
-
       }
     }
 

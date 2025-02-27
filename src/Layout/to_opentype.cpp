@@ -46,6 +46,7 @@ void ToOpenType::setAxes() {
 
   if (!ot_layout->isOTVar) {
     axisCount = 0;
+    isComponentsEnabled = true;
     return;
   }
 
@@ -53,7 +54,10 @@ void ToOpenType::setAxes() {
 
   this->axisCount = axes.size();
 
-  if (axisCount == 0) return;
+  if (axisCount == 0) {
+    isComponentsEnabled = true;
+    return;
+  }
 
   int axisNameId = this->AxisNameId;
   for (auto axis : axes) {
@@ -88,6 +92,10 @@ void ToOpenType::setAxes() {
   auto leftTatweelIndex = getAxisIndex("leftTatweel");
   auto rightTatweelIndex = getAxisIndex("rightTatweel");
   auto scaleXIndex = getAxisIndex("scaleX");
+
+  if (scaleXIndex == -1) {
+    isComponentsEnabled = true;
+  }
 
   auto getRegionIndex = [&regions = regions, &glyphParametersByRegion = glyphParametersByRegion](VariationRegion region, GlyphParameters parameters) {
     int size = regions.size();
@@ -479,7 +487,9 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
   QByteArray cffArray;
 
   // TODO blend component to support OpenType variations
-  //generateComponents();
+  if (isComponentsEnabled) {
+    generateComponents();
+  }  
 
   //generate new color glyphs
   if (isCff2) {
@@ -1016,34 +1026,36 @@ QByteArray ToOpenType::post() {
 void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_fill_object* fill, double& currentx, double& currenty, PathLimits& pathLimits, GlyphVis** compGlyphVis) {
 
   //TODo support variations
-  /*
-  if (fill->pre_script && strcmp(fill->pre_script, "begincomponent") == 0) {
-    auto comp = QString(fill->post_script).split(",");
-    QString name = comp[0];
-    GlyphVis& compGlyph = ot_layout->glyphs[name];
-    auto initPosX = comp[1].toDouble() + glyph.matrix.xpart;
-    auto initPosY = comp[2].toDouble() + glyph.matrix.ypart;
-    auto dx = initPosX - currentx;
-    auto dy = initPosY - currenty;
+  if (isComponentsEnabled) {
+    if (fill->pre_script && strcmp(fill->pre_script, "begincomponent") == 0) {
+      auto comp = QString(fill->post_script).split(",");
+      QString name = comp[0];
+      GlyphVis& compGlyph = ot_layout->glyphs[name];
+      auto initPosX = comp[1].toDouble() + glyph.matrix.xpart;
+      auto initPosY = comp[2].toDouble() + glyph.matrix.ypart;
+      auto dx = initPosX - currentx;
+      auto dy = initPosY - currenty;
 
-    if (subrByGlyph.contains(compGlyph.charcode)) {
-      auto subrByGlyphInfo = subrByGlyph.value(compGlyph.charcode);
+      if (subrByGlyph.contains(compGlyph.charcode)) {
+        auto subrByGlyphInfo = subrByGlyph.value(compGlyph.charcode);
 
 
-      fixed_to_cff2(data, dx);
-      fixed_to_cff2(data, dy);
-      data << (uint8_t)21; // rmoveto;
-      int_to_cff2(data, subrByGlyphInfo.offset - subIndexBias);
-      data << (uint8_t)10; // callsubr;
+        fixed_to_cff2(data, dx);
+        fixed_to_cff2(data, dy);
+        data << (uint8_t)21; // rmoveto;
+        int_to_cff2(data, subrByGlyphInfo.offset - subIndexBias);
+        data << (uint8_t)10; // callsubr;
 
-      currentx = initPosX + subrByGlyphInfo.lastx;
-      currenty = initPosY + subrByGlyphInfo.lasty;
+        currentx = initPosX + subrByGlyphInfo.lastx;
+        currenty = initPosY + subrByGlyphInfo.lasty;
 
-      *compGlyphVis = &compGlyph;
+        *compGlyphVis = &compGlyph;
 
-      return;
+        return;
+      }
     }
-  }*/
+  }
+  
 
   auto path = fill->path_p;
 
@@ -1644,8 +1656,11 @@ QByteArray ToOpenType::getPrivateDictCff2(int* size) {
 
   QByteArray privateDict;
 
-  //int_to_cff2(privateDict, 0);
-  //privateDict << 22; //vsindex
+  if (subrs.size() == 0) {
+    *size = 0;
+    return privateDict;
+  }
+
 
   QByteArray subrsOffset;
   int_to_cff2(subrsOffset, privateDict.size() + 2);
@@ -1668,6 +1683,8 @@ QByteArray ToOpenType::cff2() {
 
   QByteArray charStr = charStrings(true);
 
+  QByteArray varStore = CFF2VariationStore();
+
 
 
   //Font DICT index
@@ -1683,7 +1700,10 @@ QByteArray ToOpenType::cff2() {
   QByteArray topDict;
   topDict << (int8_t)29 << (int32_t)0 << (uint8_t)12 << (uint8_t)36; //FDArray operator  
   topDict << (int8_t)29 << (int32_t)0 << (uint8_t)17; // CharStrings operator
-  topDict << (int8_t)29 << (int32_t)0 << (uint8_t)24; // vstore
+  if (varStore.size() > 0) {
+    topDict << (int8_t)29 << (int32_t)0 << (uint8_t)24; // vstore
+  }
+  
 
   QByteArray globalSubrIndex;
   globalSubrIndex << (int32_t)0; // majorVersion
@@ -1698,7 +1718,7 @@ QByteArray ToOpenType::cff2() {
   ret.append(topDict);
   ret.append(globalSubrIndex);
   int variationStoreOffset = ret.size();
-  ret.append(CFF2VariationStore());
+  ret.append(varStore);
   int fontDicOffset = ret.size();
   ret.append(fontDic);
   int charStrOffset = ret.size();
@@ -1714,9 +1734,11 @@ QByteArray ToOpenType::cff2() {
   offsetData << (int32_t)charStrOffset;
   ret.replace(topDictOffset + 8, offsetData.size(), offsetData);
 
-  offsetData.clear();
-  offsetData << (int32_t)variationStoreOffset;
-  ret.replace(topDictOffset + 14, offsetData.size(), offsetData);
+  if (varStore.size() > 0) {
+    offsetData.clear();
+    offsetData << (int32_t)variationStoreOffset;
+    ret.replace(topDictOffset + 14, offsetData.size(), offsetData);
+  }
 
   offsetData.clear();
   offsetData << (int32_t)privateDictSize << (int8_t)29 << (int32_t)(charStrOffset + charStr.size());
@@ -1779,6 +1801,17 @@ QByteArray ToOpenType::dsig() {
 }
 
 QByteArray ToOpenType::getSubrs() {
+
+  if (subrs.size() == 0) {
+    QByteArray data;
+    if (isCff2) {
+      data << (uint32_t)0;
+    }
+    else {
+      data << (uint16_t)0;
+    }
+    return data;
+  }
 
   uint maxOffset = subrs.size() + 1;
   int count = subrOffsets.size();
@@ -1944,6 +1977,10 @@ QByteArray ToOpenType::STAT() {
 
 
 QByteArray ToOpenType::CFF2VariationStore() {
+
+  if (regionIndexesArray.size() == 0) {
+    return {};
+  }
 
   QByteArray itemVariationStore;
   QByteArray ItemVariationDatas;

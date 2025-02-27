@@ -37,6 +37,8 @@ extern "C"
 #include "mplibps.h"
 }
 
+#include <qfileinfo.h>
+
 static double round_up(double value, int decimal_places = -1) {
   if (decimal_places < 0) {
     return value;
@@ -234,9 +236,15 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
 void GenerateLayout::generateLayout(int lineWidth, int scale) {
   bool Json = true;
 
+  auto path = m_otlayout->font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+
+
+  auto fileName = fileInfo.path() + "/output/" + fileInfo.completeBaseName();
+
   QFile saveFile(Json
-    ? QStringLiteral("output/quran.json")
-    : QStringLiteral("output/quran.dat"));
+    ? fileName + ".json"
+    : fileName + ".dat");
 
   if (!saveFile.open(QIODevice::WriteOnly)) {
     qWarning("Couldn't open save file.");

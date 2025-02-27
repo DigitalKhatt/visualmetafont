@@ -98,8 +98,8 @@ private:
 	void testQuarn();
 	void simpleAdjustPage(hb_buffer_t *buffer);
 	void adjustPage(QString text, hb_font_t* shapeFont, hb_buffer_t *buffer);	
-	void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, int beginPage, int nbPages, QVector<int>&, double emScale, QVector<OverlapResult>& result, bool onlySameLine);
-  void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, QList<QStringList> originalPages, double emScale, bool onlySameLine);
+	void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, int beginPage, int nbPages, QVector<int>&, double emScale, QVector<OverlapResult>& result, bool sameLine, bool interLine);
+  void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, QList<QStringList> originalPages, double emScale, bool sameLine, bool interLine);
   void applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages, QList<QStringList> originalPages, int lineWidth, int beginPage, int nbPages, double emScale);
   void generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pages,const QList<QStringList>& originalPages,const QVector<OverlapResult>& result);
   void editLookup(QString lookupName);
