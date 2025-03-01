@@ -1284,6 +1284,10 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
     }
 
     auto justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * fontRatio, spaceWidth, justType, justStyle, this);
+
+    if (line.lineType == LineType::Bism) {
+      justResultByLine.globalFeatures.push_back({ "basm",1 });
+    }
     hb_font_t* shapeFont = defaultShapefont;
     auto newEmScale = emScale;
     auto newFont = false;
@@ -1301,6 +1305,7 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
     }
 
     auto lineLayoutInfo = shapeLine(this, line.width, pageWidth, lineTextInfo, justResultByLine, tajweedColor, newEmScale, shapeFont, line.lineJustification, currentyPos);
+    lineLayoutInfo.type = line.lineType;
 
     if (newFont) {
       hb_font_destroy(shapeFont);
@@ -1310,9 +1315,10 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
       lineLayoutInfo.xscale = 1;
       lineLayoutInfo.xscaleparameter = justResultByLine.sclxAxis;
     }
-    else {
+    else if (lineLayoutInfo.type == LineType::Line) {
       lineLayoutInfo.xscale = justResultByLine.xScale;
     }
+
 
 
     page.append(lineLayoutInfo);
