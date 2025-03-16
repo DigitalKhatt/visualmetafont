@@ -335,7 +335,7 @@ static void changeText(QString textCol, QString& word) {
 }
 
 void LayoutWindow::loadMushafLayout(QString layoutName) {
-  auto textCol = layoutName.startsWith("indopak") ? "indopak" : layoutName == "qpc_v1_layout" ? "dk_v1" : "dk_v2";
+  auto textCol = layoutName.startsWith("indopak") ? "dk_indopak" : layoutName == "qpc_v1_layout" ? "dk_v1" : "dk_v2";
 
   auto queryString = QString("SELECT page,line,type, %1 as text from %2 as l LEFT JOIN words w ON l.type = \"ayah\" AND l.range_start <= w.word_number_all AND l.range_end >= w.word_number_all order by page,line,word_number_all")
     .arg(textCol).arg(layoutName);
@@ -361,14 +361,14 @@ void LayoutWindow::loadMushafLayout(QString layoutName) {
 
     if (type == "surah_name") {
       word = QString::fromStdString(surahNames[lastSurahNumber]);
-      if (textCol == "indopak") {
+      if (textCol == "indopak" || textCol == "dk_indopak") {
         word.replace("\u064E\u0670", "\u0670");
         word.replace("\u0627\u0655\u0650", "\u0627\u0650");
       }
       lastSurahNumber++;
     }
     else if (type == "basmallah") {
-      if (textCol != "indopak") {
+      if (textCol != "indopak" && textCol != "dk_indopak") {
         word = "\nبِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
       }
       else {
@@ -702,6 +702,8 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended, bool generateVariableOpen
 
   file2.close();
 
+  layout.saveFontInfo();
+
 
   return ret;
 
@@ -840,7 +842,7 @@ namespace std {
 void LayoutWindow::checkOffMarks() {
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
-  int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
   auto result = shapeMushaf(scale, lineWidth, m_otlayout, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
@@ -1057,16 +1059,14 @@ bool LayoutWindow::exportpdf() {
 
   auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
-  int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;;
 
   auto page = m_otlayout->justifyPage(scale, lineWidth, lineWidth, lines, LineJustification::Distribute, true, true,
     justStyleCombo->currentData().value<JustStyle>(), HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES,
     justCombo->currentData().value<JustType>());
 
   QList<QList<LineLayoutInfo>> pages{ page };
-  QList<QStringList> originalPages{ lines };
-
-  //lineWidth = (17000 - (2 * 400));
+  QList<QStringList> originalPages{ lines };  
 
   int margin = 0;
 
@@ -1186,13 +1186,13 @@ static QMap<int, double> madinaLineWidths =
 };
 
 LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level) {
-  loadLookupFile("features.fea");
+
+  layout->loadLookupFile("features.fea");  
 
   LayoutPages result;
   QStringList originalPage;
 
   bool newface = true;
-
 
   auto justification = LineJustification::Distribute;
 
@@ -1653,20 +1653,19 @@ bool LayoutWindow::generateLayoutInfo() {
   OtLayout layout = OtLayout(m_font, true, true);
   layout.useNormAxisValues = false;
 
-  layout.loadLookupFile("features.fea");
+  layout.loadLookupFile("features.fea");  
 
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
-  int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;;
 
-  auto result = shapeMushaf(scale, lineWidth, &layout, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+  auto result = shapeMushaf(scale, lineWidth, &layout, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);  
 
   GenerateLayout generateLayout{ &layout,result };
 
-  generateLayout.generateLayout(lineWidth, scale);
+  generateLayout.generateLayout(lineWidth, scale); 
 
   generateLayout.generateLayoutProtoBuf(lineWidth, scale);
-
 
   return true;
 }
@@ -1692,7 +1691,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
   int calScale = 1 << OtLayout::SCALEBY;
 
   int scale = calScale * OtLayout::EMSCALE;
-  int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;;
 
   auto result = shapeMedina(scale, lineWidth, &layout, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
@@ -2132,7 +2131,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
 void LayoutWindow::saveCollision() {
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
-  int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
   auto result = shapeMushaf(scale, lineWidth, m_otlayout, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
@@ -2144,7 +2143,7 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
 
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
-  int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
   hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES;
 
@@ -2218,7 +2217,7 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
   loadLookupFile("features.fea");
 
   int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
-  int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
   QString quran;
 
@@ -2547,8 +2546,8 @@ void LayoutWindow::createDockWindows()
 void LayoutWindow::serializeTexPages() {
 
   int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
-  int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
-  int topSpace = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  int topSpace = OtLayout::TextWidth << OtLayout::SCALEBY;
 
   auto result = m_otlayout->pageBreak(scale, lineWidth, false, 600);
 
@@ -2946,7 +2945,7 @@ void LayoutWindow::compareIndopakFonts() {
 void LayoutWindow::serializeMedinaPages() {
 
   int scale = (1 << OtLayout::SCALEBY) * 0.85;
-  int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
   auto result = shapeMedina(scale, lineWidth, m_otlayout);
 
@@ -3041,7 +3040,7 @@ void LayoutWindow::findOverflows(bool overfull) {
   loadLookupFile("features.fea");
 
 
-  int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
   //bool conti = true;
 
@@ -3193,7 +3192,7 @@ void LayoutWindow::calculateMinimumSize() {
   loadLookupFile("features.fea");
 
 
-  int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
   hb_buffer_t* buffer = buffer = hb_buffer_create();
 
@@ -3286,7 +3285,7 @@ void LayoutWindow::setQuranText(int type) {
     loadLookupFile("features.fea");
 
     int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
-    int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+    int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
     auto result = m_otlayout->pageBreak(scale, lineWidth, false, 604);
 
 
@@ -3418,7 +3417,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh)
 
   QString textt = textEdit->toPlainText();
 
-  const int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  const int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
   QStringList lines;
   if (applyTeXAlgo) {
@@ -3536,7 +3535,7 @@ void LayoutWindow::simpleAdjustPage(hb_buffer_t* buffer) {
   uint glyph_count;
 
   const int minSpace = OtLayout::MINSPACEWIDTH << OtLayout::SCALEBY;
-  const int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  const int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
   hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
   hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
@@ -3574,7 +3573,7 @@ void LayoutWindow::adjustPage(QString text, hb_font_t* shapeFont, hb_buffer_t* b
   uint glyph_count;
 
   const int minSpace = OtLayout::MINSPACEWIDTH << OtLayout::SCALEBY;
-  const int lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
+  const int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
   hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
   hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);

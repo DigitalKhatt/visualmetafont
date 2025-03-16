@@ -7,12 +7,7 @@
 
 using namespace std;
 
-static const int PAGE_WIDTH = 17000;
-static const int INTERLINE = 1800;
-static const int TOP = 200;
-static const int MARGIN = 400;
 static const int FONTSIZE = 1000;
-static const int SPACEWIDTH = 100;
 
 enum class SpaceType {
   Simple = 1,
@@ -1283,11 +1278,18 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
       fontRatio = 1; // min(fontSizeRatios[lineIdx], defaultFontRatio);
     }
 
-    auto justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * fontRatio, spaceWidth, justType, justStyle, this);
+    JustResultByLine justResultByLine;
 
     if (line.lineType == LineType::Bism) {
       justResultByLine.globalFeatures.push_back({ "basm",1 });
+      justResultByLine.ayaSpacing = spaceWidth;
+      justResultByLine.simpleSpacing = spaceWidth;
+      justResultByLine.xScale = 1;
     }
+    else {
+      justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * fontRatio, spaceWidth, justType, justStyle, this);
+    }
+
     hb_font_t* shapeFont = defaultShapefont;
     auto newEmScale = emScale;
     auto newFont = false;

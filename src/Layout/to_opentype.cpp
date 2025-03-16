@@ -29,7 +29,7 @@
 #include "automedina/automedina.h"
 #include <stdexcept>
 #include <map>
-#include "metafont.h";
+#include "metafont.h"
 
 
 ToOpenType::ToOpenType(OtLayout* layout) :ot_layout{ layout }

@@ -1373,7 +1373,6 @@ void OtLayout::loadLookupFile(std::string fileName) {
         }
       }
     }
-
   }
 
   //addGlyphs();
@@ -2623,8 +2622,6 @@ QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageF
   const int maxStretch = 100 * emScale;
   const int maxShrink = 50 * emScale;
 
-  //ParaWidth lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
-
   hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
   hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
 
@@ -3049,8 +3046,6 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
   const int spaceWidth = 100 * emScale;
   const int maxStretch = 100 * emScale;
   const int maxShrink = 50 * emScale;
-
-  //ParaWidth lineWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
   hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
   hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
@@ -3625,7 +3620,8 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
 
   if (automedina->addedGlyphs.contains(glyph->name)) {
     font->generateAlternate(glyph->name, parameters, automedina->addedGlyphs.value(glyph->name));
-  } else if (!font->glyphperName.contains(glyph->name)) {
+  }
+  else if (!font->glyphperName.contains(glyph->name)) {
     //std::cout << glyph->name.toStdString() << " is auto generated. It dows not exist in the original font" <<  std::endl;
     return glyph;
   }
@@ -3896,5 +3892,30 @@ QByteArray Just::getOpenTypeTable() {
   data.append(afterGsubArray);
 
   return data;
+
+}
+
+void OtLayout::saveFontInfo() {
+  auto path = font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString fileName = fileInfo.path() + "/output/" + fileInfo.baseName() + "_info.json";
+
+  QFile file(fileName);
+  if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    QTextStream out(&file);
+
+    out << "{\n";
+    for (auto i = glyphNamePerCode.cbegin(), end = glyphNamePerCode.cend(); i != end; ++i) {
+      out << "  " << "\"" << i.value() << "\": " << i.key();
+      auto next = i + 1;
+      if (next == end) {
+        out << "\n";
+      }
+      else {
+        out << ",\n";
+      }
+    }
+    out << "}\n";
+  }
 
 }

@@ -194,9 +194,12 @@ public:
 
   constexpr static int FrameHeight = 27400;
   constexpr static int FrameWidth = 17000;
-  constexpr static int InterLineSpacing = 1800; // 1785;
+  constexpr static int InterLineSpacing = 1800; // (1.5969)
+  //constexpr static int InterLineSpacing = 1690; //(1.5)
   constexpr static int TopSpace = 1450; //1600
-  constexpr static int Margin = 400;
+  constexpr static int Margin = 300;
+  // 15500 for oldMadinah
+  constexpr static int TextWidth = FrameWidth - (2 * Margin);
 
 
   enum GDEFClasses {
@@ -408,6 +411,8 @@ public:
   bool isExtended() { return extended; }
 
   QSet<quint16> getSubsts(int charCode);
+
+  void saveFontInfo();
 
 #ifndef DIGITALKHATT_WEBLIB
 signals:
