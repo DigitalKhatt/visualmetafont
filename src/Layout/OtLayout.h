@@ -186,10 +186,11 @@ class OtLayout : public QObject {
   Q_OBJECT
 #endif
 
-    friend class Automedina;
+  friend class Automedina;
   friend class GlyphVis;
   friend class LayoutWindow;
   friend class ToOpenType;
+  friend class GenerateLayout;
 public:
 
   constexpr static int FrameHeight = 27400;
@@ -419,7 +420,7 @@ signals:
   void parameterChanged();
 #endif
 
-  
+
 
 private:
   //void evaluateImport();
@@ -439,7 +440,7 @@ private:
 
   QSet<Lookup*> disabledLookups;
 
-  
+
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> tempGlyphs;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> addedGlyphs;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> substEquivGlyphs;

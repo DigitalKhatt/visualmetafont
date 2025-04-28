@@ -33,6 +33,7 @@ class Automedina {
   friend class LayoutWindow;
   friend class GlyphVis;
   friend class ToOpenType;
+  friend class GenerateLayout;
 
 public:
   //static const quint16 AyaNumberCode = 65200;

@@ -3206,9 +3206,13 @@ void LayoutWindow::calculateMinimumSize() {
 
   QMap<double, QVector<Line>> alloverflows;
 
-  double scale = 0.75;
+  double scale = 1;
 
-  while (scale <= 0.94) {
+  float maxOverflow = 0;
+
+  bool cont = true;
+
+  while (cont) {
 
     double emScale = (1 << OtLayout::SCALEBY) * scale;
 
@@ -3230,15 +3234,18 @@ void LayoutWindow::calculateMinimumSize() {
 
         if (line.overfull > 0) {
           overflows.append({ pagenum + 1,linenum + 1, line.overfull / emScale });
+          maxOverflow = std::max(maxOverflow, line.overfull);
         }
       }
     }
 
     if (overflows.count() > 0) {
       alloverflows[scale] = overflows;
+      scale = scale * lineWidth / (maxOverflow + lineWidth);
     }
-
-    scale = scale + 0.05;
+    else {
+      cont = false;
+    }
   }
 
   hb_buffer_destroy(buffer);
@@ -3259,8 +3266,14 @@ void LayoutWindow::calculateMinimumSize() {
 
   for (auto key : alloverflows.keys()) {
     auto overflow = alloverflows.value(key);
+    std::sort(overflow.begin(), overflow.end(), [](const Line& a, const Line& b) { return a.overflow > b.overflow; });
     for (auto line : overflow) {
-      out << key << "," << line.pageNumber << "," << line.lineNumber << "," << (std::round)(line.overflow) << "\n";
+      out << key
+        << "," << line.pageNumber
+        << "," << line.lineNumber
+        << "," << std::ceil(line.overflow)
+        << "," << lineWidth / (line.overflow + lineWidth)
+        << "\n";
     }
   }
 

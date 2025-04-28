@@ -3901,21 +3901,34 @@ void OtLayout::saveFontInfo() {
   QString fileName = fileInfo.path() + "/output/" + fileInfo.baseName() + "_info.json";
 
   QFile file(fileName);
-  if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-    QTextStream out(&file);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
 
-    out << "{\n";
-    for (auto i = glyphNamePerCode.cbegin(), end = glyphNamePerCode.cend(); i != end; ++i) {
-      out << "  " << "\"" << i.value() << "\": " << i.key();
-      auto next = i + 1;
-      if (next == end) {
-        out << "\n";
-      }
-      else {
-        out << ",\n";
-      }
-    }
-    out << "}\n";
+  QJsonObject glyphsObject;
+
+  
+  for (auto i = glyphNamePerCode.cbegin(), end = glyphNamePerCode.cend(); i != end; ++i) {
+    auto& glyph = glyphs[i.value()];
+    QJsonObject glyphJson;
+
+    glyphJson["code"] = i.key();
+    glyphsObject[i.value()] = glyphJson;
   }
+
+  QJsonObject classesObject;
+
+  for (auto i = automedina->classes.cbegin(), end = automedina->classes.cend(); i != end; ++i) {  
+    QJsonArray array;
+    for (auto code : i.value()) {
+      array.append(glyphCodePerName[code]);
+    }
+    classesObject[i.key()] = array;
+  }
+
+  QJsonObject  info;
+  info["glyphs"] = glyphsObject;
+  info["classes"] = classesObject;
+  
+
+  file.write(QJsonDocument(info).toJson(QJsonDocument::JsonFormat::Compact));
 
 }

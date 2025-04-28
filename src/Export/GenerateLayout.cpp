@@ -198,11 +198,11 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
         }
 
         if (glyph.lefttatweel != 0) {
-          glyphObject["lefttatweel"] = round_up(glyph.lefttatweel);
+          glyphObject["lefttatweel"] = glyph.lefttatweel;
         }
 
         if (glyph.righttatweel != 0) {
-          glyphObject["righttatweel"] = round_up(glyph.righttatweel);
+          glyphObject["righttatweel"] = glyph.righttatweel;
         }
 
         glyphObject["codepoint"] = glyph.codepoint;
@@ -223,6 +223,10 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
       lineObject["type"] = (int)line.type;
       lineObject["x"] = round_up(line.xstartposition);
       lineObject["y"] = round_up(line.ystartposition);
+      if (line.xscale != 1) {
+        lineObject["xscale"] = line.xscale;
+      }
+      
 
       linesArray.append(lineObject);
     }
@@ -263,10 +267,23 @@ void GenerateLayout::generateLayout(int lineWidth, int scale) {
   quranObject["glyphs"] = glyphsObject;
   quranObject["pages"] = pagesObject;
   quranObject["suras"] = suraLocationsArray;
+  
+
+  QJsonObject classesObject;
+
+  for (auto i = m_otlayout->automedina->classes.cbegin(), end = m_otlayout->automedina->classes.cend(); i != end; ++i) {
+    QJsonArray array;
+    for (auto code : i.value()) {
+      array.append(m_otlayout->glyphCodePerName[code]);
+    }
+    classesObject[i.key()] = array;
+  }
+
+  quranObject["classes"] = classesObject;
 
 
   saveFile.write(Json
-    ? QJsonDocument(quranObject).toJson(QJsonDocument::JsonFormat::Indented)
+    ? QJsonDocument(quranObject).toJson(QJsonDocument::JsonFormat::Compact)
     : QCborValue::fromJsonValue(quranObject).toCbor());
 }
 void GenerateLayout::generateSuraLocations(QJsonArray& surasArray) {

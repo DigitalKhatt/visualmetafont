@@ -482,7 +482,7 @@ mp_graphic_object* Font::copyEdgeBody(mp_graphic_object* body) {
         mp_fill_object* fillobject = (mp_fill_object*)body;
         mp_gr_knot newpath = copypath(fillobject->path_p);
 
-        mp_fill_object* nextObject = (mp_fill_object*)mp_new_graphic_object(mp, mp_fill_code); // new mp_fill_object;
+        mp_fill_object* nextObject = (mp_fill_object*)mp_new_graphic_object(mp, mp_fill_code);
         nextObject->type = mp_fill_code;
         nextObject->path_p = newpath;
         nextObject->next = nullptr;
