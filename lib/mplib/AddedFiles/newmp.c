@@ -16,7 +16,8 @@
  * along with DigitalKhatt. If not, see
  * <https: //www.gnu.org/licenses />.
 */
-#if UNIX
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+#else
 #include <unistd.h>
 #endif
 #include <ctype.h>
