@@ -28,7 +28,7 @@ set(VMF_SL vmfsl)
 
 if (NOT EMSCRIPTEN)
 
-  find_package(Protobuf REQUIRED)
+  find_package(Protobuf CONFIG REQUIRED)
 
   find_package(Qt5 COMPONENTS Core OpenGL Svg PrintSupport Widgets Sql REQUIRED)
 
@@ -339,7 +339,10 @@ target_include_directories(${LUATEX_NAME} PRIVATE ${FLEX_INCLUDE_DIRS} ${CMAKE_C
 target_compile_options(${PROJECT_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_compile_options(${WEBLIB_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_compile_options(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
-
+target_compile_options(${PROJECT_NAME} PUBLIC $<$<CXX_COMPILER_ID:Clang>: -fvisibility=default>)
+# undefined symbol "absl::lts_20240722::log_internal::LogMessage& absl::lts_20240722::log_internal::LogMessage::operator<<<int, 0>(int const&)"
+# due to protobuf
+target_compile_options(${PROJECT_NAME} PUBLIC $<$<CXX_COMPILER_ID:Clang>: -fclang-abi-compat=17>)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR COMPILING_DLL)
 target_compile_definitions(${WEBLIB_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR DIGITALKHATT_WEBLIB COMPILING_DLL)

@@ -6,6 +6,7 @@
 #define VMF_EXPORT __declspec(dllimport)
 #endif
 #ifdef WIN32
+#define SLPREFIX ""
 #define SLEXT ".dll"
 #define dlopen(x, y) LoadLibrary(x)
 #define dlsym(x, y) (void*)GetProcAddress(x, y)
@@ -15,9 +16,11 @@
 #else
 #include <dlfcn.h>
 #define dlhandle void*
+#define SLPREFIX "lib"
 #ifdef __APPLE__
-#define DLLEXT ".dylib"
+#define SLEXT ".dylib"
 #else
-#define DLLEXT ".so"
+#define SLEXT ".so"
 #endif
 #endif
+

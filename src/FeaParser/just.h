@@ -61,73 +61,6 @@ namespace feayy {
   using PRuleRegExp = std::shared_ptr<RuleRegExp>;
 
 
-  class Pass {
-    friend class TableDefinition;
-    friend class LookupDefinitionVisitor;
-  public:
-
-    Pass()
-      : number_{ 0 } {}
-
-    int number() const {
-      return number_;
-    }
-
-    void setNumber(int number) {
-      number_ = number;
-    }
-
-    void addRule(const GraphiteRule& rule) {
-      rules.push_back(rule);
-    }
-
-    void addRule(GraphiteRule&& rule) {
-      rules.push_back(std::move(rule));
-    }
-
-    Pass(int number)
-      : number_{ number } {}
-
-    DFA computeDFA(OtLayout& layout);
-
-
-  protected:
-    int number_;
-    std::vector<GraphiteRule>	rules;
-  };
-
-  class TableDefinition : public LookupStatement {
-    friend class LookupDefinitionVisitor;
-  public:
-    TableDefinition(std::string name)
-      : name{ name }
-    {}
-
-
-
-    void updatePass(Pass&& pass) {
-      int passNumber = pass.number();
-
-      if (passNumber < 0)
-      {
-        throw new std::runtime_error("invalid pass number");
-      }
-
-      passes.push_back(pass);
-
-
-
-    }
-
-
-    void accept(Visitor&) override;
-
-    std::string name;
-
-  protected:
-
-    std::vector<Pass> passes;
-  };
 
 
 
@@ -144,6 +77,75 @@ namespace feayy {
     PRuleRegExp rhs;
     PRuleRegExp ctx;
   };
+
+  class Pass {
+      friend class TableDefinition;
+      friend class LookupDefinitionVisitor;
+  public:
+
+      Pass()
+          : number_{ 0 } {}
+
+      int number() const {
+          return number_;
+      }
+
+      void setNumber(int number) {
+          number_ = number;
+      }
+
+      void addRule(const GraphiteRule& rule) {
+          rules.push_back(rule);
+      }
+
+      void addRule(GraphiteRule&& rule) {
+          rules.push_back(std::move(rule));
+      }
+
+      Pass(int number)
+          : number_{ number } {}
+
+      DFA computeDFA(OtLayout& layout);
+
+
+  protected:
+      int number_;
+      std::vector<GraphiteRule>	rules;
+  };
+
+  class TableDefinition : public LookupStatement {
+      friend class LookupDefinitionVisitor;
+  public:
+      TableDefinition(std::string name)
+          : name{ name }
+      {}
+
+
+
+      void updatePass(Pass&& pass) {
+          int passNumber = pass.number();
+
+          if (passNumber < 0)
+          {
+              throw new std::runtime_error("invalid pass number");
+          }
+
+          passes.push_back(pass);
+
+
+
+      }
+
+
+      void accept(Visitor&) override;
+
+      std::string name;
+
+  protected:
+
+      std::vector<Pass> passes;
+  };
+
 
   class RuleRegExpLeaf;
 

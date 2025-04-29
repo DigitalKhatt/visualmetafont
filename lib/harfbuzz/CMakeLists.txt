@@ -68,7 +68,7 @@ add_library(${PROJECT_NAME} STATIC ${SRC_FILES} ${HEADERS_FILES})
 
 if (UNIX)
     target_compile_options(${PROJECT_NAME} PUBLIC -fPIC)
-    target_link_libraries(${PROJECT_NAME} -static-libgcc -static-libstdc++)
+    #target_link_libraries(${PROJECT_NAME} -static-libgcc -static-libstdc++)
 endif (UNIX)
 
 target_include_directories(${PROJECT_NAME} PUBLIC "harfbuzz/src")

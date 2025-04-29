@@ -76,9 +76,9 @@ public:
 		QVariant value;
 		std::unique_ptr<MFExpr> expr;
 		Param() {};
-		Param(const Param& a);
+        Param(const Param& a);
 		Param(Param&& a);
-		Param& operator=(Param& other);
+        Param& operator=(Param const& other);
 		Param& operator=(Param&& other);
 	};
 	struct ImageInfo

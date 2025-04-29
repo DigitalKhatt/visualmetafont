@@ -52,7 +52,7 @@ Glyph::Param::Param(Glyph::Param&& a) {
   value = a.value;
   expr = std::move(a.expr);
 }
-Glyph::Param& Glyph::Param::operator=(Glyph::Param& a) {
+Glyph::Param& Glyph::Param::operator=(Glyph::Param const& a) {
   name = a.name;
   position = a.position;
   applytosubpath = a.applytosubpath;

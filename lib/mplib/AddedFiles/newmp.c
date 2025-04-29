@@ -17,7 +17,8 @@
  * <https: //www.gnu.org/licenses />.
 */
 
-
+#include <unistd.h>
+#include <ctype.h>
 #include "newmp.h"
 #include "mp.c"
 

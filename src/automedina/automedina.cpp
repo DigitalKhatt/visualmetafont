@@ -31,7 +31,7 @@
 
 using namespace std;
 
-
+Automedina::~Automedina() {} // not inline
 QSet<quint16> Automedina::regexptoUnicode(QString regexp) {
 
   QSet<quint16> unicodes;

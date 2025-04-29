@@ -1127,8 +1127,8 @@ justTable{ this }, font{ font }, isOTVar{ generateVariableOpenType } {
   QString debugPostfix = "";
 #else
   QString debugPostfix = "d";
-#endif  
-  QString fileName = fileInfo.path() + "/" + fileInfo.baseName() + debugPostfix + SLEXT;
+#endif
+  QString fileName = fileInfo.path() + "/" + SLPREFIX + fileInfo.baseName() + debugPostfix + SLEXT;
 
   auto ff = fileName.toStdString();
   dlhandle slhandle = dlopen(ff.c_str(), 0);

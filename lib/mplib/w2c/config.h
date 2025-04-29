@@ -28,7 +28,7 @@ along with this program; if not, see <http://www.gnu.org/licenses/.  */
 #include <errno.h> // Amine
 #define R_OK 4
 
-#define xstrdup _strdup
+#define xstrdup strdup
 
 #ifndef HAVE_BOOLEAN
 typedef unsigned char boolean;

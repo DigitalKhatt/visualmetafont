@@ -53,6 +53,7 @@ public:
   QSet<quint16> regexptoUnicode(QString regexp);
   QSet<QString> classtoGlyphName(QString className);
   QHash<QString, GlyphVis>& glyphs;
+  virtual ~Automedina();
 
   virtual Lookup* getLookup(QString lookupName) = 0;
   virtual CalcAnchor  getanchorCalcFunctions(QString functionName, Subtable* subtable) = 0;

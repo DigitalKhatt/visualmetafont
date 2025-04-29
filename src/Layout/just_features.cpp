@@ -375,7 +375,7 @@ static AppliedResult applyAlternate(const LineTextInfo& lineTextInfo, JustInfo& 
   return appliedResult;
 }
 
-static boolean applyAlternatesSubWords(const LineTextInfo& lineTextInfo, JustInfo& justInfo, QString chars, int nbLevels) {
+static bool applyAlternatesSubWords(const LineTextInfo& lineTextInfo, JustInfo& justInfo, QString chars, int nbLevels) {
 
   const auto& wordInfos = lineTextInfo.wordInfos;
 
@@ -706,7 +706,7 @@ static AppliedResult applyKaf(
   return appliedResult;
 }
 
-static boolean applyKashidasSubWords(
+static bool applyKashidasSubWords(
   const LineTextInfo& lineTextInfo,
   JustInfo& justInfo,
   StretchType type,
@@ -856,7 +856,7 @@ static const QString patternAlt = altFinPat + "|" + hahKashida + "|" + finalKash
 static const QRegularExpression regExprAlt(patternAlt);
 
 
-static boolean  applySimpleJust(const LineTextInfo& lineTextInfo,
+static bool  applySimpleJust(const LineTextInfo& lineTextInfo,
   JustInfo& justInfo,
   bool firstWordIncluded,
   bool wordByWord,
@@ -917,7 +917,7 @@ static boolean  applySimpleJust(const LineTextInfo& lineTextInfo,
     matchresult.push_back(result);
   }
 
-  auto stretchedWords = std::map<int, boolean>();
+  auto stretchedWords = std::map<int, bool>();
 
   for (int level = 1; level <= max(nbLevelAlt, nbLevelKashida); level++) {
     for (int wordIndex = wordInfos.size() - 1; wordIndex >= firstWordIndex; wordIndex--) {
@@ -1041,11 +1041,13 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
 
   JustInfo justInfo{ .fontFeatures = {},.desiredWidth = desiredWidth,.textLineWidth = currentLineWidth, .layoutResult = layOutResult, .font = font };
 
+
+
   if (diff > 0) {
     // stretch   
 
-    double maxStretchBySpace = min(100, spaceWidth * 1);
-    double maxStretchByAyaSpace = min(200, spaceWidth * 2);
+    double maxStretchBySpace = std::min(100.0, spaceWidth * 1);
+    double maxStretchByAyaSpace = std::min(200.0, spaceWidth * 2);
 
     double maxStretch = maxStretchBySpace * lineTextInfo.simpleSpaceIndexes.size() + maxStretchByAyaSpace * lineTextInfo.ayaSpaceIndexes.size();
 
