@@ -1,3 +1,4 @@
+#define NOMINMAX
 #include "OtLayout.h"
 #include  <algorithm>
 #include "hb-buffer.hh"

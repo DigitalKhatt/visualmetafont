@@ -16,8 +16,9 @@
  * along with DigitalKhatt. If not, see
  * <https: //www.gnu.org/licenses />.
 */
-
+#if UNIX
 #include <unistd.h>
+#endif
 #include <ctype.h>
 #include "newmp.h"
 #include "mp.c"
