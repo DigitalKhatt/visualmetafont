@@ -291,9 +291,13 @@ pair tmp_pair_params_[];
 numeric tmp_num_params_[];
 
 def drawcomp(suffix charcode)(expr T) =  
-	begingroup		
-    draw charcode.pic transformed T withprescript "begincomponent" withpostscript str charcode & "," & decimal xpart T & "," & decimal ypart T;	
-    draw (0,0) transformed T withprescript "endcomponent";  	
+  begingroup
+    draw charcode.pic transformed T
+    if (xxpart T = 1) and (xypart T = 0) and (yxpart T = 0) and (yypart T = 1):
+      withprescript "begincomponent" withpostscript str charcode & "," & decimal xpart T & "," & decimal ypart T;
+      draw (0,0) transformed T withprescript "endcomponent"
+    fi
+    ;
 	endgroup
 enddef;
 

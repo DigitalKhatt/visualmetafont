@@ -486,8 +486,12 @@ mp_graphic_object* Font::copyEdgeBody(mp_graphic_object* body) {
         nextObject->type = mp_fill_code;
         nextObject->path_p = newpath;
         nextObject->next = nullptr;
-        nextObject->pre_script = nullptr;
-        nextObject->post_script = nullptr;
+        nextObject->pre_script = fillobject->pre_script != nullptr
+            ? xstrdup(fillobject->pre_script)
+                                     : nullptr;
+        nextObject->post_script = fillobject->post_script != nullptr
+            ? xstrdup(fillobject->post_script)
+                                      : nullptr;
         nextObject->pen_p = nullptr;
         nextObject->htap_p = nullptr;
 
@@ -513,14 +517,18 @@ mp_graphic_object* Font::copyEdgeBody(mp_graphic_object* body) {
         mp_stroked_object* fillobject = (mp_stroked_object*)body;
         mp_gr_knot newpath = copypath(fillobject->path_p);
 
-        mp_fill_object* nextObject = (mp_fill_object*)mp_new_graphic_object(mp, mp_fill_code); // new mp_fill_object;
-        nextObject->type = mp_fill_code;
+        mp_stroked_object* nextObject = (mp_stroked_object*)mp_new_graphic_object(mp, mp_stroked_code); // new mp_fill_object;
+        nextObject->type = mp_stroked_code;
         nextObject->path_p = newpath;
         nextObject->next = nullptr;
-        nextObject->pre_script = nullptr;
-        nextObject->post_script = nullptr;
+        nextObject->pre_script = fillobject->pre_script != nullptr
+                                     ? xstrdup(fillobject->pre_script)
+                                     : nullptr;
+        nextObject->post_script = fillobject->post_script != nullptr
+                                      ? xstrdup(fillobject->post_script)
+                                      : nullptr;
         nextObject->pen_p = nullptr;
-        nextObject->htap_p = nullptr;
+        //nextObject->htap_p = nullptr;
 
         if (fillobject->color_model == mp_rgb_model) {
           nextObject->color_model = mp_rgb_model;

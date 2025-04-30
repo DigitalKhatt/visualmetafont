@@ -46,13 +46,7 @@ class ToOpenType
 {
 public:
   ToOpenType(OtLayout* layout);
-  bool GenerateFile(QString fileName, std::string  lokkupsFileName = "features.fea");
-
-  struct SubrGlyphInfo {
-    int offset;
-    double lastx;
-    double lasty;
-  };
+  bool GenerateFile(QString fileName, std::string  lokkupsFileName = "features.fea");  
 
   struct GlobalValues {
     int16_t ascender;
@@ -179,6 +173,7 @@ public:
 
   struct ContourLimits {
     std::vector<mp_graphic_object*> contours;
+    inline void setNext ();
   };
 
 
@@ -195,6 +190,14 @@ public:
     inline DeltaValues left_y();
     inline DeltaValues right_x();
     inline DeltaValues right_y();
+  };
+
+  struct SubrGlyphInfo {
+      int offset;
+      double lastx;
+      double lasty;
+      int regionIndexesArrayIndex;
+      PathLimits pathlimits;
   };
 
   struct Color {
@@ -289,7 +292,7 @@ private:
   void int_to_cff2(QByteArray& cff, int val);
   void fixed_to_cff2(QByteArray& cff, double val);
   QByteArray charStrings(bool iscff2);
-  QByteArray charString(GlyphVis& glyph, bool colored, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ContourLimits contourLimits);
+  QByteArray charString(GlyphVis& glyph, bool colored, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ContourLimits contourLimits, PathLimits& pathlimits);
   void initiliazeGlobals();
 
   int nbSubrs = 0;
@@ -301,7 +304,7 @@ private:
   QMap<uint16_t, SubrGlyphInfo> subrByGlyph;
   QMap<uint16_t, QByteArray> replacedGlyphs;
 
-  void dumpPath(GlyphVis& glyph, QByteArray& data, mp_fill_object* fill, double& currentx, double& currenty, PathLimits& pathLimits, GlyphVis** compGlyph);
+  void dumpPath(GlyphVis& glyph, QByteArray& data, mp_graphic_object** body, double& currentx, double& currenty, PathLimits& pathLimits, ContourLimits& contourLimits);
 
   QByteArray getSubrs();
 
