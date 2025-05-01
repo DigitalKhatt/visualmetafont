@@ -321,7 +321,7 @@ private:
   int axisCount = 0;
 
   std::vector<int> axisNameIds;
-  bool isComponentsEnabled = false;
+  bool isComponentsEnabled;
 };
 
 inline bool operator<(const ToOpenType::Color& a, const ToOpenType::Color& b)

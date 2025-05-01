@@ -34,7 +34,7 @@
 
 ToOpenType::ToOpenType(OtLayout* layout) :ot_layout{ layout }
 {
-  isComponentsEnabled = true;
+  isComponentsEnabled = false;
   setAxes();
 }
 void ToOpenType::setAxes() {
