@@ -55,3 +55,5 @@ source_group("Source Files" FILES ${Source_Files})
 add_library(${PROJECT_NAME} STATIC ${AddedFiles}  ${Source_Files})
 
 target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+
+target_compile_options(${PROJECT_NAME} PUBLIC $<$<CXX_COMPILER_ID:GNU>: -Wno-error=incompatible-pointer-types>)

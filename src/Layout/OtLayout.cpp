@@ -1137,7 +1137,7 @@ justTable{ this }, font{ font }, isOTVar{ generateVariableOpenType } {
     throw std::runtime_error("could not load the dynamic library");
   }
   else {
-    typedef Automedina* (__stdcall* f_funci)(OtLayout* layout, Font* font, bool extended);
+    typedef Automedina* (*f_funci)(OtLayout* layout, Font* font, bool extended);
     f_funci funci = (f_funci)dlsym(slhandle, "font_create");
     if (!funci) {
       std::cout << "could not locate the function" << std::endl;
