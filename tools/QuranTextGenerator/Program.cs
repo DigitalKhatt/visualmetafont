@@ -6,7 +6,6 @@ using System.Threading;
 using System.IO;
 using System.Dynamic;
 using System.Xml.Linq;
-using System.Windows.Forms;
 using Microsoft.Office.Interop.Word;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -112,28 +111,28 @@ namespace GenerateTexFromTanzil
         arg = args[0];
       }
 
-      string fileName = "xml\\UthmanicHafs1Ver13.xml";
+      string fileName = "xml/UthmanicHafs1Ver13.xml";
 
 
       if (arg == "xml")
       {
         string currentDir = Directory.GetCurrentDirectory();
 
-        string ver9 = currentDir + "\\files\\UthmanicHafs1 Ver09.doc";
-        string ver13 = currentDir + "\\files\\UthmanicHafs1 Ver13.doc";
-        string ver22 = currentDir + "\\files\\UthmanicHafs v22.docx";
+        string ver9 = currentDir + "/files/UthmanicHafs1 Ver09.doc";
+        string ver13 = currentDir + "/files/UthmanicHafs1 Ver13.doc";
+        string ver22 = currentDir + "/files/UthmanicHafs v22.docx";
 
-        GenerateXMLfromUthmanicHafsDoc(ver9, @"xml\\UthmanicHafs1Ver09.xml");
-        GenerateXMLfromUthmanicHafsDoc(ver13, @"xml\\UthmanicHafs1Ver13.xml");
-        GenerateXMLfromUthmanicHafsDoc(ver22, @"xml\\UthmanicHafs1Ver22.xml");
+        GenerateXMLfromUthmanicHafsDoc(ver9, @"xml/UthmanicHafs1Ver09.xml");
+        GenerateXMLfromUthmanicHafsDoc(ver13, @"xml/UthmanicHafs1Ver13.xml");
+        GenerateXMLfromUthmanicHafsDoc(ver22, @"xml/UthmanicHafs1Ver22.xml");
       }
       else if (arg == "compare")
       {
         string currentDir = Directory.GetCurrentDirectory();
 
-        string ver16 = currentDir + "\\files\\UthmanicHafs1 Ver16.doc";
-        string ver13 = currentDir + "\\files\\UthmanicHafs1 Ver13.doc";
-        string ver22 = currentDir + "\\files\\UthmanicHafs v22.docx";
+        string ver16 = currentDir + "/files/UthmanicHafs1 Ver16.doc";
+        string ver13 = currentDir + "/files/UthmanicHafs1 Ver13.doc";
+        string ver22 = currentDir + "/files/UthmanicHafs v22.docx";
 
 
         compareHafsDocs(ver13, ver22);
@@ -155,7 +154,7 @@ namespace GenerateTexFromTanzil
       {
         var pages = TarteelData.getLinesFromTarteel();
         QPCDoc.GenerateCPPFromUthmanicHafs(false, pages);
-      }     
+      }
 
     }
 
@@ -360,7 +359,7 @@ namespace GenerateTexFromTanzil
 
     }
 
-   
+
     static void GenerateLatexFileFromDocFile(string fileName, bool madinaFormat)
     {
       List<List<string>> UthmanicHafsDocPages = QPCDoc.readXML(fileName);
@@ -492,8 +491,8 @@ namespace GenerateTexFromTanzil
       List<List<string>> UthmanicHafsDocPages = QPCDoc.readXML(fileName);
 
       string outputfile = @"output /quran_context_" + arg + ".tex";
-      string suraWord = "سُورَةُ";
-      string bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"; // "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ";
+      //string suraWord = "سُورَةُ";
+      //string bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"; // "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ";
       string bism2 = "بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ";
       using (System.IO.StreamWriter file = new System.IO.StreamWriter(outputfile))
       {
@@ -703,7 +702,7 @@ namespace GenerateTexFromTanzil
       List<List<string>> TanzilPages = new List<List<string>>();
       List<List<string>> UthmanicHafsDocPages = new List<List<string>>();
       List<string> lines = null;
-      using (XmlReader reader = XmlReader.Create("input\\allquran_output.xml"))
+      using (XmlReader reader = XmlReader.Create("input/allquran_output.xml"))
       {
 
         while (reader.Read())
@@ -722,7 +721,7 @@ namespace GenerateTexFromTanzil
           }
         }
       }
-      using (XmlReader reader = XmlReader.Create("input\\UthmanicHafs1Ver09.xml"))
+      using (XmlReader reader = XmlReader.Create("input/UthmanicHafs1Ver09.xml"))
       {
         while (reader.Read())
         {
@@ -912,7 +911,7 @@ namespace GenerateTexFromTanzil
           NewLineHandling = NewLineHandling.Replace
         };
 
-        using (XmlWriter writer = XmlWriter.Create("input\\allquran_output.xml", settings))
+        using (XmlWriter writer = XmlWriter.Create("input/allquran_output.xml", settings))
         {
           writer.WriteStartDocument();
           writer.WriteStartElement("pages");
@@ -1007,7 +1006,7 @@ namespace GenerateTexFromTanzil
       }
       catch (Exception ex)
       {
-        MessageBox.Show(ex.ToString());
+        Console.WriteLine(ex.ToString());
       }
     }
     static void GenerateXMLfromUthmanicHafsDoc(string fileName, string outputFile)
@@ -1077,7 +1076,7 @@ namespace GenerateTexFromTanzil
 
 
 
-      string outputfile = @"D:\projects\Fonts\texexamples\alqalam\metapost\quran.tex";
+      string outputfile = @"output/alqalammetapostquran.tex";
       string suraWord = "سُورَةُ";
       using (System.IO.StreamWriter file = new System.IO.StreamWriter(outputfile))
       {

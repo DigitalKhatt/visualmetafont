@@ -148,7 +148,7 @@ namespace QuranTextGenerator
       string outputfile = @"output/quran.cpp";
       if (quranComplex)
       {
-        outputfile = @"D:output/qurancomplex.cpp";
+        outputfile = @"output/qurancomplex.cpp";
       }
       //string suraWord = "سُورَةُ";
       //string bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"; // "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ";

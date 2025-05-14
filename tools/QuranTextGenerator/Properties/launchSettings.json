@@ -2,23 +2,28 @@
   "profiles": {
     "QuranCPP": {
       "commandName": "Project",
-      "commandLineArgs": "cpp"
+      "commandLineArgs": "cpp",
+      "workingDirectory": "."
     },
     "Tarteel": {
       "commandName": "Project",
-      "commandLineArgs": "tarteel > output-file.txt"
+      "commandLineArgs": "tarteel > output-file.txt",
+      "workingDirectory": "."
     },
     "Compare": {
       "commandName": "Project",
-      "commandLineArgs": "compare"
+      "commandLineArgs": "compare",
+      "workingDirectory": "."
     },
     "XML": {
       "commandName": "Project",
-      "commandLineArgs": "xml"
+      "commandLineArgs": "xml",
+      "workingDirectory": "."
     },
     "tex": {
       "commandName": "Project",
-      "commandLineArgs": "tex"
+      "commandLineArgs": "tex",
+      "workingDirectory": "."
     }
   }
 }
