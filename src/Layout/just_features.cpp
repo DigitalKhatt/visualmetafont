@@ -1104,6 +1104,7 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
 
     }
     else {
+      //result.globalFeatures = {{.name = "cv04", .value = 5}};
       result.xScale = desiredWidth / currentLineWidth;
     }
 

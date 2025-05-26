@@ -905,25 +905,13 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
 
   quint32 lookupListtotalSize = 2 + 2 * lookupCount;
 
-  int nbSubtablekt01expa1 = 0;
-
   for (int i = 0; i < lookups.size(); ++i) {
 
     Lookup* lookup = lookups.at(i);
 
     auto subtables = lookup->getSubtables(extended);
 
-    quint32 nb_subtables = subtables.size();
-
-    if (lookup->name == "kt01.expa.1") {
-      nbSubtablekt01expa1 = nb_subtables;
-    }
-
-    auto expaLookup = lookup->name == "kt02.expa.1" || lookup->name == "kt03.expa.1" || lookup->name == "kt04.expa.1" || lookup->name == "kt05.expa.1";
-
-    if (expaLookup) {
-      nb_subtables = nbSubtablekt01expa1;
-    }
+    quint32 nb_subtables = subtables.size();    
 
     //lookup header
     lookupListtotalSize += 2 + 2 + 2 + 2 * nb_subtables;
@@ -947,21 +935,13 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
 
   quint32 subtablesOffset = lookupListtotalSize;
 
-  std::vector<quint32> subtablesOffsetkt01expa1;
-
   for (int i = 0; i < lookups.size(); ++i) {
 
     Lookup* lookup = lookups.at(i);
 
-    auto expaLookup = lookup->name == "kt02.expa.1" || lookup->name == "kt03.expa.1" || lookup->name == "kt04.expa.1" || lookup->name == "kt05.expa.1";
-
     auto subtables = lookup->getSubtables(extended);
 
     quint32 nb_subtables = subtables.size();
-
-    if (expaLookup) {
-      nb_subtables = nbSubtablekt01expa1;
-    }
 
     QByteArray lookupArray;
 
@@ -977,53 +957,35 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
 
     QByteArray exttables_array;
 
-
     for (int i = 0; i < nb_subtables; ++i) {
-
-
 
       lookupArray << debutsequence;
 
-
       quint16 lookuptype = (quint16)lookup->type;
 
-      if (lookup->name == "kt01.expa.1") {
-        subtablesOffsetkt01expa1.push_back(subtablesOffset);
-      }
+      exttables_array << (quint16)1 << lookuptype << (quint32)(subtablesOffset - (beginoffset + debutsequence));
 
-      if (expaLookup) {
-        exttables_array << (quint16)1 << lookuptype << (quint32)(subtablesOffsetkt01expa1[i] - (beginoffset + debutsequence));
+      QByteArray subtableArray;
+
+      auto& subtable = subtables.at(i);
+
+      if (!extended && subtable->isConvertible()) {
+        subtableArray = subtable->getConvertedOpenTypeTable();
       }
       else {
-
-        exttables_array << (quint16)1 << lookuptype << (quint32)(subtablesOffset - (beginoffset + debutsequence));
-
-        QByteArray subtableArray;
-
-        auto& subtable = subtables.at(i);
-
-        if (!extended && subtable->isConvertible()) {
-          subtableArray = subtable->getConvertedOpenTypeTable();
-        }
-        else {
-          subtableArray = subtable->getOptOpenTypeTable(extended);
-        }
-
-        if (lookup->type != Lookup::fsmgsub && subtableArray.size() > 0xFFFF) {
-          std::cout << lookup->name.toStdString() << " : Subtable " << subtable->name.toStdString()
-            << " exceeds the limit of 64K : " << subtableArray.size()
-            << std::endl;
-          //throw std::runtime_error{ "Subtable exeeded the limit of 64K" };
-        }
-
-
-
-        subtablesArray.append(subtableArray);
-
-        subtablesOffset += subtableArray.size();
+        subtableArray = subtable->getOptOpenTypeTable(extended);
       }
 
+      if (lookup->type != Lookup::fsmgsub && subtableArray.size() > 0xFFFF) {
+        std::cout << lookup->name.toStdString() << " : Subtable " << subtable->name.toStdString()
+          << " exceeds the limit of 64K : " << subtableArray.size()
+          << std::endl;
+        //throw std::runtime_error{ "Subtable exeeded the limit of 64K" };
+      }
 
+      subtablesArray.append(subtableArray);
+
+      subtablesOffset += subtableArray.size();
 
       debutsequence += 8;
     }

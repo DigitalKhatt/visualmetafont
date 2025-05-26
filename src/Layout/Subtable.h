@@ -293,6 +293,21 @@ struct MarkBaseSubtable : Subtable {
   virtual QPoint getBaseAnchor(QString baseGlyphName, QString className, GlyphParameters parameters);
   virtual std::optional<QPoint> getMarkAnchor(quint16 mark_id, quint16 base_id, GlyphParameters parameters);
   QPoint getMarkAnchor(QString markGlyphName, QString className, GlyphParameters parameters);
+private:
+  void setAnchorTable(QString className,
+    quint16 glyphCode,
+    QByteArray& anchorTables,
+    quint32& anchorOffset,
+    std::map<int,std::pair<bool,std::pair<int,int>>>& posToVar,
+    bool extended,
+    bool isBase
+  );
+  void setVariationIndexOffset(
+    QByteArray& anchorTables,
+    quint32& anchorOffset,
+    std::map<int,std::pair<bool,std::pair<int,int>>>& posToVar
+  );
+
 };
 
 struct ChainingSubtable : Subtable {
