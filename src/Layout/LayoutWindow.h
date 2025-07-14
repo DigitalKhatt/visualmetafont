@@ -108,6 +108,7 @@ private:
   void loadMushafLayout(QString layoutName);
   void generateTestFile();
   void checkOffMarks();
+  void savePagetoPicture();
 
 	void setQuranText(int type);
   QComboBox* justCombo;

@@ -838,7 +838,6 @@ namespace std {
 }
 
 
-
 void LayoutWindow::checkOffMarks() {
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
@@ -2481,6 +2480,11 @@ void LayoutWindow::createDockWindows()
 
   otherMenu->addAction(action);
 
+  action = new QAction(tr("Save Page to Picture"), this);  
+  connect(action, &QAction::triggered, this, &LayoutWindow::savePagetoPicture);
+
+  otherMenu->addAction(action);
+
 
   m_otlayout = new OtLayout(m_font, true, true, this);
   m_otlayout->useNormAxisValues = false;
@@ -3194,10 +3198,6 @@ void LayoutWindow::calculateMinimumSize() {
 
   int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
-  hb_buffer_t* buffer = buffer = hb_buffer_create();
-
-  //bool conti = true;
-
   struct Line {
     int pageNumber;
     int lineNumber;
@@ -3225,7 +3225,9 @@ void LayoutWindow::calculateMinimumSize() {
 
       auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
-      auto page = m_otlayout->justifyPage(emScale, lineWidth, lineWidth, lines, LineJustification::Distribute, false, true);
+      auto page = m_otlayout->justifyPage(emScale, lineWidth, lineWidth, lines, LineJustification::Distribute, false, true, justStyleCombo->currentData().value<JustStyle>(), HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS, justCombo->currentData().value<JustType>());
+
+      //auto page = m_otlayout->justifyPage(emScale, lineWidth, lineWidth, lines, LineJustification::Distribute, false, true);
 
 
       for (int linenum = 0; linenum < lines.length(); linenum++) {
@@ -3238,17 +3240,17 @@ void LayoutWindow::calculateMinimumSize() {
         }
       }
     }
-
+    /*
     if (overflows.count() > 0) {
       alloverflows[scale] = overflows;
       scale = scale * lineWidth / (maxOverflow + lineWidth);
     }
     else {
       cont = false;
-    }
+    }*/
+    alloverflows[scale] = overflows;
+    cont = false;
   }
-
-  hb_buffer_destroy(buffer);
 
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
@@ -4379,5 +4381,21 @@ void LayoutWindow::generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pa
   file.close();
 }
 
+
+void LayoutWindow::savePagetoPicture(){  
+  auto size = m_graphicsScene->sceneRect().size().toSize();
+  QImage image(size, QImage::Format_ARGB32);  
+  image.fill(Qt::white);                                             
+
+  QPainter painter(&image); 
+  painter.setRenderHint(QPainter::Antialiasing, true);
+  m_graphicsScene->render(&painter);  
+  painter.end();
+
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString fileName = fileInfo.path() + "/output/page" + QString("%1").arg(integerSpinBox->value()) + ".jpg";
+  image.save(fileName,"JPG");
+}
 
 

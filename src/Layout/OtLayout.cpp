@@ -3562,6 +3562,10 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
     else if (parameters.righttatweel > expnadable->second.maxRight) {
       parameters.righttatweel = expnadable->second.maxRight;
     }
+    GlyphParameters nullpar;
+    if(nullpar == parameters){
+      return glyph;
+    }
   }
   else if (parameters.scalex == 0) {
     //std::cout << "No parameter is set for glyph " << glyph->name.toStdString() << std::endl;

@@ -84,6 +84,11 @@ protected:
   OtLayout* m_layout;
   bool isDirty = true;
   QByteArray openTypeSubTable;
+  void setVariationIndexOffset(
+    QByteArray& anchorTables,
+    quint32 anchorOffset,
+    std::map<int,std::pair<int,std::pair<int,int>>>& posToVar
+  );
 };
 
 struct SingleSubtable : Subtable {
@@ -251,9 +256,15 @@ struct CursiveSubtable : Subtable {
   virtual QPoint calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint entry);
 
   virtual std::optional<QPoint> getExit(quint16 glyph_id, GlyphParameters parameters);
-
-
-
+private:
+  void setAnchorTable(quint16 glyphCode,
+    QByteArray& entryExitRecords,
+    QByteArray& anchorTables,
+    quint32& anchorOffset,
+    std::map<int,std::pair<int,std::pair<int,int>>>& posToVar,
+    bool extended,
+    bool isEntry
+  );
 };
 
 struct MarkBaseSubtable : Subtable {
@@ -298,16 +309,10 @@ private:
     quint16 glyphCode,
     QByteArray& anchorTables,
     quint32& anchorOffset,
-    std::map<int,std::pair<bool,std::pair<int,int>>>& posToVar,
+    std::map<int,std::pair<int,std::pair<int,int>>>& posToVar,
     bool extended,
     bool isBase
   );
-  void setVariationIndexOffset(
-    QByteArray& anchorTables,
-    quint32& anchorOffset,
-    std::map<int,std::pair<bool,std::pair<int,int>>>& posToVar
-  );
-
 };
 
 struct ChainingSubtable : Subtable {

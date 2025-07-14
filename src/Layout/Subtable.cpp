@@ -815,25 +815,20 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
 
   QByteArray root;
   QByteArray coverage;
-  QByteArray valueRecords;
-  QByteArray VariationIndexes;
+  QByteArray valueRecords;  
+  std::map<int,std::pair<int,std::pair<int,int>>> posToVar;
 
   quint16 glyphCount = singlePos.size();
-  quint16 valueFormat;
-  uint valueRecordsSize;
+  quint16 valueFormat;  
 
   auto isOTVar = m_layout->isOTVar;
 
   if (isOTVar) {
-    valueFormat = 0xFF;
-    valueRecordsSize = 16 * glyphCount;
+    valueFormat = 0x77;
   }
   else {
-    valueFormat = 0xF;
-    valueRecordsSize = 8 * glyphCount;
-  }
-
-  uint currentVariationIndexesOffset = 8 + valueRecordsSize;
+    valueFormat = 0x7;    
+  }  
 
   coverage << (quint16)1;
   coverage << (quint16)glyphCount;
@@ -859,7 +854,7 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
       record = { (qint16)(record.xPlacement + par.xPlacement),(qint16)(record.yPlacement + par.yPlacement) ,(qint16)(record.xAdvance + par.xAdvance) ,record.yAdvance };
     }
 
-    valueRecords << record.xPlacement << record.yPlacement << record.xAdvance << record.yAdvance;
+    valueRecords << record.xPlacement << record.yPlacement << record.xAdvance;// << record.yAdvance;
 
     if (isOTVar) {
 
@@ -874,65 +869,83 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
         DefaultDelta delatX;
         DefaultDelta delatY;
         DefaultDelta delatXadvance;
-        DefaultDelta delatYadvance;
+        //DefaultDelta delatYadvance;
 
         for (auto& parameters : glyphParamertersArray) {
           if (parameters.scalex != 0) {
             delatX.push_back(record.xPlacement * (parameters.scalex / 100) - record.xPlacement);
             delatY.push_back(0);
             delatXadvance.push_back(record.xAdvance * (parameters.scalex / 100) - record.xAdvance);
-            delatYadvance.push_back(0);
+            //delatYadvance.push_back(0);
           }
 
         }
 
-        valueRecords << (quint16)currentVariationIndexesOffset;
-        currentVariationIndexesOffset += 6;
-        valueRecords << (quint16)currentVariationIndexesOffset;
-        currentVariationIndexesOffset += 6;
-        valueRecords << (quint16)currentVariationIndexesOffset;
-        currentVariationIndexesOffset += 6;
-        valueRecords << (quint16)currentVariationIndexesOffset;
-        currentVariationIndexesOffset += 6;
+        bool allx0 = std::all_of(delatX.begin(), delatX.end(), [](int i) { return i==0; });
 
-        auto indexesX = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
-        auto indexesY = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
-        auto indexesXadvance = m_layout->getDeltaSetEntry(delatXadvance, regionIndexesArrayIndex);
-        auto indexesYadvance = m_layout->getDeltaSetEntry(delatYadvance, regionIndexesArrayIndex);
+        if (allx0 != 0) {          
+          
+          auto indexesX = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
+          posToVar.insert({valueRecords.size(),{-8,indexesX}});   
+        }
+        valueRecords << (quint16)0;
 
-        VariationIndexes << (quint16)indexesX.first;
-        VariationIndexes << (quint16)indexesX.second;
-        VariationIndexes << (quint16)0x8000;
+        bool ally0 = std::all_of(delatY.begin(), delatY.end(), [](int i) { return i==0; });
+        
+        if (ally0 != 0) {
+          auto indexesY = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
+          posToVar.insert({valueRecords.size(),{-8,indexesY}}); 
+        }
+        valueRecords << (quint16)0;
 
-        VariationIndexes << (quint16)indexesY.first;
-        VariationIndexes << (quint16)indexesY.second;
-        VariationIndexes << (quint16)0x8000;
+        bool allxadvance0 = std::all_of(delatXadvance.begin(), delatXadvance.end(), [](int i) { return i==0; });
+        
+        if (allxadvance0 != 0) {         
+          auto indexesXadvance = m_layout->getDeltaSetEntry(delatXadvance, regionIndexesArrayIndex);
+          posToVar.insert({valueRecords.size(),{-8,indexesXadvance}}); 
+        }
+        valueRecords << (quint16)0;
 
-        VariationIndexes << (quint16)indexesXadvance.first;
-        VariationIndexes << (quint16)indexesXadvance.second;
-        VariationIndexes << (quint16)0x8000;
-
-        VariationIndexes << (quint16)indexesYadvance.first;
-        VariationIndexes << (quint16)indexesYadvance.second;
-        VariationIndexes << (quint16)0x8000;
-
+        /*
+        bool allyadvance0 = std::all_of(delatYadvance.begin(), delatYadvance.end(), [](int i) { return i==0; });
+        
+        if (allyadvance0 != 0) {          
+          auto indexesYadvance = m_layout->getDeltaSetEntry(delatYadvance, regionIndexesArrayIndex);
+          posToVar.insert({valueRecords.size(),{-8,indexesYadvance}});          
+          
+        }   
+        valueRecords << (quint16)0;     */
+       
       }
       else {
         valueRecords << (quint16)0;
         valueRecords << (quint16)0;
         valueRecords << (quint16)0;
-        valueRecords << (quint16)0;
+        //valueRecords << (quint16)0;
       }
     }
 
     coverage << (quint16)i.key();
   }
 
-  if (valueRecordsSize != valueRecords.size()) {
-    throw std::runtime_error("ERROR");
-  }
+  setVariationIndexOffset(valueRecords,0,posToVar);  
 
-  quint32 coverageOffset = 8 + valueRecords.size() + VariationIndexes.size();
+    /*
+  for(auto& varIndex : posToVar){
+    auto pos = varIndex.first;
+    auto isX = varIndex.second.first;
+    auto index = varIndex.second.second;    
+
+    QByteArray offsetData;
+    offsetData << (quint16)(8+valueRecords.size());
+    valueRecords.replace(pos,offsetData.size(),offsetData);
+
+    valueRecords << (quint16)index.first;
+    valueRecords << (quint16)index.second;
+    valueRecords << (quint16)0x8000;
+  }*/
+
+  quint32 coverageOffset = 8 + valueRecords.size();
 
   if (coverageOffset > 0xFFFF) {
     std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString() << " Overflows : " << coverageOffset << std::endl;
@@ -942,8 +955,7 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
   root << (quint16)coverageOffset;
   root << valueFormat;
   root << glyphCount;
-  root.append(valueRecords);
-  root.append(VariationIndexes);
+  root.append(valueRecords);  
   root.append(coverage);
 
   return root;
@@ -1700,6 +1712,119 @@ void CursiveSubtable::saveParameters(QJsonObject& json) const {
 
 }
 
+void CursiveSubtable::setAnchorTable(quint16 glyphCode,
+  QByteArray& entryExitRecords,
+  QByteArray& anchorTables,
+  quint32& anchorOffset,
+  std::map<int,std::pair<int,std::pair<int,int>>>& posToVar,
+  bool extended,
+  bool isEntry
+){
+
+  QString glyphName = m_layout->glyphNamePerCode[glyphCode];
+
+  QString originalGlyphName = glyphName;
+  double charlt = 0.0;
+  double charrt = 0.0;
+
+  if (!extended) {
+    auto glyph = m_layout->getGlyph(glyphCode);
+    if (glyph->name.contains(".added_")) {
+      originalGlyphName = glyph->originalglyph;
+    }
+    charlt = glyph->charlt;
+    charrt = glyph->charrt;
+  }
+
+  auto& originalGlyph = m_layout->glyphs[originalGlyphName];
+
+  std::optional<QPoint> calcanchor = isEntry ?
+    getEntry(originalGlyph.charcode, { .lefttatweel = charlt, .righttatweel = charrt }) : 
+    getExit(originalGlyph.charcode, { .lefttatweel = charlt, .righttatweel = charrt });
+
+  if (!calcanchor) {
+    entryExitRecords << (quint16)0;
+    return;
+  }
+
+  QPoint anchor{ *(calcanchor) };
+
+  entryExitRecords << (quint16)anchorOffset;
+
+  bool done = false;
+  if (m_layout->isOTVar) {
+
+    auto glyphName = m_layout->glyphNamePerCode[glyphCode];
+
+    auto regionIndexes = m_layout->toOpenType->getGlyphParameters(glyphName);
+    int regionIndexesArrayIndex = regionIndexes.second;
+    auto glyphParamertersArray = regionIndexes.first;
+
+    if (glyphParamertersArray.size() != 0) {
+      DefaultDelta delatX;
+      DefaultDelta delatY;
+      for (auto& parameters : glyphParamertersArray) {
+        if (parameters.scalex != 0) {
+          delatX.push_back(anchor.x() * (parameters.scalex / 100) - anchor.x());
+          delatY.push_back(0);
+        }
+        else {
+          auto val = isEntry ? getEntry(glyphCode, parameters) : getExit(glyphCode, parameters);
+          delatX.push_back(val->x() - anchor.x());
+          delatY.push_back(val->y() - anchor.y());
+        }
+
+      }
+
+      bool allx0 = true;
+
+      for (auto delta : delatX) {
+        if (delta != 0) {
+          allx0 = false;
+          break;
+        }
+      }
+      bool ally0 = true;
+      for (auto delta : delatY) {
+        if (delta != 0) {
+          ally0 = false;
+          break;
+        }
+      }
+
+      bool all0 = allx0 && ally0;
+
+      if (!all0) {            
+        anchorTables << (quint16)3;
+        anchorTables << (quint16)anchor.x();
+        anchorTables << (quint16)anchor.y();
+        if(!allx0){
+          auto index_x = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
+          posToVar.insert({anchorTables.size(),{anchorTables.size() - 6,index_x}}); //(pos -  (isX ? 6 : 8)
+        }
+        anchorTables << (quint16)0; // xDeviceOffset
+        if(!ally0){
+          auto index_y = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
+          posToVar.insert({anchorTables.size(),{anchorTables.size() - 8,index_y}});
+        }
+        anchorTables << (quint16)0; // yDeviceOffset
+        anchorOffset += 10;       
+        
+        done = true;
+      }
+    }
+  }
+
+  if (!done) {
+    anchorTables << (quint16)1;
+    anchorTables << (quint16)anchor.x();
+    anchorTables << (quint16)anchor.y();
+    anchorOffset += 6;
+  }
+
+}
+
+
 QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
 
 
@@ -1717,247 +1842,14 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
 
   bool rtl = m_lookup->flags & Lookup::Flags::RightToLeft;
 
+  std::map<int,std::pair<int,std::pair<int,int>>> posToVar;
+
   for (auto anchor = anchors.constBegin(); anchor != anchors.constEnd(); ++anchor) {
-
-    auto& entryexit = anchor.value();
-
-    auto glyphCode = anchor.key();
-
-    /*
-    auto calcentry = entryexit.entry;
-
-    if (!calcentry) {
-      if (!entryexit.entryName.isEmpty()) {
-        GlyphVis* curr = m_layout->getGlyph(anchor.key());
-        auto it = curr->anchors.find({ entryexit.entryName,rtl ? GlyphVis::AnchorType::EntryAnchorRTL : GlyphVis::AnchorType::EntryAnchor });
-        if (it != curr->anchors.end()) {
-          calcentry = it->anchor;
-        }
-      }
-    }*/
-
-
-    std::optional<QPoint> calcentry;
-
-    if (!extended) {
-      auto glyph = m_layout->getGlyph(glyphCode);
-      if (glyph->name.contains(".added_")) {
-
-        auto& originalGlyph = m_layout->glyphs[glyph->originalglyph];
-
-        calcentry = getEntry(originalGlyph.charcode, { .lefttatweel = glyph->charlt, .righttatweel = glyph->charrt });
-      }
-      else {
-        calcentry = getEntry(glyphCode, {});
-      }
-    }
-    else {
-      calcentry = getEntry(glyphCode, {});
-    }
-
-    if (calcentry) {
-
-      QPoint entry{ *(calcentry) };
-
-      /*
-      if (entryParameters.contains(anchor.key())) {
-        entry += entryParameters[anchor.key()];
-      }*/
-
-
-
-      entryExitRecords << (quint16)anchorOffset;
-
-      bool done = false;
-
-      if (m_layout->isOTVar) {
-
-        auto glyphName = m_layout->glyphNamePerCode[anchor.key()];
-
-        auto regionIndexes = m_layout->toOpenType->getGlyphParameters(glyphName);
-        int regionIndexesArrayIndex = regionIndexes.second;
-        auto glyphParamertersArray = regionIndexes.first;
-
-        if (glyphParamertersArray.size() != 0) {
-          DefaultDelta delatX;
-          DefaultDelta delatY;
-          for (auto parameters : glyphParamertersArray) {
-            if (parameters.scalex != 0) {
-              delatX.push_back(entry.x() * (parameters.scalex / 100) - entry.x());
-              delatY.push_back(0);
-            }
-            else {
-              auto val = getEntry(anchor.key(), parameters);
-              delatX.push_back(val->x() - entry.x());
-              delatY.push_back(val->y() - entry.y());
-            }
-          }
-          bool all0 = true;
-
-          for (auto delta : delatX) {
-            if (delta != 0) {
-              all0 = false;
-              break;
-            }
-          }
-          if (all0) {
-            for (auto delta : delatY) {
-              if (delta != 0) {
-                all0 = false;
-                break;
-              }
-            }
-          }
-
-          if (!all0) {
-            auto index_x = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
-            auto index_y = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
-
-            anchorTables << (quint16)3;
-            anchorTables << (quint16)entry.x();
-            anchorTables << (quint16)entry.y();
-            anchorTables << (quint16)10; // xDeviceOffset
-            anchorTables << (quint16)16; // yDeviceOffset
-            //VariationIndex x
-            anchorTables << (quint16)index_x.first;
-            anchorTables << (quint16)index_x.second;
-            anchorTables << (quint16)0x8000;
-            //VariationIndex y
-            anchorTables << (quint16)index_y.first;
-            anchorTables << (quint16)index_y.second;
-            anchorTables << (quint16)0x8000;
-            done = true;
-
-            anchorOffset += 22;
-          }
-        }
-      }
-      if (!done) {
-
-        anchorTables << (quint16)1;
-        anchorTables << (quint16)entry.x();
-        anchorTables << (quint16)entry.y();
-
-        anchorOffset += 6;
-      }
-
-
-
-    }
-    else {
-      entryExitRecords << (quint16)0;
-    }
-
-    std::optional<QPoint> calcexit;
-
-
-    if (!extended) {
-      auto glyph = m_layout->getGlyph(glyphCode);
-      if (glyph->name.contains(".added_")) {
-
-        auto& originalGlyph = m_layout->glyphs[glyph->originalglyph];
-
-        calcexit = getExit(originalGlyph.charcode, { .lefttatweel = glyph->charlt, .righttatweel = glyph->charrt });
-      }
-      else {
-        calcexit = getExit(glyphCode, {});
-      }
-    }
-    else {
-      calcexit = getExit(glyphCode, {});
-    }
-
-    if (calcexit) {
-
-      QPoint exit{ *(calcexit) };
-
-      /*
-      if (exitParameters.contains(anchor.key())) {
-        exit += exitParameters[anchor.key()];
-      }*/
-
-      entryExitRecords << (quint16)anchorOffset;
-
-
-      bool done = false;
-
-      if (m_layout->isOTVar) {
-
-        auto glyphName = m_layout->glyphNamePerCode[anchor.key()];
-
-        auto regionIndexes = m_layout->toOpenType->getGlyphParameters(glyphName);
-        int regionIndexesArrayIndex = regionIndexes.second;
-        auto glyphParamertersArray = regionIndexes.first;
-
-        if (glyphParamertersArray.size() != 0) {
-          DefaultDelta delatX;
-          DefaultDelta delatY;
-          for (auto parameters : glyphParamertersArray) {
-            if (parameters.scalex != 0) {
-              delatX.push_back(exit.x() * (parameters.scalex / 100) - exit.x());
-              delatY.push_back(0);
-            }
-            else {
-              auto val = getExit(anchor.key(), parameters);
-              delatX.push_back(val->x() - exit.x());
-              delatY.push_back(val->y() - exit.y());
-            }
-          }
-
-          bool all0 = true;
-
-          for (auto delta : delatX) {
-            if (delta != 0) {
-              all0 = false;
-              break;
-            }
-          }
-          if (all0) {
-            for (auto delta : delatY) {
-              if (delta != 0) {
-                all0 = false;
-                break;
-              }
-            }
-          }
-
-          if (!all0) {
-            auto index_x = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
-            auto index_y = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
-
-            anchorTables << (quint16)3;
-            anchorTables << (quint16)exit.x();
-            anchorTables << (quint16)exit.y();
-            anchorTables << (quint16)10; // xDeviceOffset
-            anchorTables << (quint16)16; // yDeviceOffset
-            //VariationIndex x
-            anchorTables << (quint16)index_x.first;
-            anchorTables << (quint16)index_x.second;
-            anchorTables << (quint16)0x8000;
-            //VariationIndex y
-            anchorTables << (quint16)index_y.first;
-            anchorTables << (quint16)index_y.second;
-            anchorTables << (quint16)0x8000;
-            done = true;
-
-            anchorOffset += 22;
-          }
-        }
-      }
-      if (!done) {
-
-        anchorTables << (quint16)1;
-        anchorTables << (quint16)exit.x();
-        anchorTables << (quint16)exit.y();
-
-        anchorOffset += 6;
-      }
-
-    }
-    else {
-      entryExitRecords << (quint16)0;
-    }
+    setAnchorTable(anchor.key(),entryExitRecords, anchorTables,anchorOffset,posToVar,extended,true);
+    setAnchorTable(anchor.key(),entryExitRecords, anchorTables,anchorOffset,posToVar,extended,false);
   }
+
+  setVariationIndexOffset(anchorTables,anchorOffset,posToVar);  
 
   QByteArray root;
   root << (quint16)1;
@@ -1966,18 +1858,6 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
   root.append(entryExitRecords);
   root.append(coverage);
   root.append(anchorTables);
-
-  if (anchorOffset > 0xFFFF) {
-    std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable "
-      << name.toStdString() << " Overflows : lastOffset=" << anchorOffset
-      << " entryExitCount=" << entryExitCount
-      << " coverage size=" << coverage.size()
-      << " entryExitRecords size=" << entryExitRecords.size()
-      << " anchorTables size=" << anchorTables.size()
-      << std::endl;
-  }
-
-
 
   return root;
 
@@ -2164,7 +2044,7 @@ void MarkBaseSubtable::setAnchorTable(QString className,
   quint16 glyphCode,
   QByteArray& anchorTables,
   quint32& anchorOffset,
-  std::map<int,std::pair<bool,std::pair<int,int>>>& posToVar,
+  std::map<int,std::pair<int,std::pair<int,int>>>& posToVar,
   bool extended,
   bool isBase
 ){
@@ -2237,12 +2117,12 @@ void MarkBaseSubtable::setAnchorTable(QString className,
         anchorTables << (quint16)coordinate.y();
         if(!allx0){
           auto index_x = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
-          posToVar.insert({anchorTables.size(),{true,index_x}});
+          posToVar.insert({anchorTables.size(),{anchorTables.size() - 6,index_x}});
         }
         anchorTables << (quint16)0; // xDeviceOffset
         if(!ally0){
           auto index_y = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
-          posToVar.insert({anchorTables.size(),{false,index_y}});
+          posToVar.insert({anchorTables.size(),{anchorTables.size() - 8,index_y}});
         }
         anchorTables << (quint16)0; // yDeviceOffset
         anchorOffset += 10;       
@@ -2261,10 +2141,10 @@ void MarkBaseSubtable::setAnchorTable(QString className,
 
 }
 
-void MarkBaseSubtable::setVariationIndexOffset(
+void Subtable::setVariationIndexOffset(
   QByteArray& anchorTables,
-  quint32& anchorOffset,
-  std::map<int,std::pair<bool,std::pair<int,int>>>& posToVar
+  quint32 anchorOffset,
+  std::map<int,std::pair<int,std::pair<int,int>>>& posToVar
 ){
   if (anchorOffset > 0xFFFF){
      std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString()
@@ -2278,7 +2158,7 @@ void MarkBaseSubtable::setVariationIndexOffset(
   
   for(auto& varIndex : posToVar){
     auto pos = varIndex.first;
-    auto isX = varIndex.second.first;
+    auto start = varIndex.second.first;
     auto index = varIndex.second.second;
 
     quint32 offset;
@@ -2296,7 +2176,7 @@ void MarkBaseSubtable::setVariationIndexOffset(
     }
     total++;
 
-    quint32 offsetFromAnchorTable = offset - (pos -  (isX ? 6 : 8));
+    quint32 offsetFromAnchorTable = offset - start;
     if (offsetFromAnchorTable > 0xFFFF){
       std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString()
         << " Overflows. offsetFromAnchorTable=" << offsetFromAnchorTable
@@ -2307,11 +2187,11 @@ void MarkBaseSubtable::setVariationIndexOffset(
     anchorTables.replace(pos,offsetData.size(),offsetData);
 
   }  
-
+  /*
   std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString()
         << " total=" << total
         << " found=" << found
-        << std::endl;
+        << std::endl;*/
 }
 
 QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
@@ -2365,7 +2245,7 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
   // Base coverage && Base Array
   quint32 baseAnchorOffset = 2 + baseCount * (markClassCount * 2);
 
-  std::map<int,std::pair<bool,std::pair<int,int>>> basePosToVar;
+  std::map<int,std::pair<int,std::pair<int,int>>> basePosToVar;
 
   baseCoverage << (quint16)1 << baseCount;
   baseArray << baseCount;
@@ -2387,7 +2267,7 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
   quint32 markAnchorOffset = 2 + markCount * 4;
 
-  std::map<int,std::pair<bool,std::pair<int,int>>> markPosToVar;
+  std::map<int,std::pair<int,std::pair<int,int>>> markPosToVar;
 
   markCoverage << (quint16)1 << markCount;
   markArray << markCount;
