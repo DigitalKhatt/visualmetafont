@@ -2148,7 +2148,7 @@ void Subtable::setVariationIndexOffset(
 ){
   if (anchorOffset > 0xFFFF){
      std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString()
-      << " Overflows. baseAnchorOffset=" << anchorOffset
+      << " Overflows. anchorOffset=" << anchorOffset
       << std::endl;
   }
 

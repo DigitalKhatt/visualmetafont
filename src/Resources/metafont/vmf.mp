@@ -1106,3 +1106,19 @@ def defAxis(expr pname,ptag,pminValue,pdefaultValue,pmaxValue,pequivExpr) =
   axes[number_of_axes].equivExpr = pequivExpr;
   number_of_axes := incr number_of_axes;
 enddef;
+vardef smoothjoin(expr radius)(text ll) =
+  save ta_, tb_, k_, i_, pp_,join_radius; path pp_[];
+  join_radius := radius;
+  k_=0;
+  for q=ll: pp_[incr k_]=q; endfor
+  pp_[3] = pp_[1];
+  ta_[1] = 0;
+  (tb_[1], ta_[2]) = pp_[1] intersectiontimes pp_[2];
+  (length pp_[1]-ta_[3], tb_[2]) =  reverse pp_[1] intersectiontimes pp_[2];
+  tb_[3] := length pp_[3];
+
+  subpath (ta_[1],tb_[1]) of pp_[1]
+    softjoin  subpath (ta_[2],tb_[2]) of pp_[2]
+    softjoin  subpath (ta_[3],tb_[3]) of pp_[3] .. cycle
+  
+enddef;

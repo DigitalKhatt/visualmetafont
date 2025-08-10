@@ -47,7 +47,7 @@ void ToOpenType::setAxes() {
 
   if (!ot_layout->isOTVar) {
     axisCount = 0;
-    isComponentsEnabled = true;
+    isComponentsEnabled = false;
     return;
   }
 
@@ -56,7 +56,7 @@ void ToOpenType::setAxes() {
   this->axisCount = axes.size();
 
   if (axisCount == 0) {
-    isComponentsEnabled = true;
+    isComponentsEnabled = false;
     return;
   }
 
@@ -1003,23 +1003,26 @@ QByteArray ToOpenType::post() {
 
     int index = 0;
 
+    QByteArray stringData;
+
+    glyphs[0]->name = ".notdef";
+
     for (int i = 0; i < glyphCount; i++) {
       QByteArray glyphArray;
 
       if (glyphs.contains(i)) {
         data << (uint16_t)(index + 258);
         index++;
+        auto glyph = glyphs.value(i);
+        auto name = glyph->name.toLatin1();
+        stringData << (uint8_t)name.size();
+        stringData.append(name);
       }
       else {
         data << (uint16_t)(258);//  .notdef;
       }
     }
-
-    for (auto& glyph : glyphs) {
-      auto name = glyph->name.toLatin1();
-      data << (uint8_t)name.size();
-      data.append(name);
-    }
+    data.append(stringData);   
   }
 
   return data;

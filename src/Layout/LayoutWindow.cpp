@@ -799,7 +799,7 @@ bool LayoutWindow::generateOpenType() {
 
   OtLayout layout = OtLayout(m_font, false, true);
   layout.useNormAxisValues = true;
-  layout.toOpenType->isCff2 = true;
+  layout.toOpenType->isCff2 = false;
 
   layout.loadLookupFile("features.fea");
 
