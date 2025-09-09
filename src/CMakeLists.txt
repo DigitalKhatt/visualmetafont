@@ -240,6 +240,8 @@ set(GlyphWindow
   glyphwindow/ruleritem.cpp
   glyphwindow/pathview.h
   glyphwindow/pathview.cpp
+  glyphwindow/editorfactory.hpp
+  glyphwindow/editorfactory.cpp
   )
 source_group("GlyphWindow" FILES ${GlyphWindow})
 

@@ -1833,8 +1833,10 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
 
   quint16 entryExitCount = anchors.size();
 
-  quint16 coverageOffset = 2 + 2 + 2 + entryExitCount * 4;
-  quint32 anchorOffset = coverageOffset + 2 + 2 + 2 * entryExitCount;
+  //quint16 coverageOffset = 2 + 2 + 2 + entryExitCount * 4;
+  //quint32 anchorOffset = coverageOffset + 2 + 2 + 2 * entryExitCount;
+
+  quint32 anchorOffset = 2 + 2 + 2 + entryExitCount * 4;
 
   QByteArray coverage;
   coverage << (quint16)1 << entryExitCount << anchors.keys();
@@ -1849,15 +1851,23 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
     setAnchorTable(anchor.key(),entryExitRecords, anchorTables,anchorOffset,posToVar,extended,false);
   }
 
-  setVariationIndexOffset(anchorTables,anchorOffset,posToVar);  
+  setVariationIndexOffset(anchorTables,anchorOffset,posToVar);
+  
+  quint32 coverageOffset = 6 + entryExitRecords.size() + anchorTables.size();
+
+  if (coverageOffset > 0xFFFF){
+     std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString()
+      << " Overflows. coverageOffset=" << coverageOffset
+      << std::endl;
+  }
 
   QByteArray root;
   root << (quint16)1;
-  root << coverageOffset;
+  root << (quint16)coverageOffset;
   root << entryExitCount;
-  root.append(entryExitRecords);
-  root.append(coverage);
+  root.append(entryExitRecords);  
   root.append(anchorTables);
+  root.append(coverage);
 
   return root;
 
@@ -1943,11 +1953,7 @@ QPoint MarkBaseSubtable::getBaseAnchor(QString baseGlyphName, QString className,
   if (markClass.baseparameters.contains(baseGlyphName)) {
     coordinate = markClass.baseparameters[baseGlyphName];
   }
-
-  /*
-  if (baseGlyphName.contains("kaf.medi.ii.i") && className == "smallletters" && lefttatweel != 0) {
-    std::cout << "kaf.medi.ii.i";
-  }*/
+  
 
   GlyphVis* curr = &m_layout->glyphs[baseGlyphName];
 

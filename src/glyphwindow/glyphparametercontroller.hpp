@@ -26,6 +26,7 @@
 #include "qttreepropertybrowser.h"
 #include "qtpropertybrowser.h"
 #include "glyph.hpp"
+#include "editorfactory.hpp"
 
 class QtSliderFactory;
 class QtIntPropertyManager;
@@ -58,9 +59,7 @@ private:
 	QtVariantPropertyManager *m_manager;
 	QtVariantPropertyManager *m_readOnlyManager;
 	QtVariantEditorFactory * m_variantfactory;
-	QtSliderFactory * m_sliderFactory;
-	QtIntPropertyManager *m_sliderManager;	
-
-	const int tatweelRes = 10;
+	QtAxisFactory * m_axisFactory;
+	QtDoublePropertyManager *m_axisManager;
 };
 #endif // GLYPHPARAMETERCONTROLLER_H

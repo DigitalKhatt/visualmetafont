@@ -205,10 +205,12 @@ bool KnotControlledItem::moveMinMaxDeltas(QGraphicsItem* watched, QGraphicsScene
   return true;
 
 }
-bool KnotControlledItem::updateControlledPoint(MFExpr* expr, int position, QPointF diff) {
+bool KnotControlledItem::updateControlledPoint(MFExpr* expr, int position, QPointF diff, bool rountmodif) {
   bool ret = false;
   if (expr->isConstant(position)) {
-    expr->setConstantValue(position, expr->constantValue(position).toPointF() + diff);
+    auto value = expr->constantValue(position).toPointF() + diff;
+    if(rountmodif) value = value.toPoint();
+    expr->setConstantValue(position, value);
     ret = true;
   }
   else {
@@ -222,6 +224,7 @@ bool KnotControlledItem::updateControlledPoint(MFExpr* expr, int position, QPoin
       auto& param = m_glyph->params[parmName];
       if (param.expr->isConstant(position)) {
         QPointF pair = param.expr->constantValue(position).toPointF() + diff;
+        if(!rountmodif) pair = pair.toPoint();
         param.expr->setConstantValue(position, pair);
         m_glyph->setProperty(parmName.toLatin1(), pair);
         ret = true;
@@ -251,7 +254,8 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
     Qt::KeyboardModifiers modifiers = me->modifiers();
 
     bool shift = modifiers & Qt::ShiftModifier;
-    bool ctrl = modifiers & Qt::ControlModifier;
+    bool alt = modifiers & Qt::AltModifier; 
+    
 
     QPointF diff = me->pos() - me->lastPos();
 
@@ -263,7 +267,7 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
 
       int expIndex = scene->getControlledPosition(me);
 
-      updateControlledPoint(m_glyphknot->expr.get(), expIndex, diff);
+      updateControlledPoint(m_glyphknot->expr.get(), expIndex, diff, alt);
 
       if (m_glyphknot->leftValue.type == Glyph::mpgui_explicit) {
 
@@ -273,18 +277,18 @@ bool KnotControlledItem::sceneEventFilter(QGraphicsItem* watched, QEvent* event)
         //  updateControlledPoint(knot->rightValue.dirExpr.get(), expIndex, diff);
         //}
         //else {
-        updateControlledPoint(m_glyphknot->leftValue.dirExpr.get(), expIndex, diff);
+        updateControlledPoint(m_glyphknot->leftValue.dirExpr.get(), expIndex, diff, alt);
         //}
       }
 
       if (m_glyphknot->rightValue.type == Glyph::mpgui_explicit) {
-        updateControlledPoint(m_glyphknot->rightValue.dirExpr.get(), expIndex, diff);
+        updateControlledPoint(m_glyphknot->rightValue.dirExpr.get(), expIndex, diff, alt);
       }
 
       return true;
     }
     else if (watched == left || watched == right) {
-      return updateControlPoint(me, watched == left, diff, shift, ctrl);
+      return updateControlPoint(me, watched == left, diff, shift, alt);
     }
   }
   else if (event->type() == QEvent::GraphicsSceneContextMenu) {
@@ -986,7 +990,7 @@ bool KnotControlledItem::updateControlPoint(QGraphicsSceneMouseEvent* event, boo
   //Controls
   if (controlValue.type == Glyph::mpgui_explicit) {
 
-    updateControlledPoint(controlValue.dirExpr.get(), expIndex, diff);
+    updateControlledPoint(controlValue.dirExpr.get(), expIndex, diff, ctrl);
 
     /*
     if (controlValue.isEqualBefore && leftControl) {

@@ -106,6 +106,6 @@ private:
 	bool updateControlPoint(QGraphicsSceneMouseEvent* event, bool leftControl, QPointF diff, bool shift, bool ctrl);
 
 
-	bool updateControlledPoint(MFExpr* expr, int position, QPointF diff);
+	bool updateControlledPoint(MFExpr* expr, int position, QPointF diff, bool rountmodif);
 };
 #endif // KNOTCONTROLLEDITEM_H

@@ -48,15 +48,13 @@ vardef round primary u =
 
 newinternal nextunicode, lefttatweel,righttatweel, leftbearing, rightbearing,  nuqta, which_in_baseline, totalglyphs, savepicture, number_of_anchors; 
 newinternal string charname,originalglyph,coloredglyph;
-newinternal showAnchors,digitscale;
+newinternal showAnchors;
 pair lefttatweel_const, righttatweel_const;
 newinternal minLeft,maxLeft,minRight,maxRight, maxLii, maxRii;
 newinternal charlt,charrt,glyphtype;
 
 %For parametric kashida
 newinternal leftVerticalRatio,leftVerticalRatioNeg,rightVerticalRatio,rightVerticalRatioNeg;
-
-digitscale := 0.80;
 
 nextunicode := 58000; % 57343; %hex"E000"-1; % the first code for aya numbers
 
@@ -221,7 +219,6 @@ def endchar =
   % Need to split rtlcursive when generating multiple alternate glyphs with sklx axis otherwise it overlows
   if known leftanchor and known rightanchor :
     defAnchor(rtlcursiveinitmedi,rightanchor,EntryAnchorRTL);
-
     defAnchor(rtlcursivemedifina,leftanchor,ExitAnchorRTL);
     defAnchor(rtlcursivemedimedi,rightanchor,EntryAnchorRTL);
     defAnchor(rtlcursivemedimedi,leftanchor,ExitAnchorRTL);      
@@ -966,23 +963,24 @@ vardef getDigitName(expr digit) =
   fi
 enddef;
 
+newinternal ayadigitkern,ayadigitheight;
+ayadigitkern:= 40;
+ayadigitheight:= 110;
 vardef genAyaNumber(suffix ayaname)(expr ayaNumber, maxWidth) =
 
-  save ayapic,position,digitheight,digittrans,digitname,digitvalue,digitkern,width_;
+  save ayapic,position,digittrans,digitname,digitvalue,width_;
   string digitname[];
   picture ayapic,digitspic[]; 
   transform digittrans[];
   numeric  digitvalue[],width_[];
   ayapic := ayaname.pic;
-  digitheight := 110;
-  digitkern := 40;
   width_0:=getWidth(ayapic);
   drawcomp(ayaname,identity);
   if ayaNumber < 10 :
     digitname.1 := getDigitName(ayaNumber);
     digitspic.1 := scantokens(digitname.1)pic;
     position := width_0/2 - getWidth(digitspic.1)/2;
-    digittrans.1 := identity shifted (position,digitheight);
+    digittrans.1 := identity shifted (position,ayadigitheight);
     drawcomp(scantokens digitname.1,digittrans.1);
   elseif ayaNumber < 100 : 
     digitvalue.1 := ayaNumber mod 10;
@@ -991,9 +989,9 @@ vardef genAyaNumber(suffix ayaname)(expr ayaNumber, maxWidth) =
     digitname.2 := getDigitName(digitvalue.2);
     digitspic.1 := scantokens(digitname.1)pic;
     digitspic.2 := scantokens(digitname.2)pic;
-    position := width_0/2 - (getWidth(digitspic.1) + getWidth(digitspic.2) + digitkern)/2;
-    digittrans.2 := identity shifted (position,digitheight);
-    digittrans.1 := identity shifted (position + getWidth(digitspic.2) + digitkern,digitheight);
+    position := width_0/2 - (getWidth(digitspic.1) + getWidth(digitspic.2) + ayadigitkern)/2;
+    digittrans.2 := identity shifted (position,ayadigitheight);
+    digittrans.1 := identity shifted (position + getWidth(digitspic.2) + ayadigitkern,ayadigitheight);
     drawcomp(scantokens digitname.1,digittrans.1);
     drawcomp(scantokens digitname.2,digittrans.2);
   else:
@@ -1006,12 +1004,12 @@ vardef genAyaNumber(suffix ayaname)(expr ayaNumber, maxWidth) =
     digitspic.1 := scantokens(digitname.1)pic;
     digitspic.2 := scantokens(digitname.2)pic;
     digitspic.3 := scantokens(digitname.3)pic;
-    position := width_0/2 - (getWidth(digitspic.1) + getWidth(digitspic.2) + getWidth(digitspic.3) + 2digitkern)/2;
+    position := width_0/2 - (getWidth(digitspic.1) + getWidth(digitspic.2) + getWidth(digitspic.3) + ayadigitkern)/2;
     picture _pic;numeric _scale;
     _pic := image(
      draw digitspic.3;
-     draw digitspic.2 shifted (getWidth(digitspic.3) + digitkern,0);
-     draw digitspic.1 shifted (getWidth(digitspic.3) + getWidth(digitspic.2) + 2*digitkern,0);
+     draw digitspic.2 shifted (getWidth(digitspic.3) + ayadigitkern,0);
+     draw digitspic.1 shifted (getWidth(digitspic.3) + getWidth(digitspic.2) + 2*ayadigitkern,0);
     );
     width_1:=getWidth(_pic);
     if width_1 > maxWidth :
@@ -1019,7 +1017,7 @@ vardef genAyaNumber(suffix ayaname)(expr ayaNumber, maxWidth) =
       _pic := _pic xscaled _scale;
       position := (width_0 - getWidth(_pic))/2;         
     fi
-    draw _pic shifted (position,digitheight);
+    draw _pic shifted (position,ayadigitheight);
   fi
 
 
@@ -1114,7 +1112,7 @@ vardef smoothjoin(expr radius)(text ll) =
   pp_[3] = pp_[1];
   ta_[1] = 0;
   (tb_[1], ta_[2]) = pp_[1] intersectiontimes pp_[2];
-  (length pp_[1]-ta_[3], tb_[2]) =  reverse pp_[1] intersectiontimes pp_[2];
+  (length pp_[1]-ta_[3], length pp_[2] - tb_[2]) =  reverse pp_[1] intersectiontimes reverse pp_[2];
   tb_[3] := length pp_[3];
 
   subpath (ta_[1],tb_[1]) of pp_[1]

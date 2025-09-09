@@ -136,7 +136,7 @@ static LineTextInfo analyzeLineForJust(QString lineText) {
     QChar qchar = lineText.at(i);
     if (qchar == ' ') {
 
-      if ((lineText.at(i - 1) >= 0x0660 && lineText.at(i - 1) <= 0x0669) || (lineText.at(i + 1) == 0x06DD)) {
+      if ((i > 0 && lineText.at(i - 1) >= 0x0660 && lineText.at(i - 1) <= 0x0669) || (lineText.at(i + 1) == 0x06DD)) {
         lineTextInfo.ayaSpaceIndexes.push_back(i);
         lineTextInfo.spaces.insert({ i, SpaceType::Aya });
       }

@@ -412,15 +412,19 @@ public:
 	}
 
 	QVariant constantValue(int pos) override {
+		QVariant ret;
 		if (pos < nbArgs) {
-			return args[pos]->constantValue(0);
+			ret =  args[pos]->constantValue(0);
 		}
+		return ret;
 	}
 
 	bool isConstant(int pos) override {
+		bool ret = false;
 		if (pos < nbArgs) {
-			return args[pos]->isConstant(0);
+			ret = args[pos]->isConstant(0);
 		}
+		return ret;
 	}
 
 	virtual void setConstantValue(int pos, QVariant value) override {
@@ -450,9 +454,11 @@ public:
 	}
 
 	QString paramName(int i) override {
+		QString name;
 		if (i < nbArgs) {
-			return args[i]->paramName(0);
+			name =  args[i]->paramName(0);
 		}
+		return name;
 	}
 
 	std::unique_ptr<MFExpr> clone() override {
