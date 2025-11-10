@@ -126,6 +126,7 @@ struct LineToJustify {
   int width;
   LineJustification lineJustification;
   LineType lineType;
+  bool basm2 = false;
 };
 
 using CalcAnchor = std::function<QPoint(QString, QString, QPoint, GlyphParameters)>;
@@ -303,16 +304,16 @@ public:
 
   int tajweedcolorindex = 0xFFFF;
 
-  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor) {
-    return justifyPage(emScale, lineWidth, pageWidth, lines, justification, newFace, tajweedColor, JustStyle::None, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, JustType::HarfBuzz);
+  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor,QString mushafLayoutType) {
+    return justifyPage(emScale, lineWidth, pageWidth, lines, justification, newFace, tajweedColor, JustStyle::None, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, JustType::HarfBuzz, mushafLayoutType);
   }
 
-  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType);
-  QList<LineLayoutInfo> justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType);
+  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType, QString mushafLayoutType);
+  QList<LineLayoutInfo> justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType, QString mushafLayoutType);
 
 
   QList<LineLayoutInfo> justifyPageUsingFeatures(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor,
-    hb_buffer_cluster_level_t  cluster_level, JustType justType, JustStyle justStyle);
+    hb_buffer_cluster_level_t  cluster_level, JustType justType, JustStyle justStyle, QString mushafLayout);
   LayoutPages pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
   QList<QStringList> pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, QSet<int> forcedBreaks, int nbPages);
   QList<QStringList> pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, int nbPages);
@@ -325,7 +326,7 @@ public:
 
   void clearAlternates();
 
-  void parseCppLookup(QString lookupName);
+  bool parseCppLookup(QString lookupName);
 
   QByteArray getCmap();
 

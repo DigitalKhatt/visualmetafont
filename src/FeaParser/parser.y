@@ -56,12 +56,13 @@
 
 %token<int> INT_LITERAL CID
 %token<double> DOUBLE_LITERAL
-%token<std::string> IDENTIFIANT REGEXP GLYPHNAME
+%token<std::string> IDENTIFIANT REGEXP GLYPHNAME T_FILENAME
 
 %token LOOKUP FEATURE POSITION SUBSTITUTE BASE ANCHOR MARK MARKCLASS CURSIVE T_NULL NOTDEF FUNCTION BY FROM ACTION
 %token COLOR CALLBACK EXPANSION ADD STARTLIG ENDLIG ENDKASHIDA JUST COORD
 %token LOOKUPFLAG RightToLeft IgnoreBaseGlyphs IgnoreLigatures IgnoreMarks MarkAttachmentType UseMarkFilteringSet
 %token TABLE ENDTABLE PASS ENDPASS ANY STRETCH SHRINK END STEP AFTERGSUB
+%token INCLUDE
 
 %type <FeaRoot*> root
 %type <std::vector<Statement *> *> statements
@@ -99,6 +100,8 @@
 %type <JustTable::JustStep> juststep;
 %type <JustTable> justrules;
 %type <std::vector<JustTable::JustStep>> juststeps stretch shrink;
+%type <IncludeStatment*> include_statement
+
 
 //%destructor { delete $$; } <std::string>
 
@@ -125,8 +128,18 @@ statement
 	| classdefinition {$$ = $1;}
 	| feature_definition {$$ = $1;}	
 	| table_definition {$$ = $1;}	
+	| include_statement {$$ = $1;}	
 	;
 
+include_statement
+	: INCLUDE '(' { driver.lexer->pushFilenameMode(); } T_FILENAME[name] ')'
+	{
+		if(!driver.parse_file($name)){
+			error(yyla.location, std::string("File name '") + $name + "' cannot be parsed'");		
+		};
+		$$ = new IncludeStatment($name);
+	}
+	;
 feature_definition
 	: FEATURE featuretag[bname] '{' feature_statements[lstm] '}' featuretag[lname]
 	{

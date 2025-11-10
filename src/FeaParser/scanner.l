@@ -28,6 +28,7 @@ using token = feayy::Parser::token;
 #define YY_USER_ACTION  yylloc->columns(yyleng);
 #define YY_NO_UNISTD_H
 %}
+%x FILENAME
 
 %%
 
@@ -85,6 +86,7 @@ using token = feayy::Parser::token;
 "pass"														{return(token::PASS);} 
 "endpass"													{return(token::ENDPASS);} 
 "any"													    {return(token::ANY);} 
+"include"													{return(token::INCLUDE);} 
 [a-zA-Z_][a-zA-Z\.0-9_]*									{/*yylval->IDENTIFIANT = new std::string(yytext, yyleng);*/  yylval->emplace<std::string>(std::string(yytext, yyleng)); return token::IDENTIFIANT;}
 \\[a-zA-Z_][a-zA-Z\.0-9_]*									{/*yylval->GLYPHNAME = new std::string(&yytext[1], yyleng - 1);*/ yylval->emplace<std::string>(std::string(&yytext[1], yyleng - 1));return token::GLYPHNAME;}
 \\[0-9]+													{/*yylval->CID = atoi(&yytext[1]);*/yylval->emplace<int>(atoi(&yytext[1])); return token::CID;}
@@ -92,7 +94,12 @@ using token = feayy::Parser::token;
 "/"[^/]*"/"													{/*yylval->REGEXP = new std::string(&yytext[1], yyleng-2);*/  yylval->emplace<std::string>(std::string(&yytext[1], yyleng-2)); return token::REGEXP;}
 [|(),{};=<>@'#[\]\\/]										{return yytext[0];}
 .															{return yytext[0];}
-
+<FILENAME>[^) \t\r\n]+  {
+    yylval->emplace<std::string>(std::string(yytext, yyleng));    
+    BEGIN(INITIAL);   // exit FILENAME mode after token
+    return token::T_FILENAME;
+}
+<FILENAME>[ \t\r\n]+    ;   // skip spaces
 
 %% /*** Additional Code ***/
 
@@ -112,6 +119,8 @@ void Scanner::set_debug(bool b)
 {
     yy_flex_debug = b;
 }
+
+void Scanner::pushFilenameMode() { BEGIN(FILENAME); }
 
 }
 

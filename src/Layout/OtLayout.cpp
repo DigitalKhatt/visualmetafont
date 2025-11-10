@@ -1379,12 +1379,14 @@ void OtLayout::parseFeatureFile(std::string fileName)
   }
 
 }
-void OtLayout::parseCppLookup(QString lookupName) {
+bool OtLayout::parseCppLookup(QString lookupName) {
 
   Lookup* newlookup = automedina->getLookup(lookupName);
   if (newlookup) {
     addLookup(newlookup);
+    return true;
   }
+  return false;
 }
 void OtLayout::saveParameters(QJsonObject & json) const {
   for (auto lookup : lookups) {
@@ -2327,11 +2329,12 @@ void OtLayout::jutifyLine(hb_font_t * shapefont, hb_buffer_t * text_buffer, int 
 
 }
 
-QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>&lines, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType) {
+QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>&lines, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level,
+   JustType justType, QString mushafLayout) {
 
 
   if (justType == JustType::Madina || justType == JustType::IndoPak || justType == JustType::Experimental) {
-    return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, cluster_level, justType, justStyle);
+    return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, cluster_level, justType, justStyle, mushafLayout);
   }
 
   QList<LineLayoutInfo> page;
@@ -2502,14 +2505,14 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
 }
 
 QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification,
-  bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType) {
+  bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType, QString mushafLayoutType) {
 
   QVector<LineToJustify> newLines;
 
   for (auto& line : lines) {
     newLines.append({ line,lineWidth ,justification,LineType::Line });
   }
-  return justifyPage(emScale, pageWidth, newLines, newFace, tajweedColor, justStyle, cluster_level, justType);
+  return justifyPage(emScale, pageWidth, newLines, newFace, tajweedColor, justStyle, cluster_level, justType,mushafLayoutType);
 }
 
 QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, int nbPages) {
@@ -3412,7 +3415,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
         newLineWidth = 0;
       }
 
-      auto lineResult = this->justifyPage(emScale, newLineWidth, pageWidth, QStringList{ lines[lineIndex] }, LineJustification::Center, false, true)[0];
+      auto lineResult = this->justifyPage(emScale, newLineWidth, pageWidth, QStringList{ lines[lineIndex] }, LineJustification::Center, false, true,"")[0];
 
 
       if (lineIndex == 0) {
@@ -3446,7 +3449,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
 
     auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
-    auto page = this->justifyPage(emScale, lineWidth, lineWidth, lines, LineJustification::Center, false, true);
+    auto page = this->justifyPage(emScale, lineWidth, lineWidth, lines, LineJustification::Center, false, true,"");
 
     bool containsBeginSura = false;
 

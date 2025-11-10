@@ -164,13 +164,11 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
       QJsonObject lineObject;
       QJsonArray glyphsArray;
       for (auto& glyph : line.glyphs) {
-        QJsonObject glyphObject;
-
-
         /*
          QJsonArray measures;
 
         measures.append(round_up(glyph.codepoint));
+        measures.append(round_up(glyph.cluster));
         measures.append(round_up(glyph.x_advance));
         measures.append(round_up(glyph.x_offset));
         measures.append(round_up(glyph.y_offset));
@@ -178,9 +176,13 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
         measures.append(round_up(glyph.lefttatweel));
         measures.append(round_up(glyph.righttatweel));
 
-        glyphObject["m"] = measures;*/
-        
+        glyphsArray.append(measures);*/
 
+        QJsonObject glyphObject;        
+        
+        
+        glyphObject["codepoint"] = glyph.codepoint;
+        glyphObject["cluster"] = glyph.cluster;
 
         if (glyph.x_advance != 0) {
           glyphObject["x_advance"] = round_up(glyph.x_advance);
@@ -196,6 +198,7 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
         if (glyph.color != 0) {
           glyphObject["color"] = (int)glyph.color;
         }
+        
 
         if (glyph.lefttatweel != 0) {
           glyphObject["lefttatweel"] = glyph.lefttatweel;
@@ -204,9 +207,6 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
         if (glyph.righttatweel != 0) {
           glyphObject["righttatweel"] = glyph.righttatweel;
         }
-
-        glyphObject["codepoint"] = glyph.codepoint;
-
 
         if (glyph.beginsajda) {
           glyphObject["beginsajda"] = true;
@@ -237,7 +237,8 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
   }
 
 }
-void GenerateLayout::generateLayout(int lineWidth, int scale) {
+
+void GenerateLayout::generateLayoutJson(int lineWidth, int scale) {
   bool Json = true;
 
   auto path = m_otlayout->font->filePath();

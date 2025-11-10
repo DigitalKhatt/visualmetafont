@@ -10,6 +10,15 @@ endif()
 
 find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
+find_package(Clipper2 CONFIG REQUIRED)
+
+include(FetchContent)
+FetchContent_Declare(
+gjk_epa
+GIT_REPOSITORY https://github.com/andreacasalino/Flexible-GJK-and-EPA
+GIT_TAG        master
+)
+FetchContent_MakeAvailable(gjk_epa)
 
 
 cmake_policy(SET CMP0071 NEW)
@@ -121,6 +130,7 @@ set(Export
   Export/protobuf/quran.pb.cc
   Export/protobuf/quran.pb.h
   Export/generateLayoutProtoBuf.cpp
+  Export/generateLayoutBinary.cpp
   )
 source_group("Export" FILES ${Export})
 
@@ -149,6 +159,18 @@ set(Layout
   Layout/just_features.cpp
   Layout/gllobal_strings.h
   Layout/gllobal_strings.cpp
+  Layout/tajweed.h
+  Layout/tajweed.cpp
+  Layout/generateOverlapLookups.cpp
+  Layout/adjust_overlapping.cpp
+  Layout/adjust_overlapping2.cpp
+  Layout/polypartition.h
+  Layout/polypartition.cpp
+  Layout/geometry.h
+  Layout/geometry.cpp
+  Layout/gjk_epa.cpp
+  Layout/contact_flexible.h
+  Layout/contact_flexible.cpp
   )
 
 
@@ -406,6 +428,8 @@ if (NOT EMSCRIPTEN)
     Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::Svg Qt5::PrintSupport Qt5::Widgets Qt5::Sql
     ${QT_STATIC_PLUGINS}
     ZLIB::ZLIB
+    Clipper2::Clipper2    
+    GJK-EPA
   )
 else()
   target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser     

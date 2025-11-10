@@ -22,6 +22,8 @@
 
 #include "driver.h"
 #include "scanner.h"
+#include <filesystem>
+
 
 
 namespace feayy {
@@ -39,18 +41,47 @@ namespace feayy {
 
 		Scanner scanner(&in);
 		scanner.set_debug(trace_scanning);
+
+		auto prevLexer = this->lexer;
 		this->lexer = &scanner;
 
 		Parser parser(*this);
 		parser.set_debug_level(trace_parsing);
-		return (parser.parse() == 0);
+
+		auto ret = parser.parse();
+
+		this->lexer = prevLexer;
+
+
+		return (ret == 0);
 	}
 
 	bool Driver::parse_file(const std::string &filename)
 	{
-		std::ifstream in(filename.c_str());
-		if (!in.good()) return false;
-		return parse_stream(in, filename);
+		std::filesystem::path path(filename);
+
+		if (path.is_absolute()) {
+			includeNames.push_back(path);
+		} else {
+			if(!includeNames.empty()){
+				auto topPath = includeNames.front();
+				auto dir = topPath.parent_path();
+				path = dir / path;
+			}
+			
+			includeNames.push_back(path);
+		}
+
+		bool ret = false;
+
+		std::ifstream in(path);
+		if (in.good()){
+			ret = parse_stream(in, path);
+		}
+
+		includeNames.pop_back();
+
+		return ret;
 	}
 
 	bool Driver::parse_string(const std::string &input, const std::string& sname)

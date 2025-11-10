@@ -754,7 +754,7 @@ QByteArray ToOpenType::hhea() {
   data << (int16_t)globalValues.minLeftSideBearing; // minLeftSideBearing
   data << (int16_t)globalValues.minRightSideBearing; // minRightSideBearing
   data << (int16_t)globalValues.xMaxExtent; // xMaxExtent
-  data << (int16_t)0; // caretSlopeRise
+  data << (int16_t)1; // caretSlopeRise
   data << (int16_t)0; // caretSlopeRun
   data << (int16_t)0; // caretOffset
   data << (int16_t)0; // reserved

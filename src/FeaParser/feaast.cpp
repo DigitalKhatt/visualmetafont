@@ -41,6 +41,7 @@ namespace feayy {
   void MultipleSubstitutionRule::accept(Visitor& v) { v.accept(*this); }
   void TableDefinition::accept(Visitor& v) { v.accept(*this); }
   void JustTable::accept(Visitor& v) { v.accept(*this); }
+  void IncludeStatment::accept(Visitor& v) { v.accept(*this); }
 
 
 
@@ -601,7 +602,10 @@ namespace feayy {
       auto liter = context.lookups.find(lookupReference.lookupName.toStdString());
 
       if (liter == context.lookups.end()) {
-        otlayout->parseCppLookup(lookupReference.lookupName);
+        auto ret = otlayout->parseCppLookup(lookupReference.lookupName);
+        if(!ret){
+          qDebug() << "Lookup " << lookupReference.lookupName << " not found";
+        }
         return;
       }
 
@@ -799,6 +803,9 @@ namespace feayy {
     otlayout->justTable = ot_justTable;
 
 
+  }
+
+  void LookupDefinitionVisitor::accept(IncludeStatment& includeStatment) {
   }
 
 

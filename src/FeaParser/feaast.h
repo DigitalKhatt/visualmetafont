@@ -1012,6 +1012,26 @@ namespace feayy {
 
   };
 
+  class IncludeStatment : public Statement {
+  public:
+    IncludeStatment(std::string fileName)
+      : fileName{ fileName }
+    {}
+
+    ~IncludeStatment() {     
+    }
+
+    const std::string& getFileName() {
+      return fileName;
+    }
+
+    void accept(Visitor&) override;
+
+  private:
+    std::string fileName;    
+
+  };
+
   class FeaContext
   {
   public:    
@@ -1067,6 +1087,8 @@ namespace feayy {
     virtual void accept(LigatureSubstitutionRule&) = 0;
     virtual void accept(TableDefinition&) = 0;
     virtual void accept(JustTable&) = 0;
+    virtual void accept(IncludeStatment& includeStatment) = 0;
+
   };
 
   class LookupDefinitionVisitor : public Visitor {
@@ -1090,7 +1112,7 @@ namespace feayy {
     void accept(LigatureSubstitutionRule&) override;
     void accept(TableDefinition&) override;
     void accept(JustTable&) override;
-
+    void accept(IncludeStatment& includeStatment) override;
 
     Lookup* lookup;
     std::string currentFeature;

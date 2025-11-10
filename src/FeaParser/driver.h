@@ -22,7 +22,8 @@
 
 #include <string>
 #include <vector>
-
+#include <deque>
+#include <filesystem>
 
 
 namespace feayy {
@@ -88,6 +89,8 @@ namespace feayy {
 
 		bool enter_regexp = false;		
 		bool enter_glyphname = false;
+	private:
+			std::deque<std::filesystem::path> includeNames;
 	};
 
 }

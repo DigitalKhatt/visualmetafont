@@ -5,6 +5,8 @@
 #include <qregularexpression.h>
 
 #include "hb-font.hh"
+#include "tajweed.h"
+
 
 using namespace std;
 
@@ -1049,6 +1051,8 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
 
     double maxStretchBySpace = std::min(100.0, spaceWidth * 1);
     double maxStretchByAyaSpace = std::min(200.0, spaceWidth * 2);
+    //let maxStretchBySpace = Math.max(200 - spaceWidth,0);
+    //let maxStretchByAyaSpace = Math.max(300 - spaceWidth,0);
 
     double maxStretch = maxStretchBySpace * lineTextInfo.simpleSpaceIndexes.size() + maxStretchByAyaSpace * lineTextInfo.ayaSpaceIndexes.size();
 
@@ -1116,10 +1120,15 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
   return result;
 
 }
+static QMap<QString, int> tajweedNameToColor = {
+  {"green",0x00A650FF}, {"tafkim", 0x006694FF}, {"lgray", 0xB4B4B4FF},
+  {"lkalkala",0x00ADEFFF}, {"red1", 0xC38A08FF}, {"red2", 0xF47216FF},
+  {"red3",0xEC008CFF}, {"red4", 0x8C0000FF}
+};
 
 static LineLayoutInfo shapeLine(OtLayout* layout, int lineWidth, int pageWidth,
   const LineTextInfo& lineTextInfo, const JustResultByLine& justResult, bool tajweedColor, double emScale, hb_font_t* font,
-  LineJustification justification, int& currentyPos) {
+  LineJustification justification, int& currentyPos,QMap<int, QString>& tajweedResult) {
 
   vector< hb_feature_t> features{};
 
@@ -1174,7 +1183,33 @@ static LineLayoutInfo shapeLine(OtLayout* layout, int lineWidth, int pageWidth,
     glyphLayout.x_offset = glyph_pos[i].x_offset;
     glyphLayout.y_offset = glyph_pos[i].y_offset;
     glyphLayout.lookup_index = glyph_pos[i].lookup_index;
-    glyphLayout.color = glyph_pos[i].lookup_index >= layout->tajweedcolorindex ? glyph_pos[i].base_codepoint : 0;
+    if (tajweedColor) {
+      auto color = tajweedResult.find(glyphLayout.cluster);
+      if(color != tajweedResult.end()){
+        glyphLayout.color = tajweedNameToColor[color.value()];
+      } else if (lineTextInfo.lineText[glyphLayout.cluster] == QChar(0x034F)) {
+        auto nextIndex = i - 1;
+        auto nextCluster = glyph_info[nextIndex].cluster;
+        auto currCluster = glyphLayout.cluster + 1;
+        if (nextCluster > currCluster) {
+          auto color = tajweedResult.find(currCluster);
+          if (color != tajweedResult.end()) {
+            // happens only in لِيَسُ͏ࣳٓـٔ͏ُوا۟ page 282 line 14  
+            //console.log(`cgi***************************************************************Page ${this.pageIndex + 1} Line ${lineIndex + 1}`)
+            glyphLayout.color = tajweedNameToColor[color.value()];
+          }
+          /* debug
+          if (nextCluster - currCluster > 1 && lineText[glyph.Cluster + 2] !== "\u034F") {
+            console.log(`nextCluster - currCluster > 1**********************************************************Page ${this.pageIndex + 1} Line ${lineIndex + 1}`)
+          }*/
+        } /*else {
+          // happens only for فَٱدَّٰرَٰ͏ْٔتُمْ page 11 line 5 no tajweed coloring so it is OK
+          //console.log(`nextCluster<=currCluster**********************************************************Page ${this.pageIndex + 1} Line ${lineIndex + 1}`)
+        }  */
+      }
+    }else{
+      glyphLayout.color = 0;
+    }    
     glyphLayout.subtable_index = glyph_pos[i].subtable_index;
     glyphLayout.base_codepoint = glyph_pos[i].base_codepoint;
 
@@ -1218,10 +1253,12 @@ static LineLayoutInfo shapeLine(OtLayout* layout, int lineWidth, int pageWidth,
 
 }
 
+
+
 QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pageWidth, const QVector<LineToJustify>& lines,
   bool newFace, bool tajweedColor,
   hb_buffer_cluster_level_t  cluster_level,
-  JustType justType, JustStyle justStyle) {
+  JustType justType, JustStyle justStyle, QString mushafLayout) {
 
   QList<LineLayoutInfo> page;
 
@@ -1235,6 +1272,13 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
 
   auto minRatio = 1000.0;
   auto maxRatio = 0.00000001;
+
+  QVector<QMap<int, QString>> tajweedResults(lines.size());
+
+  if(tajweedColor){
+    TajweedService tajweedService;
+    tajweedResults = tajweedService.applyTajweedByPage(lines, mushafLayout.contains("indopak"));
+  }
 
   for (auto lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
     auto& line = lines[lineIdx];
@@ -1284,9 +1328,10 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
     }
 
     JustResultByLine justResultByLine;
+    
 
     if (line.lineType == LineType::Bism) {
-      justResultByLine.globalFeatures.push_back({ "basm",1 });
+      justResultByLine.globalFeatures.push_back({ line.basm2 ? "bism" : "basm",1 });
       justResultByLine.ayaSpacing = spaceWidth;
       justResultByLine.simpleSpacing = spaceWidth;
       justResultByLine.xScale = 1;
@@ -1311,7 +1356,7 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
       hb_font_set_variation(shapeFont, HB_TAG('S', 'C', 'L', 'X'), justResultByLine.sclxAxis);
     }
 
-    auto lineLayoutInfo = shapeLine(this, line.width, pageWidth, lineTextInfo, justResultByLine, tajweedColor, newEmScale, shapeFont, line.lineJustification, currentyPos);
+    auto lineLayoutInfo = shapeLine(this, line.width, pageWidth, lineTextInfo, justResultByLine, tajweedColor, newEmScale, shapeFont, line.lineJustification, currentyPos,tajweedResults[lineIdx]);
     lineLayoutInfo.type = line.lineType;
 
     if (newFont) {
@@ -1325,6 +1370,8 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
     else if (lineLayoutInfo.type == LineType::Line) {
       lineLayoutInfo.xscale = justResultByLine.xScale;
     }
+
+    
 
 
 

@@ -19,10 +19,11 @@
 
 #pragma once
 
-//#include <QtWidgets>
-#include "qmainwindow.h"
-#include "OtLayout.h"
+// #include <QtWidgets>
 #include <qcombobox.h>
+
+#include "OtLayout.h"
+#include "qmainwindow.h"
 #include "qsqldatabase.h"
 
 class Font;
@@ -43,65 +44,81 @@ class QTreeWidget;
 
 struct OverlapResult {
   int pageIndex;
-  int lineIndex; 
+  int lineIndex;
   int nextGlyph;
   int prevGlyph;
 };
 
-class LayoutWindow : public QMainWindow
-{
-	Q_OBJECT
+class LayoutWindow : public QMainWindow {
+  Q_OBJECT
 
+ public:
+  LayoutWindow(Font* font, QWidget* parent = Q_NULLPTR,
+               Qt::WindowFlags flags = Qt::WindowFlags());
+  ~LayoutWindow();
 
-public:
+ public slots:
+  void layoutParameterChanged();
+  void executeRunText(bool newFace, int refresh = 2);
 
-	LayoutWindow(Font *font, QWidget *parent = Q_NULLPTR, Qt::WindowFlags flags = Qt::WindowFlags());
-	~LayoutWindow();
+ protected:
+  void resizeEvent(QResizeEvent* event) override;
 
-public slots:
-	void layoutParameterChanged();
-	void executeRunText(bool newFace, int refresh = 2);
-	
-
-protected:
-	void resizeEvent(QResizeEvent *event) override;
-
-private slots :
-	void calculateMinimumSize();
-  void findOverflows(bool overfull);  
-	void testKasheda();
-	void serializeTexPages();
-	void serializeMedinaPages();
+ private slots:
+  void calculateMinimumSize();
+  void findOverflows(bool overfull);
+  void testKasheda();
+  void serializeTexPages();
+  void serializeMedinaPages();
   void compareIndopakFonts();
   void compareFonts(QString layoutName, QString textCol);
   void compareWaqfs(QString layoutName, QString textCol);
   void createDataBase();
 
-private:
-	
-	void createActions();
-	void createDockWindows();
-	void loadLookupFile(QString fileName);
-	bool save();
-	bool generateOpenType();
+ private:
+  void createActions();
+  void createDockWindows();
+  void loadLookupFile(QString fileName);
+  bool save();
+  bool generateOpenType();
   bool generateOpenTypeCff2Standard();
   bool generateOpenTypeCff2StandardWithoutVar();
   bool generateOpenTypeCff2Extended();
   bool generateOpenTypeCff2(bool extended, bool generateVariableOpenType);
-	bool exportpdf();
-	bool generateAllQuranTexBreaking();
-	bool generateMushaf(bool isHTML);
+  bool exportpdf();
+  bool generateAllQuranTexBreaking();
+  bool generateMushaf(bool isHTML);
   bool generateMadinaVARHTML();
   bool generateLayoutInfo();
-	LayoutPages shapeMedina(double scale, int lineWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
-  LayoutPages shapeMushaf(double scale, int lineWidth, OtLayout* layout, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
-	void testQuarn();
-	void simpleAdjustPage(hb_buffer_t *buffer);
-	void adjustPage(QString text, hb_font_t* shapeFont, hb_buffer_t *buffer);	
-	void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, int beginPage, int nbPages, QVector<int>&, double emScale, QVector<OverlapResult>& result, bool sameLine, bool interLine);
-  void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth, QList<QStringList> originalPages, double emScale, bool sameLine, bool interLine);
-  void applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages, QList<QStringList> originalPages, int lineWidth, int beginPage, int nbPages, double emScale);
-  void generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pages,const QList<QStringList>& originalPages,const QVector<OverlapResult>& result);
+  LayoutPages shapeMedina(double scale, int lineWidth, OtLayout* layout,
+                          hb_buffer_cluster_level_t cluster_level =
+                              HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
+  LayoutPages shapeMushaf(double scale, int lineWidth, OtLayout* layout,
+                          hb_buffer_cluster_level_t cluster_level =
+                              HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
+  void testQuarn();
+  void simpleAdjustPage(hb_buffer_t* buffer);
+  void adjustPage(QString text, hb_font_t* shapeFont, hb_buffer_t* buffer);
+  void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth,
+                         int beginPage, int nbPages, QVector<int>&,
+                         double emScale, QVector<OverlapResult>& result,
+                         bool sameLine, bool interLine);
+  void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth,
+                         QList<QStringList> originalPages, double emScale,
+                         bool sameLine, bool interLine);
+  void adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages, int lineWidth,
+                          QList<QStringList> originalPages, double emScale,
+                          bool sameLine, bool interLine);
+  void adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages, int lineWidth,
+                          int beginPage, int nbPages, QVector<int>&,
+                          double emScale, std::vector<OverlapResult>& result,
+                          bool sameLine, bool interLine);
+  void applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
+                                QList<QStringList> originalPages, int lineWidth,
+                                int beginPage, int nbPages, double emScale);
+  void generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pages,
+                              const QList<QStringList>& originalPages,
+                              const QVector<OverlapResult>& result);
   void editLookup(QString lookupName);
   void saveCollision();
   void layoutDatabase();
@@ -110,44 +127,44 @@ private:
   void checkOffMarks();
   void savePagetoPicture();
 
-	void setQuranText(int type);
+  void setQuranText(int type);
   QComboBox* justCombo;
   QComboBox* justStyleCombo;
-	QDockWidget* textRun;
-	QDockWidget* lookupTree;
-	QPlainTextEdit * textEdit;
-	QPushButton * executeRunButton;
-	QVBoxLayout * textRunLayout;
+  QDockWidget* textRun;
+  QDockWidget* lookupTree;
+  QPlainTextEdit* textEdit;
+  QPushButton* executeRunButton;
+  QVBoxLayout* textRunLayout;
 
-	QMenu *viewMenu;
-	//toolbar
-	QToolBar *fileToolBar;
-	QToolBar *editToolBar;
-	QToolBar *pointerToolbar;
+  QMenu* viewMenu;
+  // toolbar
+  QToolBar* fileToolBar;
+  QToolBar* editToolBar;
+  QToolBar* pointerToolbar;
 
-	QMenu *otherMenu;
+  QMenu* otherMenu;
 
+  QMenu* settingsMenu;
 
-	Font* m_font;
+  Font* m_font;
 
-	OtLayout * m_otlayout;
+  OtLayout* m_otlayout;
 
-	GraphicsViewAdjustment* m_graphicsView;
-	GraphicsSceneAdjustment* m_graphicsScene;	
-	QSpinBox *integerSpinBox;
-	QLabel *suraName;
-	QSpinBox *fontSizeSpinBox;
-	QTreeWidget * lokkupTreeWidget;
+  GraphicsViewAdjustment* m_graphicsView;
+  GraphicsSceneAdjustment* m_graphicsScene;
+  QSpinBox* integerSpinBox;
+  QLabel* suraName;
+  QSpinBox* fontSizeSpinBox;
+  QTreeWidget* lokkupTreeWidget;
 
-	
+  QList<QString> currentQuranText;
+  QList<QString> suraNameByPage;
 
-	QList<QString> currentQuranText;
-	QList<QString> suraNameByPage;
-
-	bool applyJustification;
-	bool applyCollisionDetection = false;  
+  bool applyJustification;
+  bool applyCollisionDetection = false;
   bool applyForce = false;
-  bool applyTeXAlgo = false;  
+  bool applyTeXAlgo = false;
+  bool tajweedEnabled = true;
 
   QComboBox* mushafLayouts;
 };

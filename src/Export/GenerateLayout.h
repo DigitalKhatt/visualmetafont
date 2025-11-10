@@ -31,7 +31,8 @@ class GenerateLayout
 public:
   GenerateLayout(OtLayout* otlayout, LayoutPages& layoutPages);
   ~GenerateLayout();
-  void generateLayout(int lineWidth, int scale);
+  void generateLayoutJson(int lineWidth, int scale);
+  void generateLayoutBinary(int lineWidth, int scale);
   void generateLayoutProtoBuf(int lineWidth, int scale);
   void generatePages(QJsonArray& pagesArray, int lineWidth, int scale);
 
