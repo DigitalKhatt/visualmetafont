@@ -1640,20 +1640,18 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
   return result;
 }
 bool LayoutWindow::generateLayoutInfo() {
-  OtLayout layout = OtLayout(m_font, true, true);
-  layout.useNormAxisValues = false;
-
-  layout.loadLookupFile("features.fea");
+  // OtLayout layout = OtLayout(m_font, true, true);
+  // layout.useNormAxisValues = false;
 
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
   int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
   ;
 
-  auto result = shapeMushaf(scale, lineWidth, &layout,
+  auto result = shapeMushaf(scale, lineWidth, m_otlayout,
                             HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
-  GenerateLayout generateLayout{&layout, result};
+  GenerateLayout generateLayout{m_otlayout, result};
 
   generateLayout.generateLayoutJson(lineWidth, scale);
 
@@ -2200,6 +2198,11 @@ void LayoutWindow::saveCollision() {
                             HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
   auto t2 = std::chrono::high_resolution_clock::now();
 
+  if (this->applyForce) {
+    optimizeLayout(result.pages, result.originalPages, 0,
+                   1, scale);
+  }
+
   adjustOverlapping2(result.pages, lineWidth, result.originalPages, scale, true,
                      true);
 
@@ -2238,8 +2241,8 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
   }
 
   if (this->applyForce) {
-    applyDirectedForceLayout(result.pages, result.originalPages, lineWidth, 0,
-                             1, scale);
+    optimizeLayout(result.pages, result.originalPages, 0,
+                   1, scale);
   }
 
   auto path = m_font->filePath();
@@ -2555,6 +2558,11 @@ void LayoutWindow::createDockWindows() {
 
   action = new QAction(tr("Save Page to Picture"), this);
   connect(action, &QAction::triggered, this, &LayoutWindow::savePagetoPicture);
+
+  otherMenu->addAction(action);
+
+  action = new QAction(tr("Convert Cursive To Kern"), this);
+  connect(action, &QAction::triggered, this, &LayoutWindow::convertCursiveToKern);
 
   otherMenu->addAction(action);
 
@@ -3526,7 +3534,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
   QList<QStringList> originalPages = {lines};
 
   if (this->applyForce) {
-    applyDirectedForceLayout(pages, originalPages, lineWidth, 0, 1, scale);
+    optimizeLayout(pages, originalPages, 0, 1, scale);
   }
 
   if (this->applyCollisionDetection) {
@@ -3596,6 +3604,8 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
             glyphItem->setBrush(QColor{(color >> 24) & 0xff,
                                        (color >> 16) & 0xff,
                                        (color >> 8) & 0xff});
+          } else {
+            glyphItem->setBrush(Qt::black);
           }
 
           currentxPos -= glyphLayout.x_advance * line.xscale;
@@ -3730,4 +3740,87 @@ void LayoutWindow::savePagetoPicture() {
   QString fileName = fileInfo.path() + "/output/page" +
                      QString("%1").arg(integerSpinBox->value()) + ".jpg";
   image.save(fileName, "JPG");
+}
+
+void LayoutWindow::convertCursiveToKern() {
+  auto path = m_font->filePath();
+  QFileInfo fileInfo = QFileInfo(path);
+  QString fileName = fileInfo.path() + "/output/" + fileInfo.completeBaseName() + "-cursive_kern.txt";
+  QFile file(fileName);
+  file.open(QIODevice::WriteOnly | QIODevice::Text);
+  QTextStream featureOut(&file);
+  featureOut.setCodec("UTF-8");
+
+  m_otlayout->loadLookupFile("features.fea");
+
+  QString isolglyphsRegExpr = "[.]isol";  //"^alef[.]isol|^hamza[.]isol";
+
+  auto isolGlyphs = m_otlayout->classtoUnicode(isolglyphsRegExpr);
+
+  int subLookupNumber = 2;
+
+  QString subLookups;
+  QString mainLookup;
+
+  for (auto lookup : m_otlayout->lookups) {
+    if (!lookup->isGsubLookup() && lookup->type == Lookup::PosType::cursive && lookup->name == "rehwawcursivecpp") {
+      QString sublookup = "  lookup rehwawisolkern.l1 {\n";
+      sublookup += "    pos /" + isolglyphsRegExpr + "/ <0 0 -150 0>;\n";
+      sublookup += "  } rehwawisolkern.l1;\n";
+      subLookups += sublookup;
+      QSet<QString> exitGlyphs;
+      for (auto& subtable : lookup->subtables) {
+        if (auto curSub = dynamic_cast<CursiveSubtable*>(subtable)) {
+          for (auto i = curSub->anchors.cbegin(), end = curSub->anchors.cend(); i != end; ++i) {
+            auto exitGlyphCode = i.key();
+            auto exit = curSub->getExit(exitGlyphCode, {});
+            QString exitGlyphName = m_otlayout->glyphNamePerCode[exitGlyphCode];
+            if (exit) {
+              if (exit->x() != 150 || exit->y() != 0) {
+                throw std::runtime_error("invalid lookup");
+              }
+
+              QString sublookupPos;
+              QString mainLookupPos = "  pos [" + exitGlyphName + "] [";
+              for (auto j = curSub->anchors.cbegin(), end = curSub->anchors.cend(); j != end; ++j) {
+                auto entryGlyphCode = j.key();
+                auto entry = curSub->getEntry(entryGlyphCode, {});
+                if (entry) {
+                  QString entryGlyphName = m_otlayout->glyphNamePerCode[entryGlyphCode];
+                  auto& entryGlyph = m_otlayout->glyphs[entryGlyphName];
+                  if ((entry->y() != 0 || entry->x() != (int)entryGlyph.width) && isolGlyphs.contains(entryGlyphCode)) {
+                    mainLookupPos += " " + entryGlyphName;
+                    sublookupPos += "    pos [" + entryGlyphName + "] <0 " + QString("%1").arg(-entry->y()) + " " + QString("%1").arg(entry->x() - (int)entryGlyph.width - 150) + " 0>;\n";
+                  }
+                }
+              }
+              exitGlyphs.insert(exitGlyphName);
+              if (!sublookupPos.isEmpty()) {
+                QString subLookupName = QString("rehwawisolkern." + curSub->name + ".l%1").arg(subLookupNumber++);
+                QString sublookup = "  lookup " + subLookupName + "{\n";
+                sublookup += sublookupPos;
+                sublookup += "  } " + subLookupName + ";\n";
+                subLookups += sublookup;
+                mainLookup += mainLookupPos + "]'lookup " + subLookupName + ";\n";
+              }
+            }
+          }
+        } else {
+          std::cerr << "Problem in lookup=" << lookup->name.toStdString() << "Subtable=" << curSub->name.toStdString() << "\n";
+        }
+      }
+      mainLookup += "  pos [";
+      for (auto& glyphName : exitGlyphs) {
+        mainLookup += " " + glyphName;
+      }
+      mainLookup += "] /" + isolglyphsRegExpr + "/'lookup rehwawisolkern.l1;\n";
+    }
+  }
+
+  featureOut << "lookup rehwawisolkern {" << '\n';
+  featureOut << "  feature kern;\n";
+  featureOut << "  lookupflag IgnoreMarks;\n";
+  featureOut << subLookups;
+  featureOut << mainLookup;
+  featureOut << "} rehwawisolkern;" << '\n';
 }

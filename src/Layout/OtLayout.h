@@ -20,26 +20,27 @@
 #ifndef OTLAYOUT_H
 #define OTLAYOUT_H
 
+#include <qpoint.h>
 #include <qstring.h>
+
 #include <QByteArray>
+#include <QDataStream>
 #include <QMap>
 #include <QSet>
 #include <QVector>
-#include <qpoint.h>
+#include <iostream>
 #include <optional>
-#include <unordered_map>
 #include <set>
-#include <QDataStream>
-#include "to_opentype.h"
+#include <stdexcept>
+#include <unordered_map>
+
 #include "FSMDriver.h"
 #include "JustificationContext.h"
-#include "qobject.h"
 #include "commontypes.h"
-#include <stdexcept>
-#include <iostream>
-#include "hb.h"
 #include "global.h"
-
+#include "hb.h"
+#include "qobject.h"
+#include "to_opentype.h"
 
 struct Lookup;
 class QJsonObject;
@@ -54,8 +55,6 @@ struct MarkBaseSubtable;
 struct hb_buffer_t;
 
 typedef struct MP_instance* MP;
-
-
 
 struct ExtendedGlyph {
   int code;
@@ -81,13 +80,11 @@ struct GlyphLayoutInfo {
   uint32_t color = 0;
 };
 
-enum class  LineType {
+enum class LineType {
   Line = 0,
   Sura = 1,
   Bism = 2
 };
-
-
 
 struct LineLayoutInfo {
   std::vector<GlyphLayoutInfo> glyphs;
@@ -133,17 +130,15 @@ using CalcAnchor = std::function<QPoint(QString, QString, QPoint, GlyphParameter
 using CursiveAnchorFunc = std::function<QPoint(bool, GlyphVis*, GlyphVis*)>;
 
 class AnchorCalc {
-public:
+ public:
   virtual QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) {
     return QPoint(0, 0);
   };
   QPoint getAdjustment(Automedina& y, MarkBaseSubtable& subtable, GlyphVis* curr, QString className, QPoint adjust, GlyphParameters parameters, GlyphVis** poriginalglyph);
-
 };
 
 struct Just {
-
-  Just(OtLayout* layout) : layout{ layout } {}
+  Just(OtLayout* layout) : layout{layout} {}
 
   struct JustStep {
     bool gsub = false;
@@ -155,9 +150,8 @@ struct Just {
   std::vector<Lookup*> lastGsubLookups;
   QByteArray getOpenTypeTable();
 
-private:
+ private:
   OtLayout* layout;
-
 };
 
 enum class JustType {
@@ -178,8 +172,6 @@ enum class JustStyle {
 };
 Q_DECLARE_METATYPE(JustStyle)
 
-
-
 #ifdef DIGITALKHATT_WEBLIB
 class OtLayout {
 #else
@@ -192,17 +184,16 @@ class OtLayout : public QObject {
   friend class LayoutWindow;
   friend class ToOpenType;
   friend class GenerateLayout;
-public:
 
+ public:
   constexpr static int FrameHeight = 27400;
   constexpr static int FrameWidth = 17000;
-  constexpr static int InterLineSpacing = 1800; // (1.5969)
-  //constexpr static int InterLineSpacing = 1690; //(1.5)
-  constexpr static int TopSpace = 1450; //1600
+  constexpr static int InterLineSpacing = 1800;  // (1.5969)
+  // constexpr static int InterLineSpacing = 1690; //(1.5)
+  constexpr static int TopSpace = 1450;  // 1600
   constexpr static int Margin = 300;
   // 15500 for oldMadinah
   constexpr static int TextWidth = FrameWidth - (2 * Margin);
-
 
   enum GDEFClasses {
     BaseGlyph = 1,
@@ -235,11 +226,10 @@ public:
   QByteArray getGPOS();
   QByteArray getGDEF();
 
-public:
-
-  static int SCALEBY; // = 8;
+ public:
+  static int SCALEBY;  // = 8;
   static double EMSCALE;
-  static int MINSPACEWIDTH; // = 8;
+  static int MINSPACEWIDTH;  // = 8;
   static int SPACEWIDTH;
   static int MAXSPACEWIDTH;
 
@@ -247,9 +237,8 @@ public:
 
   QVector<Lookup*> gsublookups;
   QVector<Lookup*> gposlookups;
-  QVector<Lookup* > lookups;
-  QMap<QString, QSet<Lookup*> > allFeatures;
-
+  QVector<Lookup*> lookups;
+  QMap<QString, QSet<Lookup*>> allFeatures;
 
   QMap<QString, int> gsublookupsIndexByName;
   QMap<QString, int> gposlookupsIndexByName;
@@ -265,7 +254,7 @@ public:
   QByteArray gpos_array;
   QByteArray gdef_array;
 
-  //QJSEngine myEngine;
+  // QJSEngine myEngine;
 
   QMap<QString, quint16> glyphCodePerName;
   QMap<quint16, QString> glyphNamePerCode;
@@ -273,7 +262,7 @@ public:
 
   QMap<quint16, GDEFClasses> glyphGlobalClasses;
 
-  //QMap<QString, AnchorCalc*> anchorCalcFunctions;
+  // QMap<QString, AnchorCalc*> anchorCalcFunctions;
   CalcAnchor getanchorCalcFunctions(QString functionName, Subtable* subtable);
   CursiveAnchorFunc getCursiveFunctions(QString functionName, Subtable* subtable);
   void setParameter(quint16 glyphCode, quint32 lookup, quint32 subtable, quint16 markCode, quint16 baseCode, QPoint displacement, Qt::KeyboardModifiers modifiers);
@@ -297,24 +286,22 @@ public:
 
   double nuqta();
 
-
   GlyphVis* getGlyph(int code);
-  GlyphVis* getGlyph(QString name, GlyphParameters parameters);
+  GlyphVis* getGlyph(const QString& name, GlyphParameters parameters);
   GlyphVis* getGlyph(int code, GlyphParameters parameters);
 
   int tajweedcolorindex = 0xFFFF;
 
-  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor,QString mushafLayoutType) {
+  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, QString mushafLayoutType) {
     return justifyPage(emScale, lineWidth, pageWidth, lines, justification, newFace, tajweedColor, JustStyle::None, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, JustType::HarfBuzz, mushafLayoutType);
   }
 
-  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType, QString mushafLayoutType);
-  QList<LineLayoutInfo> justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t  cluster_level, JustType justType, QString mushafLayoutType);
-
+  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t cluster_level, JustType justType, QString mushafLayoutType);
+  QList<LineLayoutInfo> justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t cluster_level, JustType justType, QString mushafLayoutType);
 
   QList<LineLayoutInfo> justifyPageUsingFeatures(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor,
-    hb_buffer_cluster_level_t  cluster_level, JustType justType, JustStyle justStyle, QString mushafLayout);
-  LayoutPages pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t  cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
+                                                 hb_buffer_cluster_level_t cluster_level, JustType justType, JustStyle justStyle, QString mushafLayout);
+  LayoutPages pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
   QList<QStringList> pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, QSet<int> forcedBreaks, int nbPages);
   QList<QStringList> pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, int nbPages);
 
@@ -346,8 +333,6 @@ public:
 
   bool useNormAxisValues = true;
 
-
-
   std::unordered_map<QString, ValueLimits> expandableGlyphs;
 
   std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const int subregionIndex) {
@@ -359,12 +344,11 @@ public:
   Just justTable;
 
   float normalToParameter(unsigned int code, float tatweel, bool left) {
-
     if (!useNormAxisValues || tatweel == 0.0)
       return tatweel;
 
     if (tatweel < -1) {
-      //throw new std::runtime_error("tatweel error for glyph " + code);
+      // throw new std::runtime_error("tatweel error for glyph " + code);
       const auto& name = glyphNamePerCode.value(code);
       std::cout.precision(17);
       std::cout << "min tatweel " << std::fixed << tatweel << " error for glyph " << name.toStdString() << '\n';
@@ -372,7 +356,7 @@ public:
     }
 
     if (tatweel > 1) {
-      //throw new std::runtime_error("tatweel error for glyph " + code);
+      // throw new std::runtime_error("tatweel error for glyph " + code);
       const auto& name = glyphNamePerCode.value(code);
       std::cout.precision(17);
       std::cout << "max tatweel " << std::fixed << tatweel << " error for glyph " << name.toStdString() << '\n';
@@ -386,7 +370,7 @@ public:
     const auto& find = expandableGlyphs.find(name);
 
     if (find == expandableGlyphs.end()) {
-      //throw new std::runtime_error("tatweel error for glyph " + name.toStdString());
+      // throw new std::runtime_error("tatweel error for glyph " + name.toStdString());
       std::cout << "No expandable glyph " + name.toStdString() + "\n";
       return tatweel;
     }
@@ -403,11 +387,9 @@ public:
 
     if (tatweel < 0) {
       return (-tatweel * min);
-    }
-    else {
+    } else {
       return (tatweel * max);
     }
-
   }
   static int AlternatelastCode;
   bool isExtended() { return extended; }
@@ -417,35 +399,30 @@ public:
   void saveFontInfo();
 
 #ifndef DIGITALKHATT_WEBLIB
-signals:
+ signals:
   void parameterChanged();
 #endif
 
-
-
-private:
-  //void evaluateImport();
-  //void prepareJSENgine();
+ private:
+  // void evaluateImport();
+  // void prepareJSENgine();
 
   Automedina* automedina;
 
-  QMap<QString, QSet<quint16> > allGposFeatures;
-  QMap<QString, QSet<quint16> > allGsubFeatures;
+  QMap<QString, QSet<quint16>> allGposFeatures;
+  QMap<QString, QSet<quint16>> allGsubFeatures;
 
   QByteArray getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures, QMap<QString, int>& lookupsIndexByName);
   QByteArray getFeatureList(QMap<QString, QSet<quint16>> allFeatures);
   QByteArray getScriptList(int featureCount);
 
-
   double _nuqta = -1;
 
   QSet<Lookup*> disabledLookups;
 
-
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> tempGlyphs;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> addedGlyphs;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> substEquivGlyphs;
-
 
   bool JustificationInProgress = false;
 
@@ -461,10 +438,7 @@ private:
 
   FSMDriver fsmDriver;
 
-  //std::unordered_map<DefaultDelta, int> defaultDeltaSets;
-
-
-
+  // std::unordered_map<DefaultDelta, int> defaultDeltaSets;
 };
 
-#endif // OTLAYOUT_H
+#endif  // OTLAYOUT_H

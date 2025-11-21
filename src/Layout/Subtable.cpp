@@ -18,50 +18,47 @@
 */
 
 #include "Subtable.h"
-#include "font.hpp"
-#include "Lookup.h"
-#include "OtLayout.h"
+
+#include <QDebug>
 #include <QJsonArray>
 #include <QJsonObject>
-#include "QByteArrayOperator.h"
-#include <QDebug>
 #include <algorithm>
-#include "GlyphVis.h"
 #include <hb-ot-layout-common.hh>
 #include <iostream>
 #include <unordered_map>
 
+#include "GlyphVis.h"
+#include "Lookup.h"
+#include "OtLayout.h"
+#include "QByteArrayOperator.h"
+#include "font.hpp"
+
 using namespace std;
 
-QDataStream& operator<<(QDataStream& s, const QVector<quint16>& v)
-{
+QDataStream& operator<<(QDataStream& s, const QVector<quint16>& v) {
   for (QVector<quint16>::const_iterator it = v.begin(); it != v.end(); ++it)
     s << *it;
   return s;
 }
 
-QDataStream& operator<<(QDataStream& s, const QVector<quint32>& v)
-{
+QDataStream& operator<<(QDataStream& s, const QVector<quint32>& v) {
   for (QVector<quint32>::const_iterator it = v.begin(); it != v.end(); ++it)
     s << *it;
   return s;
 }
 
-Subtable::Subtable(Lookup* lookup)
-{
+Subtable::Subtable(Lookup* lookup) {
   m_lookup = lookup;
   m_layout = lookup->layout;
   metafont = m_layout->font;
-
 }
 
 quint16 Subtable::getCodeFromName(QString name) {
-  //return m_layout->glyphCodePerName[name];
+  // return m_layout->glyphCodePerName[name];
   quint16 uniode;
   if (m_layout->glyphCodePerName.contains(name)) {
     uniode = m_layout->glyphCodePerName[name];
-  }
-  else {
+  } else {
     bool ok;
     uniode = name.toUInt(&ok, 16);
     if (!ok) {
@@ -76,7 +73,7 @@ QString Subtable::getNameFromCode(quint16 code) {
   return m_layout->glyphNamePerCode[code];
 }
 
-SingleSubtable::SingleSubtable(Lookup* lookup, quint16 format) : Subtable(lookup), format{ format } {
+SingleSubtable::SingleSubtable(Lookup* lookup, quint16 format) : Subtable(lookup), format{format} {
 }
 
 bool SingleSubtable::isExtended() {
@@ -86,30 +83,24 @@ bool SingleSubtable::isExtended() {
   return false;
 }
 
-void SingleSubtable::readJson(const QJsonObject& json)
-{
+void SingleSubtable::readJson(const QJsonObject& json) {
   subst.clear();
   for (int index = 0; index < json.size(); ++index) {
     QString glyphname = json.keys()[index];
     quint16 unicode = getCodeFromName(glyphname);
     if (!unicode) continue;
 
-
     QString name = json[glyphname].toString();
 
     quint16 value = getCodeFromName(name);
     if (!value) continue;
     subst[unicode] = value;
-
-
   }
 }
 SingleSubtableWithTatweel::SingleSubtableWithTatweel(Lookup* lookup) : SingleSubtable(lookup, 11) {};
 
 void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
-
-  QMapIterator<quint16, GlyphExpansion>i(expansion);
-
+  QMapIterator<quint16, GlyphExpansion> i(expansion);
 
   while (i.hasNext()) {
     i.next();
@@ -117,7 +108,6 @@ void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
     GlyphExpansion expan = i.value();
 
     if (expan.MinLeftTatweel != 0 || expan.MinRightTatweel != 0) {
-
       if (expan.MinLeftTatweel > 0 && expan.MinRightTatweel > 0) {
         throw new std::runtime_error("SHOULD NOT");
       }
@@ -130,15 +120,14 @@ void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
       auto substGlyph = (uint16_t)subst[i.key()];
       auto substEquivGlyphs = m_layout->getSubstEquivGlyphs(substGlyph);
       while (true) {
-
         auto oldSize = substEquivGlyphs.size();
 
         for (auto& glyph : substEquivGlyphs) {
           if ((expan.MinLeftTatweel > 0 && glyph.second->charrt > 0) || (expan.MinRightTatweel > 0 && glyph.second->charlt > 3)) continue;
           if ((glyph.second->charlt > 5 || glyph.second->charrt > 5)) continue;
-          //if ((glyph.second->charlt < -0.1 || glyph.second->charrt < -0.1)) continue;
+          // if ((glyph.second->charlt < -0.1 || glyph.second->charrt < -0.1)) continue;
 
-          //if ((expan.MinLeftTatweel > 0 && glyph.second->charlt > 5) || (expan.MinRightTatweel > 0 && glyph.second->charrt > 5)) continue;
+          // if ((expan.MinLeftTatweel > 0 && glyph.second->charlt > 5) || (expan.MinRightTatweel > 0 && glyph.second->charrt > 5)) continue;
 
           GlyphVis* newglyph = m_layout->getAlternate(glyph.second->charcode, parameters, true, true);
         }
@@ -152,18 +141,14 @@ void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
         if (newSize == oldSize) break;
       }
     }
-
-
   }
-
 }
 QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
+  QMapIterator<quint16, GlyphExpansion> oldExpaIter(expansion);
+  QMapIterator<quint16, quint16> oldSubstIter(subst);
 
-  QMapIterator<quint16, GlyphExpansion>oldExpaIter(expansion);
-  QMapIterator<quint16, quint16>oldSubstIter(subst);
-
-  QMap<quint16, GlyphExpansion > newexpansion;
-  QMap<quint16, quint16 > newsubst;
+  QMap<quint16, GlyphExpansion> newexpansion;
+  QMap<quint16, quint16> newsubst;
 
   while (oldSubstIter.hasNext()) {
     oldExpaIter.next();
@@ -186,7 +171,6 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
       auto found = addedSubstGlyphs.find(parameters);
 
       if (found != addedSubstGlyphs.end()) {
-
         /*
         auto name = m_layout->glyphNamePerCode[found->second->charcode];
 
@@ -203,7 +187,6 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
       auto& addedGlyphs = m_layout->getSubstEquivGlyphs(glyphCode);
 
       for (auto& addedGlyph : addedGlyphs) {
-
         GlyphParameters parameters;
 
         parameters.lefttatweel = addedGlyph.second->charlt + (double)expan.MinLeftTatweel;
@@ -212,34 +195,28 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
         auto found = addedSubstGlyphs.find(parameters);
 
         if (found != addedSubstGlyphs.end()) {
-
           newexpansion.insert(addedGlyph.second->charcode, oldExpaIter.value());
           newsubst.insert(addedGlyph.second->charcode, found->second->charcode);
         }
       }
-    }
-    else {
+    } else {
       newexpansion.insert(glyphCode, oldExpaIter.value());
       newsubst.insert(glyphCode, substGlyph);
     }
   }
 
-
   QByteArray root;
   QByteArray coverage;
 
-
-  QMapIterator<quint16, GlyphExpansion>i(newexpansion);
-  QMapIterator<quint16, quint16>substIter(newsubst);
+  QMapIterator<quint16, GlyphExpansion> i(newexpansion);
+  QMapIterator<quint16, quint16> substIter(newsubst);
 
   quint16 glyphCount = newexpansion.size();
   quint16 coverage_offset = 2 + 2 + 2 + 2 * glyphCount;
 
-
   root << (quint16)2;
   root << coverage_offset;
   root << glyphCount;
-
 
   coverage << (quint16)1;
   coverage << (quint16)glyphCount;
@@ -254,7 +231,6 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
 
     root << substGlyph;
     coverage << (quint16)substIter.key();
-
   }
 
   root.append(coverage);
@@ -262,26 +238,21 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
   return root;
 }
 QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
-
   QByteArray root;
   QByteArray coverage;
   QByteArray substituteGlyphIDs;
 
-
-
   quint16 glyphCount = expansion.size();
   quint16 coverage_offset = 2 + 2 + 2 + 10 * glyphCount;
-
 
   root << (quint16)format;
   root << coverage_offset;
   root << glyphCount;
 
-
   coverage << (quint16)1;
   coverage << (quint16)glyphCount;
 
-  QMapIterator<quint16, GlyphExpansion>i(expansion);
+  QMapIterator<quint16, GlyphExpansion> i(expansion);
 
   while (i.hasNext()) {
     i.next();
@@ -298,8 +269,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
       righttatweel.set_float(expan.MinRightTatweel);
 
       root << (int32_t)lefttatweel.to_int() << (int32_t)righttatweel.to_int();
-    }
-    else {
+    } else {
       OT::F16DOT16 value;
 
       ValueLimits limits;
@@ -314,65 +284,55 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
 
       if ((expan.MinLeftTatweel < 0 && expan.MinLeftTatweel < limits.minLeft) || (expan.MinLeftTatweel > 0 && expan.MinLeftTatweel > limits.maxLeft)) {
         std::cout << "MinLeftTatweel error for glyph " + name.toStdString() << std::endl;
-        //throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
-      }
-      else if (expan.MinLeftTatweel < 0.0) {
+        // throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+      } else if (expan.MinLeftTatweel < 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(-expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.minLeft);
-        }
-        else {
+        } else {
           value.set_float(-expan.MinLeftTatweel / limits.minLeft);
         }
 
         root << (int32_t)value.to_int();
-      }
-      else if (expan.MinLeftTatweel > 0.0) {
+      } else if (expan.MinLeftTatweel > 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.maxLeft);
-        }
-        else {
+        } else {
           value.set_float(expan.MinLeftTatweel / limits.maxLeft);
         }
 
         root << (int32_t)value.to_int();
-      }
-      else {
+      } else {
         value.set_float(0.0);
         root << (int32_t)value.to_int();
       }
 
       if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
         std::cout << "MinRightTatweel error for glyph " + name.toStdString() << std::endl;
-        //throw new runtime_error("MinRightTatweel error for glyph " + name.toStdString());
-      }
-      else if (expan.MinRightTatweel < 0.0) {
+        // throw new runtime_error("MinRightTatweel error for glyph " + name.toStdString());
+      } else if (expan.MinRightTatweel < 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(-expan.MinRightTatweel / m_layout->toOpenType->axisLimits.minRight);
-        }
-        else {
+        } else {
           value.set_float(-expan.MinRightTatweel / limits.minRight);
         }
-        root << (int32_t)value.to_int();;
-      }
-      else if (expan.MinRightTatweel > 0.0) {
-
+        root << (int32_t)value.to_int();
+        ;
+      } else if (expan.MinRightTatweel > 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(expan.MinRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
-        }
-        else {
+        } else {
           value.set_float(expan.MinRightTatweel / limits.maxRight);
         }
-        root << (int32_t)value.to_int();;
-      }
-      else {
+        root << (int32_t)value.to_int();
+        ;
+      } else {
         value.set_float(0.0);
-        root << (int32_t)value.to_int();;
+        root << (int32_t)value.to_int();
+        ;
       }
     }
 
-
     coverage << (quint16)i.key();
-
   }
 
   root.append(coverage);
@@ -380,9 +340,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
   return root;
 };
 
-
 QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
-
   QByteArray coverage;
 
   QByteArray classDef;
@@ -403,17 +361,16 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
 
   quint16 glyphCount = dfa.glyphToClass.size();
 
-  classDef << (quint16)2; //Format identifier — format = 2
-  classDef << glyphCount; // Number of ClassRangeRecords
+  classDef << (quint16)2;  // Format identifier — format = 2
+  classDef << glyphCount;  // Number of ClassRangeRecords
 
   coverage << (quint16)1;
   coverage << (quint16)glyphCount;
 
   for (auto it = dfa.glyphToClass.cbegin(); it != dfa.glyphToClass.cend(); it++) {
-
     classDef << (quint16)it.key();
     classDef << (quint16)it.key();
-    classDef << (quint16)(it.value() + 1); // Class 0 for not used glyphs
+    classDef << (quint16)(it.value() + 1);  // Class 0 for not used glyphs
 
     coverage << (quint16)it.key();
   }
@@ -424,22 +381,21 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
 
   quint16 startOffsets = 2 + 2 + 2 + 1 + 1 + 1 + 1 + dfa.backupStates.size() * 2 + 2 + numNodes * 4;
 
-
   quint16 coverageOffset = startOffsets;
   quint16 classDefOffset = coverageOffset + coverage.size();
   quint32 nextOffset = classDefOffset + classDef.size();
 
   header << (quint16)1;
-  header << (quint16)coverageOffset; //  Offset to Coverage;
-  header << (quint16)classDefOffset; //  Offset to ClassDef;
+  header << (quint16)coverageOffset;  //  Offset to Coverage;
+  header << (quint16)classDefOffset;  //  Offset to ClassDef;
   header << (uint8_t)dfa.maxBackup;
   header << (uint8_t)dfa.minBackup;
   header << (uint8_t)dfa.maxLoop;
-  header << (uint8_t)0; // reserved
+  header << (uint8_t)0;  // reserved
   for (auto it = dfa.backupStates.cbegin(); it != dfa.backupStates.cend(); it++) {
     header << (quint16)*it;
   }
-  header << (quint16)numNodes; // Number of ChainNodes
+  header << (quint16)numNodes;  // Number of ChainNodes
 
   auto addBackLink = [&m_layout = m_layout, &m_lookup = m_lookup](QByteArray& array, const DFABackTrackInfo& backTrackInfo) {
     array << (uint16_t)backTrackInfo.prevTransIndex;
@@ -453,43 +409,37 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
         if (m_lookup->isGsubLookup()) {
           if (m_layout->gsublookupsIndexByName.contains(fullname)) {
             lookupListIndex = m_layout->gsublookupsIndexByName[fullname];
-          }
-          else {
+          } else {
             throw new std::runtime_error("Invalid lookup");
           }
-        }
-        else {
+        } else {
           if (m_layout->gposlookupsIndexByName.contains(fullname)) {
             lookupListIndex = m_layout->gposlookupsIndexByName[fullname];
-          }
-          else {
+          } else {
             throw new std::runtime_error("Invalid lookup");
           }
         }
-      }
-      else if (action.type == DFAActionType::STARTNEWMATCH) {
+      } else if (action.type == DFAActionType::STARTNEWMATCH) {
         lookupListIndex = 0xFFFF;
-      }
-      else {
+      } else {
         throw new std::runtime_error("Not yet implemented");
       }
 
-
-      array << (uint8_t)action.idRule; // chainid : Action chain number of this action
-      array << (uint8_t)0; // distance : How far back to process
-      array << lookupListIndex; // lookup :	Lookup id to execute
+      array << (uint8_t)action.idRule;  // chainid : Action chain number of this action
+      array << (uint8_t)0;              // distance : How far back to process
+      array << lookupListIndex;         // lookup :	Lookup id to execute
     }
-    };
+  };
 
   for (auto it = dfa.states.cbegin(); it != dfa.states.cend(); it++) {
     auto& state = *it;
 
     int numTransitions = it->transtitions.size();
 
-    uint16_t nextChainNodeOffset = 1 /*actionid*/
-      + 2 /* OffsetTo<BackLink> */
-      + 2 /* numTransitions */
-      + numTransitions * 6 /* ClassNode size*/;
+    uint16_t nextChainNodeOffset = 1   /*actionid*/
+                                   + 2 /* OffsetTo<BackLink> */
+                                   + 2 /* numTransitions */
+                                   + numTransitions * 6 /* ClassNode size*/;
 
     QByteArray chainNode;
 
@@ -499,25 +449,22 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
     if (state.final != 0) {
       QByteArray backlinkArray;
       addBackLink(backlinkArray, state.backtrackfinal);
-      chainNode << (uint16_t)nextChainNodeOffset; // OffsetTo<BackLink> backLink
+      chainNode << (uint16_t)nextChainNodeOffset;  // OffsetTo<BackLink> backLink
       nextChainNodeOffset += backlinkArray.size();
       offsets.append(backlinkArray);
-    }
-    else {
-      chainNode << (uint16_t)0; // OffsetTo<BackLink> backLink
+    } else {
+      chainNode << (uint16_t)0;  // OffsetTo<BackLink> backLink
     }
     chainNode << (uint16_t)numTransitions;  // numTransitions	: Number of transitions
 
-
     QByteArray classNodes;
-
 
     for (auto itTransi = it->transtitions.cbegin(); itTransi != it->transtitions.cend(); itTransi++) {
       numTransitions++;
 
-      classNodes << (uint16_t)(itTransi->first + 1); // classIndex	: class index value to match
-      classNodes << (quint16)(itTransi->second.state); // chainNode	: chainNode index to use on match
-      //OffsetTo<BackLinkArray> backLinks
+      classNodes << (uint16_t)(itTransi->first + 1);    // classIndex	: class index value to match
+      classNodes << (quint16)(itTransi->second.state);  // chainNode	: chainNode index to use on match
+      // OffsetTo<BackLinkArray> backLinks
       auto& backtracks = itTransi->second.backtracks;
       if (backtracks.size() > 0) {
         uint16_t numbacklinks = backtracks.size();
@@ -537,12 +484,11 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
 
         backLinksArray.append(offsetbackLinksArray);
 
-        classNodes << (uint16_t)nextChainNodeOffset; // OffsetTo<BackLink> backLink
+        classNodes << (uint16_t)nextChainNodeOffset;  // OffsetTo<BackLink> backLink
         nextChainNodeOffset += backLinksArray.size();
         offsets.append(backLinksArray);
 
-      }
-      else {
+      } else {
         classNodes << (uint16_t)0;
       }
     }
@@ -550,12 +496,10 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
     chainNode.append(classNodes);
     chainNode.append(offsets);
 
-
     chainNodes.append(chainNode);
 
     header << nextOffset;
     nextOffset += chainNode.size();
-
   }
 
   root.append(header);
@@ -566,14 +510,11 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
   return root;
 }
 
-
-
 QByteArray SingleSubtable::getOpenTypeTable(bool extended) {
-
   QByteArray root;
   QByteArray coverage;
 
-  QMap<quint16, quint16 > newSubst;
+  QMap<quint16, quint16> newSubst;
 
   if (!extended) {
     for (auto i = subst.cbegin(), end = subst.cend(); i != end; ++i) {
@@ -589,28 +530,22 @@ QByteArray SingleSubtable::getOpenTypeTable(bool extended) {
           newSubst.insert(addedGlyph.second->charcode, ret->second->charcode);
         }
       }
-
     }
-  }
-  else {
+  } else {
     newSubst = subst;
   }
 
-
   quint16 glyphCount = newSubst.size();
   quint16 coverage_offset = 2 + 2 + 2 + 2 * glyphCount;
-
 
   root << (quint16)format;
   root << coverage_offset;
   root << glyphCount;
 
-
   coverage << (quint16)1;
   coverage << (quint16)glyphCount;
 
-  QMapIterator<quint16, quint16>i(newSubst);
-
+  QMapIterator<quint16, quint16> i(newSubst);
 
   while (i.hasNext()) {
     i.next();
@@ -619,7 +554,6 @@ QByteArray SingleSubtable::getOpenTypeTable(bool extended) {
 
     root << substGlyph;
     coverage << (quint16)i.key();
-
   }
 
   root.append(coverage);
@@ -629,26 +563,21 @@ QByteArray SingleSubtable::getOpenTypeTable(bool extended) {
 
 SingleSubtableWithExpansion::SingleSubtableWithExpansion(Lookup* lookup) : SingleSubtable(lookup, 10) {};
 QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
-
   QByteArray root;
   QByteArray coverage;
   QByteArray substituteGlyphIDs;
 
-
-
   quint16 glyphCount = expansion.size();
   quint16 coverage_offset = 2 + 2 + 2 + 24 * glyphCount;
-
 
   root << (quint16)format;
   root << coverage_offset;
   root << glyphCount;
 
-
   coverage << (quint16)1;
   coverage << (quint16)glyphCount;
 
-  QMapIterator<quint16, GlyphExpansion>i(expansion);
+  QMapIterator<quint16, GlyphExpansion> i(expansion);
 
   while (i.hasNext()) {
     i.next();
@@ -673,8 +602,7 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       OT::F16DOT16 maxRightTatweel;
       maxRightTatweel.set_float(expan.MaxRightTatweel);
       root << (int32_t)maxRightTatweel.to_int();
-    }
-    else {
+    } else {
       OT::F16DOT16 value;
       ValueLimits limits;
 
@@ -686,84 +614,78 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
         limits = find->second;
       }
 
-
       if ((expan.MinLeftTatweel < 0 && expan.MinLeftTatweel < limits.minLeft) || (expan.MinLeftTatweel > 0 && expan.MinLeftTatweel > limits.maxLeft)) {
-        //throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+        // throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
         value.set_float(0.0);
         root << (int32_t)value.to_int();
-      }
-      else if (expan.MinLeftTatweel != 0.0) {
+      } else if (expan.MinLeftTatweel != 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.maxLeft);
-        }
-        else {
+        } else {
           value.set_float(expan.MinLeftTatweel / limits.maxLeft);
         }
-        root << (int32_t)value.to_int();;
-      }
-      else {
-
+        root << (int32_t)value.to_int();
+        ;
+      } else {
         value.set_float(0.0);
-        root << (int32_t)value.to_int();;
+        root << (int32_t)value.to_int();
+        ;
       }
 
       if ((expan.MaxLeftTatweel < 0 && expan.MaxLeftTatweel < limits.minLeft) || (expan.MaxLeftTatweel > 0 && expan.MaxLeftTatweel > limits.maxLeft)) {
-        //throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+        // throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
         value.set_float(0.0);
-        root << (int32_t)value.to_int();;
-      }
-      else if (expan.MaxLeftTatweel != 0.0) {
+        root << (int32_t)value.to_int();
+        ;
+      } else if (expan.MaxLeftTatweel != 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(expan.MaxLeftTatweel / m_layout->toOpenType->axisLimits.maxLeft);
-        }
-        else {
+        } else {
           value.set_float(expan.MaxLeftTatweel / limits.maxLeft);
         }
-        root << (int32_t)value.to_int();;
-      }
-      else {
+        root << (int32_t)value.to_int();
+        ;
+      } else {
         value.set_float(0.0);
-        root << (int32_t)value.to_int();;
+        root << (int32_t)value.to_int();
+        ;
       }
 
       if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
         throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
-      }
-      else if (expan.MinRightTatweel != 0.0) {
+      } else if (expan.MinRightTatweel != 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(expan.MinRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
-        }
-        else {
+        } else {
           value.set_float(expan.MinRightTatweel / limits.maxRight);
         }
-        root << (int32_t)value.to_int();;
-      }
-      else {
+        root << (int32_t)value.to_int();
+        ;
+      } else {
         value.set_float(0.0);
-        root << (int32_t)value.to_int();;
+        root << (int32_t)value.to_int();
+        ;
       }
 
       if ((expan.MaxRightTatweel < 0 && expan.MaxRightTatweel < limits.minRight) || (expan.MaxRightTatweel > 0 && expan.MaxRightTatweel > limits.maxRight)) {
-        //throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+        // throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
         value.set_float(0.0);
-        root << (int32_t)value.to_int();;
-      }
-      else if (expan.MaxRightTatweel != 0.0) {
+        root << (int32_t)value.to_int();
+        ;
+      } else if (expan.MaxRightTatweel != 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(expan.MaxRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
-        }
-        else {
+        } else {
           value.set_float(expan.MaxRightTatweel / limits.maxRight);
         }
-        root << (int32_t)value.to_int();;
-      }
-      else {
+        root << (int32_t)value.to_int();
+        ;
+      } else {
         value.set_float(0.0);
-        root << (int32_t)value.to_int();;
+        root << (int32_t)value.to_int();
+        ;
       }
     }
-
-
 
     root << (uint16_t)expan.weight;
     uint32_t flags = 0;
@@ -775,7 +697,6 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
     root << flags;
 
     coverage << (quint16)i.key();
-
   }
 
   root.append(coverage);
@@ -783,15 +704,12 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
   return root;
 };
 
-
-
-SingleAdjustmentSubtable::SingleAdjustmentSubtable(Lookup* lookup, quint16 pformat) : Subtable(lookup), format{ pformat } {}
+SingleAdjustmentSubtable::SingleAdjustmentSubtable(Lookup* lookup, quint16 pformat) : Subtable(lookup), format{pformat} {}
 
 bool SingleAdjustmentSubtable::isExtended() {
   if (format == 3) {
     return true;
-  }
-  else {
+  } else {
     return false;
   }
 }
@@ -800,40 +718,36 @@ void SingleAdjustmentSubtable::readJson(const QJsonObject& json) {
   singlePos.clear();
   for (int index = 0; index < json.size(); ++index) {
     QString className = json.keys()[index];
-    auto  unicodes = m_layout->classtoUnicode(className);
+    auto unicodes = m_layout->classtoUnicode(className);
     QJsonArray record = json[className].toArray();
     for (auto unicode : unicodes) {
-      ValueRecord valueRecord{ (qint16)record[0].toInt(),(qint16)record[1].toInt(),(qint16)record[2].toInt(),(qint16)record[3].toInt() };
+      ValueRecord valueRecord{(qint16)record[0].toInt(), (qint16)record[1].toInt(), (qint16)record[2].toInt(), (qint16)record[3].toInt()};
 
       singlePos[unicode] = valueRecord;
     }
-
-
   }
 }
 QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
-
   QByteArray root;
   QByteArray coverage;
-  QByteArray valueRecords;  
-  std::map<int,std::pair<int,std::pair<int,int>>> posToVar;
+  QByteArray valueRecords;
+  std::map<int, std::pair<int, std::pair<int, int>>> posToVar;
 
   quint16 glyphCount = singlePos.size();
-  quint16 valueFormat;  
+  quint16 valueFormat;
 
   auto isOTVar = m_layout->isOTVar;
 
   if (isOTVar) {
     valueFormat = 0x77;
+  } else {
+    valueFormat = 0x7;
   }
-  else {
-    valueFormat = 0x7;    
-  }  
 
   coverage << (quint16)1;
   coverage << (quint16)glyphCount;
 
-  QMapIterator<quint16, ValueRecord>i(singlePos);
+  QMapIterator<quint16, ValueRecord> i(singlePos);
 
   while (i.hasNext()) {
     i.next();
@@ -851,13 +765,12 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
 
     if (parameters.contains(originalCode)) {
       ValueRecord par = parameters.value(originalCode);
-      record = { (qint16)(record.xPlacement + par.xPlacement),(qint16)(record.yPlacement + par.yPlacement) ,(qint16)(record.xAdvance + par.xAdvance) ,record.yAdvance };
+      record = {(qint16)(record.xPlacement + par.xPlacement), (qint16)(record.yPlacement + par.yPlacement), (qint16)(record.xAdvance + par.xAdvance), record.yAdvance};
     }
 
-    valueRecords << record.xPlacement << record.yPlacement << record.xAdvance;// << record.yAdvance;
+    valueRecords << record.xPlacement << record.yPlacement << record.xAdvance;  // << record.yAdvance;
 
     if (isOTVar) {
-
       auto glyphName = m_layout->glyphNamePerCode[originalCode];
 
       auto regionIndexes = m_layout->toOpenType->getGlyphParameters(glyphName);
@@ -865,85 +778,81 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
       auto glyphParamertersArray = regionIndexes.first;
 
       if (glyphParamertersArray.size() != 0) {
-
         DefaultDelta delatX;
         DefaultDelta delatY;
         DefaultDelta delatXadvance;
-        //DefaultDelta delatYadvance;
+        // DefaultDelta delatYadvance;
 
         for (auto& parameters : glyphParamertersArray) {
           if (parameters.scalex != 0) {
             delatX.push_back(record.xPlacement * (parameters.scalex / 100) - record.xPlacement);
             delatY.push_back(0);
             delatXadvance.push_back(record.xAdvance * (parameters.scalex / 100) - record.xAdvance);
-            //delatYadvance.push_back(0);
+            // delatYadvance.push_back(0);
           }
-
         }
 
-        bool allx0 = std::all_of(delatX.begin(), delatX.end(), [](int i) { return i==0; });
+        bool allx0 = std::all_of(delatX.begin(), delatX.end(), [](int i) { return i == 0; });
 
-        if (allx0 != 0) {          
-          
+        if (allx0 != 0) {
           auto indexesX = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
-          posToVar.insert({valueRecords.size(),{-8,indexesX}});   
+          posToVar.insert({valueRecords.size(), {-8, indexesX}});
         }
         valueRecords << (quint16)0;
 
-        bool ally0 = std::all_of(delatY.begin(), delatY.end(), [](int i) { return i==0; });
-        
+        bool ally0 = std::all_of(delatY.begin(), delatY.end(), [](int i) { return i == 0; });
+
         if (ally0 != 0) {
           auto indexesY = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
-          posToVar.insert({valueRecords.size(),{-8,indexesY}}); 
+          posToVar.insert({valueRecords.size(), {-8, indexesY}});
         }
         valueRecords << (quint16)0;
 
-        bool allxadvance0 = std::all_of(delatXadvance.begin(), delatXadvance.end(), [](int i) { return i==0; });
-        
-        if (allxadvance0 != 0) {         
+        bool allxadvance0 = std::all_of(delatXadvance.begin(), delatXadvance.end(), [](int i) { return i == 0; });
+
+        if (allxadvance0 != 0) {
           auto indexesXadvance = m_layout->getDeltaSetEntry(delatXadvance, regionIndexesArrayIndex);
-          posToVar.insert({valueRecords.size(),{-8,indexesXadvance}}); 
+          posToVar.insert({valueRecords.size(), {-8, indexesXadvance}});
         }
         valueRecords << (quint16)0;
 
         /*
         bool allyadvance0 = std::all_of(delatYadvance.begin(), delatYadvance.end(), [](int i) { return i==0; });
-        
-        if (allyadvance0 != 0) {          
+
+        if (allyadvance0 != 0) {
           auto indexesYadvance = m_layout->getDeltaSetEntry(delatYadvance, regionIndexesArrayIndex);
-          posToVar.insert({valueRecords.size(),{-8,indexesYadvance}});          
-          
-        }   
+          posToVar.insert({valueRecords.size(),{-8,indexesYadvance}});
+
+        }
         valueRecords << (quint16)0;     */
-       
-      }
-      else {
+
+      } else {
         valueRecords << (quint16)0;
         valueRecords << (quint16)0;
         valueRecords << (quint16)0;
-        //valueRecords << (quint16)0;
+        // valueRecords << (quint16)0;
       }
     }
 
     coverage << (quint16)i.key();
   }
 
-  setVariationIndexOffset(valueRecords,0,posToVar);  
+  setVariationIndexOffset(valueRecords, 0, posToVar);
 
-    /*
-  for(auto& varIndex : posToVar){
-    auto pos = varIndex.first;
-    auto isX = varIndex.second.first;
-    auto index = varIndex.second.second;    
+  /*
+for(auto& varIndex : posToVar){
+  auto pos = varIndex.first;
+  auto isX = varIndex.second.first;
+  auto index = varIndex.second.second;
 
-    QByteArray offsetData;
-    offsetData << (quint16)(8+valueRecords.size());
-    valueRecords.replace(pos,offsetData.size(),offsetData);
+  QByteArray offsetData;
+  offsetData << (quint16)(8+valueRecords.size());
+  valueRecords.replace(pos,offsetData.size(),offsetData);
 
-    valueRecords << (quint16)index.first;
-    valueRecords << (quint16)index.second;
-    valueRecords << (quint16)0x8000;
-  }*/
+  valueRecords << (quint16)index.first;
+  valueRecords << (quint16)index.second;
+  valueRecords << (quint16)0x8000;
+}*/
 
   quint32 coverageOffset = 8 + valueRecords.size();
 
@@ -955,27 +864,22 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
   root << (quint16)coverageOffset;
   root << valueFormat;
   root << glyphCount;
-  root.append(valueRecords);  
+  root.append(valueRecords);
   root.append(coverage);
 
   return root;
 }
 void SingleAdjustmentSubtable::readParameters(const QJsonObject& json) {
-
-
   if (json["parameters"].isObject()) {
     QJsonObject parametersObject = json["parameters"].toObject();
     for (int ia = 0; ia < parametersObject.size(); ++ia) {
       QString glyphName = parametersObject.keys()[ia];
       QJsonArray pointArray = parametersObject[glyphName].toArray();
-      parameters[m_layout->glyphCodePerName[glyphName]] = { (qint16)pointArray[0].toInt(), (qint16)pointArray[1].toInt(),(qint16)pointArray[2].toInt(),(qint16)pointArray[3].toInt() };
+      parameters[m_layout->glyphCodePerName[glyphName]] = {(qint16)pointArray[0].toInt(), (qint16)pointArray[1].toInt(), (qint16)pointArray[2].toInt(), (qint16)pointArray[3].toInt()};
     }
-
   }
-
 }
 void SingleAdjustmentSubtable::saveParameters(QJsonObject& json) const {
-
   if (parameters.size() != 0) {
     QJsonObject parametersObject;
     for (auto parameter = parameters.constBegin(); parameter != parameters.constEnd(); ++parameter) {
@@ -987,7 +891,6 @@ void SingleAdjustmentSubtable::saveParameters(QJsonObject& json) const {
         pointArray.append(parameter.value().yAdvance);
         parametersObject[m_layout->glyphNamePerCode[parameter.key()]] = pointArray;
       }
-
     }
 
     json["parameters"] = parametersObject;
@@ -998,15 +901,12 @@ MultipleSubtable::MultipleSubtable(Lookup* lookup) : Subtable(lookup) {
 }
 
 QByteArray MultipleSubtable::getOpenTypeTable(bool extended) {
-
   QByteArray root;
   QByteArray coverage;
   QByteArray sequencetables;
   QDataStream root_stream(&root, QIODevice::WriteOnly);
   QDataStream coverage_stream(&coverage, QIODevice::WriteOnly);
   QDataStream seqtable_stream(&sequencetables, QIODevice::WriteOnly);
-
-
 
   quint16 total = subst.size();
   uint coverage_size = 2 + 2 + 2 * total;
@@ -1017,16 +917,13 @@ QByteArray MultipleSubtable::getOpenTypeTable(bool extended) {
   root_stream << coverage_offset;
   root_stream << total;
 
-
   coverage_stream << (quint16)1;
   coverage_stream << (quint16)total;
 
-  QMapIterator<quint16, QVector<quint16> >i(subst);
+  QMapIterator<quint16, QVector<quint16>> i(subst);
   quint16 seqtables_size = 0;
   while (i.hasNext()) {
     i.next();
-
-
 
     QVector<quint16> seqtable = i.value();
 
@@ -1041,18 +938,15 @@ QByteArray MultipleSubtable::getOpenTypeTable(bool extended) {
   root.append(coverage);
   root.append(sequencetables);
 
-
   return root;
 };
 
-void MultipleSubtable::readJson(const QJsonObject& json)
-{
+void MultipleSubtable::readJson(const QJsonObject& json) {
   subst.clear();
   for (int index = 0; index < json.size(); ++index) {
     QString glyphname = json.keys()[index];
     uint uniode = getCodeFromName(glyphname);
     if (!uniode) continue;
-
 
     QJsonArray dest = json[glyphname].toArray();
 
@@ -1065,19 +959,15 @@ void MultipleSubtable::readJson(const QJsonObject& json)
 
       subst[uniode].append(value);
     }
-
   }
 }
 
-AlternateSubtable::AlternateSubtable(Lookup* lookup, quint16 format) : Subtable(lookup), format{ format } {}
+AlternateSubtable::AlternateSubtable(Lookup* lookup, quint16 format) : Subtable(lookup), format{format} {}
 
 void AlternateSubtable::generateSubstEquivGlyphs() {
-
-  QMapIterator<quint16, QVector<ExtendedGlyph> >i(alternates);
+  QMapIterator<quint16, QVector<ExtendedGlyph>> i(alternates);
   while (i.hasNext()) {
     i.next();
-
-
 
     QVector<ExtendedGlyph> seqtable = i.value();
 
@@ -1095,7 +985,6 @@ void AlternateSubtable::generateSubstEquivGlyphs() {
 }
 
 QByteArray AlternateSubtable::getOpenTypeTable(bool extended) {
-
   QByteArray root;
   QByteArray coverage;
   QByteArray sequencetables;
@@ -1112,16 +1001,13 @@ QByteArray AlternateSubtable::getOpenTypeTable(bool extended) {
   root_stream << coverage_offset;
   root_stream << total;
 
-
   coverage_stream << (quint16)1;
   coverage_stream << (quint16)total;
 
-  QMapIterator<quint16, QVector<ExtendedGlyph> >i(alternates);
+  QMapIterator<quint16, QVector<ExtendedGlyph>> i(alternates);
   quint16 seqtables_size = 0;
   while (i.hasNext()) {
     i.next();
-
-
 
     QVector<ExtendedGlyph> seqtable = i.value();
 
@@ -1139,12 +1025,11 @@ QByteArray AlternateSubtable::getOpenTypeTable(bool extended) {
         auto newGlyph = m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
 
         seqtable_stream << (quint16)newGlyph->charcode;
-      }
-      else {
+      } else {
         seqtable_stream << (quint16)alternateGlyph.code;
       }
     }
-    //seqtable_stream << seqtable;
+    // seqtable_stream << seqtable;
 
     debutsequence += 2 + 2 * seqtable.size();
   }
@@ -1152,19 +1037,15 @@ QByteArray AlternateSubtable::getOpenTypeTable(bool extended) {
   root.append(coverage);
   root.append(sequencetables);
 
-
   return root;
 };
 
 AlternateSubtableWithTatweel::AlternateSubtableWithTatweel(Lookup* lookup) : AlternateSubtable(lookup, 10) {};
 
 void AlternateSubtableWithTatweel::generateSubstEquivGlyphs() {
-
-  QMapIterator<quint16, QVector<ExtendedGlyph> >i(alternates);
+  QMapIterator<quint16, QVector<ExtendedGlyph>> i(alternates);
   while (i.hasNext()) {
     i.next();
-
-
 
     QVector<ExtendedGlyph> seqtable = i.value();
 
@@ -1182,7 +1063,6 @@ void AlternateSubtableWithTatweel::generateSubstEquivGlyphs() {
 }
 
 QByteArray AlternateSubtableWithTatweel::getOpenTypeTable(bool extended) {
-
   QByteArray root;
   QByteArray coverage;
   QByteArray sequencetables;
@@ -1199,11 +1079,10 @@ QByteArray AlternateSubtableWithTatweel::getOpenTypeTable(bool extended) {
   root_stream << coverage_offset;
   root_stream << total;
 
-
   coverage_stream << (quint16)1;
   coverage_stream << (quint16)total;
 
-  QMapIterator<quint16, QVector<ExtendedGlyph> >i(alternates);
+  QMapIterator<quint16, QVector<ExtendedGlyph>> i(alternates);
   quint16 seqtables_size = 0;
   while (i.hasNext()) {
     i.next();
@@ -1253,31 +1132,27 @@ QByteArray AlternateSubtableWithTatweel::getOpenTypeTable(bool extended) {
         righttatweel.set_float(alternateGlyph.righttatweel);
 
         tatweelsArrayStream << (int32_t)lefttatweel.to_int() << (int32_t)righttatweel.to_int();
-      }
-      else {
+      } else {
         throw std::runtime_error("Not implemented");
       }
     }
 
-    //seqtable_stream << alternatesArrayStream;
-    //seqtable_stream << tatweelsArrayStream;
+    // seqtable_stream << alternatesArrayStream;
+    // seqtable_stream << tatweelsArrayStream;
 
     sequencetables.append(alternatesArray);
     sequencetables.append(tatweelsArray);
 
     debutsequence += alternatesArray.size() + tatweelsArray.size();
-
   }
 
   root.append(coverage);
   root.append(sequencetables);
 
-
   return root;
 };
 
 QByteArray AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
-
   QByteArray root;
   QByteArray coverage;
   QByteArray sequencetables;
@@ -1294,16 +1169,13 @@ QByteArray AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
   root_stream << coverage_offset;
   root_stream << total;
 
-
   coverage_stream << (quint16)1;
   coverage_stream << (quint16)total;
 
-  QMapIterator<quint16, QVector<ExtendedGlyph> >i(alternates);
+  QMapIterator<quint16, QVector<ExtendedGlyph>> i(alternates);
   quint16 seqtables_size = 0;
   while (i.hasNext()) {
     i.next();
-
-
 
     QVector<ExtendedGlyph> seqtable = i.value();
 
@@ -1321,12 +1193,11 @@ QByteArray AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
         auto newGlyph = m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
 
         seqtable_stream << (quint16)newGlyph->charcode;
-      }
-      else {
+      } else {
         seqtable_stream << (quint16)alternateGlyph.code;
       }
     }
-    //seqtable_stream << seqtable;
+    // seqtable_stream << seqtable;
 
     debutsequence += 2 + 2 * seqtable.size();
   }
@@ -1334,45 +1205,38 @@ QByteArray AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
   root.append(coverage);
   root.append(sequencetables);
 
-
   return root;
 };
-
 
 LigatureSubtable::LigatureSubtable(Lookup* lookup) : Subtable(lookup) {
 }
 
 QByteArray LigatureSubtable::getOpenTypeTable(bool extended) {
-
   struct Ligaturetable {
     quint16 ligatureGlyph;
     QVector<quint16> componentGlyphIDs;
   };
 
-  QMap<quint16, QVector<Ligaturetable> > LigatureSets;
+  QMap<quint16, QVector<Ligaturetable>> LigatureSets;
 
   for (auto ligature : ligatures) {
     quint16 ligatureGlyph = ligature.ligatureGlyph;
     auto seq = ligature.componentGlyphIDs;
-    LigatureSets[seq.at(0)].append({ ligatureGlyph, seq.mid(1) });
+    LigatureSets[seq.at(0)].append({ligatureGlyph, seq.mid(1)});
   }
 
   QByteArray root;
   QByteArray coverage;
   QByteArray LigatureSetTables;
 
-
-
   quint16 ligatureSetCount = LigatureSets.size();
   quint16 coverage_offset = 2 + 2 + 2 + 2 * ligatureSetCount;
   quint16 coverage_size = 2 + 2 + 2 * ligatureSetCount;
   quint16 ligatureSetOffsets = coverage_offset + coverage_size;
 
-
   root << (quint16)format;
   root << coverage_offset;
   root << ligatureSetCount;
-
 
   coverage << (quint16)1;
   coverage << (quint16)ligatureSetCount;
@@ -1390,9 +1254,7 @@ QByteArray LigatureSubtable::getOpenTypeTable(bool extended) {
     QByteArray LigatureTables;
     LigatureSetTable << (quint16)ligatureCount;
 
-
     for (int i = 0; i < ligatureCount; i++) {
-
       LigatureSetTable << ligatureOffsets;
 
       QByteArray ligatureTable;
@@ -1403,16 +1265,12 @@ QByteArray LigatureSubtable::getOpenTypeTable(bool extended) {
       ligatureOffsets += ligatureTable.size();
 
       LigatureTables.append(ligatureTable);
-
-
     }
     LigatureSetTable.append(LigatureTables);
 
     ligatureSetOffsets += LigatureSetTable.size();
 
     LigatureSetTables.append(LigatureSetTable);
-
-
   }
 
   root.append(coverage);
@@ -1421,14 +1279,12 @@ QByteArray LigatureSubtable::getOpenTypeTable(bool extended) {
   return root;
 };
 
-void LigatureSubtable::readJson(const QJsonObject& json)
-{
+void LigatureSubtable::readJson(const QJsonObject& json) {
   ligatures.clear();
   for (int index = 0; index < json.size(); ++index) {
     QString ligatureName = json.keys()[index];
     quint16 uniode = getCodeFromName(ligatureName);
     if (!uniode) continue;
-
 
     QJsonArray dest = json[ligatureName].toArray();
 
@@ -1441,23 +1297,19 @@ void LigatureSubtable::readJson(const QJsonObject& json)
 
       if (!value) continue;
 
-      //ligatures[uniode].append(value);
+      // ligatures[uniode].append(value);
       componentGlyphIDs.append(value);
     }
-    ligatures.append({ uniode ,componentGlyphIDs });
-
+    ligatures.append({uniode, componentGlyphIDs});
   }
 }
 
 MarkBaseSubtable::MarkBaseSubtable(Lookup* lookup) : Subtable(lookup) {}
 
-
-void MarkBaseSubtable::readJson(const QJsonObject& json)
-{
+void MarkBaseSubtable::readJson(const QJsonObject& json) {
   if (json["base"].isString()) {
-    base = { json["base"].toString() };
-  }
-  else {
+    base = {json["base"].toString()};
+  } else {
     QJsonArray basearray = json["base"].toArray();
     base = {};
     for (int baseIndex = 0; baseIndex < basearray.size(); ++baseIndex) {
@@ -1473,9 +1325,8 @@ void MarkBaseSubtable::readJson(const QJsonObject& json)
     MarkClass newclass;
 
     if (classobject["mark"].isString()) {
-      newclass.mark = { classobject["mark"].toString() };
-    }
-    else {
+      newclass.mark = {classobject["mark"].toString()};
+    } else {
       QJsonArray array = classobject["mark"].toArray();
       newclass.mark = {};
       for (int ia = 0; ia < array.size(); ++ia) {
@@ -1493,7 +1344,6 @@ void MarkBaseSubtable::readJson(const QJsonObject& json)
         QJsonArray pointArray = baseparametersObject[glyphName].toArray();
         newclass.baseparameters[glyphName] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
       }
-
     }
 
     if (classobject["markparameters"].isObject()) {
@@ -1503,7 +1353,6 @@ void MarkBaseSubtable::readJson(const QJsonObject& json)
         QJsonArray pointArray = markparametersObject[glyphName].toArray();
         newclass.markparameters[glyphName] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
       }
-
     }
 
     if (classobject["baseanchors"].isObject()) {
@@ -1513,7 +1362,6 @@ void MarkBaseSubtable::readJson(const QJsonObject& json)
         QJsonArray pointArray = baseanchorsObject[glyphName].toArray();
         newclass.baseanchors[glyphName] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
       }
-
     }
 
     if (classobject["markanchors"].isObject()) {
@@ -1523,22 +1371,19 @@ void MarkBaseSubtable::readJson(const QJsonObject& json)
         QJsonArray pointArray = markanchorsObject[glyphName].toArray();
         newclass.markanchors[glyphName] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
       }
-
     }
 
     classes[className] = newclass;
   }
-
-
 }
 optional<QPoint> CursiveSubtable::getExit(quint16 glyph_id, GlyphParameters parameters) {
-
   optional<QPoint> exit;
 
   auto anchorType = m_lookup->flags & Lookup::Flags::RightToLeft ? GlyphVis::AnchorType::ExitAnchorRTL : GlyphVis::AnchorType::ExitAnchor;
 
-  if (anchors.contains(glyph_id)) {
+  auto otherType = anchorType == GlyphVis::AnchorType::ExitAnchorRTL ? GlyphVis::AnchorType::ExitAnchor : GlyphVis::AnchorType::ExitAnchorRTL;
 
+  if (anchors.contains(glyph_id)) {
     auto& entryexit = anchors[glyph_id];
 
     GlyphVis* originalglyph = m_layout->getGlyph(glyph_id);
@@ -1548,16 +1393,15 @@ optional<QPoint> CursiveSubtable::getExit(quint16 glyph_id, GlyphParameters para
 
     if (!entryexit.exitName.isEmpty() && curr->conatinsAnchor(entryexit.exitName, anchorType)) {
       exit = curr->getAnchor(entryexit.exitName, anchorType);
-    }
-    else if (curr->conatinsAnchor(this->name, anchorType)) {
+    } else if (curr->conatinsAnchor(this->name, anchorType)) {
       exit = curr->getAnchor(this->name, anchorType);
-    }
-    else if (entryexit.exitFunction) {
+    } else if (curr->conatinsAnchor(this->name, otherType)) {
+      exit = curr->getAnchor(this->name, otherType);
+    } else if (entryexit.exitFunction) {
       exit = entryexit.exitFunction(false, originalglyph, curr);
-    }
-    else {
+    } else {
       exit = entryexit.exit;
-      //exit = calculateEntry(originalglyph, curr, entry);
+      // exit = calculateEntry(originalglyph, curr, entry);
     }
 
     if (exit && exitParameters.contains(glyph_id)) {
@@ -1569,13 +1413,13 @@ optional<QPoint> CursiveSubtable::getExit(quint16 glyph_id, GlyphParameters para
 }
 
 optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, GlyphParameters parameters) {
-
   optional<QPoint> entry;
 
   auto anchorType = m_lookup->flags & Lookup::Flags::RightToLeft ? GlyphVis::AnchorType::EntryAnchorRTL : GlyphVis::AnchorType::EntryAnchor;
 
-  if (anchors.contains(glyph_id)) {
+  auto otherType = anchorType == GlyphVis::AnchorType::EntryAnchorRTL ? GlyphVis::AnchorType::EntryAnchor : GlyphVis::AnchorType::EntryAnchorRTL;
 
+  if (anchors.contains(glyph_id)) {
     auto& entryexit = anchors[glyph_id];
 
     GlyphVis* originalglyph = m_layout->getGlyph(glyph_id);
@@ -1585,14 +1429,13 @@ optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, GlyphParameters par
 
     if (!entryexit.entryName.isEmpty() && curr->conatinsAnchor(entryexit.entryName, anchorType)) {
       entry = curr->getAnchor(entryexit.entryName, anchorType);
-    }
-    else if (curr->conatinsAnchor(this->name, anchorType)) {
+    } else if (curr->conatinsAnchor(this->name, anchorType)) {
       entry = curr->getAnchor(this->name, anchorType);
-    }
-    else if (entryexit.entryFunction) {
+    } else if (curr->conatinsAnchor(this->name, otherType)) {
+      entry = curr->getAnchor(this->name, otherType);
+    } else if (entryexit.entryFunction) {
       entry = entryexit.entryFunction(true, originalglyph, curr);
-    }
-    else {
+    } else {
       entry = entryexit.entry;
       if (entry) {
         entry = calculateEntry(originalglyph, curr, *entry);
@@ -1607,7 +1450,6 @@ optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, GlyphParameters par
   return entry;
 }
 QPoint CursiveSubtable::calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint entry) {
-
   /*
   double xshift = extendedglyph->matrix.xpart - originalglyph->matrix.xpart;
   double yshift = extendedglyph->matrix.ypart - originalglyph->matrix.ypart;*/
@@ -1619,10 +1461,8 @@ QPoint CursiveSubtable::calculateEntry(GlyphVis* originalglyph, GlyphVis* extend
   entry += QPoint(xshift, yshift);
 
   return entry;
-
 }
 void CursiveSubtable::readJson(const QJsonObject& json) {
-
   if (json["anchors"].isObject()) {
     auto anchorsObject = json["anchors"].toObject();
     for (int index = 0; index < anchorsObject.size(); ++index) {
@@ -1653,8 +1493,6 @@ void CursiveSubtable::readJson(const QJsonObject& json) {
   }
 }
 void CursiveSubtable::readParameters(const QJsonObject& json) {
-
-
   if (json["exitParameters"].isObject()) {
     QJsonObject exitParametersObject = json["exitParameters"].toObject();
     for (int ia = 0; ia < exitParametersObject.size(); ++ia) {
@@ -1662,7 +1500,6 @@ void CursiveSubtable::readParameters(const QJsonObject& json) {
       QJsonArray pointArray = exitParametersObject[glyphName].toArray();
       exitParameters[m_layout->glyphCodePerName[glyphName]] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
     }
-
   }
 
   if (json["entryParameters"].isObject()) {
@@ -1672,12 +1509,9 @@ void CursiveSubtable::readParameters(const QJsonObject& json) {
       QJsonArray pointArray = entryParametersObject[glyphName].toArray();
       entryParameters[m_layout->glyphCodePerName[glyphName]] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
     }
-
   }
-
 }
 void CursiveSubtable::saveParameters(QJsonObject& json) const {
-
   if (exitParameters.size() != 0) {
     QJsonObject exitParametersObject;
     for (auto exitParameter = exitParameters.constBegin(); exitParameter != exitParameters.constEnd(); ++exitParameter) {
@@ -1687,7 +1521,6 @@ void CursiveSubtable::saveParameters(QJsonObject& json) const {
         pointArray.append(exitParameter.value().y());
         exitParametersObject[m_layout->glyphNamePerCode[exitParameter.key()]] = pointArray;
       }
-
     }
 
     json["exitParameters"] = exitParametersObject;
@@ -1702,25 +1535,19 @@ void CursiveSubtable::saveParameters(QJsonObject& json) const {
         pointArray.append(entryParameter.value().y());
         entryParametersObject[m_layout->glyphNamePerCode[entryParameter.key()]] = pointArray;
       }
-
     }
 
     json["entryParameters"] = entryParametersObject;
   }
-
-
-
 }
 
 void CursiveSubtable::setAnchorTable(quint16 glyphCode,
-  QByteArray& entryExitRecords,
-  QByteArray& anchorTables,
-  quint32& anchorOffset,
-  std::map<int,std::pair<int,std::pair<int,int>>>& posToVar,
-  bool extended,
-  bool isEntry
-){
-
+                                     QByteArray& entryExitRecords,
+                                     QByteArray& anchorTables,
+                                     quint32& anchorOffset,
+                                     std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
+                                     bool extended,
+                                     bool isEntry) {
   QString glyphName = m_layout->glyphNamePerCode[glyphCode];
 
   QString originalGlyphName = glyphName;
@@ -1738,22 +1565,19 @@ void CursiveSubtable::setAnchorTable(quint16 glyphCode,
 
   auto& originalGlyph = m_layout->glyphs[originalGlyphName];
 
-  std::optional<QPoint> calcanchor = isEntry ?
-    getEntry(originalGlyph.charcode, { .lefttatweel = charlt, .righttatweel = charrt }) : 
-    getExit(originalGlyph.charcode, { .lefttatweel = charlt, .righttatweel = charrt });
+  std::optional<QPoint> calcanchor = isEntry ? getEntry(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt}) : getExit(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt});
 
   if (!calcanchor) {
     entryExitRecords << (quint16)0;
     return;
   }
 
-  QPoint anchor{ *(calcanchor) };
+  QPoint anchor{*(calcanchor)};
 
   entryExitRecords << (quint16)anchorOffset;
 
   bool done = false;
   if (m_layout->isOTVar) {
-
     auto glyphName = m_layout->glyphNamePerCode[glyphCode];
 
     auto regionIndexes = m_layout->toOpenType->getGlyphParameters(glyphName);
@@ -1767,13 +1591,11 @@ void CursiveSubtable::setAnchorTable(quint16 glyphCode,
         if (parameters.scalex != 0) {
           delatX.push_back(anchor.x() * (parameters.scalex / 100) - anchor.x());
           delatY.push_back(0);
-        }
-        else {
+        } else {
           auto val = isEntry ? getEntry(glyphCode, parameters) : getExit(glyphCode, parameters);
           delatX.push_back(val->x() - anchor.x());
           delatY.push_back(val->y() - anchor.y());
         }
-
       }
 
       bool allx0 = true;
@@ -1794,22 +1616,22 @@ void CursiveSubtable::setAnchorTable(quint16 glyphCode,
 
       bool all0 = allx0 && ally0;
 
-      if (!all0) {            
+      if (!all0) {
         anchorTables << (quint16)3;
         anchorTables << (quint16)anchor.x();
         anchorTables << (quint16)anchor.y();
-        if(!allx0){
+        if (!allx0) {
           auto index_x = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
-          posToVar.insert({anchorTables.size(),{anchorTables.size() - 6,index_x}}); //(pos -  (isX ? 6 : 8)
+          posToVar.insert({anchorTables.size(), {anchorTables.size() - 6, index_x}});  //(pos -  (isX ? 6 : 8)
         }
-        anchorTables << (quint16)0; // xDeviceOffset
-        if(!ally0){
+        anchorTables << (quint16)0;  // xDeviceOffset
+        if (!ally0) {
           auto index_y = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
-          posToVar.insert({anchorTables.size(),{anchorTables.size() - 8,index_y}});
+          posToVar.insert({anchorTables.size(), {anchorTables.size() - 8, index_y}});
         }
-        anchorTables << (quint16)0; // yDeviceOffset
-        anchorOffset += 10;       
-        
+        anchorTables << (quint16)0;  // yDeviceOffset
+        anchorOffset += 10;
+
         done = true;
       }
     }
@@ -1821,56 +1643,50 @@ void CursiveSubtable::setAnchorTable(quint16 glyphCode,
     anchorTables << (quint16)anchor.y();
     anchorOffset += 6;
   }
-
 }
 
-
 QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
-
-
   QByteArray anchorTables;
   QByteArray entryExitRecords;
 
   quint16 entryExitCount = anchors.size();
 
-  //quint16 coverageOffset = 2 + 2 + 2 + entryExitCount * 4;
-  //quint32 anchorOffset = coverageOffset + 2 + 2 + 2 * entryExitCount;
+  // quint16 coverageOffset = 2 + 2 + 2 + entryExitCount * 4;
+  // quint32 anchorOffset = coverageOffset + 2 + 2 + 2 * entryExitCount;
 
   quint32 anchorOffset = 2 + 2 + 2 + entryExitCount * 4;
 
   QByteArray coverage;
   coverage << (quint16)1 << entryExitCount << anchors.keys();
 
-
   bool rtl = m_lookup->flags & Lookup::Flags::RightToLeft;
 
-  std::map<int,std::pair<int,std::pair<int,int>>> posToVar;
+  std::map<int, std::pair<int, std::pair<int, int>>> posToVar;
 
   for (auto anchor = anchors.constBegin(); anchor != anchors.constEnd(); ++anchor) {
-    setAnchorTable(anchor.key(),entryExitRecords, anchorTables,anchorOffset,posToVar,extended,true);
-    setAnchorTable(anchor.key(),entryExitRecords, anchorTables,anchorOffset,posToVar,extended,false);
+    setAnchorTable(anchor.key(), entryExitRecords, anchorTables, anchorOffset, posToVar, extended, true);
+    setAnchorTable(anchor.key(), entryExitRecords, anchorTables, anchorOffset, posToVar, extended, false);
   }
 
-  setVariationIndexOffset(anchorTables,anchorOffset,posToVar);
-  
+  setVariationIndexOffset(anchorTables, anchorOffset, posToVar);
+
   quint32 coverageOffset = 6 + entryExitRecords.size() + anchorTables.size();
 
-  if (coverageOffset > 0xFFFF){
-     std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString()
-      << " Overflows. coverageOffset=" << coverageOffset
-      << std::endl;
+  if (coverageOffset > 0xFFFF) {
+    std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString()
+              << " Overflows. coverageOffset=" << coverageOffset
+              << std::endl;
   }
 
   QByteArray root;
   root << (quint16)1;
   root << (quint16)coverageOffset;
   root << entryExitCount;
-  root.append(entryExitRecords);  
+  root.append(entryExitRecords);
   root.append(anchorTables);
   root.append(coverage);
 
   return root;
-
 }
 void MarkBaseSubtable::saveParameters(QJsonObject& json) const {
   for (auto it = classes.constBegin(); it != classes.constEnd(); ++it) {
@@ -1885,7 +1701,6 @@ void MarkBaseSubtable::saveParameters(QJsonObject& json) const {
         pointArray.append(parameter.value().y());
         baseparametersObject[glyphName] = pointArray;
       }
-
     }
     parameters = it.value().markparameters;
     QJsonObject markparametersObject;
@@ -1910,17 +1725,14 @@ void MarkBaseSubtable::saveParameters(QJsonObject& json) const {
     if (!classObject.isEmpty()) {
       json[it.key()] = classObject;
     }
-
   }
 }
 void MarkBaseSubtable::readParameters(const QJsonObject& json) {
-
   for (int index = 0; index < json.size(); ++index) {
     QString className = json.keys()[index];
     QJsonObject classobject = json[className].toObject();
 
     MarkClass& newclass = classes[className];
-
 
     if (classobject["baseparameters"].isObject()) {
       QJsonObject baseparametersObject = classobject["baseparameters"].toObject();
@@ -1929,7 +1741,6 @@ void MarkBaseSubtable::readParameters(const QJsonObject& json) {
         QJsonArray pointArray = baseparametersObject[glyphName].toArray();
         newclass.baseparameters[glyphName] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
       }
-
     }
 
     if (classobject["markparameters"].isObject()) {
@@ -1939,13 +1750,10 @@ void MarkBaseSubtable::readParameters(const QJsonObject& json) {
         QJsonArray pointArray = markparametersObject[glyphName].toArray();
         newclass.markparameters[glyphName] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
       }
-
     }
   }
-
 }
 QPoint MarkBaseSubtable::getBaseAnchor(QString baseGlyphName, QString className, GlyphParameters parameters) {
-
   QPoint coordinate;
 
   auto markClass = classes[className];
@@ -1953,7 +1761,6 @@ QPoint MarkBaseSubtable::getBaseAnchor(QString baseGlyphName, QString className,
   if (markClass.baseparameters.contains(baseGlyphName)) {
     coordinate = markClass.baseparameters[baseGlyphName];
   }
-  
 
   GlyphVis* curr = &m_layout->glyphs[baseGlyphName];
 
@@ -1961,21 +1768,17 @@ QPoint MarkBaseSubtable::getBaseAnchor(QString baseGlyphName, QString className,
 
   if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
     coordinate += curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor);
-  }
-  else {
+  } else {
     QString anchorName = m_lookup->name + "_" + className;
     if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
       coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
-    }
-    else {
+    } else {
       QString anchorName = m_lookup->name;
       if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
         coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
-      }
-      else if (markClass.basefunction) {
+      } else if (markClass.basefunction) {
         coordinate = markClass.basefunction(baseGlyphName, className, coordinate, parameters);
-      }
-      else if (markClass.baseanchors.contains(baseGlyphName)) {
+      } else if (markClass.baseanchors.contains(baseGlyphName)) {
         coordinate += markClass.baseanchors[baseGlyphName];
       }
     }
@@ -1985,7 +1788,6 @@ QPoint MarkBaseSubtable::getBaseAnchor(QString baseGlyphName, QString className,
 }
 
 optional<QPoint> MarkBaseSubtable::getBaseAnchor(quint16 mark_id, quint16 base_id, GlyphParameters parameters) {
-
   quint16 classIndex = markCodes[mark_id];
 
   QString className = classNamebyIndex[classIndex];
@@ -1993,11 +1795,8 @@ optional<QPoint> MarkBaseSubtable::getBaseAnchor(quint16 mark_id, quint16 base_i
   QString baseGlyphName = m_layout->glyphNamePerCode[base_id];
 
   return getBaseAnchor(baseGlyphName, className, parameters);
-
-
 }
 QPoint MarkBaseSubtable::getMarkAnchor(QString markGlyphName, QString className, GlyphParameters parameters) {
-
   QPoint coordinate;
 
   auto markClass = classes[className];
@@ -2012,21 +1811,17 @@ QPoint MarkBaseSubtable::getMarkAnchor(QString markGlyphName, QString className,
 
   if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
     coordinate += curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor);
-  }
-  else {
+  } else {
     QString anchorName = m_lookup->name + "_" + className;
     if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
       coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
-    }
-    else {
+    } else {
       QString anchorName = m_lookup->name;
       if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
         coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
-      }
-      else if (markClass.markfunction != nullptr) {
+      } else if (markClass.markfunction != nullptr) {
         coordinate = markClass.markfunction(markGlyphName, className, coordinate, parameters);
-      }
-      else if (markClass.markanchors.contains(markGlyphName)) {
+      } else if (markClass.markanchors.contains(markGlyphName)) {
         coordinate += markClass.markanchors[markGlyphName];
       }
     }
@@ -2035,7 +1830,6 @@ QPoint MarkBaseSubtable::getMarkAnchor(QString markGlyphName, QString className,
   return coordinate;
 }
 optional<QPoint> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_id, GlyphParameters parameters) {
-
   quint16 classIndex = markCodes[mark_id];
 
   QString className = classNamebyIndex[classIndex];
@@ -2043,18 +1837,15 @@ optional<QPoint> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_i
   QString markGlyphName = m_layout->glyphNamePerCode[mark_id];
 
   return getMarkAnchor(markGlyphName, className, parameters);
-
 }
 
 void MarkBaseSubtable::setAnchorTable(QString className,
-  quint16 glyphCode,
-  QByteArray& anchorTables,
-  quint32& anchorOffset,
-  std::map<int,std::pair<int,std::pair<int,int>>>& posToVar,
-  bool extended,
-  bool isBase
-){
-
+                                      quint16 glyphCode,
+                                      QByteArray& anchorTables,
+                                      quint32& anchorOffset,
+                                      std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
+                                      bool extended,
+                                      bool isBase) {
   QString glyphName = m_layout->glyphNamePerCode[glyphCode];
 
   QString originalGlyph = glyphName;
@@ -2070,13 +1861,10 @@ void MarkBaseSubtable::setAnchorTable(QString className,
     charrt = glyph->charrt;
   }
 
-  QPoint coordinate = isBase ?
-    getBaseAnchor(originalGlyph, className, { .lefttatweel = charlt, .righttatweel = charrt }) : 
-    getMarkAnchor(originalGlyph, className, { .lefttatweel = charlt, .righttatweel = charrt });
+  QPoint coordinate = isBase ? getBaseAnchor(originalGlyph, className, {.lefttatweel = charlt, .righttatweel = charrt}) : getMarkAnchor(originalGlyph, className, {.lefttatweel = charlt, .righttatweel = charrt});
 
   bool done = false;
   if (m_layout->isOTVar) {
-
     auto glyphName = m_layout->glyphNamePerCode[glyphCode];
 
     auto regionIndexes = m_layout->toOpenType->getGlyphParameters(glyphName);
@@ -2090,13 +1878,11 @@ void MarkBaseSubtable::setAnchorTable(QString className,
         if (parameters.scalex != 0) {
           delatX.push_back(coordinate.x() * (parameters.scalex / 100) - coordinate.x());
           delatY.push_back(0);
-        }
-        else {
+        } else {
           auto val = isBase ? getBaseAnchor(glyphName, className, parameters) : getMarkAnchor(glyphName, className, parameters);
           delatX.push_back(val.x() - coordinate.x());
           delatY.push_back(val.y() - coordinate.y());
         }
-
       }
 
       bool allx0 = true;
@@ -2117,22 +1903,22 @@ void MarkBaseSubtable::setAnchorTable(QString className,
 
       bool all0 = allx0 && ally0;
 
-      if (!all0) {            
+      if (!all0) {
         anchorTables << (quint16)3;
         anchorTables << (quint16)coordinate.x();
         anchorTables << (quint16)coordinate.y();
-        if(!allx0){
+        if (!allx0) {
           auto index_x = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
-          posToVar.insert({anchorTables.size(),{anchorTables.size() - 6,index_x}});
+          posToVar.insert({anchorTables.size(), {anchorTables.size() - 6, index_x}});
         }
-        anchorTables << (quint16)0; // xDeviceOffset
-        if(!ally0){
+        anchorTables << (quint16)0;  // xDeviceOffset
+        if (!ally0) {
           auto index_y = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
-          posToVar.insert({anchorTables.size(),{anchorTables.size() - 8,index_y}});
+          posToVar.insert({anchorTables.size(), {anchorTables.size() - 8, index_y}});
         }
-        anchorTables << (quint16)0; // yDeviceOffset
-        anchorOffset += 10;       
-        
+        anchorTables << (quint16)0;  // yDeviceOffset
+        anchorOffset += 10;
+
         done = true;
       }
     }
@@ -2144,25 +1930,23 @@ void MarkBaseSubtable::setAnchorTable(QString className,
     anchorTables << (quint16)coordinate.y();
     anchorOffset += 6;
   }
-
 }
 
 void Subtable::setVariationIndexOffset(
-  QByteArray& anchorTables,
-  quint32 anchorOffset,
-  std::map<int,std::pair<int,std::pair<int,int>>>& posToVar
-){
-  if (anchorOffset > 0xFFFF){
-     std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString()
-      << " Overflows. anchorOffset=" << anchorOffset
-      << std::endl;
+    QByteArray& anchorTables,
+    quint32 anchorOffset,
+    std::map<int, std::pair<int, std::pair<int, int>>>& posToVar) {
+  if (anchorOffset > 0xFFFF) {
+    std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString()
+              << " Overflows. anchorOffset=" << anchorOffset
+              << std::endl;
   }
 
-  int total=0;
-  int found=0;
-  std::map<std::pair<int,int>,int> indexes;
-  
-  for(auto& varIndex : posToVar){
+  int total = 0;
+  int found = 0;
+  std::map<std::pair<int, int>, int> indexes;
+
+  for (auto& varIndex : posToVar) {
     auto pos = varIndex.first;
     auto start = varIndex.second.first;
     auto index = varIndex.second.second;
@@ -2170,12 +1954,12 @@ void Subtable::setVariationIndexOffset(
     quint32 offset;
 
     auto it = indexes.find(index);
-    if(it != indexes.end()){
+    if (it != indexes.end()) {
       found++;
       offset = it->second;
-    }else{
+    } else {
       offset = anchorTables.size();
-      indexes.insert({index,offset});
+      indexes.insert({index, offset});
       anchorTables << (quint16)index.first;
       anchorTables << (quint16)index.second;
       anchorTables << (quint16)0x8000;
@@ -2183,16 +1967,15 @@ void Subtable::setVariationIndexOffset(
     total++;
 
     quint32 offsetFromAnchorTable = offset - start;
-    if (offsetFromAnchorTable > 0xFFFF){
+    if (offsetFromAnchorTable > 0xFFFF) {
       std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString()
-        << " Overflows. offsetFromAnchorTable=" << offsetFromAnchorTable
-        << std::endl;
+                << " Overflows. offsetFromAnchorTable=" << offsetFromAnchorTable
+                << std::endl;
     }
     QByteArray offsetData;
     offsetData << (quint16)offsetFromAnchorTable;
-    anchorTables.replace(pos,offsetData.size(),offsetData);
-
-  }  
+    anchorTables.replace(pos, offsetData.size(), offsetData);
+  }
   /*
   std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString()
         << " total=" << total
@@ -2201,13 +1984,12 @@ void Subtable::setVariationIndexOffset(
 }
 
 QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
-
   QByteArray root;
   QByteArray baseCoverage;
   QByteArray markCoverage;
   QByteArray markArray;
   QByteArray baseArray;
-  QByteArray baseAnchorTables;  
+  QByteArray baseAnchorTables;
   QByteArray markAnchorTables;
 
   int classIndex = 0;
@@ -2243,7 +2025,6 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
     classNamebyIndex[classIndex] = it.key();
 
     classIndex++;
-
   }
 
   quint16 markCount = markCodes.size();
@@ -2251,7 +2032,7 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
   // Base coverage && Base Array
   quint32 baseAnchorOffset = 2 + baseCount * (markClassCount * 2);
 
-  std::map<int,std::pair<int,std::pair<int,int>>> basePosToVar;
+  std::map<int, std::pair<int, std::pair<int, int>>> basePosToVar;
 
   baseCoverage << (quint16)1 << baseCount;
   baseArray << baseCount;
@@ -2261,36 +2042,34 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
     QString baseglyphName = m_layout->glyphNamePerCode[glyphCode];
     baseCoverage << glyphCode;
     for (auto it = classes.constBegin(); it != classes.constEnd(); ++it) {
-      baseArray << (quint16)baseAnchorOffset;      
-      setAnchorTable(it.key(),glyphCode,baseAnchorTables,baseAnchorOffset,basePosToVar,extended,true);
+      baseArray << (quint16)baseAnchorOffset;
+      setAnchorTable(it.key(), glyphCode, baseAnchorTables, baseAnchorOffset, basePosToVar, extended, true);
     }
   }
-  setVariationIndexOffset(baseAnchorTables,baseAnchorOffset,basePosToVar);  
+  setVariationIndexOffset(baseAnchorTables, baseAnchorOffset, basePosToVar);
   baseArray.append(baseAnchorTables);
 
   // Mark coverage && Mark Array
 
-
   quint32 markAnchorOffset = 2 + markCount * 4;
 
-  std::map<int,std::pair<int,std::pair<int,int>>> markPosToVar;
+  std::map<int, std::pair<int, std::pair<int, int>>> markPosToVar;
 
   markCoverage << (quint16)1 << markCount;
   markArray << markCount;
 
   for (auto it = markCodes.constBegin(); it != markCodes.constEnd(); ++it) {
-
     quint16 charcode = it.key();
     quint16 classIndex = it.value();
     QString className = classNamebyIndex[classIndex];
-    
+
     markCoverage << charcode;
 
     markArray << classIndex;
     markArray << (quint16)markAnchorOffset;
-    setAnchorTable(className,charcode,markAnchorTables,markAnchorOffset,markPosToVar,extended,false);
+    setAnchorTable(className, charcode, markAnchorTables, markAnchorOffset, markPosToVar, extended, false);
   }
-  setVariationIndexOffset(markAnchorTables,markAnchorOffset,markPosToVar); 
+  setVariationIndexOffset(markAnchorTables, markAnchorOffset, markPosToVar);
   markArray.append(markAnchorTables);
 
   quint32 markCoverageOffset = 12;
@@ -2300,12 +2079,11 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
   if (baseArrayOffset > 0xFFFF) {
     std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString()
-      << " Overflows. baseCoverageOffset=" << baseCoverageOffset
-      << " markArrayOffset=" << markArrayOffset
-      << " baseArrayOffset=" << baseArrayOffset
-      << std::endl;
+              << " Overflows. baseCoverageOffset=" << baseCoverageOffset
+              << " markArrayOffset=" << markArrayOffset
+              << " baseArrayOffset=" << baseArrayOffset
+              << std::endl;
   }
-
 
   root << (quint16)1 << (quint16)markCoverageOffset << (quint16)baseCoverageOffset << markClassCount << (quint16)markArrayOffset << (quint16)baseArrayOffset;
   root.append(markCoverage);
@@ -2317,21 +2095,15 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
   openTypeSubTable = root;
 
   return openTypeSubTable;
-
-
-
 };
 
 ChainingSubtable::ChainingSubtable(Lookup* lookup) : Subtable(lookup) {}
 
 void ChainingSubtable::readJson(const QJsonObject& ruleObject) {
-
   rule = Rule();
   compiledRule = CompiledRule();
 
-
-
-  //context
+  // context
   QJsonArray inputArray = ruleObject["input"].toArray();
   for (int j = 0; j < inputArray.size(); j++) {
     QSet<QString> classSet;
@@ -2345,7 +2117,6 @@ void ChainingSubtable::readJson(const QJsonObject& ruleObject) {
     }
     rule.input.append(classSet);
     compiledRule.input.append(glyphSet);
-
   }
 
   QJsonArray lookaheadArray = ruleObject["lookahead"].toArray();
@@ -2384,35 +2155,26 @@ void ChainingSubtable::readJson(const QJsonObject& ruleObject) {
     if (!lookupRecordObject.isEmpty()) {
       lookupRecord.lookupName = lookupRecordObject["lookup"].toString();
       lookupRecord.position = lookupRecordObject["position"].toInt();
-    }
-    else {
-
+    } else {
       auto lookupName = lookuprecordsArray[j].toString();
       if (!lookupName.isEmpty()) {
         lookupRecord.lookupName = lookupName;
         lookupRecord.position = j;
-      }
-      else {
+      } else {
         QJsonArray lookupRecordArray = lookuprecordsArray[j].toArray();
         if (lookupRecordArray.size() == 2) {
           lookupRecord.position = lookupRecordArray[0].toInt();
           lookupRecord.lookupName = lookupRecordArray[1].toString();
-
         }
       }
     }
 
-
     rule.lookupRecords.append(lookupRecord);
     compiledRule.lookupRecords.append(lookupRecord);
   }
-
-
-
 }
 
 QByteArray ChainingSubtable::getOpenTypeTable(bool extended) {
-
   QByteArray root;
   QByteArray coverages;
 
@@ -2420,8 +2182,6 @@ QByteArray ChainingSubtable::getOpenTypeTable(bool extended) {
   quint16 inputGlyphCount = compiledRule.input.size();
   quint16 lookaheadGlyphCount = compiledRule.lookahead.size();
   quint16 substitutionCount = compiledRule.lookupRecords.size();
-
-
 
   quint16 beginoffsets = 2 + 2 * (3 + backtrackGlyphCount + inputGlyphCount + lookaheadGlyphCount) + 2 + 4 * substitutionCount;
 
@@ -2439,7 +2199,6 @@ QByteArray ChainingSubtable::getOpenTypeTable(bool extended) {
 
     root << beginoffsets;
     beginoffsets += (2 + 2 + 2 * coverageSize);
-
   }
 
   root << inputGlyphCount;
@@ -2455,7 +2214,6 @@ QByteArray ChainingSubtable::getOpenTypeTable(bool extended) {
 
     root << beginoffsets;
     beginoffsets += (2 + 2 + 2 * coverageSize);
-
   }
 
   root << lookaheadGlyphCount;
@@ -2471,7 +2229,6 @@ QByteArray ChainingSubtable::getOpenTypeTable(bool extended) {
 
     root << beginoffsets;
     beginoffsets += (2 + 2 + 2 * coverageSize);
-
   }
 
   root << substitutionCount;
@@ -2486,22 +2243,18 @@ QByteArray ChainingSubtable::getOpenTypeTable(bool extended) {
     if (m_lookup->isGsubLookup()) {
       if (m_layout->gsublookupsIndexByName.contains(fullname)) {
         lookupListIndex = m_layout->gsublookupsIndexByName[fullname];
-      }
-      else {
+      } else {
         lookupListIndex = m_layout->gsublookupsIndexByName[lookeprecord.lookupName];
       }
-    }
-    else {
+    } else {
       if (m_layout->gposlookupsIndexByName.contains(fullname)) {
         lookupListIndex = m_layout->gposlookupsIndexByName[fullname];
-      }
-      else {
+      } else {
         lookupListIndex = m_layout->gposlookupsIndexByName[lookeprecord.lookupName];
       }
     }
 
     root << lookupListIndex;
-
   }
 
   root.append(coverages);

@@ -18,1116 +18,1044 @@
 */
 
 #ifndef H_FEAAST
-# define H_FEAAST
+#define H_FEAAST
 
-#include <map>
-#include <vector>
-#include <ostream>
-#include <stdexcept>
-#include <cmath>
+#include <qdebug.h>
 #include <qstack.h>
 
-#include "Lookup.h"
-#include "Subtable.h"
-#include "OtLayout.h"
-#include <qdebug.h>
-#include "statement.h"
-#include "just.h"
-#include "GlyphVis.h"
+#include <cmath>
+#include <map>
+#include <ostream>
+#include <stdexcept>
+#include <vector>
 
+#include "GlyphVis.h"
+#include "Lookup.h"
+#include "OtLayout.h"
+#include "Subtable.h"
+#include "just.h"
+#include "statement.h"
 
 class QJsonObject;
 
 namespace feayy {
 
-  enum class GlyphType {
-    CID,
-    Name
-  };
+enum class GlyphType {
+  CID,
+  Name
+};
 
-  enum class AnchorType {
-    Null,
-    Name,
-    FormatA,
-    Function
-  };
+enum class AnchorType {
+  Null,
+  Name,
+  FormatA,
+  Function
+};
 
-  enum class InlineType {
-    None,
-    SinglePos,
-    CursivePos
-  };
+enum class InlineType {
+  None,
+  SinglePos,
+  CursivePos
+};
 
-  enum class ClassComponentType {
-    Glyph,
-    ClassName,
-    RegExp
-  };
+enum class ClassComponentType {
+  Glyph,
+  ClassName,
+  RegExp
+};
 
-  class ClassComponent {
-    ClassComponentType _componenttype;
-  public:
-    explicit ClassComponent(ClassComponentType type) :_componenttype{ type } {};
+class ClassComponent {
+  ClassComponentType _componenttype;
 
-    ClassComponentType componentType() {
-      return _componenttype;
-    }
+ public:
+  explicit ClassComponent(ClassComponentType type) : _componenttype{type} {};
 
-    virtual ~ClassComponent()
-    {
-    }
+  ClassComponentType componentType() {
+    return _componenttype;
+  }
 
-    virtual QSet<quint16> getCodes(OtLayout* otlayout) = 0;
+  virtual ~ClassComponent() {
+  }
 
-    virtual ClassComponent* clone() = 0;
-  };
+  virtual QSet<quint16> getCodes(OtLayout* otlayout) = 0;
 
+  virtual ClassComponent* clone() = 0;
+};
 
+class Glyph : public ClassComponent {
+  GlyphType _glyphtype;
 
-  class Glyph : public ClassComponent {
-    GlyphType _glyphtype;
-  public:
-    explicit Glyph(GlyphType type) :ClassComponent{ ClassComponentType::Glyph }, _glyphtype{ type } {};
+ public:
+  explicit Glyph(GlyphType type) : ClassComponent{ClassComponentType::Glyph}, _glyphtype{type} {};
 
-    GlyphType glyphType() {
-      return _glyphtype;
-    }
+  GlyphType glyphType() {
+    return _glyphtype;
+  }
 
-    virtual Glyph* clone() = 0;
+  virtual Glyph* clone() = 0;
+};
 
+class Anchor {
+  AnchorType _anchortype;
 
-  };
+ public:
+  explicit Anchor(AnchorType type) : _anchortype{type} {};
 
-  class Anchor {
-    AnchorType _anchortype;
-  public:
-    explicit Anchor(AnchorType type) :_anchortype{ type } {};
+  AnchorType anchortype() {
+    return _anchortype;
+  }
+};
 
-    AnchorType anchortype() {
-      return _anchortype;
-    }
-  };
+class AnchorNull : public Anchor {
+ public:
+  explicit AnchorNull() : Anchor(AnchorType::Null) {}
 
-  class AnchorNull : public Anchor {
-  public:
-    explicit AnchorNull() :Anchor(AnchorType::Null) {}
+  ~AnchorNull() {
+  }
+};
 
-    ~AnchorNull() {
-    }
-  };
+class AnchorName : public Anchor {
+ public:
+  std::string name;
 
+  explicit AnchorName(std::string _name) : Anchor(AnchorType::Name), name{_name} {}
 
-  class AnchorName : public Anchor {
+  operator const std::string&() const { return name; }
 
-  public:
+  ~AnchorName() {
+    // delete name;
+  }
+};
 
-    std::string name;
+class AnchorFunction : public Anchor {
+ public:
+  std::string name;
 
-    explicit AnchorName(std::string _name) :Anchor(AnchorType::Name), name{ _name } {}
+  explicit AnchorFunction(std::string _name) : Anchor(AnchorType::Function), name{_name} {}
 
-    operator const std::string& () const { return name; }
+  operator const std::string&() const { return name; }
 
-    ~AnchorName() {
-      //delete name;
-    }
-  };
+  ~AnchorFunction() {
+    // delete name;
+  }
+};
 
-  class AnchorFunction : public Anchor {
-  public:
+class AnchorFormatA : public Anchor {
+ public:
+  int x;
+  int y;
 
-    std::string name;
+  explicit AnchorFormatA(int x, int y) : Anchor{AnchorType::FormatA}, x{x}, y{y} {}
 
-    explicit AnchorFunction(std::string _name) :Anchor(AnchorType::Function), name{ _name } {}
+  ~AnchorFormatA() {
+  }
+};
 
-    operator const std::string& () const { return name; }
+class GlyphName : public Glyph {
+  std::string name;
 
-    ~AnchorFunction() {
-      //delete name;
-    }
-  };
+ public:
+  explicit GlyphName(std::string _name) : Glyph(GlyphType::Name), name{_name} {}
 
-  class AnchorFormatA : public Anchor {
+  operator const std::string&() const { return name; }
 
-  public:
-    int x;
-    int y;
+  GlyphName* clone() override {
+    return new GlyphName(name);
+  }
 
-    explicit AnchorFormatA(int x, int y) :Anchor{ AnchorType::FormatA }, x{ x }, y{ y } {}
-
-    ~AnchorFormatA() {
-    }
-  };
-
-
-
-  class GlyphName : public Glyph {
-    std::string name;
-  public:
-    explicit GlyphName(std::string _name) :Glyph(GlyphType::Name), name{ _name } {}
-
-    operator const std::string& () const { return name; }
-
-    GlyphName* clone() override {
-      return new GlyphName(name);
-    }
-
-    QSet<quint16> getCodes(OtLayout* otlayout) {
-      QString lname = QString::fromStdString(name);
-      if (otlayout->glyphCodePerName.contains(lname)) {
-        auto charcode = otlayout->glyphCodePerName[lname];
-        QSet set{ charcode };
-        //auto newset = otlayout->getSubsts(charcode);
-        //set.unite(newset);        
-        return set;
-      }
-      else {
-        qDebug() << "Glyph Name " + lname + " not found";
-        //return { otlayout->glyphCodePerName[lname] };
-        throw "Glyph Name " + lname + " not found";
-      }
-    }
-
-  };
-
-  class ClassName : public ClassComponent {
-    const std::string name;
-  public:
-    explicit ClassName(std::string _name) :ClassComponent(ClassComponentType::ClassName), name{ _name } {}
-
-    operator const std::string& () const { return name; }
-
-    ClassName* clone() override {
-      return new ClassName(name);
-    }
-
-    QSet<quint16> getCodes(OtLayout* otlayout) {
-      QString lname = QString::fromStdString(name);
-      auto set = otlayout->classtoUnicode(lname);
-      if (set.isEmpty()) {
-        throw "Class " + lname + " is empty";
-      }
+  QSet<quint16> getCodes(OtLayout* otlayout) {
+    QString lname = QString::fromStdString(name);
+    if (otlayout->glyphCodePerName.contains(lname)) {
+      auto charcode = otlayout->glyphCodePerName[lname];
+      QSet set{charcode};
+      // auto newset = otlayout->getSubsts(charcode);
+      // set.unite(newset);
       return set;
+    } else {
+      qDebug() << "Glyph Name " + lname + " not found";
+      // return { otlayout->glyphCodePerName[lname] };
+      throw "Glyph Name " + lname + " not found";
     }
+  }
+};
 
-  };
+class ClassName : public ClassComponent {
+  const std::string name;
 
-  class RegExpClass : public ClassComponent {
-    std::string _regexpr;
-  public:
-    explicit RegExpClass(std::string _reg) :ClassComponent(ClassComponentType::RegExp), _regexpr{ _reg } {}
+ public:
+  explicit ClassName(std::string _name) : ClassComponent(ClassComponentType::ClassName), name{_name} {}
 
-    operator const std::string& () const { return _regexpr; }
+  operator const std::string&() const { return name; }
 
-    RegExpClass* clone() override {
-      return new RegExpClass(_regexpr);
+  ClassName* clone() override {
+    return new ClassName(name);
+  }
+
+  QSet<quint16> getCodes(OtLayout* otlayout) {
+    QString lname = QString::fromStdString(name);
+    auto set = otlayout->classtoUnicode(lname);
+    if (set.isEmpty()) {
+      throw "Class " + lname + " is empty";
     }
+    return set;
+  }
+};
 
-    QSet<quint16> getCodes(OtLayout* otlayout) {
-      QString regexp = QString::fromStdString(_regexpr);
-      auto set = otlayout->regexptoUnicode(regexp);
-      return set;
+class RegExpClass : public ClassComponent {
+  std::string _regexpr;
+
+ public:
+  explicit RegExpClass(std::string _reg) : ClassComponent(ClassComponentType::RegExp), _regexpr{_reg} {}
+
+  operator const std::string&() const { return _regexpr; }
+
+  RegExpClass* clone() override {
+    return new RegExpClass(_regexpr);
+  }
+
+  QSet<quint16> getCodes(OtLayout* otlayout) {
+    QString regexp = QString::fromStdString(_regexpr);
+    auto set = otlayout->regexptoUnicode(regexp);
+    return set;
+  }
+};
+
+class GlyphCID : public Glyph {
+ public:
+  explicit GlyphCID(int _cid) : Glyph(GlyphType::CID), cid{_cid} {}
+
+  operator int() const { return cid; }
+
+  QSet<quint16> getCodes(OtLayout* otlayout) {
+    if (otlayout->glyphNamePerCode.contains(cid)) {
+      return {(quint16)cid};
+    } else {
+      throw new std::runtime_error("GlyphID " + std::to_string(cid) + "does not exist\n");
     }
+  }
 
-  };
+  GlyphCID* clone() override {
+    return new GlyphCID(cid);
+  }
 
-  class GlyphCID : public Glyph {
-  public:
-    explicit GlyphCID(int _cid) :Glyph(GlyphType::CID), cid{ _cid } {}
+ private:
+  int cid;
+};
 
-    operator int() const { return cid; }
+class GlyphClass {
+  std::vector<ClassComponent*> _components;
 
-    QSet<quint16> getCodes(OtLayout* otlayout) {
-      if (otlayout->glyphNamePerCode.contains(cid)) {
-        return { (quint16)cid };
-      }
-      else {
-        throw new std::runtime_error("GlyphID " + std::to_string(cid) + "does not exist\n");
-      }
+ public:
+  explicit GlyphClass(const std::vector<ClassComponent*>& components) : _components{components} {
+  }
+
+  explicit GlyphClass(std::vector<ClassComponent*>&& components) : _components{std::move(components)} {
+  }
+
+  explicit GlyphClass(ClassName* component) {
+    _components = std::vector<ClassComponent*>{component};
+  }
+
+  explicit GlyphClass(RegExpClass* component) {
+    _components = std::vector<ClassComponent*>{component};
+  }
+
+  virtual ~GlyphClass() {
+    for (auto component : _components) {
+      delete component;
     }
+  }
 
-    GlyphCID* clone() override {
-      return new GlyphCID(cid);
+  GlyphClass* clone() {
+    std::vector<ClassComponent*> componentsclone;
+    for (auto com : _components) {
+      componentsclone.push_back(com->clone());
     }
-  private:
-    int cid;
-  };
+    return new GlyphClass(std::move(componentsclone));
+  }
 
-  class GlyphClass {
-    std::vector<ClassComponent*> _components;
-  public:
-    explicit GlyphClass(const std::vector<ClassComponent*>& components) : _components{ components } {
-    }
-
-    explicit GlyphClass(std::vector<ClassComponent*>&& components) : _components{ std::move(components) } {
-    }
-
-    explicit GlyphClass(ClassName* component) {
-      _components = std::vector<ClassComponent*>{ component };
-    }
-
-    explicit GlyphClass(RegExpClass* component) {
-      _components = std::vector<ClassComponent*>{ component };
-    }
-
-    virtual ~GlyphClass()
-    {
-      for (auto component : _components) {
-        delete component;
-      }
-    }
-
-    GlyphClass* clone() {
-      std::vector<ClassComponent*> componentsclone;
-      for (auto com : _components) {
-        componentsclone.push_back(com->clone());
-      }
-      return new GlyphClass(std::move(componentsclone));
-    }
-
-    QSet<quint16> getCodes(OtLayout* otlayout) {
-
-      QSet<quint16> unicodes;
-      for (auto comp : _components) {
-        auto codes = comp->getCodes(otlayout);
-        unicodes.unite(codes);
-        if (auto glyph = dynamic_cast<Glyph*>(comp)) {
-          for (auto code : codes) {
-            auto set = otlayout->getSubsts(code);
-            unicodes.unite(set);
-          }
+  QSet<quint16> getCodes(OtLayout* otlayout) {
+    QSet<quint16> unicodes;
+    for (auto comp : _components) {
+      auto codes = comp->getCodes(otlayout);
+      unicodes.unite(codes);
+      if (auto glyph = dynamic_cast<Glyph*>(comp)) {
+        for (auto code : codes) {
+          auto set = otlayout->getSubsts(code);
+          unicodes.unite(set);
         }
       }
-
-      return unicodes;
     }
+
+    return unicodes;
+  }
+};
+
+class GlyphSet {
+ public:
+  struct Bad_entry {};  // used for exceptions
+  explicit GlyphSet(GlyphClass* _glyphClass) : _glyphClass(_glyphClass), type{Tag::glyphclass} {}
+  explicit GlyphSet(Glyph* _glyph) : _glyph(_glyph), type{Tag::glyph} {}
+  explicit GlyphSet() : _glyph(nullptr), type{Tag::empty} {}
+
+  GlyphClass* glyphClass() const {
+    if (type != Tag::glyphclass) throw Bad_entry{};
+    return _glyphClass;
+  }
+
+  Glyph* glyph() const {
+    if (type != Tag::glyph) throw Bad_entry{};
+    return _glyph;
+  }
+
+  ~GlyphSet() {
+    if (type == Tag::glyphclass) {
+      delete _glyphClass;
+    } else if (type == Tag::glyph) {
+      delete _glyph;
+    }
+  }
+
+  GlyphSet* clone() {
+    if (type == Tag::glyphclass) {
+      return new GlyphSet(_glyphClass->clone());
+    } else if (type == Tag::glyph) {
+      return new GlyphSet(_glyph->clone());
+    }
+  }
+
+  QSet<quint16> getCodes(OtLayout* otlayout) {
+    if (type == Tag::glyphclass) {
+      return _glyphClass->getCodes(otlayout);
+    } else if (type == Tag::glyph) {
+      return _glyph->getCodes(otlayout);
+    } else {
+      return QSet<quint16>();
+    }
+  }
+
+  QSet<quint16> getCachedCodes(OtLayout* otlayout) {
+    if (!isCached) {
+      cached = getCodes(otlayout);
+      isCached = true;
+    }
+
+    return cached;
+  }
+
+  QList<quint16> getSortedCodes(OtLayout* otlayout) {
+    auto set = getCodes(otlayout);
+    auto list = set.values();
+    std::sort(list.begin(), list.end());
+    // qSort(list);
+    return list;
+  }
+
+  bool isEmpty() {
+    return type == Tag::empty;
+  }
+
+ private:
+  enum class Tag { glyphclass,
+                   glyph,
+                   empty };
+
+  union {
+    GlyphClass* _glyphClass;
+    Glyph* _glyph;
   };
+  Tag type;
 
-  class GlyphSet {
+  bool isCached = false;
+  QSet<quint16> cached;
+};
 
-  public:
-    struct Bad_entry { }; // used for exceptions
-    explicit GlyphSet(GlyphClass* _glyphClass) :_glyphClass(_glyphClass), type{ Tag::glyphclass } {}
-    explicit GlyphSet(Glyph* _glyph) :_glyph(_glyph), type{ Tag::glyph } {}
-    explicit GlyphSet() :_glyph(nullptr), type{ Tag::empty } {}
+class Mark2BaseClass {
+ public:
+  GlyphSet* glyphset;
+  Anchor* baseAnchor;
+  Anchor* markAnchor;
+  std::string className;
 
-    GlyphClass* glyphClass() const {
-      if (type != Tag::glyphclass) throw Bad_entry{};
-      return _glyphClass;
+  explicit Mark2BaseClass(GlyphSet* glyphset, Anchor* baseAnchor, Anchor* markAnchor, std::string className)
+      : glyphset{glyphset}, baseAnchor{baseAnchor}, markAnchor{markAnchor}, className{className} {}
+
+  ~Mark2BaseClass() {
+    delete glyphset;
+    delete baseAnchor;
+    delete markAnchor;
+    // delete className;
+  }
+};
+
+class GlyphSetRegExp {
+ public:
+  virtual ~GlyphSetRegExp() {
+  }
+
+  virtual QVector<QVector<GlyphSet*>> getSequences() = 0;
+};
+
+class GlyphSetRegExpSingle : public GlyphSetRegExp {
+ public:
+  GlyphSet* element;
+
+  explicit GlyphSetRegExpSingle(GlyphSet* element) : element{element} {}
+
+  virtual ~GlyphSetRegExpSingle() {
+    delete element;
+  }
+
+  QVector<QVector<GlyphSet*>> getSequences() override {
+    if (element->isEmpty()) {
+      return {{}};
+    } else {
+      return {{element}};
     }
+  }
+};
 
-    Glyph* glyph() const {
-      if (type != Tag::glyph) throw Bad_entry{};
-      return _glyph;
+class GlyphSetRegExpGlyphSeq : public GlyphSetRegExp {
+ public:
+  QVector<GlyphSet*> seq;
+
+  explicit GlyphSetRegExpGlyphSeq(std::vector<Glyph*>* glyphSeq) {
+    for (auto glyph : *glyphSeq) {
+      this->seq.append(new GlyphSet(glyph));
     }
+    delete glyphSeq;
+  }
 
-    ~GlyphSet() {
-      if (type == Tag::glyphclass) {
-        delete _glyphClass;
-      }
-      else if (type == Tag::glyph) {
-        delete _glyph;
-      }
+  virtual ~GlyphSetRegExpGlyphSeq() {
+    for (auto glyph : seq) {
+      delete glyph;
     }
+  }
 
-    GlyphSet* clone() {
-      if (type == Tag::glyphclass) {
-        return new GlyphSet(_glyphClass->clone());
-      }
-      else if (type == Tag::glyph) {
-        return new GlyphSet(_glyph->clone());
-      }
+  QVector<QVector<GlyphSet*>> getSequences() override {
+    if (seq.isEmpty()) {
+      return {{}};
+    } else {
+      return {seq};
     }
+  }
+};
 
-    QSet<quint16> getCodes(OtLayout* otlayout) {
+class GlyphSetRegExpSeq : public GlyphSetRegExp {
+ public:
+  GlyphSetRegExp* left;
+  GlyphSetRegExp* right;
 
-      if (type == Tag::glyphclass) {
-        return _glyphClass->getCodes(otlayout);
-      }
-      else if (type == Tag::glyph) {
-        return _glyph->getCodes(otlayout);
-      }
-      else {
-        return QSet<quint16>();
-      }
-    }
+  explicit GlyphSetRegExpSeq(GlyphSetRegExp* left, GlyphSetRegExp* right) : left{left}, right{right} {}
+  explicit GlyphSetRegExpSeq(GlyphSetRegExp* left, GlyphSet* right) : left{left}, right{new GlyphSetRegExpSingle(right)} {}
+  explicit GlyphSetRegExpSeq(GlyphSet* left, GlyphSetRegExp* right) : left{new GlyphSetRegExpSingle(left)}, right{right} {}
+  explicit GlyphSetRegExpSeq(GlyphSet* left, GlyphSet* right) : left{new GlyphSetRegExpSingle(left)}, right{new GlyphSetRegExpSingle(right)} {}
 
-    QSet<quint16> getCachedCodes(OtLayout* otlayout) {
-      if (!isCached) {
-        cached = getCodes(otlayout);
-        isCached = true;
-      }
+  virtual ~GlyphSetRegExpSeq() {
+    delete left;
+    delete right;
+  }
 
-      return cached;
-    }
-
-    QList<quint16> getSortedCodes(OtLayout* otlayout) {
-
-      auto set = getCodes(otlayout);
-      auto list = set.values();
-      std::sort(list.begin(), list.end());
-      //qSort(list);
-      return list;
-    }
-
-    bool isEmpty() {
-      return type == Tag::empty;
-    }
-
-  private:
-    enum class Tag { glyphclass, glyph, empty };
-
-    union {
-      GlyphClass* _glyphClass;
-      Glyph* _glyph;
-    };
-    Tag type;
-
-    bool isCached = false;
-    QSet<quint16> cached;
-
-  };
-
-  class Mark2BaseClass {
-  public:
-    GlyphSet* glyphset;
-    Anchor* baseAnchor;
-    Anchor* markAnchor;
-    std::string className;
-
-    explicit Mark2BaseClass(GlyphSet* glyphset, Anchor* baseAnchor, Anchor* markAnchor, std::string className)
-      :glyphset{ glyphset }, baseAnchor{ baseAnchor }, markAnchor{ markAnchor }, className{ className } {}
-
-    ~Mark2BaseClass() {
-      delete glyphset;
-      delete baseAnchor;
-      delete markAnchor;
-      //delete className;
-    }
-  };
-
-
-
-  class GlyphSetRegExp {
-  public:
-    virtual ~GlyphSetRegExp()
-    {
-    }
-
-    virtual  QVector<QVector<GlyphSet*>> getSequences() = 0;
-  };
-
-  class GlyphSetRegExpSingle : public GlyphSetRegExp {
-  public:
-
-    GlyphSet* element;
-
-    explicit GlyphSetRegExpSingle(GlyphSet* element) : element{ element } {}
-
-    virtual ~GlyphSetRegExpSingle()
-    {
-      delete element;
-    }
-
-    QVector<QVector<GlyphSet*>> getSequences() override {
-      if (element->isEmpty()) {
-        return { {} };
-      }
-      else {
-        return { { element } };
+  QVector<QVector<GlyphSet*>> getSequences() override {
+    auto lefseqs = left->getSequences();
+    auto rightseqs = right->getSequences();
+    QVector<QVector<GlyphSet*>> ret;
+    for (auto leftseq : lefseqs) {
+      QVector<GlyphSet*> newseq = leftseq;
+      for (auto rightseq : rightseqs) {
+        QVector<GlyphSet*> newseq{leftseq};
+        newseq.append(rightseq);
+        ret.append(newseq);
       }
     }
 
-  };
+    return ret;
+  }
+};
 
-  class GlyphSetRegExpGlyphSeq : public GlyphSetRegExp {
-  public:
+class GlyphSetRegExpRep : public GlyphSetRegExp {
+ public:
+  GlyphSetRegExp* expr;
+  int minRep;
+  int maxRep;
 
-    QVector<GlyphSet*> seq;
+  explicit GlyphSetRegExpRep(GlyphSetRegExp* expr, int min, int max) : expr{expr}, minRep{min}, maxRep{max} {
+    if (minRep <= 0) minRep = 0;
+  }
+  explicit GlyphSetRegExpRep(GlyphSetRegExp* expr, int rep) : GlyphSetRegExpRep{expr, rep, rep} {}
 
-    explicit GlyphSetRegExpGlyphSeq(std::vector<Glyph*>* glyphSeq) {
-      for (auto glyph : *glyphSeq) {
-        this->seq.append(new GlyphSet(glyph));
-      }
-      delete glyphSeq;
-    }
+  virtual ~GlyphSetRegExpRep() {
+    delete expr;
+  }
 
-    virtual ~GlyphSetRegExpGlyphSeq()
-    {
-      for (auto glyph : seq) {
-        delete glyph;
-      }
-    }
+  QVector<QVector<GlyphSet*>> getSequences() override {
+    QVector<QVector<GlyphSet*>> minSeqs;
 
-    QVector<QVector<GlyphSet*>> getSequences() override {
-      if (seq.isEmpty()) {
-        return { {} };
-      }
-      else {
-        return { seq };
-      }
-    }
+    auto rightseqs = expr->getSequences();
 
-  };
-
-
-
-
-  class GlyphSetRegExpSeq : public GlyphSetRegExp {
-  public:
-
-    GlyphSetRegExp* left;
-    GlyphSetRegExp* right;
-
-    explicit GlyphSetRegExpSeq(GlyphSetRegExp* left, GlyphSetRegExp* right) : left{ left }, right{ right } {}
-    explicit GlyphSetRegExpSeq(GlyphSetRegExp* left, GlyphSet* right) :left{ left }, right{ new GlyphSetRegExpSingle(right) } {}
-    explicit GlyphSetRegExpSeq(GlyphSet* left, GlyphSetRegExp* right) :left{ new GlyphSetRegExpSingle(left) }, right{ right } {}
-    explicit GlyphSetRegExpSeq(GlyphSet* left, GlyphSet* right) :left{ new GlyphSetRegExpSingle(left) }, right{ new GlyphSetRegExpSingle(right) } {}
-
-    virtual ~GlyphSetRegExpSeq()
-    {
-      delete left;
-      delete right;
-    }
-
-    QVector<QVector<GlyphSet*>> getSequences() override {
-      auto lefseqs = left->getSequences();
-      auto rightseqs = right->getSequences();
-      QVector<QVector<GlyphSet*>> ret;
-      for (auto leftseq : lefseqs) {
-        QVector<GlyphSet*> newseq = leftseq;
-        for (auto rightseq : rightseqs) {
-          QVector<GlyphSet*> newseq{ leftseq };
-          newseq.append(rightseq);
-          ret.append(newseq);
-        }
-      }
-
-      return ret;
-    }
-  };
-
-  class GlyphSetRegExpRep : public GlyphSetRegExp {
-  public:
-
-    GlyphSetRegExp* expr;
-    int minRep;
-    int maxRep;
-
-    explicit GlyphSetRegExpRep(GlyphSetRegExp* expr, int min, int max) : expr{ expr }, minRep{ min }, maxRep{ max } {
-      if (minRep <= 0) minRep = 0;
-    }
-    explicit GlyphSetRegExpRep(GlyphSetRegExp* expr, int rep) : GlyphSetRegExpRep{ expr , rep , rep } {}
-
-    virtual ~GlyphSetRegExpRep()
-    {
-      delete expr;
-    }
-
-    QVector<QVector<GlyphSet*>> getSequences() override {
-
-      QVector<QVector<GlyphSet*>> minSeqs;
-
-      auto rightseqs = expr->getSequences();
-
-      if (minRep == 0) {
-        minSeqs.append(QVector<GlyphSet*>{});
-      }
-      else {
-
-        for (int i = 0; i < minRep; i++) {
-          auto lefseqs = minSeqs;
-          for (auto leftseq : lefseqs) {
-            for (auto rightseq : rightseqs) {
-              QVector<GlyphSet*> newseq{ leftseq };
-              newseq.append(rightseq);
-              minSeqs.append(newseq);
-            }
-          }
-        }
-      }
-
-      QVector<QVector<GlyphSet*>> ret = minSeqs;
-      QVector<QVector<GlyphSet*>> latSeqs = minSeqs;
-
-      for (int i = minRep; i < maxRep; i++) {
-        auto lefseqs = latSeqs;
-        latSeqs = {};
+    if (minRep == 0) {
+      minSeqs.append(QVector<GlyphSet*>{});
+    } else {
+      for (int i = 0; i < minRep; i++) {
+        auto lefseqs = minSeqs;
         for (auto leftseq : lefseqs) {
           for (auto rightseq : rightseqs) {
-            QVector<GlyphSet*> newseq{ leftseq };
+            QVector<GlyphSet*> newseq{leftseq};
             newseq.append(rightseq);
-            latSeqs.append(newseq);
+            minSeqs.append(newseq);
           }
         }
-        ret.append(latSeqs);
       }
-
-      return ret;
-    }
-  };
-
-  class GlyphSetRegExpOr : public GlyphSetRegExp {
-  public:
-
-    GlyphSetRegExp* left;
-    GlyphSetRegExp* right;
-
-    explicit GlyphSetRegExpOr(GlyphSetRegExp* left, GlyphSetRegExp* right) : left{ left }, right{ right } {}
-
-    virtual ~GlyphSetRegExpOr()
-    {
-      delete left;
-      delete right;
     }
 
-    QVector<QVector<GlyphSet*>> getSequences() override {
+    QVector<QVector<GlyphSet*>> ret = minSeqs;
+    QVector<QVector<GlyphSet*>> latSeqs = minSeqs;
 
-      QVector<QVector<GlyphSet*>> ret;
-
-      auto lefseqs = left->getSequences();
-      auto rightseqs = right->getSequences();
-
+    for (int i = minRep; i < maxRep; i++) {
+      auto lefseqs = latSeqs;
+      latSeqs = {};
       for (auto leftseq : lefseqs) {
-        ret.append(leftseq);
+        for (auto rightseq : rightseqs) {
+          QVector<GlyphSet*> newseq{leftseq};
+          newseq.append(rightseq);
+          latSeqs.append(newseq);
+        }
       }
-
-      for (auto rightseq : rightseqs) {
-        ret.append(rightseq);
-      }
-
-      return ret;
+      ret.append(latSeqs);
     }
 
-  };
+    std::sort(ret.begin(), ret.end(),
+              [](const QVector<GlyphSet*>& a, const QVector<GlyphSet*>& b) {
+                return a.size() > b.size();
+              });
 
-  class SingleAdjustmentRule : public LookupStatement {
-  public:
+    return ret;
+  }
+};
 
-    GlyphSet* glyphset;
-    ValueRecord valueRecord;
-    bool color;
+class GlyphSetRegExpOr : public GlyphSetRegExp {
+ public:
+  GlyphSetRegExp* left;
+  GlyphSetRegExp* right;
 
-    explicit SingleAdjustmentRule(GlyphSet* glyphset, ValueRecord valueRecord, bool color = false)
-      :glyphset{ glyphset }, valueRecord{ valueRecord }, color{ color } {}
+  explicit GlyphSetRegExpOr(GlyphSetRegExp* left, GlyphSetRegExp* right) : left{left}, right{right} {}
 
-    void accept(Visitor&) override;
-  };
+  virtual ~GlyphSetRegExpOr() {
+    delete left;
+    delete right;
+  }
 
+  QVector<QVector<GlyphSet*>> getSequences() override {
+    QVector<QVector<GlyphSet*>> ret;
 
-  class CursiveRule : public LookupStatement {
-  public:
+    auto lefseqs = left->getSequences();
+    auto rightseqs = right->getSequences();
 
-    GlyphSet* glyphset;
-    Anchor* entryAnchor;
-    Anchor* exitAnchor;
-
-    explicit CursiveRule(GlyphSet* glyphset, Anchor* entryAnchor, Anchor* exitAnchor)
-      :glyphset{ glyphset }, entryAnchor{ entryAnchor }, exitAnchor{ exitAnchor } {}
-
-    void accept(Visitor&) override;
-
-    ~CursiveRule() {
-      delete glyphset;
-      delete entryAnchor;
-      delete exitAnchor;
+    for (auto leftseq : lefseqs) {
+      ret.append(leftseq);
     }
-  };
 
-  class Mark2BaseRule : public LookupStatement {
-  public:
-    GlyphSet* baseGlyphSet;
-    std::vector<Mark2BaseClass*>* mark2baseclasses;
-    Lookup::Type type;
-
-    explicit Mark2BaseRule(GlyphSet* baseGlyphSet, std::vector<Mark2BaseClass*>* mark2baseclasses, Lookup::Type type)
-      :baseGlyphSet{ baseGlyphSet }, mark2baseclasses{ mark2baseclasses }, type{ type } {}
-
-    void accept(Visitor&) override;
-
-    virtual ~Mark2BaseRule() {
-      delete baseGlyphSet;
-      for (auto mark2baseclass : *mark2baseclasses) {
-        delete mark2baseclass;
-      }
-      delete mark2baseclasses;
+    for (auto rightseq : rightseqs) {
+      ret.append(rightseq);
     }
-  };
 
-  class MarkedGlyphSetRegExp {
-  public:
-    GlyphSetRegExp* regexp = nullptr;
-    std::vector<std::string> lookupNames;
-    InlineType inlineType = InlineType::None;
-    LookupStatement* stmt = nullptr;
+    return ret;
+  }
+};
 
-    virtual void accept(Visitor&);
+class SingleAdjustmentRule : public LookupStatement {
+ public:
+  GlyphSet* glyphset;
+  ValueRecord valueRecord;
+  bool color;
 
-    explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, std::vector<std::string> lookupNames) :regexp{ new GlyphSetRegExpSingle{glyphset} }, lookupNames{ lookupNames } {}
-    explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, SingleAdjustmentRule* rule) : regexp{ new GlyphSetRegExpSingle{ glyphset } }, inlineType{ InlineType::SinglePos }, stmt{ rule } { };
-    explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, CursiveRule* rule) : regexp{ new GlyphSetRegExpSingle{ glyphset } }, inlineType{ InlineType::CursivePos }, stmt{ rule } { };
-    explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, ValueRecord valuerecord) : MarkedGlyphSetRegExp{ glyphset, new SingleAdjustmentRule(glyphset, valuerecord, false) } {};
+  explicit SingleAdjustmentRule(GlyphSet* glyphset, ValueRecord valueRecord, bool color = false)
+      : glyphset{glyphset}, valueRecord{valueRecord}, color{color} {}
 
-    explicit MarkedGlyphSetRegExp(GlyphSetRegExp* regexp, std::vector <std::string> lookupNames)
-      :regexp{ regexp }, lookupNames{ lookupNames } {}
+  void accept(Visitor&) override;
+};
 
-    ~MarkedGlyphSetRegExp() {
-      delete regexp;
-      //delete lookupName;
-      //delete stmt;
+class CursiveRule : public LookupStatement {
+ public:
+  GlyphSet* glyphset;
+  Anchor* entryAnchor;
+  Anchor* exitAnchor;
+
+  explicit CursiveRule(GlyphSet* glyphset, Anchor* entryAnchor, Anchor* exitAnchor)
+      : glyphset{glyphset}, entryAnchor{entryAnchor}, exitAnchor{exitAnchor} {}
+
+  void accept(Visitor&) override;
+
+  ~CursiveRule() {
+    delete glyphset;
+    delete entryAnchor;
+    delete exitAnchor;
+  }
+};
+
+class Mark2BaseRule : public LookupStatement {
+ public:
+  GlyphSet* baseGlyphSet;
+  std::vector<Mark2BaseClass*>* mark2baseclasses;
+  Lookup::Type type;
+
+  explicit Mark2BaseRule(GlyphSet* baseGlyphSet, std::vector<Mark2BaseClass*>* mark2baseclasses, Lookup::Type type)
+      : baseGlyphSet{baseGlyphSet}, mark2baseclasses{mark2baseclasses}, type{type} {}
+
+  void accept(Visitor&) override;
+
+  virtual ~Mark2BaseRule() {
+    delete baseGlyphSet;
+    for (auto mark2baseclass : *mark2baseclasses) {
+      delete mark2baseclass;
     }
+    delete mark2baseclasses;
+  }
+};
+
+class MarkedGlyphSetRegExp {
+ public:
+  GlyphSetRegExp* regexp = nullptr;
+  std::vector<std::string> lookupNames;
+  InlineType inlineType = InlineType::None;
+  LookupStatement* stmt = nullptr;
+
+  virtual void accept(Visitor&);
+
+  explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, std::vector<std::string> lookupNames) : regexp{new GlyphSetRegExpSingle{glyphset}}, lookupNames{lookupNames} {}
+  explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, SingleAdjustmentRule* rule) : regexp{new GlyphSetRegExpSingle{glyphset}}, inlineType{InlineType::SinglePos}, stmt{rule} {};
+  explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, CursiveRule* rule) : regexp{new GlyphSetRegExpSingle{glyphset}}, inlineType{InlineType::CursivePos}, stmt{rule} {};
+  explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, ValueRecord valuerecord) : MarkedGlyphSetRegExp{glyphset, new SingleAdjustmentRule(glyphset, valuerecord, false)} {};
+
+  explicit MarkedGlyphSetRegExp(GlyphSetRegExp* regexp, std::vector<std::string> lookupNames)
+      : regexp{regexp}, lookupNames{lookupNames} {}
+
+  ~MarkedGlyphSetRegExp() {
+    delete regexp;
+    // delete lookupName;
+    // delete stmt;
+  }
+};
+
+class ClassDefinition : public LookupStatement {
+ public:
+  QString name;
+  GlyphClass* components;
+
+  explicit ClassDefinition(std::string name, GlyphClass* components)
+      : name{QString::fromStdString(name)}, components{components} {}
+
+  void accept(Visitor&) override;
+
+  ~ClassDefinition() {
+    delete components;
+  }
+};
+
+class FeatureReference : public LookupStatement {
+ public:
+  QString featureName;
+
+  explicit FeatureReference(std::string name)
+      : featureName{QString::fromStdString(name)} {}
+
+  void accept(Visitor&) override;
+};
+
+class LookupReference : public LookupStatement {
+ public:
+  QString lookupName;
+
+  explicit LookupReference(std::string name)
+      : lookupName{QString::fromStdString(name)} {}
+
+  void accept(Visitor&) override;
+};
+
+class SingleSubstituionRule : public LookupStatement {
+ public:
+  enum class FirstType {
+    GLYPH,
+    GLYPHSET
   };
 
-  class ClassDefinition : public LookupStatement {
-  public:
-    QString name;
-    GlyphClass* components;
+  union {
+    Glyph* firstglyph;
+    GlyphSet* firstGlyphSet;
+  };
 
-    explicit ClassDefinition(std::string name, GlyphClass* components)
-      :name{ QString::fromStdString(name) }, components{ components } {}
+  FirstType firstType = FirstType::GLYPH;
 
-    void accept(Visitor&) override;
+  Glyph* secondglyph;
+  int format;
+  GlyphExpansion expansion;
+  StartEndLig startEndLig = StartEndLig::StartEnd;
 
-    ~ClassDefinition() {
-      delete components;
+  explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, int format)
+      : SingleSubstituionRule{firstglyph, secondglyph, format, {}, StartEndLig::StartEnd} {}
+
+  explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, int format, GlyphExpansion expansion, StartEndLig startEndLig)
+      : firstglyph{firstglyph}, secondglyph{secondglyph}, format{format}, expansion{expansion}, startEndLig{startEndLig} {}
+
+  explicit SingleSubstituionRule(Glyph* firstglyph, float lefttatweel, float righttatweel)
+      : firstglyph{firstglyph}, secondglyph{firstglyph}, format{11}, expansion{lefttatweel, lefttatweel, righttatweel, righttatweel}, startEndLig{StartEndLig::StartEnd} {}
+
+  explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, float lefttatweel, float righttatweel)
+      : firstglyph{firstglyph}, secondglyph{secondglyph}, format{11}, expansion{lefttatweel, lefttatweel, righttatweel, righttatweel}, startEndLig{StartEndLig::StartEnd} {}
+
+  explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, float lefttatweel, float righttatweel)
+      : firstGlyphSet{firstGlyphSet}, firstType{FirstType::GLYPHSET}, secondglyph{nullptr}, format{11}, expansion{lefttatweel, lefttatweel, righttatweel, righttatweel}, startEndLig{StartEndLig::StartEnd} {}
+
+  explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, int format, GlyphExpansion expansion, StartEndLig startEndLig)
+      : firstGlyphSet{firstGlyphSet}, firstType{FirstType::GLYPHSET}, secondglyph{nullptr}, format{format}, expansion{expansion}, startEndLig{startEndLig} {}
+
+  void accept(Visitor&) override;
+
+  ~SingleSubstituionRule() {
+    bool firtequalsecond = firstglyph == secondglyph;
+
+    if (firstType == FirstType::GLYPH) {
+      delete firstglyph;
+    } else {
+      delete firstGlyphSet;
     }
-  };
 
-
-
-  class FeatureReference : public LookupStatement {
-  public:
-    QString featureName;
-
-    explicit FeatureReference(std::string name)
-      :featureName{ QString::fromStdString(name) } {}
-
-    void accept(Visitor&) override;
-  };
-
-  class LookupReference : public LookupStatement {
-  public:
-    QString lookupName;
-
-    explicit LookupReference(std::string name)
-      :lookupName{ QString::fromStdString(name) } {}
-
-    void accept(Visitor&) override;
-
-  };
-
-  class SingleSubstituionRule : public LookupStatement {
-  public:
-
-    enum class FirstType {
-      GLYPH,
-      GLYPHSET
-    };
-
-    union {
-      Glyph* firstglyph;
-      GlyphSet* firstGlyphSet;
-    };
-
-    FirstType firstType = FirstType::GLYPH;
-
-    Glyph* secondglyph;
-    int format;
-    GlyphExpansion expansion;
-    StartEndLig startEndLig = StartEndLig::StartEnd;
-
-
-    explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, int format)
-      :SingleSubstituionRule{ firstglyph ,secondglyph ,format ,{},StartEndLig::StartEnd } {}
-
-    explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, int format, GlyphExpansion expansion, StartEndLig startEndLig)
-      :firstglyph{ firstglyph }, secondglyph{ secondglyph }, format{ format }, expansion{ expansion }, startEndLig{ startEndLig } {}
-
-    explicit SingleSubstituionRule(Glyph* firstglyph, float lefttatweel, float righttatweel)
-      :firstglyph{ firstglyph }, secondglyph{ firstglyph }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel }, startEndLig{ StartEndLig::StartEnd } {}
-
-    explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, float lefttatweel, float righttatweel)
-      :firstglyph{ firstglyph }, secondglyph{ secondglyph }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel }, startEndLig{ StartEndLig::StartEnd } {}
-
-    explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, float lefttatweel, float righttatweel)
-      :firstGlyphSet{ firstGlyphSet }, firstType{ FirstType::GLYPHSET }, secondglyph{ nullptr }, format{ 11 }, expansion{ lefttatweel,lefttatweel,righttatweel,righttatweel },
-      startEndLig{ StartEndLig::StartEnd } {}
-
-    explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, int format, GlyphExpansion expansion, StartEndLig startEndLig)
-      :firstGlyphSet{ firstGlyphSet }, firstType{ FirstType::GLYPHSET }, secondglyph{ nullptr }, format{ format }, expansion{ expansion },
-      startEndLig{ startEndLig } {}
-
-    void accept(Visitor&) override;
-
-    ~SingleSubstituionRule() {
-
-      bool firtequalsecond = firstglyph == secondglyph;
-
-      if (firstType == FirstType::GLYPH) {
-        delete firstglyph;
-      }
-      else {
-        delete firstGlyphSet;
-      }
-
-      if (!firtequalsecond) {
-        delete secondglyph;
-      }
-
+    if (!firtequalsecond) {
+      delete secondglyph;
     }
-  };
+  }
+};
 
-  class MultipleSubstitutionRule : public LookupStatement {
-  public:
-    Glyph* glyph;
-    std::vector<Glyph*>* sequence;
+class MultipleSubstitutionRule : public LookupStatement {
+ public:
+  Glyph* glyph;
+  std::vector<Glyph*>* sequence;
 
-    int format;
+  int format;
 
-    explicit MultipleSubstitutionRule(Glyph* glyph, std::vector<Glyph*>* sequence)
-      : glyph{ glyph }, sequence{ sequence }, format{ 1 } {}
+  explicit MultipleSubstitutionRule(Glyph* glyph, std::vector<Glyph*>* sequence)
+      : glyph{glyph}, sequence{sequence}, format{1} {}
 
-    ~MultipleSubstitutionRule() {
-      for (auto glyph : *sequence) {
-        delete glyph;
-      }
+  ~MultipleSubstitutionRule() {
+    for (auto glyph : *sequence) {
       delete glyph;
-      delete sequence;
+    }
+    delete glyph;
+    delete sequence;
+  }
+
+  void accept(Visitor&) override;
+};
+
+class LigatureSubstitutionRule : public LookupStatement {
+ public:
+  std::vector<Glyph*>* sequence;
+  Glyph* ligature;
+  int format;
+
+  explicit LigatureSubstitutionRule(std::vector<Glyph*>* sequence, Glyph* ligature)
+      : sequence{sequence}, ligature{ligature}, format{1} {}
+
+  ~LigatureSubstitutionRule() {
+    for (auto glyph : *sequence) {
+      delete glyph;
+    }
+    delete ligature;
+    delete sequence;
+  }
+
+  void accept(Visitor&) override;
+};
+
+class ChainingContextualRule : public LookupStatement {
+ public:
+  std::vector<MarkedGlyphSetRegExp*>* input;
+  GlyphSetRegExp* backtrack;
+  GlyphSetRegExp* lookahead;
+  Lookup::Type type;
+
+ public:
+  explicit ChainingContextualRule(GlyphSetRegExp* backtrack, std::vector<MarkedGlyphSetRegExp*>* input, GlyphSetRegExp* lookahead)
+      : input{input}, backtrack{backtrack}, lookahead{lookahead}, type{Lookup::none} {}
+
+  ~ChainingContextualRule() {
+    for (auto glypset : *input) {
+      delete glypset;
+    }
+    delete input;
+    delete backtrack;
+    delete lookahead;
+  }
+
+  void setType(bool isgsub) {
+    if (isgsub)
+      type = Lookup::chainingsub;
+    else
+      type = Lookup::chainingpos;
+  }
+
+  void accept(Visitor&) override;
+};
+
+class FSMRule : public LookupStatement {
+};
+
+class LookupFlag : public LookupStatement {
+ public:
+  enum Flags {
+    RightToLeft = 0x0001u,
+    IgnoreBaseGlyphs = 0x0002u,
+    IgnoreLigatures = 0x0004u,
+    IgnoreMarks = 0x0008u,
+    IgnoreFlags = 0x000Eu,
+    UseMarkFilteringSet = 0x0010u,
+    Reserved = 0x00E0u,
+    MarkAttachmentType = 0xFF00u
+  };
+  explicit LookupFlag(short flag) : markFilteringSet{nullptr}, flag{flag} {
+  }
+
+  explicit LookupFlag() : markFilteringSet{nullptr}, flag(0) {
+  }
+
+  explicit LookupFlag(GlyphSet* set) : markFilteringSet(set), flag(UseMarkFilteringSet) {
+  }
+
+  void set_Flag(Flags pflag) {
+    flag |= pflag;
+  }
+
+  void set_markFilteringSet(GlyphSet* pmarkFilteringSet) {
+    if (markFilteringSet != nullptr) {
+      delete markFilteringSet;
     }
 
-    void accept(Visitor&) override;
-  };
+    flag |= Flags::UseMarkFilteringSet;
 
-  class LigatureSubstitutionRule : public LookupStatement {
-  public:
-    std::vector<Glyph*>* sequence;
-    Glyph* ligature;
-    int format;
+    markFilteringSet = pmarkFilteringSet;
+  }
 
-    explicit LigatureSubstitutionRule(std::vector<Glyph*>* sequence, Glyph* ligature)
-      :sequence{ sequence }, ligature{ ligature }, format{ 1 } {}
+  LookupFlag operator|(const LookupFlag& b) {
+    LookupFlag obj{flag};
+    obj.markFilteringSet = this->markFilteringSet;
+    obj.flag = obj.flag | b.flag;
 
-    ~LigatureSubstitutionRule() {
-      for (auto glyph : *sequence) {
-        delete glyph;
+    if (obj.markFilteringSet == nullptr) {
+      obj.markFilteringSet = b.markFilteringSet;
+    }
+
+    // std::cout << "|=" << obj.flag << ";markFilteringSet=" << obj.markFilteringSet << std::endl;
+    return obj;
+  }
+
+  ~LookupFlag() {
+    if (markFilteringSet != nullptr) {
+      delete markFilteringSet;
+    }
+  }
+
+  short getFlag() {
+    return flag;
+  }
+
+  GlyphSet* getMarkFilteringSet() {
+    return markFilteringSet;
+  }
+
+  void accept(Visitor&) override;
+
+ private:
+  GlyphSet* markFilteringSet;
+  short flag;
+};
+
+class LookupDefinition : public LookupStatement {
+ public:
+  LookupDefinition(std::string name, std::vector<LookupStatement*>* stmtlist, int order)
+      : name{name}, stmts(stmtlist), order{order} {}
+
+  ~LookupDefinition() {
+    if (stmts) {
+      for (auto stm : *stmts) {
+        delete stm;
       }
-      delete ligature;
-      delete sequence;
     }
+    delete stmts;
+    // delete name;
+  }
 
-    void accept(Visitor&) override;
-  };
+  const std::string& getName() {
+    return name;
+  }
 
-  class ChainingContextualRule : public LookupStatement {
-  public:
-    std::vector<MarkedGlyphSetRegExp*>* input;
-    GlyphSetRegExp* backtrack;
-    GlyphSetRegExp* lookahead;
-    Lookup::Type type;
-  public:
-    explicit ChainingContextualRule(GlyphSetRegExp* backtrack, std::vector<MarkedGlyphSetRegExp*>* input, GlyphSetRegExp* lookahead)
-      :input{ input }, backtrack{ backtrack }, lookahead{ lookahead }, type{ Lookup::none } {}
+  int getOrder() {
+    return order;
+  }
 
-    ~ChainingContextualRule() {
-      for (auto glypset : *input) {
-        delete glypset;
-      }
-      delete input;
-      delete backtrack;
-      delete lookahead;
+  std::vector<LookupStatement*>& getStmts() {
+    return *stmts;
+  }
+
+  void accept(Visitor&) override;
+
+ private:
+  std::string name;
+  std::vector<LookupStatement*>* stmts;
+  int order;
+};
+
+class FeaRoot {
+ protected:
+  std::vector<Statement*>* stmts;
+
+ public:
+  FeaRoot(std::vector<Statement*>* stmtlist)
+      : stmts(stmtlist) {}
+  ~FeaRoot() {
+    for (auto stmt : *stmts) {
+      delete stmt;
     }
+    delete stmts;
+  }
+};
 
-    void setType(bool isgsub) {
-      if (isgsub)
-        type = Lookup::chainingsub;
-      else
-        type = Lookup::chainingpos;
-    }
+class FeatureDefenition : public Statement {
+ public:
+  FeatureDefenition(std::string name, std::vector<LookupStatement*>* stmtlist)
+      : name{name}, stmts(stmtlist) {}
 
-    void accept(Visitor&) override;
-
-
-  };
-
-  class FSMRule : public LookupStatement {
-  };
-
-
-
-  class LookupFlag : public LookupStatement {
-  public:
-
-    enum Flags {
-      RightToLeft = 0x0001u,
-      IgnoreBaseGlyphs = 0x0002u,
-      IgnoreLigatures = 0x0004u,
-      IgnoreMarks = 0x0008u,
-      IgnoreFlags = 0x000Eu,
-      UseMarkFilteringSet = 0x0010u,
-      Reserved = 0x00E0u,
-      MarkAttachmentType = 0xFF00u
-    };
-    explicit LookupFlag(short flag) :markFilteringSet{ nullptr }, flag{ flag } {
-    }
-
-    explicit LookupFlag() :markFilteringSet{ nullptr }, flag(0) {
-    }
-
-    explicit LookupFlag(GlyphSet* set) :markFilteringSet(set), flag(UseMarkFilteringSet) {
-    }
-
-    void set_Flag(Flags pflag) {
-      flag |= pflag;
-    }
-
-    void set_markFilteringSet(GlyphSet* pmarkFilteringSet) {
-      if (markFilteringSet != nullptr) {
-        delete markFilteringSet;
-      }
-
-      flag |= Flags::UseMarkFilteringSet;
-
-      markFilteringSet = pmarkFilteringSet;
-
-    }
-
-    LookupFlag operator|(const LookupFlag& b)
-    {
-      LookupFlag obj{ flag };
-      obj.markFilteringSet = this->markFilteringSet;
-      obj.flag = obj.flag | b.flag;
-
-      if (obj.markFilteringSet == nullptr) {
-        obj.markFilteringSet = b.markFilteringSet;
-      }
-
-      //std::cout << "|=" << obj.flag << ";markFilteringSet=" << obj.markFilteringSet << std::endl;
-      return obj;
-    }
-
-    ~LookupFlag() {
-      if (markFilteringSet != nullptr) {
-        delete markFilteringSet;
+  ~FeatureDefenition() {
+    if (stmts) {
+      for (auto stm : *stmts) {
+        delete stm;
       }
     }
+    delete stmts;
+    // delete name;
+  }
 
-    short getFlag() {
-      return flag;
-    }
+  const std::string& getName() {
+    return name;
+  }
 
-    GlyphSet* getMarkFilteringSet() {
-      return markFilteringSet;
-    }
+  std::vector<LookupStatement*>& getStmts() {
+    return *stmts;
+  }
 
-    void accept(Visitor&) override;
+  void accept(Visitor&) override;
 
-  private:
-    GlyphSet* markFilteringSet;
-    short flag;
-  };
+ private:
+  std::string name;
+  std::vector<LookupStatement*>* stmts;
+};
 
+class IncludeStatment : public Statement {
+ public:
+  IncludeStatment(std::string fileName)
+      : fileName{fileName} {}
 
+  ~IncludeStatment() {
+  }
 
+  const std::string& getFileName() {
+    return fileName;
+  }
 
-  class LookupDefinition : public LookupStatement {
-  public:
-    LookupDefinition(std::string name, std::vector<LookupStatement*>* stmtlist, int order)
-      : name{ name }, stmts(stmtlist), order{ order }
-    {}
+  void accept(Visitor&) override;
 
-    ~LookupDefinition() {
-      if (stmts) {
-        for (auto stm : *stmts) {
-          delete stm;
-        }
-      }
-      delete stmts;
-      //delete name;
-    }
+ private:
+  std::string fileName;
+};
 
-    const std::string& getName() {
-      return name;
-    }
+class FeaContext {
+ public:
+  typedef std::map<std::string, LookupDefinition*> lookupmap_type;
+  typedef std::map<std::string, FeatureDefenition*> featuremap_type;
 
-    int getOrder() {
-      return order;
-    }
+  lookupmap_type lookups;
+  std::vector<FeatureDefenition*> features;
+  std::map<std::string, TableDefinition*> tables;
+  JustTable jusTable;
 
-    std::vector<LookupStatement*>& getStmts() {
-      return *stmts;
-    }
+  FeaRoot* root;
 
-    void accept(Visitor&) override;
+  FeaContext(OtLayout* otlayout) : otlayout{otlayout} {
+    root = nullptr;
+  }
 
-  private:
-    std::string name;
-    std::vector<LookupStatement*>* stmts;
-    int order;
+  /// free the saved expression trees
+  ~FeaContext() {
+    delete root;
+  }
 
-  };
+  void populateFeatures();
 
-  class FeaRoot {
-  protected:
-    std::vector<Statement*>* stmts;
-  public:
-    FeaRoot(std::vector<Statement*>* stmtlist)
-      : stmts(stmtlist)
-    {}
-    ~FeaRoot() {
-      for (auto stmt : *stmts) {
-        delete stmt;
-      }
-      delete stmts;
-    }
-  };
+  int getNbLookup() {
+    nbLookups++;
+    return nbLookups;
+  }
 
-  class FeatureDefenition : public Statement {
-  public:
-    FeatureDefenition(std::string name, std::vector<LookupStatement*>* stmtlist)
-      : name{ name }, stmts(stmtlist)
-    {}
+ private:
+  OtLayout* otlayout;
+  int nbLookups = 0;
+};
 
-    ~FeatureDefenition() {
-      if (stmts) {
-        for (auto stm : *stmts) {
-          delete stm;
-        }
-      }
-      delete stmts;
-      //delete name;
-    }
+class Visitor {
+ public:
+  virtual void accept(LookupFlag&) = 0;
+  virtual void accept(LookupDefinition&) = 0;
+  virtual void accept(ChainingContextualRule&) = 0;
+  virtual void accept(SingleAdjustmentRule&) = 0;
+  virtual void accept(CursiveRule&) = 0;
+  virtual void accept(Mark2BaseRule&) = 0;
+  virtual void accept(SingleSubstituionRule&) = 0;
+  virtual void accept(MultipleSubstitutionRule&) = 0;
+  virtual void accept(LookupStatement&) = 0;
+  virtual void accept(FeatureReference&) = 0;
+  virtual void accept(FeatureDefenition&) = 0;
+  virtual void accept(ClassDefinition&) = 0;
+  virtual void accept(MarkedGlyphSetRegExp&) = 0;
+  virtual void accept(LookupReference&) = 0;
+  virtual void accept(LigatureSubstitutionRule&) = 0;
+  virtual void accept(TableDefinition&) = 0;
+  virtual void accept(JustTable&) = 0;
+  virtual void accept(IncludeStatment& includeStatment) = 0;
+};
 
-    const std::string& getName() {
-      return name;
-    }
+class LookupDefinitionVisitor : public Visitor {
+ public:
+  LookupDefinitionVisitor(OtLayout* otlayout, FeaContext& context);
+  void accept(LookupFlag&) override;
+  void accept(LookupDefinition&) override;
+  void accept(ChainingContextualRule&) override;
+  void accept(SingleAdjustmentRule&) override;
+  void accept(CursiveRule&) override;
+  void accept(Mark2BaseRule&) override;
+  void accept(SingleSubstituionRule&) override;
+  void accept(MultipleSubstitutionRule&) override;
+  void accept(LookupStatement&) override;
+  void accept(FeatureDefenition&) override;
+  void accept(FeatureReference&) override;
+  void accept(ClassDefinition&) override;
+  void accept(MarkedGlyphSetRegExp&) override;
+  void accept(LookupReference&) override;
+  void accept(LigatureSubstitutionRule&) override;
+  void accept(TableDefinition&) override;
+  void accept(JustTable&) override;
+  void accept(IncludeStatment& includeStatment) override;
 
-    std::vector<LookupStatement*>& getStmts() {
-      return *stmts;
-    }
+  Lookup* lookup;
+  std::string currentFeature;
 
-    void accept(Visitor&) override;
+ private:
+  OtLayout* otlayout;
+  QSet<QString>* refLookups;
+  FeaContext& context;
 
-  private:
-    std::string name;
-    std::vector<LookupStatement*>* stmts;
+  QStack<std::tuple<Lookup*, QSet<QString>*, int>> lookupStack;
+  int nextautolookup = 1;
+};
 
-  };
+}  // namespace feayy
 
-  class IncludeStatment : public Statement {
-  public:
-    IncludeStatment(std::string fileName)
-      : fileName{ fileName }
-    {}
-
-    ~IncludeStatment() {     
-    }
-
-    const std::string& getFileName() {
-      return fileName;
-    }
-
-    void accept(Visitor&) override;
-
-  private:
-    std::string fileName;    
-
-  };
-
-  class FeaContext
-  {
-  public:    
-
-    typedef std::map<std::string, LookupDefinition*> lookupmap_type;
-    typedef std::map<std::string, FeatureDefenition*> featuremap_type;
-
-    lookupmap_type		lookups;
-    std::vector<FeatureDefenition*> features;
-    std::map<std::string, TableDefinition*> tables;
-    JustTable jusTable;
-
-    FeaRoot* root;
-
-    FeaContext(OtLayout* otlayout) : otlayout{ otlayout } {
-      root = nullptr;
-    }
-
-    /// free the saved expression trees
-    ~FeaContext()
-    {
-      delete root;
-    }
-
-    void populateFeatures();
-
-    int getNbLookup() {
-      nbLookups++;
-      return nbLookups;
-    }
-
-  private:
-    OtLayout* otlayout;
-    int nbLookups = 0;
-  };
-
-  class Visitor {
-  public:
-    virtual void accept(LookupFlag&) = 0;
-    virtual void accept(LookupDefinition&) = 0;
-    virtual void accept(ChainingContextualRule&) = 0;
-    virtual void accept(SingleAdjustmentRule&) = 0;
-    virtual void accept(CursiveRule&) = 0;
-    virtual void accept(Mark2BaseRule&) = 0;
-    virtual void accept(SingleSubstituionRule&) = 0;
-    virtual void accept(MultipleSubstitutionRule&) = 0;
-    virtual void accept(LookupStatement&) = 0;
-    virtual void accept(FeatureReference&) = 0;
-    virtual void accept(FeatureDefenition&) = 0;
-    virtual void accept(ClassDefinition&) = 0;
-    virtual void accept(MarkedGlyphSetRegExp&) = 0;
-    virtual void accept(LookupReference&) = 0;
-    virtual void accept(LigatureSubstitutionRule&) = 0;
-    virtual void accept(TableDefinition&) = 0;
-    virtual void accept(JustTable&) = 0;
-    virtual void accept(IncludeStatment& includeStatment) = 0;
-
-  };
-
-  class LookupDefinitionVisitor : public Visitor {
-  public:
-
-    LookupDefinitionVisitor(OtLayout* otlayout, FeaContext& context);
-    void accept(LookupFlag&) override;
-    void accept(LookupDefinition&) override;
-    void accept(ChainingContextualRule&) override;
-    void accept(SingleAdjustmentRule&) override;
-    void accept(CursiveRule&) override;
-    void accept(Mark2BaseRule&) override;
-    void accept(SingleSubstituionRule&) override;
-    void accept(MultipleSubstitutionRule&) override;
-    void accept(LookupStatement&) override;
-    void accept(FeatureDefenition&) override;
-    void accept(FeatureReference&) override;
-    void accept(ClassDefinition&)  override;
-    void accept(MarkedGlyphSetRegExp&) override;
-    void accept(LookupReference&) override;
-    void accept(LigatureSubstitutionRule&) override;
-    void accept(TableDefinition&) override;
-    void accept(JustTable&) override;
-    void accept(IncludeStatment& includeStatment) override;
-
-    Lookup* lookup;
-    std::string currentFeature;
-
-  private:
-
-    OtLayout* otlayout;
-    QSet<QString>* refLookups;
-    FeaContext& context;
-
-    QStack<std::tuple<Lookup*, QSet<QString>*, int>> lookupStack;
-    int nextautolookup = 1;
-  };
-
-
-}
-
-#endif // H_FEAAST
+#endif  // H_FEAAST

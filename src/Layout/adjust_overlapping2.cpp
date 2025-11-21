@@ -52,6 +52,41 @@
 
 using namespace geometry;
 
+class Timer {
+  static std::mutex mtx;
+  static std::map<std::string, int64_t> ms_Counts;
+  static std::map<std::string, double> ms_Times;
+  const std::string& m_sName;
+  std::chrono::time_point<std::chrono::high_resolution_clock> m_tmStart;
+
+ public:
+  // When constructed, save the name and current clock time
+  Timer(const std::string& sName) : m_sName(sName) {
+    m_tmStart = std::chrono::high_resolution_clock::now();
+  }
+  ~Timer() {
+    auto tmNow = std::chrono::high_resolution_clock::now();
+    auto msElapsed = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(tmNow - m_tmStart);
+    mtx.lock();
+    ms_Counts[m_sName]++;
+    ms_Times[m_sName] += msElapsed.count();
+    mtx.unlock();
+  }
+  static void dump() {
+    std::cerr << "Name\t\t\tCount\t\t\tTime(ms)\t\tAverage(ms)\n";
+    std::cerr << "------------------------------------------------------------------------------------------------\n ";
+    for (const auto& it : ms_Times) {
+      auto iCount = ms_Counts[it.first];
+      auto milli = it.second;
+      std::cerr
+          << it.first << "\t\t\t" << iCount << "\t\t\t" << milli << "\t\t\t" << milli / iCount << "\n";
+    }
+  }
+};
+std::mutex Timer::mtx;
+std::map<std::string, int64_t> Timer::ms_Counts;
+std::map<std::string, double> Timer::ms_Times;
+
 static std::unordered_map<GlyphVis*, GeometrySet> glyphToPolys;
 
 void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
@@ -80,7 +115,6 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
 
   // fetch all gryph initially otherwise mpost is not thread safe when
   // executing getAlternate
-  auto tau = 1;
   for (auto& page : pages) {
     for (auto& line : page) {
       for (auto& glyph : line.glyphs) {
@@ -91,7 +125,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
         if (glyphToPolys.find(glyphVis) == glyphToPolys.end()) {
           glyphToPolys.insert(
               {glyphVis, buildConvexPartsFromCubics(
-                             getGlyphCubic(glyphVis->copiedPath), tau)});
+                             getGlyphCubic(glyphVis->copiedPath), CUBIC_FLATNESS_TOLERANCE)});
         }
       }
     }
@@ -129,6 +163,8 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
     t->wait();
     delete t;
   }
+
+  // Timer::dump();
 
   QVector<OverlapResult> overlapResult;
 
@@ -231,25 +267,229 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
                                           emScale);
 #endif
 }
-// taken from Qt qt/src/gui/graphicsview/qgraphicsitem.cpp
-static QPainterPath qt_graphicsItem_shapeFromPath(const QPainterPath& path,
-                                                  const QPen& pen) {
-  // We unfortunately need this hack as QPainterPathStroker will set a width
-  // of 1.0 if we pass a value of 0.0 to QPainterPathStroker::setWidth()
-  const qreal penWidthZero = qreal(0.00000001);
-  if (path == QPainterPath() || pen == Qt::NoPen) return path;
-  QPainterPathStroker ps;
-  ps.setCapStyle(pen.capStyle());
-  if (pen.widthF() <= 0.0)
-    ps.setWidth(penWidthZero);
-  else
-    ps.setWidth(pen.widthF());
-  ps.setJoinStyle(pen.joinStyle());
-  ps.setMiterLimit(pen.miterLimit());
-  QPainterPath p = ps.createStroke(path);
-  p.addPath(path);
-  return p;
+
+struct GlyphInfo {
+  GeometrySet geometrySet;
+  GlyphVis* glyphVis;
+  QString& glyphName;
+  bool isInit;
+  bool isMedi;
+  bool isFina;
+  bool isMark;
+};
+
+inline AABB padAABB(const AABB& b, double pad) {
+  return {
+      b.minx - pad,
+      b.miny - pad,
+      b.maxx + pad,
+      b.maxy + pad};
 }
+
+struct Event {
+  double x;
+  int type;  // +1 = ENTER, -1 = EXIT
+  int id;    // rectangle id
+};
+
+struct GlyphInfoForInt {
+  AABB aabb;
+  size_t lineIdx;
+  int wordIdx;
+  size_t glyphIdx;
+};
+
+struct Intersection {
+  const GlyphInfoForInt& first;
+  const GlyphInfoForInt& second;
+};
+
+// For active set; we just store ids here.
+struct ByY {
+  const std::vector<GlyphInfoForInt>* rects;
+  bool operator()(int a, int b) const {
+    if (a == b) return false;
+    const AABB& ra = (*rects)[a].aabb;
+    const AABB& rb = (*rects)[b].aabb;
+    if (ra.miny < rb.miny) return true;
+    if (ra.miny > rb.miny) return false;
+    return a < b;  // tie-breaker for strict weak ordering
+  }
+};
+
+// Check 1D interval overlap on y axis
+inline bool yOverlap(const AABB& a, const AABB& b) {
+  // Strict overlap (no mere edge touching)
+  // return (a.y1 < b.y2) && (b.y1 < a.y2);
+
+  // If you want to treat edge touching as intersection, use:
+  // return !(a.y2 < b.y1 || b.y2 < a.y1);
+
+  return (a.miny < b.maxy) && (b.miny < a.maxy);
+}
+
+void findIntersections(
+    OtLayout* layout,
+    QList<QList<LineLayoutInfo>>& pages,
+    int pageIndex,
+    const std::vector<std::vector<GlyphInfo>>& glyphs,
+    double minDistance,
+    std::vector<OverlapResult>& result,
+    QVector<int>& set) {
+  double pad_ = minDistance / 2;
+
+  auto& page = pages[pageIndex];
+
+  QString spaceName("space");
+  QString linefeedName("linefeed");
+
+  int glyphCount = 0;
+
+  for (auto& line : glyphs) {
+    glyphCount += line.size();
+  }
+
+  std::vector<GlyphInfoForInt> rectsInput;
+
+  rectsInput.reserve(glyphCount);
+  for (size_t i = 0; i < glyphs.size(); ++i) {
+    auto& line = glyphs[i];
+    auto wordId = 0;
+    for (size_t j = 0; j < line.size(); ++j) {
+      auto& glyphInfo = line[j];
+      bool isSpace = glyphInfo.glyphName.contains(spaceName) || glyphInfo.glyphName.contains(linefeedName);
+      if (isSpace) {
+        ++wordId;
+      } else {
+        AABB raw = glyphInfo.geometrySet.boundingAABB();
+        AABB box = padAABB(raw, pad_);
+        rectsInput.push_back(GlyphInfoForInt{box, i, wordId, j});
+      }
+    }
+  }
+
+  int n = (int)rectsInput.size();
+  if (n == 0) return;
+
+  // Build events
+  std::vector<Event> events;
+  events.reserve(2 * n);
+  for (int i = 0; i < n; ++i) {
+    events.push_back(Event{rectsInput[i].aabb.minx, +1, i});  // ENTER
+    events.push_back(Event{rectsInput[i].aabb.maxx, -1, i});  // EXIT
+  }
+
+  // Sort events by x; on tie, EXIT (-1) before ENTER (+1)
+  sort(events.begin(), events.end(),
+       [](const Event& a, const Event& b) {
+         if (a.x < b.x) return true;
+         if (a.x > b.x) return false;
+         return a.type < b.type;  // -1 before +1
+       });
+
+  // Active set; ordered by y1
+  ByY comp{&rectsInput};
+  std::set<int, ByY> active(comp);
+
+  // Output adjacency: intersections for each rectangle
+  std::vector<Intersection> intersections;
+  intersections.reserve(n);
+
+  for (const Event& e : events) {
+    int id = e.id;
+    const auto& firstGlyph = rectsInput[id];
+    const AABB& R = firstGlyph.aabb;
+
+    if (e.type == -1) {
+      auto it = active.find(id);
+      if (it != active.end())
+        active.erase(it);
+    } else {
+      // TODO Can be optimized. Sort by y and test only adjacents.
+      // Takes about 90/750 ms for the whole Mushaf in Release
+      {
+        // Timer t(std::string("Active LOOP"));
+        for (int j : active) {
+          const auto& secondGlyph = rectsInput[j];
+          const AABB& S = secondGlyph.aabb;
+
+          if (yOverlap(R, S)) {
+            if (firstGlyph.lineIdx > secondGlyph.lineIdx) {
+              intersections.push_back({secondGlyph, firstGlyph});
+            } else if (firstGlyph.lineIdx == secondGlyph.lineIdx) {
+              if (firstGlyph.glyphIdx > secondGlyph.glyphIdx) {
+                intersections.push_back({secondGlyph, firstGlyph});
+              } else {
+                intersections.push_back({firstGlyph, secondGlyph});
+              }
+            } else {
+              intersections.push_back({firstGlyph, secondGlyph});
+            }
+          }
+        }
+      }
+
+      active.insert(id);
+    }
+  }
+
+  auto isIntersection = false;
+
+  for (auto& intersection : intersections) {
+    const auto& firstGlyph = intersection.first;
+    const auto& secondGlyph = intersection.second;
+    auto isSameLine = firstGlyph.lineIdx == secondGlyph.lineIdx;
+    auto& glyphInfo1 = glyphs[firstGlyph.lineIdx][firstGlyph.glyphIdx];
+    auto& glyphInfo2 = glyphs[secondGlyph.lineIdx][secondGlyph.glyphIdx];
+    if (isSameLine) {
+      auto isSameWord = isSameLine && (firstGlyph.wordIdx == secondGlyph.wordIdx);
+      if (isSameWord && (glyphInfo2.isMedi || glyphInfo2.isFina) && (glyphInfo1.isInit || glyphInfo1.isMedi)) {
+        continue;
+      }
+
+      auto& line = page[firstGlyph.lineIdx];
+
+      auto minDisPolys = minDistance * line.fontSize;
+      GSContact gsContact = getDistance(glyphInfo1.geometrySet, glyphInfo2.geometrySet, minDisPolys);
+      auto intersect = gsContact.contact.depth_or_gap < minDisPolys;
+      if (intersect) {
+        line.glyphs[firstGlyph.glyphIdx].color = 0xFF000000;
+
+        line.glyphs[secondGlyph.glyphIdx].color = 0xFF000000;
+        isIntersection = true;
+
+        OverlapResult overlap;
+
+        overlap.pageIndex = pageIndex;
+        overlap.lineIndex = firstGlyph.lineIdx;
+        overlap.prevGlyph = firstGlyph.glyphIdx;
+        overlap.nextGlyph = secondGlyph.glyphIdx;
+
+        result.push_back(overlap);
+      }
+    } else {
+      if (glyphInfo1.isMark || glyphInfo2.isMark) {
+        auto minDisPolys = minDistance;
+
+        GSContact gsContact = getDistance(glyphInfo1.geometrySet, glyphInfo2.geometrySet, minDisPolys);
+        auto intersect = gsContact.contact.depth_or_gap < minDisPolys;
+
+        if (intersect) {
+          auto& line = page[firstGlyph.lineIdx];
+          auto& secondLine = page[secondGlyph.lineIdx];
+          line.glyphs[firstGlyph.glyphIdx].color = 0xFF000000;
+
+          secondLine.glyphs[secondGlyph.glyphIdx].color = 0xFF000000;
+          isIntersection = true;
+        }
+      }
+    }
+  }
+  if (isIntersection) {
+    set.append(pageIndex);
+  }
+}
+
 void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
                                       int lineWidth, int beginPage, int nbPages,
                                       QVector<int>& set, double emScale,
@@ -261,7 +501,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
     // fetch all gryph initially otherwise
     // mpost is not thread safe when
     // executing getAlternate
-    auto tau = 1;
+
     for (auto& page : pages) {
       for (auto& line : page) {
         for (auto& glyph : line.glyphs) {
@@ -271,7 +511,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
           if (glyphToPolys.find(glyphVis) == glyphToPolys.end()) {
             glyphToPolys.insert(
                 {glyphVis, buildConvexPartsFromCubics(
-                               getGlyphCubic(glyphVis->copiedPath), tau)});
+                               getGlyphCubic(glyphVis->copiedPath), CUBIC_FLATNESS_TOLERANCE)});
           }
         }
       }
@@ -279,37 +519,42 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
   }
   double minDistance = 10;
 
-  QPen pen = QPen();
-  pen.setWidth(std::ceil(minDistance * emScale));
+  auto& markClass = m_otlayout->automedina->classes["marks"];
+  QString spaceName("space");
+  QString linefeedName("linefeed");
+  QString initName(".init");
+  QString mediName(".medi");
+  QString finaName(".fina");
+
+  // QPen pen = QPen();
+  // pen.setWidth(std::ceil(minDistance * emScale));
 
   for (int p = beginPage; p < beginPage + nbPages; p++) {
     auto& page = pages[p];
 
-    std::vector<std::vector<QPoint>> pagePositions;
-    std::vector<std::vector<GeometrySet>> geometrySets;
+    // std::vector<std::vector<QPoint>> pagePositions;
+    std::vector<std::vector<GlyphInfo>> geometrySets;
     bool intersection = false;
 
     for (int l = 0; l < page.size(); l++) {
       auto& line = page[l];
 
-      auto xScale = line.fontSize * line.xscale * 1.00;
-      auto yScale = line.fontSize * 1.00;
+      auto xScale = line.fontSize * line.xscale;
+      auto yScale = line.fontSize;
 
       int currentxPos = -line.xstartposition;
       int currentyPos = line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
       currentyPos = currentyPos * -1;
 
-      pagePositions.emplace_back(std::vector<QPoint>());
-      geometrySets.emplace_back(std::vector<GeometrySet>());
+      geometrySets.emplace_back(std::vector<GlyphInfo>());
 
       auto& geoSet = geometrySets.back();
-      auto& linePositions = pagePositions.back();
 
       for (size_t g = 0; g < line.glyphs.size(); g++) {
         auto& glyphLayout = line.glyphs[g];
 
-        QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-        GlyphVis& currentGlyph = *m_otlayout->getGlyph(
+        QString& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+        auto currentGlyph = m_otlayout->getGlyph(
             glyphName, {.lefttatweel = glyphLayout.lefttatweel,
                         .righttatweel = glyphLayout.righttatweel,
                         .scalex = line.xscaleparameter});
@@ -317,124 +562,73 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
         QPoint pos(currentxPos + (glyphLayout.x_offset * line.xscale),
                    currentyPos + (glyphLayout.y_offset));
 
-        linePositions.emplace_back(QPoint{pos.x(), pos.y()});
-
-        auto geo = glyphToPolys.find(&currentGlyph);
+        auto geo = glyphToPolys.find(currentGlyph);
         if (geo == glyphToPolys.end()) {
           throw new std::runtime_error("glyphToPolys not found");
         }
-
-        geoSet.emplace_back(
-            geo->second.scaleTranslate(xScale, yScale, pos.x(), pos.y()));
+        bool isInit = glyphName.contains(initName);
+        bool isMedi = glyphName.contains(mediName);
+        bool isFina = glyphName.contains(finaName);
+        auto isMark = markClass.contains(glyphName);
+        if (xScale == 1 && yScale == 1) {
+          geoSet.emplace_back(
+              GlyphInfo{
+                  geo->second.translate(pos.x(), pos.y()),
+                  currentGlyph,
+                  glyphName,
+                  isInit, isMedi, isFina, isMark});
+        } else {
+          geoSet.emplace_back(
+              GlyphInfo{geo->second.scaleTranslate(xScale, yScale, pos.x(), pos.y()), currentGlyph, glyphName, isInit, isMedi, isFina, isMark});
+        }
       }
     }
+
+    findIntersections(m_otlayout, pages, p, geometrySets, minDistance * emScale, result, set);
+#if false
+
+    continue;
 
     for (int l = 0; l < page.size(); l++) {
       auto& line = page[l];
 
-      auto xScale = line.fontSize * line.xscale * 1.00;
-      auto yScale = line.fontSize * 1.00;
-
-      QTransform pathtransform;
-      pathtransform = pathtransform.scale(xScale, yScale);
-
-      auto& linePositions = pagePositions[l];
-      LineLayoutInfo suraName;
-
-      std::vector<QPainterPath> paths;
-
-      for (int g = 0; g < line.glyphs.size(); g++) {
+      for (size_t g = 0; g < line.glyphs.size(); g++) {
         auto& glyphLayout = line.glyphs[g];
-
-        QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-
-        GlyphVis& currentGlyph = *m_otlayout->getGlyph(
-            glyphName, {.lefttatweel = glyphLayout.lefttatweel,
-                        .righttatweel = glyphLayout.righttatweel,
-                        .scalex = line.xscaleparameter});
-        QPoint pos = linePositions[g];
-
-        if (!glyphName.contains("space") && !glyphName.contains("cgj")) {
-          auto gg = qt_graphicsItem_shapeFromPath(currentGlyph.path, pen);
-          auto path = pathtransform.map(gg);
-          path.translate(pos);
-          paths.push_back(path);
-        } else {
-          paths.push_back({});
-        }
-
-        const auto& path = paths.back();
-
         const auto& geometrySet = geometrySets[l][g];
 
-        if (glyphName.contains("space") || glyphName.contains("linefeed") ||
-            !m_otlayout->glyphs.contains(glyphName))
+        QString& glyphName = geometrySet.glyphName;  // m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+
+        if (glyphName.contains(spaceName) || glyphName.contains(linefeedName) || !m_otlayout->glyphs.contains(glyphName))
           continue;
 
-        // bool isIsol = glyphName.contains("isol");
-
-        // bool isFina = glyphName.contains(".fina");
-
         bool isMark =
-            m_otlayout->automedina->classes["marks"].contains(glyphName);
+            markClass.contains(glyphName);
 
-        // bool isWaqfMark =
-        // m_otlayout->automedina->classes["waqfmarks"].contains(glyphName);
-
-        // verify with the line above
-        // if (l > 0 && false) {
         if (interLine && l > 0) {
           int prev_index = l - 1;
-          const auto& prev_linePositions = pagePositions[prev_index];
+
           auto& prev_line = page[prev_index];
 
           for (size_t prev_g = 0; prev_g < prev_line.glyphs.size(); prev_g++) {
             auto& prev_glyphLayout = prev_line.glyphs[prev_g];
-            QString prev_glyphName =
-                m_otlayout->glyphNamePerCode[prev_glyphLayout.codepoint];
+            const auto& otherGeometrySet = geometrySets[prev_index][prev_g];
 
-            bool isPrevMark = m_otlayout->automedina->classes["marks"].contains(
-                prev_glyphName);
-            bool isPrevrSpace = prev_glyphName.contains("space") ||
-                                prev_glyphName.contains("linefeed");
-            // bool isPrevIsol = prev_glyphName.contains("isol");
+            auto& prev_glyphName = otherGeometrySet.glyphName;  // m_otlayout->glyphNamePerCode[prev_glyphLayout.codepoint];
 
-            if ((isMark || isPrevMark) &&
-                !isPrevrSpace) {  //|| isIsol || isPrevIsol
+            bool isPrevMark = markClass.contains(prev_glyphName);
+            bool isPrevrSpace = prev_glyphName.contains(spaceName) || prev_glyphName.contains(linefeedName);
 
-              GlyphVis& otherGlyph = *m_otlayout->getGlyph(
-                  prev_glyphName,
-                  {.lefttatweel = prev_glyphLayout.lefttatweel,
-                   .righttatweel = prev_glyphLayout.righttatweel,
-                   .scalex =
-                       line.xscaleparameter});  // m_otlayout->glyphs[prev_glyphName];
-
-              QPoint otherpos = prev_linePositions[prev_g];
-
-              // auto gg = qt_graphicsItem_shapeFromPath(otherGlyph.path,
-              // pen); QPainterPath otherpath = pathtransform.map(gg);
-
-              QPainterPath otherpath = pathtransform.map(otherGlyph.path);
-              otherpath.translate(otherpos);
-
-              auto otherGeometrySet = geometrySets[prev_index][prev_g];
-
+            if ((isMark || isPrevMark) && !isPrevrSpace) {
               auto minDisPolys = minDistance * emScale;
 
-              GSContact gsContact = getDistance(geometrySet, otherGeometrySet, minDisPolys);
+              GSContact gsContact = getDistance(geometrySet.geometrySet, otherGeometrySet.geometrySet, minDisPolys);
               auto intersect1 = gsContact.contact.depth_or_gap < minDisPolys;
-              auto intersect2 = path.intersects(otherpath);
 
               if (intersect1) {
                 glyphLayout.color = 0xFF000000;
                 prev_glyphLayout.color = 0xFF000000;
                 intersection = true;
               }
-              /*
-              if (intersect1 != intersect2) {
-                std::cout << "Difference inter line in page " << p + 1
-                          << " line " << l + 1 << std::endl;
-              }*/
             }
           }
         }
@@ -444,11 +638,11 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
 
           for (int gg = g - 1; gg >= 0; gg--) {
             auto& otherglyphLayout = line.glyphs[gg];
-            QString otherglyphName =
-                m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
+            const auto& otherGeometrySet = geometrySets[l][gg];
+            auto& otherglyphName = otherGeometrySet.glyphName;  // m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
 
-            bool isOtherSpace = otherglyphName.contains("space") ||
-                                otherglyphName.contains("linefeed");
+            bool isOtherSpace = otherglyphName.contains(spaceName) ||
+                                otherglyphName.contains(linefeedName);
 
             if (isOtherSpace) {
               isSameWord = false;
@@ -456,32 +650,16 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
             }
 
             if (isSameWord) {
-              // TODO include lam.init kaf.medi for example
-
-              bool isPrevInit = otherglyphName.contains(".init");
-              bool isPrevMedi = otherglyphName.contains(".medi");
-
-              if (glyphName.contains(".fina") && (isPrevMedi || isPrevInit))
-                continue;
-              if (glyphName.contains(".medi") && (isPrevMedi || isPrevInit))
+              if ((geometrySet.isMedi || geometrySet.isFina) && (otherGeometrySet.isInit || otherGeometrySet.isMedi))
                 continue;
             }
 
-            const auto& otherpath = paths[gg];
-            const auto& otherGeometrySet = geometrySets[l][gg];
-
             auto minDisPolys = minDistance * emScale * line.fontSize;
-            GSContact gsContact = getDistance(geometrySet, otherGeometrySet, minDisPolys);
+            GSContact gsContact = getDistance(geometrySet.geometrySet, otherGeometrySet.geometrySet, minDisPolys);
             auto intersect1 = gsContact.contact.depth_or_gap < minDisPolys;
-            auto intersect2 = path.intersects(otherpath);
-
-            /*if (intersect1 != intersect2) {
-              std::cout << "Difference intra line in page " << p + 1 << " line "
-                        << l + 1 << std::endl;
-            }*/
 
 #if false
-            if (intersect2 != intersect1) {
+            if (intersect1) {
               auto& As = geometrySet.polys();
               auto& Bs = otherGeometrySet.polys();
 
@@ -496,6 +674,13 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
               for (size_t j = 0; j < Bs.size(); ++j) {
                 aabbsB[j] = computeAABB(Bs[j]);
               }
+
+              GlyphVis& otherGlyph = *m_otlayout->getGlyph(
+                  otherglyphName,
+                  {.lefttatweel = otherglyphLayout.lefttatweel,
+                   .righttatweel = otherglyphLayout.righttatweel,
+                   .scalex =
+                       line.xscaleparameter});  // m_otlayout->glyphs[prev_glyphName];
 
               auto geo1 = glyphToPolys.find(&currentGlyph);
               auto geo2 = glyphToPolys.find(&otherGlyph);
@@ -583,7 +768,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
               view->setRenderHints(QPainter::Antialiasing |
                                    QPainter::TextAntialiasing);
 
-              view->setMinimumSize(1200, 100);
+              view->setMinimumSize(1500, 1000);
 
               view->scale(5, 5);
 
@@ -598,6 +783,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
 
               // Optional: give the box a reasonable minimum width
               box.setMinimumWidth(1500);
+              box.setMinimumHeight(1200);
 
               // Show the message box
               box.exec();
@@ -627,5 +813,6 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
     if (intersection) {
       set.append(p);
     }
+#endif
   }
 }

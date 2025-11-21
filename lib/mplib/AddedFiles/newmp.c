@@ -21,11 +21,9 @@
 #include <unistd.h>
 #endif
 #include <ctype.h>
-#include "newmp.h"
+
 #include "mp.c"
-
-
-
+#include "newmp.h"
 
 double mp_get_numeric_internal(MP mp, char* n) {
   double ret = 0;
@@ -36,17 +34,14 @@ double mp_get_numeric_internal(MP mp, char* n) {
     mp_sym p = mp_id_lookup(mp, n, l, false);
     if (p == NULL) {
       errid = "variable does not exist";
-    }
-    else {
+    } else {
       if (eq_type(p) == mp_internal_quantity) {
         if ((internal_type(equiv(p)) == mp_known)) {
           ret = number_to_double(internal_value(equiv(p)));
-        }
-        else {
+        } else {
           errid = "value has the wrong type";
         }
-      }
-      else {
+      } else {
         errid = "variable is not an internal";
       }
     }
@@ -63,17 +58,15 @@ mp_string static mp_get_string_internal(MP mp, char* n) {
     mp_sym p = mp_id_lookup(mp, n, l, false);
     if (p == NULL) {
       errid = "variable does not exist";
-    }
-    else {
+    } else {
       if (eq_type(p) == mp_internal_quantity) {
-        //if ((internal_type(equiv(p)) == mp_known)) {
+        // if ((internal_type(equiv(p)) == mp_known)) {
         ret = internal_string(equiv(p));
         //}
-        //else {
+        // else {
         //	errid = "value has the wrong type";
         //}
-      }
-      else {
+      } else {
         errid = "variable is not an internal";
       }
     }
@@ -82,7 +75,6 @@ mp_string static mp_get_string_internal(MP mp, char* n) {
   return ret;
 }
 double static setParameters(MP mp, mp_edge_object* hh) {
-
   double codechar = hh->charcode;
 
   hh->charlt = mp_get_numeric_internal(mp, "charlt");
@@ -95,7 +87,7 @@ double static setParameters(MP mp, mp_edge_object* hh) {
 
   hh->charname = mp_get_string_internal(mp, "charname")->str;
 
-  hh->originalglyph = mp_get_string_internal(mp, "originalglyph")->str;  
+  hh->originalglyph = mp_get_string_internal(mp, "originalglyph")->str;
 
   hh->numAnchors = mp_get_numeric_internal(mp, "number_of_anchors");
 
@@ -158,7 +150,7 @@ double static setParameters(MP mp, mp_edge_object* hh) {
   mp_flush_token_list(mp, p);*/
 
   char* varName = "leftanchor";
-  mp_sym  varrSymp = mp_id_lookup(mp, varName, strlen(varName), false);
+  mp_sym varrSymp = mp_id_lookup(mp, varName, strlen(varName), false);
   mp_node r = mp_get_symbolic_node(mp);
   set_mp_sym_sym(r, varrSymp);
   mp_name_type(r) = 0;
@@ -171,16 +163,14 @@ double static setParameters(MP mp, mp_edge_object* hh) {
       hh->xleftanchor = number_to_double(value_number(x_part(value)));
       hh->yleftanchor = number_to_double(value_number(y_part(value)));
     }
-
   }
 
-  //mp_flush_token_list(mp, r);
+  // mp_flush_token_list(mp, r);
 
   varName = "rightanchor";
   varrSymp = mp_id_lookup(mp, varName, strlen(varName), false);
   set_mp_sym_sym(r, varrSymp);
   mp_name_type(r) = 0;
-
 
   varnode = mp_find_variable(mp, r);
 
@@ -190,7 +180,6 @@ double static setParameters(MP mp, mp_edge_object* hh) {
       hh->xrightanchor = number_to_double(value_number(x_part(value)));
       hh->yrightanchor = number_to_double(value_number(y_part(value)));
     }
-
   }
 
   varName = "tr_";
@@ -206,15 +195,11 @@ double static setParameters(MP mp, mp_edge_object* hh) {
       hh->xpart = number_to_double(value_number(x_part(value)));
       hh->ypart = number_to_double(value_number(y_part(value)));
     }
-
   }
-
 
   mp_flush_token_list(mp, r);
 
   setAnchors(mp, hh);
-
-
 }
 void mp_gr_toss_objects_extended(mp_edge_object* hh) {
   for (int i = 0; i < hh->numAnchors; i++) {
@@ -230,8 +215,7 @@ void mymplib_shipout_backend(MP mp, void* voidh) {
     mp_run_data* run = mp_rundata(mp);
     if (run->edges == NULL) {
       run->edges = hh;
-    }
-    else {
+    } else {
       mp_edge_object* p = run->edges;
       mp_edge_object* prev = NULL;
       bool exist = false;
@@ -239,8 +223,7 @@ void mymplib_shipout_backend(MP mp, void* voidh) {
         if (p->charcode == hh->charcode) {
           if (prev) {
             prev->next = hh;
-          }
-          else {
+          } else {
             run->edges = hh;
           }
           hh->next = p->next;
@@ -259,16 +242,13 @@ void mymplib_shipout_backend(MP mp, void* voidh) {
   }
 }
 void setAnchors(MP mp, mp_edge_object* hh) {
-
   if (hh->numAnchors == 0) return;
 
-
   char* varName = "anchors";
-  mp_sym  varrSymp = mp_id_lookup(mp, varName, strlen(varName), false);
+  mp_sym varrSymp = mp_id_lookup(mp, varName, strlen(varName), false);
   mp_node r = mp_get_symbolic_node(mp);
   set_mp_sym_sym(r, varrSymp);
   mp_name_type(r) = 0;
-
 
   varName = "anchorname";
   mp_sym anchornameSymp = mp_id_lookup(mp, varName, strlen(varName), false);
@@ -283,12 +263,10 @@ void setAnchors(MP mp, mp_edge_object* hh) {
   new_number(arg2);
 
   for (int anchorIndex = 0; anchorIndex < hh->numAnchors; anchorIndex++) {
-
     set_number_from_double(arg2, anchorIndex);
     mp_node s = mp_new_num_tok(mp, arg2);
 
     mp_link(r) = s;
-
 
     mp_node t = mp_get_symbolic_node(mp);
     set_mp_sym_sym(t, anchornameSymp);
@@ -303,7 +281,6 @@ void setAnchors(MP mp, mp_edge_object* hh) {
     }
 
     mp_flush_token_list(mp, t);
-
 
     t = mp_get_symbolic_node(mp);
     set_mp_sym_sym(t, typeSymp);
@@ -333,7 +310,6 @@ void setAnchors(MP mp, mp_edge_object* hh) {
         hh->anchors[anchorIndex].x = number_to_double(value_number(x_part(value)));
         hh->anchors[anchorIndex].y = number_to_double(value_number(y_part(value)));
       }
-
     }
 
     mp_flush_token_list(mp, s);
@@ -343,7 +319,6 @@ void setAnchors(MP mp, mp_edge_object* hh) {
   mp_flush_token_list(mp, r);
 
   free_number(arg2);
-
 }
 static mp_node getTokenList(MP mp, char* varName) {
   mp_node root = mp_get_symbolic_node(mp);
@@ -352,7 +327,7 @@ static mp_node getTokenList(MP mp, char* varName) {
   bool firstToken = true;
 
   int i = 0;
-  while (varName[i] != '\0') {    
+  while (varName[i] != '\0') {
     while (varName[i] == ' ') {
       i++;
     }
@@ -362,26 +337,24 @@ static mp_node getTokenList(MP mp, char* varName) {
     }
     if (starti != i) {
       // alpha
-      mp_sym  varrSymp = mp_id_lookup(mp, varName + starti, i - starti, false);
+      mp_sym varrSymp = mp_id_lookup(mp, varName + starti, i - starti, false);
       mp_node t = mp_get_symbolic_node(mp);
       set_mp_sym_sym(t, varrSymp);
       if (firstToken) {
         mp_name_type(t) = 0;
         firstToken = false;
-      }
-      else {
+      } else {
         mp_name_type(t) = mp_token;
       }
-      
+
       mp_link(lastNode) = t;
       lastNode = t;
-    }
-    else {
+    } else {
       while (isdigit(varName[i]) || varName[i] == '.') {
         i++;
       }
       if (starti != i) {
-        if ((i - starti) == 1 && varName[starti] == '.') continue; // . separator
+        if ((i - starti) == 1 && varName[starti] == '.') continue;  // . separator
         char* eptr;
         double result = strtod(varName + starti, &eptr);
         mp_number arg2;
@@ -391,14 +364,11 @@ static mp_node getTokenList(MP mp, char* varName) {
         free_number(arg2);
         mp_link(lastNode) = t;
         lastNode = t;
-      }
-      else {
+      } else {
         break;
       }
     }
-
   }
-
 
   mp_node ret = mp_link(root);
   mp_link(root) = NULL;
@@ -421,6 +391,32 @@ bool getMPPairVariable(MP mp, char* varName, double* x, double* y) {
         *y = number_to_double(value_number(y_part(value)));
         ret = true;
       }
+    }
+  }
+
+  mp_flush_token_list(mp, root);
+
+  return ret;
+}
+
+bool getMPBoolVariable(MP mp, const char* varName, int* x) {
+  bool ret = false;
+  mp_node root = getTokenList(mp, varName);
+
+  if (!root->data.sym) {
+    return false;
+  }
+
+  mp_node varnode = mp_find_variable(mp, root);
+
+  if (varnode && mp_type(varnode) == mp_boolean_type) {
+    int value = number_to_boolean(varnode->data.n);
+    if (value == mp_true_code) {
+      *x = 1;
+      ret = true;
+    } else if (value == mp_false_code) {
+      *x = 0;
+      ret = true;
     }
   }
 
@@ -466,9 +462,8 @@ bool getMPStringVariable(MP mp, const char* varName, char** x) {
 }
 
 void getPointParam(MP mp, int index, double* x, double* y) {
-
   char* varName = "tmp_pair_params_";
-  mp_sym  varrSymp = mp_id_lookup(mp, varName, strlen(varName), false);
+  mp_sym varrSymp = mp_id_lookup(mp, varName, strlen(varName), false);
   mp_node r = mp_get_symbolic_node(mp);
   set_mp_sym_sym(r, varrSymp);
   mp_name_type(r) = 0;
@@ -489,13 +484,11 @@ void getPointParam(MP mp, int index, double* x, double* y) {
       *x = number_to_double(value_number(x_part(value)));
       *y = number_to_double(value_number(y_part(value)));
     }
-
   }
 
   mp_flush_token_list(mp, r);
 
   free_number(arg2);
-
 }
 /*
 AnchorPoint getAnchor(MP mp, int charcode, int anchorIndex) {
@@ -675,5 +668,3 @@ Transform getMatrix(MP mp, int charcode) {
   return ret;
 
 }*/
-
-

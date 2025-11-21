@@ -295,6 +295,7 @@ static QVector<int> colorGreedyDSATUR(const Graph& g) {
 // Exact or greedy based on flag
 QVector<QVector<QVector<int>>> partitionMinNoOverlap(
     const QVector<QVector<int>>& seqs, bool useGreedy /* = false */) {
+  if (seqs.size() == 0) return {};
   Graph g = buildConflictGraph(seqs);
   QVector<int> col = useGreedy ? colorGreedyDSATUR(g) : colorMinExact(g);
 

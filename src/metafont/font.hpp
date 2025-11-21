@@ -20,13 +20,11 @@
 #pragma once
 #ifndef FONT_H
 #define FONT_H
+#include <QHash>
 #include <QObject>
 #include <QVector>
-#include <QHash>
+
 #include "OtLayout.h"
-
-
-
 
 class OtLayout;
 class GlyphVis;
@@ -35,50 +33,50 @@ typedef struct MP_instance* MP;
 struct mp_edge_object;
 typedef struct mp_graphic_object mp_graphic_object;
 class Font : public QObject {
-	Q_OBJECT
+  Q_OBJECT
 
-public:
-	friend OtLayout;
-	friend GlyphVis;
-	Font(QObject* parent = Q_NULLPTR);
-	~Font();
-	bool loadFile(const QString& fileName);
-	bool saveFile();
-	bool saveUnicodes();
-	QVector<Glyph*> glyphs;
-	QHash<QString, Glyph*> glyphperName;
-	QString filePath();
-	QString fontName();
-	double lineHeight();
-	double getNumericVariable(QString name);
-	double getInternalNumericVariable(QString name);
-	bool getPairVariable(QString name, QPointF& point);
-	Glyph* getGlyph(uint code);	
-	QString path() {
-		return m_path;
-	}
-	QString currentDir() {
-		return m_currentDir;
-	}
-	QString executeMetaPost(QString command);
-	mp_edge_object* getEdges();
-	mp_edge_object* getEdge(int charCode);
-	void generateAlternate(QString macroname, GlyphParameters params, QString sourceCode = "");
-	mp_graphic_object* copyEdgeBody(mp_graphic_object* source);
-	QString getLog();
-	//TODO protected:
-	MP mp = nullptr;
+ public:
+  friend OtLayout;
+  friend GlyphVis;
+  Font(QObject* parent = Q_NULLPTR);
+  ~Font();
+  bool loadFile(const QString& fileName);
+  bool saveFile();
+  bool saveUnicodes();
+  QVector<Glyph*> glyphs;
+  QHash<QString, Glyph*> glyphperName;
+  QString filePath();
+  QString fontName();
+  double lineHeight();
+  double getNumericVariable(QString name);
+  double getInternalNumericVariable(QString name);
+  bool getPairVariable(QString name, QPointF& point);
+  bool getBoolVariable(QString name);
+  Glyph* getGlyph(uint code);
+  QString path() {
+    return m_path;
+  }
+  QString currentDir() {
+    return m_currentDir;
+  }
+  QString executeMetaPost(QString command);
+  mp_edge_object* getEdges();
+  mp_edge_object* getEdge(int charCode);
+  void generateAlternate(QString macroname, GlyphParameters params, QString sourceCode = "");
+  mp_graphic_object* copyEdgeBody(mp_graphic_object* source);
+  QString getLog();
+  // TODO protected:
+  MP mp = nullptr;
 
-	QString familyName();
-	QString copyright();
+  QString familyName();
+  QString copyright();
 
-	QVector<VarAxis> axes;
+  QVector<VarAxis> axes;
 
-
-private:
-	void readAxes();
-	QString m_path;
-	QString m_fontName;
-	QString m_currentDir;
+ private:
+  void readAxes();
+  QString m_path;
+  QString m_fontName;
+  QString m_currentDir;
 };
-#endif // FONT_H
+#endif  // FONT_H

@@ -17,31 +17,27 @@
  * <https: //www.gnu.org/licenses />.
 */
 
-#include "qfile.h"
 #include "font.hpp"
-#include "glyph.hpp"
 
-#include "qdir.h"
-
-
-#include "qtextstream.h"
-#include "qregularexpression.h"
-#include "qapplication.h"
-#include "qfileinfo.h"
-
-#include "hb.hh"
-#include "metafont.h"
 #include <filesystem>
 #include <format>
+
+#include "glyph.hpp"
+#include "hb.hh"
+#include "metafont.h"
+#include "qapplication.h"
 #include "qdebug.h"
+#include "qdir.h"
+#include "qfile.h"
+#include "qfileinfo.h"
+#include "qregularexpression.h"
+#include "qtextstream.h"
 
 namespace fs = std::filesystem;
 
 Font::Font(QObject* parent) : QObject(parent) {
-
 }
 bool Font::loadFile(const QString& fileName) {
-
   QFile file(fileName);
   if (!file.open(QFile::ReadOnly | QFile::Text)) {
     return false;
@@ -51,10 +47,8 @@ bool Font::loadFile(const QString& fileName) {
     mp_finish(mp);
   }
 
-
-
   MP_options* _mp_options = mp_options();
-  //MP_options _mp_options;
+  // MP_options _mp_options;
   _mp_options->noninteractive = 1;
   _mp_options->command_line = NULL;
   _mp_options->ini_version = true;
@@ -79,27 +73,21 @@ bool Font::loadFile(const QString& fileName) {
   if (!rsmfplain.open(QIODevice::ReadOnly)) {
     qDebug() << "mfplain.mp file not opened" << endl;
     return false;
-  }
-  else
-  {
+  } else {
     initMF.append(rsmfplain.readAll());
   }
 
   if (!rsmpost.open(QIODevice::ReadOnly)) {
     qDebug() << "mpost.mp file not opened" << endl;
     return false;
-  }
-  else
-  {
+  } else {
     initMF.append(rsmpost.readAll());
   }
 
   if (!rsvmf.open(QIODevice::ReadOnly)) {
     qDebug() << "vmf.mp file not opened" << endl;
     return false;
-  }
-  else
-  {
+  } else {
     initMF.append(rsvmf.readAll());
   }
 
@@ -111,7 +99,7 @@ bool Font::loadFile(const QString& fileName) {
   m_currentDir = QString::fromStdString(parentPath.string());
   auto currentPath = std::filesystem::current_path();
 
-  std::filesystem::current_path(parentPath); //setting path
+  std::filesystem::current_path(parentPath);  // setting path
 
   QByteArray command = initMF.toLocal8Bit();
 
@@ -157,7 +145,7 @@ bool Font::loadFile(const QString& fileName) {
     QString source = match.captured(1);
     Glyph* glyph = new Glyph(source, this);
     glyphs.append(glyph);
-    //glyphperUnicode[glyph->unicode()] = glyph;
+    // glyphperUnicode[glyph->unicode()] = glyph;
   }
 
   QFileInfo fileInfo(fileName);
@@ -173,22 +161,24 @@ bool Font::loadFile(const QString& fileName) {
   return true;
 }
 double Font::lineHeight() {
-
   double lineheight = getInternalNumericVariable("lineheight");
 
   return lineheight;
 }
 double Font::getNumericVariable(QString name) {
-
   double x = 0;
   auto ba = name.toStdString();
   auto ret = getMPNumVariable(mp, (char*)ba.c_str(), &x);
 
-
   return x;
 }
+bool Font::getBoolVariable(QString name) {
+  int x = 0;
+  auto ba = name.toStdString();
+  auto ret = getMPBoolVariable(mp, (char*)ba.c_str(), &x);
+  return (x == 1);
+}
 double Font::getInternalNumericVariable(QString name) {
-
   auto ba = name.toStdString();
   double x = mp_get_numeric_internal(mp, (char*)ba.c_str());
 
@@ -196,7 +186,6 @@ double Font::getInternalNumericVariable(QString name) {
 }
 
 QString Font::familyName() {
-
   char* name = nullptr;
   QString ret;
 
@@ -207,10 +196,8 @@ QString Font::familyName() {
   }
 
   return ret;
-
 }
 QString Font::copyright() {
-
   char* name = nullptr;
   QString ret;
 
@@ -221,7 +208,6 @@ QString Font::copyright() {
   }
 
   return ret;
-
 }
 bool Font::getPairVariable(QString name, QPointF& point) {
   QPointF value;
@@ -242,8 +228,7 @@ bool Font::getPairVariable(QString name, QPointF& point) {
     point = QPointF(x, y);
     return true;
 
-  }
-  else {
+  } else {
     QByteArray ba = name.toLocal8Bit();
     char* c_str2 = ba.data();
     double x, y;
@@ -256,7 +241,6 @@ bool Font::getPairVariable(QString name, QPointF& point) {
   return false;
 }
 bool Font::saveUnicodes() {
-
   if (m_path.isEmpty()) return false;
 
   QFileInfo fileInfo(m_path);
@@ -281,14 +265,11 @@ bool Font::saveUnicodes() {
   unicodesfile.close();
 
   return true;
-
 }
 bool Font::saveFile() {
   if (!m_path.isEmpty()) {
-
     QFileInfo fileInfo(m_path);
     QFile file(fileInfo.path() + "/glyphs.mp");
-
 
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
       return false;
@@ -302,7 +283,6 @@ bool Font::saveFile() {
     file.close();
 
     return true;
-
   }
 
   return false;
@@ -317,14 +297,11 @@ Font::~Font() {
 QString Font::filePath() {
   return m_path;
 }
-QString Font::fontName()
-{
+QString Font::fontName() {
   return m_fontName;
 }
 Glyph* Font::getGlyph(uint charcode) {
-
   for (QVector<Glyph*>::const_iterator it = glyphs.begin(); it != glyphs.end(); ++it) {
-
     Glyph* cur = *it;
     if (cur->charcode() == (int)charcode) {
       return cur;
@@ -332,10 +309,8 @@ Glyph* Font::getGlyph(uint charcode) {
   }
 
   return NULL;
-
 }
 QString Font::executeMetaPost(QString command) {
-
   mp->history = mp_spotless;
   QByteArray commandBytes = command.toLatin1();
   int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());
@@ -348,7 +323,6 @@ QString Font::executeMetaPost(QString command) {
   }
 
   return ret;
-
 }
 mp_edge_object* Font::getEdges() {
   mp_run_data* _mp_results = mp_rundata(mp);
@@ -357,7 +331,6 @@ mp_edge_object* Font::getEdges() {
 };
 
 mp_edge_object* Font::getEdge(int charCode) {
-
   mp_edge_object* edge = nullptr;
 
   mp_edge_object* p = getEdges();
@@ -374,14 +347,13 @@ mp_edge_object* Font::getEdge(int charCode) {
 }
 
 void Font::generateAlternate(QString macroname, GlyphParameters params, QString sourceCode) {
-
   QString metaParams = QString("save params;params0:=%1;params1:=%2;params3:=%3;params4:=%4;params5:=%5;params100:=%6;")
-    .arg(params.lefttatweel)
-    .arg(params.righttatweel)
-    .arg(params.third)
-    .arg(params.fourth)
-    .arg(params.fifth)
-    .arg(params.scalex);
+                           .arg(params.lefttatweel)
+                           .arg(params.righttatweel)
+                           .arg(params.third)
+                           .arg(params.fourth)
+                           .arg(params.fifth)
+                           .arg(params.scalex);
 
   if (!sourceCode.isEmpty()) {
     auto source = metaParams + sourceCode;
@@ -390,12 +362,10 @@ void Font::generateAlternate(QString macroname, GlyphParameters params, QString 
   }
 
   if (params.lefttatweel != 0 || params.righttatweel != 0) {
-
     auto metapostString = QString("%1generateAlternate(%2$,params);").arg(metaParams).arg(macroname);
 
     executeMetaPost(metapostString);
-  }
-  else if (params.scalex != 0) {
+  } else if (params.scalex != 0) {
     if (glyphperName.contains(macroname)) {
       auto glyph = glyphperName[macroname];
       auto source = metaParams + glyph->source();
@@ -404,170 +374,146 @@ void Font::generateAlternate(QString macroname, GlyphParameters params, QString 
       source.replace(beginChar, QString("%1%2(alternatechar,%3").arg(metaParams).arg(glyph->beginMacroName()).arg(OtLayout::AlternatelastCode));
       auto index = source.indexOf("\n");
       source.insert(index, QString("originalglyph := \"%1\";").arg(macroname));*/
-      
+
       executeMetaPost(source);
 
-    }
-    else {
+    } else {
       throw std::runtime_error("Error");
     }
   }
-
-
 }
 mp_graphic_object* Font::copyEdgeBody(mp_graphic_object* body) {
   mp_graphic_object* result = nullptr;
 
-  auto copypath = [this](mp_gr_knot knot)
-    {
-      mp_gr_knot p, current, ret;
+  auto copypath = [this](mp_gr_knot knot) {
+    mp_gr_knot p, current, ret;
 
-      ret = nullptr;
+    ret = nullptr;
 
-      if (knot == nullptr) return ret;
+    if (knot == nullptr) return ret;
 
-      ret = (mp_gr_knot)mp_xmalloc(mp, 1, sizeof(struct mp_gr_knot_data)); //new mp_gr_knot_data();
+    ret = (mp_gr_knot)mp_xmalloc(mp, 1, sizeof(struct mp_gr_knot_data));  // new mp_gr_knot_data();
 
-      ret->x_coord = knot->x_coord;
-      ret->y_coord = knot->y_coord;
-      ret->left_x = knot->left_x;
-      ret->left_y = knot->left_y;
-      ret->right_x = knot->right_x;
-      ret->right_y = knot->right_y;
-      ret->data.types.left_type = knot->data.types.left_type;
-      ret->next = nullptr;
+    ret->x_coord = knot->x_coord;
+    ret->y_coord = knot->y_coord;
+    ret->left_x = knot->left_x;
+    ret->left_y = knot->left_y;
+    ret->right_x = knot->right_x;
+    ret->right_y = knot->right_y;
+    ret->data.types.left_type = knot->data.types.left_type;
+    ret->next = nullptr;
 
-      current = ret;
+    current = ret;
 
-      p = knot->next;
-      while (p != knot) {
+    p = knot->next;
+    while (p != knot) {
+      mp_gr_knot tmp = (mp_gr_knot)mp_xmalloc(mp, 1, sizeof(struct mp_gr_knot_data));  // new mp_gr_knot_data();
 
+      tmp->left_x = p->left_x;
+      tmp->left_y = p->left_y;
+      tmp->x_coord = p->x_coord;
+      tmp->y_coord = p->y_coord;
+      tmp->right_x = p->right_x;
+      tmp->right_y = p->right_y;
+      tmp->data.types.left_type = p->data.types.left_type;
 
-        mp_gr_knot tmp = (mp_gr_knot)mp_xmalloc(mp, 1, sizeof(struct mp_gr_knot_data)); // new mp_gr_knot_data();
+      current->next = tmp;
+      current = tmp;
 
-        tmp->left_x = p->left_x;
-        tmp->left_y = p->left_y;
-        tmp->x_coord = p->x_coord;
-        tmp->y_coord = p->y_coord;
-        tmp->right_x = p->right_x;
-        tmp->right_y = p->right_y;
-        tmp->data.types.left_type = p->data.types.left_type;
+      p = p->next;
+    }
 
+    current->next = ret;
 
-
-        current->next = tmp;
-        current = tmp;
-
-        p = p->next;
-      }
-
-      current->next = ret;
-
-      return ret;
-    };
-
-
-
-
-
+    return ret;
+  };
 
   mp_graphic_object* currObject = nullptr;
 
   if (body) {
     do {
-      switch (body->type)
-      {
-      case mp_fill_code: {
+      switch (body->type) {
+        case mp_fill_code: {
+          mp_fill_object* fillobject = (mp_fill_object*)body;
+          mp_gr_knot newpath = copypath(fillobject->path_p);
 
-        mp_fill_object* fillobject = (mp_fill_object*)body;
-        mp_gr_knot newpath = copypath(fillobject->path_p);
+          mp_fill_object* nextObject = (mp_fill_object*)mp_new_graphic_object(mp, mp_fill_code);
+          nextObject->type = mp_fill_code;
+          nextObject->path_p = newpath;
+          nextObject->next = nullptr;
+          nextObject->pre_script = fillobject->pre_script != nullptr
+                                       ? xstrdup(fillobject->pre_script)
+                                       : nullptr;
+          nextObject->post_script = fillobject->post_script != nullptr
+                                        ? xstrdup(fillobject->post_script)
+                                        : nullptr;
+          nextObject->pen_p = nullptr;
+          nextObject->htap_p = nullptr;
 
-        mp_fill_object* nextObject = (mp_fill_object*)mp_new_graphic_object(mp, mp_fill_code);
-        nextObject->type = mp_fill_code;
-        nextObject->path_p = newpath;
-        nextObject->next = nullptr;
-        nextObject->pre_script = fillobject->pre_script != nullptr
-            ? xstrdup(fillobject->pre_script)
-                                     : nullptr;
-        nextObject->post_script = fillobject->post_script != nullptr
-            ? xstrdup(fillobject->post_script)
-                                      : nullptr;
-        nextObject->pen_p = nullptr;
-        nextObject->htap_p = nullptr;
+          if (fillobject->color_model == mp_rgb_model) {
+            nextObject->color_model = mp_rgb_model;
+            nextObject->color = fillobject->color;
+          }
 
-        if (fillobject->color_model == mp_rgb_model) {
-          nextObject->color_model = mp_rgb_model;
-          nextObject->color = fillobject->color;
+          if (currObject == nullptr) {
+            currObject = (mp_graphic_object*)nextObject;
+            result = currObject;
+          } else {
+            currObject->next = (mp_graphic_object*)nextObject;
+            currObject = currObject->next;
+          }
+
+          break;
         }
+        case mp_stroked_code: {
+          mp_stroked_object* fillobject = (mp_stroked_object*)body;
+          mp_gr_knot newpath = copypath(fillobject->path_p);
 
-        if (currObject == nullptr) {
-          currObject = (mp_graphic_object*)nextObject;
-          result = currObject;
+          mp_stroked_object* nextObject = (mp_stroked_object*)mp_new_graphic_object(mp, mp_stroked_code);  // new mp_fill_object;
+          nextObject->type = mp_stroked_code;
+          nextObject->path_p = newpath;
+          nextObject->next = nullptr;
+          nextObject->pre_script = fillobject->pre_script != nullptr
+                                       ? xstrdup(fillobject->pre_script)
+                                       : nullptr;
+          nextObject->post_script = fillobject->post_script != nullptr
+                                        ? xstrdup(fillobject->post_script)
+                                        : nullptr;
+          nextObject->pen_p = nullptr;
+          // nextObject->htap_p = nullptr;
+
+          if (fillobject->color_model == mp_rgb_model) {
+            nextObject->color_model = mp_rgb_model;
+            nextObject->color = fillobject->color;
+          }
+
+          if (currObject == nullptr) {
+            currObject = (mp_graphic_object*)nextObject;
+            result = currObject;
+          } else {
+            currObject->next = (mp_graphic_object*)nextObject;
+            currObject = currObject->next;
+          }
+
+          break;
         }
-        else {
-          currObject->next = (mp_graphic_object*)nextObject;
-          currObject = currObject->next;
-        }
-
-
-        break;
-      }
-      case mp_stroked_code: {
-
-        mp_stroked_object* fillobject = (mp_stroked_object*)body;
-        mp_gr_knot newpath = copypath(fillobject->path_p);
-
-        mp_stroked_object* nextObject = (mp_stroked_object*)mp_new_graphic_object(mp, mp_stroked_code); // new mp_fill_object;
-        nextObject->type = mp_stroked_code;
-        nextObject->path_p = newpath;
-        nextObject->next = nullptr;
-        nextObject->pre_script = fillobject->pre_script != nullptr
-                                     ? xstrdup(fillobject->pre_script)
-                                     : nullptr;
-        nextObject->post_script = fillobject->post_script != nullptr
-                                      ? xstrdup(fillobject->post_script)
-                                      : nullptr;
-        nextObject->pen_p = nullptr;
-        //nextObject->htap_p = nullptr;
-
-        if (fillobject->color_model == mp_rgb_model) {
-          nextObject->color_model = mp_rgb_model;
-          nextObject->color = fillobject->color;
-        }
-
-        if (currObject == nullptr) {
-          currObject = (mp_graphic_object*)nextObject;
-          result = currObject;
-        }
-        else {
-          currObject->next = (mp_graphic_object*)nextObject;
-          currObject = currObject->next;
-        }
-
-
-        break;
-      }
-      default:
-        break;
+        default:
+          break;
       }
 
     } while (body = body->next);
   }
 
-
   return result;
-
 }
 
-QString Font::getLog()
-{
+QString Font::getLog() {
   mp_run_data* results = mp_rundata(mp);
   QString ret(results->term_out.data);
   return ret.trimmed();
 }
 
 void Font::readAxes() {
-
   axes.clear();
 
   auto numAxes = getInternalNumericVariable("number_of_axes");
@@ -611,11 +557,6 @@ void Font::readAxes() {
       axis.maxValue = dbValue;
     }
 
-
-
     axes.append(axis);
-
   }
-
 }
-

@@ -116,6 +116,9 @@ class LayoutWindow : public QMainWindow {
   void applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
                                 QList<QStringList> originalPages, int lineWidth,
                                 int beginPage, int nbPages, double emScale);
+  void optimizeLayout(QList<QList<LineLayoutInfo>>& pages,
+                      QList<QStringList> originalPages,
+                      int beginPage, int nbPages, double emScale);
   void generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pages,
                               const QList<QStringList>& originalPages,
                               const QVector<OverlapResult>& result);
@@ -126,6 +129,7 @@ class LayoutWindow : public QMainWindow {
   void generateTestFile();
   void checkOffMarks();
   void savePagetoPicture();
+  void convertCursiveToKern();
 
   void setQuranText(int type);
   QComboBox* justCombo;

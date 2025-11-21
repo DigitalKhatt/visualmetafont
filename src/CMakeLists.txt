@@ -171,6 +171,7 @@ set(Layout
   Layout/gjk_epa.cpp
   Layout/contact_flexible.h
   Layout/contact_flexible.cpp
+  Layout/optimize_layout.cpp
   )
 
 

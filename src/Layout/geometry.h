@@ -11,6 +11,8 @@ struct mp_graphic_object;
 
 namespace geometry {
 
+constexpr double CUBIC_FLATNESS_TOLERANCE = 5;
+
 // -------- basic types --------
 struct Vec2 {
   double x = 0, y = 0;
@@ -31,6 +33,9 @@ struct Vec2 {
   bool operator==(const Vec2& other) const {
     return this->x == other.x && this->y == other.y;
   }
+  inline Vec2 translate(double dx, double dy) const {
+    return {x + dx, y + dy};
+  }
   static double dot(const Vec2& a, const Vec2& b) {
     return a.x * b.x + a.y * b.y;
   }
@@ -46,6 +51,8 @@ struct Vec2 {
   }
 };
 using Poly = std::vector<Vec2>;
+
+using PolySet = std::vector<Poly>;
 
 inline double dot(const Vec2& a, const Vec2& b) {
   return a.x * b.x + a.y * b.y;
@@ -87,8 +94,69 @@ void makeCCW(Poly& p);
 Contact contactGjkEpaPoly(const Poly& A, const Poly& B, int gjkIters = 32,
                           int epaIters = 64);
 
+struct AABB {
+  double minx, miny, maxx, maxy;
+  AABB translate(double dx, double dy) {
+    return AABB(minx + dx, miny + dy, maxx + dx, maxy + dy);
+  }
+};
+
 struct Cubic {
   Vec2 p0, p1, p2, p3;
+
+  AABB bounds() const {
+    qreal xmin = p0.x;
+    qreal xmax = p0.x;
+    if (p1.x < xmin)
+      xmin = p1.x;
+    else if (p1.x > xmax)
+      xmax = p1.x;
+    if (p2.x < xmin)
+      xmin = p2.x;
+    else if (p2.x > xmax)
+      xmax = p2.x;
+    if (p3.x < xmin)
+      xmin = p3.x;
+    else if (p3.x > xmax)
+      xmax = p3.x;
+    qreal ymin = p0.y;
+    qreal ymax = p0.y;
+    if (p1.y < ymin)
+      ymin = p1.y;
+    else if (p1.y > ymax)
+      ymax = p1.y;
+    if (p2.y < ymin)
+      ymin = p2.y;
+    else if (p2.y > ymax)
+      ymax = p2.y;
+    if (p3.y < ymin)
+      ymin = p3.y;
+    else if (p3.y > ymax)
+      ymax = p3.y;
+    return AABB(xmin, ymin, xmax, ymax);
+  }
+  inline Vec2 pointAt(qreal t) const {
+    // numerically more stable:
+    qreal x, y;
+    qreal m_t = 1. - t;
+    {
+      qreal a = p0.x * m_t + p1.x * t;
+      qreal b = p1.x * m_t + p2.x * t;
+      qreal c = p2.x * m_t + p3.x * t;
+      a = a * m_t + b * t;
+      b = b * m_t + c * t;
+      x = a * m_t + b * t;
+    }
+    {
+      qreal a = p0.y * m_t + p1.y * t;
+      qreal b = p1.y * m_t + p2.y * t;
+      qreal c = p2.y * m_t + p3.y * t;
+      a = a * m_t + b * t;
+      b = b * m_t + c * t;
+      y = a * m_t + b * t;
+    }
+    return Vec2(x, y);
+  }
 };
 
 struct ContourCubic {
@@ -97,10 +165,6 @@ struct ContourCubic {
 struct GlyphCubic {
   std::vector<ContourCubic> paths;
 };  // multiple contours
-
-struct AABB {
-  double minx, miny, maxx, maxy;
-};
 
 class GeometrySet {
  public:
@@ -139,6 +203,8 @@ class GeometrySet {
 
   GeometrySet scaleTranslate(double sx, double sy, double dx, double dy) const;
 
+  GeometrySet translate(double dx, double dy) const;
+
   AABB boundingAABB() const;
 
   QPainterPath toQPainterPath() const;
@@ -161,5 +227,10 @@ GeometrySet buildConvexPartsFromCubics(const GlyphCubic& g, double tau);
 AABB computeAABB(const Poly& P);
 
 GlyphCubic getGlyphCubic(mp_graphic_object* body);
+
+inline bool overlapAABB(const AABB& a, const AABB& b) {
+  return !(a.maxx < b.minx || a.minx > b.maxx ||
+           a.maxy < b.miny || a.miny > b.maxy);
+}
 
 }  // namespace geometry

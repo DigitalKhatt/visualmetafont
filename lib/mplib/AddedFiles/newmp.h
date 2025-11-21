@@ -19,27 +19,28 @@
 
 #pragma once
 #include <stdbool.h>
-typedef struct MP_instance*MP;
-//void mymplib_shipout_backend(MP mp, void*voidh);
+typedef struct MP_instance* MP;
+// void mymplib_shipout_backend(MP mp, void*voidh);
 
 typedef struct mp_edge_object mp_edge_object;
 
 typedef struct Transform {
-	double xpart;
-	double ypart;
+  double xpart;
+  double ypart;
 } Transform;
 
 void setAnchors(MP mp, mp_edge_object* hh);
 
 void mp_gr_toss_objects_extended(mp_edge_object* hh);
 
-//AnchorPoint getAnchor(MP mp, int charcode, int anchorIndex);
-//unsigned int getTotalAnchors(MP mp, int charcode);
-//Transform getMatrix(MP mp, int charcode);
+// AnchorPoint getAnchor(MP mp, int charcode, int anchorIndex);
+// unsigned int getTotalAnchors(MP mp, int charcode);
+// Transform getMatrix(MP mp, int charcode);
 
-void getPointParam(MP mp, int index,double*x, double*y);
+void getPointParam(MP mp, int index, double* x, double* y);
 
 bool getMPPairVariable(MP mp, char* varName, double* x, double* y);
 bool getMPNumVariable(MP mp, const char* varName, double* x);
 bool getMPStringVariable(MP mp, const char* varName, char** x);
 double mp_get_numeric_internal(MP mp, char* n);
+bool getMPBoolVariable(MP mp, const char* varName, int* x);

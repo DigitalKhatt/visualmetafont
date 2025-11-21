@@ -8,6 +8,7 @@
 #include "polypartition.h"
 
 namespace geometry {
+
 // ---------- utilities ----------
 
 static inline Vec2 tripleProduct(const Vec2& a, const Vec2& b, const Vec2& c) {
@@ -129,6 +130,38 @@ GeometrySet GeometrySet::scaleTranslate(double sx, double sy, double dx,
                             applyScaleTranslate(cachedAABB_.miny, sy, dy),
                             applyScaleTranslate(cachedAABB_.maxx, sx, dx),
                             applyScaleTranslate(cachedAABB_.maxy, sy, dy)});
+  } else {
+    return GeometrySet(std::move(out));
+  }
+}
+
+GeometrySet GeometrySet::translate(double dx,
+                                   double dy) const {
+  std::vector<Poly> out;
+  std::vector<AABB> aabb;
+  out.reserve(polys_.size());
+  if (!dirty_) {
+    aabb.reserve(polys_.size());
+  }
+
+  for (int i = 0; i < polys_.size(); ++i) {
+    auto& P = polys_[i];
+    Poly Q;
+    Q.reserve(P.size());
+    for (const auto& v : P) {
+      Q.emplace_back(v.translate(dx, dy));
+    }
+    if (!dirty_) {
+      auto& paabb = aabb_[i];
+      aabb.emplace_back(paabb.translate(dx, dy));
+    }
+
+    out.emplace_back(std::move(Q));
+  }
+  if (!dirty_) {
+    return GeometrySet(std::move(out),
+                       std::move(aabb),
+                       cachedAABB_.translate(dx, dy));
   } else {
     return GeometrySet(std::move(out));
   }
@@ -317,21 +350,13 @@ static void splitCubicMid(const Cubic& c, Cubic& L, Cubic& R) {
   R = {p0123, p123, p23, c.p3};
 }
 
-static void flattenCubicAppend(const Cubic& c, double tau, Poly& out,
-                               bool& started) {
+static void flattenCubicAppend(const Cubic& c, double tau, Poly& out) {
   std::vector<Cubic> stack;
   stack.push_back(c);
-  // We only emit c.p0 once for the whole contour (when !started)
-  bool willEmitP0 = !started;
   while (!stack.empty()) {
     Cubic s = stack.back();
     stack.pop_back();
     if (cubicFlatness(s) <= tau) {
-      if (willEmitP0) {
-        out.push_back(s.p0);
-        willEmitP0 = false;
-        started = true;
-      }
       out.push_back(s.p3);
     } else {
       Cubic L, R;
@@ -342,6 +367,28 @@ static void flattenCubicAppend(const Cubic& c, double tau, Poly& out,
   }
 }
 
+static void flattenCubicAppend2(const Cubic& c, double tau, Poly& out) {
+  auto bounds = c.bounds();
+
+  auto r = std::max(bounds.maxx - bounds.minx, bounds.maxy - bounds.miny);
+
+  // Taken from https://codebrowser.dev/qt5/qtbase/src/gui/painting/qpathclipper.cpp.html#959
+  int threshold = std::min(64.0, r * (2 * 3.14 / 6));
+
+  if (threshold < 3) threshold = 3;
+
+  // first point already included
+  auto nbPoints = threshold - 1;
+
+  auto step = 1.0 / nbPoints;
+  for (int t = 1; t < nbPoints; ++t) {
+    auto point = c.pointAt(t * step);
+    out.push_back(point);
+  }
+  // include last point
+  out.push_back(c.p3);
+}
+
 std::vector<Poly> flattenCubicContours(const GlyphCubic& g, double tau) {
   std::vector<Poly> polys;
   polys.reserve(g.paths.size());
@@ -349,9 +396,9 @@ std::vector<Poly> flattenCubicContours(const GlyphCubic& g, double tau) {
     if (path.segs.empty()) continue;
     Poly poly;
     poly.reserve(path.segs.size() * 4);
-    bool started = false;
+    poly.push_back(path.segs.front().p0);
     for (const auto& seg : path.segs) {
-      flattenCubicAppend(seg, tau, poly, started);
+      flattenCubicAppend(seg, tau, poly);
     }
     assert(poly.back() == poly.front());
     poly.pop_back();
