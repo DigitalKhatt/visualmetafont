@@ -3745,7 +3745,7 @@ void LayoutWindow::savePagetoPicture() {
 void LayoutWindow::convertCursiveToKern() {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
-  QString fileName = fileInfo.path() + "/output/" + fileInfo.completeBaseName() + "-cursive_kern.txt";
+  QString fileName = fileInfo.path() + "/output/rehwawcursivecoretext.fea";
   QFile file(fileName);
   file.open(QIODevice::WriteOnly | QIODevice::Text);
   QTextStream featureOut(&file);
@@ -3761,14 +3761,15 @@ void LayoutWindow::convertCursiveToKern() {
 
   QString subLookups;
   QString mainLookup;
+  QSet<QString> exitGlyphs;
 
   for (auto lookup : m_otlayout->lookups) {
     if (!lookup->isGsubLookup() && lookup->type == Lookup::PosType::cursive && lookup->name == "rehwawcursivecpp") {
-      QString sublookup = "  lookup rehwawisolkern.l1 {\n";
+      QString sublookup = "  lookup rehwawcursivecoretext.l1 {\n";
       sublookup += "    pos /" + isolglyphsRegExpr + "/ <0 0 -150 0>;\n";
-      sublookup += "  } rehwawisolkern.l1;\n";
+      sublookup += "  } rehwawcursivecoretext.l1;\n";
       subLookups += sublookup;
-      QSet<QString> exitGlyphs;
+
       for (auto& subtable : lookup->subtables) {
         if (auto curSub = dynamic_cast<CursiveSubtable*>(subtable)) {
           for (auto i = curSub->anchors.cbegin(), end = curSub->anchors.cend(); i != end; ++i) {
@@ -3796,12 +3797,12 @@ void LayoutWindow::convertCursiveToKern() {
               }
               exitGlyphs.insert(exitGlyphName);
               if (!sublookupPos.isEmpty()) {
-                QString subLookupName = QString("rehwawisolkern." + curSub->name + ".l%1").arg(subLookupNumber++);
+                QString subLookupName = QString("rehwawcursivecoretext." + curSub->name + ".l%1").arg(subLookupNumber++);
                 QString sublookup = "  lookup " + subLookupName + "{\n";
                 sublookup += sublookupPos;
                 sublookup += "  } " + subLookupName + ";\n";
                 subLookups += sublookup;
-                mainLookup += mainLookupPos + "]'lookup " + subLookupName + ";\n";
+                mainLookup += mainLookupPos + "]'lookup " + subLookupName + " /[.]init/;\n";
               }
             }
           }
@@ -3809,18 +3810,27 @@ void LayoutWindow::convertCursiveToKern() {
           std::cerr << "Problem in lookup=" << lookup->name.toStdString() << "Subtable=" << curSub->name.toStdString() << "\n";
         }
       }
+      /*
       mainLookup += "  pos [";
       for (auto& glyphName : exitGlyphs) {
         mainLookup += " " + glyphName;
       }
-      mainLookup += "] /" + isolglyphsRegExpr + "/'lookup rehwawisolkern.l1;\n";
+      mainLookup += "] /" + isolglyphsRegExpr + "/'lookup rehwawcursivecoretext.l1 /[.]init/;\n";*/
     }
   }
 
-  featureOut << "lookup rehwawisolkern {" << '\n';
-  featureOut << "  feature kern;\n";
+  featureOut << "lookup rehwawcursivecoretext {" << '\n';
+  featureOut << "  feature curs;\n";
   featureOut << "  lookupflag IgnoreMarks;\n";
+  featureOut << "  @rehwaw =[";
+  for (auto& glyphName : exitGlyphs) {
+    featureOut << " " << glyphName;
+  }
+  featureOut << " ]\n";
   featureOut << subLookups;
+  featureOut << "  pos @rehwaw @rehwaw'lookup rehwawcursivecpp;\n";
   featureOut << mainLookup;
-  featureOut << "} rehwawisolkern;" << '\n';
+  featureOut << "  pos @rehwaw /" + isolglyphsRegExpr + "/'lookup rehwawcursivecoretext.l1 /[.]init/;\n";
+  featureOut << "  pos @rehwaw /[.]isol|[.]init/'lookup rehwawcursivecpp;\n";
+  featureOut << "} rehwawcursivecoretext;" << '\n';
 }
