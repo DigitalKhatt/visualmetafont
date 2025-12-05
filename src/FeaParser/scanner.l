@@ -29,6 +29,8 @@ using token = feayy::Parser::token;
 #define YY_NO_UNISTD_H
 %}
 %x FILENAME
+%x DIRECTIVE
+%x COMMENT
 
 %%
 
@@ -39,7 +41,14 @@ using token = feayy::Parser::token;
 
 
 [ \t\r]+													{yylloc->step();} /* gobble up white-spaces */
-("#"|"//").*												{yylloc->step();} /* consume //-comment */ 
+"#"                                                         {BEGIN(DIRECTIVE); yyless(0); }
+<DIRECTIVE>"#if"											{BEGIN(INITIAL); return(token::IF);} 
+<DIRECTIVE>"#elif"											{BEGIN(INITIAL); return(token::ELIF);} 
+<DIRECTIVE>"#else"											{BEGIN(INITIAL); return(token::ELSE);} 
+<DIRECTIVE>"#endif"											{BEGIN(INITIAL); return(token::ENDIF);}
+<DIRECTIVE>.											    {BEGIN(COMMENT);}
+<COMMENT>.*											        {yylloc->step(); BEGIN(INITIAL);} /* consume # comment */ 
+("//").*												    {yylloc->step();} /* consume //-comment */ 
 [\n]+														{yylloc->lines(yyleng); yylloc->step();} /* gobble up end-of-lines */
 [-+]?[0-9]+													{/*yylval->INT_LITERAL = atoi(yytext); */ yylval->emplace<int>(atoi(yytext)); return token::INT_LITERAL;}
 [-+]?[0-9]+"."[0-9]*										{/*yylval->DOUBLE_LITERAL = atof(yytext); */  yylval->emplace<double>(atof(yytext));return token::DOUBLE_LITERAL;}
@@ -86,7 +95,7 @@ using token = feayy::Parser::token;
 "pass"														{return(token::PASS);} 
 "endpass"													{return(token::ENDPASS);} 
 "any"													    {return(token::ANY);} 
-"include"													{return(token::INCLUDE);} 
+"include"													{return(token::INCLUDE);}  
 [a-zA-Z_][a-zA-Z\.0-9_]*									{/*yylval->IDENTIFIANT = new std::string(yytext, yyleng);*/  yylval->emplace<std::string>(std::string(yytext, yyleng)); return token::IDENTIFIANT;}
 \\[a-zA-Z_][a-zA-Z\.0-9_]*									{/*yylval->GLYPHNAME = new std::string(&yytext[1], yyleng - 1);*/ yylval->emplace<std::string>(std::string(&yytext[1], yyleng - 1));return token::GLYPHNAME;}
 \\[0-9]+													{/*yylval->CID = atoi(&yytext[1]);*/yylval->emplace<int>(atoi(&yytext[1])); return token::CID;}

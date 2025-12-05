@@ -62,7 +62,7 @@
 %token COLOR CALLBACK EXPANSION ADD STARTLIG ENDLIG ENDKASHIDA JUST COORD
 %token LOOKUPFLAG RightToLeft IgnoreBaseGlyphs IgnoreLigatures IgnoreMarks MarkAttachmentType UseMarkFilteringSet
 %token TABLE ENDTABLE PASS ENDPASS ANY STRETCH SHRINK END STEP AFTERGSUB
-%token INCLUDE
+%token INCLUDE IF ELIF ELSE ENDIF
 
 %type <FeaRoot*> root
 %type <std::vector<Statement *> *> statements
@@ -77,9 +77,9 @@
 %type <std::vector<std::string>> explicitlookup
 %type <ValueRecord> valuerecord
 %type <LookupFlag*> flag flags lookupflag
-%type <LookupStatement*> feature_statement lookup_statement lookup_definition markclassdefinition gsubrule gposrule singlesub multiplesub alternatesub classdefinition contextualligagsub
-%type <LookupStatement*> singleadjustment cursiverule mark2base mark2mark 
-%type <std::vector<LookupStatement *> *> lookup_statements feature_statements
+%type <Statement*> feature_statement lookup_statement lookup_definition markclassdefinition gsubrule gposrule singlesub multiplesub alternatesub classdefinition contextualligagsub
+%type <Statement*> singleadjustment cursiverule mark2base mark2mark 
+%type <std::vector<Statement *> *> lookup_statements feature_statements
 %type <MarkedGlyphSetRegExp*> markedglyphsetregexp
 %type <std::vector<MarkedGlyphSetRegExp *>*> inputseq
 %type <GlyphSetRegExp*> glyphsetregexp  glyphsetregexpwithoutglyph glyphsetregexp_prim /*gsregex gsregex_prim gsregex_sec  gsregex_terc gsregex_q */
@@ -101,7 +101,8 @@
 %type <JustTable> justrules;
 %type <std::vector<JustTable::JustStep>> juststeps stretch shrink;
 %type <IncludeStatment*> include_statement
-
+%type <ConditionalStatement*>  conditional_statement conditional_statement_lookup
+%type <ConditionalStatement*> elif_chain elif_chain_lookup
 
 //%destructor { delete $$; } <std::string>
 
@@ -123,13 +124,39 @@ statements
 	;
 
 statement
-	: lookup_definition {$$ = $1;}
+	: conditional_statement {$$ = $1;}
+	| lookup_definition {$$ = $1;}
 	| markclassdefinition {$$ = $1;}
 	| classdefinition {$$ = $1;}
 	| feature_definition {$$ = $1;}	
 	| table_definition {$$ = $1;}	
 	| include_statement {$$ = $1;}	
+	| lookupreference { $$ = new LookupReference($1);}
 	;
+
+conditional_statement:
+      IF identifier[condition] statements[stmts] elif_chain[else]
+        {
+          $$ = new ConditionalStatement($condition, $stmts, $else);
+        }
+    ;
+
+elif_chain:
+      ELIF identifier[condition] statements[stmts] elif_chain[else]
+        {          
+          $$ = new ConditionalStatement($condition, $stmts, $else);
+        }
+    | ELSE  statements[stmts] ENDIF
+        {
+          /* else without condition */
+          $$ = new ConditionalStatement("", $stmts, nullptr);
+        }
+    | ENDIF
+        {
+          /* no else */
+          $$ = nullptr;
+        }
+    ;
 
 include_statement
 	: INCLUDE '(' { driver.lexer->pushFilenameMode(); } T_FILENAME[name] ')'
@@ -155,7 +182,7 @@ feature_definition
 	;
 
 feature_statements
-	: feature_statement ';' { $$ = new std::vector<LookupStatement *>(); $$->push_back($1); }
+	: feature_statement ';' { $$ = new std::vector<Statement *>(); $$->push_back($1); }
 	| feature_statements feature_statement ';'
 		{
 			$$ = $1;
@@ -164,7 +191,8 @@ feature_statements
 	;
 
 feature_statement	
-	: lookup_definition {$$ = $1;}
+	: conditional_statement {$$ = $1;}
+	| lookup_definition {$$ = $1;}
 	| lookupreference { $$ = new LookupReference($1);}
 	| classdefinition {$$ = $1;}		
 	;
@@ -195,7 +223,7 @@ lookup_definition
 	;
 
 lookup_statements
-	: lookup_statement ';' { $$ = new std::vector<LookupStatement *>(); $$->push_back($1); }
+	: lookup_statement ';' { $$ = new std::vector<Statement *>(); $$->push_back($1); }
 	| lookup_statements lookup_statement ';'
 		{
 			$$ = $1;
@@ -210,7 +238,21 @@ lookup_statement
 	| gsubrule {$$ = $1;}
 	| gposrule {$$ = $1;}
 	| lookup_definition {$$ = $1;}
-	| featurereference { $$ = new FeatureReference($1);}		
+	| featurereference { $$ = new FeatureReference($1);}
+	| conditional_statement_lookup {$$ = $1;}		
+	;
+
+conditional_statement_lookup:
+      IF identifier[condition] lookup_statements[stmts] elif_chain_lookup[else]
+        {
+          $$ = new ConditionalStatement($condition, $stmts, $else);
+        }
+    ;
+
+elif_chain_lookup
+	: ELIF identifier[condition] lookup_statements[stmts] elif_chain_lookup[else] { $$ = new ConditionalStatement($condition, $stmts, $else);}
+	| ELSE  lookup_statements[stmts] ENDIF {/* else without condition */ $$ = new ConditionalStatement("", $stmts, nullptr);}
+	| ENDIF { /* no else */ $$ = nullptr; }
 	;
 
 

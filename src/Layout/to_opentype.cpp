@@ -380,23 +380,24 @@ void ToOpenType::setGIds() {
                                                                                           : i == 2   ? automedina->exitAnchors
                                                                                           : i == 3   ? automedina->entryAnchorsRTL
                                                                                                      : automedina->exitAnchorsRTL;
-
-    QMap<QString, QMap<quint16, QPoint>> anchors;
-    QMap<QString, QMap<quint16, QPoint>>::const_iterator anchorsIter = currentAnchors.constBegin();
-    while (anchorsIter != currentAnchors.end()) {
-      QMap<quint16, QPoint> map;
-      QMap<quint16, QPoint>::ConstIterator mapIter = anchorsIter.value().constBegin();
-      while (mapIter != anchorsIter.value().constEnd()) {
-        if (!newCodes.contains(mapIter.key())) {
-          throw new std::runtime_error(QString("Code %1 not found").arg(mapIter.key()).toStdString());
+    if (!currentAnchors.isEmpty()) {
+      QMap<QString, QMap<quint16, QPoint>> anchors;
+      QMap<QString, QMap<quint16, QPoint>>::const_iterator anchorsIter = currentAnchors.constBegin();
+      while (anchorsIter != currentAnchors.end()) {
+        QMap<quint16, QPoint> map;
+        QMap<quint16, QPoint>::ConstIterator mapIter = anchorsIter.value().constBegin();
+        while (mapIter != anchorsIter.value().constEnd()) {
+          if (!newCodes.contains(mapIter.key())) {
+            throw new std::runtime_error(QString("Code %1 not found").arg(mapIter.key()).toStdString());
+          }
+          map.insert(newCodes.value(mapIter.key()), mapIter.value());
+          mapIter++;
         }
-        map.insert(newCodes.value(mapIter.key()), mapIter.value());
-        mapIter++;
+        anchors.insert(anchorsIter.key(), map);
+        anchorsIter++;
       }
-      anchors.insert(anchorsIter.key(), map);
-      anchorsIter++;
+      currentAnchors = anchors;
     }
-    currentAnchors = anchors;
   }
 
   ot_layout->glyphCodePerName = glyphCodePerName;
@@ -924,7 +925,7 @@ QByteArray ToOpenType::os2() {
 QByteArray ToOpenType::post() {
   QByteArray data;
 
-  bool useGlyphName = isCff2 && ot_layout->extended;
+  bool useGlyphName = true;  // isCff2 && ot_layout->extended;
 
   if (!useGlyphName) {
     data << (uint32_t)0x00030000;  // version
@@ -959,7 +960,10 @@ QByteArray ToOpenType::post() {
         data << (uint16_t)(index + 258);
         index++;
         auto glyph = glyphs.value(i);
-        auto name = glyph->name.toLatin1();
+        auto newName = glyph->name;
+        newName.replace("added", QString("%1_%2").arg(glyph->charlt * 10).arg(glyph->charrt * 10));
+
+        auto name = newName.toLatin1();
         stringData << (uint8_t)name.size();
         stringData.append(name);
       } else {

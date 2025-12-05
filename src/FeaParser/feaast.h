@@ -871,7 +871,7 @@ class LookupFlag : public LookupStatement {
 
 class LookupDefinition : public LookupStatement {
  public:
-  LookupDefinition(std::string name, std::vector<LookupStatement*>* stmtlist, int order)
+  LookupDefinition(std::string name, std::vector<Statement*>* stmtlist, int order)
       : name{name}, stmts(stmtlist), order{order} {}
 
   ~LookupDefinition() {
@@ -892,7 +892,7 @@ class LookupDefinition : public LookupStatement {
     return order;
   }
 
-  std::vector<LookupStatement*>& getStmts() {
+  std::vector<Statement*>& getStmts() {
     return *stmts;
   }
 
@@ -900,7 +900,7 @@ class LookupDefinition : public LookupStatement {
 
  private:
   std::string name;
-  std::vector<LookupStatement*>* stmts;
+  std::vector<Statement*>* stmts;
   int order;
 };
 
@@ -919,9 +919,44 @@ class FeaRoot {
   }
 };
 
+class ConditionalStatement : public LookupStatement {
+ public:
+  ConditionalStatement(std::string condition, std::vector<Statement*>* ifstmts, ConditionalStatement* elseStmt)
+      : condition{condition}, ifstmts(ifstmts), elseStmt(elseStmt) {}
+
+  ~ConditionalStatement() {
+    if (ifstmts) {
+      for (auto stm : *ifstmts) {
+        delete stm;
+      }
+    }
+    delete ifstmts;
+    delete elseStmt;
+  }
+
+  const std::string& getCondition() {
+    return condition;
+  }
+
+  std::vector<Statement*>& getIfStmts() {
+    return *ifstmts;
+  }
+
+  ConditionalStatement* getElseStmt() {
+    return elseStmt;
+  }
+
+  void accept(Visitor&) override;
+
+ private:
+  std::string condition;
+  std::vector<Statement*>* ifstmts;
+  ConditionalStatement* elseStmt;
+};
+
 class FeatureDefenition : public Statement {
  public:
-  FeatureDefenition(std::string name, std::vector<LookupStatement*>* stmtlist)
+  FeatureDefenition(std::string name, std::vector<Statement*>* stmtlist)
       : name{name}, stmts(stmtlist) {}
 
   ~FeatureDefenition() {
@@ -938,7 +973,7 @@ class FeatureDefenition : public Statement {
     return name;
   }
 
-  std::vector<LookupStatement*>& getStmts() {
+  std::vector<Statement*>& getStmts() {
     return *stmts;
   }
 
@@ -946,7 +981,7 @@ class FeatureDefenition : public Statement {
 
  private:
   std::string name;
-  std::vector<LookupStatement*>* stmts;
+  std::vector<Statement*>* stmts;
 };
 
 class IncludeStatment : public Statement {
@@ -1020,6 +1055,7 @@ class Visitor {
   virtual void accept(TableDefinition&) = 0;
   virtual void accept(JustTable&) = 0;
   virtual void accept(IncludeStatment& includeStatment) = 0;
+  virtual void accept(ConditionalStatement& conditionalStatement) = 0;
 };
 
 class LookupDefinitionVisitor : public Visitor {
@@ -1043,6 +1079,7 @@ class LookupDefinitionVisitor : public Visitor {
   void accept(TableDefinition&) override;
   void accept(JustTable&) override;
   void accept(IncludeStatment& includeStatment) override;
+  void accept(ConditionalStatement& conditionalStatement) override;
 
   Lookup* lookup;
   std::string currentFeature;

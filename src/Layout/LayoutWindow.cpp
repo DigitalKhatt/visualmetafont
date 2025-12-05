@@ -3761,10 +3761,38 @@ void LayoutWindow::convertCursiveToKern() {
 
   QString subLookups;
   QString mainLookup;
-  QSet<QString> exitGlyphs;
+  QString baseBaseMarkPos;
+  QString baseBaseKernPos;
+  QString baseBaseVKernPos;
+  QSet<QString> rehWawGlyphs;
 
   for (auto lookup : m_otlayout->lookups) {
     if (!lookup->isGsubLookup() && lookup->type == Lookup::PosType::cursive && lookup->name == "rehwawcursivecpp") {
+      for (auto& subtable : lookup->subtables) {
+        if (auto curSub = dynamic_cast<CursiveSubtable*>(subtable)) {
+          for (auto i = curSub->anchors.cbegin(), end = curSub->anchors.cend(); i != end; ++i) {
+            auto exitGlyphCode = i.key();
+            auto exit = curSub->getExit(exitGlyphCode, {});
+            if (exit) {
+              if (exit->x() != 150 || exit->y() != 0) {
+                throw std::runtime_error("invalid lookup");
+              }
+              QString exitGlyphName = m_otlayout->glyphNamePerCode[exitGlyphCode];
+              rehWawGlyphs.insert(exitGlyphName);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  auto isolCodes = m_otlayout->classtoUnicode("[.]isol");
+
+  bool useBaseToBase = false;
+
+  for (auto lookup : m_otlayout->lookups) {
+    if (!lookup->isGsubLookup() && lookup->type == Lookup::PosType::cursive && lookup->name == "rehwawcursivecpp") {
+      QString localbaseBaseMarkPos;
       QString sublookup = "  lookup rehwawcursivecoretext.l1 {\n";
       sublookup += "    pos /" + isolglyphsRegExpr + "/ <0 0 -150 0>;\n";
       sublookup += "  } rehwawcursivecoretext.l1;\n";
@@ -3777,10 +3805,6 @@ void LayoutWindow::convertCursiveToKern() {
             auto exit = curSub->getExit(exitGlyphCode, {});
             QString exitGlyphName = m_otlayout->glyphNamePerCode[exitGlyphCode];
             if (exit) {
-              if (exit->x() != 150 || exit->y() != 0) {
-                throw std::runtime_error("invalid lookup");
-              }
-
               QString sublookupPos;
               QString mainLookupPos = "  pos [" + exitGlyphName + "] [";
               for (auto j = curSub->anchors.cbegin(), end = curSub->anchors.cend(); j != end; ++j) {
@@ -3789,20 +3813,48 @@ void LayoutWindow::convertCursiveToKern() {
                 if (entry) {
                   QString entryGlyphName = m_otlayout->glyphNamePerCode[entryGlyphCode];
                   auto& entryGlyph = m_otlayout->glyphs[entryGlyphName];
-                  if ((entry->y() != 0 || entry->x() != (int)entryGlyph.width) && isolGlyphs.contains(entryGlyphCode)) {
-                    mainLookupPos += " " + entryGlyphName;
-                    sublookupPos += "    pos [" + entryGlyphName + "] <0 " + QString("%1").arg(-entry->y()) + " " + QString("%1").arg(entry->x() - (int)entryGlyph.width - 150) + " 0>;\n";
+                  if (isolGlyphs.contains(entryGlyphCode) && !rehWawGlyphs.contains(entryGlyphName)) {
+                    if (!useBaseToBase) {
+                      if (entry->y() != 0 || entry->x() != (int)entryGlyph.width) {
+                        mainLookupPos += " " + entryGlyphName;
+                        sublookupPos += "    pos [" + entryGlyphName + "] <0 " + QString("%1").arg(-entry->y()) + " " + QString("%1").arg(entry->x() - (int)entryGlyph.width - 150) + " 0>;\n";
+                      }
+                    } else {
+                      mainLookupPos += " " + entryGlyphName;
+                      localbaseBaseMarkPos += "    pos base [" + exitGlyphName + "] " + QString("<anchor %1 %2>").arg(exit->x()).arg(exit->y());
+                      localbaseBaseMarkPos += " markClass [" + entryGlyphName + "] " + QString("<anchor %1 %2>").arg(entry->x()).arg(entry->y()) + " @" + curSub->name + ";\n";
+                      auto kern = entry->x() - (int)entryGlyph.width - exit->x();
+                      if (kern != 0) {
+                        sublookupPos += "    pos [" + entryGlyphName + "]'<0 0 " + QString("%1").arg(kern) + " 0>;\n";
+                      }
+                    }
                   }
+                  /*if ((entry->y() != 0 || entry->x() != (int)entryGlyph.width) && isolGlyphs.contains(entryGlyphCode) && !rehWawGlyphs.contains(entryGlyphName)) {
+                    mainLookupPos += " " + entryGlyphName;
+                    if (!useBaseToBase) {
+                      sublookupPos += "    pos [" + entryGlyphName + "] <0 " + QString("%1").arg(-entry->y()) + " " + QString("%1").arg(entry->x() - (int)entryGlyph.width - 150) + " 0>;\n";
+                    } else {
+                      localbaseBaseMarkPos += "    pos base [" + exitGlyphName + "] " + QString("<anchor %1 %2>").arg(exit->x()).arg(exit->y());
+                      localbaseBaseMarkPos += " markClass [" + entryGlyphName + "] " + QString("<anchor %1 %2>").arg(entry->x()).arg(entry->y()) + " @" + curSub->name + ";\n";
+                      auto kern = entry->x() - (int)entryGlyph.width - exit->x();
+                      if (kern != 0) {
+                        sublookupPos += "    pos [" + entryGlyphName + "]'<0 0 " + QString("%1").arg(kern) + " 0>;\n";
+                      }
+                    }
+                  }*/
                 }
               }
-              exitGlyphs.insert(exitGlyphName);
               if (!sublookupPos.isEmpty()) {
                 QString subLookupName = QString("rehwawcursivecoretext." + curSub->name + ".l%1").arg(subLookupNumber++);
                 QString sublookup = "  lookup " + subLookupName + "{\n";
                 sublookup += sublookupPos;
                 sublookup += "  } " + subLookupName + ";\n";
                 subLookups += sublookup;
-                mainLookup += mainLookupPos + "]'lookup " + subLookupName + " /[.]init/;\n";
+                if (!useBaseToBase) {
+                  mainLookup += mainLookupPos + "]'lookup " + subLookupName + " /[.]init/;\n";
+                } else {
+                  mainLookup += mainLookupPos + "]'lookup " + subLookupName + " lookup coretext.basebasemark " + " /[.]init/;\n";
+                }
               }
             }
           }
@@ -3810,27 +3862,89 @@ void LayoutWindow::convertCursiveToKern() {
           std::cerr << "Problem in lookup=" << lookup->name.toStdString() << "Subtable=" << curSub->name.toStdString() << "\n";
         }
       }
-      /*
-      mainLookup += "  pos [";
-      for (auto& glyphName : exitGlyphs) {
-        mainLookup += " " + glyphName;
+      if (!localbaseBaseMarkPos.isEmpty()) {
+        sublookup = "  lookup coretext.basebasemark {\n";
+        sublookup += "    lookupflag IgnoreMarks;\n";
+        sublookup += localbaseBaseMarkPos;
+        sublookup += "  } coretext.basebasemark;\n";
+        subLookups += sublookup;
       }
-      mainLookup += "] /" + isolglyphsRegExpr + "/'lookup rehwawcursivecoretext.l1 /[.]init/;\n";*/
     }
   }
 
+  for (auto lookup : m_otlayout->lookups) {
+    if (lookup->type == Lookup::PosType::cursive && (lookup->name == "cursivejoin" || lookup->name == "rehwawcursivecpp")) {
+      for (auto& subtable : lookup->subtables) {
+        if (auto curSub = dynamic_cast<CursiveSubtable*>(subtable)) {
+          for (auto i = curSub->anchors.cbegin(), end = curSub->anchors.cend(); i != end; ++i) {
+            auto exitGlyphCode = i.key();
+            auto exit = curSub->getExit(exitGlyphCode, {});
+            QString exitGlyphName = m_otlayout->glyphNamePerCode[exitGlyphCode];
+            if (exit) {
+              for (auto j = curSub->anchors.cbegin(), end = curSub->anchors.cend(); j != end; ++j) {
+                auto entryGlyphCode = j.key();
+                auto entry = curSub->getEntry(entryGlyphCode, {});
+                if (entry) {
+                  QString entryGlyphName = m_otlayout->glyphNamePerCode[entryGlyphCode];
+                  // For no ltr cursive join becoming rtl cursive join
+                  // Add vertical kern
+                  if (lookup->name == "cursivejoin") {
+                    auto vkern = exit->y() - entry->y();
+                    if (vkern != 0) {
+                      baseBaseVKernPos += "  pos [" + exitGlyphName + "] [" + entryGlyphName + "]'<0 " + QString("%1").arg(vkern) + " 0 0>;\n";
+                    }
+                  }
+                  // for no rtl cursive join becoming base to base positioning
+                  // Add base to base positiong
+                  // Add kerning since  base to base positiong does not affect kerning
+                  if (false && isolCodes.contains(entryGlyphCode) && !rehWawGlyphs.contains(entryGlyphName)) {
+                    baseBaseMarkPos += "  pos base [" + exitGlyphName + "] " + QString("<anchor %1 %2>").arg(exit->x()).arg(exit->y());
+                    baseBaseMarkPos += " markClass [" + entryGlyphName + "] " + QString("<anchor %1 %2>").arg(entry->x()).arg(entry->y()) + " @" + curSub->name + ";\n";
+
+                    auto& entryGlyph = m_otlayout->glyphs[entryGlyphName];
+                    auto kern = entry->x() - (int)entryGlyph.width - exit->x();
+                    if (kern != 0) {
+                      baseBaseKernPos += "  pos [" + exitGlyphName + "] [" + entryGlyphName + "]'<0 0 " + QString("%1").arg(kern) + " 0>;\n";
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
   featureOut << "lookup rehwawcursivecoretext {" << '\n';
   featureOut << "  feature curs;\n";
   featureOut << "  lookupflag IgnoreMarks;\n";
   featureOut << "  @rehwaw =[";
-  for (auto& glyphName : exitGlyphs) {
+  for (auto& glyphName : rehWawGlyphs) {
     featureOut << " " << glyphName;
   }
-  featureOut << " ]\n";
+  featureOut << " ];\n";
   featureOut << subLookups;
   featureOut << "  pos @rehwaw @rehwaw'lookup rehwawcursivecpp;\n";
   featureOut << mainLookup;
   featureOut << "  pos @rehwaw /" + isolglyphsRegExpr + "/'lookup rehwawcursivecoretext.l1 /[.]init/;\n";
   featureOut << "  pos @rehwaw /[.]isol|[.]init/'lookup rehwawcursivecpp;\n";
   featureOut << "} rehwawcursivecoretext;" << '\n';
+  featureOut << "lookup adjustverticalpos {" << '\n';
+  featureOut << "  feature curs;\n";
+  featureOut << "  lookupflag IgnoreMarks;\n";
+  featureOut << baseBaseVKernPos;
+  featureOut << "} adjustverticalpos;" << '\n';
+  if (!baseBaseMarkPos.isEmpty()) {
+    featureOut << "lookup basebasemark {" << '\n';
+    featureOut << "  feature curs;\n";
+    featureOut << baseBaseMarkPos;
+    featureOut << "} basebasemark;" << '\n';
+  }
+  if (!baseBaseKernPos.isEmpty()) {
+    featureOut << "lookup basebasekern {" << '\n';
+    featureOut << "  feature curs;\n";
+    featureOut << "  lookupflag IgnoreMarks;\n";
+    featureOut << baseBaseKernPos;
+    featureOut << "} basebasekern;" << '\n';
+  }
 }
