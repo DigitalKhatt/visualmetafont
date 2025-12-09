@@ -18,19 +18,19 @@
 */
 
 #include "glyphwindow.h"
+
+#include <QtWidgets>
+
+#include "commands.h"
 #include "font.hpp"
 #include "glyphparametercontroller.hpp"
-#include "commands.h"
-#include <QtWidgets>
 #include "pathview.h"
 
-
-GlyphWindow::GlyphWindow(Glyph* glyph)
-{
+GlyphWindow::GlyphWindow(Glyph* glyph) {
   setAttribute(Qt::WA_DeleteOnClose);
 
   undoStack = glyph->undoStack();
-  //glyph->setSource(glyph->source()); 
+  // glyph->setSource(glyph->source());
 
   this->glyph = glyph;
 
@@ -46,17 +46,15 @@ GlyphWindow::GlyphWindow(Glyph* glyph)
 
   this->setCentralWidget(glyphView);
 
-  this->setWindowTitle(glyph->name() + "[*]");
-
+  this->setWindowTitle(glyph->name() + " -  " + glyph->font->fontName() + "[*]");
 
   glyphView->setFocus();
 
   statusBar()->addPermanentWidget(scene->pointerPosition);
 }
 
-void GlyphWindow::executeCommands(void)
-{
-  //glyph->setSource(mpostEdit->toPlainText().toLatin1());
+void GlyphWindow::executeCommands(void) {
+  // glyph->setSource(mpostEdit->toPlainText().toLatin1());
 
   GlyphSourceChangeCommand* command = new GlyphSourceChangeCommand(glyph, "Source Changed", glyph->source(), mpostEdit->toPlainText().toLatin1(), true);
   glyph->undoStack()->push(command);
@@ -66,42 +64,38 @@ void GlyphWindow::executeCommands(void)
   logOutput->setPlainText(glyph->getLog());
   infoOutput->setPlainText(glyph->getInfo());
 
-  //glyphView->setGlyph(glyph);
+  // glyphView->setGlyph(glyph);
 }
 
-void GlyphWindow::glyphChanged(QString name)
-{
+void GlyphWindow::glyphChanged(QString name) {
   setWindowModified(true);
-  //int pos = mpostEdit->textCursor().position();
+  // int pos = mpostEdit->textCursor().position();
 
   auto pos = mpostEdit->verticalScrollBar()->value();
   mpostEdit->setPlainText(glyph->source());
 
-  //auto cursor = mpostEdit->textCursor();
+  // auto cursor = mpostEdit->textCursor();
 
-  //cursor.setPosition(pos);
+  // cursor.setPosition(pos);
 
-  //mpostEdit->setTextCursor(cursor);
+  // mpostEdit->setTextCursor(cursor);
   mpostEdit->verticalScrollBar()->setValue(pos);
 
   pos = mpostEdit->verticalScrollBar()->value();
-
 }
-void GlyphWindow::createDockWindows()
-{
+void GlyphWindow::createDockWindows() {
   metapostCode = new QDockWidget(tr("MetaFont Code"), this);
   metapostCode->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea | Qt::BottomDockWidgetArea | Qt::TopDockWidgetArea);
 
   QFont textEditFont("DejaVu Sans Mono");
 
-  //textEditFont.setPointSize(20);
+  // textEditFont.setPointSize(20);
 
   mpostEdit = new QPlainTextEdit(metapostCode);
   mpostEdit->setFont(textEditFont);
 
   executeButton = new QPushButton("&Execute", metapostCode);
   connect(executeButton, SIGNAL(clicked()), this, SLOT(executeCommands()));
-
 
   QVBoxLayout* mpostLayout = new QVBoxLayout;
   mpostLayout->addWidget(mpostEdit);
@@ -110,24 +104,22 @@ void GlyphWindow::createDockWindows()
   QWidget* mpostPage = new QWidget(metapostCode);
   mpostPage->setLayout(mpostLayout);
 
-# define CREATE(x) \
-	x = new QPlainTextEdit ; \
-	x -> setReadOnly ( true ) ; \
-	x -> setFont ( textEditFont ) ;
+#define CREATE(x)         \
+  x = new QPlainTextEdit; \
+  x->setReadOnly(true);   \
+  x->setFont(textEditFont);
 
   CREATE(logOutput)
-    CREATE(infoOutput)
+  CREATE(infoOutput)
 
-# undef CREATE
+#undef CREATE
 
-    tabWidget = new QTabWidget(metapostCode);
+  tabWidget = new QTabWidget(metapostCode);
   tabWidget->addTab(mpostPage, "Input");
   tabWidget->addTab(logOutput, "Log");
   tabWidget->addTab(infoOutput, "Info");
 
   mpostEdit->setPlainText(glyph->source());
-
-
 
   metapostCode->setWidget(tabWidget);
   addDockWidget(Qt::LeftDockWidgetArea, metapostCode);
@@ -140,8 +132,7 @@ void GlyphWindow::createDockWindows()
 
   createPathView();
 
-  resizeDocks({ dockUndo, dockPath }, { 20 , 20 }, Qt::Vertical);
-
+  resizeDocks({dockUndo, dockPath}, {20, 20}, Qt::Vertical);
 }
 
 void GlyphWindow::createPathView() {
@@ -156,31 +147,25 @@ void GlyphWindow::createPathView() {
   dockPath->setWindowTitle("Path");
 
   viewMenu->addAction(dockPath->toggleViewAction());
-
-
 }
 void GlyphWindow::showEvent(QShowEvent* event) {
   if (tabWidget != NULL) {
-    //tabWidget->setMinimumWidth(this->width() / 3);
-    //tabWidget->resize(this->width() / 3, tabWidget->height());
+    // tabWidget->setMinimumWidth(this->width() / 3);
+    // tabWidget->resize(this->width() / 3, tabWidget->height());
   }
-
 }
 void GlyphWindow::resizeEvent(QResizeEvent* event) {
   if (tabWidget != NULL) {
-    this->resizeDocks({ metapostCode ,dockUndo }, { this->width() / 4 ,this->width() / 4 }, Qt::Horizontal);
-    //tabWidget->setMinimumWidth(this->width() / 3);
-    //tabWidget->resize(this->width() / 3, tabWidget->height());
+    this->resizeDocks({metapostCode, dockUndo}, {this->width() / 4, this->width() / 4}, Qt::Horizontal);
+    // tabWidget->setMinimumWidth(this->width() / 3);
+    // tabWidget->resize(this->width() / 3, tabWidget->height());
   }
-
 }
-void GlyphWindow::createStatusBar()
-{
+void GlyphWindow::createStatusBar() {
   statusBar()->showMessage(tr("Ready"));
 }
 
-void GlyphWindow::createActions()
-{
+void GlyphWindow::createActions() {
   QMenu* fileMenu = menuBar()->addMenu(tr("&File"));
   fileToolBar = addToolBar(tr("File"));
 
@@ -204,7 +189,7 @@ void GlyphWindow::createActions()
   QAction* printAct = new QAction(printIcon, tr("&Print..."), this);
   printAct->setShortcuts(QKeySequence::Print);
   printAct->setStatusTip(tr("Print the current form letter"));
-  //connect(printAct, &QAction::triggered, this, &MainWindow::print);
+  // connect(printAct, &QAction::triggered, this, &MainWindow::print);
   fileMenu->addAction(printAct);
   fileToolBar->addAction(printAct);
 
@@ -219,7 +204,6 @@ void GlyphWindow::createActions()
 
   QAction* undoAction = undoStack->createUndoAction(this);
   QAction* redoAction = undoStack->createRedoAction(this);
-
 
   undoAction->setIcon(QIcon::fromTheme("edit-undo", QIcon(":/images/undo.png")));
   redoAction->setIcon(QIcon::fromTheme("edit-redo", QIcon(":/images/redo.png")));
@@ -254,9 +238,6 @@ void GlyphWindow::createActions()
   enableFill->setCheckable(true);
   enableFill->setChecked(false);
 
-
-
-
   menuBar()->addSeparator();
 
   QMenu* helpMenu = menuBar()->addMenu(tr("&Help"));
@@ -277,22 +258,50 @@ void GlyphWindow::createActions()
 
   auto tt = QImageReader::supportedImageFormats();
 
-  //QToolButton *addPointButton = new QToolButton;
-  //addPointButton->setCheckable(true);
-  //addPointButton->setIcon(QIcon(":/images/curve.svg"));
+  // QToolButton *addPointButton = new QToolButton;
+  // addPointButton->setCheckable(true);
+  // addPointButton->setIcon(QIcon(":/images/curve.svg"));
 
   pointerTypeGroup = new QButtonGroup(this);
   pointerTypeGroup->addButton(pointerButton, int(GlyphScene::MoveItem));
   pointerTypeGroup->addButton(linePointerButton, int(GlyphScene::Ruler));
-  //pointerTypeGroup->addButton(addPointButton, int(GlyphScene::AddPoint));
+  // pointerTypeGroup->addButton(addPointButton, int(GlyphScene::AddPoint));
   connect(pointerTypeGroup, SIGNAL(buttonClicked(int)),
-    this, SLOT(pointerGroupClicked(int)));
-
+          this, SLOT(pointerGroupClicked(int)));
 
   pointerToolbar = addToolBar(tr("Pointer type"));
   pointerToolbar->addWidget(pointerButton);
   pointerToolbar->addWidget(linePointerButton);
-  //pointerToolbar->addWidget(addPointButton);
+  // pointerToolbar->addWidget(addPointButton);
+
+  windowMenu = menuBar()->addMenu(tr("&Window"));
+  connect(windowMenu, &QMenu::aboutToShow, this, &GlyphWindow::updateWindowMenu);
+
+  updateWindowMenu();
+}
+void GlyphWindow::updateWindowMenu() {
+  windowMenu->clear();
+
+  for (QWidget* w : QApplication::topLevelWidgets()) {
+    if (!w->isWindow() || !w->isVisible()) continue;
+
+    auto title = w->windowTitle();
+
+    if (w->isWindowModified()) {
+      title.replace("[*]", "*");
+    } else {
+      title.replace("[*]", "");
+    }
+
+    QAction* act = windowMenu->addAction(title);
+    act->setCheckable(true);
+    act->setChecked(w->isActiveWindow());
+
+    QObject::connect(act, &QAction::triggered, w, [w]() {
+      w->raise();
+      w->activateWindow();
+    });
+  }
 }
 void GlyphWindow::showAnchors(bool checked) {
   QString command = QString("showAnchors:=%1;").arg(checked ? 1 : 0);
@@ -300,11 +309,8 @@ void GlyphWindow::showAnchors(bool checked) {
   glyph->font->executeMetaPost(command);
 
   glyph->setWidth(glyph->width());
-
-
 }
-void GlyphWindow::pointerGroupClicked(int)
-{
+void GlyphWindow::pointerGroupClicked(int) {
   scene->setMode(GlyphScene::Mode(pointerTypeGroup->checkedId()));
 }
 void GlyphWindow::enableImge(bool checked) {
@@ -318,25 +324,22 @@ void GlyphWindow::enableFill(bool enable) {
 }
 
 void GlyphWindow::fillContour(bool fill) {
-
 }
-void GlyphWindow::about()
-{
+void GlyphWindow::about() {
   QMessageBox::about(this, tr("About Dock Widgets"),
-    tr("The <b>Dock Widgets</b> example demonstrates how to "
-      "use Qt's dock widgets. You can enter your own text, "
-      "click a customer to add a customer name and "
-      "address, and click standard paragraphs to add them."));
+                     tr("The <b>Dock Widgets</b> example demonstrates how to "
+                        "use Qt's dock widgets. You can enter your own text, "
+                        "click a customer to add a customer name and "
+                        "address, and click standard paragraphs to add them."));
 }
-void GlyphWindow::importImage()
-{
+void GlyphWindow::importImage() {
   QFileDialog dialog(this, tr("Import Image"));
   initializeImageFileDialog(dialog, QFileDialog::AcceptOpen);
 
-  while (dialog.exec() == QDialog::Accepted && !loadFile(dialog.selectedFiles().first())) {}
+  while (dialog.exec() == QDialog::Accepted && !loadFile(dialog.selectedFiles().first())) {
+  }
 }
-void GlyphWindow::initializeImageFileDialog(QFileDialog& dialog, QFileDialog::AcceptMode acceptMode)
-{
+void GlyphWindow::initializeImageFileDialog(QFileDialog& dialog, QFileDialog::AcceptMode acceptMode) {
   static bool firstDialog = true;
 
   if (firstDialog) {
@@ -346,16 +349,16 @@ void GlyphWindow::initializeImageFileDialog(QFileDialog& dialog, QFileDialog::Ac
     if (lastPictureLocation == "") {
       const QStringList picturesLocations = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation);
       dialog.setDirectory(picturesLocations.isEmpty() ? QDir::currentPath() : picturesLocations.last());
-    }
-    else {
+    } else {
       dialog.setDirectory(lastPictureLocation);
     }
   }
 
   QStringList mimeTypeFilters;
   const QByteArrayList supportedMimeTypes = acceptMode == QFileDialog::AcceptOpen
-    ? QImageReader::supportedMimeTypes() : QImageWriter::supportedMimeTypes();
-  foreach(const QByteArray & mimeTypeName, supportedMimeTypes)
+                                                ? QImageReader::supportedMimeTypes()
+                                                : QImageWriter::supportedMimeTypes();
+  foreach (const QByteArray& mimeTypeName, supportedMimeTypes)
     mimeTypeFilters.append(mimeTypeName);
   mimeTypeFilters.sort();
   dialog.setMimeTypeFilters(mimeTypeFilters);
@@ -363,21 +366,18 @@ void GlyphWindow::initializeImageFileDialog(QFileDialog& dialog, QFileDialog::Ac
   if (acceptMode == QFileDialog::AcceptSave)
     dialog.setDefaultSuffix("jpg");
 }
-bool GlyphWindow::loadFile(const QString& fileName)
-{
+bool GlyphWindow::loadFile(const QString& fileName) {
   QImageReader reader(fileName);
   reader.setAutoTransform(true);
   const QImage newImage = reader.read();
   if (newImage.isNull()) {
     QMessageBox::information(this, QGuiApplication::applicationDisplayName(),
-      tr("Cannot load %1: %2")
-      .arg(QDir::toNativeSeparators(fileName), reader.errorString()));
+                             tr("Cannot load %1: %2")
+                                 .arg(QDir::toNativeSeparators(fileName), reader.errorString()));
     return false;
   }
 
-
-
-  QFileInfo imageFileInfo{ fileName };  //QFileInfo(fileName).absolutePath()
+  QFileInfo imageFileInfo{fileName};  // QFileInfo(fileName).absolutePath()
   Glyph::ImageInfo imageInfo;
   if (!imageFileInfo.isRelative()) {
     QDir d = QFileInfo(glyph->font->path()).absoluteDir();
@@ -385,8 +385,7 @@ bool GlyphWindow::loadFile(const QString& fileName)
     if (!relPath.startsWith("..")) {
       imageInfo.path = relPath;
     }
-  }
-  else {
+  } else {
     imageInfo.path = fileName;
   }
 
@@ -398,10 +397,9 @@ bool GlyphWindow::loadFile(const QString& fileName)
   var.setValue(imageInfo);
   glyph->setPropertyWithUndo("image", var);
 
-
-  //const QString message = tr("Opened \"%1\", %2x%3, Depth: %4")
+  // const QString message = tr("Opened \"%1\", %2x%3, Depth: %4")
   //	.arg(QDir::toNativeSeparators(fileName)).arg(newImage.width()).arg(newImage.height()).arg(newImage.depth());
-  //statusBar()->showMessage(message);
+  // statusBar()->showMessage(message);
 
   return true;
 }
@@ -412,43 +410,36 @@ bool GlyphWindow::save() {
   setWindowModified(false);
   return ret;
 }
-void GlyphWindow::closeEvent(QCloseEvent* event)
-{
+void GlyphWindow::closeEvent(QCloseEvent* event) {
   if (maybeSave()) {
     writeSettings();
     event->accept();
-  }
-  else {
+  } else {
     event->ignore();
   }
 }
-bool GlyphWindow::maybeSave()
-{
+bool GlyphWindow::maybeSave() {
   if (!isWindowModified())
     return true;
-  const QMessageBox::StandardButton ret
-    = QMessageBox::warning(this, tr("Application"),
-      tr("The document has been modified.\n"
-        "Do you want to save your changes?"),
-      QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+  const QMessageBox::StandardButton ret = QMessageBox::warning(this, tr("Application"),
+                                                               tr("The document has been modified.\n"
+                                                                  "Do you want to save your changes?"),
+                                                               QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
   switch (ret) {
-  case QMessageBox::Save:
-    return save();
-  case QMessageBox::Cancel:
-    return false;
-  default:
-    break;
+    case QMessageBox::Save:
+      return save();
+    case QMessageBox::Cancel:
+      return false;
+    default:
+      break;
   }
   return true;
 }
-void GlyphWindow::writeSettings()
-{
+void GlyphWindow::writeSettings() {
   QSettings settings(QCoreApplication::organizationName(), QCoreApplication::applicationName());
   settings.setValue("geometry", saveGeometry());
 }
-void GlyphWindow::createUndoView()
-{
-
+void GlyphWindow::createUndoView() {
   dockUndo = new QDockWidget(this);
   dockUndo->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea | Qt::BottomDockWidgetArea | Qt::TopDockWidgetArea);
   dockUndo->setObjectName(QStringLiteral("dockWidget"));
@@ -480,7 +471,6 @@ void GlyphWindow::createUndoView()
 
   hboxLayout->addWidget(undoLimit);
 
-
   vboxLayout1->addLayout(hboxLayout);
 
   undoView = new QUndoView(dockWidgetContents);
@@ -497,7 +487,6 @@ void GlyphWindow::createUndoView()
   viewMenu->addAction(dockUndo->toggleViewAction());
 }
 void GlyphWindow::generatePropertiesView() {
-
   dockProprties = new QDockWidget(tr("Proprties"), this);
   dockProprties->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
 
@@ -508,11 +497,9 @@ void GlyphWindow::generatePropertiesView() {
 
   GlyphParameterController* controller = new GlyphParameterController(glyph, this);
 
-
   QScrollArea* scroll3 = new QScrollArea();
   scroll3->setWidgetResizable(true);
   scroll3->setWidget(controller);
 
   dockProprties->setWidget(scroll3);
-
 }

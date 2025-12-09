@@ -20,33 +20,30 @@
 #ifndef MAINWINDOWS_H
 #define MAINWINDOWS_H
 
-# include <QtCore>
-# include <QtGui>
-# include <QtWidgets>
+#include <QtCore>
+#include <QtGui>
+#include <QtWidgets>
 
-
-#include "glyphview.hpp"
 #include "contouritem.hpp"
-#include "pairitem.hpp"
-#include "glyphscene.hpp"
 #include "glyph.hpp"
+#include "glyphscene.hpp"
+#include "glyphview.hpp"
+#include "pairitem.hpp"
 
-
-class GlyphWindow : public QMainWindow
-{
+class GlyphWindow : public QMainWindow {
   Q_OBJECT
 
-public:
+ public:
   GlyphWindow(Glyph* glyph);
 
-public slots:
+ public slots:
   void executeCommands();
   void glyphChanged(QString name);
   bool loadFile(const QString&);
   void showEvent(QShowEvent* event) Q_DECL_OVERRIDE;
   void resizeEvent(QResizeEvent* event) Q_DECL_OVERRIDE;
 
-private slots:
+ private slots:
   void about();
   void importImage();
   void enableImge(bool checked);
@@ -56,18 +53,16 @@ private slots:
   void pointerGroupClicked(int id);
   void showAnchors(bool checked);
 
-private:
+ private:
   MP_options* _mp_options;
   MP _mp_instance;
 
-  //QSvgWidget * svgWidget ;
+  // QSvgWidget * svgWidget ;
   QScrollArea* scrollArea;
-
 
   QPlainTextEdit* mpostEdit;
 
-
-  QPlainTextEdit* logOutput, * infoOutput;
+  QPlainTextEdit *logOutput, *infoOutput;
 
   QTabWidget* tabWidget;
   QPushButton* executeButton;
@@ -89,9 +84,11 @@ private:
   void createUndoView();
   void createPathView();
   void generatePropertiesView();
+  void updateWindowMenu();
 
   QMenu* viewMenu;
   QMenu* itemMenu;
+  QMenu* windowMenu;
 
   QUndoStack* undoStack;
   QUndoView* undoView;
@@ -100,13 +97,12 @@ private:
   QDockWidget* dockPath;
   QDockWidget* metapostCode;
 
-  //toolbar
+  // toolbar
   QToolBar* fileToolBar;
   QToolBar* editToolBar;
   QToolBar* pointerToolbar;
 
   QButtonGroup* pointerTypeGroup;
-
 };
 
-#endif // MAINWINDOWS_H
+#endif  // MAINWINDOWS_H

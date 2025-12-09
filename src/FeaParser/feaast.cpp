@@ -31,6 +31,7 @@ void FeatureReference::accept(Visitor& v) { v.accept(*this); }
 void LookupReference::accept(Visitor& v) { v.accept(*this); }
 void ChainingContextualRule::accept(Visitor& v) { v.accept(*this); }
 void SingleAdjustmentRule::accept(Visitor& v) { v.accept(*this); }
+void PairAdjustmentRule::accept(Visitor& v) { v.accept(*this); }
 void CursiveRule::accept(Visitor& v) { v.accept(*this); }
 void Mark2BaseRule::accept(Visitor& v) { v.accept(*this); }
 void SingleSubstituionRule::accept(Visitor& v) { v.accept(*this); }
@@ -152,6 +153,57 @@ void LookupDefinitionVisitor::accept(SingleAdjustmentRule& singleRule) {
 
   for (auto unicode : unicodes) {
     newsubtable->singlePos[unicode] = singleRule.valueRecord;
+  }
+}
+
+void LookupDefinitionVisitor::accept(PairAdjustmentRule& pairRule) {
+  if (lookup->type == Lookup::none) {
+    lookup->type = Lookup::pairadjustment;
+  } else if (lookup->type != Lookup::pairadjustment) {
+    throw "Lookup with different subtable type";
+  }
+
+  int format = 1;
+
+  int subtableName = lookup->subtables.length() + 1;
+  PairAdjustmentSubtable* newsubtable = nullptr;
+  if (lookup->subtables.length() > 0) {
+    newsubtable = static_cast<PairAdjustmentSubtable*>(lookup->subtables.last());
+  }
+
+  if (newsubtable == nullptr || newsubtable->format != format) {
+    newsubtable = new PairAdjustmentSubtable(lookup, format);
+    newsubtable->name = QString("subtable%1").arg(subtableName);
+    lookup->subtables.append(newsubtable);
+  }
+
+  auto codes1 = pairRule.glyphSet1->getCodes(otlayout);
+
+  for (auto code1 : codes1) {
+    auto& pairPos = newsubtable->pairPos[code1];
+    std::variant<ValueRecord, PairAdjustFunc> valueRecord1;
+    std::variant<ValueRecord, PairAdjustFunc> valueRecord2;
+    if (std::holds_alternative<ValueRecord>(pairRule.valueRecord1)) {
+      valueRecord1 = std::get<ValueRecord>(pairRule.valueRecord1);
+    } else {
+      valueRecord1 = otlayout->getPairAdjustFunction(std::get<std::string>(pairRule.valueRecord1), newsubtable);
+    }
+    if (std::holds_alternative<ValueRecord>(pairRule.valueRecord2)) {
+      valueRecord2 = std::get<ValueRecord>(pairRule.valueRecord2);
+    } else {
+      auto& funcName = std::get<std::string>(pairRule.valueRecord2);
+      auto func = otlayout->getPairAdjustFunction(funcName, newsubtable);
+      if (func) {
+        valueRecord2 = func;
+      } else {
+        std::cerr << "Pair adjustment function " << funcName << " does not exist for lookup " << lookup->name.toStdString() << std::endl;
+        valueRecord2 = ValueRecord{};
+      }
+    }
+    auto codes2 = pairRule.glyphSet2->getCodes(otlayout);
+    for (auto code2 : codes2) {
+      pairPos.insert(code2, PairAdjustmentSubtable::PairValue{valueRecord1, valueRecord2});
+    }
   }
 }
 

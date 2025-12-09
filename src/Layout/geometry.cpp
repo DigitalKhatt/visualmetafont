@@ -297,13 +297,12 @@ GSContact getDistance(const GeometrySet& A, const GeometrySet& B,
         continue;  // already have closer separated pair
 
       Contact c = contactGjkEpaPoly(pa, pb);
-      Contact ctest = contactFlexiblePoly(pa, pb);
+      /*Contact ctest = contactFlexiblePoly(pa, pb);
       // Flexible-GJK-and-EPA is buggy for EPA
       if (c.depth_or_gap > 0 &&
           std::fabs(c.depth_or_gap - ctest.depth_or_gap) > 0.01) {
-        std::cout << c.depth_or_gap << " != " << ctest.depth_or_gap
-                  << std::endl;
-      }
+        std::cout << c.depth_or_gap << " != " << ctest.depth_or_gap << std::endl;
+      }*/
 
       if (c.intersect) {
         if (!best.contact.intersect ||

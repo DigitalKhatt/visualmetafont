@@ -78,7 +78,7 @@
 %type <ValueRecord> valuerecord
 %type <LookupFlag*> flag flags lookupflag
 %type <Statement*> feature_statement lookup_statement lookup_definition markclassdefinition gsubrule gposrule singlesub multiplesub alternatesub classdefinition contextualligagsub
-%type <Statement*> singleadjustment cursiverule mark2base mark2mark 
+%type <Statement*> singleadjustment cursiverule mark2base mark2mark pairadjustment
 %type <std::vector<Statement *> *> lookup_statements feature_statements
 %type <MarkedGlyphSetRegExp*> markedglyphsetregexp
 %type <std::vector<MarkedGlyphSetRegExp *>*> inputseq
@@ -103,6 +103,7 @@
 %type <IncludeStatment*> include_statement
 %type <ConditionalStatement*>  conditional_statement conditional_statement_lookup
 %type <ConditionalStatement*> elif_chain elif_chain_lookup
+%type <ValueRecordExtended> valuerecordextended;
 
 //%destructor { delete $$; } <std::string>
 
@@ -359,6 +360,7 @@ contextualexplicit
 
 gposrule
 	: singleadjustment	{$$ = $1;}
+	| pairadjustment {$$ = $1;}
 	| cursiverule {$$ = $1;}
 	| mark2base {$$ = $1;}
 	| mark2mark {$$ = $1;}
@@ -368,6 +370,13 @@ gposrule
 singleadjustment
 	: POSITION glyphset valuerecord {$$ = new SingleAdjustmentRule($glyphset,$valuerecord,false);}
 	| POSITION glyphset COLOR valuerecord {$$ = new SingleAdjustmentRule($glyphset,$valuerecord,true);}
+	;
+
+pairadjustment
+	: POSITION glyphset[glyphset1] valuerecordextended[valuerecord1] glyphset[glyphset2] valuerecordextended[valuerecord2] 
+		{
+			$$ = new PairAdjustmentRule($glyphset1,$glyphset2,$valuerecord1,$valuerecord2);
+		}	
 	;
 
 cursiverule
@@ -561,9 +570,14 @@ classname
 	: '@' identifier {$$ = new ClassName($2);}
 	;
 
+valuerecordextended
+	: valuerecord { $$ = $valuerecord;}
+	| '<' FUNCTION identifier '>'				{ $$ = $identifier;}
+	;
+
 valuerecord
-	: INT_LITERAL													{$$ = {(qint16)$1,0,0,0};}
-	| '<' INT_LITERAL '>'											{$$ = {(qint16)$2,0,0,0};}
+	: INT_LITERAL													{$$ = {0,0,(qint16)$1,0};}
+	| '<' INT_LITERAL '>'											{$$ = {0,0,(qint16)$2,0};}
 	| '<' INT_LITERAL  INT_LITERAL  INT_LITERAL INT_LITERAL '>'		{$$ = {(qint16)$2,(qint16)$3,(qint16)$4,(qint16)$5};}
 	;
 

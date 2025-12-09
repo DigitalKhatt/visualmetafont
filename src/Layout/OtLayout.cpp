@@ -394,8 +394,10 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
         *y = 0;
       }
     }
+  } else if (lookupTable->type == Lookup::pairadjustment && context->type == hb_cursive_anchor_context_t::pair) {
+    PairAdjustmentSubtable* subtableTable = static_cast<PairAdjustmentSubtable*>(subtable);
+    subtableTable->getPairValue(context);
   }
-
   return false;
 }
 
@@ -1064,6 +1066,9 @@ CalcAnchor OtLayout::getanchorCalcFunctions(QString functionName, Subtable* subt
 }
 CursiveAnchorFunc OtLayout::getCursiveFunctions(QString functionName, Subtable* subtable) {
   return automedina->getCursiveFunctions(functionName, subtable);
+}
+PairAdjustFunc OtLayout::getPairAdjustFunction(std::string functionName, Subtable* subtable) {
+  return automedina->getPairAdjustFunction(functionName, subtable);
 }
 /*
 void OtLayout::prepareJSENgine() {
@@ -3276,7 +3281,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
   GlyphVis* newglyph = nullptr;
 
   if (!generateNewGlyph) {
-    newglyph = new GlyphVis{this, edge, true};
+    newglyph = new GlyphVis{this, edge};
     newglyph->expanded = true;
   } else {
     // Add glyph to font
@@ -3284,7 +3289,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
 
     QString name = QString("%1.added_%2").arg(glyph->name).arg(charcode);
 
-    GlyphVis& temp = *glyphs.insert(name, GlyphVis(this, edge, true));
+    GlyphVis& temp = *glyphs.insert(name, GlyphVis(this, edge));
 
     newglyph = &temp;
 

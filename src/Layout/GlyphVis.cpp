@@ -18,18 +18,19 @@
 */
 
 #include "GlyphVis.h"
+
 #include "font.hpp"
 #include "glyph.hpp"
 #ifndef DIGITALKHATT_WEBLIB
-#include "qpainterpath.h"
-#include "qpainter.h"
 #include "qcolor.h"
+#include "qpainter.h"
+#include "qpainterpath.h"
 #endif
 
-#include "automedina/automedina.h"
 #include <cmath>
-#include "metafont.h";
 
+#include "automedina/automedina.h"
+#include "metafont.h";
 
 GlyphVis::GlyphVis() {
   m_edge = nullptr;
@@ -38,10 +39,9 @@ GlyphVis::GlyphVis() {
   isCopiedPath = false;
 }
 
-GlyphVis::~GlyphVis()
-{
+GlyphVis::~GlyphVis() {
   if (copiedPath && isCopiedPath) {
-    mp_graphic_object* p, * q;
+    mp_graphic_object *p, *q;
 
     p = copiedPath;
     while (p != NULL) {
@@ -49,9 +49,7 @@ GlyphVis::~GlyphVis()
       mp_gr_toss_object(p);
       p = q;
     }
-
   }
-
 }
 GlyphVis::GlyphVis(const GlyphVis& other) {
   name = other.name;
@@ -74,7 +72,6 @@ GlyphVis::GlyphVis(const GlyphVis& other) {
   anchors = other.anchors;
   matrix = other.matrix;
 
-
   isdirty = other.isdirty;
   m_edge = other.m_edge;
   m_otLayout = other.m_otLayout;
@@ -96,7 +93,6 @@ bool GlyphVis::isColored() {
 }
 
 GlyphVis* GlyphVis::getColoredGlyph() {
-
   GlyphVis* coloredGlyph = nullptr;
 
   if (!coloredglyph.isEmpty()) {
@@ -118,15 +114,12 @@ GlyphType GlyphVis::getGlypfType() {
 GlyphVis* GlyphVis::getAlternate(GlyphParameters parameters) {
   if (m_otLayout != nullptr && (parameters.lefttatweel != 0.0 || parameters.righttatweel != 0.0 || parameters.scalex != 0)) {
     return m_otLayout->getAlternate(charcode, parameters);
-  }
-  else {
+  } else {
     return this;
   }
 }
 
-GlyphVis::GlyphVis(GlyphVis&& other)
-{
-
+GlyphVis::GlyphVis(GlyphVis&& other) {
   name = other.name;
   originalglyph = other.originalglyph;
   coloredglyph = other.coloredglyph;
@@ -185,7 +178,6 @@ GlyphVis& GlyphVis::operator=(const GlyphVis& other) {
   anchors = other.anchors;
   matrix = other.matrix;
 
-
   isdirty = other.isdirty;
   m_edge = other.m_edge;
   m_otLayout = other.m_otLayout;
@@ -203,8 +195,7 @@ GlyphVis& GlyphVis::operator=(const GlyphVis& other) {
   return *this;
 }
 
-bool GlyphVis::isAyaNumber()
-{
+bool GlyphVis::isAyaNumber() {
   return (charcode >= Automedina::AyaNumberCode && charcode <= Automedina::AyaNumberCode + 286);
 }
 GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
@@ -231,8 +222,7 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
     bbox.lly = 0;
     bbox.urx = 0;
     bbox.ury = 0;
-  }
-  else {
+  } else {
     bbox.llx = m_edge->minx;
     bbox.lly = m_edge->miny;
     bbox.urx = m_edge->maxx;
@@ -246,20 +236,19 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
     leftAnchor = QPoint(round(m_edge->xleftanchor), round(m_edge->yleftanchor));
   }
   if (!std::isnan(m_edge->xrightanchor)) {
-    //if (!isdigit(m_edge->xrightanchor) || !isdigit(m_edge->xrightanchor)) {
+    // if (!isdigit(m_edge->xrightanchor) || !isdigit(m_edge->xrightanchor)) {
     if (std::modf(m_edge->xrightanchor, &intpart) != 0.0 || std::modf(m_edge->yrightanchor, &intpart) != 0.0) {
       int stop = 5;
     }
     rightAnchor = QPoint(round(m_edge->xrightanchor), round(m_edge->yrightanchor));
   }
 
-  //matrix = getMatrix(m_otLayout->mp, charcode);
-  matrix = { m_edge->xpart,m_edge->ypart };
+  // matrix = getMatrix(m_otLayout->mp, charcode);
+  matrix = {m_edge->xpart, m_edge->ypart};
 #ifndef DIGITALKHATT_WEBLIB
   if (!isColored()) {
     path = Glyph::getPath(m_edge);
-  }
-  else {
+  } else {
     picture = Glyph::getPicture(m_edge);
     path = Glyph::getPath(m_edge);
   }
@@ -268,26 +257,22 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
   if (copyPath) {
     isCopiedPath = true;
     copiedPath = m_otLayout->font->copyEdgeBody(body);
-  }
-  else {
+  } else {
     isCopiedPath = false;
     this->copiedPath = body;
   }
 
-
   for (int i = 0; i < m_edge->numAnchors; i++) {
     AnchorPoint anchor = m_edge->anchors[i];
-    //auto type = anchor.type == (int)AnchorType::EntryAnchorRTL ? AnchorType::EntryAnchor : (anchor.type == (int)AnchorType::ExitAnchorRTL ? AnchorType::ExitAnchor : (AnchorType)anchor.type);
-    anchors.insert({ anchor.anchorName,(AnchorType)anchor.type }, { QPoint(anchor.x, anchor.y), anchor.type });
+    // auto type = anchor.type == (int)AnchorType::EntryAnchorRTL ? AnchorType::EntryAnchor : (anchor.type == (int)AnchorType::ExitAnchorRTL ? AnchorType::ExitAnchor : (AnchorType)anchor.type);
+    anchors.insert({anchor.anchorName, (AnchorType)anchor.type}, {QPoint(anchor.x, anchor.y), anchor.type});
   }
-
-
 }
 
 bool GlyphVis::conatinsAnchor(QString name, AnchorType type) {
-  return anchors.contains({ name,type });
+  return anchors.contains({name, type});
 }
 
 QPoint GlyphVis::getAnchor(QString name, AnchorType type) {
-  return anchors.value({ name,type }).anchor;
+  return anchors.value({name, type}).anchor;
 }

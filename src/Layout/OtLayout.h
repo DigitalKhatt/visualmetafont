@@ -126,8 +126,39 @@ struct LineToJustify {
   bool basm2 = false;
 };
 
+struct ValueRecord {
+  qint16 xPlacement;
+  qint16 yPlacement;
+  qint16 xAdvance;
+  qint16 yAdvance;
+
+  bool operator==(const ValueRecord& rhs) const {
+    return (this->xAdvance == rhs.xAdvance) && (this->yPlacement == rhs.yPlacement) && (this->xAdvance == rhs.xAdvance) && (this->yAdvance == rhs.yAdvance);
+  }
+
+  bool isEmpty() const {
+    ValueRecord empty{};
+    return *this == empty;
+  }
+
+  u_int8_t format() const {
+    u_int8_t f = xPlacement == 0 ? 0 : 1;
+    if (yPlacement != 0) {
+      f = f | 0x02;
+    }
+    if (xAdvance != 0) {
+      f = f | 0x04;
+    }
+    if (yAdvance != 0) {
+      f = f | 0x08;
+    }
+    return f;
+  }
+};
+
 using CalcAnchor = std::function<QPoint(QString, QString, QPoint, GlyphParameters)>;
 using CursiveAnchorFunc = std::function<QPoint(bool, GlyphVis*, GlyphVis*)>;
+using PairAdjustFunc = std::function<ValueRecord(GlyphVis*, GlyphVis*)>;
 
 class AnchorCalc {
  public:
@@ -265,6 +296,7 @@ class OtLayout : public QObject {
   // QMap<QString, AnchorCalc*> anchorCalcFunctions;
   CalcAnchor getanchorCalcFunctions(QString functionName, Subtable* subtable);
   CursiveAnchorFunc getCursiveFunctions(QString functionName, Subtable* subtable);
+  PairAdjustFunc getPairAdjustFunction(std::string functionName, Subtable* subtable);
   void setParameter(quint16 glyphCode, quint32 lookup, quint32 subtable, quint16 markCode, quint16 baseCode, QPoint displacement, Qt::KeyboardModifiers modifiers);
 
   QHash<QString, GlyphVis> glyphs;

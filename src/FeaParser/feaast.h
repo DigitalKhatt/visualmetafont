@@ -27,6 +27,7 @@
 #include <map>
 #include <ostream>
 #include <stdexcept>
+#include <variant>
 #include <vector>
 
 #include "GlyphVis.h"
@@ -63,6 +64,8 @@ enum class ClassComponentType {
   ClassName,
   RegExp
 };
+
+using ValueRecordExtended = std::variant<ValueRecord, std::string>;
 
 class ClassComponent {
   ClassComponentType _componenttype;
@@ -575,6 +578,19 @@ class SingleAdjustmentRule : public LookupStatement {
   void accept(Visitor&) override;
 };
 
+class PairAdjustmentRule : public LookupStatement {
+ public:
+  GlyphSet* glyphSet1;
+  GlyphSet* glyphSet2;
+  ValueRecordExtended valueRecord1;
+  ValueRecordExtended valueRecord2;
+
+  explicit PairAdjustmentRule(GlyphSet* glyphSet1, GlyphSet* glyphSet2, ValueRecordExtended valueRecord1, ValueRecordExtended valueRecord2)
+      : glyphSet1{glyphSet1}, glyphSet2{glyphSet2}, valueRecord1{valueRecord1}, valueRecord2{valueRecord2} {}
+
+  void accept(Visitor&) override;
+};
+
 class CursiveRule : public LookupStatement {
  public:
   GlyphSet* glyphset;
@@ -1041,6 +1057,7 @@ class Visitor {
   virtual void accept(LookupDefinition&) = 0;
   virtual void accept(ChainingContextualRule&) = 0;
   virtual void accept(SingleAdjustmentRule&) = 0;
+  virtual void accept(PairAdjustmentRule&) = 0;
   virtual void accept(CursiveRule&) = 0;
   virtual void accept(Mark2BaseRule&) = 0;
   virtual void accept(SingleSubstituionRule&) = 0;
@@ -1065,6 +1082,7 @@ class LookupDefinitionVisitor : public Visitor {
   void accept(LookupDefinition&) override;
   void accept(ChainingContextualRule&) override;
   void accept(SingleAdjustmentRule&) override;
+  void accept(PairAdjustmentRule&) override;
   void accept(CursiveRule&) override;
   void accept(Mark2BaseRule&) override;
   void accept(SingleSubstituionRule&) override;

@@ -664,6 +664,35 @@ void LayoutWindow::createActions() {
 
   tajweedEnabled = settings.value("Settings/tajweedEnabled").toBool();
   enableTajweed->setChecked(tajweedEnabled);
+
+  windowMenu = menuBar()->addMenu(tr("&Window"));
+  connect(windowMenu, &QMenu::aboutToShow, this, &LayoutWindow::updateWindowMenu);
+
+  updateWindowMenu();
+}
+void LayoutWindow::updateWindowMenu() {
+  windowMenu->clear();
+
+  for (QWidget* w : QApplication::topLevelWidgets()) {
+    if (!w->isWindow() || !w->isVisible()) continue;
+
+    auto title = w->windowTitle();
+
+    if (w->isWindowModified()) {
+      title.replace("[*]", "*");
+    } else {
+      title.replace("[*]", "");
+    }
+
+    QAction* act = windowMenu->addAction(title);
+    act->setCheckable(true);
+    act->setChecked(w->isActiveWindow());
+
+    QObject::connect(act, &QAction::triggered, w, [w]() {
+      w->raise();
+      w->activateWindow();
+    });
+  }
 }
 bool LayoutWindow::generateOpenTypeCff2Standard() {
   return generateOpenTypeCff2(false, true);

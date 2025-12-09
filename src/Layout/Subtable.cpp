@@ -897,6 +897,192 @@ void SingleAdjustmentSubtable::saveParameters(QJsonObject& json) const {
   }
 }
 
+PairAdjustmentSubtable::PairAdjustmentSubtable(Lookup* lookup, quint16 pformat) : Subtable(lookup), format{pformat} {}
+
+void PairAdjustmentSubtable::getPairValue(hb_cursive_anchor_context_t* context) {
+  auto pairValue = pairPos.value(context->glyph_id).value(context->base_glyph_id);
+
+  auto isValueRecord1 = std::holds_alternative<ValueRecord>(pairValue.valueRecord1);
+  auto isValueRecord2 = std::holds_alternative<ValueRecord>(pairValue.valueRecord2);
+
+  if (isValueRecord1 && isValueRecord2) return;
+
+  float lefttatweel = m_layout->normalToParameter(context->glyph_id, context->lefttatweel, true);
+  float righttatweel = m_layout->normalToParameter(context->glyph_id, context->righttatweel, false);
+  float lefttatweel2 = m_layout->normalToParameter(context->base_glyph_id, context->lefttatweel2, true);
+  float righttatweel2 = m_layout->normalToParameter(context->base_glyph_id, context->righttatweel2, false);
+
+  auto firstParams = GlyphParameters{.lefttatweel = lefttatweel, .righttatweel = righttatweel};
+  auto secondParams = GlyphParameters{.lefttatweel = lefttatweel2, .righttatweel = righttatweel2};
+
+  auto glypVis1 = m_layout->getAlternate(context->glyph_id, firstParams);
+  auto glypVis2 = m_layout->getAlternate(context->base_glyph_id, secondParams);
+
+  uint8_t* byte_ptr = (uint8_t*)context->data;
+
+  ValueRecord valueRecord1;
+  ValueRecord valueRecord2;
+  if (isValueRecord1) {
+    valueRecord1 = std::get<ValueRecord>(pairValue.valueRecord1);
+  } else {
+    valueRecord1 = std::get<PairAdjustFunc>(pairValue.valueRecord1)(glypVis1, glypVis2);
+  }
+  if (isValueRecord2) {
+    valueRecord2 = std::get<ValueRecord>(pairValue.valueRecord2);
+  } else {
+    auto& func = std::get<PairAdjustFunc>(pairValue.valueRecord2);
+    if (func) {
+      valueRecord2 = func(glypVis1, glypVis2);
+    }
+  }
+
+  if (valueFormat1 & 0x01) {
+    *byte_ptr++ = (uint8_t)(valueRecord1.xPlacement >> 8);
+    *byte_ptr++ = (uint8_t)(valueRecord1.xPlacement & 0xFF);
+  }
+  if (valueFormat1 & 0x02) {
+    *byte_ptr++ = (uint8_t)(valueRecord1.yPlacement >> 8);
+    *byte_ptr++ = (uint8_t)(valueRecord1.yPlacement & 0xFF);
+  }
+  if (valueFormat1 & 0x04) {
+    *byte_ptr++ = (uint8_t)(valueRecord1.xAdvance >> 8);
+    *byte_ptr++ = (uint8_t)(valueRecord1.xAdvance & 0xFF);
+  }
+  if (valueFormat1 & 0x08) {
+    *byte_ptr++ = (uint8_t)(valueRecord1.yAdvance >> 8);
+    *byte_ptr++ = (uint8_t)(valueRecord1.yAdvance & 0xFF);
+  }
+  if (valueFormat2 & 0x01) {
+    *byte_ptr++ = (uint8_t)(valueRecord2.xPlacement >> 8);
+    *byte_ptr++ = (uint8_t)(valueRecord2.xPlacement & 0xFF);
+  }
+  if (valueFormat2 & 0x02) {
+    *byte_ptr++ = (uint8_t)(valueRecord2.yPlacement >> 8);
+    *byte_ptr++ = (uint8_t)(valueRecord2.yPlacement & 0xFF);
+  }
+  if (valueFormat2 & 0x04) {
+    *byte_ptr++ = (uint8_t)(valueRecord2.xAdvance >> 8);
+    *byte_ptr++ = (uint8_t)(valueRecord2.xAdvance & 0xFF);
+  }
+  if (valueFormat2 & 0x08) {
+    *byte_ptr++ = (uint8_t)(valueRecord2.yAdvance >> 8);
+    *byte_ptr++ = (uint8_t)(valueRecord2.yAdvance & 0xFF);
+  }
+}
+
+QByteArray PairAdjustmentSubtable::getOpenTypeTable(bool extended) {
+  QByteArray root;
+  QByteArray coverage;
+  QByteArray pairSetOffsets;
+  QByteArray pairSetTables;
+  std::map<int, std::pair<int, std::pair<int, int>>> posToVar;
+
+  quint16 glyphCount = pairPos.size();
+  valueFormat1 = 0;
+  valueFormat2 = 0;
+  quint16 pairSetCount = glyphCount;
+  u_int32_t headerSize = 10;
+
+  u_int32_t currentPairSetOffset = headerSize + pairSetCount * 2;
+  coverage << (quint16)1;
+  coverage << (quint16)glyphCount;
+
+  QMap<quint16, QMap<quint16, PairValueFinal>> pairPosFinal;
+
+  for (auto i = pairPos.cbegin(), end = pairPos.cend(); i != end; ++i) {
+    const auto& pairValues = i.value();
+    auto& pairValuesFinal = pairPosFinal[i.key()];
+    auto glypVis1 = m_layout->getGlyph(i.key());
+    for (auto j = pairValues.cbegin(), end = pairValues.cend(); j != end; ++j) {
+      auto glypVis2 = m_layout->getGlyph(j.key());
+      const auto& pairValue = j.value();
+      ValueRecord valueRecord1;
+      ValueRecord valueRecord2;
+      if (std::holds_alternative<ValueRecord>(pairValue.valueRecord1)) {
+        valueRecord1 = std::get<ValueRecord>(pairValue.valueRecord1);
+      } else {
+        valueRecord1 = std::get<PairAdjustFunc>(pairValue.valueRecord1)(glypVis1, glypVis2);
+      }
+      if (std::holds_alternative<ValueRecord>(pairValue.valueRecord2)) {
+        valueRecord2 = std::get<ValueRecord>(pairValue.valueRecord2);
+      } else {
+        auto& func = std::get<PairAdjustFunc>(pairValue.valueRecord2);
+        if (func) {
+          valueRecord2 = func(glypVis1, glypVis2);
+        }
+      }
+
+      valueFormat1 |= valueRecord1.format();
+      valueFormat2 |= valueRecord2.format();
+      pairValuesFinal.insert(j.key(), {valueRecord1, valueRecord2});
+    }
+  }
+
+  for (auto i = pairPosFinal.cbegin(), end = pairPosFinal.cend(); i != end; ++i) {
+    const auto& pairValues = i.value();
+
+    coverage << (quint16)i.key();
+
+    QByteArray currentPairSetTable;
+
+    currentPairSetTable << (u_int16_t)pairValues.size();
+    for (auto j = pairValues.cbegin(), end = pairValues.cend(); j != end; ++j) {
+      currentPairSetTable << (u_int16_t)j.key();
+      auto& pairValue = j.value();
+      auto& valueRecord1 = pairValue.valueRecord1;
+      auto& valueRecord2 = pairValue.valueRecord2;
+      if (valueFormat1 & 0x01) {
+        currentPairSetTable << valueRecord1.xPlacement;
+      }
+      if (valueFormat1 & 0x02) {
+        currentPairSetTable << valueRecord1.yPlacement;
+      }
+      if (valueFormat1 & 0x04) {
+        currentPairSetTable << valueRecord1.xAdvance;
+      }
+      if (valueFormat1 & 0x08) {
+        currentPairSetTable << valueRecord1.yAdvance;
+      }
+      if (valueFormat2 & 0x01) {
+        currentPairSetTable << valueRecord2.xPlacement;
+      }
+      if (valueFormat2 & 0x02) {
+        currentPairSetTable << valueRecord2.yPlacement;
+      }
+      if (valueFormat2 & 0x04) {
+        currentPairSetTable << valueRecord2.xAdvance;
+      }
+      if (valueFormat2 & 0x08) {
+        currentPairSetTable << valueRecord2.yAdvance;
+      }
+    }
+
+    pairSetOffsets << (u_int16_t)currentPairSetOffset;
+    pairSetTables.append(currentPairSetTable);
+    currentPairSetOffset += currentPairSetTable.size();
+  }
+  quint32 coverageOffset = headerSize + pairSetOffsets.size() + pairSetTables.size();
+
+  if (coverageOffset > 0xFFFF) {
+    std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name.toStdString() << " Overflows : " << coverageOffset << std::endl;
+  }
+
+  root << format;
+  root << (u_int16_t)coverageOffset;
+  root << (u_int16_t)valueFormat1;
+  root << (u_int16_t)valueFormat2;
+  root << (u_int16_t)pairSetCount;
+  root.append(pairSetOffsets);
+  root.append(pairSetTables);
+  root.append(coverage);
+
+  openTypeSubTable = root;
+
+  isDirty = false;
+
+  return openTypeSubTable;
+}
+
 MultipleSubtable::MultipleSubtable(Lookup* lookup) : Subtable(lookup) {
 }
 

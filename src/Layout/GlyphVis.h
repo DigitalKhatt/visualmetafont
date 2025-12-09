@@ -67,7 +67,7 @@ class GlyphVis {
     double ury = 0;
   };
 
-  GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath = false);
+  GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath = true);
   GlyphVis();
 
   bool isAyaNumber();

@@ -130,6 +130,7 @@ class LayoutWindow : public QMainWindow {
   void checkOffMarks();
   void savePagetoPicture();
   void convertCursiveToKern();
+  void updateWindowMenu();
 
   void setQuranText(int type);
   QComboBox* justCombo;
@@ -149,6 +150,7 @@ class LayoutWindow : public QMainWindow {
   QMenu* otherMenu;
 
   QMenu* settingsMenu;
+  QMenu* windowMenu;
 
   Font* m_font;
 

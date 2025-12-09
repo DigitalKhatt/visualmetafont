@@ -48,243 +48,207 @@
 **
 ****************************************************************************/
 
+#include "mdichild.h"
+
 #include <QtWidgets>
 
-
-#include "mdichild.h"
-#include "glyphview.hpp"
 #include "glyphcellitem.hpp"
+#include "glyphview.hpp"
 #include "pairitem.hpp"
 
-
-
-
-
 MdiChild::MdiChild() {
-	fontscene = nullptr;
-	curFile = "";
-	setAttribute(Qt::WA_DeleteOnClose);
-	isUntitled = true;
-	//setViewport(new QGLWidget);
-	setRenderHint(QPainter::Antialiasing);
+  fontscene = nullptr;
+  curFile = "";
+  setAttribute(Qt::WA_DeleteOnClose);
+  isUntitled = true;
+  // setViewport(new QGLWidget);
+  setRenderHint(QPainter::Antialiasing);
 }
 
 MdiChild::~MdiChild() {
 }
 
-void MdiChild::newFile()
-{
-	static int sequenceNumber = 1;
+void MdiChild::newFile() {
+  static int sequenceNumber = 1;
 
-	isUntitled = true;
-	curFile = tr("document%1.txt").arg(sequenceNumber++);
-	setWindowTitle(curFile + "[*]");
+  isUntitled = true;
+  curFile = tr("document%1.txt").arg(sequenceNumber++);
+  setWindowTitle(curFile + "[*]");
 
-	//connect(document(), &QTextDocument::contentsChanged,
-   //         this, &MdiChild::documentWasModified);
+  // connect(document(), &QTextDocument::contentsChanged,
+  //         this, &MdiChild::documentWasModified);
 }
 
-bool MdiChild::loadFile(const QString &fileName)
-{
+bool MdiChild::loadFile(const QString& fileName) {
+  font = new Font(this);
 
+  if (!font->loadFile(fileName)) {
+    QMessageBox::warning(this, tr("MDI"),
+                         tr("Cannot read file %1")
+                             .arg(fileName));
+    //.arg(file.errorString()));
+    return false;
+  }
 
-	font = new Font(this);
+  fontscene = new FontScene(this);
+  setScene(fontscene);
+  for (int i = 0; i < font->glyphs.length(); i++) {
+    Glyph* glyph = font->glyphs[i];
+    GlyphCellItem* cell = new GlyphCellItem();
+    cell->setGlyph(glyph);
+    fontscene->addItem(cell);
+  }
 
-	if (!font->loadFile(fileName)) {
-		QMessageBox::warning(this, tr("MDI"),
-			tr("Cannot read file %1")
-			.arg(fileName));
-		//.arg(file.errorString()));
-		return false;
-	}
+  QApplication::restoreOverrideCursor();
 
+  setCurrentFile(fileName);
 
-	fontscene = new FontScene(this);
-	setScene(fontscene);
-	for (int i = 0; i < font->glyphs.length(); i++) {
-		Glyph* glyph = font->glyphs[i];
-		GlyphCellItem * cell = new GlyphCellItem();
-		cell->setGlyph(glyph);
-		fontscene->addItem(cell);
-	}
+  // connect(document(), &QTextDocument::contentsChanged,
+  //         this, &MdiChild::documentWasModified);
 
+  QVariant factor = QSettings().value("FontViewScaleFactor");
 
+  if (factor.isNull()) {
+    scaleView(0.18);
+  } else {
+    scaleView(factor.toDouble());
+  }
 
-
-	QApplication::restoreOverrideCursor();
-
-	setCurrentFile(fileName);
-
-	//connect(document(), &QTextDocument::contentsChanged,
-	//        this, &MdiChild::documentWasModified);
-
-
-
-	QVariant factor = QSettings().value("FontViewScaleFactor");
-
-	if (factor.isNull()) {
-		scaleView(0.18);
-	}
-	else {
-		scaleView(factor.toDouble());
-	}
-
-
-
-
-	return true;
+  return true;
 }
 
-bool MdiChild::save()
-{
-	if (isUntitled) {
-		return saveAs();
-	}
-	else {
-		return saveFile(curFile);
-	}
+bool MdiChild::save() {
+  if (isUntitled) {
+    return saveAs();
+  } else {
+    return saveFile(curFile);
+  }
 }
 
-bool MdiChild::saveAs()
-{
-	QString fileName = QFileDialog::getSaveFileName(this, tr("Save As"),
-		curFile);
-	if (fileName.isEmpty())
-		return false;
+bool MdiChild::saveAs() {
+  QString fileName = QFileDialog::getSaveFileName(this, tr("Save As"),
+                                                  curFile);
+  if (fileName.isEmpty())
+    return false;
 
-	return saveFile(fileName);
+  return saveFile(fileName);
 }
 
-bool MdiChild::saveFile(const QString &fileName)
-{
-	QApplication::setOverrideCursor(Qt::WaitCursor);
-	bool ret = font->saveFile();
-	QApplication::restoreOverrideCursor();
+bool MdiChild::saveFile(const QString& fileName) {
+  QApplication::setOverrideCursor(Qt::WaitCursor);
+  bool ret = font->saveFile();
+  QApplication::restoreOverrideCursor();
 
-	//setCurrentFile(fileName);
-	return ret;
+  // setCurrentFile(fileName);
+  return ret;
 }
 
-QString MdiChild::userFriendlyCurrentFile()
-{
-	return strippedName(curFile);
+QString MdiChild::userFriendlyCurrentFile() {
+  return strippedName(curFile);
 }
 
-void MdiChild::closeEvent(QCloseEvent *event)
-{
-	if (maybeSave()) {
-		event->accept();
-	}
-	else {
-		event->ignore();
-	}
+void MdiChild::closeEvent(QCloseEvent* event) {
+  if (maybeSave()) {
+    event->accept();
+  } else {
+    event->ignore();
+  }
 }
-void MdiChild::resizeEvent(QResizeEvent *event) {
-	if (fontscene != nullptr) {
-		fontscene->repositionItems();
-	}
-	
+void MdiChild::resizeEvent(QResizeEvent* event) {
+  if (fontscene != nullptr) {
+    fontscene->repositionItems();
+  }
 }
 
-
-void MdiChild::documentWasModified()
-{
-	//setWindowModified(document()->isModified());
+void MdiChild::documentWasModified() {
+  // setWindowModified(document()->isModified());
 }
 
-bool MdiChild::maybeSave()
-{
-	//if (!document()->isModified())
-	return true;
-	const QMessageBox::StandardButton ret
-		= QMessageBox::warning(this, tr("MDI"),
-			tr("'%1' has been modified.\n"
-				"Do you want to save your changes?")
-			.arg(userFriendlyCurrentFile()),
-			QMessageBox::Save | QMessageBox::Discard
-			| QMessageBox::Cancel);
-	switch (ret) {
-	case QMessageBox::Save:
-		return save();
-	case QMessageBox::Cancel:
-		return false;
-	default:
-		break;
-	}
-	return true;
+bool MdiChild::maybeSave() {
+  // if (!document()->isModified())
+  return true;
+  const QMessageBox::StandardButton ret = QMessageBox::warning(this, tr("MDI"),
+                                                               tr("'%1' has been modified.\n"
+                                                                  "Do you want to save your changes?")
+                                                                   .arg(userFriendlyCurrentFile()),
+                                                               QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+  switch (ret) {
+    case QMessageBox::Save:
+      return save();
+    case QMessageBox::Cancel:
+      return false;
+    default:
+      break;
+  }
+  return true;
 }
 
-void MdiChild::setCurrentFile(const QString &fileName)
-{
-	curFile = QFileInfo(fileName).canonicalFilePath();
-	isUntitled = false;
-	//document()->setModified(false);
-	//setWindowModified(false);
-	setWindowTitle(userFriendlyCurrentFile() + "[*]");
+void MdiChild::setCurrentFile(const QString& fileName) {
+  curFile = QFileInfo(fileName).canonicalFilePath();
+  isUntitled = false;
+  // document()->setModified(false);
+  // setWindowModified(false);
+  setWindowTitle(userFriendlyCurrentFile() + "[*]");
 }
 
-QString MdiChild::strippedName(const QString &fullFileName)
-{
-	return QFileInfo(fullFileName).absoluteFilePath();
-}
-void MdiChild::scaleView(qreal scaleFactor)
-{
-	qreal factor = transform().scale(scaleFactor, scaleFactor).mapRect(QRectF(0, 0, 1, 1)).width();
-	if (factor < 0.01 || factor > 4)
-		return;
-
-	QSettings().setValue("FontViewScaleFactor", factor);
-
-	scale(scaleFactor, scaleFactor);
-
-	fontscene->repositionItems();
-
-	auto list = fontscene->selectedItems();
-
-	if (list.size() > 0) {
-		auto item = fontscene->selectedItems().at(0);
-
-		if (item) {
-			centerOn(item);
-		}
-	}
+QString MdiChild::strippedName(const QString& fullFileName) {
+  return QFileInfo(fullFileName).absoluteFilePath();
 }
 
-
-
-void MdiChild::zoomIn()
-{
-	scaleView(qreal(1.2));
+QString MdiChild::fontName() {
+  return QFileInfo(curFile).baseName();
 }
 
-void MdiChild::zoomOut()
-{
-	scaleView(1 / qreal(1.5));
+void MdiChild::scaleView(qreal scaleFactor) {
+  qreal factor = transform().scale(scaleFactor, scaleFactor).mapRect(QRectF(0, 0, 1, 1)).width();
+  if (factor < 0.01 || factor > 4)
+    return;
+
+  QSettings().setValue("FontViewScaleFactor", factor);
+
+  scale(scaleFactor, scaleFactor);
+
+  fontscene->repositionItems();
+
+  auto list = fontscene->selectedItems();
+
+  if (list.size() > 0) {
+    auto item = fontscene->selectedItems().at(0);
+
+    if (item) {
+      centerOn(item);
+    }
+  }
 }
-void MdiChild::keyPressEvent(QKeyEvent *event)
-{
-	switch (event->key()) {
-	case Qt::Key_Plus:
-		zoomIn();
-		break;
-	case Qt::Key_Minus:
-		zoomOut();
-		break;
-	case Qt::Key_Space:
-	default:
-		QGraphicsView::keyPressEvent(event);
-	}
+
+void MdiChild::zoomIn() {
+  scaleView(qreal(1.2));
+}
+
+void MdiChild::zoomOut() {
+  scaleView(1 / qreal(1.5));
+}
+void MdiChild::keyPressEvent(QKeyEvent* event) {
+  switch (event->key()) {
+    case Qt::Key_Plus:
+      zoomIn();
+      break;
+    case Qt::Key_Minus:
+      zoomOut();
+      break;
+    case Qt::Key_Space:
+    default:
+      QGraphicsView::keyPressEvent(event);
+  }
 }
 void MdiChild::refresh() {
-	fontscene = new FontScene(this);
-	setScene(fontscene);
-	for (int i = 0; i < font->glyphs.length(); i++) {
-		Glyph* glyph = font->glyphs[i];
-		GlyphCellItem * cell = new GlyphCellItem();
-		cell->setGlyph(glyph);
-		fontscene->addItem(cell);
-	}
-	invalidateScene();
-
+  fontscene = new FontScene(this);
+  setScene(fontscene);
+  for (int i = 0; i < font->glyphs.length(); i++) {
+    Glyph* glyph = font->glyphs[i];
+    GlyphCellItem* cell = new GlyphCellItem();
+    cell->setGlyph(glyph);
+    fontscene->addItem(cell);
+  }
+  invalidateScene();
 }
-

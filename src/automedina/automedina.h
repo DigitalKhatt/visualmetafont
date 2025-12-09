@@ -18,12 +18,13 @@
 */
 
 #pragma once
-#include "qhash.h"
-#include "qset.h"
-#include "qmap.h"
 #include <optional>
-#include "qpoint.h"
+
 #include "OtLayout.h"
+#include "qhash.h"
+#include "qmap.h"
+#include "qpoint.h"
+#include "qset.h"
 
 class LayoutWindow;
 
@@ -35,8 +36,8 @@ class Automedina {
   friend class ToOpenType;
   friend class GenerateLayout;
 
-public:
-  //static const quint16 AyaNumberCode = 65200;
+ public:
+  // static const quint16 AyaNumberCode = 65200;
   static const quint16 AyaNumberCode = 0xE000;
   const int markheigh = 500;
   const int markdepth = 80;
@@ -46,50 +47,54 @@ public:
   const int spacebasetobottommark = 50;
   const int minwaqfhigh = 900;
 
-public:
-  Automedina(OtLayout* layout, Font* font, bool extended) : glyphs{ layout->glyphs }, m_layout{ layout }, font{ font }, extended{ extended } {}
+ public:
+  Automedina(OtLayout* layout, Font* font, bool extended) : glyphs{layout->glyphs}, m_layout{layout}, font{font}, extended{extended} {}
 
-  QSet<quint16> classtoUnicode(QString className, bool includeExpandables = false);
+  QSet<quint16> classtoUnicode(QString className, bool includeExpandables);
+  QSet<quint16> classtoUnicode(QString className) {
+    return classtoUnicode(className, true);
+  };
   QSet<quint16> regexptoUnicode(QString regexp);
   QSet<QString> classtoGlyphName(QString className);
   QHash<QString, GlyphVis>& glyphs;
   virtual ~Automedina();
 
   virtual Lookup* getLookup(QString lookupName) = 0;
-  virtual CalcAnchor  getanchorCalcFunctions(QString functionName, Subtable* subtable) = 0;
-  virtual CursiveAnchorFunc  getCursiveFunctions(QString functionName, Subtable* subtable) {
+  virtual CalcAnchor getanchorCalcFunctions(QString functionName, Subtable* subtable) = 0;
+  virtual CursiveAnchorFunc getCursiveFunctions(QString functionName, Subtable* subtable) {
     CursiveAnchorFunc func;
+    return func;
+  }
+  virtual PairAdjustFunc getPairAdjustFunction(std::string functionName, Subtable* subtable) {
+    PairAdjustFunc func;
     return func;
   }
   virtual void generateSubstEquivGlyphs() {}
 
   QMap<QString, QString> addedGlyphs;
 
-protected:
+ protected:
   OtLayout* m_layout;
 
   QHash<QString, QSet<QString>> classes;
 
-
   QMap<QString, QSet<quint16>> cachedClasstoUnicode;
-  //QMap<QString, AnchorCalc*> anchorCalcFunctions;
-
+  // QMap<QString, AnchorCalc*> anchorCalcFunctions;
 
   QSet<QString> initchar;
   QSet<QString> medichar;
 
   Font* font;
 
-  QMap <QString, QMap<quint16, QPoint>> markAnchors;
-  QMap <QString, QMap<quint16, QPoint>> entryAnchors;
-  QMap <QString, QMap<quint16, QPoint>> exitAnchors;
-  QMap <QString, QMap<quint16, QPoint>> entryAnchorsRTL;
-  QMap <QString, QMap<quint16, QPoint>> exitAnchorsRTL;
+  QMap<QString, QMap<quint16, QPoint>> markAnchors;
+  QMap<QString, QMap<quint16, QPoint>> entryAnchors;
+  QMap<QString, QMap<quint16, QPoint>> exitAnchors;
+  QMap<QString, QMap<quint16, QPoint>> entryAnchorsRTL;
+  QMap<QString, QMap<quint16, QPoint>> exitAnchorsRTL;
 
   bool extended;
 
-  QVector< QMap<quint16, QVector<ExtendedGlyph> >> cvxxfeatures;
+  QVector<QMap<quint16, QVector<ExtendedGlyph>>> cvxxfeatures;
 
   void generateAyas(QString ayaName, bool colored);
-
 };

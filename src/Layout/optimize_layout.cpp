@@ -176,76 +176,56 @@ inline AABB padAABB(const AABB& b, double pad) {
       b.maxy + pad};
 }
 
-class BroadphaseGrid {
- public:
-  BroadphaseGrid(const std::vector<std::reference_wrapper<GlyphInstance>>& glyphs,
-                 const OptParams& P) {
-    cellSize_ = P.cellSize;
+struct SweepBroadphase {
+  struct Box {
+    int index;          // glyph index
+    double minx, maxx;  // padded x-range
+    double miny, maxy;  // padded y-range
+  };
 
-    // Conservative padding: any pair closer than minGap + motion is caught.
+  std::vector<Box> boxes;  // all active AABBs (padded)
+
+  SweepBroadphase(const std::vector<std::reference_wrapper<GlyphInstance>>& glyphs,
+                  const OptParams& P) {
     const double maxGap =
         std::max(P.minGapBody, P.minGapMark);
     const double maxShift =
         std::max({P.maxShiftBodyX, P.maxShiftBodyY, P.maxShiftMark});
-    pad_ = maxGap + 2.0 * maxShift;
+    double pad = maxGap + 2.0 * maxShift;
 
-    aabbs_.reserve(glyphs.size());
-    for (size_t i = 0; i < glyphs.size(); ++i) {
-      AABB raw = glyphs[i].get().worldPolys.boundingAABB();
-      AABB box = padAABB(raw, pad_);
-      aabbs_.push_back(box);
-
-      int x0 = (int)std::floor(box.minx / cellSize_);
-      int x1 = (int)std::floor(box.maxx / cellSize_);
-      int y0 = (int)std::floor(box.miny / cellSize_);
-      int y1 = (int)std::floor(box.maxy / cellSize_);
-      for (int y = y0; y <= y1; ++y)
-        for (int x = x0; x <= x1; ++x) {
-          cells_[{x, y}].push_back((int)i);
-        }
+    boxes.reserve(glyphs.size());
+    for (int idx = 0; idx < glyphs.size(); ++idx) {
+      AABB b = glyphs[idx].get().worldPolys.boundingAABB();
+      b = padAABB(b, pad);
+      boxes.push_back({idx, b.minx, b.maxx, b.miny, b.maxy});
     }
+
+    std::sort(boxes.begin(), boxes.end(),
+              [](const Box& a, const Box& b) {
+                return a.minx < b.minx;
+              });
   }
 
-  // Return potential neighbors of glyph i (within padded proximity).
-  void query(size_t i, std::vector<int>& out) const {
-    out.clear();
-    const AABB& box = aabbs_[i];
+  // Run sweep and output candidate pairs
+  void findPairs(std::vector<std::pair<int, int>>& pairs) const {
+    pairs.clear();
+    const size_t n = boxes.size();
 
-    int x0 = (int)std::floor(box.minx / cellSize_);
-    int x1 = (int)std::floor(box.maxx / cellSize_);
-    int y0 = (int)std::floor(box.miny / cellSize_);
-    int y1 = (int)std::floor(box.maxy / cellSize_);
+    for (size_t i = 0; i < n; ++i) {
+      const Box& A = boxes[i];
+      // advance until B.minx > A.maxx
+      for (size_t j = i + 1; j < n; ++j) {
+        const Box& B = boxes[j];
+        if (B.minx > A.maxx)
+          break;  // rest are further right → done
 
-    for (int y = y0; y <= y1; ++y)
-      for (int x = x0; x <= x1; ++x) {
-        auto it = cells_.find({x, y});
-        if (it == cells_.end()) continue;
-        for (int idx : it->second) {
-          if ((size_t)idx != i) {
-            out.push_back(idx);
-          }
+        // check y-overlap
+        if (!(A.maxy < B.miny || A.miny > B.maxy)) {
+          pairs.emplace_back(A.index, B.index);
         }
       }
-    // Duplicates are okay; filtered at caller with i<j and overlapAABB.
-  }
-
-  const AABB& aabb(size_t i) const { return aabbs_[i]; }
-
- private:
-  struct CellKey {
-    int x, y;
-    bool operator==(const CellKey& o) const { return x == o.x && y == o.y; }
-  };
-
-  struct CellKeyHash {
-    std::size_t operator()(const CellKey& k) const noexcept {
-      return (std::hash<int>()(k.x) * 73856093u) ^ std::hash<int>()(k.y);
     }
-  };
-  double cellSize_ = 64.0;
-  double pad_ = 0.0;
-  std::vector<AABB> aabbs_;  // already padded
-  std::unordered_map<CellKey, std::vector<int>, CellKeyHash> cells_;
+  }
 };
 
 void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
@@ -269,27 +249,16 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     }
 
     // 2. Broadphase
-    BroadphaseGrid bp(glyphs, P);
+    std::vector<std::pair<int, int>> pairs;
+    SweepBroadphase sweep(glyphs, P);
+    sweep.findPairs(pairs);
 
     double maxPenetration = 0.0;  // most negative C
 
     // 3. Gap / collision constraints
-    for (size_t i = 0; i < glyphs.size(); ++i) {
-      candidates.clear();
-      bp.query(i, candidates);
-
-      const AABB& boxI = bp.aabb(i);
-
-      for (int j : candidates) {
-        if ((size_t)j <= i) continue;
-
-        const AABB& boxJ = bp.aabb(j);
-        if (!overlapAABB(boxI, boxJ))
-          continue;
-        if (i != j) {
-          solveGapConstraint(glyphs[i], glyphs[j], P, maxPenetration);
-        }
-      }
+    // Iterate candidate pairs
+    for (auto [i, j] : pairs) {
+      solveGapConstraint(glyphs[i], glyphs[j], P, maxPenetration);
     }
 
     // 7. Early exit

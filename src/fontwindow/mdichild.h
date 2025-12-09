@@ -50,64 +50,56 @@
 
 #ifndef MDICHILD_H
 #define MDICHILD_H
+#include <QGraphicsView>
 #include <QTextEdit>
+
+#include "contouritem.hpp"
 #include "font.hpp"
 #include "fontscene.hpp"
-#include "contouritem.hpp"
-#include <QGraphicsView>
 
+class MdiChild : public QGraphicsView {
+  Q_OBJECT
 
+ public:
+  MdiChild();
+  ~MdiChild();
 
+  void newFile();
+  bool loadFile(const QString& fileName);
+  bool save();
+  bool saveAs();
+  bool saveFile(const QString& fileName);
+  QString userFriendlyCurrentFile();
+  QString fontName();
+  QString currentFile() { return curFile; }
+  void refresh();
 
-class MdiChild : public QGraphicsView
-{
-    Q_OBJECT
+  Font* font;
 
-public:
-    MdiChild();
-	~MdiChild();
+ signals:
+  void glyphActivated(Glyph* item);
 
-    void newFile();
-    bool loadFile(const QString &fileName);
-    bool save();
-    bool saveAs();
-    bool saveFile(const QString &fileName);
-    QString userFriendlyCurrentFile();
-    QString currentFile() { return curFile; }
-	void refresh();
+ public slots:
+  void zoomIn();
+  void zoomOut();
 
-	Font * font;
+ protected:
+  void scaleView(qreal scaleFactor);
+  void keyPressEvent(QKeyEvent* event) Q_DECL_OVERRIDE;
+  void closeEvent(QCloseEvent* event) Q_DECL_OVERRIDE;
+  void resizeEvent(QResizeEvent* event) Q_DECL_OVERRIDE;
 
-signals:
-	void glyphActivated(Glyph *item);
+ private slots:
+  void documentWasModified();
 
-public slots:
-	void zoomIn();
-	void zoomOut();
+ private:
+  bool maybeSave();
+  void setCurrentFile(const QString& fileName);
+  QString strippedName(const QString& fullFileName);
 
-	
-
-protected:
-	void scaleView(qreal scaleFactor);
-	void keyPressEvent(QKeyEvent *event) Q_DECL_OVERRIDE;
-    void closeEvent(QCloseEvent *event) Q_DECL_OVERRIDE;
-	void resizeEvent(QResizeEvent *event) Q_DECL_OVERRIDE;
-
-	
-	
-
-private slots:
-    void documentWasModified();
-
-private:
-    bool maybeSave();
-    void setCurrentFile(const QString &fileName);
-    QString strippedName(const QString &fullFileName);
-
-    QString curFile;
-    bool isUntitled;
-	FontScene* fontscene;
-	
+  QString curFile;
+  bool isUntitled;
+  FontScene* fontscene;
 };
 
 #endif
