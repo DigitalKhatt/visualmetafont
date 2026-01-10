@@ -107,7 +107,7 @@ class LayoutWindow : public QMainWindow {
                          QList<QStringList> originalPages, double emScale,
                          bool sameLine, bool interLine);
   void adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages, int lineWidth,
-                          QList<QStringList> originalPages, double emScale,
+                          const QList<QStringList>& originalPages, double emScale,
                           bool sameLine, bool interLine);
   void adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages, int lineWidth,
                           int beginPage, int nbPages, QVector<int>&,
@@ -117,7 +117,7 @@ class LayoutWindow : public QMainWindow {
                                 QList<QStringList> originalPages, int lineWidth,
                                 int beginPage, int nbPages, double emScale);
   void optimizeLayout(QList<QList<LineLayoutInfo>>& pages,
-                      QList<QStringList> originalPages,
+                      const QList<QStringList>& originalPages,
                       int beginPage, int nbPages, double emScale);
   void generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pages,
                               const QList<QStringList>& originalPages,
@@ -131,10 +131,12 @@ class LayoutWindow : public QMainWindow {
   void savePagetoPicture();
   void convertCursiveToKern();
   void updateWindowMenu();
+  JustOption getJustOption();
 
   void setQuranText(int type);
   QComboBox* justCombo;
   QComboBox* justStyleCombo;
+  QComboBox* shrinkTypeCombo;
   QDockWidget* textRun;
   QDockWidget* lookupTree;
   QPlainTextEdit* textEdit;

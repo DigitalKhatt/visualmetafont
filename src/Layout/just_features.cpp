@@ -1,12 +1,12 @@
 #define NOMINMAX
-#include "OtLayout.h"
-#include  <algorithm>
-#include "hb-buffer.hh"
 #include <qregularexpression.h>
 
+#include <algorithm>
+
+#include "OtLayout.h"
+#include "hb-buffer.hh"
 #include "hb-font.hh"
 #include "tajweed.h"
-
 
 using namespace std;
 
@@ -41,15 +41,13 @@ struct SubWordCharIndex {
 
 struct LayoutResult {
   double parWidth;
-  map<StretchType, SubWordCharIndex > appliedKashidas;
+  map<StretchType, SubWordCharIndex> appliedKashidas;
 };
-
 
 struct SubWordInfo {
   vector<int> baseIndexes;
   QString baseText;
 };
-
 
 struct WordInfo {
   QString text;
@@ -57,7 +55,7 @@ struct WordInfo {
   int startIndex;
   int endIndex;
   vector<int> baseIndexes;
-  vector<SubWordInfo>  subwords = { {} };
+  vector<SubWordInfo> subwords = {{}};
 };
 
 struct LineTextInfo {
@@ -80,6 +78,8 @@ struct JustResultByLine {
   double simpleSpacing;
   double ayaSpacing;
   double xScale;
+  bool isShrink = false;
+  double addedSpaceAfterShrink = 0.0;
 };
 
 struct JustInfo {
@@ -89,7 +89,6 @@ struct JustInfo {
   vector<LayoutResult> layoutResult;
   hb_font_t* font;
 };
-
 
 static const QString rightNoJoinLetters = "آاٱأإدذرزوؤءة";
 static const QString dualJoinLetters = "بتثجحخسشصضطظعغفقكلمنهيئى";
@@ -106,28 +105,23 @@ void initBases() {
 }
 
 static hb_segment_properties_t savedprops{
-  HB_DIRECTION_RTL,
-  HB_SCRIPT_ARABIC,
-  hb_language_from_string("ar", strlen("ar")),
-  0,
-  0
-};
+    HB_DIRECTION_RTL,
+    HB_SCRIPT_ARABIC,
+    hb_language_from_string("ar", strlen("ar")),
+    0,
+    0};
 
 static LineTextInfo analyzeLineForJust(QString lineText) {
-
   if (bases.size() == 0) {
     initBases();
   }
 
   LineTextInfo lineTextInfo = {
-    .lineText = lineText,
-    .ayaSpaceIndexes = {},
-    .simpleSpaceIndexes = {},
-    .spaces = {},
-    .wordInfos = {}
-  };
-
-
+      .lineText = lineText,
+      .ayaSpaceIndexes = {},
+      .simpleSpaceIndexes = {},
+      .spaces = {},
+      .wordInfos = {}};
 
   lineTextInfo.wordInfos.push_back({});
   WordInfo* currentWord = &lineTextInfo.wordInfos.back();
@@ -137,47 +131,41 @@ static LineTextInfo analyzeLineForJust(QString lineText) {
   for (int i = 0; i < lineText.size(); i++) {
     QChar qchar = lineText.at(i);
     if (qchar == ' ') {
-
       if ((i > 0 && lineText.at(i - 1) >= 0x0660 && lineText.at(i - 1) <= 0x0669) || (lineText.at(i + 1) == 0x06DD)) {
         lineTextInfo.ayaSpaceIndexes.push_back(i);
-        lineTextInfo.spaces.insert({ i, SpaceType::Aya });
-      }
-      else {
+        lineTextInfo.spaces.insert({i, SpaceType::Aya});
+      } else {
         lineTextInfo.simpleSpaceIndexes.push_back(i);
-        lineTextInfo.spaces.insert({ i, SpaceType::Simple });
+        lineTextInfo.spaces.insert({i, SpaceType::Simple});
       }
       lineTextInfo.wordInfos.push_back({});
       currentWord = &lineTextInfo.wordInfos.back();
       currentWord->startIndex = i + 1;
       currentWord->endIndex = i;
-    }
-    else {
+    } else {
       currentWord->text += qchar;
       if (bases.find(qchar) != bases.end()) {
         currentWord->baseText += qchar;
         currentWord->baseIndexes.push_back(i - currentWord->startIndex);
         if (qchar == U'ء') {
-          currentWord->subwords.push_back({ .baseIndexes = {}, .baseText = "" });
+          currentWord->subwords.push_back({.baseIndexes = {}, .baseText = ""});
         }
         auto& subWord = currentWord->subwords.back();
         subWord.baseText += qchar;
         subWord.baseIndexes.push_back(i - currentWord->startIndex);
         if (i < lineText.size() - 1 && qchar != U'ء' && rightNoJoinLetters.contains(qchar)) {
-          currentWord->subwords.push_back({ .baseIndexes = {}, .baseText = "" });
+          currentWord->subwords.push_back({.baseIndexes = {}, .baseText = ""});
         }
-
       }
       currentWord->endIndex++;
     }
   }
 
-
   return lineTextInfo;
 }
 
-static hb_buffer_t* shape(QString text, hb_font_t* font, vector< hb_feature_t> features) {
+static hb_buffer_t* shape(QString text, hb_font_t* font, vector<hb_feature_t> features) {
   hb_buffer_t* buffer = buffer = hb_buffer_create();
-
 
   hb_buffer_set_segment_properties(buffer, &savedprops);
   hb_buffer_set_cluster_level(buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
@@ -192,8 +180,7 @@ static hb_buffer_t* shape(QString text, hb_font_t* font, vector< hb_feature_t> f
   return buffer;
 }
 
-static double getWidth(const QString& text, hb_font_t* font, const vector< hb_feature_t>& features) {
-
+static double getWidth(const QString& text, hb_font_t* font, const vector<hb_feature_t>& features) {
   auto buffer = shape(text, font, features);
 
   double totalWidth = 0.0;
@@ -212,36 +199,27 @@ static double getWidth(const QString& text, hb_font_t* font, const vector< hb_fe
 }
 
 static double getWordWidth(const WordInfo& wordInfo, const map<int, vector<TextFontFeatures>>& justResults, hb_font_t* font) {
-
-  vector< hb_feature_t> features{};
+  vector<hb_feature_t> features{};
 
   for (int i = wordInfo.startIndex; i <= wordInfo.endIndex; i++) {
-
     auto justInfo = justResults.find(i);
     if (justInfo != justResults.end()) {
-
       for (auto& feat : justInfo->second) {
-        features.push_back({
-          hb_tag_from_string(feat.name.toStdString().c_str(),feat.name.size()),
-          (uint32_t)feat.value,
-          (unsigned int)(i - wordInfo.startIndex),
-          (unsigned int)(i - wordInfo.startIndex + 1)
-          });
+        features.push_back({hb_tag_from_string(feat.name.toStdString().c_str(), feat.name.size()),
+                            (uint32_t)feat.value,
+                            (unsigned int)(i - wordInfo.startIndex),
+                            (unsigned int)(i - wordInfo.startIndex + 1)});
       }
     }
-
   }
 
   return getWidth(wordInfo.text, font, features);
-
 }
 
 static AppliedResult tryApplyFeatures(int wordIndex, const LineTextInfo& lineTextInfo, JustInfo& justInfo, const map<int, vector<TextFontFeatures>>& newFeatures) {
-
   auto& layout = justInfo.layoutResult[wordIndex];
 
   const auto& wordInfo = lineTextInfo.wordInfos[wordIndex];
-
 
   const auto& wordNewWidth = getWordWidth(wordInfo, newFeatures, justInfo.font);
   auto diff = wordNewWidth - layout.parWidth;
@@ -250,11 +228,9 @@ static AppliedResult tryApplyFeatures(int wordIndex, const LineTextInfo& lineTex
     layout.parWidth = wordNewWidth;
     justInfo.fontFeatures = newFeatures;
     return AppliedResult::Positive;
-  }
-  else if (diff == 0) {
+  } else if (diff == 0) {
     return AppliedResult::NoChange;
-  }
-  else {
+  } else {
     return AppliedResult::Overflow;
   }
 }
@@ -265,9 +241,7 @@ struct SubWordsMatch {
 };
 
 static SubWordsMatch matchSubWords(const WordInfo& wordInfo, const vector<QRegularExpression>& regExprs) {
-
   SubWordsMatch result;
-
 
   for (int subIndex = 0; subIndex < wordInfo.subwords.size(); subIndex++) {
     const auto& subWord = wordInfo.subwords[subIndex];
@@ -294,26 +268,22 @@ static SubWordsMatch matchSubWords(const WordInfo& wordInfo, const vector<QRegul
 
 struct Appliedfeature {
   TextFontFeatures feature;
-  int(*calcNewValue)(int, int);
+  int (*calcNewValue)(int, int);
 };
 
 static vector<TextFontFeatures> mergeFeatures(const vector<TextFontFeatures>& prevFeatures, const vector<Appliedfeature>& newFeatures) {
-
-  vector<TextFontFeatures> mergedFeatures{ prevFeatures };
+  vector<TextFontFeatures> mergedFeatures{prevFeatures};
 
   if (newFeatures.size() > 0) {
     for (auto& newFeature : newFeatures) {
-
       auto exist = std::find_if(mergedFeatures.begin(), mergedFeatures.end(), [&newFeature](const TextFontFeatures& x) { return x.name == newFeature.feature.name; });
 
       if (exist != mergedFeatures.end()) {
         exist->value = newFeature.calcNewValue != nullptr ? newFeature.calcNewValue(exist->value, newFeature.feature.value) : newFeature.feature.value;
-      }
-      else {
+      } else {
         auto cloneNewFeature = TextFontFeatures{
-          .name = newFeature.feature.name,
-          .value = newFeature.calcNewValue != nullptr ? newFeature.calcNewValue(0, newFeature.feature.value) : newFeature.feature.value
-        };
+            .name = newFeature.feature.name,
+            .value = newFeature.calcNewValue != nullptr ? newFeature.calcNewValue(0, newFeature.feature.value) : newFeature.feature.value};
         mergedFeatures.push_back(cloneNewFeature);
       }
     }
@@ -324,7 +294,7 @@ static vector<TextFontFeatures> mergeFeatures(const vector<TextFontFeatures>& pr
 
 static AppliedResult applyAlternate(const LineTextInfo& lineTextInfo, JustInfo& justInfo, int wordIndex, int indexInLine) {
   const auto& lineText = lineTextInfo.lineText;
-  auto tempResult{ justInfo.fontFeatures };
+  auto tempResult{justInfo.fontFeatures};
 
   vector<TextFontFeatures> prevFeatures;
 
@@ -333,7 +303,6 @@ static AppliedResult applyAlternate(const LineTextInfo& lineTextInfo, JustInfo& 
   auto prevFeaturesIter = tempResult.find(indexInLine);
 
   if (prevFeaturesIter != tempResult.end()) {
-
     prevFeatures = prevFeaturesIter->second;
 
     auto cv02 = std::find_if(prevFeatures.begin(), prevFeatures.end(), [](const TextFontFeatures& x) { return x.name == "cv02"; });
@@ -343,13 +312,11 @@ static AppliedResult applyAlternate(const LineTextInfo& lineTextInfo, JustInfo& 
     }
   }
 
-  auto newFeatures = mergeFeatures(prevFeatures, {
-    Appliedfeature{.feature = {
-      .name = "cv01", .value = 1 },
-    .calcNewValue = [](int prev, int curr) {
-        return min(prev + curr, 12);
-      }}
-    });
+  auto newFeatures = mergeFeatures(prevFeatures, {Appliedfeature{.feature = {
+                                                                     .name = "cv01", .value = 1},
+                                                                 .calcNewValue = [](int prev, int curr) {
+                                                                   return min(prev + curr, 12);
+                                                                 }}});
 
   tempResult.insert_or_assign(indexInLine, newFeatures);
 
@@ -358,8 +325,7 @@ static AppliedResult applyAlternate(const LineTextInfo& lineTextInfo, JustInfo& 
 
   if (indexInLine + 1 < lineText.size() && lineText[indexInLine + 1] == U'\u064E') {
     fathaIndex = indexInLine + 1;
-  }
-  else if (indexInLine + 2 < lineText.size() && lineText[indexInLine + 1] == U'\u0651' && lineText[indexInLine + 2] == U'\u064E') {
+  } else if (indexInLine + 2 < lineText.size() && lineText[indexInLine + 1] == U'\u0651' && lineText[indexInLine + 2] == U'\u064E') {
     fathaIndex = indexInLine + 2;
   }
 
@@ -370,7 +336,7 @@ static AppliedResult applyAlternate(const LineTextInfo& lineTextInfo, JustInfo& 
       cv01Value = ff->value;
     }
 
-    tempResult.insert_or_assign(fathaIndex, vector<TextFontFeatures>{ TextFontFeatures{ .name = "cv01", .value = 1 + (int)floor(cv01Value / 3) } });
+    tempResult.insert_or_assign(fathaIndex, vector<TextFontFeatures>{TextFontFeatures{.name = "cv01", .value = 1 + (int)floor(cv01Value / 3)}});
   }
 
   appliedResult = tryApplyFeatures(wordIndex, lineTextInfo, justInfo, tempResult);
@@ -379,14 +345,12 @@ static AppliedResult applyAlternate(const LineTextInfo& lineTextInfo, JustInfo& 
 }
 
 static bool applyAlternatesSubWords(const LineTextInfo& lineTextInfo, JustInfo& justInfo, QString chars, int nbLevels) {
-
   const auto& wordInfos = lineTextInfo.wordInfos;
 
   vector<SubWordsMatch> matchresult;
 
   auto patternAlt = "^.*(?<alt>[${" + chars + "}])$";
-  vector<QRegularExpression> regExprAlt{ QRegularExpression{patternAlt} };
-
+  vector<QRegularExpression> regExprAlt{QRegularExpression{patternAlt}};
 
   for (int wordIndex = 0; wordIndex < wordInfos.size(); wordIndex++) {
     matchresult.push_back(matchSubWords(wordInfos[wordIndex], regExprAlt));
@@ -406,11 +370,9 @@ static bool applyAlternatesSubWords(const LineTextInfo& lineTextInfo, JustInfo& 
 
         if (appliedResult == AppliedResult::Overflow) {
           return true;
-        }
-        else if (appliedResult == AppliedResult::Forbiden) {
+        } else if (appliedResult == AppliedResult::Forbiden) {
           continue;
-        }
-        else {
+        } else {
           break;
         }
       }
@@ -423,132 +385,109 @@ static QString rightKashExp = QString("بتثنيئ") + "جحخ" + "سش" + "ص�
 static QString leftKash = QString("ئبتثني") + "جحخ" + "طظ" + "عغ" + "فق" + "ةلم" + "رز";
 static QString mediLeftAsendant = "ل";
 static const QString finalAscendant = "آادذٱأإكلهة";
-static auto regexBeh = vector<QRegularExpression>{ QRegularExpression("^.+(?<k1>[بتثنيسشصض][بتثنيم]).+$") };
-static auto regexFinaAscendant = vector<QRegularExpression>{ QRegularExpression(QString("^.*(?<k1>[%1][%2])$").arg(rightKashExp).arg(finalAscendant)) };
+static auto regexBeh = vector<QRegularExpression>{QRegularExpression("^.+(?<k1>[بتثنيسشصض][بتثنيم]).+$")};
+static auto regexFinaAscendant = vector<QRegularExpression>{QRegularExpression(QString("^.*(?<k1>[%1][%2])$").arg(rightKashExp).arg(finalAscendant))};
 static auto regexOtherKashidas = vector<QRegularExpression>{
-  QRegularExpression(QString(".*(?<k1>[%1][رز])").arg(rightKashExp)),
-  QRegularExpression(QString(".*(?<k1>[%1](?:[%2]|[%3]))").arg(rightKashExp).arg(mediLeftAsendant).arg(leftKash.replace("رز", ""))),
+    QRegularExpression(QString(".*(?<k1>[%1][رز])").arg(rightKashExp)),
+    QRegularExpression(QString(".*(?<k1>[%1](?:[%2]|[%3]))").arg(rightKashExp).arg(mediLeftAsendant).arg(leftKash.replace("رز", ""))),
 };
-static auto regexKaf = vector<QRegularExpression>{ QRegularExpression("^.*(?<k1>[ك].).*$") };
+static auto regexKaf = vector<QRegularExpression>{QRegularExpression("^.*(?<k1>[ك].).*$")};
 static auto regexSecondKashidaNotSameSubWord = vector<QRegularExpression>{
-  QRegularExpression(QString("^.+(?<k1>[بتثنيسشصض][بتثنيم]).+$")),
-  QRegularExpression(QString("^.*(?<k1>[%1][آادذٱأإكلهة])$").arg(rightKashExp)),
-  QRegularExpression(QString(".*(?<k1>[%1][رز])").arg(rightKashExp)),
-  QRegularExpression(QString(".*(?<k1>[%1](?:[%2]|[%3]))").arg(rightKashExp).arg(mediLeftAsendant).arg(leftKash.replace("رز", ""))),
+    QRegularExpression(QString("^.+(?<k1>[بتثنيسشصض][بتثنيم]).+$")),
+    QRegularExpression(QString("^.*(?<k1>[%1][آادذٱأإكلهة])$").arg(rightKashExp)),
+    QRegularExpression(QString(".*(?<k1>[%1][رز])").arg(rightKashExp)),
+    QRegularExpression(QString(".*(?<k1>[%1](?:[%2]|[%3]))").arg(rightKashExp).arg(mediLeftAsendant).arg(leftKash.replace("رز", ""))),
 };
 static auto regexSecondKashidaSameSubWord = vector<QRegularExpression>{
-  QRegularExpression(QString("^.+(?<k1>[بتثنيسشصض][بتثنيم]).+")),
-  QRegularExpression(QString("(?<k1>[%1][آادذٱأإكلهة])$").arg(rightKashExp)),
-  QRegularExpression(QString("(?<k1>[%1][رز])").arg(rightKashExp)),
-  QRegularExpression(QString("(?<k1>[%1](?:[%2]|[%3]))").arg(rightKashExp).arg(mediLeftAsendant).arg(leftKash.replace("رز", ""))),
+    QRegularExpression(QString("^.+(?<k1>[بتثنيسشصض][بتثنيم]).+")),
+    QRegularExpression(QString("(?<k1>[%1][آادذٱأإكلهة])$").arg(rightKashExp)),
+    QRegularExpression(QString("(?<k1>[%1][رز])").arg(rightKashExp)),
+    QRegularExpression(QString("(?<k1>[%1](?:[%2]|[%3]))").arg(rightKashExp).arg(mediLeftAsendant).arg(leftKash.replace("رز", ""))),
 };
 
-
-
 static void DealWithDecomposition(
-  int firstMatchIndex,
-  int secondMatchIndex,
-  const WordInfo& wordInfo,
-  const SubWordInfo& subWordInfo,
-  const LineTextInfo& lineTextInfo,
-  vector<TextFontFeatures>& secondNewFeatures,
-  vector<Appliedfeature>& firstAppliedFeatures) {
-
+    int firstMatchIndex,
+    int secondMatchIndex,
+    const WordInfo& wordInfo,
+    const SubWordInfo& subWordInfo,
+    const LineTextInfo& lineTextInfo,
+    vector<TextFontFeatures>& secondNewFeatures,
+    vector<Appliedfeature>& firstAppliedFeatures) {
   auto firstIndexInLine = wordInfo.startIndex + firstMatchIndex;
   auto secondIndexInLine = wordInfo.startIndex + secondMatchIndex;
   auto& lineText = lineTextInfo.lineText;
-
 
   auto chark3 = lineText[firstIndexInLine];
   auto chark4 = lineText[secondIndexInLine];
 
   if (
-    QString("ه").contains(chark3) &&
-    QString("م").contains(chark4) &&
-    subWordInfo.baseIndexes.back() == secondMatchIndex
-    ) {
-    firstAppliedFeatures.push_back({ .feature = {.name = "cv11", .value = 1 } });
-    secondNewFeatures.push_back({ .name = "cv11", .value = 1 });
-  }
-  else if (
-    QString("بتثنيئ").contains(chark3) &&
-    subWordInfo.baseIndexes[0] == firstMatchIndex &&
-    QString("جحخ").contains(chark4)
-    ) {
-    firstAppliedFeatures.push_back({ .feature = {.name = "cv12", .value = 1 } });
-    secondNewFeatures.push_back({ .name = "cv12", .value = 1 });
-  }
-  else if (
-    QString("م").contains(chark3) &&
-    subWordInfo.baseIndexes[0] == firstMatchIndex &&
-    QString("جحخ").contains(chark4)
-    ) {
-    firstAppliedFeatures.push_back({ .feature = {.name = "cv13", .value = 1 } });
-    secondNewFeatures.push_back({ .name = "cv13", .value = 1 });
-  }
-  else if (
-    QString("فق").contains(chark3) &&
-    subWordInfo.baseIndexes[0] == firstMatchIndex &&
-    QString("جحخ").contains(chark4)
-    ) {
-    firstAppliedFeatures.push_back({ .feature = {.name = "cv14", .value = 1 } });
-    secondNewFeatures.push_back({ .name = "cv14", .value = 1 });
-  }
-  else if (
-    QString("ل").contains(chark3) &&
-    subWordInfo.baseIndexes[0] == firstMatchIndex &&
-    QString("جحخ").contains(chark4)
-    ) {
-    firstAppliedFeatures.push_back({ .feature = {.name = "cv15", .value = 1 } });
-    secondNewFeatures.push_back({ .name = "cv15", .value = 1 });
-  }
-  else if (
-    QString("عغ").contains(chark3) &&
-    subWordInfo.baseIndexes[0] == firstMatchIndex &&
-    (QString("آادذٱأإل").contains(chark4) ||
-      (QString("بتثنيئ").contains(chark4) && subWordInfo.baseText.size() > 2 &&
-        QString("سش").contains(subWordInfo.baseText[2])))
-    ) {
-    firstAppliedFeatures.push_back({ .feature = {.name = "cv16", .value = 1 } });
-    secondNewFeatures.push_back({ .name = "cv16", .value = 1 });
-  }
-  else if (QString("جحخ").contains(chark3)) {
-    if (
-      QString("آادذٱأإل").contains(chark4) ||
-      (QString("هة").contains(chark4) &&
-        subWordInfo.baseIndexes.back() == secondMatchIndex) ||
-      (QString("بتثنيئ").contains(chark4) &&
-        subWordInfo.baseIndexes.size() > 1 &&
-        subWordInfo.baseIndexes.end()[-2] == secondMatchIndex &&
-        QString("رزن").contains(subWordInfo.baseText.back()))
-      ) {
-      firstAppliedFeatures.push_back({ .feature = {.name = "cv16", .value = 1 } });
-      secondNewFeatures.push_back({ .name = "cv16", .value = 1 });
-    }
-    else if (
+      QString("ه").contains(chark3) &&
+      QString("م").contains(chark4) &&
+      subWordInfo.baseIndexes.back() == secondMatchIndex) {
+    firstAppliedFeatures.push_back({.feature = {.name = "cv11", .value = 1}});
+    secondNewFeatures.push_back({.name = "cv11", .value = 1});
+  } else if (
+      QString("بتثنيئ").contains(chark3) &&
       subWordInfo.baseIndexes[0] == firstMatchIndex &&
-      QString("م").contains(chark4)
-      ) {
-      firstAppliedFeatures.push_back({ .feature = {.name = "cv18", .value = 1 } });
-      secondNewFeatures.push_back({ .name = "cv18", .value = 1 });
+      QString("جحخ").contains(chark4)) {
+    firstAppliedFeatures.push_back({.feature = {.name = "cv12", .value = 1}});
+    secondNewFeatures.push_back({.name = "cv12", .value = 1});
+  } else if (
+      QString("م").contains(chark3) &&
+      subWordInfo.baseIndexes[0] == firstMatchIndex &&
+      QString("جحخ").contains(chark4)) {
+    firstAppliedFeatures.push_back({.feature = {.name = "cv13", .value = 1}});
+    secondNewFeatures.push_back({.name = "cv13", .value = 1});
+  } else if (
+      QString("فق").contains(chark3) &&
+      subWordInfo.baseIndexes[0] == firstMatchIndex &&
+      QString("جحخ").contains(chark4)) {
+    firstAppliedFeatures.push_back({.feature = {.name = "cv14", .value = 1}});
+    secondNewFeatures.push_back({.name = "cv14", .value = 1});
+  } else if (
+      QString("ل").contains(chark3) &&
+      subWordInfo.baseIndexes[0] == firstMatchIndex &&
+      QString("جحخ").contains(chark4)) {
+    firstAppliedFeatures.push_back({.feature = {.name = "cv15", .value = 1}});
+    secondNewFeatures.push_back({.name = "cv15", .value = 1});
+  } else if (
+      QString("عغ").contains(chark3) &&
+      subWordInfo.baseIndexes[0] == firstMatchIndex &&
+      (QString("آادذٱأإل").contains(chark4) ||
+       (QString("بتثنيئ").contains(chark4) && subWordInfo.baseText.size() > 2 &&
+        QString("سش").contains(subWordInfo.baseText[2])))) {
+    firstAppliedFeatures.push_back({.feature = {.name = "cv16", .value = 1}});
+    secondNewFeatures.push_back({.name = "cv16", .value = 1});
+  } else if (QString("جحخ").contains(chark3)) {
+    if (
+        QString("آادذٱأإل").contains(chark4) ||
+        (QString("هة").contains(chark4) &&
+         subWordInfo.baseIndexes.back() == secondMatchIndex) ||
+        (QString("بتثنيئ").contains(chark4) &&
+         subWordInfo.baseIndexes.size() > 1 &&
+         subWordInfo.baseIndexes.end()[-2] == secondMatchIndex &&
+         QString("رزن").contains(subWordInfo.baseText.back()))) {
+      firstAppliedFeatures.push_back({.feature = {.name = "cv16", .value = 1}});
+      secondNewFeatures.push_back({.name = "cv16", .value = 1});
+    } else if (
+        subWordInfo.baseIndexes[0] == firstMatchIndex &&
+        QString("م").contains(chark4)) {
+      firstAppliedFeatures.push_back({.feature = {.name = "cv18", .value = 1}});
+      secondNewFeatures.push_back({.name = "cv18", .value = 1});
     }
+  } else if (QString("سشصض").contains(chark3) && QString("رز").contains(chark4)) {
+    firstAppliedFeatures.push_back({.feature = {.name = "cv17", .value = 1}});
+    secondNewFeatures.push_back({.name = "cv17", .value = 1});
   }
-  else if (QString("سشصض").contains(chark3) && QString("رز").contains(chark4)) {
-    firstAppliedFeatures.push_back({ .feature = {.name = "cv17", .value = 1 } });
-    secondNewFeatures.push_back({ .name = "cv17", .value = 1 });
-  }
-
 }
 
 static AppliedResult applyKashida(
-  const LineTextInfo& lineTextInfo,
-  JustInfo& justInfo,
-  int wordIndex,
-  int subWordIndex,
-  int firstSubWordMatchIndex,
-  int secondSubWordMacthIndex
-) {
-
+    const LineTextInfo& lineTextInfo,
+    JustInfo& justInfo,
+    int wordIndex,
+    int subWordIndex,
+    int firstSubWordMatchIndex,
+    int secondSubWordMacthIndex) {
   auto& wordInfos = lineTextInfo.wordInfos;
   auto& lineText = lineTextInfo.lineText;
   auto& wordInfo = wordInfos[wordIndex];
@@ -561,7 +500,7 @@ static AppliedResult applyKashida(
   auto chark3 = lineText[firstIndexInLine];
   auto chark4 = lineText[secondIndexInLine];
 
-  map<int, vector<TextFontFeatures>> tempResult{ justInfo.fontFeatures };
+  map<int, vector<TextFontFeatures>> tempResult{justInfo.fontFeatures};
 
   auto firstPrevFeatures = tempResult[firstIndexInLine];
   auto secondPrevFeatures = tempResult[secondIndexInLine];
@@ -572,36 +511,31 @@ static AppliedResult applyKashida(
   if (ff != secondPrevFeatures.end()) return appliedResult;
 
   if (
-    chark4 == U'ق' &&
-    subWordInfo.baseIndexes.back() == secondMatchIndex
-    ) {
+      chark4 == U'ق' &&
+      subWordInfo.baseIndexes.back() == secondMatchIndex) {
     return appliedResult;
-  }
-  else if (
-    chark3 == U'ل' &&
-    (chark4 == U'ك' ||
-      chark4 == U'د' ||
-      chark4 == U'ذ' ||
-      chark4 == U'ة' ||
-      (chark4 == U'ه' &&
-        subWordInfo.baseIndexes.back() == secondMatchIndex))
-    ) {
+  } else if (
+      chark3 == U'ل' &&
+      (chark4 == U'ك' ||
+       chark4 == U'د' ||
+       chark4 == U'ذ' ||
+       chark4 == U'ة' ||
+       (chark4 == U'ه' &&
+        subWordInfo.baseIndexes.back() == secondMatchIndex))) {
     return appliedResult;
-  }
-  else if (
-    QString("ئبتثنيى").contains(chark3) &&
-    subWordInfo.baseIndexes[0] != firstMatchIndex &&
-    QString("رز").contains(chark4)
-    ) {
+  } else if (
+      QString("ئبتثنيى").contains(chark3) &&
+      subWordInfo.baseIndexes[0] != firstMatchIndex &&
+      QString("رز").contains(chark4)) {
     return appliedResult;
   }
 
   vector<TextFontFeatures> secondNewFeatures;
 
-  vector<Appliedfeature> firstAppliedFeatures{ Appliedfeature{.feature = {.name = "cv01", .value = 1 }, .calcNewValue = [](int prev, int curr) { return min(prev + curr, 6); } } };
+  vector<Appliedfeature> firstAppliedFeatures{Appliedfeature{.feature = {.name = "cv01", .value = 1}, .calcNewValue = [](int prev, int curr) { return min(prev + curr, 6); }}};
 
   if (QString("بتثنيئ").contains(chark3)) {
-    firstAppliedFeatures.push_back({ .feature = {.name = "cv10", .value = 1 } });
+    firstAppliedFeatures.push_back({.feature = {.name = "cv10", .value = 1}});
   }
 
   // decomposition
@@ -609,9 +543,8 @@ static AppliedResult applyKashida(
   DealWithDecomposition(firstMatchIndex, secondMatchIndex, wordInfo, subWordInfo, lineTextInfo, secondNewFeatures, firstAppliedFeatures);
 
   auto firstNewFeatures = mergeFeatures(
-    firstPrevFeatures,
-    firstAppliedFeatures
-  );
+      firstPrevFeatures,
+      firstAppliedFeatures);
 
   int cv01Value = 0;
 
@@ -624,13 +557,11 @@ static AppliedResult applyKashida(
 
   if (finalAscendant.contains(chark4) && subWordInfo.baseIndexes.back() == secondMatchIndex) {
     cv02Value = cv01Value;
-  }
-  else {
+  } else {
     cv02Value = 2 * cv01Value;
   }
 
-  secondNewFeatures.push_back({ .name = "cv02", .value = cv02Value });
-
+  secondNewFeatures.push_back({.name = "cv02", .value = cv02Value});
 
   tempResult.insert_or_assign(firstIndexInLine, firstNewFeatures);
   tempResult.insert_or_assign(secondIndexInLine, secondNewFeatures);
@@ -641,14 +572,12 @@ static AppliedResult applyKashida(
 }
 
 static AppliedResult applyKaf(
-  const LineTextInfo& lineTextInfo,
-  JustInfo& justInfo,
-  int wordIndex,
-  int subWordIndex,
-  int firstSubWordMatchIndex,
-  int secondSubWordMacthIndex
-) {
-
+    const LineTextInfo& lineTextInfo,
+    JustInfo& justInfo,
+    int wordIndex,
+    int subWordIndex,
+    int firstSubWordMatchIndex,
+    int secondSubWordMacthIndex) {
   auto& wordInfos = lineTextInfo.wordInfos;
   auto& lineText = lineTextInfo.lineText;
   auto& wordInfo = wordInfos[wordIndex];
@@ -659,16 +588,16 @@ static AppliedResult applyKaf(
   auto firstIndexInLine = wordInfo.startIndex + firstMatchIndex;
   auto secondIndexInLine = wordInfo.startIndex + secondMatchIndex;
 
-  map<int, vector<TextFontFeatures>> tempResult{ justInfo.fontFeatures };
+  map<int, vector<TextFontFeatures>> tempResult{justInfo.fontFeatures};
 
   auto firstPrevFeatures = tempResult[firstIndexInLine];
   auto secondPrevFeatures = tempResult[secondIndexInLine];
 
-  vector<Appliedfeature> firstAppliedFeatures{ {.feature = {.name = "cv03", .value = 1 }, .calcNewValue = [](int prev, int curr) {return 1; } } };
+  vector<Appliedfeature> firstAppliedFeatures{{.feature = {.name = "cv03", .value = 1}, .calcNewValue = [](int prev, int curr) { return 1; }}};
 
   tempResult.insert_or_assign(firstIndexInLine, mergeFeatures(firstPrevFeatures, firstAppliedFeatures));
 
-  vector<Appliedfeature> secondAppliedFeatures{ {.feature = {.name = "cv03", .value = 1 }, .calcNewValue = [](int prev, int curr) {return 1; } } };
+  vector<Appliedfeature> secondAppliedFeatures{{.feature = {.name = "cv03", .value = 1}, .calcNewValue = [](int prev, int curr) { return 1; }}};
 
   auto firstNewFeatures = mergeFeatures(secondPrevFeatures, secondAppliedFeatures);
 
@@ -677,14 +606,12 @@ static AppliedResult applyKaf(
   int fathaIndex = -1;
 
   if (firstIndexInLine + 1 < lineText.size() &&
-    lineText[firstIndexInLine + 1] == U'\u064E') {
+      lineText[firstIndexInLine + 1] == U'\u064E') {
     fathaIndex = firstIndexInLine + 1;
-  }
-  else if (
-    firstIndexInLine + 2 < lineText.size() &&
-    lineText[firstIndexInLine + 1] == U'\u0651' &&
-    lineText[firstIndexInLine + 2] == U'\u064E'
-    ) {
+  } else if (
+      firstIndexInLine + 2 < lineText.size() &&
+      lineText[firstIndexInLine + 1] == U'\u0651' &&
+      lineText[firstIndexInLine + 2] == U'\u064E') {
     fathaIndex = firstIndexInLine + 2;
   }
 
@@ -695,27 +622,23 @@ static AppliedResult applyKaf(
     if (ff != firstNewFeatures.end()) {
       cv01Value = ff->value;
     }
-    tempResult.insert_or_assign(fathaIndex, vector<TextFontFeatures>{{.name = "cv01", .value = 1 + (int)floor(cv01Value / 3) }});
-
+    tempResult.insert_or_assign(fathaIndex, vector<TextFontFeatures>{{.name = "cv01", .value = 1 + (int)floor(cv01Value / 3)}});
   }
 
   auto appliedResult = tryApplyFeatures(
-    wordIndex,
-    lineTextInfo,
-    justInfo,
-    tempResult
-  );
+      wordIndex,
+      lineTextInfo,
+      justInfo,
+      tempResult);
 
   return appliedResult;
 }
 
 static bool applyKashidasSubWords(
-  const LineTextInfo& lineTextInfo,
-  JustInfo& justInfo,
-  StretchType type,
-  int nbLevels
-) {
-
+    const LineTextInfo& lineTextInfo,
+    JustInfo& justInfo,
+    StretchType type,
+    int nbLevels) {
   auto& wordInfos = lineTextInfo.wordInfos;
   auto& lineText = lineTextInfo.lineText;
 
@@ -723,24 +646,24 @@ static bool applyKashidasSubWords(
 
   vector<QRegularExpression> regExprs;
   switch (type) {
-  case StretchType::Beh:
-    regExprs = regexBeh;
-    break;
-  case StretchType::FinaAscendant:
-    regExprs = regexFinaAscendant;
-    break;
-  case StretchType::OtherKashidas:
-    regExprs = regexOtherKashidas;
-    break;
-  case StretchType::Kaf:
-    regExprs = regexKaf;
-    break;
-  case StretchType::SecondKashidaNotSameSubWord:
-    regExprs = regexSecondKashidaNotSameSubWord;
-    break;
-  case StretchType::SecondKashidaSameSubWord:
-    regExprs = regexSecondKashidaSameSubWord;
-    break;
+    case StretchType::Beh:
+      regExprs = regexBeh;
+      break;
+    case StretchType::FinaAscendant:
+      regExprs = regexFinaAscendant;
+      break;
+    case StretchType::OtherKashidas:
+      regExprs = regexOtherKashidas;
+      break;
+    case StretchType::Kaf:
+      regExprs = regexKaf;
+      break;
+    case StretchType::SecondKashidaNotSameSubWord:
+      regExprs = regexSecondKashidaNotSameSubWord;
+      break;
+    case StretchType::SecondKashidaSameSubWord:
+      regExprs = regexSecondKashidaSameSubWord;
+      break;
   }
 
   for (int wordIndex = 0; wordIndex < wordInfos.size(); wordIndex++) {
@@ -767,42 +690,38 @@ static bool applyKashidasSubWords(
       auto done = false;
 
       for (
-        int i = subWordsMatch.subWordIndexes.size() - 1;
-        i >= 0 && !done;
-        i--
-        ) {
+          int i = subWordsMatch.subWordIndexes.size() - 1;
+          i >= 0 && !done;
+          i--) {
         auto subWordIndex = subWordsMatch.subWordIndexes[i];
 
         for (auto match : subWordsMatch.matches[subWordIndex]) {
-
           auto firstSubWordMatchIndex = match.capturedStart("k1");
 
           if (firstSubWordMatchIndex == -1) continue;
           auto secondSubWordMacthIndex = firstSubWordMatchIndex + 1;
 
           if (type == StretchType::SecondKashidaNotSameSubWord) {
-            auto type123 = type1Applied != wordLayout.appliedKashidas.end() ? type1Applied
-              : type2Applied != wordLayout.appliedKashidas.end() ? type2Applied :
-              type3Applied != wordLayout.appliedKashidas.end() ? type3Applied : wordLayout.appliedKashidas.end();
+            auto type123 = type1Applied != wordLayout.appliedKashidas.end()   ? type1Applied
+                           : type2Applied != wordLayout.appliedKashidas.end() ? type2Applied
+                           : type3Applied != wordLayout.appliedKashidas.end() ? type3Applied
+                                                                              : wordLayout.appliedKashidas.end();
             if (type123 != wordLayout.appliedKashidas.end() && type123->second.subWordIndex == subWordIndex) continue;
-          }
-          else if (type == StretchType::SecondKashidaSameSubWord) {
-            auto type123 = type1Applied != wordLayout.appliedKashidas.end() ? type1Applied
-              : type2Applied != wordLayout.appliedKashidas.end() ? type2Applied :
-              type3Applied != wordLayout.appliedKashidas.end() ? type3Applied : wordLayout.appliedKashidas.end();
-
+          } else if (type == StretchType::SecondKashidaSameSubWord) {
+            auto type123 = type1Applied != wordLayout.appliedKashidas.end()   ? type1Applied
+                           : type2Applied != wordLayout.appliedKashidas.end() ? type2Applied
+                           : type3Applied != wordLayout.appliedKashidas.end() ? type3Applied
+                                                                              : wordLayout.appliedKashidas.end();
 
             if (
-              type123 != wordLayout.appliedKashidas.end() &&
-              type123->second.subWordIndex == subWordIndex &&
-              type123->second.characterIndexInSubWord == firstSubWordMatchIndex
-              )
+                type123 != wordLayout.appliedKashidas.end() &&
+                type123->second.subWordIndex == subWordIndex &&
+                type123->second.characterIndexInSubWord == firstSubWordMatchIndex)
               continue;
             if (
-              type5Applied != wordLayout.appliedKashidas.end() &&
-              type5Applied->second.subWordIndex == subWordIndex &&
-              type5Applied->second.characterIndexInSubWord == firstSubWordMatchIndex
-              )
+                type5Applied != wordLayout.appliedKashidas.end() &&
+                type5Applied->second.subWordIndex == subWordIndex &&
+                type5Applied->second.characterIndexInSubWord == firstSubWordMatchIndex)
               continue;
           }
 
@@ -810,18 +729,15 @@ static bool applyKashidasSubWords(
 
           if (type == StretchType::Kaf) {
             appliedResult = applyKaf(lineTextInfo, justInfo, wordIndex, subWordIndex, firstSubWordMatchIndex, secondSubWordMacthIndex);
-          }
-          else {
+          } else {
             appliedResult = applyKashida(lineTextInfo, justInfo, wordIndex, subWordIndex, firstSubWordMatchIndex, secondSubWordMacthIndex);
           }
 
           if (appliedResult == AppliedResult::Positive) {
-            wordLayout.appliedKashidas.insert_or_assign(type, SubWordCharIndex{ subWordIndex,firstSubWordMatchIndex });
-          }
-          else if (appliedResult == AppliedResult::Overflow) {
+            wordLayout.appliedKashidas.insert_or_assign(type, SubWordCharIndex{subWordIndex, firstSubWordMatchIndex});
+          } else if (appliedResult == AppliedResult::Overflow) {
             return true;
-          }
-          else if (appliedResult == AppliedResult::Forbiden) {
+          } else if (appliedResult == AppliedResult::Forbiden) {
             continue;
           }
 
@@ -835,8 +751,8 @@ static bool applyKashidasSubWords(
   return false;
 }
 
-//static const QString rightNoJoinLetters = "آاٱأإدذرزوؤءة";
-//static const QString dualJoinLetters = "بتثجحخسشصضطظعغفقكلمنهيئى";
+// static const QString rightNoJoinLetters = "آاٱأإدذرزوؤءة";
+// static const QString dualJoinLetters = "بتثجحخسشصضطظعغفقكلمنهيئى";
 
 static const QString rightChars = dualJoinLetters;
 static const QString leftChars = dualJoinLetters + QString(rightNoJoinLetters).remove("ء");
@@ -858,15 +774,12 @@ static const QString kafPat = "^.*([ك].).*$";
 static const QString patternAlt = altFinPat + "|" + hahKashida + "|" + finalKashida + "|" + behBehPat + "|" + rehPat + "|" + otherPat + "|" + kafPat;
 static const QRegularExpression regExprAlt(patternAlt);
 
-
-static bool  applySimpleJust(const LineTextInfo& lineTextInfo,
-  JustInfo& justInfo,
-  bool firstWordIncluded,
-  bool wordByWord,
-  int nbLevelAlt,
-  int nbLevelKashida)
-{
-
+static bool applySimpleJust(const LineTextInfo& lineTextInfo,
+                            JustInfo& justInfo,
+                            bool firstWordIncluded,
+                            bool wordByWord,
+                            int nbLevelAlt,
+                            int nbLevelKashida) {
   auto& wordInfos = lineTextInfo.wordInfos;
   auto& lineText = lineTextInfo.lineText;
 
@@ -882,7 +795,7 @@ static bool  applySimpleJust(const LineTextInfo& lineTextInfo,
 
   for (int wordIndex = 0; wordIndex < wordInfos.size(); wordIndex++) {
     auto& wordInfo = wordInfos[wordIndex];
-    SubWordMatch result{ .subWordIndex = -1, .match = {}, .type = 0 };
+    SubWordMatch result{.subWordIndex = -1, .match = {}, .type = 0};
     if (wordInfo.baseText.isEmpty() || wordIndex < firstWordIndex) {
       matchresult.push_back(result);
       continue;
@@ -895,15 +808,13 @@ static bool  applySimpleJust(const LineTextInfo& lineTextInfo,
       result.subWordIndex = lastIndex;
       result.match = match;
       result.type = 1;
-    }
-    else if (!QString("يئى").contains(wordInfo.baseText.back())) {
+    } else if (!QString("يئى").contains(wordInfo.baseText.back())) {
       match = regHahFinaAscenKashida.match(subWord.baseText);
       if (match.hasMatch()) {
         result.subWordIndex = lastIndex;
         result.match = match;
         result.type = 2;
-      }
-      else {
+      } else {
         for (int subIndex = lastIndex; subIndex >= 0; subIndex--) {
           auto& subWord = wordInfo.subwords[subIndex];
           auto match = regExprAlt.match(subWord.baseText);
@@ -933,7 +844,6 @@ static bool  applySimpleJust(const LineTextInfo& lineTextInfo,
 
       auto& match = subWordsMatch.match;
 
-
       if (!match.hasMatch()) continue;
 
       auto subWordIndex = subWordsMatch.subWordIndex;
@@ -947,16 +857,14 @@ static bool  applySimpleJust(const LineTextInfo& lineTextInfo,
           auto indexInLine = wordInfo.startIndex + wordInfo.subwords[subWordIndex].baseIndexes[baseIndex];
           appliedResult = applyAlternate(lineTextInfo, justInfo, wordIndex, indexInLine);
         }
-      }
-      else if (level <= nbLevelKashida) {
+      } else if (level <= nbLevelKashida) {
         auto firstSubWordMatchIndex = match.capturedStart(matchIndex);
         auto secondSubWordMacthIndex = firstSubWordMatchIndex + 1;
 
         if (matchIndex == 8 && subWordsMatch.type == 3) {
-          //Kaf
+          // Kaf
           appliedResult = applyKaf(lineTextInfo, justInfo, wordIndex, subWordIndex, firstSubWordMatchIndex, secondSubWordMacthIndex);
-        }
-        else {
+        } else {
           // Kashidas
           appliedResult = applyKashida(lineTextInfo, justInfo, wordIndex, subWordIndex, firstSubWordMatchIndex, secondSubWordMacthIndex);
         }
@@ -964,10 +872,9 @@ static bool  applySimpleJust(const LineTextInfo& lineTextInfo,
 
       if (appliedResult == AppliedResult::Overflow) {
         return true;
-      }
-      else if (appliedResult == AppliedResult::Positive) {
+      } else if (appliedResult == AppliedResult::Positive) {
         if (wordByWord) {
-          stretchedWords.insert({ wordIndex, true });
+          stretchedWords.insert({wordIndex, true});
         }
       }
     }
@@ -977,46 +884,39 @@ static bool  applySimpleJust(const LineTextInfo& lineTextInfo,
 
 static void applyExperimentalJust(const LineTextInfo& lineTextInfo, JustInfo& justInfo) {
   applyKashidasSubWords(lineTextInfo, justInfo, StretchType::Beh, 2) ||
-    applyAlternatesSubWords(lineTextInfo, justInfo, "بتثكن", 2) ||
-    applyKashidasSubWords(lineTextInfo, justInfo, StretchType::FinaAscendant, 3) ||
-    applyKashidasSubWords(lineTextInfo, justInfo, StretchType::OtherKashidas, 2) ||
-    applyAlternatesSubWords(lineTextInfo, justInfo, "ىصضسشفقيئ", 2) ||
-    applyKashidasSubWords(lineTextInfo, justInfo, StretchType::Kaf, 1) ||
-    applyKashidasSubWords(lineTextInfo, justInfo, StretchType::Beh, 1) ||
-    applyAlternatesSubWords(lineTextInfo, justInfo, "بتثكن", 1) ||
-    applyKashidasSubWords(lineTextInfo, justInfo, StretchType::FinaAscendant, 1) ||
-    applyKashidasSubWords(lineTextInfo, justInfo, StretchType::OtherKashidas, 1) ||
-    applyAlternatesSubWords(lineTextInfo, justInfo, "ىصضسشفقيئ", 1) ||
-    applyAlternatesSubWords(lineTextInfo, justInfo, "بتثكن", 2) ||
-    applyAlternatesSubWords(lineTextInfo, justInfo, "ىصضسشفقيئبتثكن", 2) ||
-    applyKashidasSubWords(lineTextInfo, justInfo, StretchType::Beh, 1) ||
-    applyKashidasSubWords(lineTextInfo, justInfo, StretchType::FinaAscendant, 1) ||
-    applyKashidasSubWords(lineTextInfo, justInfo, StretchType::OtherKashidas, 1) ||
-    applyAlternatesSubWords(lineTextInfo, justInfo, "ىصضسشفقيئبتثكن", 2) ||
-    applyKashidasSubWords(lineTextInfo, justInfo, StretchType::SecondKashidaNotSameSubWord, 2) ||
-    applyKashidasSubWords(lineTextInfo, justInfo, StretchType::SecondKashidaSameSubWord, 2);
+      applyAlternatesSubWords(lineTextInfo, justInfo, "بتثكن", 2) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::FinaAscendant, 3) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::OtherKashidas, 2) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "ىصضسشفقيئ", 2) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::Kaf, 1) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::Beh, 1) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "بتثكن", 1) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::FinaAscendant, 1) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::OtherKashidas, 1) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "ىصضسشفقيئ", 1) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "بتثكن", 2) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "ىصضسشفقيئبتثكن", 2) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::Beh, 1) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::FinaAscendant, 1) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::OtherKashidas, 1) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "ىصضسشفقيئبتثكن", 2) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::SecondKashidaNotSameSubWord, 2) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::SecondKashidaSameSubWord, 2);
 }
 static void stretchLine(const LineTextInfo& lineTextInfo, JustInfo& justInfo, JustType justType) {
-
   if (justType == JustType::Madina) {
     applySimpleJust(lineTextInfo, justInfo, true, false, 2, 2);
-  }
-  else if (justType == JustType::IndoPak) {
+  } else if (justType == JustType::IndoPak) {
     applySimpleJust(lineTextInfo, justInfo, false, true, 2, 2);
-  }
-  else {
+  } else {
     applyExperimentalJust(lineTextInfo, justInfo);
   }
-
 }
 
 static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t* font, double fontSizeLineWidthRatio,
-  double spaceWidth,
-  JustType justType,
-  JustStyle justStyle,
-  OtLayout* layout
-) {
-
+                                    double spaceWidth,
+                                    JustOption justOption,
+                                    OtLayout* layout) {
   auto desiredWidth = FONTSIZE / fontSizeLineWidthRatio;
 
   auto lineText = lineTextInfo.lineText;
@@ -1028,8 +928,7 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
 
     auto parWidth = getWidth(wordInfo.text, font, {});
 
-    layOutResult.push_back({ parWidth,{} });
-
+    layOutResult.push_back({parWidth, {}});
   }
 
   auto currentLineWidth = getWidth(lineText, font, {});
@@ -1042,17 +941,15 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
   result.simpleSpacing = spaceWidth;
   result.ayaSpacing = spaceWidth;
 
-  JustInfo justInfo{ .fontFeatures = {},.desiredWidth = desiredWidth,.textLineWidth = currentLineWidth, .layoutResult = layOutResult, .font = font };
-
-
+  JustInfo justInfo{.fontFeatures = {}, .desiredWidth = desiredWidth, .textLineWidth = currentLineWidth, .layoutResult = layOutResult, .font = font};
 
   if (diff > 0) {
-    // stretch   
+    // stretch
 
     double maxStretchBySpace = std::min(100.0, spaceWidth * 1);
     double maxStretchByAyaSpace = std::min(200.0, spaceWidth * 2);
-    //let maxStretchBySpace = Math.max(200 - spaceWidth,0);
-    //let maxStretchByAyaSpace = Math.max(300 - spaceWidth,0);
+    // let maxStretchBySpace = Math.max(200 - spaceWidth,0);
+    // let maxStretchByAyaSpace = Math.max(300 - spaceWidth,0);
 
     double maxStretch = maxStretchBySpace * lineTextInfo.simpleSpaceIndexes.size() + maxStretchByAyaSpace * lineTextInfo.ayaSpaceIndexes.size();
 
@@ -1071,13 +968,9 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
     // stretching
 
     if (desiredWidth > currentLineWidth) {
-
-
-      stretchLine(lineTextInfo, justInfo, justType);
+      stretchLine(lineTextInfo, justInfo, justOption.justType);
       currentLineWidth = justInfo.textLineWidth;
     }
-
-
 
     if (desiredWidth > currentLineWidth) {
       // full justify with space
@@ -1089,11 +982,9 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
     result.simpleSpacing = simpleSpaceWidth;
     result.ayaSpacing = ayaSpaceWidth;
 
-
-  }
-  else {
-    //shrink
-    if (justStyle == JustStyle::SCLX) {
+  } else {
+    // shrink
+    if (justOption.justStyle == JustStyle::SCLX) {
       float xScale = desiredWidth / currentLineWidth;
       auto ff = layout->createFont(font->x_scale / 1000, false);
       hb_font_set_variation(ff, HB_TAG('S', 'C', 'L', 'X'), xScale * 100);
@@ -1106,57 +997,72 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
         std::cout << "result.xScale=" << result.xScale << " result.sclxAxis=" << result.sclxAxis << " currentLineWidth=" << currentLineWidth << " newCurrentLineWidth = " << newCurrentLineWidth << std::endl;
       }
 
-    }
-    else {
-      //result.globalFeatures = {{.name = "cv04", .value = 5}};
-      //result.globalFeatures = {{.name = "sk01", .value = 1}};
-      result.xScale = desiredWidth / currentLineWidth;
-    }
+    } else {
+      if (justOption.shrinkType == ShrinkType::Test) {
+        for (int i = 0; i < 20; i++) {
+          result.globalFeatures.push_back({.name = QString("sk%1").arg(i + 1, 2, 10, QLatin1Char('0')), .value = 1});
+        }
 
+        result.isShrink = true;
+      } else if (justOption.shrinkType == ShrinkType::Standard) {
+        vector<hb_feature_t> features;
 
+        int shrinkFeatureIndex = 1;
+        while (currentLineWidth > desiredWidth && shrinkFeatureIndex <= 20) {
+          auto featureName = QString("sk%1").arg(shrinkFeatureIndex, 2, 10, QLatin1Char('0'));
+          features.push_back({hb_tag_from_string(featureName.toStdString().c_str(), featureName.size()),
+                              (uint32_t)1,
+                              (unsigned int)0,
+                              (unsigned int)-1});
+          auto newCurrentLineWidth = getWidth(lineText, font, features);
+          if (newCurrentLineWidth < currentLineWidth) {
+            currentLineWidth = newCurrentLineWidth;
+            result.globalFeatures.push_back({.name = featureName, .value = 1});
+          }
+          shrinkFeatureIndex++;
+        }
+        if (currentLineWidth < desiredWidth) {
+          result.addedSpaceAfterShrink = (desiredWidth - currentLineWidth) / lineTextInfo.spaces.size();
+          result.xScale = 1;
+        } else {
+          result.xScale = desiredWidth / currentLineWidth;
+        }
+        result.isShrink = true;
+      } else {
+        result.xScale = desiredWidth / currentLineWidth;
+      }
+    }
   }
   result.fontFeatures = justInfo.fontFeatures;
 
   return result;
-
 }
 static QMap<QString, int> tajweedNameToColor = {
-  {"green",0x00A650FF}, {"tafkim", 0x006694FF}, {"lgray", 0xB4B4B4FF},
-  {"lkalkala",0x00ADEFFF}, {"red1", 0xC38A08FF}, {"red2", 0xF47216FF},
-  {"red3",0xEC008CFF}, {"red4", 0x8C0000FF}
-};
+    {"green", 0x00A650FF}, {"tafkim", 0x006694FF}, {"lgray", 0xB4B4B4FF}, {"lkalkala", 0x00ADEFFF}, {"red1", 0xC38A08FF}, {"red2", 0xF47216FF}, {"red3", 0xEC008CFF}, {"red4", 0x8C0000FF}};
 
 static LineLayoutInfo shapeLine(OtLayout* layout, int lineWidth, int pageWidth,
-  const LineTextInfo& lineTextInfo, const JustResultByLine& justResult, bool tajweedColor, double emScale, hb_font_t* font,
-  LineJustification justification, int& currentyPos,QMap<int, QString>& tajweedResult) {
-
-  vector< hb_feature_t> features{};
+                                const LineTextInfo& lineTextInfo, const JustResultByLine& justResult, bool tajweedColor, double emScale, hb_font_t* font,
+                                LineJustification justification, int& currentyPos, QMap<int, QString>& tajweedResult) {
+  vector<hb_feature_t> features{};
 
   for (auto& feat : justResult.globalFeatures) {
-    features.push_back({
-      hb_tag_from_string(feat.name.toStdString().c_str(),feat.name.size()),
-      (uint32_t)feat.value,
-      (unsigned int)0,
-      (unsigned int)-1
-      });
+    features.push_back({hb_tag_from_string(feat.name.toStdString().c_str(), feat.name.size()),
+                        (uint32_t)feat.value,
+                        (unsigned int)0,
+                        (unsigned int)-1});
   }
 
   for (auto& wordInfo : lineTextInfo.wordInfos) {
     for (int i = wordInfo.startIndex; i <= wordInfo.endIndex; i++) {
-
       auto justInfo = justResult.fontFeatures.find(i);
       if (justInfo != justResult.fontFeatures.end()) {
-
         for (auto& feat : justInfo->second) {
-          features.push_back({
-            hb_tag_from_string(feat.name.toStdString().c_str(),feat.name.size()),
-            (uint32_t)feat.value,
-            (unsigned int)(i),
-            (unsigned int)(i + 1)
-            });
+          features.push_back({hb_tag_from_string(feat.name.toStdString().c_str(), feat.name.size()),
+                              (uint32_t)feat.value,
+                              (unsigned int)(i),
+                              (unsigned int)(i + 1)});
         }
       }
-
     }
   }
 
@@ -1171,12 +1077,11 @@ static LineLayoutInfo shapeLine(OtLayout* layout, int lineWidth, int pageWidth,
   int currentlineWidth = 0;
 
   for (int i = glyph_count - 1; i >= 0; i--) {
-
     GlyphLayoutInfo glyphLayout;
 
     glyphLayout.codepoint = glyph_info[i].codepoint;
-    glyphLayout.lefttatweel = glyph_info[i].lefttatweel; // normalToParameter(glyph_info[i].codepoint, glyph_info[i].lefttatweel, true);
-    glyphLayout.righttatweel = glyph_info[i].righttatweel; // normalToParameter(glyph_info[i].codepoint, glyph_info[i].righttatweel, false);
+    glyphLayout.lefttatweel = glyph_info[i].lefttatweel;    // normalToParameter(glyph_info[i].codepoint, glyph_info[i].lefttatweel, true);
+    glyphLayout.righttatweel = glyph_info[i].righttatweel;  // normalToParameter(glyph_info[i].codepoint, glyph_info[i].righttatweel, false);
     glyphLayout.cluster = glyph_info[i].cluster;
     glyphLayout.x_advance = glyph_pos[i].x_advance;
     glyphLayout.y_advance = glyph_pos[i].y_advance;
@@ -1185,7 +1090,7 @@ static LineLayoutInfo shapeLine(OtLayout* layout, int lineWidth, int pageWidth,
     glyphLayout.lookup_index = glyph_pos[i].lookup_index;
     if (tajweedColor) {
       auto color = tajweedResult.find(glyphLayout.cluster);
-      if(color != tajweedResult.end()){
+      if (color != tajweedResult.end()) {
         glyphLayout.color = tajweedNameToColor[color.value()];
       } else if (lineTextInfo.lineText[glyphLayout.cluster] == QChar(0x034F)) {
         auto nextIndex = i - 1;
@@ -1194,8 +1099,8 @@ static LineLayoutInfo shapeLine(OtLayout* layout, int lineWidth, int pageWidth,
         if (nextCluster > currCluster) {
           auto color = tajweedResult.find(currCluster);
           if (color != tajweedResult.end()) {
-            // happens only in لِيَسُ͏ࣳٓـٔ͏ُوا۟ page 282 line 14  
-            //console.log(`cgi***************************************************************Page ${this.pageIndex + 1} Line ${lineIndex + 1}`)
+            // happens only in لِيَسُ͏ࣳٓـٔ͏ُوا۟ page 282 line 14
+            // console.log(`cgi***************************************************************Page ${this.pageIndex + 1} Line ${lineIndex + 1}`)
             glyphLayout.color = tajweedNameToColor[color.value()];
           }
           /* debug
@@ -1207,38 +1112,43 @@ static LineLayoutInfo shapeLine(OtLayout* layout, int lineWidth, int pageWidth,
           //console.log(`nextCluster<=currCluster**********************************************************Page ${this.pageIndex + 1} Line ${lineIndex + 1}`)
         }  */
       }
-    }else{
+    } else {
       glyphLayout.color = 0;
-    }    
+    }
     glyphLayout.subtable_index = glyph_pos[i].subtable_index;
     glyphLayout.base_codepoint = glyph_pos[i].base_codepoint;
 
     glyphLayout.beginsajda = false;
     glyphLayout.endsajda = false;
 
-    auto space = lineTextInfo.spaces.find(glyphLayout.cluster);
+    if (!justResult.isShrink) {
+      auto space = lineTextInfo.spaces.find(glyphLayout.cluster);
 
-    if (space != lineTextInfo.spaces.end()) {
-      if (space->second == SpaceType::Aya) {
-        glyphLayout.x_advance = justResult.ayaSpacing * emScale;
+      if (space != lineTextInfo.spaces.end()) {
+        if (space->second == SpaceType::Aya) {
+          glyphLayout.x_advance = justResult.ayaSpacing * emScale;
+        } else if (space->second == SpaceType::Simple) {
+          glyphLayout.x_advance = justResult.simpleSpacing * emScale;
+        }
       }
-      else if (space->second == SpaceType::Simple) {
-        glyphLayout.x_advance = justResult.simpleSpacing * emScale;
+    } else if (justResult.addedSpaceAfterShrink != 0) {
+      auto space = lineTextInfo.spaces.find(glyphLayout.cluster);
+
+      if (space != lineTextInfo.spaces.end()) {
+        glyphLayout.x_advance += justResult.addedSpaceAfterShrink;
       }
     }
 
     currentlineWidth += glyphLayout.x_advance;
 
     lineLayout.glyphs.push_back(glyphLayout);
-
   }
 
   lineLayout.overfull = lineWidth != 0 ? currentlineWidth - lineWidth : 0;
 
   if (justification == LineJustification::Distribute) {
     lineLayout.xstartposition = 0;
-  }
-  else {
+  } else {
     lineLayout.xstartposition = (pageWidth - currentlineWidth) / 2;
   }
 
@@ -1250,16 +1160,12 @@ static LineLayoutInfo shapeLine(OtLayout* layout, int lineWidth, int pageWidth,
   hb_buffer_destroy(buffer);
 
   return lineLayout;
-
 }
 
-
-
 QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pageWidth, const QVector<LineToJustify>& lines,
-  bool newFace, bool tajweedColor,
-  hb_buffer_cluster_level_t  cluster_level,
-  JustType justType, JustStyle justStyle, QString mushafLayout) {
-
+                                                         bool newFace, bool tajweedColor,
+                                                         hb_buffer_cluster_level_t cluster_level,
+                                                         JustOption justOption, QString mushafLayout) {
   QList<LineLayoutInfo> page;
 
   hb_font_t* defaultShapefont = this->createFont(emScale, newFace);
@@ -1275,7 +1181,7 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
 
   QVector<QMap<int, QString>> tajweedResults(lines.size());
 
-  if(tajweedColor){
+  if (tajweedColor) {
     TajweedService tajweedService;
     tajweedResults = tajweedService.applyTajweedByPage(lines, mushafLayout.contains("indopak"));
   }
@@ -1301,8 +1207,7 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
 
       minRatio = min(ratio, minRatio);
       maxRatio = max(ratio, maxRatio);
-    }
-    else {
+    } else {
       fontSizeRatios.emplace_back(1);
     }
   }
@@ -1316,28 +1221,25 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
 
     auto fontSizeLineWidthRatio = line.width != 0 ? (double)FONTSIZE * emScale / line.width : 1;
 
-    auto defaultFontRatio = justStyle == JustStyle::SameSizeByPage ? 1.0 : 1.0; // (minRatio + maxRatio) / 2
+    auto defaultFontRatio = justOption.justStyle == JustStyle::SameSizeByPage ? 1.0 : 1.0;  // (minRatio + maxRatio) / 2
 
     double fontRatio;
 
-    if (justStyle == JustStyle::SameSizeByPage) {
+    if (justOption.justStyle == JustStyle::SameSizeByPage) {
       fontRatio = min(minRatio, defaultFontRatio);
-    }
-    else {
-      fontRatio = 1; // min(fontSizeRatios[lineIdx], defaultFontRatio);
+    } else {
+      fontRatio = 1;  // min(fontSizeRatios[lineIdx], defaultFontRatio);
     }
 
     JustResultByLine justResultByLine;
-    
 
     if (line.lineType == LineType::Bism) {
-      justResultByLine.globalFeatures.push_back({ line.basm2 ? "bism" : "basm",1 });
+      justResultByLine.globalFeatures.push_back({line.basm2 ? "bism" : "basm", 1});
       justResultByLine.ayaSpacing = spaceWidth;
       justResultByLine.simpleSpacing = spaceWidth;
       justResultByLine.xScale = 1;
-    }
-    else {
-      justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * fontRatio, spaceWidth, justType, justStyle, this);
+    } else {
+      justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * fontRatio, spaceWidth, justOption, this);
     }
 
     hb_font_t* shapeFont = defaultShapefont;
@@ -1346,6 +1248,11 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
     if (fontRatio != 1) {
       newFont = true;
       newEmScale = emScale * fontRatio;
+      shapeFont = this->createFont(newEmScale, false);
+    } else if (justOption.justStyle == JustStyle::FontSize && justResultByLine.xScale != 1) {
+      newFont = true;
+      newEmScale = emScale * justResultByLine.xScale;
+      justResultByLine.xScale = 1;
       shapeFont = this->createFont(newEmScale, false);
     }
     if (justResultByLine.sclxAxis != 0) {
@@ -1356,24 +1263,23 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
       hb_font_set_variation(shapeFont, HB_TAG('S', 'C', 'L', 'X'), justResultByLine.sclxAxis);
     }
 
-    auto lineLayoutInfo = shapeLine(this, line.width, pageWidth, lineTextInfo, justResultByLine, tajweedColor, newEmScale, shapeFont, line.lineJustification, currentyPos,tajweedResults[lineIdx]);
+    auto lineLayoutInfo = shapeLine(this, line.width, pageWidth, lineTextInfo, justResultByLine, tajweedColor, newEmScale, shapeFont, line.lineJustification, currentyPos, tajweedResults[lineIdx]);
     lineLayoutInfo.type = line.lineType;
 
     if (newFont) {
       hb_font_destroy(shapeFont);
     }
-    if (justStyle == JustStyle::SCLX) {
+    if (justOption.justStyle == JustStyle::SCLX) {
       lineLayoutInfo.fontSize = lineLayoutInfo.fontSize * justResultByLine.xScale;
       lineLayoutInfo.xscale = 1;
       lineLayoutInfo.xscaleparameter = justResultByLine.sclxAxis;
+    } else if (lineLayoutInfo.type == LineType::Line) {
+      if (justOption.justStyle == JustStyle::XScale) {
+        lineLayoutInfo.xscale = justResultByLine.xScale;
+      } else {
+        lineLayoutInfo.xscale = 1;
+      }
     }
-    else if (lineLayoutInfo.type == LineType::Line) {
-      lineLayoutInfo.xscale = justResultByLine.xScale;
-    }
-
-    
-
-
 
     page.append(lineLayoutInfo);
   }
@@ -1382,5 +1288,4 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
   hb_font_destroy(justifyFont);
 
   return page;
-
 }

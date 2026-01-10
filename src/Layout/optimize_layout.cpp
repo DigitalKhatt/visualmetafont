@@ -63,6 +63,7 @@ using namespace geometry;
 struct GlyphInstance {
   double baseX = 0.0;
   double baseY = 0.0;
+  double lineY = 0.0;
   double dx = 0.0;
   double dy = 0.0;
 
@@ -72,11 +73,25 @@ struct GlyphInstance {
 
   bool isMark = false;
 
+  bool isTopMark = false;
+
   GeometrySet worldPolys;  // recomputed each iteration
 
   GlyphLayoutInfo* glyphLayout;
   GlyphVis* glyphVis;
   QString glyphName;
+  int lineIndex;
+  int glyphIndex;
+  GlyphInstance* prevBase;
+  GlyphInstance* nextBase;
+  double mobility = 0.0;  // 0 = rigid, 1 = very movable
+  double attachCompliance = 1;
+
+  // XPBD state (persistent across iterations!)
+  double attachLambda = 0.0;
+  double ownLambdaLeft = 0.0;
+  double ownLambdaRight = 0.0;
+  double ownLambdaVert = 0.0;
 };
 
 struct OptParams {
@@ -93,8 +108,6 @@ struct OptParams {
   double smoothStrength = 0.1;  // 0..1 small
   double attachStrength = 0.3;  // 0..1 for mark attachment
   double sepOvershoot = 1.05;   // push a bit extra to converge faster
-
-  double cellSize = 64.0;  // broadphase grid cell size (tune)
 };
 
 inline void buildWorldPolys(GlyphInstance& g) {
@@ -108,14 +121,72 @@ inline void buildWorldPolys(GlyphInstance& g) {
   }
 }
 
-void solveGapConstraint(GlyphInstance& A,
+double gapCompliance(const GlyphInstance& A,
+                     const GlyphInstance& B) {
+  return 0.1;
+  if (!A.isMark && !B.isMark)
+    return 0.0;  // hard for bases
+  if (A.isMark && B.isMark)
+    return 1e-5;
+  return 1e-6;  // mark vs base
+}
+
+inline double chooseMinGap(const GlyphInstance& A,
+                           const GlyphInstance& B,
+                           const OptParams& P) {
+  if (A.glyphName.startsWith("alef") &&
+      B.prevBase == &A &&
+      (B.glyphName.startsWith("hamza") ||
+       B.glyphName.startsWith("wasla") ||
+       B.glyphName.startsWith("smallhighroundedzero"))) {
+    return 40;
+  } else {
+    return 80;
+  }
+}
+
+struct GapKey {
+  GlyphInstance *a, *b;
+  bool operator==(const GapKey& other) const {
+    return ((a == other.a && b == other.b) || (a == other.b || b == other.a));
+  }
+};
+struct GapInfo {
+  double lambda = 0;
+  double count = 0;
+};
+
+struct GapKeyHasher {
+  std::size_t operator()(const GapKey& k) const {
+    std::size_t h1 = std::hash<GlyphInstance*>{}(k.a);
+    std::size_t h2 = std::hash<GlyphInstance*>{}(k.b);
+
+    return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+  }
+};
+using GapsInfo = std::unordered_map<GapKey, GapInfo, GapKeyHasher>;
+
+void solveGapConstraint(GapsInfo& gapInfos,
+                        GlyphInstance& A,
                         GlyphInstance& B,
                         const OptParams& P,
+                        double dt,
                         double& maxPenetration) {
   // Decide desired min gap.
   const bool isMarkExists = (A.isMark || B.isMark);
+
   if (!isMarkExists) return;
-  const double gmin = isMarkExists ? P.minGapMark : P.minGapBody;
+
+  // You can bias here: e.g. move marks more than base letters.
+  double wA = A.mobility;
+  double wB = B.mobility;
+  // If both are completely rigid, we can't resolve here
+  if (wA <= 0.0 && wB <= 0.0) {
+    return;
+  }
+
+  const double gmin = chooseMinGap(A, B, P);
+  double compliance = gapCompliance(A, B);
 
   auto dr = getDistance(A.worldPolys, B.worldPolys, gmin);
   if (!std::isfinite(dr.contact.depth_or_gap))
@@ -123,8 +194,19 @@ void solveGapConstraint(GlyphInstance& A,
 
   double C = dr.contact.depth_or_gap - gmin;  // want C >= 0
 
-  if (C >= 0.0)
-    return;  // already separated enough
+  auto gapKey = GapKey{&A, &B};
+
+  if (C >= 0.0) {
+    auto it = gapInfos.find(gapKey);
+    if (it != gapInfos.end()) {
+      it->second.lambda = 0;
+    }
+    return;
+  }
+
+  auto& gapInfo = gapInfos[gapKey];
+
+  double& lambda = gapInfo.lambda;
 
   maxPenetration = std::min(maxPenetration, C);
 
@@ -136,36 +218,176 @@ void solveGapConstraint(GlyphInstance& A,
   }
   n = n * (1.0 / nlen);
 
-  // Split correction; equal "mass" for now.
-  double corr = -C * 0.5 * P.sepOvershoot;
+  // XPBD parameters
+  double alpha = compliance / (dt * dt);
 
-  // You can bias here: e.g. move marks more than base letters.
-  double wA = 1.0;
-  double wB = 1.0;
-  if (!A.isMark && B.isMark) {
-    wA = 0.0;
-    wB = 1;
-  } else if (A.isMark && !B.isMark) {
-    wA = 1;
-    wB = 0.0;
-  }
+  double denom = wA + wB + alpha;
+  if (denom < 1e-9)
+    return;
 
-  double wsum = wA + wB;
-  Vec2 dA = n * (-corr * (wA / wsum));
-  Vec2 dB = n * (corr * (wB / wsum));
+  double deltaLambda = (-C - alpha * lambda) / denom;
 
-  A.dx += dA.x;
-  A.dy += dA.y;
-  B.dx += dB.x;
-  B.dy += dB.y;
+  // Enforce inequality: lambda >= 0
+  double lambdaNew = std::max(0.0, lambda + deltaLambda);
+  deltaLambda = lambdaNew - lambda;
+  lambda = lambdaNew;
 
-  if (dA.x != 0 || dA.y != 0) {
+  gapInfo.count++;
+  if (wA > 0.0) {
+    Vec2 corrA = n * (-wA * deltaLambda);
+    A.dx += corrA.x;
+    A.dy += corrA.y;
     buildWorldPolys(A);
   }
 
-  if (dB.x != 0 || dB.y != 0) {
+  if (wB > 0.0) {
+    Vec2 corrB = n * (wB * deltaLambda);
+    B.dx += corrB.x;
+    B.dy += corrB.y;
     buildWorldPolys(B);
   }
+}
+
+void solveAttachConstraint(GlyphInstance& mark, double dt) {
+  GlyphInstance& base = *mark.prevBase;
+
+  const double w_m = mark.mobility;
+  const double w_b = base.mobility;
+
+  if (w_m <= 0.0 && w_b <= 0.0)
+    return;
+
+  Vec2 anchor = {mark.glyphLayout->x_offset - base.glyphLayout->x_offset, mark.glyphLayout->y_offset - base.glyphLayout->y_offset};
+
+  Vec2 target = {
+      base.baseX + base.dx + anchor.x,
+      base.baseY + base.dy + anchor.y};
+  Vec2 current = {
+      mark.baseX + mark.dx,
+      mark.baseY + mark.dy};
+
+  Vec2 delta = current - target;
+
+  double dist = len(delta);
+
+  if (dist < 1e-6)
+    return;
+
+  Vec2 n = delta * (1.0 / dist);  // normalized gradient
+
+  // XPBD compliance
+  const double alpha = mark.attachCompliance / (dt * dt);
+
+  // Compute Δλ
+  double denom = w_m + w_b + alpha;
+  if (denom < 1e-9)
+    return;
+
+  double deltaLambda =
+      (-dist - alpha * mark.attachLambda) / denom;
+
+  // mark.attachLambda += deltaLambda;
+
+  // Apply corrections
+  if (w_m > 0.0) {
+    Vec2 corr = n * (w_m * deltaLambda);
+    mark.dx += corr.x;
+    mark.dy += corr.y;
+    buildWorldPolys(mark);
+  }
+
+  // Optional: allow base motion later
+
+  if (w_b > 0.0) {
+    Vec2 corr = n * (-w_b * deltaLambda);
+    base.dx += corr.x;
+    base.dy += corr.y;
+    buildWorldPolys(base);
+  }
+}
+
+void solveOwnershipHorizontalXPBD(GlyphInstance& mark,
+                                  double leftBoundary,
+                                  double rightBoundary,
+                                  double compliance,
+                                  double dt) {
+  if (mark.mobility <= 0.0)
+    return;
+
+  double alpha = compliance / (dt * dt);
+  double w = mark.mobility;
+
+  double x = mark.baseX + mark.dx;
+
+  // --- Left boundary: leftBoundary - x <= 0
+  {
+    double C = leftBoundary - x;
+    if (C > 0.0) {
+      double denom = w + alpha;
+      double deltaLambda =
+          (-C - alpha * mark.ownLambdaLeft) / denom;
+
+      double lambdaNew = std::max(0.0, mark.ownLambdaLeft + deltaLambda);
+      deltaLambda = lambdaNew - mark.ownLambdaLeft;
+      mark.ownLambdaLeft = lambdaNew;
+
+      double dx = -w * deltaLambda;  // grad = (-1,0)
+      mark.dx += dx;
+      buildWorldPolys(mark);
+    }
+  }
+
+  // --- Right boundary: x - rightBoundary <= 0
+  {
+    double C = x - rightBoundary;
+    if (C > 0.0) {
+      double denom = w + alpha;
+      double deltaLambda =
+          (-C - alpha * mark.ownLambdaRight) / denom;
+
+      double lambdaNew = std::max(0.0, mark.ownLambdaRight + deltaLambda);
+      deltaLambda = lambdaNew - mark.ownLambdaRight;
+      mark.ownLambdaRight = lambdaNew;
+
+      double dx = w * deltaLambda;  // grad = (1,0)
+      mark.dx += dx;
+      buildWorldPolys(mark);
+    }
+  }
+}
+void solveOwnershipVerticalXPBD(GlyphInstance& mark,
+                                double limitY,
+                                bool isAbove,
+                                double compliance,
+                                double dt) {
+  if (mark.mobility <= 0.0)
+    return;
+
+  double alpha = compliance / (dt * dt);
+  double w = mark.mobility;
+
+  double y = mark.baseY + mark.dy;
+
+  // Above: limitY - y <= 0
+  // Below: y - limitY <= 0
+  double C = isAbove ? (limitY - y) : (y - limitY);
+
+  if (C <= 0.0)
+    return;
+
+  double& lambda = mark.ownLambdaVert;
+
+  double denom = w + alpha;
+  double deltaLambda =
+      (-C - alpha * lambda) / denom;
+
+  double lambdaNew = std::max(0.0, lambda + deltaLambda);
+  deltaLambda = lambdaNew - lambda;
+  lambda = lambdaNew;
+
+  double dy = isAbove ? (-w * deltaLambda) : (w * deltaLambda);
+  mark.dy += dy;
+  buildWorldPolys(mark);
 }
 
 inline AABB padAABB(const AABB& b, double pad) {
@@ -221,32 +443,259 @@ struct SweepBroadphase {
 
         // check y-overlap
         if (!(A.maxy < B.miny || A.miny > B.maxy)) {
-          pairs.emplace_back(A.index, B.index);
+          A.index < B.index ? pairs.emplace_back(A.index, B.index) : pairs.emplace_back(B.index, A.index);
         }
       }
     }
   }
 };
 
+enum class MarkRole {
+  None,
+  Haraka,  // fatha/damma/kasra/tanween
+  Shadda,
+  Sukun,
+  Maddah,
+  HamzaAbove,
+  HamzaBelow,
+  WaqfSign,
+  Dots
+};
+
+MarkRole classifyMark(GlyphInstance glyphInstrance) {
+  auto& glyphName = glyphInstrance.glyphName;
+
+  if (glyphName.startsWith("hamzaabove")) {
+    return MarkRole::HamzaAbove;
+  } else if (glyphName.startsWith("hamzabelow")) {
+    return MarkRole::HamzaBelow;
+  } else if (glyphName.startsWith("shadda")) {
+    return MarkRole::Shadda;
+  } else if (glyphName.startsWith("sukun")) {
+    return MarkRole::Sukun;
+  } else if (glyphName.startsWith("sukun")) {
+    return MarkRole::Sukun;
+  } else if (glyphName.startsWith("fatha") || glyphName.startsWith("damma") || glyphName.startsWith("kasra")) {
+    return MarkRole::Haraka;
+  } else if (glyphName.startsWith("maddahabove")) {
+    return MarkRole::Maddah;
+  } else if (glyphName.contains("waqf")) {
+    return MarkRole::WaqfSign;
+  } else if (glyphName.contains("dot")) {
+    return MarkRole::Dots;
+  } else {
+    return MarkRole::None;
+  }
+}
+
+void initGlyphMobilities(std::vector<std::vector<GlyphInstance>>& pageGlyphs) {
+  for (auto& lineGlyphs : pageGlyphs) {
+    for (auto& g : lineGlyphs) {
+      if (!g.isMark) {
+        g.mobility = 0.0;  // base glyphs fixed (for now)
+        continue;
+      }
+      g.mobility = 1.0;
+      continue;
+
+      MarkRole role = classifyMark(g);
+
+      switch (role) {
+        case MarkRole::Haraka:
+          g.mobility = 1.0;  // very free
+          break;
+
+        case MarkRole::Shadda:
+          g.mobility = 0.5;  // moderate
+          break;
+
+        case MarkRole::Sukun:
+        case MarkRole::Maddah:
+          g.mobility = 0.6;  // some freedom
+          break;
+
+        case MarkRole::HamzaAbove:
+        case MarkRole::HamzaBelow:
+          g.mobility = 1;  // almost rigid, prefer moving others
+          break;
+
+        case MarkRole::WaqfSign:
+          g.mobility = 0.7;  // reasonably flexible
+          break;
+        case MarkRole::Dots:
+          g.mobility = 0.2;  // reasonably flexible
+          break;
+        case MarkRole::None:
+        default:
+          // Unknown mark: medium
+          g.mobility = 0.5;
+          break;
+      }
+    }
+  }
+}
+struct XPBDConstraint {
+  double lambda = 0.0;      // warm-start state
+  double compliance = 0.0;  // XPBD compliance
+
+  virtual ~XPBDConstraint() = default;
+  virtual void project(std::vector<std::reference_wrapper<GlyphInstance>>& p, double dt) = 0;
+};
+struct YlaneConstraint : XPBDConstraint {
+  int markIndex;
+  double yLane = 0.0;
+
+  YlaneConstraint(int idx, double comp, double yLane) {
+    markIndex = idx;
+    compliance = comp;
+    this->yLane = yLane;
+  }
+
+  void project(std::vector<std::reference_wrapper<GlyphInstance>>& p, double dt) override {
+    GlyphInstance& mark = p[markIndex];
+    if (mark.mobility == 0.0) return;
+
+    // C = yLane - y
+    double yOffset = mark.glyphVis->height / 2;
+    if (mark.glyphName.startsWith("damma")) {
+      yOffset = yOffset + mark.glyphVis->height / 6;
+    }
+    double C = mark.lineY + yLane - (mark.baseY + mark.dy + yOffset);
+
+    // Gradient ∇C = (0, -1)
+    Vec2 n = {0.0, -1.0};
+
+    // If satisfied, run through XPBD with C = 0, n = 0
+    // (this gives λ decay instead of freeze)
+    if (C <= 0.0) {
+      C = 0.0;
+      n = {0.0, 0.0};
+    }
+
+    const double alpha = compliance / (dt * dt);
+    const double w = mark.mobility;
+    const double denom = w + alpha;
+    if (denom < 1e-12) return;
+
+    // XPBD update
+    double deltaLambda = -(C + alpha * lambda) / denom;
+
+    // One-sided clamp: λ ≤ 0
+    double newLambda = std::min(0.0, lambda + deltaLambda);
+    double applied = newLambda - lambda;
+    lambda = newLambda;
+
+    // Apply correction (only vertical)
+    mark.dy += n.y * (w * applied);
+    buildWorldPolys(mark);
+  }
+};
+struct HorizontalOrderConstraint : XPBDConstraint {
+  GlyphInstance& markA;  // belongs to base glyph
+  GlyphInstance& markB;  // belongs to next glyph
+  double overlapFactor;  // k in [0,1]
+
+  HorizontalOrderConstraint(
+      GlyphInstance& markA, GlyphInstance& markB,
+      double k,
+      double comp) : markA{markA}, markB{markB} {
+    overlapFactor = k;
+    compliance = comp;
+  }
+
+  void project(std::vector<std::reference_wrapper<GlyphInstance>>& p, double dt) override {
+    const double wAinv = markA.mobility;
+    const double wBinv = markB.mobility;
+    if (wAinv + wBinv == 0.0) return;
+
+    double widthA = markA.glyphVis->width;
+    double widthB = markB.glyphVis->width;
+
+    // C = (xB + k*wB) - (xA - k*wA)
+    double C =
+        (markB.baseX + markB.dx + widthB) -
+        (markA.baseX + markA.dx) -
+        std::min(overlapFactor * widthA, overlapFactor * widthB);
+
+    // Gradients
+    Vec2 nA = {-1.0, 0.0};
+    Vec2 nB = {1.0, 0.0};
+
+    // Inactive case → decay λ (soft preference)
+    if (C <= 0.0) {
+      C = 0.0;
+      nA = {0.0, 0.0};
+      nB = {0.0, 0.0};
+    }
+
+    const double alpha = compliance / (dt * dt);
+    const double denom = wAinv + wBinv + alpha;
+    if (denom < 1e-12) return;
+
+    double deltaLambda = -(C + alpha * lambda) / denom;
+
+    // One-sided clamp: λ ≤ 0
+    double newLambda = std::min(0.0, lambda + deltaLambda);
+    double applied = newLambda - lambda;
+    lambda = newLambda;
+
+    // Apply corrections
+    markA.dx += nA.x * (wAinv * applied);
+    buildWorldPolys(markA);
+
+    markB.dx += nB.x * (wBinv * applied);
+    buildWorldPolys(markB);
+  }
+};
+
 void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
                   const OptParams& P) {
-  std::vector<int> candidates;
+  initGlyphMobilities(pageGlyphs);
+  double dt = 1.0;
+  GapsInfo gapInfos;
 
-  size_t glyphCount = 0;
+  std::vector<std::reference_wrapper<GlyphInstance>> glyphs;
   for (auto& lineGlyphs : pageGlyphs) {
-    glyphCount += lineGlyphs.size();
+    for (auto& g : lineGlyphs) {
+      buildWorldPolys(g);
+      glyphs.push_back(g);
+    }
   }
-  candidates.reserve(glyphCount);
+
+  for (size_t i = 0; i < glyphs.size(); ++i) {
+    GlyphInstance& mark = glyphs[i];
+    if (mark.isMark && mark.prevBase != nullptr) {
+      solveAttachConstraint(mark, dt);
+    }
+  }
+
+  std::vector<std::unique_ptr<XPBDConstraint>> xpbdConstraints;
+
+  for (size_t i = 0; i < glyphs.size(); ++i) {
+    GlyphInstance& mark = glyphs[i];
+    if (mark.isMark &&
+        (mark.glyphName.startsWith("fatha") ||
+         mark.glyphName.startsWith("damma") ||
+         mark.glyphName.startsWith("sukun"))) {
+      xpbdConstraints.push_back(std::make_unique<YlaneConstraint>(i, 0.1, 600));
+    }
+  }
+
+  for (size_t i = 0; i < glyphs.size(); ++i) {
+    GlyphInstance& markB = glyphs[i];
+    if (markB.isMark && markB.prevBase->prevBase != nullptr) {
+      auto prevBase = markB.prevBase->prevBase;
+      for (int glyphIndex = prevBase->glyphIndex + 1; glyphIndex < markB.prevBase->glyphIndex; glyphIndex++) {
+        auto& markA = pageGlyphs[markB.lineIndex][glyphIndex];
+        if (markA.isTopMark == markB.isTopMark) {
+          xpbdConstraints.push_back(std::make_unique<HorizontalOrderConstraint>(markA, markB, 0.2, 0.1));
+        }
+      }
+    }
+  }
 
   for (int iter = 0; iter < P.maxIters; ++iter) {
     // 1. Rebuild world polys
-    std::vector<std::reference_wrapper<GlyphInstance>> glyphs;
-    for (auto& lineGlyphs : pageGlyphs) {
-      for (auto& g : lineGlyphs) {
-        buildWorldPolys(g);
-        glyphs.push_back(g);
-      }
-    }
 
     // 2. Broadphase
     std::vector<std::pair<int, int>> pairs;
@@ -255,11 +704,24 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
 
     double maxPenetration = 0.0;  // most negative C
 
+    for (auto& c : xpbdConstraints) {
+      c->project(glyphs, dt);
+    }
+
     // 3. Gap / collision constraints
     // Iterate candidate pairs
     for (auto [i, j] : pairs) {
-      solveGapConstraint(glyphs[i], glyphs[j], P, maxPenetration);
+      solveGapConstraint(gapInfos, glyphs[i], glyphs[j], P, dt, maxPenetration);
     }
+
+    // 5. mark attachment constraints
+    /*
+    for (size_t i = 0; i < glyphs.size(); ++i) {
+      GlyphInstance& mark = glyphs[i];
+      if (mark.isMark && mark.prevBase != nullptr) {
+        solveAttachConstraint(mark, dt);
+      }
+    }*/
 
     // 7. Early exit
     if (-maxPenetration < P.tolCollision) {
@@ -267,12 +729,36 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
       break;
     }
   }
+#if false
+  for (const auto& gap : gapInfos) {
+    std::cout << gap.first.a->glyphName.toStdString() << "::" << gap.first.b->glyphName.toStdString()
+              << " count=" << gap.second.count
+              << " lambda=" << gap.second.lambda
+              << std::endl;
+  }
+#endif
 }
 
-void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, QList<QStringList> originalPages, int beginPage, int nbPages, double emScale) {
+void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, const QList<QStringList>& originalPages, int beginPage, int nbPages, double emScale) {
   auto scale = emScale;
 
   std::unordered_map<GlyphVis*, GeometrySet> glyphToPolys;
+
+  auto& classes = m_otlayout->automedina->classes;
+  auto& marks = classes["marks"];
+  auto& topmarks = classes["topmarks"];
+  auto& lowmarks = classes["lowmarks"];
+  auto& waqfmarks = classes["waqfmarks"];
+  auto& topdotmarks = classes["topdotmarks"];
+  auto& downdotmarks = classes["downdotmarks"];
+
+  auto isTopMark = [&topmarks, &lowmarks, &waqfmarks, &topdotmarks, &downdotmarks](QString glyphName) {
+    return topmarks.contains(glyphName) || waqfmarks.contains(glyphName) || topdotmarks.contains(glyphName);
+  };
+
+  auto isBottomMark = [&topmarks, &lowmarks, &waqfmarks, &topdotmarks, &downdotmarks](QString glyphName) {
+    return lowmarks.contains(glyphName) || downdotmarks.contains(glyphName);
+  };
 
   // fetch all gryph initially otherwise mpost is not thread safe when
   // executing getAlternate
@@ -286,12 +772,17 @@ void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, QList<QSt
       auto& line = page[l];
       pageGlyphs.push_back({});
       auto& lineGlyphs = pageGlyphs.back();
+      // To guarantee also the validity of the pointers in GlyphInstance
+      lineGlyphs.reserve(line.glyphs.size());
       auto xScale = line.fontSize * line.xscale;
       auto yScale = line.fontSize;
 
       int currentxPos = -line.xstartposition;
       int currentyPos = line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
       currentyPos = currentyPos * -1;
+      GlyphInstance* currentBase = nullptr;
+      GlyphInstance* prevBase = nullptr;
+
       for (size_t g = 0; g < line.glyphs.size(); g++) {
         auto& glyphLayout = line.glyphs[g];
         QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
@@ -300,31 +791,57 @@ void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, QList<QSt
                         .righttatweel = glyphLayout.righttatweel,
                         .scalex = line.xscaleparameter});
         auto glyphToPoly = glyphToPolys.find(glyphVis);
+
         if (glyphToPoly == glyphToPolys.end()) {
-          glyphToPoly = glyphToPolys.insert(
-                                        {glyphVis,
-                                         buildConvexPartsFromCubics(
-                                             getGlyphCubic(glyphVis->copiedPath),
-                                             CUBIC_FLATNESS_TOLERANCE)
-                                             .scaled(scale, scale)})
-                            .first;
+          if (marks.contains(glyphName)) {
+            glyphToPoly = glyphToPolys.insert(
+                                          {glyphVis,
+                                           buildPolyFromCubics(
+                                               getGlyphCubic(glyphVis->copiedPath),
+                                               CUBIC_FLATNESS_TOLERANCE)
+                                               .scaled(scale, scale)})
+                              .first;
+          } else {
+            glyphToPoly = glyphToPolys.insert(
+                                          {glyphVis,
+                                           buildConvexPartsFromCubics(
+                                               getGlyphCubic(glyphVis->copiedPath),
+                                               CUBIC_FLATNESS_TOLERANCE)
+                                               .scaled(scale, scale)})
+                              .first;
+          }
         }
 
         currentxPos -= glyphLayout.x_advance * line.xscale;
 
-        GlyphInstance glyphInstance;
-        glyphInstance.isMark = glyphLayout.x_advance == 0;
+        auto& glyphInstance = lineGlyphs.emplace_back(GlyphInstance{});
+
+        glyphInstance.isMark = marks.contains(glyphName);
+        glyphInstance.isTopMark = isTopMark(glyphName);
+        glyphInstance.lineY = currentyPos;
         glyphInstance.baseX = currentxPos + (glyphLayout.x_offset * line.xscale);
         glyphInstance.baseY = currentyPos + (glyphLayout.y_offset);
         glyphInstance.glyphLayout = &glyphLayout;
         glyphInstance.glyphVis = glyphVis;
         glyphInstance.glyphName = glyphName;
+        glyphInstance.lineIndex = l;
+        glyphInstance.glyphIndex = g;
+
         if (xScale == 1 && yScale == 1) {
           glyphInstance.geom = &glyphToPoly->second;
         } else {
           glyphInstance.geomScaled = glyphToPoly->second.scaled(xScale, yScale);
         }
-        lineGlyphs.emplace_back(std::move(glyphInstance));
+
+        glyphInstance.prevBase = currentBase;
+
+        if (!glyphInstance.isMark) {
+          prevBase = currentBase;
+          currentBase = &lineGlyphs.back();
+          if (prevBase) {
+            prevBase->nextBase = currentBase;
+          }
+        }
       }
     }
   }

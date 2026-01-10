@@ -2133,10 +2133,13 @@ void OtLayout::jutifyLine(hb_font_t* shapefont, hb_buffer_t* text_buffer, int li
   JustificationInProgress = false;
 }
 
-QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t cluster_level,
-                                            JustType justType, QString mushafLayout) {
+QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level,
+                                            JustOption justOption, QString mushafLayout) {
+  auto justType = justOption.justType;
+  auto justStyle = justOption.justStyle;
+
   if (justType == JustType::Madina || justType == JustType::IndoPak || justType == JustType::Experimental) {
-    return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, cluster_level, justType, justStyle, mushafLayout);
+    return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, cluster_level, justOption, mushafLayout);
   }
 
   QList<LineLayoutInfo> page;
@@ -2293,13 +2296,13 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
 }
 
 QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification,
-                                            bool newFace, bool tajweedColor, JustStyle justStyle, hb_buffer_cluster_level_t cluster_level, JustType justType, QString mushafLayoutType) {
+                                            bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level, JustOption justOption, QString mushafLayoutType) {
   QVector<LineToJustify> newLines;
 
   for (auto& line : lines) {
     newLines.append({line, lineWidth, justification, LineType::Line});
   }
-  return justifyPage(emScale, pageWidth, newLines, newFace, tajweedColor, justStyle, cluster_level, justType, mushafLayoutType);
+  return justifyPage(emScale, pageWidth, newLines, newFace, tajweedColor, cluster_level, justOption, mushafLayoutType);
 }
 
 QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, int nbPages) {

@@ -66,6 +66,33 @@ inline SupportPoint support(const std::vector<Vec2>& a,
   return sp;
 }
 
+inline Vec2 supportPoint(const GeometrySet& G, const Vec2& d) {
+  double best = -std::numeric_limits<double>::infinity();
+  Vec2 bestP{0, 0};
+
+  for (auto& poly : G.polys()) {
+    if (poly.size() < 2) continue;
+    Vec2 p = supportPoint(poly, d);
+    double v = dot(p, d);
+
+    if (v > best) {
+      best = v;
+      bestP = p;
+    }
+  }
+  return bestP;
+}
+
+inline SupportPoint support(const GeometrySet& A,
+                            const GeometrySet& B,
+                            const Vec2& d) {
+  SupportPoint sp;
+  sp.a = supportPoint(A, d);                 // global support A
+  sp.b = supportPoint(B, Vec2(-d.x, -d.y));  // global support B
+  sp.p = sp.a - sp.b;                        // Minkowski difference
+  return sp;
+}
+
 // Compute closest points on segment AB to origin given endpoints as
 // SupportPoints Returns (closestA, closestB), using barycentric interpolation
 // on A and B.
@@ -199,18 +226,95 @@ inline Vec2 getDela(const Simplex& s) {
 constexpr double EPSILON = 1e-3;
 constexpr double EPSILON_SQUARED = EPSILON * EPSILON;
 
+inline GJKResult gjkSet(const GeometrySet& A, const GeometrySet& B, int maxIterations = 32) {
+  GJKResult result;
+  Simplex simplex;
+
+  simplex.dir = Vec2(1.0, 0.0);
+
+  // First point
+  simplex.pts[0] = support(A, B, simplex.dir);
+  simplex.count = 1;
+  simplex.dir = normSafe(Vec2(-simplex.pts[0].p.x, -simplex.pts[0].p.y));
+  if (simplex.dir.lengthSq() < EPSILON_SQUARED) {
+    // Very degenerate: shapes directly overlap at that point.
+    result.intersect = true;
+    result.simplex = simplex;
+    return result;
+  }
+
+  double lastSqDist = std::numeric_limits<double>::infinity();
+
+  for (int iter = 0; iter < maxIterations; ++iter) {
+    // New support in current direction
+    SupportPoint newPt = support(A, B, simplex.dir);
+
+    double proj = Vec2::dot(newPt.p, simplex.dir);
+
+    auto newSqDist = newPt.p.lengthSq();
+
+    // No progress towards origin: no intersection; compute
+    // distance from current simplex
+    if (proj <= -EPSILON ||
+        std::fabs(lastSqDist - newSqDist) <= EPSILON_SQUARED) {
+      // no intersection
+      simplex.pts[simplex.count++] = newPt;
+      auto delta = getDela(simplex);
+      auto dd = dot(simplex.dir, delta);
+      while (dd > EPSILON) {
+        auto tt = updateSimplex(simplex);
+        assert(!tt);
+        newPt = support(A, B, simplex.dir);
+        simplex.pts[simplex.count++] = newPt;
+        delta = getDela(simplex);
+        dd = dot(simplex.dir, delta);
+      }
+
+      // Closest distance from origin to current simplex
+      if (simplex.count == 2) {
+        result.closestA = simplex.pts[0].a;
+        result.closestB = simplex.pts[0].b;
+      } else {
+        closestOnSegmentToOrigin(simplex.pts[1], simplex.pts[0],
+                                 result.closestA, result.closestB);
+      }
+      Vec2 diff = result.closestA - result.closestB;
+      result.distance = std::sqrt(diff.lengthSq());
+      result.intersect = result.distance <= EPSILON;
+      result.simplex = simplex;
+      return result;
+    }
+
+    // Add new point and update simplex
+    simplex.pts[simplex.count++] = newPt;
+
+    if (updateSimplex(simplex)) {
+      // Origin inside simplex => intersection
+      result.intersect = true;
+      result.simplex = simplex;
+      return result;
+    }
+
+    double dirSq = simplex.dir.lengthSq();
+    if (dirSq < EPSILON_SQUARED) {
+      // Direction collapsed; treat as intersecting
+      result.intersect = true;
+      result.simplex = simplex;
+      return result;
+    }
+
+    lastSqDist = newSqDist;
+  }
+  // If we get here, treat as intersecting or fail-safe
+  result.intersect = true;
+  result.simplex = simplex;
+  return result;
+}
+
 inline GJKResult gjk(const Poly& A, const Poly& B, int maxIterations = 32) {
   GJKResult result;
   Simplex simplex;
 
-  // Initial direction: from centroid(A) to centroid(B) or arbitrary
-  Vec2 ca(0.0, 0.0), cb(0.0, 0.0);
-  for (auto& p : A) ca += p;
-  for (auto& p : B) cb += p;
-  if (!A.empty()) ca = ca / (double)A.size();
-  if (!B.empty()) cb = cb / (double)B.size();
-  simplex.dir = cb - ca;
-  // if (simplex.dir.lengthSq() < EPSILON_SQUARED) simplex.dir = Vec2(1.0, 0.0);
   simplex.dir = Vec2(1.0, 0.0);
 
   // First point
@@ -385,6 +489,98 @@ inline EPAResult epa(const Poly& A, const Poly& B, const Simplex& simplexInit,
   return res;
 }
 
+inline EPAResult epaSet(const GeometrySet& A, const GeometrySet& B, const Simplex& simplexInit,
+                        int maxIterations = 64, double eps = 1e-6) {
+  EPAResult res;
+
+  // Build initial polytope from GJK simplex (triangle in 2D)
+  std::vector<SupportPoint> polytope;
+  polytope.reserve(16);
+
+  if (simplexInit.count < 3) {
+    // Need at least a triangle to run EPA in 2D
+    return res;
+  }
+
+  for (int i = 0; i < simplexInit.count; ++i) {
+    polytope.push_back(simplexInit.pts[i]);
+  }
+
+  for (int iter = 0; iter < maxIterations; ++iter) {
+    // Find edge closest to origin
+    int closestEdge = -1;
+    double minDist = std::numeric_limits<double>::infinity();
+    Vec2 bestNormal;
+
+    int n = (int)polytope.size();
+    for (int i = 0; i < n; ++i) {
+      const SupportPoint& sp0 = polytope[i];
+      const SupportPoint& sp1 = polytope[(i + 1) % n];
+
+      Vec2 e = sp1.p - sp0.p;
+
+      // Edge normal (perp)
+      Vec2 nrm(e.y, -e.x);
+
+      // Ensure outward (pointing away from origin)
+      // If dot(normal, midpoint) < 0 → flip
+      Vec2 mid = (sp0.p + sp1.p) * 0.5;
+      if (Vec2::dot(nrm, mid) < 0.0) {
+        nrm = Vec2(-nrm.x, -nrm.y);
+      }
+
+      double len = nrm.length();
+      if (len <= eps) continue;
+
+      // Distance from origin along this normal
+      double dist = Vec2::dot(nrm, sp0.p) / len;
+      if (dist < 0.0) {
+        // Shouldn't really happen if origin inside, but guard
+        dist = -dist;
+      }
+
+      if (dist < minDist) {
+        minDist = dist;
+        closestEdge = i;
+        bestNormal = nrm / len;
+      }
+    }
+
+    if (closestEdge < 0) {
+      return res;  // failed
+    }
+
+    // Get new support point in bestNormal direction
+    SupportPoint newPt = support(A, B, bestNormal);
+
+    double separation = Vec2::dot(newPt.p, bestNormal);
+
+    // If the new point doesn't push boundary out significantly, we converged
+    if (separation - minDist < eps) {
+      res.success = true;
+      res.normal = bestNormal;
+      res.depth = separation;
+
+      // Compute contact points on that closest edge by projecting origin onto
+      // segment in Minkowski space
+      const SupportPoint& e0 = polytope[closestEdge];
+      const SupportPoint& e1 = polytope[(closestEdge + 1) % n];
+
+      Vec2 cA, cB;
+      closestOnSegmentToOrigin(e0, e1, cA, cB);
+      res.contactA = cA;
+      res.contactB = cB;
+      return res;
+    }
+
+    // Otherwise, insert new point into polytope after closestEdge
+    polytope.insert(polytope.begin() + closestEdge + 1, newPt);
+  }
+
+  // If reached max iterations without convergence
+  return res;
+}
+
 // ---------- public wrapper ----------
 Contact contactGjkEpaPoly(const Poly& A, const Poly& B, int gjkIters,
                           int epaIters) {
@@ -411,6 +607,46 @@ Contact contactGjkEpaPoly(const Poly& A, const Poly& B, int gjkIters,
   }
 
   auto E = epa(A, B, G.simplex, epaIters, EPSILON);
+  if (!E.success) {
+    C.intersect = true;
+    C.depth_or_gap = 0.0;
+    C.normal = {1, 0};
+    C.pA = C.pB = {0, 0};
+    return C;
+  }
+  C.intersect = true;
+  C.depth_or_gap = -E.depth;
+  C.normal = E.normal;  // A -> B
+  C.pA = E.contactA;
+  C.pB = E.contactB;
+  return C;
+}
+
+Contact contactGjkEpaSet(const GeometrySet& A, const GeometrySet& B, int gjkIters,
+                         int epaIters) {
+  Contact C;
+
+  if (A.size() < 1 || B.size() < 1) {
+    C.intersect = false;
+    C.depth_or_gap = std::numeric_limits<double>::infinity();
+    C.normal = {1, 0};
+    C.pA = C.pB = {0, 0};
+    return C;
+  }
+
+  auto G = gjkSet(A, B, gjkIters);
+  if (!G.intersect) {
+    C.intersect = false;
+    C.pA = G.closestA;
+    C.pB = G.closestB;
+    Vec2 m = Vec2::sub(C.pB, C.pA);
+    C.depth_or_gap = Vec2::len(m);
+    C.normal = (C.depth_or_gap > 0) ? Vec2::scale(m, 1.0 / C.depth_or_gap)
+                                    : Vec2{1, 0};
+    return C;
+  }
+
+  auto E = epaSet(A, B, G.simplex, epaIters, EPSILON);
   if (!E.success) {
     C.intersect = true;
     C.depth_or_gap = 0.0;

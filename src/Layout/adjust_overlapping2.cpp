@@ -91,7 +91,7 @@ static std::unordered_map<GlyphVis*, GeometrySet> glyphToPolys;
 
 void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
                                       int lineWidth,
-                                      QList<QStringList> originalPages,
+                                      const QList<QStringList>& originalPages,
                                       double emScale, bool sameLine,
                                       bool interLine) {
   // QPageSize pageSize{ { 90.2,144.5 },QPageSize::Millimeter, "MedianQuranBook"
@@ -328,6 +328,89 @@ inline bool yOverlap(const AABB& a, const AABB& b) {
   return (a.miny < b.maxy) && (b.miny < a.maxy);
 }
 
+void debugIntersection(const GlyphInfo& glyphInfo1, const GlyphInfo& glyphInfo2, const GSContact& gsContact) {
+  auto geometrySet = glyphInfo1.geometrySet.scaledY(-1);
+  auto otherGeometrySet = glyphInfo2.geometrySet.scaledY(-1);
+
+  GlyphVis& currentGlyph = *glyphInfo1.glyphVis;
+  GlyphVis& otherGlyph = *glyphInfo2.glyphVis;
+
+  auto geo1 = glyphToPolys.find(&currentGlyph);
+  auto geo2 = glyphToPolys.find(&otherGlyph);
+
+  auto geometrySetOri = geo1->second;
+  auto otherGeometrySetOri = geo2->second;
+
+  QPointF pA{gsContact.contact.pA.x, -gsContact.contact.pA.y};
+  QPointF pB{gsContact.contact.pB.x, -gsContact.contact.pB.y};
+
+  QPainterPath circle1;
+  circle1.addEllipse(pA, 5, 5);
+
+  QPainterPath circle2;
+  circle2.addEllipse(pB, 5, 5);
+
+  auto* view = new QGraphicsView();
+  QGraphicsScene scene;
+
+  scene.addPath(geometrySet.toQPainterPath(), QPen(Qt::black));
+  scene.addPath(otherGeometrySet.toQPainterPath(), QPen(Qt::black));
+
+  if (gsContact.polyA != -1 && gsContact.polyB != -1) {
+    auto& tt = geometrySet.polys()[gsContact.polyA];
+    auto& tt2 = otherGeometrySet.polys()[gsContact.polyB];
+
+    for (auto& p : tt) {
+      QPainterPath pp;
+      pp.addEllipse(QPointF(p.x, p.y), 2, 2);
+      scene.addPath(pp, QPen(Qt::red));
+    }
+
+    for (auto& p : tt2) {
+      QPainterPath pp;
+      pp.addEllipse(QPointF(p.x, p.y), 2, 2);
+      scene.addPath(pp, QPen(Qt::red));
+    }
+
+    GeometrySet gg{std::vector<Poly>{tt}};
+    GeometrySet gg2{std::vector<Poly>{tt2}};
+
+    scene.addPath(gg.toQPainterPath(), QPen(Qt::red));
+
+    scene.addPath(gg2.toQPainterPath(), QPen(Qt::red));
+  }
+
+  scene.addPath(circle1, QPen(Qt::blue));
+  scene.addPath(circle2, QPen(Qt::green));
+
+  QLineF line(pA, pB);
+
+  QPen pen(Qt::green, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+
+  scene.addLine(line, pen);
+
+  view->setScene(&scene);
+  view->setRenderHints(QPainter::Antialiasing |
+                       QPainter::TextAntialiasing);
+
+  view->setMinimumSize(1500, 1000);
+
+  view->scale(2, 2);
+
+  QDialog box;
+  box.setWindowTitle("Graphics Preview");
+
+  QVBoxLayout* layout = new QVBoxLayout(&box);
+  layout->addWidget(view);
+
+  // Optional: give the box a reasonable minimum width
+  box.setMinimumWidth(1500);
+  box.setMinimumHeight(1200);
+
+  // Show the message box
+  box.exec();
+}
+
 void findIntersections(
     OtLayout* layout,
     QList<QList<LineLayoutInfo>>& pages,
@@ -368,68 +451,39 @@ void findIntersections(
     }
   }
 
-  int n = (int)rectsInput.size();
-  if (n == 0) return;
+  std::sort(rectsInput.begin(), rectsInput.end(),
+            [](const GlyphInfoForInt& a, const GlyphInfoForInt& b) {
+              return a.aabb.minx < b.aabb.minx;
+            });
 
-  // Build events
-  std::vector<Event> events;
-  events.reserve(2 * n);
-  for (int i = 0; i < n; ++i) {
-    events.push_back(Event{rectsInput[i].aabb.minx, +1, i});  // ENTER
-    events.push_back(Event{rectsInput[i].aabb.maxx, -1, i});  // EXIT
-  }
-
-  // Sort events by x; on tie, EXIT (-1) before ENTER (+1)
-  sort(events.begin(), events.end(),
-       [](const Event& a, const Event& b) {
-         if (a.x < b.x) return true;
-         if (a.x > b.x) return false;
-         return a.type < b.type;  // -1 before +1
-       });
-
-  // Active set; ordered by y1
-  ByY comp{&rectsInput};
-  std::set<int, ByY> active(comp);
-
-  // Output adjacency: intersections for each rectangle
   std::vector<Intersection> intersections;
+  const size_t n = rectsInput.size();
   intersections.reserve(n);
 
-  for (const Event& e : events) {
-    int id = e.id;
-    const auto& firstGlyph = rectsInput[id];
-    const AABB& R = firstGlyph.aabb;
+  for (size_t i = 0; i < n; ++i) {
+    const auto& firstGlyph = rectsInput[i];
+    const AABB& A = firstGlyph.aabb;
+    // advance until B.minx > A.maxx
+    for (size_t j = i + 1; j < n; ++j) {
+      const auto& secondGlyph = rectsInput[j];
+      const AABB& B = secondGlyph.aabb;
+      if (B.minx > A.maxx)
+        break;  // rest are further right → done
 
-    if (e.type == -1) {
-      auto it = active.find(id);
-      if (it != active.end())
-        active.erase(it);
-    } else {
-      // TODO Can be optimized. Sort by y and test only adjacents.
-      // Takes about 90/750 ms for the whole Mushaf in Release
-      {
-        // Timer t(std::string("Active LOOP"));
-        for (int j : active) {
-          const auto& secondGlyph = rectsInput[j];
-          const AABB& S = secondGlyph.aabb;
-
-          if (yOverlap(R, S)) {
-            if (firstGlyph.lineIdx > secondGlyph.lineIdx) {
-              intersections.push_back({secondGlyph, firstGlyph});
-            } else if (firstGlyph.lineIdx == secondGlyph.lineIdx) {
-              if (firstGlyph.glyphIdx > secondGlyph.glyphIdx) {
-                intersections.push_back({secondGlyph, firstGlyph});
-              } else {
-                intersections.push_back({firstGlyph, secondGlyph});
-              }
-            } else {
-              intersections.push_back({firstGlyph, secondGlyph});
-            }
+      // check y-overlap
+      if (!(A.maxy < B.miny || A.miny > B.maxy)) {
+        if (firstGlyph.lineIdx > secondGlyph.lineIdx) {
+          intersections.push_back({secondGlyph, firstGlyph});
+        } else if (firstGlyph.lineIdx == secondGlyph.lineIdx) {
+          if (firstGlyph.glyphIdx > secondGlyph.glyphIdx) {
+            intersections.push_back({secondGlyph, firstGlyph});
+          } else {
+            intersections.push_back({firstGlyph, secondGlyph});
           }
+        } else {
+          intersections.push_back({firstGlyph, secondGlyph});
         }
       }
-
-      active.insert(id);
     }
   }
 
@@ -466,6 +520,8 @@ void findIntersections(
         overlap.nextGlyph = secondGlyph.glyphIdx;
 
         result.push_back(overlap);
+
+        // debugIntersection(glyphInfo1, glyphInfo2, gsContact);
       }
     } else {
       if (glyphInfo1.isMark || glyphInfo2.isMark) {

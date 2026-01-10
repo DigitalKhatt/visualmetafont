@@ -618,6 +618,29 @@ void LayoutWindow::createActions() {
             executeRunText(true, 1);
           });
 
+  shrinkTypeCombo = new QComboBox;
+
+  shrinkTypeCombo->addItem("None", qVariantFromValue(ShrinkType::None));
+  shrinkTypeCombo->addItem("Standard",
+                           qVariantFromValue(ShrinkType::Standard));
+  shrinkTypeCombo->addItem("Test", qVariantFromValue(ShrinkType::Test));
+
+  jutifyToolbar->addWidget(shrinkTypeCombo);
+
+  QString lastShrinkType = settings.value("LastShrinkType").value<QString>();
+  if (!lastShrinkType.isEmpty()) {
+    shrinkTypeCombo->setCurrentText(lastShrinkType);
+  } else {
+    shrinkTypeCombo->setCurrentIndex(0);
+  }
+
+  connect(shrinkTypeCombo, qOverload<int>(&QComboBox::currentIndexChanged),
+          [&](int index) {
+            QSettings settings;
+            settings.setValue("LastShrinkType", shrinkTypeCombo->currentText());
+            executeRunText(true, 1);
+          });
+
   QPushButton* toggleButton = new QPushButton(tr("&Collision Detection"));
   toggleButton->setCheckable(true);
   toggleButton->setChecked(false);
@@ -999,10 +1022,9 @@ void LayoutWindow::checkOffMarks() {
         double leftOff = baseXStart - markXStart;
         double rightOff = markXEnd - baseXEnd;
 
-        auto maxAcceptOff = markWidth * 0.25;
+        auto maxAcceptOff = markWidth * 0.5;
 
-        if ((leftOff > maxAcceptOff || rightOff > maxAcceptOff) &&
-            baseWidth > 1.5 * markWidth) {
+        if ((leftOff > maxAcceptOff || rightOff > maxAcceptOff) /*&& baseWidth > 1.5 * markWidth*/) {
           QString text = result.originalPages[p][l];
           int startCluster = 0;
           int endCluster = text.size();
@@ -1103,6 +1125,14 @@ bool LayoutWindow::save() {
   setWindowModified(false);
   return true;
 }
+
+JustOption LayoutWindow::getJustOption() {
+  return {
+      justCombo->currentData().value<JustType>(),
+      justStyleCombo->currentData().value<JustStyle>(),
+      shrinkTypeCombo->currentData().value<ShrinkType>(),
+  };
+}
 bool LayoutWindow::exportpdf() {
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
@@ -1117,12 +1147,22 @@ bool LayoutWindow::exportpdf() {
 
   auto page = m_otlayout->justifyPage(
       scale, lineWidth, lineWidth, lines, LineJustification::Distribute, true,
-      tajweedEnabled, justStyleCombo->currentData().value<JustStyle>(),
+      tajweedEnabled,
       HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES,
-      justCombo->currentData().value<JustType>(), mushafLayouts->currentText());
+      getJustOption(), mushafLayouts->currentText());
 
   QList<QList<LineLayoutInfo>> pages{page};
   QList<QStringList> originalPages{lines};
+
+  if (this->applyForce) {
+    optimizeLayout(pages, originalPages, 0,
+                   1, scale);
+  }
+
+  if (this->applyCollisionDetection) {
+    adjustOverlapping2(pages, lineWidth, originalPages, scale,
+                       true, true);
+  }
 
   int margin = 0;
 
@@ -1319,8 +1359,8 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth,
 
     auto shapedPage = layout->justifyPage(
         scale, pageWidth, newLines, newface, tajweedEnabled,
-        justStyleCombo->currentData().value<JustStyle>(), cluster_level,
-        justCombo->currentData().value<JustType>(),
+        cluster_level,
+        getJustOption(),
         mushafLayouts->currentText());
     newface = false;
     result.pages.append(shapedPage);
@@ -1604,8 +1644,8 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
 
     auto shapedPage = layout->justifyPage(
         scale, pageWidth, newLines, newface, tajweedEnabled,
-        justStyleCombo->currentData().value<JustStyle>(), cluster_level,
-        justCombo->currentData().value<JustType>(),
+        cluster_level,
+        getJustOption(),
         mushafLayouts->currentText());
 
     for (int lineIndex = 0; lineIndex < shapedPage.size(); lineIndex++) {
@@ -2229,7 +2269,7 @@ void LayoutWindow::saveCollision() {
 
   if (this->applyForce) {
     optimizeLayout(result.pages, result.originalPages, 0,
-                   1, scale);
+                   result.pages.size(), scale);
   }
 
   adjustOverlapping2(result.pages, lineWidth, result.originalPages, scale, true,
@@ -2264,14 +2304,14 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
 
   auto result = shapeMushaf(scale, lineWidth, m_otlayout, cluster_level);
 
-  if (this->applyCollisionDetection) {
-    adjustOverlapping(result.pages, lineWidth, result.originalPages, scale,
-                      true, true);
-  }
-
   if (this->applyForce) {
     optimizeLayout(result.pages, result.originalPages, 0,
-                   1, scale);
+                   result.pages.size(), scale);
+  }
+
+  if (this->applyCollisionDetection) {
+    adjustOverlapping2(result.pages, lineWidth, result.originalPages, scale,
+                       true, true);
   }
 
   auto path = m_font->filePath();
@@ -3348,9 +3388,8 @@ void LayoutWindow::calculateMinimumSize() {
       auto page = m_otlayout->justifyPage(
           emScale, lineWidth, lineWidth, lines, LineJustification::Distribute,
           false, tajweedEnabled,
-          justStyleCombo->currentData().value<JustStyle>(),
           HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS,
-          justCombo->currentData().value<JustType>(),
+          getJustOption(),
           mushafLayouts->currentText());
 
       // auto page = m_otlayout->justifyPage(emScale, lineWidth, lineWidth,
@@ -3552,9 +3591,9 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
 
   auto page = m_otlayout->justifyPage(
       scale, lineWidth, lineWidth, lines, LineJustification::Distribute,
-      newFace, tajweedEnabled, justStyleCombo->currentData().value<JustStyle>(),
+      newFace, tajweedEnabled,
       HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS,
-      justCombo->currentData().value<JustType>(), mushafLayouts->currentText());
+      getJustOption(), mushafLayouts->currentText());
 
   QVector<int> set;
 

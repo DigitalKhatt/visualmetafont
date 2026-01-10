@@ -268,6 +268,28 @@ static double aabbDistanceSquared(const AABB& a, const AABB& b) {
   // std::sqrt(dx * dx + dy * dy);
 }
 
+GSContact getDistanceConvexHull(const GeometrySet& A, const GeometrySet& B,
+                                double maxAabbDistance) {
+  GSContact best;
+
+  best.contact.intersect = false;
+  best.contact.depth_or_gap = std::numeric_limits<double>::infinity();
+
+  double maxAabbDistanceSquared = maxAabbDistance * maxAabbDistance;
+
+  double dAabb = aabbDistanceSquared(A.boundingAABB(), B.boundingAABB());
+  if (dAabb > maxAabbDistanceSquared) return best;  // too far, skip
+
+  // Compute global contact
+  best.contact = contactGjkEpaSet(A, B);
+
+  // No polyA/polyB because you are using global shapes now
+  best.polyA = -1;
+  best.polyB = -1;
+
+  return best;
+}
+
 GSContact getDistance(const GeometrySet& A, const GeometrySet& B,
                       double maxAabbDistance) {
   GSContact best;
@@ -460,13 +482,13 @@ static Poly fromTPPL(const TPPLPoly& p) {
     out.push_back({p[i].x, p[i].y});
   }
   // normalize for our pipeline: CLOSED + CCW
-  if (out.size() >= 3) {
+  /*if (out.size() >= 3) {
     // Close by adding the first point
     if (std::abs(out.front().x - out.back().x) > 1e-12 ||
         std::abs(out.front().y - out.back().y) > 1e-12) {
       out.push_back(out.front());
     }
-  }
+}*/
   return out;
 }
 std::vector<Poly> convexDecomposeBayazit(const Poly& implicitClosedCCW) {
@@ -512,7 +534,14 @@ GeometrySet buildConvexPartsFromCubics(const GlyphCubic& g, double tau) {
   return GeometrySet(std::move(parts));
 }
 
-inline bool aabbOverlap(const AABB& a, const AABB& b) {
+GeometrySet buildPolyFromCubics(const GlyphCubic& g, double tau) {
+  auto flats = flattenCubicContours(g, tau);
+  auto outers = unionNoHoles(flats, 1000);
+  return GeometrySet(std::move(outers));
+}
+
+inline bool
+aabbOverlap(const AABB& a, const AABB& b) {
   return !(a.maxx < b.minx || b.maxx < a.minx || a.maxy < b.miny ||
            b.maxy < a.miny);
 }

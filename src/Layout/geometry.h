@@ -222,7 +222,12 @@ class GeometrySet {
 GSContact getDistance(const GeometrySet& A, const GeometrySet& B,
                       double maxAabbDistance);
 
+GSContact getDistanceConvexHull(const GeometrySet& A, const GeometrySet& B,
+                                double maxAabbDistance);
+
 GeometrySet buildConvexPartsFromCubics(const GlyphCubic& g, double tau);
+
+GeometrySet buildPolyFromCubics(const GlyphCubic& g, double tau);
 
 AABB computeAABB(const Poly& P);
 
@@ -232,5 +237,8 @@ inline bool overlapAABB(const AABB& a, const AABB& b) {
   return !(a.maxx < b.minx || a.minx > b.maxx ||
            a.maxy < b.miny || a.miny > b.maxy);
 }
+
+Contact contactGjkEpaSet(const GeometrySet& A, const GeometrySet& B, int gjkIters = 32,
+                         int epaIters = 64);
 
 }  // namespace geometry
