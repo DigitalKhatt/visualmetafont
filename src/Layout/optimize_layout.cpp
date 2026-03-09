@@ -186,7 +186,11 @@ void solveGapConstraint(GapsInfo& gapInfos,
   }
 
   const double gmin = chooseMinGap(A, B, P);
-  double compliance = gapCompliance(A, B);
+  double baseCompliance = gapCompliance(A, B);
+
+  double normGmin = 80 / gmin;
+
+  double compliance = baseCompliance / (normGmin * normGmin);
 
   auto dr = getDistance(A.worldPolys, B.worldPolys, gmin);
   if (!std::isfinite(dr.contact.depth_or_gap))
@@ -196,12 +200,23 @@ void solveGapConstraint(GapsInfo& gapInfos,
 
   auto gapKey = GapKey{&A, &B};
 
+  bool debug = false;
+
   if (C >= 0.0) {
     auto it = gapInfos.find(gapKey);
     if (it != gapInfos.end()) {
       it->second.lambda = 0;
+      if (debug) {
+        std::cout << "Reset lambda from "
+                  << A.glyphName.toStdString()
+                  << " To " << B.glyphName.toStdString() << " C = " << C
+                  << " n=(" << dr.contact.normal.x
+                  << "," << dr.contact.normal.y
+                  << ")"
+                  << std::endl;
+      }
+      return;
     }
-    return;
   }
 
   auto& gapInfo = gapInfos[gapKey];
@@ -232,12 +247,23 @@ void solveGapConstraint(GapsInfo& gapInfos,
   deltaLambda = lambdaNew - lambda;
   lambda = lambdaNew;
 
+  if (debug) {
+    std::cout << "Resolve gap from "
+              << A.glyphName.toStdString()
+              << " To " << B.glyphName.toStdString() << " C = " << C
+              << " n=(" << n.x
+              << "," << n.y
+              << ") deltaLambda=" << deltaLambda << " lambda=" << lambda;
+  }
+
   gapInfo.count++;
   if (wA > 0.0) {
     Vec2 corrA = n * (-wA * deltaLambda);
     A.dx += corrA.x;
     A.dy += corrA.y;
     buildWorldPolys(A);
+    if (debug)
+      std::cout << " corrA=(" << corrA.x << "," << corrA.y << ")";
   }
 
   if (wB > 0.0) {
@@ -245,7 +271,11 @@ void solveGapConstraint(GapsInfo& gapInfos,
     B.dx += corrB.x;
     B.dy += corrB.y;
     buildWorldPolys(B);
+    if (debug)
+      std::cout << " corrB=(" << corrB.x << "," << corrB.y << ")";
   }
+  if (debug)
+    std::cout << std::endl;
 }
 
 void solveAttachConstraint(GlyphInstance& mark, double dt) {
@@ -516,7 +546,7 @@ void initGlyphMobilities(std::vector<std::vector<GlyphInstance>>& pageGlyphs) {
 
         case MarkRole::HamzaAbove:
         case MarkRole::HamzaBelow:
-          g.mobility = 1;  // almost rigid, prefer moving others
+          g.mobility = 0.5;  // almost rigid, prefer moving others
           break;
 
         case MarkRole::WaqfSign:

@@ -2635,6 +2635,14 @@ void LayoutWindow::createDockWindows() {
 
   otherMenu->addAction(action);
 
+  action = new QAction(tr("Compare With QPC"), this);
+  connect(action, &QAction::triggered, this, &LayoutWindow::compareWithQPC);
+  otherMenu->addAction(action);
+
+  action = new QAction(tr("Compare With Old Madinah"), this);
+  connect(action, &QAction::triggered, this, &LayoutWindow::compareWithOldMadinah);
+  otherMenu->addAction(action);
+
   m_otlayout = new OtLayout(m_font, true, true, this);
   m_otlayout->useNormAxisValues = false;
   m_otlayout->extended = true;
@@ -3369,7 +3377,7 @@ void LayoutWindow::calculateMinimumSize() {
 
   QMap<double, QVector<Line>> alloverflows;
 
-  double scale = 1;
+  double scale = OtLayout::EMSCALE;
 
   float maxOverflow = 0;
 

@@ -90,6 +90,8 @@ class LayoutWindow : public QMainWindow {
   bool generateMushaf(bool isHTML);
   bool generateMadinaVARHTML();
   bool generateLayoutInfo();
+  void compareWithQPC();
+  void compareWithOldMadinah();
   LayoutPages shapeMedina(double scale, int lineWidth, OtLayout* layout,
                           hb_buffer_cluster_level_t cluster_level =
                               HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);

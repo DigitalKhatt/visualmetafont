@@ -172,6 +172,8 @@ set(Layout
   Layout/contact_flexible.h
   Layout/contact_flexible.cpp
   Layout/optimize_layout.cpp
+  Layout/compare_with_qpc.cpp
+  Layout/HbDrawToQtPath.cpp
   )
 
 
@@ -389,7 +391,7 @@ target_compile_options(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_compile_options(${PROJECT_NAME} PUBLIC $<$<CXX_COMPILER_ID:Clang>: -fvisibility=default>)
 # undefined symbol "absl::lts_20240722::log_internal::LogMessage& absl::lts_20240722::log_internal::LogMessage::operator<<<int, 0>(int const&)"
 # due to protobuf
-target_compile_options(${PROJECT_NAME} PUBLIC $<$<CXX_COMPILER_ID:Clang>: -fclang-abi-compat=17>)
+#target_compile_options(${PROJECT_NAME} PUBLIC $<$<CXX_COMPILER_ID:Clang>: -fclang-abi-compat=17>)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR COMPILING_DLL)
 target_compile_definitions(${WEBLIB_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR DIGITALKHATT_WEBLIB COMPILING_DLL)
