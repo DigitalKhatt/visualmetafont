@@ -381,7 +381,7 @@ static bool applyAlternatesSubWords(const LineTextInfo& lineTextInfo, JustInfo& 
   return false;
 }
 
-static QString rightKashExp = QString("بتثنيئ") + "جحخ" + "سش" + "صض" + "طظ" + "عغ" + "فق" + "م" + "ه";
+static QString rightKashExp = QString("بتثنيئ") + "جحخ" + "سش" + "صض" + "طظ" + "عغ" + "فق" + "م" + "ه" + "ل";
 static QString leftKash = QString("ئبتثني") + "جحخ" + "طظ" + "عغ" + "فق" + "ةلم" + "رز";
 static QString mediLeftAsendant = "ل";
 static const QString finalAscendant = "آادذٱأإكلهة";
@@ -469,15 +469,16 @@ static void DealWithDecomposition(
          QString("رزن").contains(subWordInfo.baseText.back()))) {
       firstAppliedFeatures.push_back({.feature = {.name = "cv16", .value = 1}});
       secondNewFeatures.push_back({.name = "cv16", .value = 1});
-    } else if (
-        subWordInfo.baseIndexes[0] == firstMatchIndex &&
-        QString("م").contains(chark4)) {
+    } else if (subWordInfo.baseIndexes[0] == firstMatchIndex && QString("م").contains(chark4)) {
       firstAppliedFeatures.push_back({.feature = {.name = "cv18", .value = 1}});
       secondNewFeatures.push_back({.name = "cv18", .value = 1});
     }
   } else if (QString("سشصض").contains(chark3) && QString("رز").contains(chark4)) {
     firstAppliedFeatures.push_back({.feature = {.name = "cv17", .value = 1}});
     secondNewFeatures.push_back({.name = "cv17", .value = 1});
+  } else if (QString("ل").contains(chark3) && subWordInfo.baseIndexes[0] == firstMatchIndex && QString("د").contains(chark4)) {
+    firstAppliedFeatures.push_back({.feature = {.name = "cv19", .value = 1}});
+    secondNewFeatures.push_back({.name = "cv19", .value = 1});
   }
 }
 
@@ -517,8 +518,8 @@ static AppliedResult applyKashida(
   } else if (
       chark3 == U'ل' &&
       (chark4 == U'ك' ||
-       chark4 == U'د' ||
-       chark4 == U'ذ' ||
+       // chark4 == U'د' ||
+       // chark4 == U'ذ' ||
        chark4 == U'ة' ||
        (chark4 == U'ه' &&
         subWordInfo.baseIndexes.back() == secondMatchIndex))) {
@@ -588,10 +589,21 @@ static AppliedResult applyKaf(
   auto firstIndexInLine = wordInfo.startIndex + firstMatchIndex;
   auto secondIndexInLine = wordInfo.startIndex + secondMatchIndex;
 
+  auto chark3 = lineText[firstIndexInLine];
+  auto chark4 = lineText[secondIndexInLine];
+
   map<int, vector<TextFontFeatures>> tempResult{justInfo.fontFeatures};
 
   auto firstPrevFeatures = tempResult[firstIndexInLine];
   auto secondPrevFeatures = tempResult[secondIndexInLine];
+
+  if (chark4 == U'ن') {
+    for (const auto& feature : secondPrevFeatures) {
+      if (feature.name == "cv01" && feature.value > 0) {
+        return AppliedResult::Forbiden;
+      }
+    }
+  }
 
   vector<Appliedfeature> firstAppliedFeatures{{.feature = {.name = "cv03", .value = 1}, .calcNewValue = [](int prev, int curr) { return 1; }}};
 
@@ -914,7 +926,7 @@ static void stretchLine(const LineTextInfo& lineTextInfo, JustInfo& justInfo, Ju
 }
 
 static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t* font, double fontSizeLineWidthRatio,
-                                    double spaceWidth,
+                                    int spaceWidth,
                                     JustOption justOption,
                                     OtLayout* layout) {
   auto desiredWidth = FONTSIZE / fontSizeLineWidthRatio;
@@ -946,10 +958,10 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
   if (diff > 0) {
     // stretch
 
-    double maxStretchBySpace = std::min(100.0, spaceWidth * 1);
-    double maxStretchByAyaSpace = std::min(200.0, spaceWidth * 2);
-    // let maxStretchBySpace = Math.max(200 - spaceWidth,0);
-    // let maxStretchByAyaSpace = Math.max(300 - spaceWidth,0);
+    // double maxStretchBySpace = std::min(100.0, spaceWidth * 1);
+    // double maxStretchByAyaSpace = std::min(200.0, spaceWidth * 2);
+    double maxStretchBySpace = std::max(250 - spaceWidth, 0);
+    double maxStretchByAyaSpace = std::max(250 - spaceWidth, 0);
 
     double maxStretch = maxStretchBySpace * lineTextInfo.simpleSpaceIndexes.size() + maxStretchByAyaSpace * lineTextInfo.ayaSpaceIndexes.size();
 
@@ -1174,7 +1186,7 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
   vector<LineTextInfo> linesTextInfo;
   vector<double> fontSizeRatios;
 
-  double spaceWidth = getWidth(" ", justifyFont, {});
+  int spaceWidth = getWidth(" ", justifyFont, {});
 
   auto minRatio = 1000.0;
   auto maxRatio = 0.00000001;

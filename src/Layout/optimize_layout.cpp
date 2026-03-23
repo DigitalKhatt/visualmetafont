@@ -166,6 +166,111 @@ struct GapKeyHasher {
 };
 using GapsInfo = std::unordered_map<GapKey, GapInfo, GapKeyHasher>;
 
+void debugDistance(const GlyphInstance& A, const GlyphInstance& B, const GSContact& gsContact) {
+  const auto& geometrySet = A.worldPolys.scaledY(-1);
+  auto otherGeometrySet = B.worldPolys.scaledY(-1);
+
+  GlyphVis& currentGlyph = *A.glyphVis;
+  GlyphVis& otherGlyph = *B.glyphVis;
+
+  QPointF pA{gsContact.contact.pA.x, -gsContact.contact.pA.y};
+  QPointF pB{gsContact.contact.pB.x, -gsContact.contact.pB.y};
+
+  auto normal = gsContact.contact.normal;
+
+  Vec2 dirA = gsContact.contact.pA + (normal * -10);
+  Vec2 dirB = gsContact.contact.pB + (normal * 10);
+
+  QPointF dirPA{dirA.x, -dirA.y};
+  QPointF dirPB{dirB.x, -dirB.y};
+
+  QLineF lineA(pA, dirPA);
+  QLineF lineB(pB, dirPB);
+
+  auto* view = new QGraphicsView();
+  QGraphicsScene scene;
+
+  scene.addPath(geometrySet.toQPainterPath(), QPen(Qt::black));
+  scene.addPath(otherGeometrySet.toQPainterPath(), QPen(Qt::black));
+
+  if (gsContact.polyA != -1 && gsContact.polyB != -1) {
+    auto& tt = geometrySet.polys()[gsContact.polyA];
+    auto& tt2 = otherGeometrySet.polys()[gsContact.polyB];
+
+    for (auto& p : tt) {
+      QPainterPath pp;
+      pp.addEllipse(QPointF(p.x, p.y), 2, 2);
+      scene.addPath(pp, QPen(Qt::red));
+    }
+
+    for (auto& p : tt2) {
+      QPainterPath pp;
+      pp.addEllipse(QPointF(p.x, p.y), 2, 2);
+      scene.addPath(pp, QPen(Qt::red));
+    }
+
+    GeometrySet gg{std::vector<Poly>{tt}};
+    GeometrySet gg2{std::vector<Poly>{tt2}};
+
+    scene.addPath(gg.toQPainterPath(), QPen(Qt::red));
+
+    scene.addPath(gg2.toQPainterPath(), QPen(Qt::red));
+  }
+
+  QLineF line(pA, pB);
+
+  QPen pen(Qt::magenta, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+
+  scene.addLine(line, pen);
+  scene.addLine(lineA, QPen(Qt::blue));
+  // scene.addLine(lineB, QPen(Qt::green));
+
+  qreal arrowSize = 10;
+  double angle = std::acos(line.dx() / line.length());
+  if (line.dy() >= 0)
+    angle = 2 * M_PI - angle;
+
+  QPointF arrowP1 = line.p2() + QPointF(sin(angle + M_PI - M_PI / 3) * arrowSize,
+                                        cos(angle + M_PI - M_PI / 3) * arrowSize);
+  QPointF arrowP2 = line.p2() + QPointF(sin(angle + M_PI + M_PI / 3) * arrowSize,
+                                        cos(angle + M_PI + M_PI / 3) * arrowSize);
+
+  QPolygonF head;
+  head << line.p2() << arrowP1 << arrowP2;
+  // scene.addPolygon(head);
+
+  QPainterPath circle1;
+  circle1.addEllipse(pA, 5, 5);
+
+  QPainterPath circle2;
+  circle2.addEllipse(pB, 5, 5);
+
+  scene.addPath(circle1, QPen(Qt::blue));
+  scene.addLine(lineA, QPen(Qt::blue));
+  scene.addPath(circle2, QPen(Qt::green));
+
+  view->setScene(&scene);
+  view->setRenderHints(QPainter::Antialiasing |
+                       QPainter::TextAntialiasing);
+
+  view->setMinimumSize(1500, 1000);
+
+  view->scale(2, 2);
+
+  QDialog box;
+  box.setWindowTitle("Graphics Preview");
+
+  QVBoxLayout* layout = new QVBoxLayout(&box);
+  layout->addWidget(view);
+
+  // Optional: give the box a reasonable minimum width
+  box.setMinimumWidth(1500);
+  box.setMinimumHeight(1200);
+
+  // Show the message box
+  box.exec();
+}
+
 void solveGapConstraint(GapsInfo& gapInfos,
                         GlyphInstance& A,
                         GlyphInstance& B,
@@ -219,6 +324,8 @@ void solveGapConstraint(GapsInfo& gapInfos,
     }
   }
 
+  // debugDistance(A, B, dr);
+
   auto& gapInfo = gapInfos[gapKey];
 
   double& lambda = gapInfo.lambda;
@@ -226,12 +333,6 @@ void solveGapConstraint(GapsInfo& gapInfos,
   maxPenetration = std::min(maxPenetration, C);
 
   Vec2 n = dr.contact.normal;
-  double nlen = n.length();
-  if (nlen < 1e-9) {
-    n = {1.0, 0.0};
-    nlen = 1.0;
-  }
-  n = n * (1.0 / nlen);
 
   // XPBD parameters
   double alpha = compliance / (dt * dt);
@@ -678,6 +779,88 @@ struct HorizontalOrderConstraint : XPBDConstraint {
   }
 };
 
+struct DotWidthWithinBaseConstraint : XPBDConstraint {
+  int markIndex;
+
+  // Separate lambdas for left and right inequalities
+  double lambdaLeft = 0.0;
+  double lambdaRight = 0.0;
+  double compLeft;
+  double compRight;
+
+  DotWidthWithinBaseConstraint(int idx, double compLeft, double compRight) {
+    markIndex = idx;
+    this->compLeft = compLeft;
+    this->compRight = compRight;
+  }
+
+  void project(std::vector<std::reference_wrapper<GlyphInstance>>& p, double dt) override {
+    GlyphInstance& mark = p[markIndex];
+    const double w = mark.mobility;
+    if (w <= 0.0) return;
+
+    const double alphaLeft = compLeft / (dt * dt);
+    const double denomLeft = w + alphaLeft;
+
+    const double alphaRight = compRight / (dt * dt);
+    const double denomRight = w + compRight;
+
+    if (denomLeft < 1e-12 && denomRight < 1e-12) return;
+
+    // Current dot extents
+    const double x = mark.baseX + mark.dx;
+    const double xMin = x + mark.glyphVis->bbox.llx;
+    const double xMax = x + mark.glyphVis->bbox.urx;
+
+    auto base = mark.prevBase;
+
+    auto baseX = base->baseX + base->dx;
+
+    auto baseLeft = baseX + base->glyphVis->bbox.llx;
+    auto baseRight = baseX + base->glyphVis->bbox.urx;
+
+    double xLeft = baseLeft - mark.glyphVis->width / 2;
+    double xRight = baseRight + mark.glyphVis->width / 2;
+
+    // -------------------------
+    // Left inequality:
+    // C_L = xLeft - xMin <= 0
+    // grad = dC/dx = -1
+    // -------------------------
+    double CL = xLeft - xMin;
+    if (CL > 0.0 && denomLeft >= 1e-12) {
+      double deltaLambda =
+          -(CL + alphaLeft * lambdaLeft) / denomLeft;
+
+      double lambdaNew = std::min(0.0, lambdaLeft + deltaLambda);
+      double applied = lambdaNew - lambdaLeft;
+      lambdaLeft = lambdaNew;
+
+      // grad = -1 in x
+      mark.dx += (-1.0) * (w * applied);
+      buildWorldPolys(mark);
+    }
+
+    // -------------------------
+    // Right inequality:
+    // C_R = xMax - xRight <= 0
+    // grad = dC/dx = +1
+    // -------------------------
+    double CR = xMax - xRight;
+    if (CR > 0.0 && denomRight >= 1e-12) {
+      double deltaLambda =
+          -(CR + alphaRight * lambdaRight) / denomRight;
+
+      double lambdaNew = std::min(0.0, lambdaRight + deltaLambda);
+      double applied = lambdaNew - lambdaRight;
+      lambdaRight = lambdaNew;
+
+      mark.dx += (+1.0) * (w * applied);
+      buildWorldPolys(mark);
+    }
+  }
+};
+
 void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
                   const OptParams& P) {
   initGlyphMobilities(pageGlyphs);
@@ -691,13 +874,13 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
       glyphs.push_back(g);
     }
   }
-
-  for (size_t i = 0; i < glyphs.size(); ++i) {
-    GlyphInstance& mark = glyphs[i];
-    if (mark.isMark && mark.prevBase != nullptr) {
-      solveAttachConstraint(mark, dt);
-    }
-  }
+  /*
+    for (size_t i = 0; i < glyphs.size(); ++i) {
+      GlyphInstance& mark = glyphs[i];
+      if (mark.isMark && mark.prevBase != nullptr) {
+        solveAttachConstraint(mark, dt);
+      }
+    }*/
 
   std::vector<std::unique_ptr<XPBDConstraint>> xpbdConstraints;
 
@@ -708,6 +891,14 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
          mark.glyphName.startsWith("damma") ||
          mark.glyphName.startsWith("sukun"))) {
       xpbdConstraints.push_back(std::make_unique<YlaneConstraint>(i, 0.1, 600));
+    }
+    if (mark.glyphName.contains("dot")) {
+      xpbdConstraints.push_back(std::make_unique<DotWidthWithinBaseConstraint>(i, 0.1, 0.1));
+    } else {
+      // [lam.init.beforemeem]' [meem.medi.afterlam]'
+      if (mark.glyphName.contains("fatha") && mark.prevBase->glyphName == "lam.init.beforemeem") {
+        xpbdConstraints.push_back(std::make_unique<DotWidthWithinBaseConstraint>(i, 0.1, 0.1));
+      }
     }
   }
 

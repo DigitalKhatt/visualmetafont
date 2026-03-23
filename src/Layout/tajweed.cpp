@@ -144,16 +144,17 @@ static const char* TAFKHIM_TMPL =
     "|ر(?=${shadda}?[${kasras}])"
     "|(?<=${kasra})ر[${sukuns}](?![${elevationChars}]${fatha})"
     "|(?<tafkhim5>ر[${fdk}${sukuns}${shadda}]*)"
-    "|(?<=^|[${fatha}${damma}${mandatoryWaqf}${prefereWaqf}${permissibleWaqf}${prefereWasl}](?:[${forbiddenWaqf}]|ا${ziaditHarf})?[ياى]?\\s?|${beforeAyaCond}|وا${ziaditHarf}?\\s|${takhallus}\\s|\\u0670\\u089C)(?:[ٱ]|\\u0627\\u034f?\\u0653|\\u0627\\u064E?)ل(?<tafkhim6>ل[${marks}]*)ه[${marks}]*م?[${marks}]*${endWordCond}"
+    "|(?<=^|[${fatha}${damma}${mandatoryWaqf}${prefereWaqf}${permissibleWaqf}${prefereWasl}](?:[${forbiddenWaqf}]|ا${ziaditHarf})?[ياى]?\\s?|${beforeAyaCond}|وا[${ziaditHarf}]?\\s|${takhallus}\\s|\\u0670\\u089C)(?:[ٱ]|\\u0627\\u034f?\\u0653|\\u0627\\u064E?)ل(?<tafkhim6>ل[${marks}]*)ه[${marks}]*م?[${marks}]*${endWordCond}"
     "|\\u0627\\u0670\\u089Cل(?<tafkhim6_2>ل[${marks}]*)ه[${marks}]*م?[${marks}]*${endWordCond}"
     "|(?<gray3>[${bases}][${ziaditHarf}])"
     "|(?<=[و][${sukuns}]?${maddClass}?|[و]${cgi}?\\u0654${cgi}?[${damma}${dammatan}]|[و][${damma}]|[${damma}${sukuns}][و][${fatha}])(?<gray3_indopak_1>[ا])(?=${endMarksCondOpt}(?:${endWordCond}|(?:${ayaCond})))"
     "|(?<=[${kasra}])(?<gray3_indopak_2>[ا])(?=[${bases}])(?!\\u0644[${marks}]*\\u0644[${marks}]*\\u0647[${marks}]*${endWordCond})";
 
-static const char* OTHERS_MAD_TMPL =
-    "(?<=[${bases}][${marks}]{0,5})(?<gray1>ٱ)(?!\\u0644[${marks}]*\\u0644[${marks}]*\\u0647[${marks}]*${endWordCond})"
-    "|(?<=[اٱ])(?<gray2>ل(?![${marks}]*ل[${marks}]*ه[${marks}]*${endWordCond}))(?=[${bases}])"
-    "|(?<gray4>[و])(?=${daggerAlef})|(?<gray4_1>[ى])(?=${daggerAlef}[${bases}])"
+#define TEMP_greyHamzatWaslInsideWordMadinah "(?<=[${bases}][${marks}]{0,5})(?<gray1>ٱ)(?!\\u0644[${marks}]*\\u0644[${marks}]*\\u0647[${marks}]*${endWordCond})"
+#define TEMP_greyWawYehMadinah "|(?<gray4>[و])(?=${daggerAlef})|(?<gray4_1>[ى])(?=${daggerAlef}[${bases}])"
+
+static const char* OTHERS_MAD_TMPL = TEMP_greyHamzatWaslInsideWordMadinah
+    "|(?<=[اٱ])(?<gray2>ل(?![${marks}]*ل[${marks}]*ه[${marks}]*${endWordCond}))(?=[${bases}])" TEMP_greyWawYehMadinah
     "|(?<=${maddClass})(?<gray7>[وي])(?=${cgi}?${hamzaabove}${cgi}?[${marks}]*(?:ا[${ziaditHarf}]?)?${endWordCond})"
     "|(?<=${maddClass})(?<gray8>ل)(?=\\u0630\\u0651)"
     "|(?<tanween1>ن${meemiqlab}${cgi}?[${sukuns}]?)"
@@ -161,10 +162,10 @@ static const char* OTHERS_MAD_TMPL =
     "|(?<tanween3>[${meemiqlab}${lowmeemiqlab}])(?=(?:ا[${ziaditHarf}]?)?(?<tanween3_a>${ayaCond})?)"
     "|(?<tanween4>م[${sukuns}]?)(?=\\sب)"
     "|(?<tanween5>ن[${bases}])"
-    "|(?<tanween6>[ن${opentanween}${tanween}][${sukuns}]?[${bases}]?\\u06DF?${endMarksCondOpt}\\s(?<tanween7>[ينمو](?:[${shadda}]?[${fdkt}]|[${shadda}](?=${daggerAlef}))))"
-    "|(?<tanween8>[ن${opentanween}${tanween}][${sukuns}]?[${bases}]?${endMarksCondOpt}\\s?[لر][${shadda}])"
-    "|(?<tanween9>[${opentanween}${tanween}][${sukuns}]?[${bases}]?${endMarksCondOpt}\\s?[${IkfaaLetters}])"
-    "|(?<tanween9_noon>[ن][${sukuns}]?[${bases}]?\\s?[${IkfaaLetters}])"
+    "|(?<tanween6>[ن${opentanween}${tanween}][${sukuns}]?)[${bases}]?\\u06DF?${endMarksCondOpt}\\s(?<tanween7>[ينمو](?:[${shadda}]?[${fdkt}]|[${shadda}](?=${daggerAlef})))"
+    "|(?<tanween8>[ن${opentanween}${tanween}][${sukuns}]?)[${bases}]?${endMarksCondOpt}\\s?[لر][${shadda}]"
+    "|(?<tanween9>[${opentanween}${tanween}][${sukuns}]?)[${bases}]?${endMarksCondOpt}\\s?[${IkfaaLetters}]"
+    "|(?<tanween9_noon>[ن][${sukuns}]?)[${bases}]?\\s?[${IkfaaLetters}]"
     "|(?<=[${fdk}])(?<gray6>[${bases}])(?<gray6_sukuns>[${sukuns}]?)(?=\\s?(?<gray6_1>[${bases}]${shadda}))"
     "|(?<tanween10>ـۨ[${sukuns}]?)"
     "|(?<!\\s|^)(?<madd5>(?:[يو${daggerAlef}${subAlef}][${sukuns}]?|[ا]))(?=[و\\u0649]?[${bases}][${harakat}][${marks}]?${waqfCond}|\\u0647\\u0650\\u06DB)(?!ا[${ziaditHarf}])"
@@ -180,18 +181,11 @@ static const char* OTHERS_MAD_TMPL =
     "|(?<madd3>[نكعصلمسق][${shadda}]?[${fatha}]?${maddClass})"
     "|(?<madd4_3>ࣳٓ)";
 
-// IndoPak variant is made by replacing these two sub-parts, like in your TS:
-static const char* INDO_REPLACE_SRC1 =
-    R"REGEX(|(?<gray4>[و])(?=${daggerAlef})|(?<gray4_1>[ى])(?=${daggerAlef}[${bases}]))REGEX";
-
 static const char* INDO_REPLACE_DST1 =
-    R"REGEX(|(?<=${daggerAlef}${maddah}?)(?<gray4>[و])(?=[${bases}])|(?<gray4_1>[ى])(?=[${bases}])|(?<gray4_2>[و](?=[${basesNoAlef}])) )REGEX";
-
-static const char* INDO_REPLACE_SRC2 =
-    R"REGEX((?<=[${bases}][${marks}]*)(?<gray1>ٱ)(?!\u0644[${marks}]*\u0644[${marks}]*\u0647[${marks}]*${endWordCond}))REGEX";
+    R"REGEX(|(?<=${daggerAlef}${maddah}?)(?<gray4>[و])(?=[${bases}])|(?<gray4_1>[ى])(?=[${bases}])|(?<gray4_2>[و](?=[${basesNoAlef}])))REGEX";
 
 static const char* INDO_REPLACE_DST2 =
-    R"REGEX((?<=[${bases}][${marks}]*)(?<gray1>ا)(?!\u0644[${marks}]*\u0644[${marks}]*\u0647[${marks}]*${endWordCond})(?=[${bases}][${sukuns}${shadda}]|ل[${bases}]))REGEX";
+    R"REGEX((?<=[${bases}][${marks}]{0,5})(?<gray1>ا)(?!\u0644[${marks}]*\u0644[${marks}]*\u0647[${marks}]*${endWordCond})(?=[${bases}][${sukuns}${shadda}]|ل[${bases}]))REGEX";
 
 // ---------- Build maps & compile ----------
 
@@ -258,9 +252,9 @@ static QRegularExpression compileOthersMadinah() {
 
 static QRegularExpression compileOthersIndopak() {
   auto v = varsCommon();
-  QString src1 = uToX(expand(QString::fromUtf8(INDO_REPLACE_SRC1), v));
+  QString src1 = uToX(expand(QString::fromUtf8(TEMP_greyWawYehMadinah), v));
   QString dst1 = uToX(expand(QString::fromUtf8(INDO_REPLACE_DST1), v));
-  QString src2 = uToX(expand(QString::fromUtf8(INDO_REPLACE_SRC2), v));
+  QString src2 = uToX(expand(QString::fromUtf8(TEMP_greyHamzatWaslInsideWordMadinah), v));
   QString dst2 = uToX(expand(QString::fromUtf8(INDO_REPLACE_DST2), v));
 
   QString mad = uToX(expand(QString::fromUtf8(OTHERS_MAD_TMPL), v));

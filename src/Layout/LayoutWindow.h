@@ -91,7 +91,8 @@ class LayoutWindow : public QMainWindow {
   bool generateMadinaVARHTML();
   bool generateLayoutInfo();
   void compareWithQPC();
-  void compareWithOldMadinah();
+  void compareQPCWithAnalyzer();
+  void compareWithOldMadinah(bool isQPC = false, bool isImage = false);
   LayoutPages shapeMedina(double scale, int lineWidth, OtLayout* layout,
                           hb_buffer_cluster_level_t cluster_level =
                               HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);

@@ -1362,6 +1362,14 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth,
         cluster_level,
         getJustOption(),
         mushafLayouts->currentText());
+    if (pagenum == 0 || pagenum == 1) {
+      for (int i = 0; i < shapedPage.size(); i++) {
+        auto& line = shapedPage[i];
+        if (i > 0) {
+          line.ystartposition += 3000 << OtLayout::SCALEBY;
+        }
+      }
+    }
     newface = false;
     result.pages.append(shapedPage);
     result.originalPages.append(lines);
@@ -2639,8 +2647,12 @@ void LayoutWindow::createDockWindows() {
   connect(action, &QAction::triggered, this, &LayoutWindow::compareWithQPC);
   otherMenu->addAction(action);
 
+  action = new QAction(tr("Compare QPC with Analyzer"), this);
+  connect(action, &QAction::triggered, this, &LayoutWindow::compareQPCWithAnalyzer);
+  otherMenu->addAction(action);
+
   action = new QAction(tr("Compare With Old Madinah"), this);
-  connect(action, &QAction::triggered, this, &LayoutWindow::compareWithOldMadinah);
+  connect(action, &QAction::triggered, [this]() { this->compareWithOldMadinah(false, true); });
   otherMenu->addAction(action);
 
   m_otlayout = new OtLayout(m_font, true, true, this);
