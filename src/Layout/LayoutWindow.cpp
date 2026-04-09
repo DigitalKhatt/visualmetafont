@@ -569,6 +569,7 @@ void LayoutWindow::createActions() {
   justCombo->addItem("Madina", qVariantFromValue(JustType::Madina));
   justCombo->addItem("IndoPak", qVariantFromValue(JustType::IndoPak));
   justCombo->addItem("Experimental", qVariantFromValue(JustType::Experimental));
+  justCombo->addItem("Experimental2", qVariantFromValue(JustType::Experimental2));
 
   jutifyToolbar->addWidget(justCombo);
 
@@ -600,6 +601,7 @@ void LayoutWindow::createActions() {
                           qVariantFromValue(JustStyle::SameSizeByPage));
   justStyleCombo->addItem("XScale", qVariantFromValue(JustStyle::XScale));
   justStyleCombo->addItem("FontSize", qVariantFromValue(JustStyle::FontSize));
+  justStyleCombo->addItem("FontSizeXScale", qVariantFromValue(JustStyle::FontSizeXScale));
   // justStyleCombo->addItem("SCLX Axis", qVariantFromValue(JustStyle::SCLX));
 
   jutifyToolbar->addWidget(justStyleCombo);
@@ -3221,11 +3223,24 @@ void LayoutWindow::testKasheda() {
 }
 
 void LayoutWindow::findOverflows(bool overfull) {
-  loadLookupFile("features.fea");
+  double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
   int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
-  // bool conti = true;
+  hb_buffer_cluster_level_t cluster_level =
+      HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS;
+
+  auto result = shapeMushaf(scale, lineWidth, m_otlayout, cluster_level);
+
+  if (this->applyForce) {
+    optimizeLayout(result.pages, result.originalPages, 0,
+                   result.pages.size(), scale);
+  }
+
+  if (this->applyCollisionDetection) {
+    adjustOverlapping2(result.pages, lineWidth, result.originalPages, scale,
+                       true, true);
+  }
 
   struct Line {
     int pageNumber;
@@ -3236,16 +3251,15 @@ void LayoutWindow::findOverflows(bool overfull) {
 
   struct PageWidths {
     int pageNumber;
-    float minWidth;
-    float maxWidth;
+    float minRatio;
+    float maxRatio;
     float diff;
     int minLine;
     int maxLine;
+    float fontSizeRatio;
   };
 
   QMap<double, QMap<double, Line>> alloverflows;
-
-  double scale = OtLayout::EMSCALE;
 
   double emScale = (1 << OtLayout::SCALEBY) * scale;
 
@@ -3254,50 +3268,28 @@ void LayoutWindow::findOverflows(bool overfull) {
 
   QMap<double, Line> measures;
 
-  QString surapattern = QString("^(") + "سُورَةُ" + " .*" + "|" +
-                        "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" + "|" +
-                        "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" + "|" +
-                        "بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ "
-                        "۝" +
-                        ")$";
-
-  QRegularExpression surabism(surapattern, QRegularExpression::MultilineOption);
-
   std::vector<PageWidths> widths;
 
-  for (int pagenum = 0; pagenum < currentQuranText.size(); pagenum++) {
-    QString textt = currentQuranText[pagenum];
+  float maxThresholdRatio = 1.2;
+  float minThresholdRatio = 0.95;
+  float maxStretchRatio = 0.05;
+  float maxShrinkRatio = 0.05;
 
-    auto lines = textt.split(char(10), Qt::SkipEmptyParts);
+  for (int pagenum = 0; pagenum < result.pages.size(); pagenum++) {
+    const auto& page = result.pages[pagenum];
+    PageWidths minmax{pagenum + 1, std::numeric_limits<float>::max(), std::numeric_limits<float>::min(), 0, 0, 0, 1.0};
 
-    auto page = m_otlayout->justifyPage(
-        emScale, lineWidth, lineWidth, lines, LineJustification::Distribute,
-        false, tajweedEnabled, mushafLayouts->currentText());
-
-    PageWidths minmax{0,
-                      std::numeric_limits<float>::max(),
-                      std::numeric_limits<float>::min(),
-                      0,
-                      0,
-                      0};
-
-    for (int linenum = 0; linenum < lines.length(); linenum++) {
+    for (int linenum = 0; linenum < page.length(); linenum++) {
       auto& line = page[linenum];
 
-      auto match = surabism.match(lines[linenum]);
-
-      if (pagenum + 1 == 573) {
-        std::cout << "Amine" << std::endl;
-      }
-
-      if (!match.hasMatch()) {
-        auto textWidth = lineWidth - line.overfull;
-        if (textWidth < minmax.minWidth) {
-          minmax.minWidth = textWidth;
+      if (line.type == LineType::Line) {
+        auto textWidthRatio = (float)line.desiredLineWidth / (float)line.currentLineWidth;
+        if (textWidthRatio < minmax.minRatio) {
+          minmax.minRatio = textWidthRatio;
           minmax.minLine = linenum + 1;
         }
-        if (textWidth > minmax.maxWidth) {
-          minmax.maxWidth = textWidth;
+        if (textWidthRatio > minmax.maxRatio) {
+          minmax.maxRatio = textWidthRatio;
           minmax.maxLine = linenum + 1;
         }
       }
@@ -3311,15 +3303,8 @@ void LayoutWindow::findOverflows(bool overfull) {
           // }
         }
       } else {
-        LineType lineType = LineType::Line;
+        LineType lineType = line.type;
 
-        if (match.hasMatch()) {
-          if (match.captured(0).startsWith("سُ")) {
-            lineType = LineType::Sura;
-          } else {
-            lineType = LineType::Bism;
-          }
-        }
         if (lineType == LineType::Line && line.overfull < 0) {
           auto underfull = -line.overfull / emScale;
           measures.insert(line.overfull, {pagenum + 1, linenum + 1, underfull,
@@ -3327,9 +3312,22 @@ void LayoutWindow::findOverflows(bool overfull) {
         }
       }
     }
-    widths.push_back({pagenum + 1, minmax.minWidth, minmax.maxWidth,
-                      minmax.maxWidth - minmax.minWidth, minmax.minLine,
-                      minmax.maxLine});
+    if (minmax.maxRatio > maxThresholdRatio && minmax.minRatio < minThresholdRatio) {
+      // very inconsistent, keep font size
+      minmax.fontSizeRatio = 1;
+    } else if (minmax.maxRatio <= maxThresholdRatio && minmax.minRatio >= minThresholdRatio) {
+      // within tolerance threshold, keep font size
+      minmax.fontSizeRatio = 1;
+    } else if (minmax.maxRatio > maxThresholdRatio) {
+      float diff = std::min(minmax.maxRatio - maxThresholdRatio, maxStretchRatio);
+      diff = std::min(diff, minmax.minRatio - minThresholdRatio);
+      minmax.fontSizeRatio = 1 + diff;
+    } else {
+      float diff = std::min(minThresholdRatio - minmax.minRatio, maxShrinkRatio);
+      diff = std::min(diff, maxThresholdRatio - minmax.maxRatio);
+      minmax.fontSizeRatio = 1 - diff;
+    }
+    widths.push_back(std::move(minmax));
   }
 
   if (measures.count() > 0) {
@@ -3368,10 +3366,14 @@ void LayoutWindow::findOverflows(bool overfull) {
   fileDiff.open(QIODevice::WriteOnly | QIODevice::Text);
   QTextStream outDiff(&fileDiff);
   outDiff.setCodec("ISO 8859-1");
+  outDiff << "page_number,width_diff,"
+          << "min_width,max_width,min_line,max_line, font_size_ratio\n";
   for (auto width : widths) {
-    outDiff << width.pageNumber << "," << width.diff << "," << width.minWidth
-            << "," << width.maxWidth << "," << width.minLine << ","
-            << width.maxLine << "\n";
+    outDiff << width.pageNumber << "," << width.diff << "," << width.minRatio
+            << "," << width.maxRatio << "," << width.minLine << ","
+            << width.maxLine << ","
+            << width.fontSizeRatio
+            << "\n";
   }
   fileDiff.close();
 }

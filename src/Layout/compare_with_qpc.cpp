@@ -530,7 +530,6 @@ void LayoutWindow::compareQPCWithAnalyzer() {
   painter.setPen(Qt::NoPen);
   painter.setBrush(Qt::black);
 
-  double qpcScale = (2418.0 / 4065.0);
   double analyzerScale = 1;
 
   for (int lineIndex = 0; lineIndex < qpcShapedPage.size(); lineIndex++) {
@@ -538,30 +537,10 @@ void LayoutWindow::compareQPCWithAnalyzer() {
     const auto& analyzerShapedRun = analyzerShapedPage[lineIndex];
     const auto& lineData = qpcShapedRun.lineData;
 
-    if (printQPC) {
-      if (lineData.type == "ayah") {
-        // QPC
-        int penX = 0;
-        painter.save();
-        painter.translate(xStartRightToLeft, yPos);
-        painter.scale(qpcScale * unitsToPt, qpcScale * unitsToPt);
+    double qpcScale = 1;
 
-        for (int i = qpcShapedRun.glyphs.size() - 1; i >= 0; --i) {
-          const auto& g = qpcShapedRun.glyphs[i];
-          penX -= g.x_advance;
-          const int gx = penX + g.x_offset;
-          const int gy = -(g.y_offset);  // already y flipped in outlines
-
-          if (!g.path.isEmpty()) {
-            painter.save();
-            painter.translate((double)gx, (double)gy);
-            painter.drawPath(g.path);
-            painter.restore();
-          }
-        }
-        painter.restore();
-      }
-      yPos += interLine;
+    if (analyzerShapedRun.totalAdvance != 0) {
+      qpcScale = qpcShapedRun.totalAdvance != 0 ? (double)analyzerShapedRun.totalAdvance / qpcShapedRun.totalAdvance : 0.7;
     }
 
     if (printAnalyzer) {
@@ -587,7 +566,32 @@ void LayoutWindow::compareQPCWithAnalyzer() {
         }
         painter.restore();
       }
+      yPos += interLine;
+    }
 
+    if (printQPC) {
+      if (lineData.type == "ayah") {
+        // QPC
+        int penX = 0;
+        painter.save();
+        painter.translate(xStartRightToLeft, yPos);
+        painter.scale(qpcScale * unitsToPt, qpcScale * unitsToPt);
+
+        for (int i = qpcShapedRun.glyphs.size() - 1; i >= 0; --i) {
+          const auto& g = qpcShapedRun.glyphs[i];
+          penX -= g.x_advance;
+          const int gx = penX + g.x_offset;
+          const int gy = -(g.y_offset);  // already y flipped in outlines
+
+          if (!g.path.isEmpty()) {
+            painter.save();
+            painter.translate((double)gx, (double)gy);
+            painter.drawPath(g.path);
+            painter.restore();
+          }
+        }
+        painter.restore();
+      }
       yPos += interLine;
     }
   }
@@ -616,7 +620,7 @@ void LayoutWindow::compareQPCWithAnalyzer() {
   csv.setDevice(&csvFile);
   csv << "line_index,word_index,"
       << "width_qpc,height_qpc,width_analyzer,hight_analyzer,"
-      << "ratio_width,ratio_height\n";
+      << "ratio_width,ratio_height,linewidth_ratio,font_ratio\n";
 
   for (int lineIndex = 0; lineIndex < qpcShapedPage.size(); lineIndex++) {
     QVector<QPainterPath> qpcWords;
@@ -636,6 +640,13 @@ void LayoutWindow::compareQPCWithAnalyzer() {
     }
     const auto& analyzerShapedRun = analyzerShapedPage[lineIndex];
 
+    double qpcScale = 1;
+
+    if (analyzerShapedRun.totalAdvance != 0) {
+      qpcScale = qpcShapedRun.totalAdvance != 0 ? (double)analyzerShapedRun.totalAdvance / qpcShapedRun.totalAdvance : 0.7;
+      // qpcScale = qpcScale * (2048.0 / 1000.0);
+    }
+
     if (qpcWords.size() != analyzerShapedRun.glyphs.size()) continue;
 
     std::reverse(qpcWords.begin(), qpcWords.end());
@@ -649,11 +660,17 @@ void LayoutWindow::compareQPCWithAnalyzer() {
       auto qpcHeight = qpcGlyph.boundingRect().height();
       auto analyzerWidth = analyzerGlyph.path.boundingRect().width();
       auto analyzerHeight = analyzerGlyph.path.boundingRect().height();
-      auto ratio_width = qpcWidth / analyzerWidth;
-      auto ratio_hight = qpcHeight / analyzerHeight;
+      // auto ratio_width = (analyzerWidth / 1000.0) / (qpcWidth / 2048.0);
+      auto ratio_width = analyzerWidth / qpcWidth;
+      // auto ratio_hight = (analyzerHeight / 1000.0) / (qpcHeight / 2048.0);
+      auto ratio_hight = analyzerHeight / qpcHeight;
       csv << lineIndex << "," << nminus1 - glyphIndex << ","
           << qpcWidth << "," << qpcHeight << "," << analyzerWidth << ","
-          << analyzerHeight << "," << ratio_width << "," << ratio_hight << "\n";
+          << analyzerHeight << "," << ratio_width
+          << "," << ratio_hight
+          << "," << qpcScale
+          << "," << (qpcScale / ratio_width)
+          << "\n";
     }
   }
 }

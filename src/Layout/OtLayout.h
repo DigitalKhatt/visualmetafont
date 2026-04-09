@@ -92,6 +92,8 @@ struct LineLayoutInfo {
   int ystartposition;
   LineType type = LineType::Line;
   float overfull;
+  int desiredLineWidth;
+  int currentLineWidth;
   double fontSize;
   double xscale = 1;
   double xscaleparameter = 0;
@@ -191,7 +193,8 @@ enum class JustType {
   HarfBuzz,
   Madina,
   IndoPak,
-  Experimental
+  Experimental,
+  Experimental2
 };
 Q_DECLARE_METATYPE(JustType)
 enum class JustStyle {
@@ -199,6 +202,7 @@ enum class JustStyle {
   SameSizeByPage,
   XScale,
   FontSize,
+  FontSizeXScale,
   SCLX
 };
 Q_DECLARE_METATYPE(JustStyle)

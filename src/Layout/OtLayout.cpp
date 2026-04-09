@@ -1172,7 +1172,7 @@ void OtLayout::addLookup(Lookup* lookup) {
     throw "Lookup name not defined";
   }
 
-  if (!lookup->feature.isEmpty()) {
+  if (!lookup->feature.isEmpty() && lookup->feature != "inherited") {
     allFeatures[lookup->feature].insert(lookup);
   }
 
@@ -2138,7 +2138,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
   auto justType = justOption.justType;
   auto justStyle = justOption.justStyle;
 
-  if (justType == JustType::Madina || justType == JustType::IndoPak || justType == JustType::Experimental) {
+  if (justType == JustType::Madina || justType == JustType::IndoPak || justType == JustType::Experimental || justType == JustType::Experimental2) {
     return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, cluster_level, justOption, mushafLayout);
   }
 
@@ -2227,6 +2227,9 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
 
         lineLayout.glyphs.push_back(glyphLayout);
       }
+
+      lineLayout.currentLineWidth = currentlineWidth;
+      lineLayout.desiredLineWidth = lineWidth;
 
       lineLayout.overfull = lineWidth != 0 ? currentlineWidth - lineWidth : 0;
 

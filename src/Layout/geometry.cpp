@@ -314,8 +314,7 @@ GSContact getDistance(const GeometrySet& A, const GeometrySet& B,
 
       double dAabb = aabbDistanceSquared(aabbA, aabbB);
       if (dAabb > maxAabbDistanceSquared) continue;  // too far, skip
-      if (std::sqrt(dAabb) >= best.contact.depth_or_gap &&
-          best.contact.intersect == false)
+      if (std::sqrt(dAabb) >= best.contact.depth_or_gap && best.contact.intersect == false)
         continue;  // already have closer separated pair
 
       Contact c = contactGjkEpaPoly(pa, pb);
@@ -513,9 +512,9 @@ std::vector<Poly> convexDecomposeBayazit(const Poly& implicitClosedCCW) {
       out.push_back(fromTPPL(rp));  // CLOSED + CCW
     }
     // Defensive: drop any degenerate slivers
-    out.erase(std::remove_if(out.begin(), out.end(),
-                             [](const Poly& q) { return q.size() < 4; }),
-              out.end());
+    /*out.erase(std::remove_if(out.begin(), out.end(),
+                             [](const Poly& q) { return q.size() < 3; }),
+              out.end());*/
     return out;
   } else {
     throw new std::runtime_error("convexDecomposeBayazit error");

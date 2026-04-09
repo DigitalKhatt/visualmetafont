@@ -50,7 +50,7 @@ double mp_get_numeric_internal(MP mp, char* n) {
   return ret;
 }
 mp_string static mp_get_string_internal(MP mp, char* n) {
-  mp_string ret = "";
+  mp_string ret = (mp_string) "";
   size_t l = strlen(n);
   char err[256];
   const char* errid = NULL;

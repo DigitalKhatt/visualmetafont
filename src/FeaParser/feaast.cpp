@@ -105,12 +105,13 @@ void LookupDefinitionVisitor::accept(LookupDefinition& lookupDefinition) {
       LookupDefinition* lookupDefinition = liter->second;
 
       lookupDefinition->accept(*this);
-    } else {
-      if (!currentFeature.empty()) {
-        Lookup* ll = otlayout->lookups[lookupsIndex];
-        if (!ll->feature.isEmpty()) {
-          otlayout->allFeatures[QString::fromStdString(currentFeature)].insert(ll);
-        }
+
+      lookupsIndex = otlayout->lookupsIndexByName.value(refLookupName, -1);
+    }
+    if (!currentFeature.empty() && lookupsIndex != -1) {
+      Lookup* ll = otlayout->lookups[lookupsIndex];
+      if (ll->feature == "inherited") {
+        otlayout->allFeatures[QString::fromStdString(currentFeature)].insert(ll);
       }
     }
   }
@@ -604,12 +605,13 @@ void LookupDefinitionVisitor::accept(LookupReference& lookupReference) {
     LookupDefinition* lookupDefinition = liter->second;
 
     lookupDefinition->accept(*this);
-  } else {
-    if (!currentFeature.empty()) {
-      Lookup* ll = otlayout->lookups[lookupsIndex];
-      if (!ll->feature.isEmpty()) {
-        otlayout->allFeatures[QString::fromStdString(currentFeature)].insert(ll);
-      }
+
+    lookupsIndex = otlayout->lookupsIndexByName.value(lookupReference.lookupName, -1);
+  }
+  if (!currentFeature.empty() && lookupsIndex != -1) {
+    Lookup* ll = otlayout->lookups[lookupsIndex];
+    if (ll->feature == "inherited") {
+      otlayout->allFeatures[QString::fromStdString(currentFeature)].insert(ll);
     }
   }
 }

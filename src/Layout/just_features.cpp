@@ -24,7 +24,8 @@ enum class StretchType {
   OtherKashidas = 3,
   Kaf = 4,
   SecondKashidaNotSameSubWord = 5,
-  SecondKashidaSameSubWord = 6
+  SecondKashidaSameSubWord = 6,
+  BehNonGreedy = 7,
 };
 
 enum class AppliedResult {
@@ -381,12 +382,13 @@ static bool applyAlternatesSubWords(const LineTextInfo& lineTextInfo, JustInfo& 
   return false;
 }
 
-static QString rightKashExp = QString("بتثنيئ") + "جحخ" + "سش" + "صض" + "طظ" + "عغ" + "فق" + "م" + "ه" + "ل";
+static QString rightKashExp = QString("بتثنيئ") + "جحخ" + "سش" + "صض" + "طظ" + "عغ" + "فق" + "م" + "ه";
 static QString leftKash = QString("ئبتثني") + "جحخ" + "طظ" + "عغ" + "فق" + "ةلم" + "رز";
 static QString mediLeftAsendant = "ل";
 static const QString finalAscendant = "آادذٱأإكلهة";
 static auto regexBeh = vector<QRegularExpression>{QRegularExpression("^.+(?<k1>[بتثنيسشصض][بتثنيم]).+$")};
-static auto regexFinaAscendant = vector<QRegularExpression>{QRegularExpression(QString("^.*(?<k1>[%1][%2])$").arg(rightKashExp).arg(finalAscendant))};
+static auto regexBehNonGreedy = vector<QRegularExpression>{QRegularExpression("^.+?(?<k1>[بتثنيسشصض][بتثنيم]).+$")};
+static auto regexFinaAscendant = vector<QRegularExpression>{QRegularExpression(QString("^.*(?<k1>[%1][%2])$").arg(rightKashExp + "ل").arg(finalAscendant))};
 static auto regexOtherKashidas = vector<QRegularExpression>{
     QRegularExpression(QString(".*(?<k1>[%1][رز])").arg(rightKashExp)),
     QRegularExpression(QString(".*(?<k1>[%1](?:[%2]|[%3]))").arg(rightKashExp).arg(mediLeftAsendant).arg(leftKash.replace("رز", ""))),
@@ -661,6 +663,10 @@ static bool applyKashidasSubWords(
     case StretchType::Beh:
       regExprs = regexBeh;
       break;
+    case StretchType::BehNonGreedy:
+      regExprs = regexBehNonGreedy;
+      type = StretchType::Beh;
+      break;
     case StretchType::FinaAscendant:
       regExprs = regexFinaAscendant;
       break;
@@ -763,6 +769,32 @@ static bool applyKashidasSubWords(
   return false;
 }
 
+static const QRegularExpression DecomRegExpr("^(حم|لح).+$");
+
+static bool applyDecomposition(
+    const LineTextInfo& lineTextInfo,
+    JustInfo& justInfo, QRegularExpression regExpr,
+    int nbLevels) {
+  auto& wordInfos = lineTextInfo.wordInfos;
+  // auto& lineText = lineTextInfo.lineText;/
+
+  for (int wordIndex = 0; wordIndex < wordInfos.size(); wordIndex++) {
+    const auto& wordInfo = wordInfos[wordIndex];
+    for (int subWordIndex = 0; subWordIndex < wordInfo.subwords.size(); subWordIndex++) {
+      const auto& subWord = wordInfo.subwords[subWordIndex];
+      auto match = regExpr.match(subWord.baseText);
+      if (!match.hasMatch()) continue;
+      auto matchIndex = match.lastCapturedIndex();
+      auto firstSubWordMatchIndex = match.capturedStart(matchIndex);
+      auto secondSubWordMacthIndex = firstSubWordMatchIndex + 1;
+      auto appliedResult = applyKashida(lineTextInfo, justInfo, wordIndex, subWordIndex, firstSubWordMatchIndex, secondSubWordMacthIndex);
+      if (appliedResult == AppliedResult::Overflow) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 // static const QString rightNoJoinLetters = "آاٱأإدذرزوؤءة";
 // static const QString dualJoinLetters = "بتثجحخسشصضطظعغفقكلمنهيئى";
 
@@ -915,11 +947,36 @@ static void applyExperimentalJust(const LineTextInfo& lineTextInfo, JustInfo& ju
       applyKashidasSubWords(lineTextInfo, justInfo, StretchType::SecondKashidaNotSameSubWord, 2) ||
       applyKashidasSubWords(lineTextInfo, justInfo, StretchType::SecondKashidaSameSubWord, 2);
 }
+static void applyExperimental2Just(const LineTextInfo& lineTextInfo, JustInfo& justInfo) {
+  applyKashidasSubWords(lineTextInfo, justInfo, StretchType::BehNonGreedy, 2) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "بتثكن", 2) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::FinaAscendant, 1) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::Kaf, 1) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::FinaAscendant, 2) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::OtherKashidas, 2) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "ىصضسشفقيئ", 2) ||
+      // applyDecomposition(lineTextInfo, justInfo, DecomRegExpr, 1) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::BehNonGreedy, 1) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "بتثكن", 1) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::FinaAscendant, 1) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::OtherKashidas, 1) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "ىصضسشفقيئ", 1) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "بتثكن", 2) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "ىصضسشفقيئبتثكن", 2) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::BehNonGreedy, 1) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::FinaAscendant, 1) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::OtherKashidas, 1) ||
+      applyAlternatesSubWords(lineTextInfo, justInfo, "ىصضسشفقيئبتثكن", 2) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::SecondKashidaNotSameSubWord, 2) ||
+      applyKashidasSubWords(lineTextInfo, justInfo, StretchType::SecondKashidaSameSubWord, 2);
+}
 static void stretchLine(const LineTextInfo& lineTextInfo, JustInfo& justInfo, JustType justType) {
   if (justType == JustType::Madina) {
     applySimpleJust(lineTextInfo, justInfo, true, false, 2, 2);
   } else if (justType == JustType::IndoPak) {
     applySimpleJust(lineTextInfo, justInfo, false, true, 2, 2);
+  } else if (justType == JustType::Experimental2) {
+    applyExperimental2Just(lineTextInfo, justInfo);
   } else {
     applyExperimentalJust(lineTextInfo, justInfo);
   }
@@ -1156,6 +1213,9 @@ static LineLayoutInfo shapeLine(OtLayout* layout, int lineWidth, int pageWidth,
     lineLayout.glyphs.push_back(glyphLayout);
   }
 
+  lineLayout.desiredLineWidth = lineWidth;
+  lineLayout.currentLineWidth = currentlineWidth;
+
   lineLayout.overfull = lineWidth != 0 ? currentlineWidth - lineWidth : 0;
 
   if (justification == LineJustification::Distribute) {
@@ -1226,6 +1286,34 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
 
   int currentyPos = TopSpace << OtLayout::SCALEBY;
 
+  double fontRatio;
+
+  if (justOption.justStyle == JustStyle::SameSizeByPage) {
+    fontRatio = std::min(minRatio, 1.0);
+  } else if (justOption.justStyle == JustStyle::FontSizeXScale) {
+    double maxThresholdRatio = 1.2;
+    double minThresholdRatio = 0.95;
+    double maxStretchRatio = 0.02;
+    double maxShrinkRatio = 0.02;
+    if (maxRatio > maxThresholdRatio && minRatio < minThresholdRatio) {
+      // very inconsistent, keep font size
+      fontRatio = 1;
+    } else if (maxRatio <= maxThresholdRatio && minRatio >= minThresholdRatio) {
+      // within tolerance threshold, keep font size
+      fontRatio = 1;
+    } else if (maxRatio > maxThresholdRatio) {
+      double diff = std::min(maxRatio - maxThresholdRatio, maxStretchRatio);
+      diff = std::min(diff, minRatio - minThresholdRatio);
+      fontRatio = 1 + diff;
+    } else {
+      double diff = std::min(minThresholdRatio - minRatio, maxShrinkRatio);
+      diff = std::min(diff, maxThresholdRatio - maxRatio);
+      fontRatio = 1 - diff;
+    }
+  } else {
+    fontRatio = 1;
+  }
+
   for (auto lineIdx = 0; lineIdx < lines.size(); lineIdx++) {
     auto& line = lines[lineIdx];
 
@@ -1233,15 +1321,7 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
 
     auto fontSizeLineWidthRatio = line.width != 0 ? (double)FONTSIZE * emScale / line.width : 1;
 
-    auto defaultFontRatio = justOption.justStyle == JustStyle::SameSizeByPage ? 1.0 : 1.0;  // (minRatio + maxRatio) / 2
-
-    double fontRatio;
-
-    if (justOption.justStyle == JustStyle::SameSizeByPage) {
-      fontRatio = min(minRatio, defaultFontRatio);
-    } else {
-      fontRatio = 1;  // min(fontSizeRatios[lineIdx], defaultFontRatio);
-    }
+    // auto defaultFontRatio = justOption.justStyle == JustStyle::SameSizeByPage ? 1.0 : 1.0;  // (minRatio + maxRatio) / 2
 
     JustResultByLine justResultByLine;
 
