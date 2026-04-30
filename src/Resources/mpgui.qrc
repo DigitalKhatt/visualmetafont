@@ -21,5 +21,8 @@
     <file>metafont/mpost.mp</file>
     <file>metafont/vmf.mp</file>
     <file>images/surahframe.svg</file>
+    <file>fonts/icomoon.ttf</file>
+    <file>fonts/surahCodes.json</file>
+    <file>fonts/surahs.svg</file>    
   </qresource>
 </RCC>

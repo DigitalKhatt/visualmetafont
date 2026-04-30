@@ -1330,6 +1330,10 @@ QList<LineLayoutInfo> OtLayout::justifyPageUsingFeatures(double emScale, int pag
       justResultByLine.ayaSpacing = spaceWidth;
       justResultByLine.simpleSpacing = spaceWidth;
       justResultByLine.xScale = 1;
+    } else if (line.lineType == LineType::Sura) {
+      justResultByLine.ayaSpacing = spaceWidth;
+      justResultByLine.simpleSpacing = spaceWidth;
+      justResultByLine.xScale = 1;
     } else {
       justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * fontRatio, spaceWidth, justOption, this);
     }

@@ -928,6 +928,11 @@ void LayoutWindow::checkOffMarks() {
   auto result = shapeMushaf(scale, lineWidth, m_otlayout,
                             HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
+  if (this->applyForce) {
+    optimizeLayout(result.pages, result.originalPages, 0,
+                   result.pages.size(), scale);
+  }
+
   struct CheckResult {
     int pageIndex;
     int lineIndex;
@@ -1315,6 +1320,19 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth,
 
   QRegularExpression surabism(surapattern, QRegularExpression::MultilineOption);
 
+  QString sajdapatterns =
+      "(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ "
+      "لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|"
+      "(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)";
+
+  sajdapatterns = sajdapatterns.replace("\u0627\u0654", "\u0627\u034F\u0654\u034F");
+
+  QRegularExpression sajdaRe = QRegularExpression(sajdapatterns, QRegularExpression::MultilineOption);
+
+  int beginsajda = 0;
+  int endsajda = 0;
+  int sajdamatched = 0;
+
   for (int pagenum = 0; pagenum < currentQuranText.size(); pagenum++) {
     auto& pageText = currentQuranText[pagenum];
 
@@ -1372,9 +1390,51 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth,
         }
       }
     }
+    for (int lineIndex = 0; lineIndex < shapedPage.size(); lineIndex++) {
+      auto& lineLayoutInfo = shapedPage[lineIndex];
+
+      auto match = surabism.match(lines[lineIndex]);
+
+      newface = false;
+
+      if (lineLayoutInfo.type == LineType::Line) {
+        // check if sajda
+        match = sajdaRe.match(lines[lineIndex]);
+        if (match.hasMatch()) {
+          sajdamatched++;
+
+          int startOffset = match.capturedStart(match.lastCapturedIndex());  // startOffset == 6
+          int endOffset = match.capturedEnd(match.lastCapturedIndex()) - 1;  // endOffset == 9
+
+          while (lines[lineIndex][endOffset].isMark()) endOffset--;
+
+          bool beginDone = false;
+
+          auto& glyphs = lineLayoutInfo.glyphs;
+
+          for (auto& glyphLayout : glyphs) {
+            if (glyphLayout.cluster == startOffset && !beginDone) {
+              glyphLayout.beginsajda = true;
+              beginDone = true;
+              beginsajda++;
+
+            } else if (glyphLayout.cluster == endOffset) {
+              glyphLayout.endsajda = true;
+              endsajda++;
+              break;
+            }
+          }
+        }
+      }
+    }
+
     newface = false;
     result.pages.append(shapedPage);
     result.originalPages.append(lines);
+  }
+
+  if (beginsajda != 15 || endsajda != 15 || sajdamatched != 15) {
+    qDebug() << "sajdas problems? beginsajda=" << beginsajda << ", endsajda=" << endsajda << ", sajdamatched" << sajdamatched;
   }
 
   return result;
@@ -1729,6 +1789,11 @@ bool LayoutWindow::generateLayoutInfo() {
 
   auto result = shapeMushaf(scale, lineWidth, m_otlayout,
                             HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+
+  if (this->applyForce) {
+    optimizeLayout(result.pages, result.originalPages, 0,
+                   result.pages.size(), scale);
+  }
 
   GenerateLayout generateLayout{m_otlayout, result};
 
