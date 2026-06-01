@@ -17,18 +17,18 @@
  * <https: //www.gnu.org/licenses />.
 */
 
-#include "qstringbuilder.h"
-
 #include "glyph.hpp"
-#include "font.hpp"
-#include "commands.h"
-#include "qpainter.h"
-#include "GlyphParser/glyphdriver.h"
-#include "qcoreevent.h"
-#include  <cmath>
 
-#include "metafont.h"
+#include <cmath>
 #include <iostream>
+
+#include "GlyphParser/glyphdriver.h"
+#include "commands.h"
+#include "font.hpp"
+#include "metafont.h"
+#include "qcoreevent.h"
+#include "qpainter.h"
+#include "qstringbuilder.h"
 
 Glyph::Param::Param(const Glyph::Param& a) {
   name = a.name;
@@ -87,31 +87,26 @@ Glyph::Glyph(QString code, Font* parent) : QObject((QObject*)parent) {
 
   m_undoStack = new QUndoStack(this);
 
-  QVariant defaultValue = QVariant::fromValue(AxisType{ 0.0 });
+  QVariant defaultValue = QVariant::fromValue(AxisType{0.0});
 
   for (auto axisName : this->axisNames) {
     QObject::setProperty(axisName.toLocal8Bit(), defaultValue);
   }
-
-
 }
 
 Glyph::~Glyph() {
-
 }
-void  Glyph::setBeginMacroName(QString macro) {
+void Glyph::setBeginMacroName(QString macro) {
   m_beginmacroname = macro;
 }
-QString  Glyph::beginMacroName() {
+QString Glyph::beginMacroName() {
   return m_beginmacroname;
 }
 
 void Glyph::setSource(QString source, bool structureChanged) {
-
   isSetSource = true;
   blockSignals(true);
   isDirty = true;
-
 
   params.clear();
   dependents.clear();
@@ -125,7 +120,6 @@ void Glyph::setSource(QString source, bool structureChanged) {
       setProperty(propname, variant);
     }
   }
-
 
   QHash<Glyph*, ComponentInfo>::iterator comp;
   for (comp = m_components.begin(); comp != m_components.end(); ++comp) {
@@ -152,29 +146,28 @@ void Glyph::setSource(QString source, bool structureChanged) {
 
   blockSignals(false);
 
-  //auto gg = receivers(SIGNAL(valueChanged(QString)));
+  // auto gg = receivers(SIGNAL(valueChanged(QString)));
 
   emit valueChanged("source", structureChanged);
 }
 QString Glyph::source() {
-
   if (isDirty) {
     edge = NULL;
     QString source;
 
     source = QString("%1(%2,%3,%4,%5,%6);\n").arg(beginMacroName()).arg(name()).arg(unicode()).arg(width()).arg(height()).arg(depth());
-    //source = source % QString("%%glyphname:%1\n").arg(name());
+    // source = source % QString("%%glyphname:%1\n").arg(name());
     if (!image().path.isEmpty()) {
       Glyph::ImageInfo imageInfo = image();
       QTransform transform = imageInfo.transform;
       source = source % QString("%%backgroundimage:%1,%2,%3,%4,%5,%6,%7\n")
-        .arg(imageInfo.path)
-        .arg(imageInfo.pos.x())
-        .arg(imageInfo.pos.y())
-        .arg(transform.m11())
-        .arg(transform.m12())
-        .arg(transform.m21())
-        .arg(transform.m22());
+                            .arg(imageInfo.path)
+                            .arg(imageInfo.pos.x())
+                            .arg(imageInfo.pos.y())
+                            .arg(transform.m11())
+                            .arg(transform.m12())
+                            .arg(transform.m21())
+                            .arg(transform.m22());
     }
 
     if (!m_components.isEmpty()) {
@@ -183,13 +176,7 @@ QString Glyph::source() {
       for (i = m_components.begin(); i != m_components.end(); ++i) {
         ComponentInfo component = i.value();
         QTransform transform = component.transform;
-        source = source % QString("drawcomponent(%1,%2,%3,%4,%5,%6,%7);\n").arg(i.key()->name())
-          .arg(component.pos.x())
-          .arg(component.pos.y())
-          .arg(transform.m11())
-          .arg(transform.m12())
-          .arg(transform.m21())
-          .arg(transform.m22());
+        source = source % QString("drawcomponent(%1,%2,%3,%4,%5,%6,%7);\n").arg(i.key()->name()).arg(component.pos.x()).arg(component.pos.y()).arg(transform.m11()).arg(transform.m12()).arg(transform.m21()).arg(transform.m22());
       }
       source = source % "%%endcomponents\n";
     }
@@ -212,8 +199,6 @@ QString Glyph::source() {
         }
 
         source = source % QString("%1 %2 %3;%4\n").arg(QString(propname)).arg(affect).arg(expString).arg(comment);
-
-
       }
       /*
       QMapIterator<QString, Param> i(params);
@@ -263,11 +248,9 @@ QString Glyph::source() {
         const Knot* currentpoint = firstpoint;
         if (controlledPathNames[j.key()] == "fill") {
           source = source % QString("fill\n");
-        }
-        else if (controlledPathNames[j.key()] == "fillc") {
+        } else if (controlledPathNames[j.key()] == "fillc") {
           source = source % QString("fillc\n");
-        }
-        else {
+        } else {
           source = source % QString("controlledPath (%1,%2)(%3)(\n").arg(j.key()).arg(path.firstKey()).arg(controlledPathNames[j.key()]);
         }
 
@@ -280,22 +263,19 @@ QString Glyph::source() {
 
           source = source % currentpoint->expr->toString();
 
-
           if (currentpoint->rightValue.jointtype == path_join_control) {
             source = source % QString(" .. controls %1").arg(currentpoint->rightValue.dirExpr->toString());
             if (!currentpoint->rightValue.isEqualAfter) {
               source = source % QString(" and %1").arg(nextpoint->leftValue.dirExpr->toString());
             }
             source = source % QString(" ..\n");
-          }
-          else {
+          } else {
             if (currentpoint->rightValue.type == mpgui_given) {
               source = source % QString(" {%1}").arg(currentpoint->rightValue.dirExpr->toString());
             }
             if (currentpoint->rightValue.jointtype == path_join_macro) {
               source = source % QString(" %1\n").arg(currentpoint->rightValue.macrovalue);
-            }
-            else {
+            } else {
               if (currentpoint->rightValue.tensionExpr) {
                 source = source % QString(" .. tension %1%2").arg(currentpoint->rightValue.isAtleast ? "atleast " : "").arg(currentpoint->rightValue.tensionExpr->toString());
                 if (!currentpoint->rightValue.isEqualAfter) {
@@ -304,7 +284,6 @@ QString Glyph::source() {
                   }
                 }
               }
-
 
               source = source % QString(" ..\n");
             }
@@ -317,15 +296,12 @@ QString Glyph::source() {
         source = source % QString(" cycle\n");
         if (controlledPathNames[j.key()] != "fill" && controlledPathNames[j.key()] != "fillc") {
           source = source % QString(");\n");
-        }
-        else {
+        } else {
           source = source % QString(";\n");
         }
-
       }
       source = source % "\n%%endpaths\n";
     }
-
 
     if (body() != "") {
       source = source % "%%beginbody\n";
@@ -334,11 +310,9 @@ QString Glyph::source() {
 
     if (m_beginmacroname == "beginchar") {
       source = source % "endchar;\n";
-    }
-    else {
+    } else {
       source = source % "enddefchar;\n";
     }
-
 
     m_source = source;
     isDirty = false;
@@ -346,7 +320,6 @@ QString Glyph::source() {
   return m_source;
 }
 void Glyph::setName(QString name) {
-
   if (name == m_name)
     return;
 
@@ -383,7 +356,6 @@ int Glyph::charcode() {
   return m_charcode;
 }
 
-
 void Glyph::setWidth(double width) {
   m_width = width;
   isDirty = true;
@@ -419,8 +391,7 @@ void Glyph::setImage(Glyph::ImageInfo image) {
   isDirty = true;
   if (old.path != m_image.path) {
     emit valueChanged("image");
-  }
-  else if (old.pos != m_image.pos | old.transform != m_image.transform) {
+  } else if (old.pos != m_image.pos | old.transform != m_image.transform) {
     emit valueChanged("imagetransform");
   }
 }
@@ -428,7 +399,6 @@ Glyph::ImageInfo Glyph::image() const {
   return m_image;
 }
 void Glyph::setComponents(QHashGlyphComponentInfo components) {
-
   isDirty = true;
 
   QHash<Glyph*, ComponentInfo>::iterator comp;
@@ -447,13 +417,11 @@ void Glyph::setComponents(QHashGlyphComponentInfo components) {
   m_components = components;
 
   emit valueChanged("components");
-
 }
 Glyph::QHashGlyphComponentInfo Glyph::components() const {
   return m_components;
 }
 void Glyph::setBody(QString body, bool autoParam) {
-
   m_body = body;
   isDirty = true;
   emit valueChanged("body");
@@ -466,7 +434,7 @@ void Glyph::setVerbatim(QString verbatim) {
   isDirty = true;
   emit valueChanged("verbatim");
 }
-QString Glyph::verbatim()const {
+QString Glyph::verbatim() const {
   return m_verbatim;
 }
 void Glyph::setComponent(QString name, double x, double y, double t1, double t2, double t3, double t4) {
@@ -483,10 +451,8 @@ void Glyph::setComponent(QString name, double x, double y, double t1, double t2,
   emit valueChanged("components");
 }
 void Glyph::parseComponents(QString componentSource) {
-
 }
 void Glyph::parsePaths(QString pathsSource) {
-
 }
 void Glyph::componentChanged(QString name, bool structureChanged) {
   emit valueChanged("component", false);
@@ -504,7 +470,7 @@ void Glyph::setParameter(QString name, MFExpr* exp, bool isEquation, bool isInCo
   param.name = name;
   param.isEquation = isEquation;
   param.affects = affects;
-  param.expr = std::unique_ptr<MFExpr>{ exp };
+  param.expr = std::unique_ptr<MFExpr>{exp};
 
   param.isInControllePath = isInControllePath;
 
@@ -512,21 +478,19 @@ void Glyph::setParameter(QString name, MFExpr* exp, bool isEquation, bool isInCo
     param.isInControllePath = true;
   }
 
-  params.insert({ param.name, std::move(param) });
+  params.insert({param.name, std::move(param)});
 
   if (!affects.isEmpty()) {
     dependents.insert(affects, &params[name]);
   }
 
-  //TODO : check this
+  // TODO : check this
   if (exp->isLiteral()) {
     setProperty(name.toLatin1(), exp->constantValue(0));
   }
-
 }
 
-QString Glyph::getLog()
-{
+QString Glyph::getLog() {
   return font->getLog();
 }
 
@@ -542,11 +506,9 @@ QString Glyph::getInfo() {
   return log;
 }
 
-mp_edge_object* Glyph::getEdge()
-{
+mp_edge_object* Glyph::getEdge() {
   if (edge && !isDirty)
     return edge;
-
 
   QString paramsString;
 
@@ -561,8 +523,7 @@ mp_edge_object* Glyph::getEdge()
 
   try {
     font->executeMetaPost(data);
-  }
-  catch (QString err) {
+  } catch (QString err) {
     return nullptr;
   }
 
@@ -615,7 +576,6 @@ Glyph::ComputedValues Glyph::getComputedValues() {
     }
   }
 
-
   return values;
 }
 
@@ -627,39 +587,32 @@ bool Glyph::event(QEvent* e) {
       emit valueChanged(pe->propertyName());
     }
   }
-  return QObject::event(e); // don't forget this
+  return QObject::event(e);  // don't forget this
 }
-QUndoStack* Glyph::undoStack() const
-{
+QUndoStack* Glyph::undoStack() const {
   return m_undoStack;
 }
 void Glyph::setPropertyWithUndo(const QString& name, const QVariant& value) {
   ChangeGlyphPropertyCommand* command = new ChangeGlyphPropertyCommand(this, name, value);
   m_undoStack->push(command);
-
 }
 QPainterPath Glyph::getPathFromEdge(mp_edge_object* h) {
-
   QPainterPath localpath;
-
 
   if (h) {
     mp_graphic_object* body = h->body;
 
-
     if (body) {
-
       do {
-        switch (body->type)
-        {
-        case mp_fill_code: {
-          QPainterPath subpath = mp_dump_solved_path(((mp_fill_object*)body)->path_p);
-          localpath.addPath(subpath);
+        switch (body->type) {
+          case mp_fill_code: {
+            QPainterPath subpath = mp_dump_solved_path(((mp_fill_object*)body)->path_p);
+            localpath.addPath(subpath);
 
-          break;
-        }
-        default:
-          break;
+            break;
+          }
+          default:
+            break;
         }
 
       } while (body = body->next);
@@ -688,30 +641,24 @@ QPicture Glyph::getPicture() {
   return getPicture(getEdge());
 }
 QPainterPath Glyph::getPath(mp_edge_object* h) {
-
   QPainterPath localpath;
 
   localpath.setFillRule(Qt::WindingFill);
 
-
   if (h) {
     mp_graphic_object* body = h->body;
 
-
     if (body) {
-
       do {
-        switch (body->type)
-        {
-        case mp_fill_code: {
-          QPainterPath subpath = mp_dump_solved_path(((mp_fill_object*)body)->path_p);
-          localpath.addPath(subpath);
+        switch (body->type) {
+          case mp_fill_code: {
+            QPainterPath subpath = mp_dump_solved_path(((mp_fill_object*)body)->path_p);
+            localpath.addPath(subpath);
 
-
-          break;
-        }
-        default:
-          break;
+            break;
+          }
+          default:
+            break;
         }
 
       } while (body = body->next);
@@ -720,9 +667,53 @@ QPainterPath Glyph::getPath(mp_edge_object* h) {
 
   return localpath;
 }
-QPicture Glyph::getPicture(mp_edge_object* h)
-{
+static QColor adaptColorForDarkTheme(const QColor& c) {
+  if (!c.isValid())
+    return c;
 
+  qreal h, s, l, a;
+  c.getHslF(&h, &s, &l, &a);
+
+  // Special handling for grayscale colors
+  if (s < 0.05) {
+    // Invert grayscale perceptually
+    qreal newL = 1.0 - l;
+
+    // Avoid pure white glowing too much
+    if (newL > 0.92)
+      newL = 0.92;
+
+    QColor out;
+    out.setHslF(0.0, 0.0, newL, a);
+
+    return out;
+  }
+
+  // --- Colored colors ---
+
+  qreal newL;
+
+  if (l < 0.5) {
+    // Dark colors become bright
+    newL = 0.72 + l * 0.18;
+  } else {
+    // Bright colors remain controlled
+    newL = 0.82 + (l - 0.5) * 0.10;
+  }
+
+  // Slightly reduce saturation
+  qreal newS = s * 0.85;
+
+  // Clamp
+  newL = std::clamp(newL, 0.0, 0.92);
+  newS = std::clamp(newS, 0.18, 1.0);
+
+  QColor out;
+  out.setHslF(h, newS, newL, a);
+
+  return out;
+}
+QPicture Glyph::getPicture(mp_edge_object* h) {
   QPicture pic;
   QPainter painter;
 
@@ -731,44 +722,43 @@ QPicture Glyph::getPicture(mp_edge_object* h)
   if (h) {
     mp_graphic_object* body = h->body;
 
-
     if (body) {
       QPainterPath foregroudpath;
       foregroudpath.setFillRule(Qt::FillRule::WindingFill);
 
       do {
-        switch (body->type)
-        {
-        case mp_fill_code: {
-          auto fillobject = (mp_fill_object*)body;
-          /*auto done = false;
-          if (fillobject->pre_script && strcmp(fillobject->pre_script, "begincomponent") == 0) {
-            auto comp = QString(fillobject->post_script).split(",");
-            QString name = comp[0];
-            GlyphVis& compGlyph = m_otLayout->glyphs[name];
-            if (!compGlyph.isColored()) {
-              auto initPosX = comp[1].toDouble() + matrix.xpart;
-              auto initPosY = comp[2].toDouble() + matrix.ypart;
-              painter.save();
-              painter.translate(initPosX, initPosY);
-              painter.fillPath(compGlyph.path, QColor(Qt::black));
-              painter.restore();
-              body = body->next;
-              while (body->type != mp_stroked_code || ((mp_stroked_object*)body)->pre_script == nullptr || strcmp(((mp_stroked_object*)body)->pre_script, "endcomponent")) body = body->next;
-              done = true;
-            }
+        switch (body->type) {
+          case mp_fill_code: {
+            auto fillobject = (mp_fill_object*)body;
+            /*auto done = false;
+            if (fillobject->pre_script && strcmp(fillobject->pre_script, "begincomponent") == 0) {
+              auto comp = QString(fillobject->post_script).split(",");
+              QString name = comp[0];
+              GlyphVis& compGlyph = m_otLayout->glyphs[name];
+              if (!compGlyph.isColored()) {
+                auto initPosX = comp[1].toDouble() + matrix.xpart;
+                auto initPosY = comp[2].toDouble() + matrix.ypart;
+                painter.save();
+                painter.translate(initPosX, initPosY);
+                painter.fillPath(compGlyph.path, QColor(Qt::black));
+                painter.restore();
+                body = body->next;
+                while (body->type != mp_stroked_code || ((mp_stroked_object*)body)->pre_script == nullptr || strcmp(((mp_stroked_object*)body)->pre_script, "endcomponent")) body = body->next;
+                done = true;
+              }
 
+            }
+            if (!done) {*/
+            QPainterPath subpath = mp_dump_solved_path(fillobject->path_p);
+            if (fillobject->color_model == mp_rgb_model) {
+              auto color = QColor(fillobject->color.a_val * 255, fillobject->color.b_val * 255, fillobject->color.c_val * 255);
+              // color= adaptColorForDarkTheme(color);
+              painter.fillPath(subpath, color);
+            } else if (fillobject->color_model == mp_no_model) {
+              foregroudpath.addPath(subpath);
+            }
+            //}
           }
-          if (!done) {*/
-          QPainterPath subpath = mp_dump_solved_path(fillobject->path_p);
-          if (fillobject->color_model == mp_rgb_model) {
-            painter.fillPath(subpath, QColor(fillobject->color.a_val * 255, fillobject->color.b_val * 255, fillobject->color.c_val * 255));
-          }
-          else if (fillobject->color_model == mp_no_model) {
-            foregroudpath.addPath(subpath);
-          }
-          //}
-        }
         }
       } while (body = body->next);
 
@@ -784,7 +774,7 @@ QPicture Glyph::getPicture(mp_edge_object* h)
 QPainterPath Glyph::mp_dump_solved_path(mp_gr_knot h) {
   mp_gr_knot p, q;
   QPainterPath path;
-  //path.setFillRule(Qt::OddEvenFill);
+  // path.setFillRule(Qt::OddEvenFill);
   if (h == NULL) return path;
 
   path.moveTo(h->x_coord, h->y_coord);

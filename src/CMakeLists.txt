@@ -13,12 +13,19 @@ find_package(BISON REQUIRED)
 find_package(Clipper2 CONFIG REQUIRED)
 
 include(FetchContent)
+#FetchContent_Declare(
+#gjk_epa
+#GIT_REPOSITORY https://github.com/andreacasalino/Flexible-GJK-and-EPA
+#GIT_TAG        master
+#)
+#FetchContent_MakeAvailable(gjk_epa)
 FetchContent_Declare(
-gjk_epa
-GIT_REPOSITORY https://github.com/andreacasalino/Flexible-GJK-and-EPA
-GIT_TAG        master
+  PDFHummus
+  GIT_REPOSITORY https://github.com/galkahana/PDF-Writer.git
+  GIT_TAG        v4.9.0
+  FIND_PACKAGE_ARGS
 )
-FetchContent_MakeAvailable(gjk_epa)
+FetchContent_MakeAvailable(PDFHummus)
 
 
 cmake_policy(SET CMP0071 NEW)
@@ -98,7 +105,7 @@ set(FeaParser
   FeaParser/feaast.h
   FeaParser/scanner.h
   FeaParser/just.h
-  FeaParser/just.cpp  
+  FeaParser/just.cpp
   FeaParser/fsm.cpp
   ${BISON_FeaParser_OUTPUTS}
   ${FLEX_FeaScanner_OUTPUTS}
@@ -170,7 +177,7 @@ set(Layout
   Layout/geometry.cpp
   Layout/gjk_epa.cpp
   Layout/contact_flexible.h
-  Layout/contact_flexible.cpp
+  #Layout/contact_flexible.cpp
   Layout/optimize_layout.cpp
   Layout/compare_with_qpc.cpp
   Layout/HbDrawToQtPath.cpp
@@ -178,7 +185,7 @@ set(Layout
 
 
 
-set(LayoutWindow  
+set(LayoutWindow
   Layout/GlyphItem.cpp
   Layout/GraphicsSceneAdjustment.cpp
   Layout/GraphicsViewAdjustment.cpp
@@ -194,6 +201,8 @@ set(Pdf
   Pdf/qpdf.h
   Pdf/quranpdfwriter.cpp
   Pdf/quranpdfwriter.h
+  Pdf/quranpdfwriterpdfhummus.h
+  Pdf/quranpdfwriterpdfhummus.cpp
   )
 endif()
 
@@ -219,7 +228,7 @@ if (APPLE)
   set(MACOSX_BUNDLE_ICON_FILE visualmetafont.icns)
   set(MACOSX_BUNDLE_BUNDLE_NAME visualmetafont)
   set(MACOSX_BUNDLE_GUI_IDENTIFIER org.digitalkhatt.visualmetafont)
- 
+
   # And the following tells CMake where to find and install the file itself.
   set(app_icon_macos Resources/visualmetafont.icns)
   set_source_files_properties(${app_icon_macos} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
@@ -250,7 +259,7 @@ set(GlyphCommands
   glyphwindow/commands.h
 )
 
-set(GlyphWindow 
+set(GlyphWindow
   glyphwindow/componentitem.cpp
   glyphwindow/contouritem.cpp
   glyphwindow/glyphparametercontroller.cpp
@@ -282,13 +291,13 @@ source_group("MetaFont" FILES ${MetaFont})
 
 
 
-set(ALL_FILES ${Automedina} ${GlyphCommands} ${FeaParser} ${MetaFont} ${GlyphParser} ${QuranText} ${Layout} 
+set(ALL_FILES ${Automedina} ${GlyphCommands} ${FeaParser} ${MetaFont} ${GlyphParser} ${QuranText} ${Layout}
   ${GlyphWindow}  ${FontWindow}
   ${Export} ${LayoutWindow} ${Main} ${Pdf}  ${Generated_Files} ${Resource_Files}
 )
 
 
-set(WEBLIB_FILES  ${Automedina} ${FeaParser}  
+set(WEBLIB_FILES  ${Automedina} ${FeaParser}
   ${Layout} ${QuranText} ${Header_Files} ${Resource_Files} weblib/visualmetafontwasm.cpp weblib/quranshaper.h)
 
 set(LUATEX_FILES
@@ -311,7 +320,7 @@ endif(APPLE)
 
 add_library(${VMF_SL} SHARED  ${Automedina} ${GlyphCommands} ${FeaParser} ${MetaFont} ${GlyphParser} ${QuranText} ${Layout})
 
-target_include_directories(${VMF_SL} PUBLIC 
+target_include_directories(${VMF_SL} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/."
   "${CMAKE_CURRENT_SOURCE_DIR}/Layout"
   "${CMAKE_CURRENT_SOURCE_DIR}/FeaParser"
@@ -335,7 +344,7 @@ export(TARGETS ${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser FILE ${CMAKE_CUR
 
 
 
-target_include_directories(${PROJECT_NAME} PUBLIC 
+target_include_directories(${PROJECT_NAME} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/."
   "${CMAKE_CURRENT_SOURCE_DIR}/Layout"
   "${CMAKE_CURRENT_SOURCE_DIR}/FeaParser"
@@ -346,7 +355,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/Automedina"
   )
 
-target_include_directories(${WEBLIB_NAME} PUBLIC 
+target_include_directories(${WEBLIB_NAME} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/."
   "${CMAKE_CURRENT_SOURCE_DIR}/Layout"
   "${CMAKE_CURRENT_SOURCE_DIR}/FeaParser"
@@ -364,12 +373,12 @@ if (WIN32)
 endif (WIN32)
 
 if (UNIX)
-    set_property(TARGET lualib PROPERTY IMPORTED_LOCATION  ${IMPLIBLOCATION})   
+    set_property(TARGET lualib PROPERTY IMPORTED_LOCATION  ${IMPLIBLOCATION})
 endif (UNIX)
 
 
 
-target_include_directories(${LUATEX_NAME} PUBLIC 
+target_include_directories(${LUATEX_NAME} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/."
   "${CMAKE_CURRENT_SOURCE_DIR}/Layout"
   "${CMAKE_CURRENT_SOURCE_DIR}/FeaParser"
@@ -427,15 +436,16 @@ target_link_libraries(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wl,--excl
 
 if (NOT EMSCRIPTEN)
   # Link with other targets.
-  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib PRIVATE  QtPropertyBrowser     
+  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib PRIVATE  QtPropertyBrowser
     Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::Svg Qt5::PrintSupport Qt5::Widgets Qt5::Sql
     ${QT_STATIC_PLUGINS}
     ZLIB::ZLIB
-    Clipper2::Clipper2    
-    GJK-EPA
+    Clipper2::Clipper2
+    #GJK-EPA
+    PDFHummus::PDFWriter
   )
 else()
-  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser     
+  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser
     Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::Svg Qt5::PrintSupport Qt5::Widgets
     Qt5::QJpegPlugin
     Qt5::QSvgPlugin
@@ -457,7 +467,7 @@ if (NOT EMSCRIPTEN)
       target_link_libraries(${PROJECT_NAME} PUBLIC Qt5::QWindowsIntegrationPlugin)
     endif()
     target_link_libraries(${WEBLIB_NAME} PUBLIC imm32 version Dwmapi Mincore winmm Wtsapi32 Qt5::QWindowsIntegrationPlugin)
-  endif (WIN32) 
+  endif (WIN32)
 
   target_link_libraries(${PROJECT_NAME} PRIVATE protobuf::libprotobuf)
 
@@ -517,9 +527,9 @@ else()
     "SHELL:-s \"EXPORTED_RUNTIME_METHODS=['FS','print','printErr']\""
     #"SHELL:-s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=[\\\"$Browser\\\"]"
     "SHELL:-s MODULARIZE=1"
-    "SHELL:-s IMPORTED_MEMORY"    
+    "SHELL:-s IMPORTED_MEMORY"
     #"SHELL:-s TOTAL_MEMORY=1048576000"
-    "SHELL:-s ENVIRONMENT=web"    
+    "SHELL:-s ENVIRONMENT=web"
     #"SHELL:-s \"EXPORTED_FUNCTIONS=['_main']\""
     #--post-js "${CMAKE_CURRENT_SOURCE_DIR}/post-js.js"
     )
@@ -528,13 +538,13 @@ else()
 
     target_link_options(${PROJECT_NAME} PRIVATE
       "SHELL:-s WASM=1"
-      "SHELL:-s EXPORT_ES6=1"      
+      "SHELL:-s EXPORT_ES6=1"
       )
 
     target_link_options(${WEBLIB_NAME} PRIVATE
       "SHELL:-s WASM=1"
       "SHELL:-s EXPORT_ES6=1"
-      "SHELL:-s DEMANGLE_SUPPORT=1"      
+      "SHELL:-s DEMANGLE_SUPPORT=1"
       )
 
     add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
@@ -567,17 +577,17 @@ else()
 
   endif()
 
-  
+
   add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/features.fea" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/ayah.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/mfplain.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/digitalkhatt.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/mpguifont.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/myfontbase.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"    
+    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/myfontbase.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/parameters.json" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     COMMENT "Copying to output directory")
-  
+
 
 endif()
 

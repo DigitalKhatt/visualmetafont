@@ -131,7 +131,7 @@ class LayoutWindow : public QMainWindow {
   void loadMushafLayout(QString layoutName);
   void generateTestFile();
   void checkOffMarks();
-  void savePagetoPicture();
+  void savePagetoPicture(bool isSvg);
   void convertCursiveToKern();
   void updateWindowMenu();
   JustOption getJustOption();
@@ -176,6 +176,7 @@ class LayoutWindow : public QMainWindow {
   bool applyForce = false;
   bool applyTeXAlgo = false;
   bool tajweedEnabled = true;
+  bool isDark = false;
 
   QComboBox* mushafLayouts;
 };

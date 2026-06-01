@@ -24,7 +24,7 @@
 #include "GlyphVis.h"
 #include "Lookup.h"
 #include "automedina/automedina.h"
-#include "contact_flexible.h"
+// #include "contact_flexible.h"
 #include "qpoint.h"
 
 #if defined(ENABLE_PDF_GENERATION)

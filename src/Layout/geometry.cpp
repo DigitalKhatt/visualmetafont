@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "clipper2/clipper.h"
-#include "contact_flexible.h"
+// #include "contact_flexible.h"
 #include "metafont.h"
 #include "polypartition.h"
 

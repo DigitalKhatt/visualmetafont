@@ -54,6 +54,7 @@
 #include <math.h>
 
 #include <QPrinter>
+#include <QtSvg/QSvgGenerator>
 #include <chrono>
 #include <iostream>
 #include <set>
@@ -61,6 +62,7 @@
 
 #include "Export/ExportToHTML.h"
 #include "Export/GenerateLayout.h"
+#include "Pdf/quranpdfwriterpdfhummus.h"
 #include "gllobal_strings.h"
 #include "to_opentype.h"
 
@@ -82,7 +84,7 @@ LayoutWindow::LayoutWindow(Font* font, QWidget* parent, Qt::WindowFlags flags)
   setAttribute(Qt::WA_DeleteOnClose);
   this->m_font = font;
 
-  m_graphicsView = new GraphicsViewAdjustment(this);
+  m_graphicsView = new GraphicsViewAdjustment(isDark, this);
   m_graphicsView->setDragMode(QGraphicsView::RubberBandDrag);
 
   // 1 em = 50 pixel in screen
@@ -90,7 +92,7 @@ LayoutWindow::LayoutWindow(Font* font, QWidget* parent, Qt::WindowFlags flags)
 
   m_graphicsView->scale(scale, scale);
 
-  m_graphicsScene = new GraphicsSceneAdjustment(this);
+  m_graphicsScene = new GraphicsSceneAdjustment(true, isDark, this);
 
   m_graphicsView->setScene(m_graphicsScene);
 
@@ -1249,13 +1251,22 @@ bool LayoutWindow::exportpdf() {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
   QString outputFileName = fileInfo.path() + "/output/quran.pdf";
-  QuranPdfWriter quranWriter(outputFileName, m_otlayout);
+  /*QuranPdfWriter quranWriter(outputFileName, m_otlayout);
   quranWriter.setPageLayout(pageLayout);
   quranWriter.setResolution(4800 << OtLayout::SCALEBY);
 
   quranWriter.generateQuranPages(
       pages, -cropBox.llx + ((int)(margin / 2) << OtLayout::SCALEBY),
-      originalPages, scale, 0);
+      originalPages, scale, 0);*/
+
+  QuranPdfWriterPdfHummus::Options opts;
+  opts.outputPath = outputFileName;
+  opts.pageSize = pageSize;
+  opts.addNoticePage = false;
+
+  QuranPdfWriterPdfHummus writer(opts, m_otlayout);
+
+  writer.generateQuranPages(pages, -cropBox.llx + ((int)(margin / 2) << OtLayout::SCALEBY), originalPages, scale, 0);
 
 #endif
 
@@ -2399,14 +2410,23 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
                            QMarginsF(0, 0, 0, 0)};
 #if defined(ENABLE_PDF_GENERATION)
 
-    QString outputFileName = fileInfo.path() + "/output/mushaf.pdf";
-    QuranPdfWriter quranWriter(outputFileName, m_otlayout);
+    QString outputFileName = fileInfo.path() + "/output/mushaf_qpdf.pdf";
+
+    /*QuranPdfWriter quranWriter(outputFileName, m_otlayout);
     quranWriter.setPageLayout(pageLayout);
     quranWriter.setResolution(4800 << OtLayout::SCALEBY);
-    // quranWriter.setResolution(72);
 
-    quranWriter.generateQuranPages(result.pages, lineWidth,
-                                   result.originalPages, scale);
+    quranWriter.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);*/
+
+    outputFileName = fileInfo.path() + "/output/mushaf.pdf";
+
+    QuranPdfWriterPdfHummus::Options opts;
+    opts.outputPath = outputFileName;
+    opts.pageSize = pageSize;
+    opts.addNoticePage = true;
+    QuranPdfWriterPdfHummus writer(opts, m_otlayout);
+    writer.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
+
 #endif
   } else {
     ExportToHTML extohtml{m_otlayout};
@@ -2701,7 +2721,15 @@ void LayoutWindow::createDockWindows() {
   otherMenu->addAction(action);
 
   action = new QAction(tr("Save Page to Picture"), this);
-  connect(action, &QAction::triggered, this, &LayoutWindow::savePagetoPicture);
+  connect(action, &QAction::triggered, [this]() {
+    this->savePagetoPicture(false);
+  });
+  otherMenu->addAction(action);
+
+  action = new QAction(tr("Save Page to Svg"), this);
+  connect(action, &QAction::triggered, [this]() {
+    this->savePagetoPicture(true);
+  });
 
   otherMenu->addAction(action);
 
@@ -3646,6 +3674,52 @@ void LayoutWindow::testQuarn() {
 
   delete font;
 }
+QColor adaptColorForDarkTheme(const QColor& c) {
+  if (!c.isValid())
+    return c;
+
+  qreal h, s, l, a;
+  c.getHslF(&h, &s, &l, &a);
+
+  // Special handling for grayscale colors
+  if (s < 0.05) {
+    // Invert grayscale perceptually
+    qreal newL = 1.0 - l;
+
+    // Avoid pure white glowing too much
+    if (newL > 0.92)
+      newL = 0.92;
+
+    QColor out;
+    out.setHslF(0.0, 0.0, newL, a);
+
+    return out;
+  }
+
+  // --- Colored colors ---
+
+  qreal newL;
+
+  if (l < 0.5) {
+    // Dark colors become bright
+    newL = 0.72 + l * 0.18;
+  } else {
+    // Bright colors remain controlled
+    newL = 0.82 + (l - 0.5) * 0.10;
+  }
+
+  // Slightly reduce saturation
+  qreal newS = s * 0.85;
+
+  // Clamp
+  newL = std::clamp(newL, 0.0, 0.92);
+  newS = std::clamp(newS, 0.18, 1.0);
+
+  QColor out;
+  out.setHslF(h, newS, newL, a);
+
+  return out;
+}
 void LayoutWindow::executeRunText(bool newFace, int refresh) {
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
@@ -3710,7 +3784,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
     m_graphicsScene->clear();
     delete m_graphicsScene;
 
-    m_graphicsScene = new GraphicsSceneAdjustment(this);
+    m_graphicsScene = new GraphicsSceneAdjustment(true, isDark, this);
   } else {
     itemCount = m_graphicsScene->items().size() - 1;
   }
@@ -3755,12 +3829,22 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
         if (glyphItem) {
           // coloring
           if (glyphLayout.color) {
-            int color = (int)glyphLayout.color;
-            glyphItem->setBrush(QColor{(color >> 24) & 0xff,
-                                       (color >> 16) & 0xff,
-                                       (color >> 8) & 0xff});
+            int rawcolor = (int)glyphLayout.color;
+            auto color = QColor{(rawcolor >> 24) & 0xff,
+                                (rawcolor >> 16) & 0xff,
+                                (rawcolor >> 8) & 0xff};
+
+            /*if (isDark) {
+              color = adaptColorForDarkTheme(color);
+            }*/
+
+            glyphItem->setBrush(color);
           } else {
-            glyphItem->setBrush(Qt::black);
+            if (isDark) {
+              glyphItem->setBrush(Qt::white);
+            } else {
+              glyphItem->setBrush(Qt::black);
+            }
           }
 
           currentxPos -= glyphLayout.x_advance * line.xscale;
@@ -3880,21 +3964,39 @@ void LayoutWindow::adjustPage(QString text, hb_font_t* shapeFont,
   }
 }
 
-void LayoutWindow::savePagetoPicture() {
-  auto size = m_graphicsScene->sceneRect().size().toSize();
-  QImage image(size, QImage::Format_ARGB32);
-  image.fill(Qt::white);
-
-  QPainter painter(&image);
-  painter.setRenderHint(QPainter::Antialiasing, true);
-  m_graphicsScene->render(&painter);
-  painter.end();
-
+void LayoutWindow::savePagetoPicture(bool isSvg) {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
-  QString fileName = fileInfo.path() + "/output/page" +
-                     QString("%1").arg(integerSpinBox->value()) + ".jpg";
-  image.save(fileName, "JPG");
+  auto size = m_graphicsScene->sceneRect().size().toSize();
+
+  if (!isSvg) {
+    QImage image(size, QImage::Format_ARGB32);
+    image.fill(Qt::white);
+
+    QPainter painter(&image);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    m_graphicsScene->render(&painter);
+    painter.end();
+    QString fileName = fileInfo.path() + "/output/page" +
+                       QString("%1").arg(integerSpinBox->value()) + ".jpg";
+    image.save(fileName, "JPG");
+  } else {
+    QSvgGenerator generator;
+    QString fileName = fileInfo.path() + "/output/page" +
+                       QString("%1").arg(integerSpinBox->value()) + ".svg";
+    generator.setFileName(fileName);
+
+    // Use the scene's bounding rect to define the output size
+    generator.setSize(size);
+    generator.setViewBox(m_graphicsScene->itemsBoundingRect());
+    generator.setTitle(QString("%1").arg(integerSpinBox->value()));
+
+    QPainter painter;
+    if (painter.begin(&generator)) {
+      m_graphicsScene->render(&painter);
+      painter.end();
+    }
+  }
 }
 
 void LayoutWindow::convertCursiveToKern() {

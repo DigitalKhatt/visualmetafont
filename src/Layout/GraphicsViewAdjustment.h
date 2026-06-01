@@ -21,26 +21,23 @@
 
 #include <QGraphicsView>
 
-class GraphicsViewAdjustment : public QGraphicsView
-{
-	Q_OBJECT
+class GraphicsViewAdjustment : public QGraphicsView {
+  Q_OBJECT
 
-public:	
-	GraphicsViewAdjustment(QWidget *parent = Q_NULLPTR);
-	GraphicsViewAdjustment(QGraphicsScene *scene, QWidget *parent = Q_NULLPTR);
+ public:
+  GraphicsViewAdjustment(bool isDark, QWidget* parent = Q_NULLPTR);
+  GraphicsViewAdjustment(bool isDark, QGraphicsScene* scene, QWidget* parent = Q_NULLPTR);
 
-	~GraphicsViewAdjustment();
+  ~GraphicsViewAdjustment();
 
-	public slots:
-	void zoomIn();
-	void zoomOut();
+ public slots:
+  void zoomIn();
+  void zoomOut();
 
-
-
-protected:
-	void scaleView(qreal scaleFactor);
-	void keyPressEvent(QKeyEvent *event) Q_DECL_OVERRIDE;
-	void resizeEvent(QResizeEvent *event) Q_DECL_OVERRIDE;
+ protected:
+  void scaleView(qreal scaleFactor);
+  void keyPressEvent(QKeyEvent* event) Q_DECL_OVERRIDE;
+  void resizeEvent(QResizeEvent* event) Q_DECL_OVERRIDE;
   void contextMenuEvent(QContextMenuEvent* event) override;
-
+  bool isDark;
 };

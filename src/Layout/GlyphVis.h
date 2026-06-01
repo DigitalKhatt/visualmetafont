@@ -58,6 +58,7 @@ enum class GlyphType {
 class GlyphVis {
   friend class MyQPdfEnginePrivate;
   friend class ExportToHTML;
+  friend class QuranPdfWriterPdfHummus;
 
  public:
   struct BBox {

@@ -1,6 +1,6 @@
 #include <algorithm>
 
-#include "contact_flexible.h"
+// #include "contact_flexible.h"
 #include "geometry.h"
 
 namespace geometry {

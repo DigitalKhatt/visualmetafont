@@ -18,27 +18,42 @@
 */
 
 #include "GraphicsSceneAdjustment.h"
+
 #include <QPainter>
-#include "OtLayout.h"
+
 #include "LayoutWindow.h"
+#include "OtLayout.h"
 
-GraphicsSceneAdjustment::GraphicsSceneAdjustment(QObject *parent)
-	: QGraphicsScene(parent)
-{
+GraphicsSceneAdjustment::GraphicsSceneAdjustment(bool isDrawBackground, bool isDark, QObject* parent)
+    : isDrawBackground(isDrawBackground), isDark(isDark), QGraphicsScene(parent) {
 }
 
-GraphicsSceneAdjustment::~GraphicsSceneAdjustment()
-{
+GraphicsSceneAdjustment::~GraphicsSceneAdjustment() {
 }
 
-void GraphicsSceneAdjustment::drawBackground(QPainter *painter, const QRectF &rect) {
+void GraphicsSceneAdjustment::drawBackground(QPainter* painter, const QRectF& rect) {
+  // painter->setBrush(Qt::black);
+  if (isDrawBackground) {
+    if (!isDark) {
+      painter->setPen(QPen(Qt::black, 20 << OtLayout::SCALEBY));
+    } else {
+      painter->setPen(QPen(Qt::white, 20 << OtLayout::SCALEBY));
+    }
 
+    if (!isDark) {
+      painter->setBrush(Qt::white);
+    } else {
+      painter->setBrush(Qt::black);
+    }
 
-	//painter->setBrush(Qt::black);
-	painter->setPen(QPen(Qt::black, 20 << OtLayout::SCALEBY));
-	painter->drawRect(-OtLayout::FrameWidth + OtLayout::Margin << OtLayout::SCALEBY, -OtLayout::TopSpace << OtLayout::SCALEBY, OtLayout::FrameWidth << OtLayout::SCALEBY, OtLayout::FrameHeight << OtLayout::SCALEBY);
+    painter->drawRect(-OtLayout::FrameWidth + OtLayout::Margin << OtLayout::SCALEBY, -OtLayout::TopSpace << OtLayout::SCALEBY, OtLayout::FrameWidth << OtLayout::SCALEBY, OtLayout::FrameHeight << OtLayout::SCALEBY);
 
-	painter->setPen(QPen(Qt::darkGray, 20 << OtLayout::SCALEBY));
-	painter->drawLine(-OtLayout::FrameWidth + 2 * OtLayout::Margin << OtLayout::SCALEBY, -OtLayout::TopSpace << OtLayout::SCALEBY, -OtLayout::FrameWidth + 2 * OtLayout::Margin << OtLayout::SCALEBY, OtLayout::FrameHeight - OtLayout::TopSpace << OtLayout::SCALEBY);
+    if (!isDark) {
+      painter->setPen(QPen(Qt::darkGray, 20 << OtLayout::SCALEBY));
+    } else {
+      painter->setPen(QPen(Qt::white, 20 << OtLayout::SCALEBY));
+    }
 
+    painter->drawLine(-OtLayout::FrameWidth + 2 * OtLayout::Margin << OtLayout::SCALEBY, -OtLayout::TopSpace << OtLayout::SCALEBY, -OtLayout::FrameWidth + 2 * OtLayout::Margin << OtLayout::SCALEBY, OtLayout::FrameHeight - OtLayout::TopSpace << OtLayout::SCALEBY);
+  }
 }
