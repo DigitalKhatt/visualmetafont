@@ -1955,7 +1955,6 @@ static void mplib_close_file(MP mp, void* ff);
 static int mplib_eof_file(MP mp, void* ff);
 static void mplib_flush_file(MP mp, void* ff);
 static void mplib_shipout_backend(MP mp, void* h);
-static void mymplib_shipout_backend(MP mp, void* h);
 
 /*:1063*//*1088:*/
 // #line 31182 "../../../source/texk/web2c/mplibdir/mp.w"
@@ -3371,7 +3370,6 @@ MP mp_initialize(MP_options* opt) {
     mp->write_binary_file = mplib_write_binary_file;
     mp->read_binary_file = mplib_read_binary_file;
     //mp->shipout_backend= mplib_shipout_backend;
-    mp->shipout_backend = mymplib_shipout_backend; // VMF
   }
 
 

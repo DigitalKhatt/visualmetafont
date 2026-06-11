@@ -26,6 +26,10 @@
 
 #include "OtLayout.h"
 
+extern "C" {
+void vmf_shipout_backend(MP mp, void* voidh);
+}
+
 class OtLayout;
 class GlyphVis;
 class Glyph;
@@ -60,7 +64,7 @@ class Font : public QObject {
     return m_currentDir;
   }
   QString executeMetaPost(QString command);
-  mp_edge_object* getEdges();
+  std::vector<mp_edge_object*> getEdges() const;
   mp_edge_object* getEdge(int charCode);
   void generateAlternate(QString macroname, GlyphParameters params, QString sourceCode = "");
   mp_graphic_object* copyEdgeBody(mp_graphic_object* source);
@@ -73,10 +77,13 @@ class Font : public QObject {
 
   QVector<VarAxis> axes;
 
+  void shipout(void* voidh);
+
  private:
   void readAxes();
   QString m_path;
   QString m_fontName;
   QString m_currentDir;
+  std::unordered_map<int, mp_edge_object*> edges;
 };
 #endif  // FONT_H

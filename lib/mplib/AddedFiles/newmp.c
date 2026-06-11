@@ -207,6 +207,14 @@ void mp_gr_toss_objects_extended(mp_edge_object* hh) {
   }
   mp_gr_toss_objects(hh);
 }
+mp_edge_object* convert_to_edge(MP mp, void* voidh) {
+  mp_edge_header_node h = (mp_edge_header_node)voidh;
+  mp_edge_object* hh = mp_gr_export(mp, h);
+  if (hh) {
+    setParameters(mp, hh);
+  }
+  return hh;
+}
 void mymplib_shipout_backend(MP mp, void* voidh) {
   mp_edge_header_node h = (mp_edge_header_node)voidh;
   mp_edge_object* hh = mp_gr_export(mp, h);

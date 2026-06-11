@@ -35,7 +35,24 @@
 
 namespace fs = std::filesystem;
 
+void vmf_shipout_backend(MP mp, void* voidh) {
+  Font* font = (Font*)mp->userdata;
+  font->shipout(voidh);
+}
+
 Font::Font(QObject* parent) : QObject(parent) {
+}
+void Font::shipout(void* voidh) {
+  auto edge = convert_to_edge(this->mp, voidh);
+  if (!edge) return;
+
+  auto it = edges.find(edge->charcode);
+  if (it == edges.end()) {
+    edges.insert({edge->charcode, edge});
+  } else {
+    mp_gr_toss_objects_extended(it->second);
+    it->second = edge;
+  }
 }
 bool Font::loadFile(const QString& fileName) {
   QFile file(fileName);
@@ -54,6 +71,8 @@ bool Font::loadFile(const QString& fileName) {
   _mp_options->ini_version = true;
   _mp_options->math_mode = mp_math_double_mode;
   _mp_options->job_name = (char*)"VisualMetaFont";
+  _mp_options->shipout_backend = vmf_shipout_backend;
+  _mp_options->userdata = this;
 
   //_mp_options->interaction = mp_nonstop_mode;
   //_mp_options->mem_name = "plain";
@@ -290,6 +309,9 @@ bool Font::saveFile() {
 
 Font::~Font() {
   if (mp != nullptr) {
+    for (auto edge : edges) {
+      mp_gr_toss_objects_extended(edge.second);
+    }
     mp_finish(mp);
   }
 }
@@ -324,23 +346,19 @@ QString Font::executeMetaPost(QString command) {
 
   return ret;
 }
-mp_edge_object* Font::getEdges() {
-  mp_run_data* _mp_results = mp_rundata(mp);
-  mp_edge_object* edges = _mp_results->edges;
-  return edges;
+std::vector<mp_edge_object*> Font::getEdges() const {
+  std::vector<mp_edge_object*> result;
+  result.reserve(edges.size());
+  for (const auto& [id, edge] : edges) result.push_back(edge);
+  return result;
 };
 
 mp_edge_object* Font::getEdge(int charCode) {
   mp_edge_object* edge = nullptr;
 
-  mp_edge_object* p = getEdges();
-
-  while (p) {
-    if (p->charcode == charCode) {
-      edge = p;
-      break;
-    }
-    p = p->next;
+  auto f = edges.find(charCode);
+  if (f != edges.end()) {
+    edge = f->second;
   }
 
   return edge;

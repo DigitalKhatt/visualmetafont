@@ -18,9 +18,11 @@
 */
 
 #pragma once
+#include <mplibps.h>
 #include <stdbool.h>
 typedef struct MP_instance* MP;
-// void mymplib_shipout_backend(MP mp, void*voidh);
+void mymplib_shipout_backend(MP mp, void* voidh);
+mp_edge_object* convert_to_edge(MP mp, void* voidh);
 
 typedef struct mp_edge_object mp_edge_object;
 
