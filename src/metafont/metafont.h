@@ -1,10 +1,10 @@
 #ifndef METAFONT_H
 #define METAFONT_H
 
-extern "C"
-{
-#include "AddedFiles/newmp.h"
+extern "C" {
 #include <w2c/config.h>
+#include "AddedFiles/newmp.h"
+#include <mpstrings.h>
 #include "mpmp.h"
 #include "mplib.h"
 #include "mplibps.h"
@@ -12,4 +12,4 @@ extern "C"
 #include "mppsout.h"
 }
 
-#endif // METAFONT_H
+#endif  // METAFONT_H

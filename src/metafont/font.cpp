@@ -19,6 +19,8 @@
 
 #include "font.hpp"
 
+#include <unistd.h>
+
 #include <filesystem>
 #include <format>
 
@@ -38,6 +40,14 @@ namespace fs = std::filesystem;
 void vmf_shipout_backend(MP mp, void* voidh) {
   Font* font = (Font*)mp->userdata;
   font->shipout(voidh);
+}
+
+char* vmf_find_file(MP mp, const char* fname, const char* fmode, int ftype) {
+  (void)mp;
+  if (fmode[0] != 'r' || (!access(fname, R_OK)) || ftype) {
+    return mp_strdup(fname);
+  }
+  return NULL;
 }
 
 Font::Font(QObject* parent) : QObject(parent) {
@@ -73,6 +83,7 @@ bool Font::loadFile(const QString& fileName) {
   _mp_options->job_name = (char*)"VisualMetaFont";
   _mp_options->shipout_backend = vmf_shipout_backend;
   _mp_options->userdata = this;
+  _mp_options->find_file = vmf_find_file;
 
   //_mp_options->interaction = mp_nonstop_mode;
   //_mp_options->mem_name = "plain";
@@ -127,6 +138,7 @@ bool Font::loadFile(const QString& fileName) {
     mp_run_data* results = mp_rundata(mp);
     QString ret(results->term_out.data);
     ret = ret.trimmed();
+    qDebug() << ret;
     mp_finish(mp);
     throw "Could not initialize MetaPost library instance!\n" + ret;
   }

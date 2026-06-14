@@ -651,6 +651,7 @@ QPainterPath Glyph::getPath(mp_edge_object* h) {
     if (body) {
       do {
         switch (body->type) {
+          case mp_stroked_code:
           case mp_fill_code: {
             QPainterPath subpath = mp_dump_solved_path(((mp_fill_object*)body)->path_p);
             localpath.addPath(subpath);
@@ -728,6 +729,7 @@ QPicture Glyph::getPicture(mp_edge_object* h) {
 
       do {
         switch (body->type) {
+          case mp_stroked_code:
           case mp_fill_code: {
             auto fillobject = (mp_fill_object*)body;
             /*auto done = false;

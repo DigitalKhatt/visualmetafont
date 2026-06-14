@@ -28,6 +28,7 @@
 
 extern "C" {
 void vmf_shipout_backend(MP mp, void* voidh);
+char* vmf_find_file(MP mp, const char* fname, const char* fmode, int ftype);
 }
 
 class OtLayout;
