@@ -212,6 +212,10 @@ mp_edge_object* convert_to_edge(MP mp, void* voidh) {
   mp_edge_object* hh = mp_gr_export(mp, h);
   if (hh) {
     setParameters(mp, hh);
+    /*mp_knot h;
+    if (getMPPathVariable(mp, "testpath", &h)) {
+      mp_dump_solved_path(mp, h);
+    }*/
   }
   return hh;
 }
@@ -469,6 +473,26 @@ bool getMPStringVariable(MP mp, const char* varName, char** x) {
   return ret;
 }
 
+bool getMPPathVariable(MP mp, const char* varName, mp_knot* h) {
+  bool ret = false;
+  mp_node root = getTokenList(mp, varName);
+
+  if (!root->data.sym) {
+    return false;
+  }
+
+  mp_node varnode = mp_find_variable(mp, root);
+
+  if (varnode && mp_type(varnode) == mp_path_type) {
+    *h = (mp_knot)varnode->data.p;
+    ret = true;
+  }
+
+  mp_flush_token_list(mp, root);
+
+  return ret;
+}
+
 void getPointParam(MP mp, int index, double* x, double* y) {
   char* varName = "tmp_pair_params_";
   mp_sym varrSymp = mp_id_lookup(mp, varName, strlen(varName), false);
@@ -676,3 +700,26 @@ Transform getMatrix(MP mp, int charcode) {
   return ret;
 
 }*/
+// From https://ctan.math.washington.edu/tex-archive/systems/doc/metapost/mplibapi.pdf
+void mp_dump_solved_path(MP mp, mp_knot h) {
+  mp_knot p, q;
+  if (h == NULL) return;
+  p = h;
+  do {
+    q = mp_knot_next(mp, p);
+    printf("(%g,%g)..controls (%g,%g) and (%g,%g)",
+           mp_number_as_double(mp, p->x_coord),
+           mp_number_as_double(mp, p->y_coord),
+           mp_number_as_double(mp, p->right_x),
+           mp_number_as_double(mp, p->right_y),
+           mp_number_as_double(mp, q->left_x),
+           mp_number_as_double(mp, q->left_y));
+    p = q;
+    if (p != h || h->data.types.left_type != mp_endpoint) {
+      printf("\n ..");
+    }
+  } while (p != h);
+  if (h->data.types.left_type != mp_endpoint)
+    printf("cycle");
+  printf(";\n");
+}

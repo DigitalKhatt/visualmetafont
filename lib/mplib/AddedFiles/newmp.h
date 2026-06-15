@@ -46,3 +46,5 @@ bool getMPNumVariable(MP mp, const char* varName, double* x);
 bool getMPStringVariable(MP mp, const char* varName, char** x);
 double mp_get_numeric_internal(MP mp, char* n);
 bool getMPBoolVariable(MP mp, const char* varName, int* x);
+bool getMPPathVariable(MP mp, const char* varName, mp_knot* h);
+void mp_dump_solved_path(MP mp, mp_knot h);
