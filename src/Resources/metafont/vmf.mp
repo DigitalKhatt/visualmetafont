@@ -38,7 +38,7 @@ def fillc expr c = addto currentpicture contour c _op_ if _addedpostscript <> ""
 
 newinternal string _addedpostscript;
 def addwithpostscript(expr t) =
-  _addedpostscript := _addedpostscript  & t & ";";  
+  _addedpostscript := _addedpostscript  & t & ";";
 enddef;
 
 vardef round primary u =
@@ -46,7 +46,7 @@ vardef round primary u =
  elseif pair u: (round xpart u, round ypart u)
  else: u fi enddef;
 
-newinternal nextunicode, lefttatweel,righttatweel, leftbearing, rightbearing,  nuqta, which_in_baseline, totalglyphs, savepicture, number_of_anchors; 
+newinternal nextunicode, lefttatweel,righttatweel, leftbearing, rightbearing,  nuqta, which_in_baseline, totalglyphs, savepicture, number_of_anchors;
 newinternal string charname,originalglyph,coloredglyph;
 newinternal showAnchors;
 pair lefttatweel_const, righttatweel_const;
@@ -81,28 +81,28 @@ enddef;
 
 primarydef w ?? d = if known w : w else : d fi enddef;
 
-def makechardef(suffix name)(expr c,w_sharp,g_type)(text t) =    
-  vardef name$(suffix params) =    
+def makechardef(suffix name)(expr c,w_sharp,g_type)(text t) =
+  vardef name$(suffix params) =
     interim lefttatweel := params0 ?? 0;
-    interim righttatweel := params1 ?? 0;   	  
-    t         
-    originalglyph := str name;   
-  enddef;  
-  expandafter vardef scantokens(str name & "_")(expr _lt,_rt) =    
+    interim righttatweel := params1 ?? 0;
+    t
+    originalglyph := str name;
+  enddef;
+  expandafter vardef scantokens(str name & "_")(expr _lt,_rt) =
     save params;
     params0 := _lt;
-    params1 :=_rt;   	  
-    name$(params);    
+    params1 :=_rt;
+    name$(params);
   enddef;
   beginchar(name,c,w_sharp,g_type,-1);
     charlt := params0;
-    charrt := params1;   	   
+    charrt := params1;
     name$(params);
-  endchar; 
+  endchar;
 enddef;
 delimiters begindefchar enddefchar;
 
-def defchar(suffix name)(expr c,w_sharp,g_type,d_sharp) =  
+def defchar(suffix name)(expr c,w_sharp,g_type,d_sharp) =
   makechardef(name)(c,w_sharp,g_type) begindefchar
 enddef;
 
@@ -111,12 +111,12 @@ def beginchar(suffix name)(expr c,w_sharp,g_type,d_sharp) =
  begingroup
  originalglyph := ""; coloredglyph:="";
  glyphtype:= if g_type = -1 : GlyphTypeBase else: g_type fi;
- charcode:=if known c: byte c else: -1 fi; 
- if (charcode = -1) and (unknown name): 
-  charcode := incr nextunicode; name:= charcode; 
- else :  
-  if charcode = -1 : 
-    charcode := name; 
+ charcode:=if known c: byte c else: -1 fi;
+ if (charcode = -1) and (unknown name):
+  charcode := incr nextunicode; name:= charcode;
+ else :
+  if charcode = -1 :
+    charcode := name;
   else:
     name := charcode;
   fi;
@@ -125,24 +125,24 @@ def beginchar(suffix name)(expr c,w_sharp,g_type,d_sharp) =
  %save leftanchor,rightanchor;
  numeric param[];
  pair leftanchor,rightanchor;
- charlt := charrt := 0; 
+ charlt := charrt := 0;
  leftbearing := 0;
  rightbearing := 0;
  lefttatweel_const := righttatweel_const := (0,0);
- charwd:=w_sharp;  
- charic:=0;  clearit; %clearpen; %clearxy; 
+ charwd:=w_sharp;
+ charic:=0;  clearit; %clearpen; %clearxy;
  number_of_anchors := 0;
  left_tatweeltension := 0;
- right_tatweeltension := 0;  
+ right_tatweeltension := 0;
  left_verticalextratio := 0;
  right_verticalextratio := 0;
  which_in_baseline := 3;
  _addedpostscript := "";
- savepicture := 0;  
+ savepicture := 0;
  save anchors,minA,maxA;
  string anchors[]anchorname;
  pair anchors[]pairvalue;
- numeric anchors[]anctype; 
+ numeric anchors[]anctype;
  tr_ := identity;
  pair leftdeltas[][][];
  pair rightdeltas[][][];
@@ -151,7 +151,7 @@ def beginchar(suffix name)(expr c,w_sharp,g_type,d_sharp) =
  leftVerticalRatio := 10;
  leftVerticalRatioNeg := 0;
  rightVerticalRatioNeg := 0;
- rightVerticalRatio := 10; 
+ rightVerticalRatio := 10;
  minLeft := minRight := -1;
  maxLeft := maxRight := 6;
  maxLii := maxRii := 20;
@@ -161,59 +161,59 @@ transform tr_;
 vardef currentwidth = xpart (urcorner currentpicture) - xpart (ulcorner currentpicture) enddef;
 
 def endchar =
-  
+
 	%scantokens extra_endchar;
 	%if proofing>0: makebox(proofrule); fi
-  
+
 	chardx:=w;     % desired width of the character in pixels
-  
+
   if which_in_baseline <> 3 :
     if (which_in_baseline = 4) :
         if known leftanchor :
-            tr_ := tr_ shifted (- xpart leftanchor,floor ypart leftanchor - ypart leftanchor);        
+            tr_ := tr_ shifted (- xpart leftanchor,floor ypart leftanchor - ypart leftanchor);
         elseif known rightanchor :
-            tr_ := tr_ shifted (floor xpart rightanchor - xpart rightanchor,floor ypart rightanchor - ypart rightanchor);            
+            tr_ := tr_ shifted (floor xpart rightanchor - xpart rightanchor,floor ypart rightanchor - ypart rightanchor);
         fi
     elseif (which_in_baseline = 5) :
-      ; tr_ := tr_ shifted -(xpart leftanchor,ypart rightanchor); 
-    elseif (known rightanchor) and (known leftanchor) :      
+      ; tr_ := tr_ shifted -(xpart leftanchor,ypart rightanchor);
+    elseif (known rightanchor) and (known leftanchor) :
       tr_ := tr_ shifted -leftanchor;
-    elseif  (known leftanchor)  :      
+    elseif  (known leftanchor)  :
       tr_ := tr_ shifted -leftanchor;
-    elseif  (known rightanchor) :      
-      tr_ := tr_ shifted (0,- ypart rightanchor); 
+    elseif  (known rightanchor) :
+      tr_ := tr_ shifted (0,- ypart rightanchor);
     fi;
   elseif known leftanchor :
-    tr_ := tr_ shifted (- xpart leftanchor,0); 
+    tr_ := tr_ shifted (- xpart leftanchor,0);
     %tr_ := tr_ shifted -leftanchor;
   elseif known rightanchor :
-  %   tr_ := tr_ shifted (floor xpart rightanchor - xpart rightanchor,ypart tr_ - floor ypart tr_ + ypart rightanchor - floor ypart rightanchor);   
+  %   tr_ := tr_ shifted (floor xpart rightanchor - xpart rightanchor,ypart tr_ - floor ypart tr_ + ypart rightanchor - floor ypart rightanchor);
   fi;
   %elseif which_in_baseline = 2 :
-  %  if (known leftanchor) :      
-  %    tr_ := tr_ shifted -(xpart leftanchor,0);    
+  %  if (known leftanchor) :
+  %    tr_ := tr_ shifted -(xpart leftanchor,0);
   %  fi;
   %fi;
-  
-  if charwd = -1: 
+
+  if charwd = -1:
     if (known rightanchor) and (known leftanchor) :
-      charwd:= xpart rightanchor - xpart leftanchor;      
+      charwd:= xpart rightanchor - xpart leftanchor;
     elseif  (known leftanchor)  :
-      charwd:= xpart (urcorner currentpicture) - xpart (leftanchor) + rightbearing; % - residu;      
+      charwd:= xpart (urcorner currentpicture) - xpart (leftanchor) + rightbearing; % - residu;
     elseif  (known rightanchor) :
       numeric tnum_;
       tnum_ = round (- xpart(ulcorner currentpicture) + leftbearing);
-      charwd:= xpart (rightanchor) + tnum_;      
+      charwd:= xpart (rightanchor) + tnum_;
       tr_ := tr_ shifted (tnum_,0);
     else:
-      charwd:= xpart (urcorner currentpicture) - xpart (ulcorner currentpicture) + leftbearing + rightbearing;       
+      charwd:= xpart (urcorner currentpicture) - xpart (ulcorner currentpicture) + leftbearing + rightbearing;
       tr_ := tr_ shifted (-xpart (ulcorner currentpicture) + leftbearing,0);
     fi;
-  fi;	
-  
+  fi;
+
   currentpicture := currentpicture transformed tr_;
-  
-  charht := ypart (ulcorner currentpicture);if charht < 0 : charht := 0; fi ;  
+
+  charht := ypart (ulcorner currentpicture);if charht < 0 : charht := 0; fi ;
   chardp := ypart (llcorner currentpicture);if chardp > 0 : chardp := 0; fi ;
 
   % Need to split rtlcursive when generating multiple alternate glyphs with sklx axis otherwise it overlows
@@ -221,24 +221,24 @@ def endchar =
     defAnchor(rtlcursiveinitmedi,rightanchor,EntryAnchorRTL);
     defAnchor(rtlcursivemedifina,leftanchor,ExitAnchorRTL);
     defAnchor(rtlcursivemedimedi,rightanchor,EntryAnchorRTL);
-    defAnchor(rtlcursivemedimedi,leftanchor,ExitAnchorRTL);      
+    defAnchor(rtlcursivemedimedi,leftanchor,ExitAnchorRTL);
   elseif known leftanchor :
     defAnchor(rtlcursiveinitmedi,leftanchor,ExitAnchorRTL);
     defAnchor(rtlcursiveinitfina,leftanchor,ExitAnchorRTL);
-  elseif known rightanchor :      
+  elseif known rightanchor :
     defAnchor(rtlcursivemedifina,rightanchor,EntryAnchorRTL);
-    defAnchor(rtlcursiveinitfina,rightanchor,EntryAnchorRTL); 
-  fi    
-  
-  %if known leftanchor :    
-  %  defAnchor(rtlcursive,leftanchor,ExitAnchorRTL); 
+    defAnchor(rtlcursiveinitfina,rightanchor,EntryAnchorRTL);
+  fi
+
+  %if known leftanchor :
+  %  defAnchor(rtlcursive,leftanchor,ExitAnchorRTL);
   %fi
-  %if known rightanchor :      
-  %  defAnchor(rtlcursive,rightanchor,EntryAnchorRTL); 
-  %fi  
+  %if known rightanchor :
+  %  defAnchor(rtlcursive,rightanchor,EntryAnchorRTL);
+  %fi
 
   if savepicture = 1 :
-	  expandafter picture scantokens charname pic; 
+	  expandafter picture scantokens charname pic;
 	  scantokens charname pic := currentpicture;
   fi;
 
@@ -249,45 +249,45 @@ def endchar =
   % glyphs[charcode].matrix := tr_;
   % glyphs[charcode].leftanchor := leftanchor;
   % glyphs[charcode].rightanchor := rightanchor;
-  
-  for i = 0 upto (number_of_anchors - 1): 
+
+  for i = 0 upto (number_of_anchors - 1):
     anchors[i].pairvalue := anchors[i].pairvalue transformed tr_;
     if showAnchors <> 0 :
-      setlabel(anchors[i].anchorname,anchors[i].pairvalue);      
+      setlabel(anchors[i].anchorname,anchors[i].pairvalue);
     fi
   endfor;
 
   if known params100 :
     if params100 <> 0 :
-      charcode := 983040;      
+      charcode := 983040;
       originalglyph := charname;
       charname := "alternatechar";
       scalex_ := params100/100;
       charwd := charwd * scalex_;
       currentpicture := currentpicture xscaled scalex_;
       tr_ := identity shifted (xpart tr_ * scalex_,ypart tr_);
-      %charht := ypart (ulcorner currentpicture);if charht < 0 : charht := 0; fi ;  
+      %charht := ypart (ulcorner currentpicture);if charht < 0 : charht := 0; fi ;
       %chardp := ypart (llcorner currentpicture);if chardp > 0 : chardp := 0; fi ;
-      for i = 0 upto (number_of_anchors - 1): 
-        anchors[i].pairvalue := anchors[i].pairvalue xscaled scalex_;    
+      for i = 0 upto (number_of_anchors - 1):
+        anchors[i].pairvalue := anchors[i].pairvalue xscaled scalex_;
       endfor;
-      if known leftanchor :        
-        leftanchor := leftanchor xscaled scalex_;   
+      if known leftanchor :
+        leftanchor := leftanchor xscaled scalex_;
       fi
-      if known rightanchor :  
-        rightanchor := rightanchor xscaled scalex_;   
-      fi  
+      if known rightanchor :
+        rightanchor := rightanchor xscaled scalex_;
+      fi
     fi
   fi
-  
+
 	shipit;
-	endgroup 
+	endgroup
 enddef;
 
 pair tmp_pair_params_[];
 numeric tmp_num_params_[];
 
-def drawcomp(suffix charcode)(expr T) =  
+def drawcomp(suffix charcode)(expr T) =
   begingroup
     draw charcode.pic transformed T
     if (xxpart T = 1) and (xypart T = 0) and (yxpart T = 0) and (yypart T = 1):
@@ -303,10 +303,10 @@ def controlledPath (expr numpath,numpoint)(text name,content) =
 enddef;
 
 def setCursiveAnchor(suffix pname)(expr pvalue)(expr anchortype) =
-  defAnchor(pname,pvalue,anchortype); 
+  defAnchor(pname,pvalue,anchortype);
 enddef;
 def setMarkAnchor(suffix pname)(expr pvalue) =
-  defAnchor(pname,pvalue,MarkAnchor); 
+  defAnchor(pname,pvalue,MarkAnchor);
 enddef;
 def setAnchor(suffix pname)(expr pvalue) =
   defAnchor(pname,pvalue,Anchor);
@@ -316,7 +316,7 @@ def defAnchor(suffix pname)(expr pvalue)(expr anchortype) =
   if known anchors.pname :
     if anchors[anchors.pname].anctype =  anchortype:
       iid_ := anchors.pname;
-    fi    
+    fi
   fi
   if not known iid_ :
     anchors.pname := number_of_anchors; iid_ := number_of_anchors; number_of_anchors := incr number_of_anchors;
@@ -324,20 +324,20 @@ def defAnchor(suffix pname)(expr pvalue)(expr anchortype) =
   anchors[iid_].anchorname := str pname;
   anchors[iid_].pairvalue := pvalue;
   anchors[iid_].anctype := anchortype;
-  
+
 enddef;
 
 def saveAnchors(expr table, fileName) =
   %anchors[charcode].name  := pname;
-  %anchors[charcode].pairvalue  := pvalue;  
-  pair _temp;  
-  
-  for iii = 1 upto totalglyphs :    
+  %anchors[charcode].pairvalue  := pvalue;
+  pair _temp;
+
+  for iii = 1 upto totalglyphs :
     numglyph := listeglyphs[iii];
-    if known glyphs[numglyph].charname : 
+    if known glyphs[numglyph].charname :
       %write table & ".anchors[" & ditto & glyphs[numglyph].charname & ditto & "] = {" to fileName;
       write table & ".anchors[" & decimal numglyph & "] = {" to fileName;
-      if (known glyphs[numglyph].number_of_anchors) : 
+      if (known glyphs[numglyph].number_of_anchors) :
         for i = 1 upto glyphs[numglyph].number_of_anchors :
           if glyphs[numglyph].anchors[i].type = 1:
             _temp := glyphs[numglyph].anchors[i].pairvalue transformed glyphs[numglyph].matrix;
@@ -345,29 +345,29 @@ def saveAnchors(expr table, fileName) =
           fi;
         endfor
        fi;
-      if known glyphs[numglyph].leftanchor : 
+      if known glyphs[numglyph].leftanchor :
         _temp := glyphs[numglyph].leftanchor;
         write "  [" & ditto & "leftanchor" & ditto & "] = {" & decimal xpart _temp & "," & decimal ypart _temp & "}," to fileName;
       fi;
-      if known glyphs[numglyph].rightanchor : 
+      if known glyphs[numglyph].rightanchor :
         _temp := glyphs[numglyph].rightanchor;
         write "  [" & ditto & "rightanchor" & ditto & "] = {" & decimal xpart _temp & "," & decimal ypart _temp & "}," to fileName;
       fi;
-        
-      write "}" to fileName;    
+
+      write "}" to fileName;
     fi;
-    
+
   endfor;
-  
+
   write EOF to fileName;
 enddef;
 string EOF;
-EOF = char 0; 
+EOF = char 0;
 
 
 bpppix_ := 1;
 pt := 1;
- 
+
 warningcheck := 0;
 
 if unknown scale_factor :
@@ -378,7 +378,7 @@ fi ;
 mode:=lowres;
 %mag	:= 0.01 * 0.99626 * scale_factor	;
 
-mode_setup;	
+mode_setup;
 
 prologues := 3;
 %outputformat := "svg";
@@ -412,13 +412,13 @@ numeric mtens[];
 
 secondarydef p endlink q =
 if ypart p < ypart q :
-	p 
-	.. controls  (p - (residu,0)) ..  (xpart p -residu, 1/2[ypart p,ypart q]) 
-	.. controls  (q - (residu,0)) .. q 
+	p
+	.. controls  (p - (residu,0)) ..  (xpart p -residu, 1/2[ypart p,ypart q])
+	.. controls  (q - (residu,0)) .. q
 else:
-	p 
-	.. controls  (p + (residu,0)) ..  (xpart p +residu, 1/2[ypart p,ypart q]) 
-	.. controls  (q + (residu,0)) .. q 
+	p
+	.. controls  (p + (residu,0)) ..  (xpart p +residu, 1/2[ypart p,ypart q])
+	.. controls  (q + (residu,0)) .. q
 fi
 enddef;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -433,16 +433,16 @@ secondarydef p leftjoin q =
     setdef(x.lft.ratio.1.bot ,x.lft.ratio.1.top);
     setdef(y.lft.ratio.1.bot ,y.lft.ratio.1.top);
 
-    tatweel_ :=  lefttatweel *nuqta;  
+    tatweel_ :=  lefttatweel *nuqta;
 
     if tatweel_ > 0 :
-       z.lft.bot =  round(-(tatweel_ ,tatweel_ / leftVerticalRatio));    
+       z.lft.bot =  round(-(tatweel_ ,tatweel_ / leftVerticalRatio));
     else:
-       z.lft.bot =  round(-(tatweel_,if leftVerticalRatioNeg <> 0 : tatweel_ / leftVerticalRatioNeg else : 0 fi ));  
-    fi   
+       z.lft.bot =  round(-(tatweel_,if leftVerticalRatioNeg <> 0 : tatweel_ / leftVerticalRatioNeg else : 0 fi ));
+    fi
     z.lft.top = z.lft.bot + ljoinvector;
 
-    ratio1_ := (100 - x.lft.ratio.2)/100;;  
+    ratio1_ := (100 - x.lft.ratio.2)/100;;
     first_ratio_bot_x_ := x.lft.ratio.1.bot/100;
     first_ratio_bot_y_ := y.lft.ratio.1.bot /100;
     first_ratio_top_x_ := x.lft.ratio.1.top/100;
@@ -452,26 +452,26 @@ secondarydef p leftjoin q =
     width.bot_ :=  -x.lft.bot +xpart p;
     hight.top_ :=  ypart q - y.lft.top;
     width.top_ :=  -x.lft.top +xpart q;
-    
-    z_l1 := p - (width.bot_ * first_ratio_bot_x_,hight.bot_* first_ratio_bot_y_);    
-    z_l2 :=  (x.lft.bot + width.bot_  * ratio1_,y.lft.bot);  
-    z_l3 :=  (x.lft.top + width.top_  * ratio1_,y.lft.top); 
+
+    z_l1 := p - (width.bot_ * first_ratio_bot_x_,hight.bot_* first_ratio_bot_y_);
+    z_l2 :=  (x.lft.bot + width.bot_  * ratio1_,y.lft.bot);
+    z_l3 :=  (x.lft.top + width.top_  * ratio1_,y.lft.top);
     z_l4 :=  q - (width.top_  *first_ratio_top_x_,hight.top_ * first_ratio_top_y_);
-    leftanchor = z.lft.bot;    
+    leftanchor = z.lft.bot;
   )
 
-  p  ..  controls  z_l1 and z_l2 ..  
-  z.lft.bot .. controls  ( z.lft.bot - (residu,0)) .. 
-  (1/2[ z.lft.bot,z.lft.top] - (residu,0)) .. controls  (z.lft.top - (residu,0)) .. 
-  z.lft.top  .. controls z_l3  and z_l4 .. 
+  p  ..  controls  z_l1 and z_l2 ..
+  z.lft.bot .. controls  ( z.lft.bot - (residu,0)) ..
+  (1/2[ z.lft.bot,z.lft.top] - (residu,0)) .. controls  (z.lft.top - (residu,0)) ..
+  z.lft.top  .. controls z_l3  and z_l4 ..
  q
 enddef;
 secondarydef p rightjoin q =
-   hide(    
+   hide(
     setdef(x.rt.offset,nuqta);
     setdef(y.rt.offset,0);
     setdef(y.rt.rbearing,0);
-    
+
     setdef(x.rt.ratio.2 ,44);
     setdef(x.rt.ratio.1.top ,11);
     setdef(y.rt.ratio.1.top ,30);
@@ -482,16 +482,16 @@ secondarydef p rightjoin q =
     if known x.rt.rbearing :
        x.rt.bot := round(x.rt.rbearing + tatweel_);
     else:
-      if xpart q > xpart p : 
+      if xpart q > xpart p :
           x.rt.bot := round(xpart q + x.rt.offset + tatweel_);
       else :
           x.rt.bot := round(xpart p + x.rt.offset + tatweel_);
       fi
     fi
-    
-    if tatweel_ > 0 :           
+
+    if tatweel_ > 0 :
          y.rt.bot :=  round(y.rt.rbearing - tatweel_ / rightVerticalRatio);
-    else:           
+    else:
          y.rt.bot :=  round(y.rt.rbearing if rightVerticalRatioNeg <> 0 : - tatweel_ / rightVerticalRatioNeg fi);
     fi
 
@@ -506,15 +506,15 @@ secondarydef p rightjoin q =
     hight.top_ :=  ypart p - y.rt.top;
     width.top_ :=  x.rt.top -xpart p;
 
-    z_r1 := p + (width.top_  * first_ratio_top_x_, - hight.top_* first_ratio_top_y_);  
-    z_r2 := (x.rt.top -  width.top_ * ratio1_  , y.rt.top); 
+    z_r1 := p + (width.top_  * first_ratio_top_x_, - hight.top_* first_ratio_top_y_);
+    z_r2 := (x.rt.top -  width.top_ * ratio1_  , y.rt.top);
     z_r3 := (x.rt.bot -  width.bot_ * ratio1_ , y.rt.bot);
-    z_r4 := q + (width.bot_  * first_ratio_bot_x_, - hight.bot_* first_ratio_bot_y_); 
+    z_r4 := q + (width.bot_  * first_ratio_bot_x_, - hight.bot_* first_ratio_bot_y_);
 
    rightanchor =  z.rt.bot;
   )
-  p  .. controls z_r1 and z_r2 .. % .. tension atleast 1 and atleast 1 ..  
- z.rt.top  .. controls  ( z.rt.top + (residu,0)) ..  
+  p  .. controls z_r1 and z_r2 .. % .. tension atleast 1 and atleast 1 ..
+ z.rt.top  .. controls  ( z.rt.top + (residu,0)) ..
 (1/2[ z.rt.top, z.rt.bot] + (residu,0)) 	.. controls  ( z.rt.bot + (residu,0)) ..
  z.rt.bot   .. controls z_r3 and z_r4 .. % {left} .. tension atleast 1 and atleast 1 ..
 q
@@ -543,24 +543,24 @@ hide(
   if right_verticalextratio = 0: right_verticalextratio := 6;fi;
 )
 if ypart p < ypart q :
-  hide(   
-    z_0:= p; 
-    z_0:= round z_0;    
-    z_1 := z_0 + joinvector; 
-    leftanchor := z_0; 
+  hide(
+    z_0:= p;
+    z_0:= round z_0;
+    z_1 := z_0 + joinvector;
+    leftanchor := z_0;
   )
-	z_0 
-	.. controls  (z_0 - (residu,0)) ..  (1/2[z_0,z_1] - (residu,0)) %(xpart z_0 -residu, 1/2[ypart z_0,ypart z_1]) 
+	z_0
+	.. controls  (z_0 - (residu,0)) ..  (1/2[z_0,z_1] - (residu,0)) %(xpart z_0 -residu, 1/2[ypart z_0,ypart z_1])
 	.. controls  (z_1 - (residu,0)) .. z_1 .. tension atleast left_tatweeltension .. q
 else:
-	hide(    
-    z_4:= q;    
-    z_4 := round z_4;   
-    z_3 := z_4 + joinvector; 
+	hide(
+    z_4:= q;
+    z_4 := round z_4;
+    z_3 := z_4 + joinvector;
     rightanchor := z_4;
   )
 	p .. tension atleast right_tatweeltension .. z_3
-	.. controls  (z_3 + (residu,0)) ..  (1/2[z_4,z_3] + (residu,0)) % (xpart z_3 +residu, 1/2[ypart z_3,ypart z_4]) 
+	.. controls  (z_3 + (residu,0)) ..  (1/2[z_4,z_3] + (residu,0)) % (xpart z_3 +residu, 1/2[ypart z_3,ypart z_4])
 	.. controls  (z_4 + (residu,0)) .. z_4
 fi
 enddef;
@@ -570,24 +570,24 @@ which_in_baseline := 4;
 path sinna__;
 pair shift__;
 
-if not rightPath :  
-    sinna__ := pathpart image(kashida_macro(righttatweel,0));     
-    length_ := length   sinna__;   
-    sinna__ := cutKashida(sinna__,upTimeBegin,bottomTimeBegin,rightPath,exact,_bottomTime,_upTime);        
-    finalPoint := if (_bottomTime < pLeft) : pLeft else : length_ - floor(_bottomTime) + pLeft fi;       
+if not rightPath :
+    sinna__ := pathpart image(kashida_macro(righttatweel,0));
+    length_ := length   sinna__;
+    sinna__ := cutKashida(sinna__,upTimeBegin,bottomTimeBegin,rightPath,exact,_bottomTime,_upTime);
+    finalPoint := if (_bottomTime < pLeft) : pLeft else : length_ - floor(_bottomTime) + pLeft fi;
     shift__ := p - point finalPoint of sinna__;
-    sinna__ := sinna__ shifted shift__;     
+    sinna__ := sinna__ shifted shift__;
     rightanchor := rightanchor shifted shift__;
     %rightanchor := point  0 of sinna__ ;
     %rightanchor := rightanchor + (0,-5);
     sinna__ := subpath(finalPoint, finalPoint + length sinna__  - 2 ) of sinna__;
     rightfactor := factor;
 else:
-    sinna__ := pathpart image(kashida_macro(lefttatweel,0));      
+    sinna__ := pathpart image(kashida_macro(lefttatweel,0));
     length_ := length   sinna__;
-    sinna__ := cutKashida(sinna__,upTimeBegin,bottomTimeBegin,rightPath,exact,_bottomTime,_upTime); 
+    sinna__ := cutKashida(sinna__,upTimeBegin,bottomTimeBegin,rightPath,exact,_bottomTime,_upTime);
     finalPoint := if (_upTime < pRight) : pRight - floor(_upTime) else : length_ - floor(_upTime) + pRight fi;
-    shift__ := p - point finalPoint of sinna__;                
+    shift__ := p - point finalPoint of sinna__;
     sinna__ := sinna__ shifted shift__;
     leftanchor := leftanchor shifted shift__;
     sinna__ := subpath(finalPoint, finalPoint + length sinna__  - 2 ) of sinna__;
@@ -660,54 +660,54 @@ enddef;
 vardef cutKashida(expr kashida, upTimeBegin, bottomTimeBegin, rightPath,exact)(suffix bottomTime,upTime) =
     path p, ret;
     pair bottomDispl, upDispl, bottomPoint, upPoint;
-    
+
     l_ := 1residu ;
 
     p := kashida;
 
-    if not exact :    
+    if not exact :
         upTime := upTimeBegin  + directiontime right of subpath(upTimeBegin,infinity) of p;
-        bottomTime := bottomTimeBegin  + directiontime left of subpath(bottomTimeBegin,infinity) of p;	
+        bottomTime := bottomTimeBegin  + directiontime left of subpath(bottomTimeBegin,infinity) of p;
     else:
         upTime := upTimeBegin;
         bottomTime := bottomTimeBegin;
     fi;
-    
+
 
 
     upPoint := point upTime of  p;
     bottomPoint := point bottomTime of  p;
 
-   
+
 
     if not rightPath :
 
-        
+
 
         bottomDispl := bottomPoint - l_* unitvector direction bottomTime of p;
         upDispl := upPoint +  l_* unitvector direction upTime of p;
 
         if bottomTime > upTime : upTime := upTime + length p; fi
-          
+
 
         ret:= subpath(bottomTime,upTime) of p  .. controls   upDispl .. 1/2[upDispl,bottomDispl] .. controls bottomDispl ..   cycle ;
         %ret:= subpath(bottomTime,upTime) of p  -- 1/2[upPoint,upDispl] ..   1/2[bottomPoint,bottomDispl] --   cycle ;
-        
+
         rightanchor := bottomPoint;
 
         %draw ret;
-    else:        
+    else:
 
         bottomDispl := bottomPoint + l_* unitvector direction bottomTime of p;
         upDispl := upPoint -   l_* unitvector direction upTime of p;
 
         if upTime > bottomTime : bottomTime := bottomTime + length p; fi
-           
+
 
         ret:= subpath(upTime,bottomTime) of p .. controls   bottomDispl .. 1/2[bottomDispl,upDispl] .. controls upDispl ..   cycle ;
         %ret:= subpath(upTime,bottomTime) of p --  1/2[bottomPoint,bottomDispl] ..    1/2[upPoint,upDispl] --  cycle ;
-        
-        
+
+
         leftanchor := bottomPoint;
     fi;
     ret
@@ -726,7 +726,7 @@ _p := pathpart currentpicture;
 currentpicture:=nullpicture;
 
 (bottomTime,whatever) = _p intersectiontimes bottomPoint;
-(upTime,whatever) = _p intersectiontimes upPoint; 
+(upTime,whatever) = _p intersectiontimes upPoint;
 
 if rightPath :
   bottomDispl := bottomPoint - l_* unitvector direction bottomTime of _p;
@@ -743,9 +743,9 @@ enddef;
 vardef diratpoint expr pt of p =
   numeric time_;
   (time_,whatever) = p intersectiontimes pt;
-  if time_ < 0: 
+  if time_ < 0:
     errmessage("The point does not belong to the path"); origin
-  else: 
+  else:
     direction time_ of p
   fi
 enddef;
@@ -834,7 +834,7 @@ dft + factor_ * dmax
 enddef;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 vardef interpolatepoint(expr min,max,factor_) =
-%factor := if factor_ > 1 : 1 else :  factor_ fi; 
+%factor := if factor_ > 1 : 1 else :  factor_ fi;
 xdelta_ := xpart max - xpart min;
 ydelta_ := ypart max - ypart min;
 (xpart min + xdelta_ * factor_ ,ypart min + ydelta_ * factor_)
@@ -849,7 +849,7 @@ out := interpolatepoint(point 0 of minpath,point 0 of maxpath,factor_);
 for j=0 upto length minpath - 1 :
 out := out & interpolatepoint(point j of minpath,point j of maxpath,factor_)
  ..  controls interpolatepoint(postcontrol j of minpath,postcontrol j of maxpath,factor_)
- and  interpolatepoint(precontrol j + 1 of minpath,precontrol j + 1 of maxpath,factor_) 
+ and  interpolatepoint(precontrol j + 1 of minpath,precontrol j + 1 of maxpath,factor_)
 ..   interpolatepoint(point j + 1 of minpath, point j + 1  of maxpath,factor_);
 endfor
 out
@@ -970,7 +970,7 @@ vardef genAyaNumber(suffix ayaname)(expr ayaNumber, maxWidth) =
 
   save ayapic,position,digittrans,digitname,digitvalue,width_;
   string digitname[];
-  picture ayapic,digitspic[]; 
+  picture ayapic,digitspic[];
   transform digittrans[];
   numeric  digitvalue[],width_[];
   ayapic := ayaname.pic;
@@ -982,7 +982,7 @@ vardef genAyaNumber(suffix ayaname)(expr ayaNumber, maxWidth) =
     position := width_0/2 - getWidth(digitspic.1)/2;
     digittrans.1 := identity shifted (position,ayadigitheight);
     drawcomp(scantokens digitname.1,digittrans.1);
-  elseif ayaNumber < 100 : 
+  elseif ayaNumber < 100 :
     digitvalue.1 := ayaNumber mod 10;
     digitvalue.2 := ayaNumber div 10;
     digitname.1 := getDigitName(digitvalue.1);
@@ -1015,7 +1015,7 @@ vardef genAyaNumber(suffix ayaname)(expr ayaNumber, maxWidth) =
     if width_1 > maxWidth :
       _scale := maxWidth / width_1 ;
       _pic := _pic xscaled _scale;
-      position := (width_0 - getWidth(_pic))/2;         
+      position := (width_0 - getWidth(_pic))/2;
     fi
     draw _pic shifted (position,ayadigitheight);
   fi
@@ -1024,7 +1024,7 @@ vardef genAyaNumber(suffix ayaname)(expr ayaNumber, maxWidth) =
 enddef;
 vardef convRGB(expr rgb)=
   (hex substring (0,2) of rgb/255,hex substring (2,4) of rgb/255,hex substring (4,6) of rgb/255)
-enddef;	
+enddef;
 vardef tint(expr srgb,factor)=
   save currentR,currentG,blue,currentB,newR,newG,newB,inv;
   currentR := redpart srgb ** 2.2;
@@ -1035,25 +1035,25 @@ vardef tint(expr srgb,factor)=
   newB := currentB + (1 - currentB) * factor;
   inv := 1/2.2;
   (newR ** inv,newG ** inv,newB ** inv)
-enddef;	
+enddef;
 vardef directionatpoint expr pt of p =
  save x_,y_; (x_,y_)=p intersectiontimes pt;
  if x_<0: errmessage("The paths don't intersect"); origin
  else: direction x_ of p fi enddef;
-vardef split expr gt of p =  
+vardef split expr gt of p =
   save t,start,endt,_pt; numeric t,start,endt; pair _pt[];
   start:= floor(gt);
-  t := gt - start; 
+  t := gt - start;
   if t = 0 :
     start := gt - 1;
     endt := gt + 1;
     _pt2.5 := point gt of p;show _pt2.5;
-    subpath(0,start) of p .. controls postcontrol start of p  and round(precontrol gt of p) .. 
-    (round(xpart _pt2.5),round(ypart _pt2.5)) .. controls round(postcontrol gt of p) and precontrol endt of p .. 
-    subpath(endt,length p-1) of p 
+    subpath(0,start) of p .. controls postcontrol start of p  and round(precontrol gt of p) ..
+    (round(xpart _pt2.5),round(ypart _pt2.5)) .. controls round(postcontrol gt of p) and precontrol endt of p ..
+    subpath(endt,length p-1) of p
     if cycle p :  .. controls postcontrol length p-1 of p and precontrol 0 of p ..  cycle fi
-  else :     
-     % Casteljau 
+  else :
+     % Casteljau
      endt := ceiling(gt);
     _pt1 := point start of p;
     _pt2 := postcontrol start of p;
@@ -1066,10 +1066,10 @@ vardef split expr gt of p =
     _pt34 := (1-t) * _pt3 + t * _pt4;
     _pt1223 := round((1-t) * _pt12 + t * _pt23);
     _pt2334 := round((1-t) * _pt23 + t * _pt34);
-    
-    subpath(0,start) of p .. controls _pt12  and _pt1223 .. 
-    (round(xpart _pt2.5),round(ypart _pt2.5)) .. controls _pt2334 and _pt34 .. 
-    subpath(endt,length p-1) of p 
+
+    subpath(0,start) of p .. controls _pt12  and _pt1223 ..
+    (round(xpart _pt2.5),round(ypart _pt2.5)) .. controls _pt2334 and _pt34 ..
+    subpath(endt,length p-1) of p
     if cycle p :  .. controls postcontrol length p-1 of p and precontrol 0 of p ..  cycle fi
   fi
 enddef;
@@ -1118,5 +1118,5 @@ vardef smoothjoin(expr radius)(text ll) =
   subpath (ta_[1],tb_[1]) of pp_[1]
     softjoin  subpath (ta_[2],tb_[2]) of pp_[2]
     softjoin  subpath (ta_[3],tb_[3]) of pp_[3] .. cycle
-  
+
 enddef;

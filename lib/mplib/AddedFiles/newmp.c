@@ -216,6 +216,8 @@ mp_edge_object* convert_to_edge(MP mp, void* voidh) {
     if (getMPPathVariable(mp, "testpath", &h)) {
       mp_dump_solved_path(mp, h);
     }*/
+    /*mp_edge_object* edge;
+    getMPPictureVariable(mp, "currentpicture", &edge);*/
   }
   return hh;
 }
@@ -485,6 +487,26 @@ bool getMPPathVariable(MP mp, const char* varName, mp_knot* h) {
 
   if (varnode && mp_type(varnode) == mp_path_type) {
     *h = (mp_knot)varnode->data.p;
+    ret = true;
+  }
+
+  mp_flush_token_list(mp, root);
+
+  return ret;
+}
+
+bool getMPPictureVariable(MP mp, const char* varName, mp_edge_object** edge) {
+  bool ret = false;
+  mp_node root = getTokenList(mp, varName);
+
+  if (!root->data.sym) {
+    return false;
+  }
+
+  mp_node varnode = mp_find_variable(mp, root);
+
+  if (varnode && mp_type(varnode) == mp_picture_type) {
+    *edge = mp_gr_export(mp, (mp_edge_header_node)varnode->data.node);
     ret = true;
   }
 
