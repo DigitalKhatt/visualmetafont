@@ -86,11 +86,6 @@ QVariant KnotItem::itemChange(GraphicsItemChange change, const QVariant& value) 
   return QGraphicsEllipseItem::itemChange(change, value);
 }
 
-static QPainterPath createRoundedRectPen(qreal w, qreal h, qreal r) {
-  QPainterPath p;
-  p.addRoundedRect(QRectF(-w / 2.0, -h / 2.0, w, h), r, r);
-  return p;
-}
 PenStrokeEditor::PenStrokeEditor(Font* font, QWidget* parent) : QWidget(parent), m_model(new StrokeModel(this)), m_font(font) {
   m_scene = new QGraphicsScene(this);
   // m_scene->setSceneRect(0, 0, 1000, 700);
@@ -110,18 +105,15 @@ PenStrokeEditor::PenStrokeEditor(Font* font, QWidget* parent) : QWidget(parent),
   // 1. Fixed pen: rounded rectangle
   // --------------------------------------------------
 
-  m_model.defaultPen = createRoundedRectPen(
-      92.0,  // width
-      20.0,  // height
-      16.0   // corner radius
-  );
+  PenShapeParams defaultPenShapeParams;
 
-  const qreal penAngle = 70.0;
+  m_model.defaultPen = createRoundedRectPen(defaultPenShapeParams.width, defaultPenShapeParams.height, defaultPenShapeParams.radius);
+
   m_model.knots = {
       {
           .pos = QPointF(700, 350),
           .pen = m_model.defaultPen,
-          .penAngle = penAngle,
+          .penAngle = m_model.defautlPenAngle,
       }};
 
   /*m_model.knots = {
@@ -206,10 +198,15 @@ void PenStrokeEditor::rebuild(bool rebuildHandles) {
 
   for (int i = 0; i < m_model.knots.size(); ++i) {
     const Knot& k = m_model.knots[i];
-    QTransform t;
+
+    m_penItems[i]->setPos(k.pos);
+    m_penItems[i]->setParams(k.penParams);
+    m_penItems[i]->setPenAngle(k.penAngle);
+
+    /*QTransform t;
     t.translate(k.pos.x(), k.pos.y());
     t.rotate(k.penAngle);
-    m_penItems[i]->setPath(t.map(k.pen));
+    m_penItems[i]->setPath(t.map(k.pen));*/
   }
 }
 
@@ -241,11 +238,13 @@ static QString painterPathToMetaPost(const QPainterPath& path) {
       first = false;
       ++i;
     } else if (e.type == QPainterPath::LineToElement) {
-      mp += QString("\n-- (%1,%2)")
-                .arg(e.x)
-                .arg(e.y);
-
       ++i;
+      QPointF currentPoint(e.x, e.y);
+      if (i == path.elementCount() && currentPoint == movePoint) {
+        mp += QString("\n-- cycle");
+      } else {
+        mp += QString("\n-- (%1,%2)").arg(e.x).arg(e.y);
+      }
     } else if (e.type == QPainterPath::CurveToElement) {
       if (i + 2 >= path.elementCount())
         break;
@@ -291,7 +290,7 @@ MPGlyphInfo PenStrokeEditor::render(const StrokeModel& model) {
   QString source;
 
   source = "beginchar(alternatechar,983040,0,-1,-1);\n";
-  source += "save trajectory,result,penpath;\n";
+  source += "save trajectory,result,penpath,outlines,i_;\n";
   source += "path trajectory,result,penpath[];\n";
   if (model.knots.size() > 1) {
     source += "trajectory := ";
@@ -341,7 +340,9 @@ MPGlyphInfo PenStrokeEditor::render(const StrokeModel& model) {
     }
 
     source += ")(trajectory)(result);\n";
-    source += "fill result;\n";
+    source += "find_outlines(result)(outlines);\n";
+    source += "numeric i_; i_:=0; forever: exitif not known outlines[incr i_]; fill outlines[i_]; endfor\n";
+
     source += "save trajectoryPic; picture trajectoryPic; trajectoryPic := image(draw trajectory withpen nullpen);\n";
   }
 
@@ -377,7 +378,7 @@ void PenStrokeEditor::addKnotAt(QPointF scenePos) {
   k.pos = scenePos;
   k.leftTension = 1.0;
   k.rightTension = 1.0;
-  k.penAngle = 70.0;
+  k.penAngle = m_model.defautlPenAngle;
   k.pen = m_model.defaultPen;
 
   m_model.knots.insert(insertIndex, k);
@@ -427,13 +428,24 @@ void PenStrokeEditor::rebuildSceneItems(bool rebuildHandles) {
   m_penItems.clear();
 
   for (int i = 0; i < m_model.knots.size(); ++i) {
-    auto* penItem = new QGraphicsPathItem;
+    const Knot& k = m_model.knots[i];
+    /*auto* penItem = new QGraphicsPathItem;
     penItem->setPen(QPen(Qt::darkGreen, 1));
     penItem->setBrush(QBrush(QColor(0, 180, 0, 60)));
     penItem->setZValue(1);
 
     m_penItems.append(penItem);
+    m_scene->addItem(penItem);*/
+    auto* penItem = new PenItem(i);
+    penItem->setPos(k.pos);
+    penItem->setParams(k.penParams);
+    penItem->setPenAngle(k.penAngle);
+    penItem->setZValue(5);
+
     m_scene->addItem(penItem);
+    m_penItems.append(penItem);
+
+    connect(penItem, &PenItem::paramsChanged, this, &PenStrokeEditor::penParamsChanged);
   }
 
   for (int i = 0; i < m_model.knots.size(); ++i) {
@@ -600,5 +612,15 @@ void PenStrokeEditor::updateLeftTensionFromHandle(int knotIndex, double handleLe
   double t = chord / (3.0 * handleLength);
 
   m_model.knots[knotIndex].leftTension = clampTension(t);
+}
+void PenStrokeEditor::penParamsChanged(int index, PenShapeParams params) {
+  if (index < 0 || index >= m_model.knots.size())
+    return;
+
+  Knot& k = m_model.knots[index];
+
+  k.penParams = params;
+  k.pen = createRoundedRectPen(params.width, params.height, params.radius);
+  rebuild(false);
 }
 }  // namespace nibenvelope
