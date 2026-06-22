@@ -52,7 +52,7 @@
 %token<int> T_INT
 %token<double> T_NUMBER
 %token<QString> T_EALPHA T_TT T_NUMVAR T_PAIRVAR
-%token T_PLUS T_MINUS T_MULTIPLY T_DIVIDE T_LEFT T_RIGHT T_COMMA 
+%token T_PLUS T_MINUS T_MULTIPLY T_DIVIDE T_LEFT T_RIGHT T_COMMA
 %token T_NEWLINE T_QUIT
 %left T_PLUS T_MINUS
 %left T_MULTIPLY T_DIVIDE
@@ -60,39 +60,40 @@
 %token T_ENDCHAR T_SEMICOLON T_GLYPHSECTION T_BIMAGESECTION T_BEGINCOMP_SECTION T_ENDCOMP_SECTION T_DRAWCOMPONENT T_BEGINPARA_SECTION T_AFFECT
 %token T_PARAM_NUMERIC T_PARAM_LTENS T_PARAM_RTENS T_PARAM_LDIR T_PARAM_RDIR T_BEGINBODY_SECTION T_BEGINPATHS_SECTION T_ENDPATHS_SECTION
 %token T_BEGINVERBATIM_SECTION T_ENDVERBATIM_SECTION
-%token T_FILL "fill" T_CYCLE "cycle" T_CONTROLS "controls" T_AND "and" T_TENSION "tension" T_FILLC "fillc"
-%token T_PP ".." T_DIR "dir" T_ATLEAST "atleast" T_CONTROLLEDPATH "controlledPath"
+%token T_FILL "fill" T_CYCLE "cycle" T_CONTROLS "controls" T_AND "and" T_TENSION "tension" T_FILLC "fillc" T_DRAW "draw"
+%token T_PP ".." T_DIR "dir" T_ATLEAST "atleast" T_CONTROLLEDPATH "controlledPath" T_CONTROLLEDIMAGE
 
 %token <QString> T_BEGINCHAR T_BODYCONTENT T_VERBATIM
 
 %type	<Glyph::KnotEntryExit>				direction	controlpoint tensionamount
-%type	<Glyph::Knot*>						link pathjoin point 
+%type	<Glyph::Knot*>						link pathjoin point
 %type	<QMap<int, Glyph::Knot*> >			subpath	fillpath controlledpath
 %type	<bool>								affect
 %type <MFExprOperator> plus_minus times_over
-%type <MFExpr*> constnum constpoint functionexpr varexpr primarymfexpr    secondarymfexpr tertiarymfexpr mfexpr 
+%type <MFExpr*> constnum constpoint functionexpr varexpr primarymfexpr    secondarymfexpr tertiarymfexpr mfexpr
 %type <std::vector<MFExpr*>> mffuncparams
+%type <QString> drawcommand
 
 %start glyphs
 
 
 %%
 
-glyphs : 
- |  glyphs glyph 
+glyphs :
+ |  glyphs glyph
 ;
 
 glyph: beginchar backgroundimage componentsection paramsection verbatimsection pathssection bodysection T_ENDCHAR ';'   { /*printf("contents:%s\n", $T_GLYPHCONTENT);*/ }
 ;
 
-beginchar: T_BEGINCHAR '(' T_EALPHA[name] ',' T_NUMBER[unicode] ',' T_NUMBER[width] ',' T_NUMBER[height] ',' T_NUMBER[depth]  ')' ';' 
-{ 
+beginchar: T_BEGINCHAR '(' T_EALPHA[name] ',' T_NUMBER[unicode] ',' T_NUMBER[width] ',' T_NUMBER[height] ',' T_NUMBER[depth]  ')' ';'
+{
 	parsingglyph->setBeginMacroName($T_BEGINCHAR);
 	parsingglyph->setName($name.trimmed());
 	parsingglyph->setUnicode((int)$unicode);
 	parsingglyph->setWidth((int)$width);
 	parsingglyph->setHeight((int)$height);
-	parsingglyph->setDepth((int)$depth); 	
+	parsingglyph->setDepth((int)$depth);
 }
 ;
 ;
@@ -103,7 +104,7 @@ backgroundimage: {Glyph::ImageInfo imageinfo; parsingglyph->setImage(imageinfo);
 	Glyph::ImageInfo imageinfo;
 	imageinfo.path = $path;
 	imageinfo.pos = QPointF($x, $y);
-	QTransform transform($t1, $t2,$t3, $t4,0,0);		
+	QTransform transform($t1, $t2,$t3, $t4,0,0);
 	imageinfo.transform = transform;
 	parsingglyph->setImage(imageinfo);
 }
@@ -112,19 +113,19 @@ backgroundimage: {Glyph::ImageInfo imageinfo; parsingglyph->setImage(imageinfo);
 componentsection :  | T_BEGINCOMP_SECTION drawcomponents T_ENDCOMP_SECTION
 ;
 
-drawcomponents : 
+drawcomponents :
 	| drawcomponents drawcomponent
 ;
-	
+
 drawcomponent: T_DRAWCOMPONENT '(' T_EALPHA[name] ',' T_NUMBER[x] ',' T_NUMBER[y] ',' T_NUMBER[t1] ',' T_NUMBER[t2] ',' T_NUMBER[t3] ',' T_NUMBER[t4] ')' ';'
-{	
+{
 	parsingglyph->setComponent($name,$x,$y,$t1,$t2,$t3,$t4);
 }
 ;
 
 paramsection : | T_BEGINPARA_SECTION params
 
-params : 
+params :
 	| params param
 ;
 
@@ -139,32 +140,38 @@ affect : T_AFFECT {$$ = false;}
 
 pathssection : | T_BEGINPATHS_SECTION controlledpaths T_ENDPATHS_SECTION
 
-controlledpaths : 
+controlledpaths :
 	| controlledpaths controlledpath
 ;
 
-controlledpath : "controlledPath" '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] {driver.numpoint = $numpoint;} ')' '(' T_EALPHA[name] ')' '(' fillpath ')'  ';' 
+controlledpath : "controlledPath" '(' T_NUMBER[numpath] ',' T_NUMBER[numpoint] {driver.numpoint = $numpoint;} ')' '(' T_EALPHA[name] ')' '(' fillpath ')'  ';'
 {
 	parsingglyph->controlledPaths.insert($numpath,$fillpath);
-	parsingglyph->controlledPathNames.insert($numpath,$name);
+	parsingglyph->controlledPathNames.insert($numpath,{"currentpicture", $name});
 }
-| T_FILL {driver.numpoint = 0;} fillpath ';' 
+| drawcommand fillpath ';'
 {
 	int count = parsingglyph->controlledPaths.count();
 	parsingglyph->controlledPaths.insert(count,$fillpath);
-	parsingglyph->controlledPathNames.insert(count,"fill");
+	parsingglyph->controlledPathNames.insert(count,{"currentpicture", $drawcommand});
 }
-| T_FILLC {driver.numpoint = 0;} fillpath ';' 
-{
+| T_CONTROLLEDIMAGE '(' T_EALPHA[name] ')' '(' drawcommand fillpath ')'  ';' {
 	int count = parsingglyph->controlledPaths.count();
 	parsingglyph->controlledPaths.insert(count,$fillpath);
-	parsingglyph->controlledPathNames.insert(count,"fillc");
+	parsingglyph->controlledPathNames.insert(count,{$name, $drawcommand});
+	parsingglyph->pictureNames.append($name);
 }
 ;
 
-fillpath : subpath 
+drawcommand :
+	T_FILL {driver.numpoint = 0;$$="fill";}
+| T_FILLC {driver.numpoint = 0;$$="fillc";}
+| T_DRAW {driver.numpoint = 0;$$="draw";}
+;
+
+fillpath : subpath
 {
-	//$subpath.last()->rightValue = $pathjoin->leftValue; 
+	//$subpath.last()->rightValue = $pathjoin->leftValue;
 	//$subpath.first()->leftValue = $pathjoin->rightValue;
 	//$subpath.insert($subpath.lastKey() + 1, $subpath.first());
 	//delete $pathjoin;
@@ -173,13 +180,13 @@ fillpath : subpath
 ;
 
 subpath : point {$$.insert(driver.numpoint,$point);}
-| subpath pathjoin point {	
-	$1.last()->rightValue = $pathjoin->leftValue; 
+| subpath pathjoin point {
+	$1.last()->rightValue = $pathjoin->leftValue;
 	if($point->expr->toString() == "cycle" && $1.firstKey() == 0){
 		delete $point;
 		$point = $1.first();
 	}
-	$point->leftValue = $pathjoin->rightValue; 
+	$point->leftValue = $pathjoin->rightValue;
 	delete $pathjoin;
 	if($point->leftValue.macrovalue.startsWith("leftjoin")){
 		$1.insert($1.lastKey() + 4,$point);
@@ -195,7 +202,7 @@ subpath : point {$$.insert(driver.numpoint,$point);}
 	else{
 		$1.insert($1.lastKey() + 1,$point);
 	}
-	
+
 	$$ = $1;
 }
 ;
@@ -203,26 +210,26 @@ subpath : point {$$.insert(driver.numpoint,$point);}
 pathjoin : direction[d1] link direction[d2] {
 	$$ = $link;
 	if($link->leftValue.type != Glyph::mpgui_explicit){
-		$link->leftValue.type = $d1.type;		
+		$link->leftValue.type = $d1.type;
 		if($d1.dirExpr){
 			$link->leftValue.dirExpr = $d1.dirExpr->clone();
 		}
 
-		$link->rightValue.type = $d2.type;		
+		$link->rightValue.type = $d2.type;
 		if($d2.dirExpr){
 			$link->rightValue.dirExpr = $d2.dirExpr->clone();
 		}
-		
+
 	}
-	
+
 }
 ;
 
-direction : 
-	{$$ = {}; $$.type = Glyph::mpgui_open;}	
+direction :
+	{$$ = {}; $$.type = Glyph::mpgui_open;}
 	| '{' mfexpr '}' {
 		$$ = {};
-		$$.type = Glyph::mpgui_given;		
+		$$.type = Glyph::mpgui_given;
 		$$.dirExpr = std::unique_ptr<MFExpr>($mfexpr);
 	}
 ;
@@ -232,7 +239,7 @@ direction :
 link : ".." "controls" controlpoint[c] ".." {
 		$$ = new Glyph::Knot();
 		$$->leftValue = $c;
-		$$->rightValue = $c;		
+		$$->rightValue = $c;
 		$$->leftValue.isEqualAfter = true;
 		$$->rightValue.isEqualBefore = true;
 	}
@@ -241,17 +248,17 @@ link : ".." "controls" controlpoint[c] ".." {
 | ".." "tension"  tensionamount[c1] "and" tensionamount[c2] ".." {$$ = new Glyph::Knot(); $$->leftValue = $c1; $$->rightValue = $c2;}
 | ".." {$$ = new Glyph::Knot(); $$->leftValue.jointtype = $$->rightValue.jointtype = Glyph::path_join_tension;}
 | T_TT[value] {
-	$$ = new Glyph::Knot(); 
+	$$ = new Glyph::Knot();
 	$$->leftValue.type = Glyph::mpgui_curl;
-	$$->leftValue.macrovalue = $value; 
+	$$->leftValue.macrovalue = $value;
 	$$->rightValue.type = Glyph::mpgui_curl;
 	$$->rightValue.macrovalue = $value;
 	$$->leftValue.jointtype = $$->rightValue.jointtype = Glyph::path_join_macro;
 }
 | T_EALPHA[value] {
-	$$ = new Glyph::Knot(); 
+	$$ = new Glyph::Knot();
 	$$->leftValue.type = Glyph::mpgui_curl;
-	$$->leftValue.macrovalue = $value; 
+	$$->leftValue.macrovalue = $value;
 	$$->rightValue.type = Glyph::mpgui_curl;
 	$$->rightValue.macrovalue = $value;
 	$$->leftValue.jointtype = $$->rightValue.jointtype = Glyph::path_join_macro;
@@ -294,22 +301,22 @@ varexpr : T_EALPHA[var] {
 		param->isInControllePath = true;
 	}
 	$$ =  new VarMFExpr($var,isParam);
-	
+
 };
 
-constpoint : '(' mfexpr[x] ',' mfexpr[y] ')' {	
+constpoint : '(' mfexpr[x] ',' mfexpr[y] ')' {
 	$$ = new PairPathPointExp($x,$y);
 };
 
-functionexpr : T_EALPHA[functionName]'(' mffuncparams ')' {		
-	$$ =  new FunctionMFExp($functionName,$mffuncparams);	
+functionexpr : T_EALPHA[functionName]'(' mffuncparams ')' {
+	$$ =  new FunctionMFExp($functionName,$mffuncparams);
 };
 
 mffuncparams : mfexpr { $$.push_back($1);}
 | mffuncparams ',' mfexpr {$$ = std::move($1);$$.push_back($3);}
 ;
 
-constnum : T_NUMBER[x] {	
+constnum : T_NUMBER[x] {
 	$$ = new LitPathNumericExp($x);
 };
 

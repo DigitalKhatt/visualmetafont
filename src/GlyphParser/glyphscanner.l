@@ -17,7 +17,7 @@
  * <https: //www.gnu.org/licenses />.
 */
 
-%option noyywrap nounput noinput batch c++ 
+%option noyywrap nounput noinput batch c++
 %option prefix="Glyph"
 %option never-interactive
 /*%option debug*/
@@ -46,8 +46,10 @@ using token = glyphparser::Parser::token;
 "%%beginpaths"												{return token::T_BEGINPATHS_SECTION;}
 "%%endpaths"												{return token::T_ENDPATHS_SECTION;}
 "controlledPath"											{return token::T_CONTROLLEDPATH;}
+"controlledImage"											{return token::T_CONTROLLEDIMAGE;}
 "fill"														{return token::T_FILL;}
 "fillc"														{return token::T_FILLC;}
+"draw"														{return token::T_DRAW;}
 "dir"														{return token::T_DIR;}
 "controls"													{return token::T_CONTROLS;}
 "tension"													{return token::T_TENSION;}
@@ -70,7 +72,7 @@ using token = glyphparser::Parser::token;
 <INSIDE_CHAR_CONTENTS>.|\n									{yymore();} //<INSIDECHAR>[^e]+				{yymore();}
 "%%beginverbatim"[\r\n]										{BEGIN(INSIDE_VERBATIM);return token::T_BEGINVERBATIM_SECTION;}
 <INSIDE_VERBATIM>(.|\n)/"%%endverbatim"						{yylval->build<QString>(yytext); return token::T_VERBATIM;}
-<INSIDE_VERBATIM>.|\n										{yymore();} 
+<INSIDE_VERBATIM>.|\n										{yymore();}
 <INSIDE_VERBATIM>"%%endverbatim"							{BEGIN(INITIAL);return token::T_ENDVERBATIM_SECTION;}
 [a-zA-Z_][a-zA-Z\.0-9\/:_\[\]]*									{yylval->build<QString>(yytext); return token::T_EALPHA;}
 <INSIDE_DIR>{

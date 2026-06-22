@@ -56,12 +56,27 @@ void Font::shipout(void* voidh) {
   auto edge = convert_to_edge(this->mp, voidh);
   if (!edge) return;
 
+  MPGlyphInfo info;
+  info.currentPicture = edge;
+
+  for (auto name : pictureNames) {
+    mp_edge_object* picture = nullptr;
+    if (getMPPictureVariable(mp, name.toStdString().c_str(), &picture)) {
+      info.controlledPictures.insert(name, picture);
+    }
+  }
+
   auto it = edges.find(edge->charcode);
   if (it == edges.end()) {
-    edges.insert({edge->charcode, edge});
+    edges.insert({edge->charcode, info});
   } else {
-    mp_gr_toss_objects_extended(it->second);
-    it->second = edge;
+    mp_gr_toss_objects_extended(it->second.currentPicture);
+    for (auto pic : it->second.controlledPictures) {
+      if (pic != nullptr) {
+        mp_gr_toss_objects_extended(pic);
+      }
+    }
+    it->second = info;
   }
 }
 bool Font::loadFile(const QString& fileName) {
@@ -321,8 +336,13 @@ bool Font::saveFile() {
 
 Font::~Font() {
   if (mp != nullptr) {
-    for (auto edge : edges) {
-      mp_gr_toss_objects_extended(edge.second);
+    for (auto& it : edges) {
+      mp_gr_toss_objects_extended(it.second.currentPicture);
+      for (auto pic : it.second.controlledPictures) {
+        if (pic != nullptr) {
+          mp_gr_toss_objects_extended(pic);
+        }
+      }
     }
     mp_finish(mp);
   }
@@ -361,7 +381,7 @@ QString Font::executeMetaPost(QString command) {
 std::vector<mp_edge_object*> Font::getEdges() const {
   std::vector<mp_edge_object*> result;
   result.reserve(edges.size());
-  for (const auto& [id, edge] : edges) result.push_back(edge);
+  for (const auto& [id, edge] : edges) result.push_back(edge.currentPicture);
   return result;
 };
 
@@ -370,10 +390,21 @@ mp_edge_object* Font::getEdge(int charCode) {
 
   auto f = edges.find(charCode);
   if (f != edges.end()) {
-    edge = f->second;
+    edge = f->second.currentPicture;
   }
 
   return edge;
+}
+
+MPGlyphInfo Font::getMPGlyphInfo(int charCode) {
+  MPGlyphInfo info;
+
+  auto f = edges.find(charCode);
+  if (f != edges.end()) {
+    info = f->second;
+  }
+
+  return info;
 }
 
 void Font::generateAlternate(QString macroname, GlyphParameters params, QString sourceCode) {

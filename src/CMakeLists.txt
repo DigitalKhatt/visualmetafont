@@ -289,11 +289,18 @@ set(MetaFont
   )
 source_group("MetaFont" FILES ${MetaFont})
 
+set(Demos
+  demos/nibenvelope.h
+  demos/nibenvelope.cpp
+)
+
+source_group("Demos" FILES ${Demos})
+
 
 
 set(ALL_FILES ${Automedina} ${GlyphCommands} ${FeaParser} ${MetaFont} ${GlyphParser} ${QuranText} ${Layout}
   ${GlyphWindow}  ${FontWindow}
-  ${Export} ${LayoutWindow} ${Main} ${Pdf}  ${Generated_Files} ${Resource_Files}
+  ${Export} ${LayoutWindow} ${Main} ${Pdf}  ${Generated_Files} ${Resource_Files} ${Demos}
 )
 
 
@@ -353,7 +360,8 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/fontwindow"
   "${CMAKE_CURRENT_SOURCE_DIR}/glyphwindow"
   "${CMAKE_CURRENT_SOURCE_DIR}/Automedina"
-  )
+  "${CMAKE_CURRENT_SOURCE_DIR}/demos"
+)
 
 target_include_directories(${WEBLIB_NAME} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/."

@@ -110,8 +110,10 @@ void Glyph::setSource(QString source, bool structureChanged) {
 
   params.clear();
   dependents.clear();
+  pictureNames.clear();
 
-  QList<QByteArray> dynamicProperties = dynamicPropertyNames();
+  QList<QByteArray>
+      dynamicProperties = dynamicPropertyNames();
   for (int i = 0; i < dynamicProperties.length(); i++) {
     QByteArray propname = dynamicProperties[i];
 
@@ -246,12 +248,18 @@ QString Glyph::source() {
         QMap<int, Knot*> path = j.value();
         const Knot* firstpoint = path.first();
         const Knot* currentpoint = firstpoint;
-        if (controlledPathNames[j.key()] == "fill") {
-          source = source % QString("fill\n");
-        } else if (controlledPathNames[j.key()] == "fillc") {
-          source = source % QString("fillc\n");
+        auto imageInfo = controlledPathNames[j.key()];
+        if (imageInfo.pictureName != "currentpicture") {
+          source = source % QString("controlledImage(%1)(\n").arg(imageInfo.pictureName);
+          source = source % imageInfo.commandName % "\n";
         } else {
-          source = source % QString("controlledPath (%1,%2)(%3)(\n").arg(j.key()).arg(path.firstKey()).arg(controlledPathNames[j.key()]);
+          if (imageInfo.commandName == "fill") {
+            source = source % QString("fill\n");
+          } else if (imageInfo.commandName == "fillc") {
+            source = source % QString("fillc\n");
+          } else {
+            source = source % QString("controlledPath (%1,%2)(%3)(\n").arg(j.key()).arg(path.firstKey()).arg(imageInfo.commandName);
+          }
         }
 
         QMapIterator<int, Glyph::Knot*> h(path);
@@ -293,8 +301,13 @@ QString Glyph::source() {
           }
           currentpoint = h.value();
         }
-        source = source % QString(" cycle\n");
-        if (controlledPathNames[j.key()] != "fill" && controlledPathNames[j.key()] != "fillc") {
+        if (currentpoint == firstpoint || imageInfo.commandName != "draw") {
+          source = source % QString(" cycle\n");
+        } else {
+          source = source % currentpoint->expr->toString() % "\n";
+        }
+
+        if (imageInfo.pictureName != "currentpicture" || (imageInfo.commandName != "fill" && imageInfo.commandName != "fillc")) {
           source = source % QString(");\n");
         } else {
           source = source % QString(";\n");
@@ -522,8 +535,11 @@ mp_edge_object* Glyph::getEdge() {
   QString data = paramsString % source();
 
   try {
+    font->pictureNames = pictureNames;
     font->executeMetaPost(data);
+    font->pictureNames.clear();
   } catch (QString err) {
+    font->pictureNames.clear();
     return nullptr;
   }
 

@@ -25,11 +25,17 @@
 #include <QVector>
 
 #include "OtLayout.h"
+#include "metafont.h"
 
 extern "C" {
 void vmf_shipout_backend(MP mp, void* voidh);
 char* vmf_find_file(MP mp, const char* fname, const char* fmode, int ftype);
 }
+
+struct MPGlyphInfo {
+  mp_edge_object* currentPicture = nullptr;
+  QMap<QString, mp_edge_object*> controlledPictures;
+};
 
 class OtLayout;
 class GlyphVis;
@@ -67,6 +73,7 @@ class Font : public QObject {
   QString executeMetaPost(QString command);
   std::vector<mp_edge_object*> getEdges() const;
   mp_edge_object* getEdge(int charCode);
+  MPGlyphInfo getMPGlyphInfo(int charCode);
   void generateAlternate(QString macroname, GlyphParameters params, QString sourceCode = "");
   mp_graphic_object* copyEdgeBody(mp_graphic_object* source);
   QString getLog();
@@ -79,12 +86,14 @@ class Font : public QObject {
   QVector<VarAxis> axes;
 
   void shipout(void* voidh);
+  QVector<QString> pictureNames;
 
  private:
   void readAxes();
   QString m_path;
   QString m_fontName;
   QString m_currentDir;
-  std::unordered_map<int, mp_edge_object*> edges;
+
+  std::unordered_map<int, MPGlyphInfo> edges;
 };
 #endif  // FONT_H

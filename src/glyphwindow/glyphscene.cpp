@@ -27,7 +27,7 @@
 #include "qmessagebox.h"
 #include "font.hpp"
 
-GlyphScene::GlyphScene(QObject* parent) : QGraphicsScene(parent) {// QGraphicsScene(-1000, -1700, 3000, 2500, parent) {
+GlyphScene::GlyphScene(QObject* parent) : QGraphicsScene(parent) {  // QGraphicsScene(-1000, -1700, 3000, 2500, parent) {
 
   pointerPosition = new QLabel("Hello");
   ruler = NULL;
@@ -39,18 +39,15 @@ GlyphScene::GlyphScene(QObject* parent) : QGraphicsScene(parent) {// QGraphicsSc
   guides = NULL;
   m_glyph = NULL;
 
-  //connect(this, &QGraphicsScene::selectionChanged, this, &GlyphScene::selectionChangedSlot);
+  // connect(this, &QGraphicsScene::selectionChanged, this, &GlyphScene::selectionChangedSlot);
 }
 GlyphScene::~GlyphScene() {
-
 }
 void GlyphScene::selectionChangedSlot() {
   int i;
   i = 0;
 }
-void GlyphScene::setGlyph(Glyph* glyph)
-{
-
+void GlyphScene::setGlyph(Glyph* glyph) {
   if (this->m_glyph) {
     disconnect(this->m_glyph, &Glyph::valueChanged, this, &GlyphScene::glyphValueChanged);
   }
@@ -86,7 +83,6 @@ void GlyphScene::setGlyph(Glyph* glyph)
   image->setEnabled(imageEnabled);
   addItem(image);
 
-
   Glyph::ImageInfo imageInfo = glyph->image();
   if (!imageInfo.path.isEmpty()) {
     loadImage(imageInfo);
@@ -96,13 +92,13 @@ void GlyphScene::setGlyph(Glyph* glyph)
   Glyph::QHashGlyphComponentInfo::iterator comp;
   for (comp = localcomponents.begin(); comp != localcomponents.end(); ++comp) {
     Glyph* compglyph = comp.key();
-    //QPainterPath compath = compglyph->getPath();	
-    //Glyph::ComponentInfo info = comp.value();
-    //compath = comp.value().transform.map(compath);
+    // QPainterPath compath = compglyph->getPath();
+    // Glyph::ComponentInfo info = comp.value();
+    // compath = comp.value().transform.map(compath);
 
     ComponentItem* compitem = new ComponentItem(glyph, compglyph);
-    //compitem->setPath(compath);
-    //compitem->setPos(QPointF(info.pos.x(),-info.pos.y()));
+    // compitem->setPath(compath);
+    // compitem->setPos(QPointF(info.pos.x(),-info.pos.y()));
 
     components.append(compitem);
 
@@ -117,11 +113,8 @@ void GlyphScene::setGlyph(Glyph* glyph)
   addItem(guides);
 
   views().first()->centerOn(contour);
-
-
 }
-void GlyphScene::setImageVisible(bool  visible) {
-
+void GlyphScene::setImageVisible(bool visible) {
   if (visible)
     itemFlags = itemFlags | ItemFlags::ImageVisible;
   else
@@ -130,10 +123,8 @@ void GlyphScene::setImageVisible(bool  visible) {
   if (image != NULL) {
     image->setVisible(visible);
   }
-
 }
-void GlyphScene::setImageEnable(bool  enable) {
-
+void GlyphScene::setImageEnable(bool enable) {
   if (enable)
     itemFlags = itemFlags | ItemFlags::ImageEnabled;
   else
@@ -142,11 +133,9 @@ void GlyphScene::setImageEnable(bool  enable) {
   if (image != NULL) {
     image->setEnabled(enable);
   }
-
 }
 
-void GlyphScene::setFillEnable(bool  enable) {
-
+void GlyphScene::setFillEnable(bool enable) {
   if (enable)
     itemFlags = itemFlags | ItemFlags::Fill;
   else
@@ -155,10 +144,8 @@ void GlyphScene::setFillEnable(bool  enable) {
   if (contour != NULL) {
     contour->setFillEnabled(enable);
   }
-
 }
 void GlyphScene::glyphValueChanged(QString name, bool structureChanged) {
-
   /*
   if (name == "image" || name == "imagetransform" || name == "source") {
   Glyph::ImageInfo imageInfo = glyph->property("image").value<Glyph::ImageInfo>();
@@ -186,12 +173,10 @@ void GlyphScene::glyphValueChanged(QString name, bool structureChanged) {
 
     image->setPos(pos);
     image->setTransform(imageInfo.transform);
-  }
-  else if (imageInfo.path.isEmpty()) {
+  } else if (imageInfo.path.isEmpty()) {
     image->setPath("");
     image->setPixmap(QPixmap());
-  }
-  else {
+  } else {
     loadImage(imageInfo);
   }
 
@@ -206,9 +191,8 @@ void GlyphScene::glyphValueChanged(QString name, bool structureChanged) {
   update();
 }
 void GlyphScene::loadImage(Glyph::ImageInfo imageInfo) {
-
   QString imagePath = imageInfo.path;
-  QFileInfo imageFileInfo{ imagePath };
+  QFileInfo imageFileInfo{imagePath};
 
   if (imageFileInfo.isRelative()) {
     QDir d = QFileInfo(this->m_glyph->font->path()).absoluteDir();
@@ -220,10 +204,9 @@ void GlyphScene::loadImage(Glyph::ImageInfo imageInfo) {
   reader.setAutoTransform(true);
   const QImage newImage = reader.read();
   if (newImage.isNull()) {
-
     QMessageBox::information(this->views()[0], QGuiApplication::applicationDisplayName(),
-      tr("Cannot load %1: %2")
-      .arg(QDir::toNativeSeparators(imagePath), reader.errorString()));
+                             tr("Cannot load %1: %2")
+                                 .arg(QDir::toNativeSeparators(imagePath), reader.errorString()));
   }
 
   image->setPath(imageInfo.path);
@@ -237,39 +220,35 @@ void GlyphScene::loadImage(Glyph::ImageInfo imageInfo) {
 
   image->setPos(pos);
   image->setTransform(imageInfo.transform);
-
 }
-void GlyphScene::setMode(Mode mode)
-{
+void GlyphScene::setMode(Mode mode) {
   myMode = mode;
 
   switch (myMode) {
-  case Ruler:
-  {
-    views().first()->setDragMode(QGraphicsView::NoDrag);
-    break;
-  }
-  case MoveItem: {
-    delete ruler;
-    ruler = NULL;
-    views().first()->setDragMode(QGraphicsView::RubberBandDrag);
-    break;
-  }
-  case AddPoint: {
-    views().first()->setDragMode(QGraphicsView::NoDrag);
-    QList<QGraphicsItem*> list = items();
-    foreach(QGraphicsItem * item, list) {
-      item->setSelected(false);
+    case Ruler: {
+      views().first()->setDragMode(QGraphicsView::NoDrag);
+      break;
     }
-    break;
-  }
+    case MoveItem: {
+      delete ruler;
+      ruler = NULL;
+      views().first()->setDragMode(QGraphicsView::RubberBandDrag);
+      break;
+    }
+    case AddPoint: {
+      views().first()->setDragMode(QGraphicsView::NoDrag);
+      QList<QGraphicsItem*> list = items();
+      foreach (QGraphicsItem* item, list) {
+        item->setSelected(false);
+      }
+      break;
+    }
   }
 }
-void GlyphScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
-{
+void GlyphScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent) {
   QString string = QString("%1, %2")
-    .arg(mouseEvent->scenePos().x())
-    .arg(mouseEvent->scenePos().y()); // Update the cursor position text
+                       .arg(mouseEvent->scenePos().x())
+                       .arg(mouseEvent->scenePos().y());  // Update the cursor position text
 
   pointerPosition->setText(string);
 
@@ -279,16 +258,12 @@ void GlyphScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
   if (myMode == Ruler && ruler != NULL) {
     QLineF newLine(ruler->line().p1(), mouseEvent->scenePos());
     ruler->setLine(newLine);
-  }
-  else if (myMode == MoveItem) {
-    //QGraphicsScene::mouseMoveEvent(mouseEvent);
-
-
+  } else if (myMode == MoveItem) {
+    // QGraphicsScene::mouseMoveEvent(mouseEvent);
 
     QGraphicsItem* item = mouseGrabberItem();
     if (!item || item->isBlockedByModalPanel())
       return;
-
 
     /*for (int i = 0x1; i <= 0x10; i <<= 1) {
       Qt::MouseButton button = Qt::MouseButton(i);
@@ -303,22 +278,17 @@ void GlyphScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent)
     selectedItems = this->selectedItems();
     ismoving = true;
     wasMouseMoveEvent = true;
-    foreach(QGraphicsItem * item, selectedItems) {
-
+    foreach (QGraphicsItem* item, selectedItems) {
       sendEvent(item, mouseEvent);
     }
     ismoving = false;
     m_glyph->setWidth(m_glyph->width());
   }
-
-
-
 }
-void GlyphScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
-{
+void GlyphScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent) {
   wasMouseMoveEvent = false;
 
-  //if (mouseEvent->button() != Qt::LeftButton)
+  // if (mouseEvent->button() != Qt::LeftButton)
   //	return;
 
   Qt::KeyboardModifiers modifiers = mouseEvent->modifiers();
@@ -337,25 +307,71 @@ void GlyphScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
     alt = true;
   }
 
-
-
   switch (myMode) {
-  case Ruler:
-  {
-    QLineF line = QLineF(mouseEvent->scenePos(), mouseEvent->scenePos());
-    if (ruler == NULL) {
-      ruler = new RulerItem(line);
-      addItem(ruler);
+    case Ruler: {
+      QLineF line = QLineF(mouseEvent->scenePos(), mouseEvent->scenePos());
+      if (ruler == NULL) {
+        ruler = new RulerItem(line);
+        addItem(ruler);
+      } else {
+        ruler->setLine(line);
+      }
+      break;
     }
-    else {
-      ruler->setLine(line);
-    }
-    break;
-  }
-  case MoveItem:
-  {
+    case MoveItem: {
+      if (shift) {
+        QList<QGraphicsItem*> selectedItems;
+        selectedItems = this->selectedItems();
+        if (selectedItems.count() == 1) {
+          KnotItem* knotPoint = qgraphicsitem_cast<KnotItem*>(selectedItems[0]);
+          if (knotPoint != NULL) {
+            KnotControlledItem* selectdpoint = qgraphicsitem_cast<KnotControlledItem*>(knotPoint->parentItem());
+            if (selectdpoint != NULL) {
+              // addPointAfterPoint(selectdpoint, mouseEvent->scenePos(),"left");
+              mouseEvent->setAccepted(true);
+              break;
+            }
+          }
+        } else {
+          // addnewPath(mouseEvent->scenePos());
+          mouseEvent->setAccepted(true);
+          break;
+        }
+      }
 
-    if (shift) {
+      m_oldValues.clear();
+      m_newValues.clear();
+      old_controlledPaths.clear();
+      new_controlledPaths.clear();
+      old_params.clear();
+      new_params.clear();
+
+      old_params = m_glyph->params;
+
+      auto mo = m_glyph->metaObject();
+      for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i) {
+        m_oldValues[mo->property(i).name()] = mo->property(i).read(m_glyph);
+      }
+
+      QList<QByteArray> dynamicProperties = m_glyph->dynamicPropertyNames();
+      for (int i = 0; i < dynamicProperties.length(); i++) {
+        QByteArray propname = dynamicProperties[i];
+        QVariant val = m_glyph->property(propname);
+        m_oldValues[propname] = val;
+      }
+
+      for (auto j = m_glyph->controlledPaths.cbegin(); j != m_glyph->controlledPaths.cend(); j++) {
+        for (auto h = j.value().cbegin(); h != j.value().cend(); h++) {
+          old_controlledPaths[j.key()][h.key()] = *m_glyph->controlledPaths[j.key()][h.key()];
+        }
+      }
+
+      connect(m_glyph, &Glyph::valueChanged, this, &GlyphScene::recordGlyphChange);
+
+      QGraphicsScene::mousePressEvent(mouseEvent);
+      break;
+    }
+    case AddPoint: {
       QList<QGraphicsItem*> selectedItems;
       selectedItems = this->selectedItems();
       if (selectedItems.count() == 1) {
@@ -363,82 +379,19 @@ void GlyphScene::mousePressEvent(QGraphicsSceneMouseEvent* mouseEvent)
         if (knotPoint != NULL) {
           KnotControlledItem* selectdpoint = qgraphicsitem_cast<KnotControlledItem*>(knotPoint->parentItem());
           if (selectdpoint != NULL) {
-            //addPointAfterPoint(selectdpoint, mouseEvent->scenePos(),"left");
-            mouseEvent->setAccepted(true);
+            addPointAfterPoint(selectdpoint, mouseEvent->scenePos(), "");
             break;
           }
-
         }
       }
-      else {
-        //addnewPath(mouseEvent->scenePos());
-        mouseEvent->setAccepted(true);
-        break;
-      }
+
+      QGraphicsScene::mousePressEvent(mouseEvent);
+
+      break;
     }
-
-    m_oldValues.clear();
-    m_newValues.clear();
-    old_controlledPaths.clear();
-    new_controlledPaths.clear();
-    old_params.clear();
-    new_params.clear();
-
-    old_params = m_glyph->params;
-
-    auto mo = m_glyph->metaObject();
-    for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i) {
-      m_oldValues[mo->property(i).name()] = mo->property(i).read(m_glyph);
-    }
-
-    QList<QByteArray> dynamicProperties = m_glyph->dynamicPropertyNames();
-    for (int i = 0; i < dynamicProperties.length(); i++) {
-      QByteArray propname = dynamicProperties[i];
-      QVariant val = m_glyph->property(propname);
-      m_oldValues[propname] = val;
-
-    }
-
-    for (auto j = m_glyph->controlledPaths.cbegin(); j != m_glyph->controlledPaths.cend(); j++) {
-      for (auto h = j.value().cbegin(); h != j.value().cend(); h++) {
-        old_controlledPaths[j.key()][h.key()] = *m_glyph->controlledPaths[j.key()][h.key()];
-      }
-    }
-
-    connect(m_glyph, &Glyph::valueChanged, this, &GlyphScene::recordGlyphChange);
-
-    QGraphicsScene::mousePressEvent(mouseEvent);
-    break;
   }
-  case AddPoint: {
-    QList<QGraphicsItem*> selectedItems;
-    selectedItems = this->selectedItems();
-    if (selectedItems.count() == 1) {
-      KnotItem* knotPoint = qgraphicsitem_cast<KnotItem*>(selectedItems[0]);
-      if (knotPoint != NULL) {
-        KnotControlledItem* selectdpoint = qgraphicsitem_cast<KnotControlledItem*>(knotPoint->parentItem());
-        if (selectdpoint != NULL) {
-          addPointAfterPoint(selectdpoint, mouseEvent->scenePos(), "");
-          break;
-        }
-
-      }
-    }
-
-    QGraphicsScene::mousePressEvent(mouseEvent);
-
-    break;
-
-
-  }
-  }
-
-
-
 }
-void GlyphScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
-{
-
+void GlyphScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent) {
   Qt::KeyboardModifiers modifiers = mouseEvent->modifiers();
 
   bool shift = false;
@@ -456,9 +409,7 @@ void GlyphScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
   }
 
   if (ruler != 0 && myMode == Ruler) {
-  }
-  else {
-
+  } else {
     if (shift) {
       QList<QGraphicsItem*> selectedItems;
       selectedItems = this->selectedItems();
@@ -469,14 +420,11 @@ void GlyphScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
       if (line.length() > 20) {
         if (line.angle() > -45 && line.angle() <= 45) {
           dir = "right";
-        }
-        else if (line.angle() > 45 && line.angle() <= 135) {
+        } else if (line.angle() > 45 && line.angle() <= 135) {
           dir = "up";
-        }
-        else if (line.angle() > 135 && line.angle() <= 225) {
+        } else if (line.angle() > 135 && line.angle() <= 225) {
           dir = "left";
-        }
-        else {
+        } else {
           dir = "down";
         }
       }
@@ -485,16 +433,12 @@ void GlyphScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
         if (knotPoint != NULL) {
           KnotControlledItem* selectdpoint = qgraphicsitem_cast<KnotControlledItem*>(knotPoint->parentItem());
           if (selectdpoint != NULL) {
-
-
             addPointAfterPoint(selectdpoint, begin, dir);
             mouseEvent->setAccepted(true);
             return;
           }
-
         }
-      }
-      else {
+      } else {
         addnewPath(begin, dir);
         mouseEvent->setAccepted(true);
         return;
@@ -504,7 +448,6 @@ void GlyphScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
     disconnect(m_glyph, &Glyph::valueChanged, this, &GlyphScene::recordGlyphChange);
 
     if (wasMouseMoveEvent) {
-
       for (auto j = m_glyph->controlledPaths.cbegin(); j != m_glyph->controlledPaths.cend(); j++) {
         for (auto h = j.value().cbegin(); h != j.value().cend(); h++) {
           new_controlledPaths[j.key()][h.key()] = *m_glyph->controlledPaths[j.key()][h.key()];
@@ -513,7 +456,7 @@ void GlyphScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
 
       if (!m_newValues.isEmpty() || !new_controlledPaths.isEmpty()) {
         GlyphParamsChangeCommand* command = new GlyphParamsChangeCommand(m_glyph, "Item(s) Moved", m_oldValues, m_newValues,
-          old_controlledPaths, new_controlledPaths, old_params, new_params);
+                                                                         old_controlledPaths, new_controlledPaths, old_params, new_params);
         m_glyph->undoStack()->push(command);
       }
     }
@@ -522,7 +465,6 @@ void GlyphScene::mouseReleaseEvent(QGraphicsSceneMouseEvent* mouseEvent)
   wasMouseMoveEvent = false;
 
   QGraphicsScene::mouseReleaseEvent(mouseEvent);
-
 }
 void GlyphScene::recordGlyphChange(QString name) {
   if (name == "imagetransform") {
@@ -532,37 +474,31 @@ void GlyphScene::recordGlyphChange(QString name) {
   auto pit = m_glyph->params.find(name);
 
   if (pit != m_glyph->params.end()) {
-    new_params[pit->first] = pit->second;    
-  }
-  else {
+    new_params[pit->first] = pit->second;
+  } else {
     m_newValues[name] = m_glyph->property(name.toLatin1());
   }
 }
 void GlyphScene::deletePoint(KnotControlledItem* point) {
-
   int numpath = point->m_numsubpath;
   int numpoint = point->m_numpoint;
 
   if (m_glyph->controlledPaths.contains(numpath) && m_glyph->controlledPaths[numpath].contains(numpoint)) {
-
-    QMap<int, Glyph::Knot*>  newcontrolledPaths;
+    QMap<int, Glyph::Knot*> newcontrolledPaths;
     auto controlledPath = m_glyph->controlledPaths[numpath];
     auto iterator = controlledPath.begin();
     while (iterator != controlledPath.end()) {
       if (iterator.key() < numpoint) {
         newcontrolledPaths[iterator.key()] = controlledPath[iterator.key()];
-      }
-      else if (iterator.key() == numpoint) {
-
-      }
-      else {
+      } else if (iterator.key() == numpoint) {
+      } else {
         newcontrolledPaths[iterator.key() - 1] = controlledPath[iterator.key()];
       }
       ++iterator;
     }
 
-    QMap<int, QMap<int, Glyph::Knot> >  old_controlledPaths;
-    QMap<int, QMap<int, Glyph::Knot> >  new_controlledPaths;
+    QMap<int, QMap<int, Glyph::Knot> > old_controlledPaths;
+    QMap<int, QMap<int, Glyph::Knot> > new_controlledPaths;
 
     QMapIterator<int, QMap<int, Glyph::Knot*> > j(m_glyph->controlledPaths);
     while (j.hasNext()) {
@@ -586,27 +522,22 @@ void GlyphScene::deletePoint(KnotControlledItem* point) {
       }
     }
 
-
     GlyphPathsChangeCommand* command = new GlyphPathsChangeCommand(m_glyph, "Paths(s) changed", old_controlledPaths, new_controlledPaths);
     m_glyph->undoStack()->push(command);
   }
-
 }
 void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint, QString dir) {
   int numpath = point->m_numsubpath;
   int numpoint = point->m_numpoint;
 
   if (m_glyph->controlledPaths.contains(numpath) && m_glyph->controlledPaths[numpath].contains(numpoint)) {
-
-    QMap<int, Glyph::Knot*>  newcontrolledPaths;
+    QMap<int, Glyph::Knot*> newcontrolledPaths;
     auto controlledPath = m_glyph->controlledPaths[numpath];
     auto iterator = controlledPath.begin();
     while (iterator != controlledPath.end()) {
       if (iterator.key() < numpoint) {
         newcontrolledPaths[iterator.key()] = controlledPath[iterator.key()];
-      }
-      else if (iterator.key() == numpoint) {
-
+      } else if (iterator.key() == numpoint) {
         auto currentKnot = controlledPath[numpoint];
         auto nextite = iterator + 1;
         Glyph::Knot* nextknot = nullptr;
@@ -622,7 +553,7 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
         QPointF matrix;
 
         if (edge) {
-          matrix = { edge->xpart,edge->ypart };
+          matrix = {edge->xpart, edge->ypart};
         }
         newknot->expr = std::make_unique<PairPathPointExp>(QPointF(newpoint.x(), -newpoint.y()) - matrix);
 
@@ -634,8 +565,7 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
         if (!dir.isNull()) {
           left.type = Glyph::mpgui_given;
           left.dirExpr = std::make_unique<VarMFExpr>(dir, false);
-        }
-        else {
+        } else {
           left.type = Glyph::mpgui_open;
         }
 
@@ -643,7 +573,7 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
         right.type = Glyph::mpgui_open;
 
         //
-        //if (nextite != controlledPath.end()) {
+        // if (nextite != controlledPath.end()) {
         //  auto nextknot = controlledPath[nextite.key()];
         //  /*f(!nextknot->leftValue.isControlConstant) {
         //    right.isEqualAfter = true;
@@ -654,15 +584,14 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
         newknot->rightValue = right;
 
         newcontrolledPaths[iterator.key() + 1] = newknot;
-      }
-      else {
+      } else {
         newcontrolledPaths[iterator.key() + 1] = controlledPath[iterator.key()];
       }
       ++iterator;
     }
 
-    QMap<int, QMap<int, Glyph::Knot> >  old_controlledPaths;
-    QMap<int, QMap<int, Glyph::Knot> >  new_controlledPaths;
+    QMap<int, QMap<int, Glyph::Knot> > old_controlledPaths;
+    QMap<int, QMap<int, Glyph::Knot> > new_controlledPaths;
 
     QMapIterator<int, QMap<int, Glyph::Knot*> > j(m_glyph->controlledPaths);
     while (j.hasNext()) {
@@ -686,22 +615,17 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
       }
     }
 
-
     GlyphPathsChangeCommand* command = new GlyphPathsChangeCommand(m_glyph, "Paths(s) changed", old_controlledPaths, new_controlledPaths);
     m_glyph->undoStack()->push(command);
 
-
-
     contour->knotControlledItems[numpath][numpoint + 1]->incurve->setSelected(true);
-
   }
 }
 void GlyphScene::addnewPath(QPointF newpoint, QString dir) {
-
   QMap<int, Glyph::Knot*> newpath;
 
   Glyph::Knot* newknot = new Glyph::Knot();
-  //newknot->isConstant = true;
+  // newknot->isConstant = true;
   Glyph::KnotEntryExit left = {};
   Glyph::KnotEntryExit right = {};
   left.jointtype = Glyph::path_join_tension;
@@ -710,8 +634,7 @@ void GlyphScene::addnewPath(QPointF newpoint, QString dir) {
   if (!dir.isNull()) {
     left.type = Glyph::mpgui_given;
     left.dirExpr = std::make_unique<VarMFExpr>(dir, false);
-  }
-  else {
+  } else {
     left.type = Glyph::mpgui_open;
   }
   right.tensionExpr = std::make_unique<LitPathNumericExp>(1);
@@ -724,19 +647,18 @@ void GlyphScene::addnewPath(QPointF newpoint, QString dir) {
   QPointF matrix;
 
   if (edge) {
-    matrix = { edge->xpart,edge->ypart };
+    matrix = {edge->xpart, edge->ypart};
   }
-  newknot->expr = std::make_unique<PairPathPointExp>(QPointF(newpoint.x(), -newpoint.y()) - matrix);  
+  newknot->expr = std::make_unique<PairPathPointExp>(QPointF(newpoint.x(), -newpoint.y()) - matrix);
 
   int numpath = m_glyph->controlledPaths.size();
   newpath[0] = newknot;
   newpath[1] = newknot;
 
-  m_glyph->controlledPathNames[numpath] = "fill";
+  m_glyph->controlledPathNames[numpath] = {"currentpicture", "fill"};
 
-
-  QMap<int, QMap<int, Glyph::Knot> >  old_controlledPaths;
-  QMap<int, QMap<int, Glyph::Knot> >  new_controlledPaths;
+  QMap<int, QMap<int, Glyph::Knot> > old_controlledPaths;
+  QMap<int, QMap<int, Glyph::Knot> > new_controlledPaths;
 
   QMapIterator<int, QMap<int, Glyph::Knot*> > j(m_glyph->controlledPaths);
   while (j.hasNext()) {
@@ -747,8 +669,6 @@ void GlyphScene::addnewPath(QPointF newpoint, QString dir) {
       old_controlledPaths[j.key()][h.key()] = *m_glyph->controlledPaths[j.key()][h.key()];
     }
   }
-
-
 
   m_glyph->controlledPaths[numpath] = newpath;
 
@@ -762,11 +682,8 @@ void GlyphScene::addnewPath(QPointF newpoint, QString dir) {
     }
   }
 
-
   GlyphPathsChangeCommand* command = new GlyphPathsChangeCommand(m_glyph, "Paths(s) changed", old_controlledPaths, new_controlledPaths);
   m_glyph->undoStack()->push(command);
-
-
 
   contour->knotControlledItems[numpath][0]->incurve->setSelected(true);
 }
@@ -778,4 +695,3 @@ void GlyphScene::keyReleaseEvent(QKeyEvent* event) {
   currentPressdKeys.remove(event->key());
   QGraphicsScene::keyReleaseEvent(event);
 }
-

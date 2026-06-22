@@ -292,7 +292,7 @@ def drawcomp(suffix charcode)(expr T) =
     draw charcode.pic transformed T
     if (xxpart T = 1) and (xypart T = 0) and (yxpart T = 0) and (yypart T = 1):
       withprescript "begincomponent" withpostscript str charcode & "," & decimal xpart T & "," & decimal ypart T;
-      draw (0,0) transformed T withprescript "endcomponent"
+      draw (0,0) transformed T withprescript "endcomponent" withpen nullpen
     fi
     ;
 	endgroup
@@ -300,6 +300,17 @@ enddef;
 
 def controlledPath (expr numpath,numpoint)(text name,content) =
   def name = content; enddef;
+enddef;
+
+def controlledImage (text name,content) =
+  if not picture name : picture name; name := nullpicture; fi
+  begingroup
+    save currentpicture;
+    picture currentpicture;
+    currentpicture := name;
+    content;
+    name := currentpicture;
+  endgroup
 enddef;
 
 def setCursiveAnchor(suffix pname)(expr pvalue)(expr anchortype) =

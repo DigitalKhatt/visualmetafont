@@ -25,6 +25,7 @@
 #include "font.hpp"
 #include "glyphparametercontroller.hpp"
 #include "pathview.h"
+#include "nibenvelope.h"
 
 GlyphWindow::GlyphWindow(Glyph* glyph) {
   setAttribute(Qt::WA_DeleteOnClose);
@@ -273,6 +274,17 @@ void GlyphWindow::createActions() {
   pointerToolbar->addWidget(pointerButton);
   pointerToolbar->addWidget(linePointerButton);
   // pointerToolbar->addWidget(addPointButton);
+
+  auto* penStrokeButton = new QPushButton("Pen Stroke Editor");
+  pointerToolbar->addWidget(penStrokeButton);
+  connect(penStrokeButton, &QPushButton::clicked, this, [this]() {
+    QDialog dlg(this);
+    auto* layout = new QVBoxLayout(&dlg);
+    auto* editor = new nibenvelope::PenStrokeEditor(glyph->font, this);
+    layout->addWidget(editor);
+    dlg.resize(1000, 700);
+    dlg.exec();
+  });
 
   windowMenu = menuBar()->addMenu(tr("&Window"));
   connect(windowMenu, &QMenu::aboutToShow, this, &GlyphWindow::updateWindowMenu);
