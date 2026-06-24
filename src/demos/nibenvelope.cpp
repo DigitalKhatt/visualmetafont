@@ -95,6 +95,17 @@ PenStrokeEditor::PenStrokeEditor(Font* font, QWidget* parent) : QWidget(parent),
   m_view->setDragMode(QGraphicsView::RubberBandDrag);
   m_view->scale(1.0, -1.0);
 
+  /*QPixmap pixmap(":/images/sample.jpg");
+
+  auto* imageItem = m_scene->addPixmap(pixmap);
+
+  imageItem->setTransform(QTransform::fromScale(0.4, -0.4), true);
+
+  imageItem->setPos(100, 350);
+
+  imageItem->setZValue(-10);  // behind trajectory/envelope
+  imageItem->setOpacity(0.5);*/
+
   connect(static_cast<StrokeGraphicsView*>(m_view), &StrokeGraphicsView::shiftClicked, this, &PenStrokeEditor::addKnotAt);
 
   auto* layout = new QVBoxLayout(this);
