@@ -23,43 +23,32 @@
 #include <math.h>
 
 struct GlyphParameters {
-  double lefttatweel{ 0.0 };
-  double righttatweel{ 0.0 };
-  double third{ 0.0 };
-  double fourth{ 0.0 };
-  double fifth{ 0.0 };
-  double scalex{ 0.0 };
+  double lefttatweel{0.0};
+  double righttatweel{0.0};
+  double third{0.0};
+  double fourth{0.0};
+  double fifth{0.0};
+  double scalex{0.0};
 
   bool operator==(const GlyphParameters& r) const {
-    return r.lefttatweel == lefttatweel && r.righttatweel == righttatweel && r.third == third && r.fourth == fourth
-      && r.fifth == fifth
-      && r.scalex == scalex;
+    return r.lefttatweel == lefttatweel && r.righttatweel == righttatweel && r.third == third && r.fourth == fourth && r.fifth == fifth && r.scalex == scalex;
   }
 };
 namespace std {
-  template<>
-  struct hash<GlyphParameters> {
-    size_t operator()(const GlyphParameters& r) const
-    {
-      return hash<double>{}(r.lefttatweel)
-        ^ hash<double>{}(r.righttatweel)
-        ^ hash<double>{}(r.third)
-        ^ hash<double>{}(r.fourth)
-        ^ hash<double>{}(r.fifth)
-        ^ hash<double>{}(r.scalex);
-    }
-  };
+template <>
+struct hash<GlyphParameters> {
+  size_t operator()(const GlyphParameters& r) const {
+    return hash<double>{}(r.lefttatweel) ^ hash<double>{}(r.righttatweel) ^ hash<double>{}(r.third) ^ hash<double>{}(r.fourth) ^ hash<double>{}(r.fifth) ^ hash<double>{}(r.scalex);
+  }
+};
 
-  template<>
-  struct equal_to<GlyphParameters> {
-    bool operator()(const GlyphParameters& r, const GlyphParameters& r2) const
-    {
-      return r == r2;
-    }
-  };
-}
-
-
+template <>
+struct equal_to<GlyphParameters> {
+  bool operator()(const GlyphParameters& r, const GlyphParameters& r2) const {
+    return r == r2;
+  }
+};
+}  // namespace std
 
 struct RegionAxisCoordinate {
   int16_t startCoord = 0;
@@ -74,10 +63,10 @@ struct RegionAxisCoordinate {
 using VariationRegion = std::vector<RegionAxisCoordinate>;
 
 struct ValueLimits {
-  float maxLeft = 0.0;
-  float minLeft = 0.0;
-  float maxRight = 0.0;
-  float minRight = 0.0;
+  double maxLeft = 0.0;
+  double minLeft = 0.0;
+  double maxRight = 0.0;
+  double minRight = 0.0;
 
   bool operator==(const ValueLimits& r) const {
     return r.maxLeft == maxLeft && r.minLeft == minLeft && r.maxRight == maxRight && r.minRight == minRight;
@@ -101,12 +90,11 @@ struct DefaultDelta {
   }
 };*/
 
-
 inline int32_t getFixed(float val) {
-  return  roundf(val * 65536.f);
+  return roundf(val * 65536.f);
 }
-inline  int16_t getF2DOT14(float val) {
-  return  roundf(val * 16384.f);
+inline int16_t getF2DOT14(float val) {
+  return roundf(val * 16384.f);
 }
 
 inline int toInt(double value) {
@@ -116,69 +104,56 @@ inline int toInt(double value) {
     return ceil(value);
 }
 
-namespace std
+namespace std {
+/*template<> struct hash<DefaultDelta>
 {
-  /*template<> struct hash<DefaultDelta>
+  std::size_t operator()(DefaultDelta const& s) const noexcept
   {
-    std::size_t operator()(DefaultDelta const& s) const noexcept
-    {
-      return hash<int>{}(s.maxLeft)
-        ^ hash<int>{}(s.minLeft)
-        ^ hash<int>{}(s.maxRight)
-        ^ hash<int>{}(s.minRight);
-    }
-  };
+    return hash<int>{}(s.maxLeft)
+      ^ hash<int>{}(s.minLeft)
+      ^ hash<int>{}(s.maxRight)
+      ^ hash<int>{}(s.minRight);
+  }
+};
 
 
-  template<>
-  struct equal_to<DefaultDelta> {
-    bool operator()(const DefaultDelta& r, const DefaultDelta& r2) const
-    {
-      return r == r2;
-    }
-  };*/
-
-  template<> struct hash<ValueLimits>
+template<>
+struct equal_to<DefaultDelta> {
+  bool operator()(const DefaultDelta& r, const DefaultDelta& r2) const
   {
-    std::size_t operator()(ValueLimits const& s) const noexcept
-    {
-      return hash<int>{}(s.maxLeft)
-        ^ hash<int>{}(s.minLeft)
-        ^ hash<int>{}(s.maxRight)
-        ^ hash<int>{}(s.minRight);
-    }
-  };
+    return r == r2;
+  }
+};*/
 
+template <>
+struct hash<ValueLimits> {
+  std::size_t operator()(ValueLimits const& s) const noexcept {
+    return hash<int>{}(s.maxLeft) ^ hash<int>{}(s.minLeft) ^ hash<int>{}(s.maxRight) ^ hash<int>{}(s.minRight);
+  }
+};
 
-  template<>
-  struct equal_to<ValueLimits> {
-    bool operator()(const ValueLimits& r, const ValueLimits& r2) const
-    {
-      return r == r2;
-    }
-  };
+template <>
+struct equal_to<ValueLimits> {
+  bool operator()(const ValueLimits& r, const ValueLimits& r2) const {
+    return r == r2;
+  }
+};
 
-  template<> struct hash<RegionAxisCoordinate>
-  {
-    std::size_t operator()(RegionAxisCoordinate const& s) const noexcept
-    {
-      return hash<int>{}(s.startCoord)
-        ^ hash<int>{}(s.peakCoord)
-        ^ hash<int>{}(s.endCoord);
-    }
-  };
+template <>
+struct hash<RegionAxisCoordinate> {
+  std::size_t operator()(RegionAxisCoordinate const& s) const noexcept {
+    return hash<int>{}(s.startCoord) ^ hash<int>{}(s.peakCoord) ^ hash<int>{}(s.endCoord);
+  }
+};
 
+template <>
+struct equal_to<RegionAxisCoordinate> {
+  bool operator()(const RegionAxisCoordinate& r, const RegionAxisCoordinate& r2) const {
+    return r == r2;
+  }
+};
 
-  template<>
-  struct equal_to<RegionAxisCoordinate> {
-    bool operator()(const RegionAxisCoordinate& r, const RegionAxisCoordinate& r2) const
-    {
-      return r == r2;
-    }
-  };
-
-
-}
+}  // namespace std
 
 struct VarAxis {
   QString name;
@@ -189,4 +164,4 @@ struct VarAxis {
   QString equivExpr;
 };
 
-#endif // H_COMMONTYPES
+#endif  // H_COMMONTYPES

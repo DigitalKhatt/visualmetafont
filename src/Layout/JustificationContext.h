@@ -21,8 +21,7 @@
 
 #include "qvector.h"
 #include "qmap.h"
-#include  <unordered_map>
-
+#include <unordered_map>
 
 enum class StartEndLig {
   StartEnd,
@@ -31,24 +30,20 @@ enum class StartEndLig {
   EndKashida
 };
 
-
 struct GlyphExpansion {
-  float MinLeftTatweel = 0.0;
-  float MaxLeftTatweel = 0.0;
-  float MinRightTatweel = 0.0;
-  float MaxRightTatweel = 0.0;
+  double MinLeftTatweel = 0.0;
+  double MaxLeftTatweel = 0.0;
+  double MinRightTatweel = 0.0;
+  double MaxRightTatweel = 0.0;
   int weight = 1;
   int level = 0;
   StartEndLig startEndLig;
   bool shrinkIsAbsolute = false;
   bool stretchIsAbsolute = false;
-
 };
 
-
-
 class JustificationContext {
-public:
+ public:
   std::vector<unsigned int> GlyphsToExtend;
   std::vector<unsigned int> Substitutes;
   std::unordered_map<unsigned int, GlyphExpansion> Expansions;

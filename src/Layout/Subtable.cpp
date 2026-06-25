@@ -114,8 +114,8 @@ void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
 
       GlyphParameters parameters;
 
-      parameters.lefttatweel = (double)expan.MinLeftTatweel;
-      parameters.righttatweel = (double)expan.MinRightTatweel;
+      parameters.lefttatweel = expan.MinLeftTatweel;
+      parameters.righttatweel = expan.MinRightTatweel;
 
       auto substGlyph = (uint16_t)subst[i.key()];
       auto substEquivGlyphs = m_layout->getSubstEquivGlyphs(substGlyph);

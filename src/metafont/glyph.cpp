@@ -363,9 +363,9 @@ int Glyph::unicode() const {
   return m_unicode;
 }
 int Glyph::charcode() {
-  if (m_charcode == -1) {
-    m_charcode = font->getNumericVariable(name());
-  }
+  // if (m_charcode == -1) {
+  m_charcode = font->getNumericVariable(name());
+  //}
   return m_charcode;
 }
 

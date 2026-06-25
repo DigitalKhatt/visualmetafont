@@ -57,6 +57,7 @@ GlyphVis::GlyphVis(const GlyphVis& other) {
   coloredglyph = other.coloredglyph;
   glyphtype = other.glyphtype;
   charcode = other.charcode;
+  unicode = other.unicode;
   width = other.width;
   height = other.height;
   depth = other.depth;
@@ -125,6 +126,7 @@ GlyphVis::GlyphVis(GlyphVis&& other) {
   coloredglyph = other.coloredglyph;
   glyphtype = other.glyphtype;
   charcode = other.charcode;
+  unicode = other.unicode;
   width = other.width;
   height = other.height;
   depth = other.depth;
@@ -163,6 +165,7 @@ GlyphVis& GlyphVis::operator=(const GlyphVis& other) {
   coloredglyph = other.coloredglyph;
   glyphtype = other.glyphtype;
   charcode = other.charcode;
+  unicode = other.unicode;
   width = other.width;
   height = other.height;
   depth = other.depth;
@@ -207,6 +210,7 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
     originalglyph = m_edge->originalglyph;
 
   charcode = m_edge->charcode;
+  unicode = m_edge->unicode;
   width = m_edge->width;
   height = m_edge->height;
   depth = m_edge->depth;

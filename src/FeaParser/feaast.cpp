@@ -49,8 +49,31 @@ void ConditionalStatement::accept(Visitor& v) { v.accept(*this); }
 void FeaContext::populateFeatures() {
   LookupDefinitionVisitor feaVisitor{otlayout, *this};
 
+  // TODO optimize and support else
+  for (auto stmt : *root->stmts) {
+    auto conditionalStatement = dynamic_cast<ConditionalStatement*>(stmt);
+    if (conditionalStatement != nullptr) {
+      bool conditionIsTrue = false;
+      auto condition = QString::fromStdString(conditionalStatement->getCondition());
+      if (condition == "") {
+        conditionIsTrue = true;
+      } else {
+        conditionIsTrue = otlayout->font->getBoolVariable(condition);
+      }
+      if (!conditionIsTrue) {
+        for (auto stmt : conditionalStatement->getIfStmts()) {
+          auto featureDef = dynamic_cast<FeatureDefenition*>(stmt);
+          if (featureDef) {
+            notincludedfeatures.insert(featureDef);
+          }
+        }
+      }
+    }
+  }
+
   for (auto featureDefinition : features) {
-    featureDefinition->accept(feaVisitor);
+    if (notincludedfeatures.find(featureDefinition) == notincludedfeatures.end())
+      featureDefinition->accept(feaVisitor);
   }
 
   for (auto table : tables) {
@@ -141,7 +164,7 @@ void LookupDefinitionVisitor::accept(SingleAdjustmentRule& singleRule) {
   int subtableName = lookup->subtables.length() + 1;
   SingleAdjustmentSubtable* newsubtable = nullptr;
   if (lookup->subtables.length() > 0) {
-    newsubtable = static_cast<SingleAdjustmentSubtable*>(lookup->subtables.last());
+    newsubtable = dynamic_cast<SingleAdjustmentSubtable*>(lookup->subtables.last());
   }
 
   if (newsubtable == nullptr || newsubtable->format != format) {
@@ -169,7 +192,7 @@ void LookupDefinitionVisitor::accept(PairAdjustmentRule& pairRule) {
   int subtableName = lookup->subtables.length() + 1;
   PairAdjustmentSubtable* newsubtable = nullptr;
   if (lookup->subtables.length() > 0) {
-    newsubtable = static_cast<PairAdjustmentSubtable*>(lookup->subtables.last());
+    newsubtable = dynamic_cast<PairAdjustmentSubtable*>(lookup->subtables.last());
   }
 
   if (newsubtable == nullptr || newsubtable->format != format) {
@@ -218,7 +241,7 @@ void LookupDefinitionVisitor::accept(CursiveRule& cursiveRule) {
   int subtableName = lookup->subtables.length() + 1;
   CursiveSubtable* newsubtable = nullptr;
   if (lookup->subtables.length() > 0) {
-    newsubtable = static_cast<CursiveSubtable*>(lookup->subtables.last());
+    newsubtable = dynamic_cast<CursiveSubtable*>(lookup->subtables.last());
   }
 
   if (newsubtable == nullptr) {

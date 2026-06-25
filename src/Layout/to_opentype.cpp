@@ -332,9 +332,9 @@ void ToOpenType::setGIds() {
       throw new std::runtime_error(QString("Code %1 not found").arg(unicodeToGlyphCodeIter.value()).toStdString());
     }
     auto unicode = unicodeToGlyphCodeIter.key();
-    if (unicode < 0xE000 && unicode != 0 && unicode != 1) {
-      unicodeToGlyphCode.insert(unicode, newCodes.value(unicodeToGlyphCodeIter.value()));
-    }
+    // if (unicode < 0xE000 && unicode != 0 && unicode != 1) {
+    unicodeToGlyphCode.insert(unicode, newCodes.value(unicodeToGlyphCodeIter.value()));
+    //}
 
     unicodeToGlyphCodeIter++;
   }

@@ -66,7 +66,7 @@
 
 %type <FeaRoot*> root
 %type <std::vector<Statement *> *> statements
-%type <Statement*> statement 
+%type <Statement*> statement
 %type <Glyph*> glyph glyphidentifier
 %type <ClassName*> classname
 %type <ClassComponent*> classcomponent
@@ -92,7 +92,7 @@
 %type <FeatureDefenition*> feature_definition;
 %type <std::vector<Glyph *>*> glyphseq;
 %type <StartEndLig> startendlig;
-%type <PRuleRegExp> rule_regex prregexp_terc prregexp_sec  prregexp_prim  rule_lhs rule_rhs rule_context prregexp_action; 
+%type <PRuleRegExp> rule_regex prregexp_terc prregexp_sec  prregexp_prim  rule_lhs rule_rhs rule_context prregexp_action;
 %type <GraphiteRule> rule openttype_regexp;
 %type <Pass>  rules pass_definition;
 %type <TableDefinition*>  table_definition passes;
@@ -129,9 +129,9 @@ statement
 	| lookup_definition {$$ = $1;}
 	| markclassdefinition {$$ = $1;}
 	| classdefinition {$$ = $1;}
-	| feature_definition {$$ = $1;}	
-	| table_definition {$$ = $1;}	
-	| include_statement {$$ = $1;}	
+	| feature_definition {$$ = $1;}
+	| table_definition {$$ = $1;}
+	| include_statement {$$ = $1;}
 	| lookupreference { $$ = new LookupReference($1);}
 	;
 
@@ -144,7 +144,7 @@ conditional_statement:
 
 elif_chain:
       ELIF identifier[condition] statements[stmts] elif_chain[else]
-        {          
+        {
           $$ = new ConditionalStatement($condition, $stmts, $else);
         }
     | ELSE  statements[stmts] ENDIF
@@ -163,7 +163,7 @@ include_statement
 	: INCLUDE '(' { driver.lexer->pushFilenameMode(); } T_FILENAME[name] ')'
 	{
 		if(!driver.parse_file($name)){
-			error(yyla.location, std::string("File name '") + $name + "' cannot be parsed'");		
+			error(yyla.location, std::string("File name '") + $name + "' cannot be parsed'");
 		};
 		$$ = new IncludeStatment($name);
 	}
@@ -173,7 +173,7 @@ feature_definition
 	{
 		if($bname != $lname){
 			//yyparser.error(yylloc, std::string("Feature name '") + $bname + "' does not match with '" + $lname + "'");
-			error(yyla.location, std::string("Feature name '") + $bname + "' does not match with '" + $lname + "'");			
+			error(yyla.location, std::string("Feature name '") + $bname + "' does not match with '" + $lname + "'");
 			YYERROR;
 		}else{
 			$$ = new FeatureDefenition($bname,$lstm);
@@ -191,26 +191,26 @@ feature_statements
 		}
 	;
 
-feature_statement	
+feature_statement
 	: conditional_statement {$$ = $1;}
 	| lookup_definition {$$ = $1;}
 	| lookupreference { $$ = new LookupReference($1);}
-	| classdefinition {$$ = $1;}		
+	| classdefinition {$$ = $1;}
 	;
 
 lookup_definition
-	: LOOKUP identifier[bname] {$<int>order = driver.context.getNbLookup();}[order] '{' lookup_statements[lstm] '}' identifier[lname] 
-		{ 			
+	: LOOKUP identifier[bname] {$<int>order = driver.context.getNbLookup();}[order] '{' lookup_statements[lstm] '}' identifier[lname]
+		{
 			if($bname != $lname){
 //				yyparser.error(yylloc, std::string("Lookup name '") + $bname + "' does not match with '" + $lname + "'");
 				error(yyla.location, std::string("Lookup name '") + $bname + "' does not match with '" + $lname + "'");
-				
+
 				YYERROR;
 			}else{
 			    if(driver.context.lookups.find($bname) != driver.context.lookups.end()){
 				//yyparser.error(yylloc, std::string("Lookup name '") + $bname + "' does not match with '" + $lname + "'");
 				error(yyla.location, std::string("Lookup name '") + $bname + "' already defined");
-				
+
 				YYERROR;
 			    }else{
 			      auto lookup = new LookupDefinition($bname,$lstm,$<int>order );
@@ -219,7 +219,7 @@ lookup_definition
 			    }
 
 			}
-			
+
 		}
 	;
 
@@ -240,7 +240,7 @@ lookup_statement
 	| gposrule {$$ = $1;}
 	| lookup_definition {$$ = $1;}
 	| featurereference { $$ = new FeatureReference($1);}
-	| conditional_statement_lookup {$$ = $1;}		
+	| conditional_statement_lookup {$$ = $1;}
 	;
 
 conditional_statement_lookup:
@@ -274,13 +274,13 @@ flag
 	| IgnoreMarks					{$$ = new LookupFlag(LookupFlag::IgnoreMarks);}
 	| UseMarkFilteringSet glyphset	{$$ = new LookupFlag($2);}
 	;
-	
+
 gsubrule
 	: singlesub {$$ = $1;}
 	| multiplesub {$$ = $1;}
-	| alternatesub {$$ = $1;}	
+	| alternatesub {$$ = $1;}
 	| contextualligagsub {$$ = $1;}
-	| TABLE '(' SUBSTITUTE ')' passes ENDTABLE { $passes->name = "sub" ;$$ = $passes;}	
+	| TABLE '(' SUBSTITUTE ')' passes ENDTABLE { $passes->name = "sub" ;$$ = $passes;}
 	;
 
 singlesub
@@ -298,8 +298,8 @@ singlesub
 	;
 
 expafactor:
-	EXPANSION doubleorint[minleft] doubleorint[maxleft] doubleorint[minright] doubleorint[maxright] {$$ = {(float)$minleft,(float)$maxleft,(float)$minright,(float)$maxright};}
-	| EXPANSION doubleorint[minleft] doubleorint[maxleft] doubleorint[minright] doubleorint[maxright] INT_LITERAL[absolute] {$$ = {(float)$minleft,(float)$maxleft,(float)$minright,(float)$maxright,1,0,StartEndLig::StartEnd,(bool)$absolute,(bool)$absolute};}
+	EXPANSION doubleorint[minleft] doubleorint[maxleft] doubleorint[minright] doubleorint[maxright] {$$ = {$minleft,$maxleft,$minright,$maxright};}
+	| EXPANSION doubleorint[minleft] doubleorint[maxleft] doubleorint[minright] doubleorint[maxright] INT_LITERAL[absolute] {$$ = {$minleft,$maxleft,$minright,$maxright,1,0,StartEndLig::StartEnd,(bool)$absolute,(bool)$absolute};}
 
 	;
 
@@ -308,7 +308,7 @@ startendlig:
 	| STARTLIG {$$ = StartEndLig::Start;}
 	| ENDLIG {$$ = StartEndLig::End;}
 	| ENDKASHIDA {$$ = StartEndLig::EndKashida;}
-	
+
 	;
 
 multiplesub
@@ -345,10 +345,10 @@ contextualligagsub
 	;
 
 contextualgpos
-	: POSITION contextualexplicit {$$ = $2;$$->setType(false);}	 
+	: POSITION contextualexplicit {$$ = $2;$$->setType(false);}
 	;
 
-	
+
 contextualexplicit
 	: inputseq {$$ = new ChainingContextualRule(nullptr,$1,nullptr);}
 	| inputseq glyphsetregexp {$$ = new ChainingContextualRule(nullptr,$1,$2);}
@@ -373,10 +373,10 @@ singleadjustment
 	;
 
 pairadjustment
-	: POSITION glyphset[glyphset1] valuerecordextended[valuerecord1] glyphset[glyphset2] valuerecordextended[valuerecord2] 
+	: POSITION glyphset[glyphset1] valuerecordextended[valuerecord1] glyphset[glyphset2] valuerecordextended[valuerecord2]
 		{
 			$$ = new PairAdjustmentRule($glyphset1,$glyphset2,$valuerecord1,$valuerecord2);
-		}	
+		}
 	;
 
 cursiverule
@@ -411,46 +411,46 @@ glyphsetregexpwithoutglyph
 	;
 
 /*
-gsregex   
+gsregex
 	: gsregex_q	{ $$ = $1;}
-	| gsregex gsregex_q  {$$ = new GlyphSetRegExpSeq{$1,$2};}	
+	| gsregex gsregex_q  {$$ = new GlyphSetRegExpSeq{$1,$2};}
 	;
 
-gsregex_q   
+gsregex_q
 	: gsregex_prim	{ $$ = $1;}
 	| gsregex_q '\'' { $$ = $1;}
 	;
 
-	
-gsregex_terc 
+
+gsregex_terc
 	: gsregex_terc[left] '|' gsregex_sec[right]  { $$ = new GlyphSetRegExpOr{$left,$right};}
-	| gsregex_sec	{ $$ = $1;}	
+	| gsregex_sec	{ $$ = $1;}
 	;
 
 gsregex_sec
-	: gsregex_sec gsregex_prim  {$$ = new GlyphSetRegExpSeq{$1,$2};}	
-	| gsregex_prim	{ $$ = $1;}		
+	: gsregex_sec gsregex_prim  {$$ = new GlyphSetRegExpSeq{$1,$2};}
+	| gsregex_prim	{ $$ = $1;}
 	;
 
 
 gsregex_prim
 	: glyphset { $$ = new GlyphSetRegExpSingle($1); }
-	| gsregex_prim[exp] '{' INT_LITERAL[min] ',' INT_LITERAL[max] '}'  { $$ = new GlyphSetRegExpRep{$exp,$min,$max};}	
+	| gsregex_prim[exp] '{' INT_LITERAL[min] ',' INT_LITERAL[max] '}'  { $$ = new GlyphSetRegExpRep{$exp,$min,$max};}
 	| '(' gsregex_terc ')' { $$ = $2;}
 	;*/
-	
+
 /*
 glyphsetregexp_prim
 	: glyphsetregexp[left] '|' glyphsetregexp[right]  { $$ = new GlyphSetRegExpOr{$left,$right};}
 	;
 
-	
+
 glyphsetregexp
 	: glyphset { $$ = new GlyphSetRegExpSingle($1); }
-	| glyphsetregexp glyphset { $$ = new GlyphSetRegExpSeq{$1,$glyphset};}	
+	| glyphsetregexp glyphset { $$ = new GlyphSetRegExpSeq{$1,$glyphset};}
 	| glyphsetregexp '(' glyphsetregexp ')' { $$ = new GlyphSetRegExpSeq{$1,$3};}
 	| '(' glyphsetregexp ')' { $$ = $2;}
-	| glyphsetregexp[exp] '{' INT_LITERAL[min] ',' INT_LITERAL[max] '}'  { $$ = new GlyphSetRegExpRep{$exp,$min,$max};}	
+	| glyphsetregexp[exp] '{' INT_LITERAL[min] ',' INT_LITERAL[max] '}'  { $$ = new GlyphSetRegExpRep{$exp,$min,$max};}
 	| glyphsetregexp_prim
 	;*/
 
@@ -462,7 +462,7 @@ glyphsetregexp
 	| glyphsetregexp[left] '?'  { $$ = new GlyphSetRegExpOr{$left,new GlyphSetRegExpSingle(new GlyphSet())};}
 	| glyphsetregexp '(' glyphsetregexp ')' { $$ = new GlyphSetRegExpSeq{$1,$3};}
 	| '(' glyphsetregexp ')' { $$ = $2;}
-	| glyphsetregexp[exp] '{' INT_LITERAL[min] ',' INT_LITERAL[max] '}'  { $$ = new GlyphSetRegExpRep{$exp,$min,$max};}	
+	| glyphsetregexp[exp] '{' INT_LITERAL[min] ',' INT_LITERAL[max] '}'  { $$ = new GlyphSetRegExpRep{$exp,$min,$max};}
 	;
 
 
@@ -470,12 +470,12 @@ glyphsetregexp
 
 
 inputseq
-	: markedglyphsetregexp  { $$ = new std::vector<MarkedGlyphSetRegExp *>();$$->push_back($1); } 		
-	| inputseq markedglyphsetregexp	
+	: markedglyphsetregexp  { $$ = new std::vector<MarkedGlyphSetRegExp *>();$$->push_back($1); }
+	| inputseq markedglyphsetregexp
 		{
 			$$ = $1;
 			$$->push_back($2);
-		}		
+		}
 	;
 
 markedglyphsetregexp
@@ -485,9 +485,9 @@ markedglyphsetregexp
 		$$ = new MarkedGlyphSetRegExp($glyphset,$valuerecord);
 	}
 	| CURSIVE glyphset'\''  anchor[entry] anchor[exit]  {
-		$$ = new MarkedGlyphSetRegExp($glyphset,new CursiveRule($glyphset,$entry,$exit));		
+		$$ = new MarkedGlyphSetRegExp($glyphset,new CursiveRule($glyphset,$entry,$exit));
 	}
-	
+
 	;
 
 
@@ -502,7 +502,7 @@ mark2baseclasses
 	;
 
 mark2baseclass
-	: anchor MARK classname 
+	: anchor MARK classname
 	| anchor[baseAnchor] MARKCLASS glyphset anchor[markAnchor] '@' identifier  {$$ = new Mark2BaseClass($glyphset,$baseAnchor,$markAnchor, $identifier);}
 	;
 
@@ -528,9 +528,9 @@ anchorformat
 	;
 
 glyphset
-	: glyphclass	{$$ = new GlyphSet($1);}   
-	| glyph			{$$ = new GlyphSet($1);} 
-	| T_NULL		{$$ = new GlyphSet();}  
+	: glyphclass	{$$ = new GlyphSet($1);}
+	| glyph			{$$ = new GlyphSet($1);}
+	| T_NULL		{$$ = new GlyphSet();}
 
 glyphsetwithoutglyph
 	: glyphclass	{$$ = new GlyphSet($1);}
@@ -538,35 +538,35 @@ glyphsetwithoutglyph
 
 glyphclass
 	: '[' classcomponents ']'	{$$ = new GlyphClass(std::move($2));}
-	| classname					{$$ = new GlyphClass($1);}		
+	| classname					{$$ = new GlyphClass($1);}
 	| REGEXP					{$$ = new GlyphClass(new RegExpClass($1));}
 	;
 
-classcomponents	
+classcomponents
 	: classcomponent					{ $$ = std::vector<ClassComponent *>{ $1};}
 	| classcomponents  classcomponent	{ $1.push_back($2);$$ = std::move($1);}
 	;
 
-classcomponent	
+classcomponent
 	: glyph			{$$ = $1;}
 	| classname		{$$ = $1;}
 	| REGEXP		{$$ = new RegExpClass($1);}
 	;
 
 /*ADD doubleorint[lefttatweel] doubleorint[righttatweel]*/
-glyph	
+glyph
 	: glyphidentifier	{$$ = $1;}
 	| glyphidentifier	COORD doubleorint[lefttatweel] doubleorint[righttatweel]	{$$ = $1;}
 	;
 
-glyphidentifier	
+glyphidentifier
 	: identifier	{$$ = new GlyphName($1);}
 	| GLYPHNAME		{$$ = new GlyphName($1);}
 	| NOTDEF		{$$ = new GlyphName(std::string(".notdef"));}
-	| CID			{$$ = new GlyphCID($1);}	
+	| CID			{$$ = new GlyphCID($1);}
 	;
 
-classname	
+classname
 	: '@' identifier {$$ = new ClassName($2);}
 	;
 
@@ -604,7 +604,7 @@ table_definition
 	;
 
 justrules
-	: stretch shrink aftergsub {$$=JustTable{$stretch,$shrink,$aftergsub};}	
+	: stretch shrink aftergsub {$$=JustTable{$stretch,$shrink,$aftergsub};}
 	;
 
 stretch
@@ -639,8 +639,8 @@ passes
 	;
 
 pass_definition
-	: PASS '(' INT_LITERAL ')' rules  ENDPASS 
-		{ 
+	: PASS '(' INT_LITERAL ')' rules  ENDPASS
+		{
 			if($INT_LITERAL < 1){
 				error(yyla.location, std::string("Pass number cannot be less than 1 "));
 				YYERROR;
@@ -648,11 +648,11 @@ pass_definition
 			$rules.setNumber($INT_LITERAL);
 			$$ = std::move($rules);
 		}
-		
-		
+
+
 	;
 
-rules 
+rules
 	: rules rule ';'  {$$ = std::move($1); $$.addRule($rule);}
 	| rule ';' {$$ = Pass(); $$.addRule($rule);}
 	;
@@ -669,27 +669,27 @@ openttype_regexp
 	;
 
 rule_lhs
-	: rule_regex '>'  { $$ = $rule_regex;}	
+	: rule_regex '>'  { $$ = $rule_regex;}
 	;
 
 rule_rhs
-	: rule_regex  { $$ = $rule_regex;}	
+	: rule_regex  { $$ = $rule_regex;}
 	;
 
 rule_context
-	: '/' rule_regex { $$ = $rule_regex;}	
+	: '/' rule_regex { $$ = $rule_regex;}
 	;
 
-rule_regex   
-	: rule_regex '|' prregexp_terc { $$ = std::make_shared<RuleRegExpOr>($1,$3);}	
-	| prregexp_terc	{ $$ = $prregexp_terc;}	
+rule_regex
+	: rule_regex '|' prregexp_terc { $$ = std::make_shared<RuleRegExpOr>($1,$3);}
+	| prregexp_terc	{ $$ = $prregexp_terc;}
 	;
 
-prregexp_terc 
-	: prregexp_terc prregexp_sec  { $$ = std::make_shared<RuleRegExpConcat>($1,$prregexp_sec);}	
-	| prregexp_sec	{ $$ = $prregexp_sec;}		
+prregexp_terc
+	: prregexp_terc prregexp_sec  { $$ = std::make_shared<RuleRegExpConcat>($1,$prregexp_sec);}
+	| prregexp_sec	{ $$ = $prregexp_sec;}
 	;
-	
+
 prregexp_sec
 	: prregexp_sec '*'					{ $$ = std::make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::STAR);}
 	| prregexp_sec '?'					{ $$ = std::make_shared<RuleRegExpRepeat>($1,RuleRegExpRepeatType::OPT);}
@@ -699,11 +699,11 @@ prregexp_sec
 	| prregexp_sec '{' INT_LITERAL[min] ',' INT_LITERAL[max] '}' {$$ = $1->makeRepetition($min,$max);}
 	| prregexp_sec '{' INT_LITERAL[min] ',' '}' {$$ = $1->makeRepetition($min,-1);}
 	| prregexp_sec '{' INT_LITERAL[val] '}' {$$ = $1->makeRepetition($val,$val);}
-	| prregexp_prim						{ $$ = $prregexp_prim;}	
+	| prregexp_prim						{ $$ = $prregexp_prim;}
 	;
 
-prregexp_prim 
-	: '(' rule_regex ')' { $$ = $rule_regex;}	
+prregexp_prim
+	: '(' rule_regex ')' { $$ = $rule_regex;}
 	| glyphset { $$ = std::make_shared<RuleRegExpGlyphSet>($1);}
 	| prregexp_action { $$ = $prregexp_action;}
 	/*| ANY {$$ = std::make_shared<RuleRegExpANY>();}	*/

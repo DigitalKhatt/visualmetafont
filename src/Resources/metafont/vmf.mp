@@ -46,17 +46,17 @@ vardef round primary u =
  elseif pair u: (round xpart u, round ypart u)
  else: u fi enddef;
 
-newinternal nextunicode, lefttatweel,righttatweel, leftbearing, rightbearing,  nuqta, which_in_baseline, totalglyphs, savepicture, number_of_anchors;
+newinternal nextcharcode, lefttatweel,righttatweel, leftbearing, rightbearing,  nuqta, which_in_baseline, totalglyphs, savepicture, number_of_anchors;
 newinternal string charname,originalglyph,coloredglyph;
 newinternal showAnchors;
 pair lefttatweel_const, righttatweel_const;
 newinternal minLeft,maxLeft,minRight,maxRight, maxLii, maxRii;
-newinternal charlt,charrt,glyphtype;
+newinternal charlt,charrt,glyphtype,unicode;
 
 %For parametric kashida
 newinternal leftVerticalRatio,leftVerticalRatioNeg,rightVerticalRatio,rightVerticalRatioNeg;
 
-nextunicode := 58000; % 57343; %hex"E000"-1; % the first code for aya numbers
+nextcharcode := 10000; % 58000; % 57343; %hex"E000"-1; % the first code for aya numbers
 
 string nametable.familyName;
 string nametable.copyright;
@@ -74,6 +74,8 @@ def GlyphTypeMark = 3 enddef;
 def GlyphTypeComponent = 4 enddef;
 def GlyphTypeColored = 5 enddef;
 def GlyphTypeTemp = 6 enddef;
+
+alternatechar := 983040;
 
 def generateAlternate(suffix macroname)(suffix params) =
 beginchar(alternatechar,983040,-1,-1,-1);charlt:=params0;charrt:=params1;macroname(params);endchar;
@@ -111,16 +113,22 @@ def beginchar(suffix name)(expr c,w_sharp,g_type,d_sharp) =
  begingroup
  originalglyph := ""; coloredglyph:="";
  glyphtype:= if g_type = -1 : GlyphTypeBase else: g_type fi;
- charcode:=if known c: byte c else: -1 fi;
- if (charcode = -1) and (unknown name):
-  charcode := incr nextunicode; name:= charcode;
+ unicode:=if known c: byte c else: -1 fi;
+ if (unknown name):
+  charcode := incr nextcharcode; name:= charcode;
  else :
-  if charcode = -1 :
-    charcode := name;
-  else:
-    name := charcode;
-  fi;
+  charcode := name;
  fi;
+ %charcode:=if known c: byte c else: -1 fi;
+ %if (charcode = -1) and (unknown name):
+ % charcode := incr nextcharcode; name:= charcode;
+ %else :
+ % if charcode = -1 :
+ %   charcode := name;
+ % else:
+ %   name := charcode;
+ % fi;
+ %fi;
  charname := str name;
  %save leftanchor,rightanchor;
  numeric param[];

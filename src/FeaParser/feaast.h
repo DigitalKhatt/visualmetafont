@@ -713,13 +713,13 @@ class SingleSubstituionRule : public LookupStatement {
   explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, int format, GlyphExpansion expansion, StartEndLig startEndLig)
       : firstglyph{firstglyph}, secondglyph{secondglyph}, format{format}, expansion{expansion}, startEndLig{startEndLig} {}
 
-  explicit SingleSubstituionRule(Glyph* firstglyph, float lefttatweel, float righttatweel)
+  explicit SingleSubstituionRule(Glyph* firstglyph, double lefttatweel, double righttatweel)
       : firstglyph{firstglyph}, secondglyph{firstglyph}, format{11}, expansion{lefttatweel, lefttatweel, righttatweel, righttatweel}, startEndLig{StartEndLig::StartEnd} {}
 
-  explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, float lefttatweel, float righttatweel)
+  explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, double lefttatweel, double righttatweel)
       : firstglyph{firstglyph}, secondglyph{secondglyph}, format{11}, expansion{lefttatweel, lefttatweel, righttatweel, righttatweel}, startEndLig{StartEndLig::StartEnd} {}
 
-  explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, float lefttatweel, float righttatweel)
+  explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, double lefttatweel, double righttatweel)
       : firstGlyphSet{firstGlyphSet}, firstType{FirstType::GLYPHSET}, secondglyph{nullptr}, format{11}, expansion{lefttatweel, lefttatweel, righttatweel, righttatweel}, startEndLig{StartEndLig::StartEnd} {}
 
   explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, int format, GlyphExpansion expansion, StartEndLig startEndLig)
@@ -920,7 +920,11 @@ class LookupDefinition : public LookupStatement {
   int order;
 };
 
+class FeaContext;
+
 class FeaRoot {
+  friend FeaContext;
+
  protected:
   std::vector<Statement*>* stmts;
 
@@ -1025,6 +1029,7 @@ class FeaContext {
 
   lookupmap_type lookups;
   std::vector<FeatureDefenition*> features;
+  std::set<FeatureDefenition*> notincludedfeatures;
   std::map<std::string, TableDefinition*> tables;
   JustTable jusTable;
 

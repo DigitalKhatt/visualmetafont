@@ -95,6 +95,8 @@ double static setParameters(MP mp, mp_edge_object* hh) {
 
   hh->glyphtype = mp_get_numeric_internal(mp, "glyphtype");
 
+  hh->unicode = mp_get_numeric_internal(mp, "unicode");
+
   /*
   char* glyphsName = "glyphs";
   mp_sym glyphsNameSymp = mp_id_lookup(mp, glyphsName, strlen(glyphsName), false);

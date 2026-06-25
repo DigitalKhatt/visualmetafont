@@ -83,6 +83,7 @@ class GlyphVis {
   QString coloredglyph;
   GlyphType glyphtype;
   int charcode = 0;
+  int unicode = -1;
   double width = 0;
   double height = 0;
   double depth = 0;
