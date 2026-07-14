@@ -33,6 +33,7 @@
 
 #include "GraphicsSceneAdjustment.h"
 #include "GraphicsViewAdjustment.h"
+#include "SolverParametersWidget.h"
 #include "font.hpp"
 #include "glyph.hpp"
 #include "qurantext/quran.h"
@@ -1384,8 +1385,7 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth,
         }
       }
 
-      newLines.append(
-          {lines[lineIndex], lineWidth, newJustification, lineType, basm2});
+      newLines.append({lines[lineIndex].toStdU16String(), lineWidth, newJustification, lineType, basm2});
     }
 
     auto shapedPage = layout->justifyPage(
@@ -1719,8 +1719,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       }
 
-      newLines.append(
-          {lines[lineIndex], lineWidth, newJustification, lineType});
+      newLines.append({lines[lineIndex].toStdU16String(), lineWidth, newJustification, lineType});
     }
 
     auto shapedPage = layout->justifyPage(
@@ -2661,6 +2660,24 @@ void LayoutWindow::createDockWindows() {
 
   addDockWidget(Qt::LeftDockWidgetArea, lookupTree);
   viewMenu->addAction(lookupTree->toggleViewAction());
+
+  solverTuningDock = new QDockWidget(tr("Solver Tuning"), this);
+  solverTuningDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea |
+                                    Qt::BottomDockWidgetArea | Qt::TopDockWidgetArea);
+
+  auto* solverTuningScroll = new QScrollArea(solverTuningDock);
+  solverParametersWidget = new SolverParametersWidget(m_solverParams, solverTuningScroll);
+  solverTuningScroll->setWidget(solverParametersWidget);
+  solverTuningScroll->setWidgetResizable(true);
+  solverTuningDock->setWidget(solverTuningScroll);
+
+  connect(solverParametersWidget, &SolverParametersWidget::parametersChanged, this,
+          [this]() { executeRunText(false, 1); });
+
+  // Docked below the Lookup Tree, in the same left-hand column.
+  addDockWidget(Qt::LeftDockWidgetArea, solverTuningDock);
+  splitDockWidget(lookupTree, solverTuningDock, Qt::Vertical);
+  viewMenu->addAction(solverTuningDock->toggleViewAction());
 
   auto action = new QAction(tr("Calculate minimum size"), this);
   action->setStatusTip(tr("Calculate minimum size"));

@@ -340,21 +340,25 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
   } else if (lookup->type == Lookup::multiple && singleRule.format != 10 && singleRule.format != 11 && singleRule.firstType != SingleSubstituionRule::FirstType::GLYPHSET) {
     auto newsubtable = static_cast<MultipleSubtable*>(lookup->subtables.last());
 
-    auto firstunicodes = singleRule.firstglyph->getCodes(otlayout);
+    /*auto firstunicodes = singleRule.firstglyph->getCodes(otlayout);
 
     if (firstunicodes.size() != 1) {
       throw "Single subtitution : first glyph different to 1 matching";
     }
 
-    auto firstunicode = *firstunicodes.begin();
+    auto firstunicode = *firstunicodes.begin();*/
 
-    auto secondtunicodes = singleRule.secondglyph->getCodes(otlayout);
+    auto firstunicode = singleRule.firstglyph->getCode(otlayout);
+
+    /*auto secondtunicodes = singleRule.secondglyph->getCodes(otlayout);
 
     if (secondtunicodes.size() != 1) {
       throw "Single subtitution : second glyph different to 1 matching";
     }
 
-    auto secondunicode = *secondtunicodes.begin();
+    auto secondunicode = *secondtunicodes.begin();*/
+
+    auto secondunicode = singleRule.secondglyph->getCode(otlayout);
 
     newsubtable->subst.insert(firstunicode, {secondunicode});
 
@@ -395,21 +399,25 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
         }
       }
     } else {
-      auto firstunicodes = singleRule.firstglyph->getCodes(otlayout);
+      /*auto firstunicodes = singleRule.firstglyph->getCodes(otlayout);
 
       if (firstunicodes.size() != 1) {
         throw "Single subtitution : first glyph different to 1 matching";
       }
 
-      auto firstunicode = *firstunicodes.begin();
+      auto firstunicode = *firstunicodes.begin();*/
 
-      auto secondtunicodes = singleRule.secondglyph->getCodes(otlayout);
+      auto firstunicode = singleRule.firstglyph->getCode(otlayout);
+
+      /*auto secondtunicodes = singleRule.secondglyph->getCodes(otlayout);
 
       if (secondtunicodes.size() != 1) {
         throw "Single subtitution : second glyph different to 1 matching";
       }
 
-      auto secondunicode = *secondtunicodes.begin();
+      auto secondunicode = *secondtunicodes.begin();*/
+
+      auto secondunicode = singleRule.secondglyph->getCode(otlayout);
 
       newsubtable->subst[firstunicode] = secondunicode;
 
@@ -430,20 +438,24 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
         subtable->subst[code] = code;
       }
     } else {
-      auto firstunicodes = singleRule.firstglyph->getCodes(otlayout);
+      /*auto firstunicodes = singleRule.firstglyph->getCodes(otlayout);
       if (firstunicodes.size() != 1) {
         throw "Single subtitution : first glyph different to 1 matching";
       }
 
-      auto firstunicode = *firstunicodes.begin();
+      auto firstunicode = *firstunicodes.begin();*/
 
-      auto secondtunicodes = singleRule.secondglyph->getCodes(otlayout);
+      auto firstunicode = singleRule.firstglyph->getCode(otlayout);
+
+      /*auto secondtunicodes = singleRule.secondglyph->getCodes(otlayout);
 
       if (secondtunicodes.size() != 1) {
         throw "Single subtitution : second glyph different to 1 matching";
       }
 
-      auto secondunicode = *secondtunicodes.begin();
+      auto secondunicode = *secondtunicodes.begin();*/
+
+      auto secondunicode = singleRule.secondglyph->getCode(otlayout);
 
       SingleSubtableWithTatweel* subtable = (SingleSubtableWithTatweel*)newsubtable;
 
@@ -680,23 +692,28 @@ void LookupDefinitionVisitor::accept(MultipleSubstitutionRule& multipleSubstitut
     lookup->subtables.append(newsubtable);
   }
 
-  auto firstunicodes = multipleSubstitutionRule.glyph->getCodes(otlayout);
+  /*auto firstunicodes = multipleSubstitutionRule.glyph->getCodes(otlayout);
 
   if (firstunicodes.size() != 1) {
     throw "multiple subtitution : glyph different to 1 matching";
   }
 
-  auto glyphCode = *firstunicodes.begin();
+  auto glyphCode = *firstunicodes.begin();*/
+
+  auto glyphCode = multipleSubstitutionRule.glyph->getCode(otlayout);
 
   QVector<quint16> seq;
 
   for (auto glyph : *multipleSubstitutionRule.sequence) {
-    auto unicodes = glyph->getCodes(otlayout);
+    /*auto unicodes = glyph->getCodes(otlayout);
     if (unicodes.size() != 1) {
       throw "multiple subtitution : glyph different to 1 matching";
     }
 
-    seq.append(*unicodes.begin());
+    seq.append(*unicodes.begin());*/
+
+    auto unicode = glyph->getCode(otlayout);
+    seq.append(unicode);
   }
 
   newsubtable->subst.insert(glyphCode, seq);

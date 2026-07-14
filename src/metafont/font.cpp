@@ -21,8 +21,8 @@
 
 #include <unistd.h>
 
+#include <cstdio>
 #include <filesystem>
-#include <format>
 
 #include "glyph.hpp"
 #include "hb.hh"
@@ -408,28 +408,30 @@ MPGlyphInfo Font::getMPGlyphInfo(int charCode) {
 }
 
 void Font::generateAlternate(QString macroname, GlyphParameters params, QString sourceCode) {
-  QString metaParams = QString("save params;params0:=%1;params1:=%2;params3:=%3;params4:=%4;params5:=%5;params100:=%6;")
-                           .arg(params.lefttatweel)
-                           .arg(params.righttatweel)
-                           .arg(params.third)
-                           .arg(params.fourth)
-                           .arg(params.fifth)
-                           .arg(params.scalex);
+  char metaParamsBuf[256];
+  std::snprintf(metaParamsBuf, sizeof(metaParamsBuf),
+                "save params;params0:=%.9g;params1:=%.9g;params3:=%.9g;params4:=%.9g;params5:=%.9g;"
+                "params100:=%.9g;",
+                params.lefttatweel, params.righttatweel, params.third, params.fourth,
+                params.fifth, params.scalex);
+  std::string metaParams = metaParamsBuf;
+
+  QString qMetaParams = QString::fromStdString(metaParams);
 
   if (!sourceCode.isEmpty()) {
-    auto source = metaParams + sourceCode;
+    auto source = qMetaParams + sourceCode;
     executeMetaPost(source);
     return;
   }
 
   if (params.lefttatweel != 0 || params.righttatweel != 0) {
-    auto metapostString = QString("%1generateAlternate(%2$,params);").arg(metaParams).arg(macroname);
+    auto metapostString = QString("%1generateAlternate(%2$,params);").arg(qMetaParams).arg(macroname);
 
     executeMetaPost(metapostString);
   } else if (params.scalex != 0) {
     if (glyphperName.contains(macroname)) {
       auto glyph = glyphperName[macroname];
-      auto source = metaParams + glyph->source();
+      auto source = qMetaParams + glyph->source();
       /* auto beginChar = QString("%1(%2,%3").arg(glyph->beginMacroName()).arg(glyph->name()).arg(glyph->unicode());
 
       source.replace(beginChar, QString("%1%2(alternatechar,%3").arg(metaParams).arg(glyph->beginMacroName()).arg(OtLayout::AlternatelastCode));
@@ -441,6 +443,16 @@ void Font::generateAlternate(QString macroname, GlyphParameters params, QString 
     } else {
       throw std::runtime_error("Error");
     }
+  } else {
+    auto glyph = glyphperName[macroname];
+    auto source = qMetaParams + glyph->source();
+    auto beginChar = QString("%1(%2,%3").arg(glyph->beginMacroName()).arg(glyph->name()).arg(glyph->unicode());
+
+    source.replace(beginChar, QString("%1%2(alternatechar,%3").arg(qMetaParams).arg(glyph->beginMacroName()).arg(OtLayout::AlternatelastCode));
+    // auto index = source.indexOf("\n");
+    // source.insert(index, QString("originalglyph := \"%1\";").arg(macroname));*/
+
+    executeMetaPost(source);
   }
 }
 mp_graphic_object* Font::copyEdgeBody(mp_graphic_object* body) {

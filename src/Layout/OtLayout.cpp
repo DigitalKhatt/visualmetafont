@@ -1378,28 +1378,6 @@ QSet<quint16> OtLayout::regexptoUnicode(QString regexp) {
 
 QSet<QString> OtLayout::classtoGlyphName(QString className) {
   return automedina->classtoGlyphName(className);
-  /*
-      QSet<QString> names;
-
-      QJSValue classes = myEngine.globalObject().property("classes");
-
-      if (!classes.hasOwnProperty(className)) {
-          Glyph* glyph = m_font->glyphperName[className];
-          if (glyph) {
-              names.insert(glyph->name());
-          }
-      }
-      else {
-          QJSValue classObject = classes.property(className);
-
-          QJSValueIterator it(classObject);
-          while (it.hasNext()) {
-              it.next();
-              names.unite(classtoGlyphName(it.name()));
-          }
-      }
-
-      return names;*/
 }
 
 double OtLayout::nuqta() {
@@ -2162,8 +2140,8 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
     hb_buffer_set_segment_properties(buffer, savedprops);
     hb_buffer_set_cluster_level(buffer, cluster_level);
     auto newLine = line.text;  // QString("\n") + line + QString("\n");
-    auto lineLength = newLine.length();
-    hb_buffer_add_utf16(buffer, newLine.utf16(), lineLength, 0, lineLength);
+    auto lineLength = static_cast<int>(newLine.size());
+    hb_buffer_add_utf16(buffer, reinterpret_cast<const uint16_t*>(newLine.c_str()), lineLength, 0, lineLength);
   };
 
   hb_font_t* currentFont = nullptr;
@@ -2303,7 +2281,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int p
   QVector<LineToJustify> newLines;
 
   for (auto& line : lines) {
-    newLines.append({line, lineWidth, justification, LineType::Line});
+    newLines.append({line.toStdU16String(), lineWidth, justification, LineType::Line});
   }
   return justifyPage(emScale, pageWidth, newLines, newFace, tajweedColor, cluster_level, justOption, mushafLayoutType);
 }
@@ -3249,7 +3227,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
       parameters.righttatweel = expnadable->second.maxRight;
     }
     GlyphParameters nullpar;
-    if (nullpar == parameters) {
+    if (nullpar == parameters && !generateNewGlyph) {
       return glyph;
     }
   } else if (parameters.scalex == 0) {
@@ -3303,6 +3281,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
     newglyph->name = name;
     newglyph->expanded = true;
     newglyph->isAlternate = true;
+    newglyph->originalglyph = glyph->name;
 
     glyphNamePerCode[newglyph->charcode] = newglyph->name;
     glyphCodePerName[newglyph->name] = newglyph->charcode;

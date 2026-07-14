@@ -46,16 +46,16 @@ QSet<quint16> Automedina::regexptoUnicode(QString regexp) {
 
   return unicodes;
 }
-QSet<quint16> Automedina::classtoUnicode(QString className, bool includeExpandables) {
-  if (cachedClasstoUnicode.contains(className)) {
-    return cachedClasstoUnicode[className];
+QSet<quint16> Automedina::classtoUnicode(QString exprName, bool includeExpandables) {
+  if (cachedClasstoUnicode.contains(exprName)) {
+    return cachedClasstoUnicode[exprName];
   }
 
   QSet<quint16> unicodes;
 
-  if (!classes.contains(className)) {
-    if (m_layout->glyphCodePerName.contains(className)) {
-      auto charcode = m_layout->glyphCodePerName[className];
+  if (!classes.contains(exprName)) {
+    if (m_layout->glyphCodePerName.contains(exprName)) {
+      auto charcode = m_layout->glyphCodePerName[exprName];
       unicodes.insert(charcode);
 
       if (includeExpandables) {
@@ -64,25 +64,26 @@ QSet<quint16> Automedina::classtoUnicode(QString className, bool includeExpandab
       }
     } else {
       bool ok;
-      quint16 uniode = className.toUInt(&ok, 16);
+      quint16 uniode = exprName.toUInt(&ok, 16);
       if (!ok) {
-        QRegularExpression re(className);
+        /*QRegularExpression re(exprName);
         for (auto it = m_layout->glyphCodePerName.keyValueBegin(); it != m_layout->glyphCodePerName.keyValueEnd(); ++it) {
           if (re.match(it->first).hasMatch()) {
             unicodes.insert(it->second);
           }
-        }
+        }*/
+        unicodes.unite(regexptoUnicode(exprName));
       } else {
         unicodes.insert(uniode);
       }
     }
   } else {
-    for (auto name : classes[className]) {
+    for (auto name : classes[exprName]) {
       unicodes.unite(classtoUnicode(name));
     }
   }
 
-  cachedClasstoUnicode[className] = unicodes;
+  cachedClasstoUnicode[exprName] = unicodes;
   return unicodes;
 }
 

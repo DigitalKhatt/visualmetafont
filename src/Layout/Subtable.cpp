@@ -1284,27 +1284,6 @@ QByteArray AlternateSubtableWithTatweel::getOpenTypeTable(bool extended) {
     QDataStream alternatesArrayStream(&alternatesArray, QIODevice::WriteOnly);
     QDataStream tatweelsArrayStream(&tatweelsArray, QIODevice::WriteOnly);
 
-    /*
-    seqtable_stream << (quint16)seqtable.size();
-
-    for (auto& alternateGlyph : seqtable) {
-      if (alternateGlyph.lefttatweel != 0.0 || alternateGlyph.righttatweel != 0.0) {
-        GlyphParameters parameters{};
-
-        parameters.lefttatweel = alternateGlyph.lefttatweel;
-        parameters.righttatweel = alternateGlyph.righttatweel;
-
-        auto newGlyph = m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
-
-        seqtable_stream << (quint16)newGlyph->charcode;
-      }
-      else {
-        seqtable_stream << (quint16)alternateGlyph.code;
-      }
-    }
-
-    debutsequence += 2 + 2 * seqtable.size();*/
-
     alternatesArrayStream << (quint16)seqtable.size();
     tatweelsArrayStream << (quint16)seqtable.size();
 

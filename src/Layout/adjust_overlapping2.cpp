@@ -46,7 +46,8 @@
 
 #include "Export/ExportToHTML.h"
 #include "Export/GenerateLayout.h"
-#include "geometry.h"
+#include "GeometryQt.h"
+#include "digitalkhatt.h"
 #include "gllobal_strings.h"
 #include "to_opentype.h"
 
@@ -222,11 +223,12 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
         int digit = digits[i];
         if (digit == -1) break;
 
-        auto& digitglyph =
-            m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + digit]];
+        auto glyphCode = m_otlayout->unicodeToGlyphCode[1632 + digit];
+
+        auto& digitglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[glyphCode]];
         GlyphLayoutInfo glyphInfo;
 
-        glyphInfo.codepoint = 1632 + digit;
+        glyphInfo.codepoint = glyphCode;
         glyphInfo.cluster = 0;
         glyphInfo.x_advance = (int)digitglyph.width + 40 << OtLayout::SCALEBY;
         glyphInfo.x_offset = 0;
@@ -353,8 +355,8 @@ void debugIntersection(const GlyphInfo& glyphInfo1, const GlyphInfo& glyphInfo2,
   auto* view = new QGraphicsView();
   QGraphicsScene scene;
 
-  scene.addPath(geometrySet.toQPainterPath(), QPen(Qt::black));
-  scene.addPath(otherGeometrySet.toQPainterPath(), QPen(Qt::black));
+  scene.addPath(toQPainterPath(geometrySet), QPen(Qt::black));
+  scene.addPath(toQPainterPath(otherGeometrySet), QPen(Qt::black));
 
   if (gsContact.polyA != -1 && gsContact.polyB != -1) {
     auto& tt = geometrySet.polys()[gsContact.polyA];
@@ -375,9 +377,9 @@ void debugIntersection(const GlyphInfo& glyphInfo1, const GlyphInfo& glyphInfo2,
     GeometrySet gg{std::vector<Poly>{tt}};
     GeometrySet gg2{std::vector<Poly>{tt2}};
 
-    scene.addPath(gg.toQPainterPath(), QPen(Qt::red));
+    scene.addPath(toQPainterPath(gg), QPen(Qt::red));
 
-    scene.addPath(gg2.toQPainterPath(), QPen(Qt::red));
+    scene.addPath(toQPainterPath(gg2), QPen(Qt::red));
   }
 
   scene.addPath(circle1, QPen(Qt::blue));

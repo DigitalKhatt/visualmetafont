@@ -95,6 +95,8 @@ class Glyph : public ClassComponent {
     return _glyphtype;
   }
 
+  virtual quint16 getCode(OtLayout* otlayout) = 0;
+
   virtual Glyph* clone() = 0;
 };
 
@@ -166,14 +168,18 @@ class GlyphName : public Glyph {
     return new GlyphName(name);
   }
 
-  QSet<quint16> getCodes(OtLayout* otlayout) {
+  QSet<quint16> getCodes(OtLayout* otlayout) override {
+    auto charcode = getCode(otlayout);
+    QSet set{charcode};
+    set.unite(otlayout->getSubsts(charcode));
+    return set;
+  }
+
+  virtual quint16 getCode(OtLayout* otlayout) override {
     QString lname = QString::fromStdString(name);
     if (otlayout->glyphCodePerName.contains(lname)) {
       auto charcode = otlayout->glyphCodePerName[lname];
-      QSet set{charcode};
-      // auto newset = otlayout->getSubsts(charcode);
-      // set.unite(newset);
-      return set;
+      return charcode;
     } else {
       qDebug() << "Glyph Name " + lname + " not found";
       // return { otlayout->glyphCodePerName[lname] };
@@ -194,7 +200,7 @@ class ClassName : public ClassComponent {
     return new ClassName(name);
   }
 
-  QSet<quint16> getCodes(OtLayout* otlayout) {
+  QSet<quint16> getCodes(OtLayout* otlayout) override {
     QString lname = QString::fromStdString(name);
     auto set = otlayout->classtoUnicode(lname);
     if (set.isEmpty()) {
@@ -216,7 +222,7 @@ class RegExpClass : public ClassComponent {
     return new RegExpClass(_regexpr);
   }
 
-  QSet<quint16> getCodes(OtLayout* otlayout) {
+  QSet<quint16> getCodes(OtLayout* otlayout) override {
     QString regexp = QString::fromStdString(_regexpr);
     auto set = otlayout->regexptoUnicode(regexp);
     return set;
@@ -229,20 +235,54 @@ class GlyphCID : public Glyph {
 
   operator int() const { return cid; }
 
-  QSet<quint16> getCodes(OtLayout* otlayout) {
-    if (otlayout->glyphNamePerCode.contains(cid)) {
-      return {(quint16)cid};
-    } else {
-      throw new std::runtime_error("GlyphID " + std::to_string(cid) + "does not exist\n");
-    }
+  QSet<quint16> getCodes(OtLayout* otlayout) override {
+    auto code = getCode(otlayout);
+    QSet set = {code};
+    set.unite(otlayout->getSubsts(code));
+    return set;
   }
 
   GlyphCID* clone() override {
     return new GlyphCID(cid);
   }
 
+  virtual quint16 getCode(OtLayout* otlayout) override {
+    if (otlayout->glyphNamePerCode.contains(cid)) {
+      return (quint16)cid;
+    } else {
+      throw new std::runtime_error("GlyphID " + std::to_string(cid) + "does not exist\n");
+    }
+  }
+
  private:
   int cid;
+};
+
+class GlyphWithParameters : public Glyph {
+ public:
+  explicit GlyphWithParameters(Glyph* glyph, GlyphParameters parameters)
+      : Glyph(glyph->glyphType()), glyph{glyph}, parameters{parameters} {}
+
+  QSet<quint16> getCodes(OtLayout* otlayout) override {
+    auto glyphCode = glyph->getCode(otlayout);
+    auto alternate = otlayout->getAlternate(glyphCode, parameters, true, true);
+    return {static_cast<quint16>(alternate->charcode)};
+  }
+
+  virtual quint16 getCode(OtLayout* otlayout) override {
+    return glyph->getCode(otlayout);
+  }
+  GlyphWithParameters* clone() override {
+    return new GlyphWithParameters(glyph->clone(), parameters);
+  }
+
+  ~GlyphWithParameters() override {
+    delete glyph;
+  }
+
+ private:
+  Glyph* glyph;
+  GlyphParameters parameters;
 };
 
 class GlyphClass {
@@ -282,12 +322,12 @@ class GlyphClass {
     for (auto comp : _components) {
       auto codes = comp->getCodes(otlayout);
       unicodes.unite(codes);
-      if (auto glyph = dynamic_cast<Glyph*>(comp)) {
+      /*if (auto glyph = dynamic_cast<Glyph*>(comp)) {
         for (auto code : codes) {
           auto set = otlayout->getSubsts(code);
           unicodes.unite(set);
         }
-      }
+      }*/
     }
 
     return unicodes;
@@ -350,7 +390,6 @@ class GlyphSet {
     auto set = getCodes(otlayout);
     auto list = set.values();
     std::sort(list.begin(), list.end());
-    // qSort(list);
     return list;
   }
 

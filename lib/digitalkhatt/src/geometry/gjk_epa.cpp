@@ -1,7 +1,7 @@
 #include <algorithm>
+#include <cassert>
 
-// #include "contact_flexible.h"
-#include "geometry.h"
+#include "digitalkhatt/geometry/geometry.h"
 
 namespace geometry {
 

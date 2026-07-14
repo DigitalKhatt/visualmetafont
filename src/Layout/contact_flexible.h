@@ -3,7 +3,7 @@
 #include <optional>
 #include <vector>
 
-#include "geometry.h"
+#include "digitalkhatt.h"
 
 // Flexible-GJK-and-EPA headers (paths may differ slightly by version)
 #include <Flexible-GJK-and-EPA/GjkEpa.h>  // or the umbrella header documented in the repo

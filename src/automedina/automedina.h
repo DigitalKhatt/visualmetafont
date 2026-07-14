@@ -50,9 +50,9 @@ class Automedina {
  public:
   Automedina(OtLayout* layout, Font* font, bool extended) : glyphs{layout->glyphs}, m_layout{layout}, font{font}, extended{extended} {}
 
-  QSet<quint16> classtoUnicode(QString className, bool includeExpandables);
-  QSet<quint16> classtoUnicode(QString className) {
-    return classtoUnicode(className, true);
+  QSet<quint16> classtoUnicode(QString exprName, bool includeExpandables);
+  QSet<quint16> classtoUnicode(QString exprName) {
+    return classtoUnicode(exprName, true);
   };
   QSet<quint16> regexptoUnicode(QString regexp);
   QSet<QString> classtoGlyphName(QString className);

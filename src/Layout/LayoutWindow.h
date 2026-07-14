@@ -22,6 +22,8 @@
 // #include <QtWidgets>
 #include <qcombobox.h>
 
+#include <digitalkhatt/layout/OptParams.h>
+
 #include "OtLayout.h"
 #include "qmainwindow.h"
 #include "qsqldatabase.h"
@@ -31,6 +33,7 @@ class GlyphVis;
 class OtLayout;
 class GraphicsViewAdjustment;
 class GraphicsSceneAdjustment;
+class SolverParametersWidget;
 struct hb_buffer_t;
 struct hb_font_t;
 class QPlainTextEdit;
@@ -142,6 +145,8 @@ class LayoutWindow : public QMainWindow {
   QComboBox* shrinkTypeCombo;
   QDockWidget* textRun;
   QDockWidget* lookupTree;
+  QDockWidget* solverTuningDock;
+  SolverParametersWidget* solverParametersWidget;
   QPlainTextEdit* textEdit;
   QPushButton* executeRunButton;
   QVBoxLayout* textRunLayout;
@@ -177,6 +182,8 @@ class LayoutWindow : public QMainWindow {
   bool applyTeXAlgo = false;
   bool tajweedEnabled = true;
   bool isDark = false;
+
+  digitalkhatt::layout::OptParams m_solverParams;
 
   QComboBox* mushafLayouts;
 };

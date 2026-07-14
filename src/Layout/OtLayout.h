@@ -41,6 +41,7 @@
 #include "hb.h"
 #include "qobject.h"
 #include "to_opentype.h"
+#include <digitalkhatt/core/digitalkahtt_types.h>
 
 struct Lookup;
 class QJsonObject;
@@ -62,42 +63,15 @@ struct ExtendedGlyph {
   double righttatweel;
 };
 
-struct GlyphLayoutInfo {
-  int advance;
-  int x_offset;
-  int y_offset;
-  int x_advance;
-  int y_advance;
-  int codepoint;
-  int cluster;
-  unsigned int lookup_index;
-  unsigned int subtable_index;
-  double lefttatweel = 0;
-  double righttatweel = 0;
-  uint32_t base_codepoint;
-  bool beginsajda;
-  bool endsajda;
-  uint32_t color = 0;
-};
-
-enum class LineType {
-  Line = 0,
-  Sura = 1,
-  Bism = 2
-};
-
-struct LineLayoutInfo {
-  std::vector<GlyphLayoutInfo> glyphs;
-  int xstartposition;
-  int ystartposition;
-  LineType type = LineType::Line;
-  float overfull;
-  int desiredLineWidth;
-  int currentLineWidth;
-  double fontSize;
-  double xscale = 1;
-  double xscaleparameter = 0;
-};
+using GlyphLayoutInfo = digitalkhatt::GlyphLayoutInfo;
+using LineType = digitalkhatt::LineType;
+using LineLayoutInfo = digitalkhatt::LineLayoutInfo;
+using LineJustification = digitalkhatt::LineJustification;
+using LineToJustify = digitalkhatt::LineToJustify;
+using JustType = digitalkhatt::JustType;
+using JustStyle = digitalkhatt::JustStyle;
+using ShrinkType = digitalkhatt::ShrinkType;
+using JustOption = digitalkhatt::JustOption;
 
 struct LayoutPages {
   QList<QList<LineLayoutInfo>> pages;
@@ -114,19 +88,6 @@ struct SuraLocation {
 
 QDataStream& operator<<(QDataStream& stream, const SuraLocation& location);
 QDataStream& operator>>(QDataStream& stream, SuraLocation& location);
-
-enum class LineJustification {
-  Center,
-  Distribute
-};
-
-struct LineToJustify {
-  QString text;
-  int width;
-  LineJustification lineJustification;
-  LineType lineType;
-  bool basm2 = false;
-};
 
 struct ValueRecord {
   qint16 xPlacement;
@@ -187,37 +148,9 @@ struct Just {
   OtLayout* layout;
 };
 
-enum class JustType {
-  None,
-  Local,
-  HarfBuzz,
-  Madina,
-  IndoPak,
-  Experimental,
-  Experimental2
-};
 Q_DECLARE_METATYPE(JustType)
-enum class JustStyle {
-  None,
-  SameSizeByPage,
-  XScale,
-  FontSize,
-  FontSizeXScale,
-  SCLX
-};
 Q_DECLARE_METATYPE(JustStyle)
-enum class ShrinkType {
-  None,
-  Standard,
-  Test
-};
 Q_DECLARE_METATYPE(ShrinkType)
-
-struct JustOption {
-  JustType justType = JustType::None;
-  JustStyle justStyle = JustStyle::None;
-  ShrinkType shrinkType = ShrinkType::None;
-};
 #ifdef DIGITALKHATT_WEBLIB
 class OtLayout {
 #else

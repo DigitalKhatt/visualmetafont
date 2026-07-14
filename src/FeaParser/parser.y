@@ -556,7 +556,12 @@ classcomponent
 /*ADD doubleorint[lefttatweel] doubleorint[righttatweel]*/
 glyph
 	: glyphidentifier	{$$ = $1;}
-	| glyphidentifier	COORD doubleorint[lefttatweel] doubleorint[righttatweel]	{$$ = $1;}
+	| glyphidentifier	COORD doubleorint[lefttatweel] doubleorint[righttatweel]	{
+		GlyphParameters parameters;
+		parameters.lefttatweel = $lefttatweel;
+		parameters.righttatweel = $righttatweel;
+		$$ = new GlyphWithParameters($1, parameters);
+	}
 	;
 
 glyphidentifier

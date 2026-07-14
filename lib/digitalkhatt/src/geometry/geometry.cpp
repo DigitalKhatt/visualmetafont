@@ -1,10 +1,10 @@
-#include "geometry.h"
+#include "digitalkhatt/geometry/geometry.h"
 
+#include <cassert>
 #include <iostream>
 
 #include "clipper2/clipper.h"
-// #include "contact_flexible.h"
-#include "metafont.h"
+#include "mplibps.h"
 #include "polypartition.h"
 
 namespace geometry {
@@ -200,33 +200,6 @@ void GeometrySet::computeAABB() const {
 AABB GeometrySet::boundingAABB() const {
   if (dirty_) computeAABB();
   return cachedAABB_;
-}
-
-QPainterPath GeometrySet::toQPainterPath() const {
-  QPainterPath path;
-
-  for (const auto& P : polys_) {
-    const size_t n = P.size();
-    if (n == 0) continue;
-
-    // Move to first point
-    path.moveTo(P[0].x, P[0].y);
-
-    // Draw edges
-    for (size_t i = 1; i < n; ++i) {
-      path.lineTo(P[i].x, P[i].y);
-    }
-
-    // Ensure closure
-    if (std::abs(P.back().x - P.front().x) > 1e-12 ||
-        std::abs(P.back().y - P.front().y) > 1e-12) {
-      path.closeSubpath();
-    } else {
-      path.closeSubpath();
-    }
-  }
-
-  return path;
 }
 
 // ------------------------- GeometrySet vs GeometrySet

@@ -166,19 +166,14 @@ set(Layout
   Layout/just_features.cpp
   Layout/gllobal_strings.h
   Layout/gllobal_strings.cpp
-  Layout/tajweed.h
-  Layout/tajweed.cpp
   Layout/generateOverlapLookups.cpp
   Layout/adjust_overlapping.cpp
   Layout/adjust_overlapping2.cpp
-  Layout/polypartition.h
-  Layout/polypartition.cpp
-  Layout/geometry.h
-  Layout/geometry.cpp
-  Layout/gjk_epa.cpp
   Layout/contact_flexible.h
   #Layout/contact_flexible.cpp
   Layout/optimize_layout.cpp
+  Layout/GeometryQt.h
+  Layout/GeometryQt.cpp
   Layout/compare_with_qpc.cpp
   Layout/HbDrawToQtPath.cpp
   )
@@ -192,6 +187,9 @@ set(LayoutWindow
   Layout/LayoutWindow.cpp
   Layout/apply_force.cpp
   Layout/LookupEdit.cpp
+  Layout/SolverParametersWidget.cpp
+  Layout/FlowLayout.h
+  Layout/FlowLayout.cpp
   )
 source_group("Layout" FILES ${LayoutWindow})
 
@@ -203,6 +201,8 @@ set(Pdf
   Pdf/quranpdfwriter.h
   Pdf/quranpdfwriterpdfhummus.h
   Pdf/quranpdfwriterpdfhummus.cpp
+  Pdf/ViolationReportWriter.h
+  Pdf/ViolationReportWriter.cpp
   )
 endif()
 
@@ -338,14 +338,14 @@ target_include_directories(${VMF_SL} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/Automedina"
 )
 target_include_directories(${VMF_SL} PRIVATE ${FLEX_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/FeaParser ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser)
-add_dependencies(${VMF_SL} harfbuzz mplib)
+add_dependencies(${VMF_SL} harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout)
 target_compile_options(${VMF_SL} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_compile_definitions(${VMF_SL} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR)
-target_link_libraries(${VMF_SL} PUBLIC harfbuzz mplib Qt5::Core Qt5::Gui Qt5::Widgets)
+target_link_libraries(${VMF_SL} PUBLIC harfbuzz mplib Qt5::Core Qt5::Gui Qt5::Widgets PRIVATE digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout)
 #add_dependencies(${PROJECT_NAME} ${VMF_SL})
 set_target_properties(${VMF_SL}  PROPERTIES ENABLE_EXPORTS 1 WINDOWS_EXPORT_ALL_SYMBOLS 1)
 set_target_properties(${PROJECT_NAME}  PROPERTIES ENABLE_EXPORTS 1 WINDOWS_EXPORT_ALL_SYMBOLS 1)
-export(TARGETS ${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser FILE ${CMAKE_CURRENT_BINARY_DIR}/visualmetafontConfig.cmake)
+export(TARGETS ${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout FILE ${CMAKE_CURRENT_BINARY_DIR}/visualmetafontConfig.cmake)
 #export(TARGETS ${VMF_SL} harfbuzz mplib QtPropertyBrowser FILE ${CMAKE_CURRENT_BINARY_DIR}/vmfsl.cmake)
 
 
@@ -429,7 +429,7 @@ set(QT_STATIC_PLUGINS
 )
 endif()
 
-add_dependencies(${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser)
+add_dependencies(${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout)
 add_dependencies(${LUATEX_NAME} harfbuzz mplib)
 
 if (UNIX)
@@ -444,7 +444,7 @@ target_link_libraries(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wl,--excl
 
 if (NOT EMSCRIPTEN)
   # Link with other targets.
-  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib PRIVATE  QtPropertyBrowser
+  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout PRIVATE QtPropertyBrowser
     Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::Svg Qt5::PrintSupport Qt5::Widgets Qt5::Sql
     ${QT_STATIC_PLUGINS}
     ZLIB::ZLIB
@@ -453,7 +453,7 @@ if (NOT EMSCRIPTEN)
     PDFHummus::PDFWriter
   )
 else()
-  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib QtPropertyBrowser
+  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout QtPropertyBrowser
     Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::Svg Qt5::PrintSupport Qt5::Widgets
     Qt5::QJpegPlugin
     Qt5::QSvgPlugin

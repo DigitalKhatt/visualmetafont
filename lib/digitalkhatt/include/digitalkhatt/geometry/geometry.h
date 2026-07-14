@@ -1,6 +1,5 @@
 
 #pragma once
-#include <QtGui/qpainterpath.h>
 
 #include <algorithm>
 #include <cmath>
@@ -105,8 +104,8 @@ struct Cubic {
   Vec2 p0, p1, p2, p3;
 
   AABB bounds() const {
-    qreal xmin = p0.x;
-    qreal xmax = p0.x;
+    double xmin = p0.x;
+    double xmax = p0.x;
     if (p1.x < xmin)
       xmin = p1.x;
     else if (p1.x > xmax)
@@ -119,8 +118,8 @@ struct Cubic {
       xmin = p3.x;
     else if (p3.x > xmax)
       xmax = p3.x;
-    qreal ymin = p0.y;
-    qreal ymax = p0.y;
+    double ymin = p0.y;
+    double ymax = p0.y;
     if (p1.y < ymin)
       ymin = p1.y;
     else if (p1.y > ymax)
@@ -135,22 +134,22 @@ struct Cubic {
       ymax = p3.y;
     return AABB(xmin, ymin, xmax, ymax);
   }
-  inline Vec2 pointAt(qreal t) const {
+  inline Vec2 pointAt(double t) const {
     // numerically more stable:
-    qreal x, y;
-    qreal m_t = 1. - t;
+    double x, y;
+    double m_t = 1. - t;
     {
-      qreal a = p0.x * m_t + p1.x * t;
-      qreal b = p1.x * m_t + p2.x * t;
-      qreal c = p2.x * m_t + p3.x * t;
+      double a = p0.x * m_t + p1.x * t;
+      double b = p1.x * m_t + p2.x * t;
+      double c = p2.x * m_t + p3.x * t;
       a = a * m_t + b * t;
       b = b * m_t + c * t;
       x = a * m_t + b * t;
     }
     {
-      qreal a = p0.y * m_t + p1.y * t;
-      qreal b = p1.y * m_t + p2.y * t;
-      qreal c = p2.y * m_t + p3.y * t;
+      double a = p0.y * m_t + p1.y * t;
+      double b = p1.y * m_t + p2.y * t;
+      double c = p2.y * m_t + p3.y * t;
       a = a * m_t + b * t;
       b = b * m_t + c * t;
       y = a * m_t + b * t;
@@ -206,8 +205,6 @@ class GeometrySet {
   GeometrySet translate(double dx, double dy) const;
 
   AABB boundingAABB() const;
-
-  QPainterPath toQPainterPath() const;
 
   void computeAABB() const;
 

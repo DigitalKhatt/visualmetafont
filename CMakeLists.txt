@@ -24,6 +24,7 @@ add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 add_subdirectory(lib/harfbuzz)
 add_subdirectory(lib/mplib)
 add_subdirectory(lib/QtPropertyBrowser)
+add_subdirectory(lib/digitalkhatt)
 add_subdirectory(src)
 
 
