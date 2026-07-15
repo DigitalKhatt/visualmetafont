@@ -231,11 +231,10 @@ void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
   auto& topdotmarks = classes["topdotmarks"];
   auto& downdotmarks = classes["downdotmarks"];
 
-  auto isTopMark = [topmarks, lowmarks, waqfmarks, topdotmarks, downdotmarks](QString glyphName) {
-    auto glyphNameStd = glyphName.toStdString();
-    return topmarks.contains(glyphNameStd)
-      || waqfmarks.contains(glyphNameStd)
-      || topdotmarks.contains(glyphNameStd);
+  auto isTopMark = [topmarks, lowmarks, waqfmarks, topdotmarks, downdotmarks](const std::string& glyphName) {
+    return topmarks.contains(glyphName)
+      || waqfmarks.contains(glyphName)
+      || topdotmarks.contains(glyphName);
     };
 
   auto isBottomMark = [topmarks, lowmarks, waqfmarks, topdotmarks, downdotmarks](QString glyphName) {
@@ -273,7 +272,7 @@ void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
 
         auto& glyphLayout = line.glyphs[g];
 
-        QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+        const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
         GlyphVis* currentGlyph = m_otlayout->getGlyph(glyphName, { .lefttatweel = glyphLayout.lefttatweel, .righttatweel = glyphLayout.righttatweel });
 
@@ -282,13 +281,13 @@ void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
 
         linePositions.append(pos);
 
-        GlyphNode* node = new GlyphNode{ pos.x(),pos.y(),0,0,&glyphLayout,currentGlyph, glyphName,currentGlyph->path.toFillPolygon() };
+        GlyphNode* node = new GlyphNode{ pos.x(),pos.y(),0,0,&glyphLayout,currentGlyph, QString::fromStdString(glyphName),currentGlyph->path.toFillPolygon() };
 
         simulation.nodes.push_back(std::unique_ptr<GlyphNode>{node});
 
         auto& currentNode = simulation.nodes.back();
 
-        bool isMark = marks.contains(glyphName.toStdString());
+        bool isMark = marks.contains(glyphName);
 
         if (isMark) {
           currMarks.push_back(currentNode.get());
@@ -303,7 +302,7 @@ void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
         }
         else {
           for (auto pm : currMarks) {
-            if (isTopMark(pm->glyphName)) {
+            if (isTopMark(pm->glyphName.toStdString())) {
               linkForce->links.push_back({ LinkType::TopMarkLeftBase, pm,currentNode.get() });
             }
             else {
@@ -353,7 +352,7 @@ void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
 
         auto& glyphLayout = line.glyphs[g];
 
-        QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+        const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
         if (glyphName.contains("space") || glyphName.contains("linefeed") || !m_otlayout->glyphs.contains(glyphName.toStdString())) continue;
 
@@ -379,7 +378,7 @@ void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
 
           for (int prev_g = 0; prev_g < prev_line.glyphs.size(); prev_g++) {
             auto& prev_glyphLayout = prev_line.glyphs[prev_g];
-            QString prev_glyphName = m_otlayout->glyphNamePerCode[prev_glyphLayout.codepoint];
+            const auto& prev_glyphName = m_otlayout->glyphNamePerCode[prev_glyphLayout.codepoint];
 
             bool isPrevMark = m_otlayout->automedina->classes["marks"].contains(prev_glyphName);
             bool isPrevrSpace = prev_glyphName.contains("space") || prev_glyphName.contains("linefeed");
@@ -412,7 +411,7 @@ void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
         for (int gg = g - 1; gg >= 0; gg--) {
 
           auto& otherglyphLayout = line.glyphs[gg];
-          QString otherglyphName = m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
+          const auto& otherglyphName = m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
 
           bool isOtherMark = m_otlayout->automedina->classes["marks"].contains(otherglyphName);
           //bool isOtherWaqfMark = m_otlayout->automedina->classes["waqfmarks"].contains(otherglyphName);

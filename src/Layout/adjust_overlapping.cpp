@@ -169,7 +169,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
         if (digit == -1) break;
 
         auto& digitglyph =
-            m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + digit].toStdString()];
+            m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + digit]];
         GlyphLayoutInfo glyphInfo;
 
         glyphInfo.codepoint = 1632 + digit;
@@ -261,7 +261,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
       for (int g = 0; g < line.glyphs.size(); g++) {
         auto& glyphLayout = line.glyphs[g];
 
-        QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+        const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
         currentxPos -= glyphLayout.x_advance * line.xscale;
         QPoint pos(currentxPos + (glyphLayout.x_offset * line.xscale),
                    currentyPos - (glyphLayout.y_offset));
@@ -287,7 +287,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
       for (int g = 0; g < line.glyphs.size(); g++) {
         auto& glyphLayout = line.glyphs[g];
 
-        QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+        const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
         GlyphVis& currentGlyph = *m_otlayout->getGlyph(
             glyphName, {.lefttatweel = glyphLayout.lefttatweel,
@@ -295,7 +295,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
                         .scalex = line.xscaleparameter});
         QPoint pos = linePositions[g];
         QPainterPath path;
-        if (!glyphName.contains("space") && !glyphName.contains("cgj")) {
+        if (!glyphName.find("space") != std::string::npos && !glyphName.find("cgj") != std::string::npos) {
           auto gg = qt_graphicsItem_shapeFromPath(currentGlyph.path, pen);
           path = pathtransform.map(gg);
           path.translate(pos);
@@ -305,16 +305,16 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
           paths.append(path);
         }
 
-        if (glyphName.contains("space") || glyphName.contains("linefeed") ||
-            !m_otlayout->glyphs.contains(glyphName.toStdString()))
+        if (glyphName.find("space") != std::string::npos || glyphName.find("linefeed") != std::string::npos ||
+            !m_otlayout->glyphs.contains(glyphName))
           continue;
 
-        // bool isIsol = glyphName.contains("isol");
+        // bool isIsol = glyphName.find("isol") != std::string::npos;
 
-        // bool isFina = glyphName.contains(".fina");
+        // bool isFina = glyphName.find(".fina") != std::string::npos;
 
         bool isMark =
-            digitalkhatt::layout::classesOrEmpty(m_otlayout->automedina->classes, "marks").contains(glyphName.toStdString());
+            digitalkhatt::layout::classesOrEmpty(m_otlayout->automedina->classes, "marks").contains(glyphName);
 
         // bool isWaqfMark =
         // m_otlayout->automedina->classes["waqfmarks"].contains(glyphName);
@@ -328,13 +328,13 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
 
           for (int prev_g = 0; prev_g < prev_line.glyphs.size(); prev_g++) {
             auto& prev_glyphLayout = prev_line.glyphs[prev_g];
-            QString prev_glyphName = m_otlayout->glyphNamePerCode[prev_glyphLayout.codepoint];
+            const auto& prev_glyphName = m_otlayout->glyphNamePerCode[prev_glyphLayout.codepoint];
 
             bool isPrevMark = digitalkhatt::layout::classesOrEmpty(m_otlayout->automedina->classes, "marks").contains(
-                prev_glyphName.toStdString());
-            bool isPrevrSpace = prev_glyphName.contains("space") ||
-                                prev_glyphName.contains("linefeed");
-            // bool isPrevIsol = prev_glyphName.contains("isol");
+                prev_glyphName);
+            bool isPrevrSpace = prev_glyphName.find("space") != std::string::npos ||
+                                prev_glyphName.find("linefeed") != std::string::npos;
+            // bool isPrevIsol = prev_glyphName.find("isol") != std::string::npos;
 
             if ((isMark || isPrevMark) &&
                 !isPrevrSpace) {  //|| isIsol || isPrevIsol
@@ -367,10 +367,10 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
 
           for (int gg = g - 1; gg >= 0; gg--) {
             auto& otherglyphLayout = line.glyphs[gg];
-            QString otherglyphName = m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
+            const auto& otherglyphName = m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
 
-            bool isOtherSpace = otherglyphName.contains("space") ||
-                                otherglyphName.contains("linefeed");
+            bool isOtherSpace = otherglyphName.find("space") != std::string::npos ||
+                                otherglyphName.find("linefeed") != std::string::npos;
 
             if (isOtherSpace) {
               isSameWord = false;
@@ -380,12 +380,12 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
             if (isSameWord) {
               // TODO include lam.init kaf.medi for example
 
-              bool isPrevInit = otherglyphName.contains(".init");
-              bool isPrevMedi = otherglyphName.contains(".medi");
+              bool isPrevInit = otherglyphName.find(".init") != std::string::npos;
+              bool isPrevMedi = otherglyphName.find(".medi") != std::string::npos;
 
-              if (glyphName.contains(".fina") && (isPrevMedi || isPrevInit))
+              if (glyphName.find(".fina") != std::string::npos && (isPrevMedi || isPrevInit))
                 continue;
-              if (glyphName.contains(".medi") && (isPrevMedi || isPrevInit))
+              if (glyphName.find(".medi") != std::string::npos && (isPrevMedi || isPrevInit))
                 continue;
             }
 

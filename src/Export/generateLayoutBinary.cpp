@@ -115,7 +115,7 @@ static void generateBinaryGlyphs(OtLayout& layout, QByteArray& data) {
 
     glyphData.append(defaultArray);    
 
-    const auto& ff = layout.expandableGlyphs.find(QString::fromStdString(glyph.name));
+    const auto& ff = layout.expandableGlyphs.find(glyph.name);
 
     if (ff != layout.expandableGlyphs.end()) {            
 

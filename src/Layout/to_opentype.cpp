@@ -116,10 +116,8 @@ void ToOpenType::setAxes() {
     return size;
   };
 
-  for (auto it = ot_layout->glyphCodePerName.keyValueBegin(); it != ot_layout->glyphCodePerName.keyValueEnd(); ++it) {
-    auto glyphName = it->first;
-    auto glyphCode = it->second;
-    auto* glyph = &ot_layout->glyphs[glyphName.toStdString()];
+  for (const auto& [glyphName, glyphCode] : ot_layout->glyphCodePerName) {
+    auto* glyph = &ot_layout->glyphs[glyphName];
     std::vector<int> regionIndexes;
     if (leftTatweelIndex != -1 || rightTatweelIndex != -1) {
       auto ff = ot_layout->expandableGlyphs.find(glyphName);
@@ -199,7 +197,7 @@ void ToOpenType::setAxes() {
     }
     if (scaleXIndex != -1 /* && !glyphName.contains(".added_")*/) {
       bool includeglyph = true;
-      if (glyphName.contains(".added_")) {
+      if (glyphName.find(".added_") != std::string::npos) {
         if (glyph->charlt > 3 || glyph->charrt > 0) {
           includeglyph = false;
         }
@@ -213,7 +211,7 @@ void ToOpenType::setAxes() {
       }
     }
     auto regionIndexesIndex = getRegionIndexesIndex(regionIndexes);
-    regionIndexesIndexByGlyph.insert({glyphName, regionIndexesIndex});
+    regionIndexesIndexByGlyph.insert({QString::fromStdString(glyphName), regionIndexesIndex});
   }
 
   GDEFDeltaSets.resize(regionIndexesArray.size());
@@ -280,9 +278,9 @@ void ToOpenType::initiliazeGlobals() {
 void ToOpenType::setGIds() {
   QMap<quint16, quint16> newCodes;
 
-  QMap<QString, quint16> glyphCodePerName;
-  QMap<quint16, QString> glyphNamePerCode;
-  QMap<quint16, quint16> unicodeToGlyphCode;
+  std::unordered_map<std::string, std::uint16_t> glyphCodePerName;
+  std::map<std::uint16_t, std::string> glyphNamePerCode;
+  std::map<std::uint16_t, std::uint16_t> unicodeToGlyphCode;
   QMap<quint16, OtLayout::GDEFClasses> glyphGlobalClasses;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> tempGlyphs;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> addedGlyphs;
@@ -296,19 +294,18 @@ void ToOpenType::setGIds() {
     throw new std::runtime_error("null glyph not found");
   }
 
-  newCodes.insert(ot_layout->glyphCodePerName.value("notdef"), 0);
-  newCodes.insert(ot_layout->glyphCodePerName.value("null"), 1);
+  newCodes.insert(ot_layout->glyphCodePerName.at("notdef"), 0);
+  newCodes.insert(ot_layout->glyphCodePerName.at("null"), 1);
   uint16_t newCode = 2;
 
-  for (auto code : ot_layout->glyphNamePerCode.keys()) {
-    auto name = ot_layout->glyphNamePerCode.value(code);
-    if (name.isEmpty()) continue;
+  for (const auto& [code, name] : ot_layout->glyphNamePerCode) {
+    if (name.empty()) continue;
     if (name != "notdef" && name != "null") {
-      if (!ot_layout->glyphs.contains(name.toStdString())) {
-        throw new std::runtime_error("Glyph name " + name.toStdString() + " not found");
+      if (!ot_layout->glyphs.contains(name)) {
+        throw new std::runtime_error("Glyph name " + name + " not found");
       }
       newCodes.insert(code, newCode);
-      auto glyph = &ot_layout->glyphs[name.toStdString()];
+      auto glyph = &ot_layout->glyphs[name];
       glyph->charcode = newCode;
       newCode++;
     }
@@ -319,21 +316,21 @@ void ToOpenType::setGIds() {
     if (!ot_layout->glyphNamePerCode.contains(iter.key())) {
       throw new std::runtime_error(QString("Code %1 not found").arg(iter.key()).toStdString());
     }
-    auto name = ot_layout->glyphNamePerCode.value(iter.key());
-    glyphCodePerName.insert(name, iter.value());
-    glyphNamePerCode.insert(iter.value(), name);
+    auto name = ot_layout->glyphNamePerCode.at(iter.key());
+    glyphCodePerName.insert({name, iter.value()});
+    glyphNamePerCode.insert({iter.value(), name});
 
     iter++;
   }
 
   auto unicodeToGlyphCodeIter = ot_layout->unicodeToGlyphCode.cbegin();
   while (unicodeToGlyphCodeIter != ot_layout->unicodeToGlyphCode.cend()) {
-    if (!newCodes.contains(unicodeToGlyphCodeIter.value())) {
-      throw new std::runtime_error(QString("Code %1 not found").arg(unicodeToGlyphCodeIter.value()).toStdString());
+    if (!newCodes.contains(unicodeToGlyphCodeIter->second)) {
+      throw new std::runtime_error(QString("Code %1 not found").arg(unicodeToGlyphCodeIter->second).toStdString());
     }
-    auto unicode = unicodeToGlyphCodeIter.key();
+    auto unicode = unicodeToGlyphCodeIter->first;
     // if (unicode < 0xE000 && unicode != 0 && unicode != 1) {
-    unicodeToGlyphCode.insert(unicode, newCodes.value(unicodeToGlyphCodeIter.value()));
+    unicodeToGlyphCode.insert({unicode, newCodes.value(unicodeToGlyphCodeIter->second)});
     //}
 
     unicodeToGlyphCodeIter++;
@@ -444,8 +441,8 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
   ot_layout->loadLookupFile(lokkupsFileName);
 
   glyphs.clear();
-  for (auto it = ot_layout->glyphCodePerName.keyValueBegin(); it != ot_layout->glyphCodePerName.keyValueEnd(); ++it) {
-    glyphs.insert(it->second, &ot_layout->glyphs[it->first.toStdString()]);
+  for (const auto& [name, code] : ot_layout->glyphCodePerName) {
+    glyphs.insert(code, &ot_layout->glyphs[name]);
   }
 
   initiliazeGlobals();

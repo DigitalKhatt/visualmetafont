@@ -57,8 +57,8 @@ std::uint16_t Subtable::getCodeFromName(std::string name) {
   const QString qname = QString::fromStdString(name);
   // return m_layout->glyphCodePerName[name];
   std::uint16_t uniode;
-  if (m_layout->glyphCodePerName.contains(qname)) {
-    uniode = m_layout->glyphCodePerName[qname];
+  if (m_layout->glyphCodePerName.contains(name)) {
+    uniode = m_layout->glyphCodePerName[name];
   } else {
     bool ok;
     uniode = qname.toUInt(&ok, 16);
@@ -71,7 +71,7 @@ std::uint16_t Subtable::getCodeFromName(std::string name) {
   return uniode;
 }
 std::string Subtable::getNameFromCode(std::uint16_t code) {
-  return m_layout->glyphNamePerCode[code].toStdString();
+  return m_layout->glyphNamePerCode[code];
 }
 
 SingleSubtable::SingleSubtable(Lookup* lookup, quint16 format) : Subtable(lookup), format{format} {
@@ -253,7 +253,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
       }
 
       if ((expan.MinLeftTatweel < 0 && expan.MinLeftTatweel < limits.minLeft) || (expan.MinLeftTatweel > 0 && expan.MinLeftTatweel > limits.maxLeft)) {
-        std::cout << "MinLeftTatweel error for glyph " << name.toStdString() << std::endl;
+        std::cout << "MinLeftTatweel error for glyph " << name << std::endl;
         // throw new runtime_error("MinLeftTatweel error for glyph " + name);
       } else if (expan.MinLeftTatweel < 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
@@ -277,7 +277,7 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
       }
 
       if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
-        std::cout << "MinRightTatweel error for glyph " << name.toStdString() << std::endl;
+        std::cout << "MinRightTatweel error for glyph " << name << std::endl;
         // throw new runtime_error("MinRightTatweel error for glyph " + name);
       } else if (expan.MinRightTatweel < 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
@@ -565,7 +565,7 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       OT::F16DOT16 value;
       ValueLimits limits;
 
-      auto& name = m_layout->glyphNamePerCode.value(subst[glyphCode]);
+      auto& name = m_layout->glyphNamePerCode.at(subst[glyphCode]);
 
       const auto& find = m_layout->expandableGlyphs.find(name);
 
@@ -611,7 +611,7 @@ QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
       }
 
       if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
-        throw new runtime_error("MinLeftTatweel error for glyph " + name.toStdString());
+        throw new runtime_error("MinLeftTatweel error for glyph " + name);
       } else if (expan.MinRightTatweel != 0.0) {
         if (m_layout->toOpenType->isUniformAxis()) {
           value.set_float(expan.MinRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
@@ -713,7 +713,7 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
     if (!extended) {
       auto glyph = m_layout->getGlyph(originalCode);
       if (glyph->name.find(".added_") != std::string::npos) {
-        originalCode = m_layout->glyphCodePerName[QString::fromStdString(glyph->originalglyph)];
+        originalCode = m_layout->glyphCodePerName[glyph->originalglyph];
       }
     }
 
@@ -727,7 +727,7 @@ QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
     if (isOTVar) {
       auto glyphName = m_layout->glyphNamePerCode[originalCode];
 
-      auto regionIndexes = m_layout->toOpenType->getGlyphParameters(glyphName);
+      auto regionIndexes = m_layout->toOpenType->getGlyphParameters(QString::fromStdString(glyphName));
       int regionIndexesArrayIndex = regionIndexes.second;
       auto glyphParamertersArray = regionIndexes.first;
 
@@ -829,7 +829,7 @@ void SingleAdjustmentSubtable::readParameters(const QJsonObject& json) {
     for (int ia = 0; ia < parametersObject.size(); ++ia) {
       QString glyphName = parametersObject.keys()[ia];
       QJsonArray pointArray = parametersObject[glyphName].toArray();
-      parameters[m_layout->glyphCodePerName[glyphName]] = {(qint16)pointArray[0].toInt(), (qint16)pointArray[1].toInt(), (qint16)pointArray[2].toInt(), (qint16)pointArray[3].toInt()};
+      parameters[m_layout->glyphCodePerName[glyphName.toStdString()]] = {(qint16)pointArray[0].toInt(), (qint16)pointArray[1].toInt(), (qint16)pointArray[2].toInt(), (qint16)pointArray[3].toInt()};
     }
   }
 }
@@ -843,7 +843,7 @@ void SingleAdjustmentSubtable::saveParameters(QJsonObject& json) const {
         pointArray.append(parameter.yPlacement);
         pointArray.append(parameter.xAdvance);
         pointArray.append(parameter.yAdvance);
-        parametersObject[m_layout->glyphNamePerCode[glyphCode]] = pointArray;
+        parametersObject[QString::fromStdString(m_layout->glyphNamePerCode[glyphCode])] = pointArray;
       }
     }
 
@@ -1584,7 +1584,7 @@ void CursiveSubtable::readParameters(const QJsonObject& json) {
     for (int ia = 0; ia < exitParametersObject.size(); ++ia) {
       QString glyphName = exitParametersObject.keys()[ia];
       QJsonArray pointArray = exitParametersObject[glyphName].toArray();
-      exitParameters[m_layout->glyphCodePerName[glyphName]] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
+      exitParameters[m_layout->glyphCodePerName[glyphName.toStdString()]] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
     }
   }
 
@@ -1593,7 +1593,7 @@ void CursiveSubtable::readParameters(const QJsonObject& json) {
     for (int ia = 0; ia < entryParametersObject.size(); ++ia) {
       QString glyphName = entryParametersObject.keys()[ia];
       QJsonArray pointArray = entryParametersObject[glyphName].toArray();
-      entryParameters[m_layout->glyphCodePerName[glyphName]] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
+      entryParameters[m_layout->glyphCodePerName[glyphName.toStdString()]] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
     }
   }
 }
@@ -1605,7 +1605,7 @@ void CursiveSubtable::saveParameters(QJsonObject& json) const {
         QJsonArray pointArray;
         pointArray.append(exitParameter.x());
         pointArray.append(exitParameter.y());
-        exitParametersObject[m_layout->glyphNamePerCode[glyphCode]] = pointArray;
+        exitParametersObject[QString::fromStdString(m_layout->glyphNamePerCode[glyphCode])] = pointArray;
       }
     }
 
@@ -1619,7 +1619,7 @@ void CursiveSubtable::saveParameters(QJsonObject& json) const {
         QJsonArray pointArray;
         pointArray.append(entryParameter.x());
         pointArray.append(entryParameter.y());
-        entryParametersObject[m_layout->glyphNamePerCode[glyphCode]] = pointArray;
+        entryParametersObject[QString::fromStdString(m_layout->glyphNamePerCode[glyphCode])] = pointArray;
       }
     }
 
@@ -1634,22 +1634,22 @@ void CursiveSubtable::setAnchorTable(quint16 glyphCode,
                                      std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
                                      bool extended,
                                      bool isEntry) {
-  QString glyphName = m_layout->glyphNamePerCode[glyphCode];
+  const auto& glyphName = m_layout->glyphNamePerCode[glyphCode];
 
-  QString originalGlyphName = glyphName;
+  std::string originalGlyphName = glyphName;
   double charlt = 0.0;
   double charrt = 0.0;
 
   if (!extended) {
     auto glyph = m_layout->getGlyph(glyphCode);
     if (glyph->name.find(".added_") != std::string::npos) {
-      originalGlyphName = QString::fromStdString(glyph->originalglyph);
+      originalGlyphName = glyph->originalglyph;
     }
     charlt = glyph->charlt;
     charrt = glyph->charrt;
   }
 
-  auto& originalGlyph = m_layout->glyphs[originalGlyphName.toStdString()];
+  auto& originalGlyph = m_layout->glyphs[originalGlyphName];
 
   std::optional<QPoint> calcanchor = isEntry ? getEntry(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt}) : getExit(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt});
 
@@ -1666,7 +1666,7 @@ void CursiveSubtable::setAnchorTable(quint16 glyphCode,
   if (m_layout->isOTVar) {
     auto glyphName = m_layout->glyphNamePerCode[glyphCode];
 
-    auto regionIndexes = m_layout->toOpenType->getGlyphParameters(glyphName);
+    auto regionIndexes = m_layout->toOpenType->getGlyphParameters(QString::fromStdString(glyphName));
     int regionIndexesArrayIndex = regionIndexes.second;
     auto glyphParamertersArray = regionIndexes.first;
 
@@ -1878,9 +1878,9 @@ optional<QPoint> MarkBaseSubtable::getBaseAnchor(quint16 mark_id, quint16 base_i
 
   const std::string& className = classNamebyIndex[classIndex];
 
-  QString baseGlyphName = m_layout->glyphNamePerCode[base_id];
+  const auto& baseGlyphName = m_layout->glyphNamePerCode[base_id];
 
-  return getBaseAnchor(baseGlyphName.toStdString(), className, parameters);
+  return getBaseAnchor(baseGlyphName, className, parameters);
 }
 QPoint MarkBaseSubtable::getMarkAnchor(std::string markGlyphName, std::string className, GlyphParameters parameters) {
   QPoint coordinate;
@@ -1921,9 +1921,9 @@ optional<QPoint> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_i
 
   const std::string& className = classNamebyIndex[classIndex];
 
-  QString markGlyphName = m_layout->glyphNamePerCode[mark_id];
+  const auto& markGlyphName = m_layout->glyphNamePerCode[mark_id];
 
-  return getMarkAnchor(markGlyphName.toStdString(), className, parameters);
+  return getMarkAnchor(markGlyphName, className, parameters);
 }
 
 void MarkBaseSubtable::setAnchorTable(std::string className,
@@ -1935,26 +1935,26 @@ void MarkBaseSubtable::setAnchorTable(std::string className,
                                       bool isBase) {
   const auto& glyphName = m_layout->glyphNamePerCode[glyphCode];
 
-  QString originalGlyph = glyphName;
+  std::string originalGlyph = glyphName;
   double charlt = 0.0;
   double charrt = 0.0;
 
   if (!extended) {
     auto glyph = m_layout->getGlyph(glyphCode);
     if (glyph->name.find(".added_") != std::string::npos) {
-      originalGlyph = QString::fromStdString(glyph->originalglyph);
+      originalGlyph = glyph->originalglyph;
     }
     charlt = glyph->charlt;
     charrt = glyph->charrt;
   }
 
-  QPoint coordinate = isBase ? getBaseAnchor(originalGlyph.toStdString(), className, {.lefttatweel = charlt, .righttatweel = charrt}) : getMarkAnchor(originalGlyph.toStdString(), className, {.lefttatweel = charlt, .righttatweel = charrt});
+  QPoint coordinate = isBase ? getBaseAnchor(originalGlyph, className, {.lefttatweel = charlt, .righttatweel = charrt}) : getMarkAnchor(originalGlyph, className, {.lefttatweel = charlt, .righttatweel = charrt});
 
   bool done = false;
   if (m_layout->isOTVar) {
     auto glyphName = m_layout->glyphNamePerCode[glyphCode];
 
-    auto regionIndexes = m_layout->toOpenType->getGlyphParameters(glyphName);
+    auto regionIndexes = m_layout->toOpenType->getGlyphParameters(QString::fromStdString(glyphName));
     int regionIndexesArrayIndex = regionIndexes.second;
     auto glyphParamertersArray = regionIndexes.first;
 
@@ -1966,7 +1966,7 @@ void MarkBaseSubtable::setAnchorTable(std::string className,
           delatX.push_back(coordinate.x() * (parameters.scalex / 100) - coordinate.x());
           delatY.push_back(0);
         } else {
-          auto val = isBase ? getBaseAnchor(glyphName.toStdString(), className, parameters) : getMarkAnchor(glyphName.toStdString(), className, parameters);
+          auto val = isBase ? getBaseAnchor(glyphName, className, parameters) : getMarkAnchor(glyphName, className, parameters);
           delatX.push_back(val.x() - coordinate.x());
           delatY.push_back(val.y() - coordinate.y());
         }
@@ -2129,7 +2129,7 @@ QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
   for (int i = 0; i < sortedBaseCodes.size(); ++i) {
     quint16 glyphCode = sortedBaseCodes.at(i);
-    QString baseglyphName = m_layout->glyphNamePerCode[glyphCode];
+    const auto& baseglyphName = m_layout->glyphNamePerCode[glyphCode];
     baseCoverage << glyphCode;
     for (auto it = classes.cbegin(); it != classes.cend(); ++it) {
       baseArray << (quint16)baseAnchorOffset;

@@ -456,13 +456,13 @@ void LayoutWindow::generateOverlapLookups(
     auto& text = originalPages[overlap.pageIndex][overlap.lineIndex];
 
     auto& prevGlyphLayout = line.glyphs[overlap.prevGlyph];
-    QString prevGlyphName = m_otlayout->glyphNamePerCode[prevGlyphLayout.codepoint];
+    const auto& prevGlyphName = m_otlayout->glyphNamePerCode[prevGlyphLayout.codepoint];
 
     auto& nextGlyphLayout = line.glyphs[overlap.nextGlyph];
-    QString nextGlyphName = m_otlayout->glyphNamePerCode[nextGlyphLayout.codepoint];
+    const auto& nextGlyphName = m_otlayout->glyphNamePerCode[nextGlyphLayout.codepoint];
 
-    bool betweenBases = basesClass.contains(prevGlyphName.toStdString()) &&
-                        basesClass.contains(nextGlyphName.toStdString());
+    bool betweenBases = basesClass.contains(prevGlyphName) &&
+                        basesClass.contains(nextGlyphName);
 
     QVector<int> basesIndexes;
 
@@ -470,8 +470,8 @@ void LayoutWindow::generateOverlapLookups(
     for (prevBaseIndex = overlap.prevGlyph; prevBaseIndex >= 0;
          prevBaseIndex--) {
       auto& glyphLayout = line.glyphs[prevBaseIndex];
-      QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-      if (basesClass.contains(glyphName.toStdString())) {
+      const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+      if (basesClass.contains(glyphName)) {
         break;
       }
     }
@@ -481,8 +481,8 @@ void LayoutWindow::generateOverlapLookups(
     for (int nextBaseIndex = prevBaseIndex + 1;
          nextBaseIndex <= overlap.nextGlyph; nextBaseIndex++) {
       auto& glyphLayout = line.glyphs[nextBaseIndex];
-      QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-      if (basesClass.contains(glyphName.toStdString())) {
+      const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+      if (basesClass.contains(glyphName)) {
         basesIndexes.append(nextBaseIndex);
       }
     }
@@ -498,8 +498,8 @@ void LayoutWindow::generateOverlapLookups(
     for (int i = basesIndexes.first(); i <= lastIndex; i++) {
       auto& glyphLayout = line.glyphs[i];
       sequence.append(glyphLayout.codepoint);
-      QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-      if (glyphName.contains("space")) {
+      const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+      if (glyphName.find("space") != std::string::npos) {
         containsSpace = true;
       }
     }
@@ -522,16 +522,16 @@ void LayoutWindow::generateOverlapLookups(
 
     for (int i = overlap.prevGlyph; i >= 0; i--) {
       auto& glyphLayout = line.glyphs[i];
-      QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-      if (glyphName.contains("space")) {
+      const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+      if (glyphName.find("space") != std::string::npos) {
         startCluster = glyphLayout.cluster + 1;
         break;
       }
     }
     for (int i = overlap.nextGlyph; i < line.glyphs.size(); i++) {
       auto& glyphLayout = line.glyphs[i];
-      QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-      if (glyphName.contains("space")) {
+      const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+      if (glyphName.find("space") != std::string::npos) {
         endCluster = glyphLayout.cluster;
         break;
       }
@@ -557,8 +557,8 @@ void LayoutWindow::generateOverlapLookups(
            glyphIndex++) {
         auto& glyphLayout = line.glyphs[glyphIndex];
         sequence.append(glyphLayout.codepoint);
-        QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-        std::cout << " " << glyphName.toStdString() << "'";
+        const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+        std::cout << " " << glyphName << "'";
       }
       std::cout << "; # page " << overlap.pageIndex + 1 << " line "
                 << overlap.lineIndex + 1 << " " << word.toStdString()
@@ -724,12 +724,12 @@ void LayoutWindow::generateOverlapLookups(
         if (isSubsequence(seqsList[j], seqsList[i])) {
           out << "Sequence " ;
           for(auto codepoint : seqsList[i]){
-            QString glyphName = m_otlayout->glyphNamePerCode[codepoint];
+            const auto& glyphName = m_otlayout->glyphNamePerCode[codepoint];
             out << glyphName << " ";
           }
           out << "is contained in " ;
           for(auto codepoint : seqsList[j]){
-            QString glyphName = m_otlayout->glyphNamePerCode[codepoint];
+            const auto& glyphName = m_otlayout->glyphNamePerCode[codepoint];
             out << glyphName << " ";
           }
           out << '\n';
@@ -745,8 +745,8 @@ void LayoutWindow::generateOverlapLookups(
             .first;  // QString("adjustoverlap.l%1").arg(subLookupKern.first);
     QString sublookup = "  lookup " + lookupName + " {\n";
     for (auto& codepoint : subLookupKern.second) {
-      QString glyphName = m_otlayout->glyphNamePerCode[codepoint];
-      sublookup += "    pos [" + glyphName + "] <0 0 0 0>;\n";
+      const auto& glyphName = m_otlayout->glyphNamePerCode[codepoint];
+      sublookup += "    pos [" + QString::fromStdString(glyphName) + "] <0 0 0 0>;\n";
     }
     sublookup += "  } " + lookupName + ";\n";
     subLookups += sublookup;
@@ -771,11 +771,11 @@ void LayoutWindow::generateOverlapLookups(
         //}
 
         for (auto glyph : glyphPos.set) {
-          QString glyphName = m_otlayout->glyphNamePerCode[glyph];
+          const auto& glyphName = m_otlayout->glyphNamePerCode[glyph];
           // posLine += " /^" + glyphName + "([.]added_.*)?$/";
           // debugLine += " /^" + glyphName + "/";
-          posLine += glyphName;
-          debugLine += glyphName;
+          posLine += QString::fromStdString(glyphName);
+          debugLine += QString::fromStdString(glyphName);
         }
         // if (glyphPos.set.size() > 1) {
         posLine += "]";

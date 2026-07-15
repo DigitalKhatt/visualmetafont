@@ -225,7 +225,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
 
         auto glyphCode = m_otlayout->unicodeToGlyphCode[1632 + digit];
 
-        auto& digitglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[glyphCode].toStdString()];
+        auto& digitglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[glyphCode]];
         GlyphLayoutInfo glyphInfo;
 
         glyphInfo.codepoint = glyphCode;
@@ -273,7 +273,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
 struct GlyphInfo {
   GeometrySet geometrySet;
   GlyphVis* glyphVis;
-  QString glyphName;
+  std::string glyphName;
   bool isInit;
   bool isMedi;
   bool isFina;
@@ -425,8 +425,8 @@ void findIntersections(
 
   auto& page = pages[pageIndex];
 
-  QString spaceName("space");
-  QString linefeedName("linefeed");
+  std::string spaceName("space");
+  std::string linefeedName("linefeed");
 
   int glyphCount = 0;
 
@@ -442,7 +442,7 @@ void findIntersections(
     auto wordId = 0;
     for (size_t j = 0; j < line.size(); ++j) {
       auto& glyphInfo = line[j];
-      bool isSpace = glyphInfo.glyphName.contains(spaceName) || glyphInfo.glyphName.contains(linefeedName);
+      bool isSpace = glyphInfo.glyphName.find(spaceName) != std::string::npos || glyphInfo.glyphName.find(linefeedName) != std::string::npos;
       if (isSpace) {
         ++wordId;
       } else {
@@ -578,11 +578,11 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
   double minDistance = 10;
 
   auto& markClass = digitalkhatt::layout::classesOrEmpty(m_otlayout->automedina->classes, "marks");
-  QString spaceName("space");
-  QString linefeedName("linefeed");
-  QString initName(".init");
-  QString mediName(".medi");
-  QString finaName(".fina");
+  std::string spaceName("space");
+  std::string linefeedName("linefeed");
+  std::string initName(".init");
+  std::string mediName(".medi");
+  std::string finaName(".fina");
 
   // QPen pen = QPen();
   // pen.setWidth(std::ceil(minDistance * emScale));
@@ -624,10 +624,10 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
         if (geo == glyphToPolys.end()) {
           throw new std::runtime_error("glyphToPolys not found");
         }
-        bool isInit = glyphName.contains(initName);
-        bool isMedi = glyphName.contains(mediName);
-        bool isFina = glyphName.contains(finaName);
-        auto isMark = markClass.contains(glyphName.toStdString());
+        bool isInit = glyphName.find(initName) != std::string::npos;
+        bool isMedi = glyphName.find(mediName) != std::string::npos;
+        bool isFina = glyphName.find(finaName) != std::string::npos;
+        auto isMark = markClass.contains(glyphName);
         if (xScale == 1 && yScale == 1) {
           geoSet.emplace_back(
               GlyphInfo{
@@ -654,9 +654,9 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
         auto& glyphLayout = line.glyphs[g];
         const auto& geometrySet = geometrySets[l][g];
 
-        QString& glyphName = geometrySet.glyphName;  // m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+        const std::string& glyphName = geometrySet.glyphName;  // m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
-        if (glyphName.contains(spaceName) || glyphName.contains(linefeedName) || !m_otlayout->glyphs.contains(glyphName.toStdString()))
+        if (glyphName.find(spaceName) != std::string::npos || glyphName.find(linefeedName) != std::string::npos || !m_otlayout->glyphs.contains(glyphName))
           continue;
 
         bool isMark =
@@ -674,7 +674,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
             auto& prev_glyphName = otherGeometrySet.glyphName;  // m_otlayout->glyphNamePerCode[prev_glyphLayout.codepoint];
 
             bool isPrevMark = markClass.contains(prev_glyphName);
-            bool isPrevrSpace = prev_glyphName.contains(spaceName) || prev_glyphName.contains(linefeedName);
+            bool isPrevrSpace = prev_glyphName.find(spaceName) != std::string::npos || prev_glyphName.find(linefeedName) != std::string::npos;
 
             if ((isMark || isPrevMark) && !isPrevrSpace) {
               auto minDisPolys = minDistance * emScale;
@@ -699,8 +699,8 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
             const auto& otherGeometrySet = geometrySets[l][gg];
             auto& otherglyphName = otherGeometrySet.glyphName;  // m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
 
-            bool isOtherSpace = otherglyphName.contains(spaceName) ||
-                                otherglyphName.contains(linefeedName);
+            bool isOtherSpace = otherglyphName.find(spaceName) != std::string::npos ||
+                                otherglyphName.find(linefeedName) != std::string::npos;
 
             if (isOtherSpace) {
               isSameWord = false;

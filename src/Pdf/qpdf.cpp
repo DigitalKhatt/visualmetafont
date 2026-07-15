@@ -3349,7 +3349,7 @@ void MyQPdfEnginePrivate::writeType3Fonts() {
       QByteArray steamDataByteArray;
 
       if (!isSurahFont) {
-        glyphName = otlayout->glyphNamePerCode[glyphCode.code];
+        glyphName = QString::fromStdString(otlayout->glyphNamePerCode[glyphCode.code]);
         GlyphVis* glyph = &glyphs[glyphName.toStdString()];
 
         // if (glyphCode.lefttatweel >= 0.0001 || glyphCode.righttatweel >= 0.0001) {
@@ -3645,7 +3645,7 @@ QByteArray MyQPdfEnginePrivate::generateGlyph(GlyphVis& glyph) {
     }
 
     if (ayaNumber < 10) {
-      auto& onesglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + ayaNumber].toStdString()];
+      auto& onesglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + ayaNumber]];
       auto oneglyphIndex = getIndex({onesglyph.charcode, 0, 0});
 
       auto position = otlayout->glyphs["endofaya"].width / 2 - (onesglyph.width) / 2;
@@ -3660,8 +3660,8 @@ QByteArray MyQPdfEnginePrivate::generateGlyph(GlyphVis& glyph) {
       int onesdigit = ayaNumber % 10;
       int tensdigit = ayaNumber / 10;
 
-      auto& onesglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + onesdigit].toStdString()];
-      auto& tensglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + tensdigit].toStdString()];
+      auto& onesglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + onesdigit]];
+      auto& tensglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + tensdigit]];
 
       auto oneglyphIndex = getIndex({onesglyph.charcode, 0, 0});
       auto tensglyphIndex = getIndex({tensglyph.charcode, 0, 0});
@@ -3687,9 +3687,9 @@ QByteArray MyQPdfEnginePrivate::generateGlyph(GlyphVis& glyph) {
       int tensdigit = (ayaNumber / 10) % 10;
       int hundredsdigit = ayaNumber / 100;
 
-      auto& onesglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + onesdigit].toStdString()];
-      auto& tensglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + tensdigit].toStdString()];
-      auto& hundredsglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + hundredsdigit].toStdString()];
+      auto& onesglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + onesdigit]];
+      auto& tensglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + tensdigit]];
+      auto& hundredsglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + hundredsdigit]];
 
       auto oneglyphIndex = getIndex({onesglyph.charcode, 0, 0});
       auto tensglyphIndex = getIndex({tensglyph.charcode, 0, 0});

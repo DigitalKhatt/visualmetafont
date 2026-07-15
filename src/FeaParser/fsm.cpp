@@ -125,8 +125,8 @@ namespace feayy {
     for (int classIndice = 0; classIndice < dfa.eqClasses.size(); classIndice++) {
       std::cout << '\n' << " " << classIndice << " : ";
       for (auto& state : dfa.eqClasses[classIndice]) {
-        auto glyphName = otlayout.glyphNamePerCode.value(state);
-        std::cout << glyphName.toStdString() << ", ";
+        auto glyphName = otlayout.glyphNamePerCode.at(state);
+        std::cout << glyphName << ", ";
       }
     }
     std::cout << '\n';
@@ -175,7 +175,7 @@ namespace feayy {
           std::cout << "   " << "ANYACTION" << " > State " << trans.second.nextState << '\n';
         }
         else {
-          //auto glyphName = otlayout.glyphNamePerCode.value(trans.first);
+          //auto glyphName = otlayout.glyphNamePerCode.at(trans.first);
           //std::cout << "   " << glyphName.toStdString() << " > " << trans.second << '\n';
           std::cout << "   Class " << trans.first << " > State " << trans.second.nextState << '\n';
 
@@ -256,7 +256,7 @@ namespace feayy {
           /*
           std::cout << ", Glyphset : ";;
           for (auto code : codes) {
-            auto glyphName = otlayout.glyphNamePerCode.value(code);
+            auto glyphName = otlayout.glyphNamePerCode.at(code);
             std::cout << "   " << glyphName.toStdString();
           }*/
 

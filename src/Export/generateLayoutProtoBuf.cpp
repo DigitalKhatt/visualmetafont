@@ -125,7 +125,7 @@ void GenerateLayout::generateLayoutProtoBuf(int lineWidth, int scale) {
 
     ::edgetoHTML5Path(glyph.copiedPath, glyphProto, &protobuf::Glyph::add_default_, isColored);
 
-    const auto& ff = m_otlayout->expandableGlyphs.find(QString::fromStdString(glyph.name));
+    const auto& ff = m_otlayout->expandableGlyphs.find(glyph.name);
 
     if (ff != m_otlayout->expandableGlyphs.end()) {
 

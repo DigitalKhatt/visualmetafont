@@ -141,15 +141,12 @@ public:
 
   std::string getGlyphName(int codechar) {
 
-    return layout->glyphNamePerCode.value(codechar).toStdString();
+    return layout->glyphNamePerCode.at(codechar);
 
   }
 
-  int getGlyphCode(std::string  name) {
-
-    QString nn = QString::fromStdString(name);
-
-    return layout->glyphCodePerName.value(nn);
+  int getGlyphCode(const std::string& name) {
+    return layout->glyphCodePerName.at(name);
 
   }
 
@@ -720,7 +717,7 @@ private:
       ctx.call<void>("save");
 
       if (ayaNumber < 10) {
-        auto& onesglyph = layout->glyphs[layout->glyphNamePerCode[1632 + ayaNumber].toStdString()];
+        auto& onesglyph = layout->glyphs[layout->glyphNamePerCode[1632 + ayaNumber]];
 
         auto position = layout->glyphs["endofaya"].width / 2 - (onesglyph.width) / 2;
 
@@ -735,8 +732,8 @@ private:
         int onesdigit = ayaNumber % 10;
         int tensdigit = ayaNumber / 10;
 
-        auto& onesglyph = layout->glyphs[layout->glyphNamePerCode[1632 + onesdigit].toStdString()];
-        auto& tensglyph = layout->glyphs[layout->glyphNamePerCode[1632 + tensdigit].toStdString()];
+        auto& onesglyph = layout->glyphs[layout->glyphNamePerCode[1632 + onesdigit]];
+        auto& tensglyph = layout->glyphs[layout->glyphNamePerCode[1632 + tensdigit]];
 
 
 
@@ -759,9 +756,9 @@ private:
         int tensdigit = (ayaNumber / 10) % 10;
         int hundredsdigit = ayaNumber / 100;
 
-        auto& onesglyph = layout->glyphs[layout->glyphNamePerCode[1632 + onesdigit].toStdString()];
-        auto& tensglyph = layout->glyphs[layout->glyphNamePerCode[1632 + tensdigit].toStdString()];
-        auto& hundredsglyph = layout->glyphs[layout->glyphNamePerCode[1632 + hundredsdigit].toStdString()];
+        auto& onesglyph = layout->glyphs[layout->glyphNamePerCode[1632 + onesdigit]];
+        auto& tensglyph = layout->glyphs[layout->glyphNamePerCode[1632 + tensdigit]];
+        auto& hundredsglyph = layout->glyphs[layout->glyphNamePerCode[1632 + hundredsdigit]];
 
         auto position = layout->glyphs["endofaya"].width / 2 - (onesglyph.width + tensglyph.width + hundredsglyph.width + 80) / 2;
 

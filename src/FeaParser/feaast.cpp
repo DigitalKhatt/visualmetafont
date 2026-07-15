@@ -36,12 +36,11 @@ std::unordered_set<std::uint16_t> GlyphName::getCodes(OtLayout* otlayout) {
 }
 
 std::uint16_t GlyphName::getCode(OtLayout* otlayout) {
-  const auto qname = QString::fromStdString(name);
-  const auto found = otlayout->glyphCodePerName.constFind(qname);
-  if (found == otlayout->glyphCodePerName.constEnd()) {
+  const auto found = otlayout->glyphCodePerName.find(name);
+  if (found == otlayout->glyphCodePerName.end()) {
     throw std::runtime_error("Glyph Name " + name + " not found");
   }
-  return found.value();
+  return found->second;
 }
 
 std::unordered_set<std::uint16_t> ClassName::getCodes(OtLayout* otlayout) {
@@ -362,7 +361,7 @@ void LookupDefinitionVisitor::accept(Mark2BaseRule& mark2BaseRule) {
       auto anchor = QPoint{formaAAnchor->x, formaAAnchor->y};
       for (auto code : newsubtable->sortedBaseCodes) {
         auto glyphName = otlayout->glyphNamePerCode[code];
-        newclass.baseanchors[glyphName.toStdString()] = anchor;
+        newclass.baseanchors[glyphName] = anchor;
       }
     }
 
@@ -374,7 +373,7 @@ void LookupDefinitionVisitor::accept(Mark2BaseRule& mark2BaseRule) {
       auto anchor = QPoint{formaAAnchor->x, formaAAnchor->y};
       for (auto code : newclass.markCodes) {
         auto markName = otlayout->glyphNamePerCode[code];
-        newclass.markanchors[markName.toStdString()] = anchor;
+        newclass.markanchors[markName] = anchor;
       }
     }
 
@@ -655,7 +654,7 @@ void LookupDefinitionVisitor::accept(ClassDefinition& classDef) {
   QSet<QString> set;
 
   for (auto glyph : classDef.components->getCodes(otlayout)) {
-    set.insert(otlayout->glyphNamePerCode[glyph]);
+    set.insert(QString::fromStdString(otlayout->glyphNamePerCode[glyph]));
   }
   otlayout->addClass(QString::fromStdString(classDef.name), set);
 }

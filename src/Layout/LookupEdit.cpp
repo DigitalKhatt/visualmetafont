@@ -264,10 +264,10 @@ void LayoutWindow::editLookup(QString lookupName) {
       path.setFillRule(Qt::WindingFill);
       for (int i = glyph_count - 1; i >= 0; i--) {
         auto codepoint = glyph_info[i].codepoint;
-        QString glyphName = m_otlayout->glyphNamePerCode[codepoint];
+        const auto& glyphName = m_otlayout->glyphNamePerCode[codepoint];
 
-        if (m_otlayout->glyphs.contains(glyphName.toStdString())) {
-          GlyphVis& glyph = m_otlayout->glyphs[glyphName.toStdString()];
+        if (m_otlayout->glyphs.contains(glyphName)) {
+          GlyphVis& glyph = m_otlayout->glyphs[glyphName];
 
           /*auto glyphItem = new GlyphItem(1, &glyph, m_otlayout, glyph_info[i].lookup_index, glyph_info[i].subtable_index, glyph_info[i].base_codepoint, glyph_info[i].lefttatweel, glyph_info[i].righttatweel);
           glyphItem->setFlag(QGraphicsItem::ItemIsMovable);

@@ -839,10 +839,10 @@ void QuranPdfWriter::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int 
                 currentcluster = endcluster;
                 continue;
               } else {
-                QString currGlyphName = d_ep->otlayout->glyphNamePerCode[line.glyphs[i].codepoint];
+                const auto& currGlyphName = d_ep->otlayout->glyphNamePerCode[line.glyphs[i].codepoint];
                 // GlyphVis& currGlyph = glyphs[currGlyphName];
 
-                QString nextGlyphName = d_ep->otlayout->glyphNamePerCode[line.glyphs[end + 1].codepoint];
+                const auto& nextGlyphName = d_ep->otlayout->glyphNamePerCode[line.glyphs[end + 1].codepoint];
                 // GlyphVis& nextglyph = glyphs[nextGlyphName];
 
                 if (currGlyphName == "reh.isol" && nextGlyphName == "behshape.init.beforereh") {

@@ -38,9 +38,9 @@ std::unordered_set<std::uint16_t> Automedina::regexptoUnicode(const std::string&
 
   QRegularExpression re(QString::fromStdString(regexp));
 
-  for (auto it = m_layout->glyphCodePerName.keyValueBegin(); it != m_layout->glyphCodePerName.keyValueEnd(); ++it) {
-    if (re.match(it->first).hasMatch()) {
-      unicodes.insert(it->second);
+  for (const auto& [name, code] : m_layout->glyphCodePerName) {
+    if (re.match(QString::fromStdString(name)).hasMatch()) {
+      unicodes.insert(code);
     }
   }
 
@@ -55,8 +55,8 @@ std::unordered_set<std::uint16_t> Automedina::classtoUnicode(const std::string& 
   const auto qexprName = QString::fromStdString(exprName);
 
   if (!classes.contains(exprName)) {
-    if (m_layout->glyphCodePerName.contains(qexprName)) {
-      auto charcode = m_layout->glyphCodePerName[qexprName];
+    if (m_layout->glyphCodePerName.contains(exprName)) {
+      auto charcode = m_layout->glyphCodePerName[exprName];
       unicodes.insert(charcode);
 
       if (includeExpandables) {
@@ -89,13 +89,13 @@ QSet<QString> Automedina::classtoGlyphName(QString className) {
   // TODO use classtoUnicode
   auto classNameStd = className.toStdString();
   if (!classes.contains(classNameStd)) {
-    if (m_layout->glyphCodePerName.contains(className)) {
+    if (m_layout->glyphCodePerName.contains(classNameStd)) {
       names.insert(className);
     } else {
       QRegularExpression re(className);
-      for (auto it = m_layout->glyphCodePerName.keyValueBegin(); it != m_layout->glyphCodePerName.keyValueEnd(); ++it) {
-        if (re.match(it->first).hasMatch()) {
-          names.insert(it->first);
+      for (const auto& [name, code] : m_layout->glyphCodePerName) {
+        if (re.match(QString::fromStdString(name)).hasMatch()) {
+          names.insert(QString::fromStdString(name));
         }
       }
     }

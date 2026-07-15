@@ -56,9 +56,8 @@ void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, const QLi
   auto& topdotmarks = classes["topdotmarks"];
   auto& downdotmarks = classes["downdotmarks"];
 
-  auto isTopMark = [&topmarks, &lowmarks, &waqfmarks, &topdotmarks, &downdotmarks](QString glyphName) {
-    auto glyphNameStd = glyphName.toStdString();
-    return topmarks.contains(glyphNameStd) || waqfmarks.contains(glyphNameStd) || topdotmarks.contains(glyphNameStd);
+  auto isTopMark = [&topmarks, &lowmarks, &waqfmarks, &topdotmarks, &downdotmarks](const std::string& glyphName) {
+    return topmarks.contains(glyphName) || waqfmarks.contains(glyphName) || topdotmarks.contains(glyphName);
   };
 
   auto isBottomMark = [&topmarks, &lowmarks, &waqfmarks, &topdotmarks, &downdotmarks](QString glyphName) {
@@ -91,7 +90,7 @@ void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, const QLi
 
       for (size_t g = 0; g < line.glyphs.size(); g++) {
         auto& glyphLayout = line.glyphs[g];
-        QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+        const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
         auto glyphVis = m_otlayout->getGlyph(
             glyphName, {.lefttatweel = glyphLayout.lefttatweel,
                         .righttatweel = glyphLayout.righttatweel,
@@ -99,7 +98,7 @@ void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, const QLi
         auto glyphToPoly = glyphToPolys.find(glyphVis);
 
         if (glyphToPoly == glyphToPolys.end()) {
-          if (marks.contains(glyphName.toStdString())) {
+          if (marks.contains(glyphName)) {
             glyphToPoly = glyphToPolys.insert(
                                           {glyphVis,
                                            buildPolyFromCubics(
@@ -122,14 +121,14 @@ void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, const QLi
 
         auto& glyphInstance = lineGlyphs.emplace_back(digitalkhatt::layout::GlyphInstance{});
 
-        glyphInstance.isMark = marks.contains(glyphName.toStdString());
+        glyphInstance.isMark = marks.contains(glyphName);
         glyphInstance.isTopMark = isTopMark(glyphName);
         glyphInstance.lineY = currentyPos;
         glyphInstance.baseX = currentxPos + (glyphLayout.x_offset * line.xscale);
         glyphInstance.baseY = currentyPos + (glyphLayout.y_offset);
         glyphInstance.glyphLayout = &glyphLayout;
         glyphInstance.metrics = {glyphVis->width, glyphVis->height, glyphVis->bbox.llx, glyphVis->bbox.urx};
-        glyphInstance.glyphName = glyphName.toStdString();
+        glyphInstance.glyphName = glyphName;
         glyphInstance.lineIndex = l;
         glyphInstance.glyphIndex = g;
 

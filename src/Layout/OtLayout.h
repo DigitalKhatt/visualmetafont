@@ -234,9 +234,9 @@ class OtLayout : public QObject {
   QByteArray gpos_array;
   QByteArray gdef_array;
 
-  QMap<QString, quint16> glyphCodePerName;
-  QMap<quint16, QString> glyphNamePerCode;
-  QMap<quint16, quint16> unicodeToGlyphCode;
+  std::unordered_map<std::string, std::uint16_t> glyphCodePerName;
+  std::map<std::uint16_t, std::string> glyphNamePerCode;
+  std::map<std::uint16_t, std::uint16_t> unicodeToGlyphCode;
 
   QMap<quint16, GDEFClasses> glyphGlobalClasses;
 
@@ -266,7 +266,7 @@ class OtLayout : public QObject {
   double nuqta();
 
   GlyphVis* getGlyph(int code);
-  GlyphVis* getGlyph(const QString& name, GlyphParameters parameters);
+  GlyphVis* getGlyph(const std::string& name, GlyphParameters parameters);
   GlyphVis* getGlyph(int code, GlyphParameters parameters);
 
   int tajweedcolorindex = 0xFFFF;
@@ -312,7 +312,7 @@ class OtLayout : public QObject {
 
   bool useNormAxisValues = true;
 
-  std::unordered_map<QString, ValueLimits> expandableGlyphs;
+  std::unordered_map<std::string, ValueLimits> expandableGlyphs;
 
   std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const int subregionIndex) {
     return toOpenType->getDeltaSetEntry(delta, subregionIndex);
@@ -328,29 +328,29 @@ class OtLayout : public QObject {
 
     if (tatweel < -1) {
       // throw new std::runtime_error("tatweel error for glyph " + code);
-      const auto& name = glyphNamePerCode.value(code);
+      const auto& name = glyphNamePerCode.at(code);
       std::cout.precision(17);
-      std::cout << "min tatweel " << std::fixed << tatweel << " error for glyph " << name.toStdString() << '\n';
+      std::cout << "min tatweel " << std::fixed << tatweel << " error for glyph " << name << '\n';
       tatweel = -1;
     }
 
     if (tatweel > 1) {
       // throw new std::runtime_error("tatweel error for glyph " + code);
-      const auto& name = glyphNamePerCode.value(code);
+      const auto& name = glyphNamePerCode.at(code);
       std::cout.precision(17);
-      std::cout << "max tatweel " << std::fixed << tatweel << " error for glyph " << name.toStdString() << '\n';
+      std::cout << "max tatweel " << std::fixed << tatweel << " error for glyph " << name << '\n';
       tatweel = 1;
     }
 
     ValueLimits limits;
 
-    const auto& name = glyphNamePerCode.value(code);
+    const auto& name = glyphNamePerCode.at(code);
 
     const auto& find = expandableGlyphs.find(name);
 
     if (find == expandableGlyphs.end()) {
       // throw new std::runtime_error("tatweel error for glyph " + name.toStdString());
-      std::cout << "No expandable glyph " + name.toStdString() + "\n";
+      std::cout << "No expandable glyph " + name + "\n";
       return tatweel;
     }
 
