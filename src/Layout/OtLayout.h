@@ -246,7 +246,7 @@ class OtLayout : public QObject {
   PairAdjustFunc getPairAdjustFunction(std::string functionName, Subtable* subtable);
   void setParameter(quint16 glyphCode, quint32 lookup, quint32 subtable, quint16 markCode, quint16 baseCode, QPoint displacement, Qt::KeyboardModifiers modifiers);
 
-  QHash<QString, GlyphVis> glyphs;
+  std::unordered_map<std::string, GlyphVis> glyphs;
 
   QVector<QList<quint16>> markGlyphSets;
 

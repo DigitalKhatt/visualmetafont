@@ -1649,7 +1649,7 @@ void CursiveSubtable::setAnchorTable(quint16 glyphCode,
     charrt = glyph->charrt;
   }
 
-  auto& originalGlyph = m_layout->glyphs[originalGlyphName];
+  auto& originalGlyph = m_layout->glyphs[originalGlyphName.toStdString()];
 
   std::optional<QPoint> calcanchor = isEntry ? getEntry(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt}) : getExit(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt});
 
@@ -1847,8 +1847,8 @@ QPoint MarkBaseSubtable::getBaseAnchor(std::string baseGlyphName, std::string cl
     coordinate = markClass.baseparameters[baseGlyphName];
   }
 
+  GlyphVis* curr = &m_layout->glyphs[baseGlyphName];
   const QString qBaseGlyphName = QString::fromStdString(baseGlyphName);
-  GlyphVis* curr = &m_layout->glyphs[qBaseGlyphName];
 
   curr = curr->getAlternate(parameters);
 
@@ -1891,8 +1891,8 @@ QPoint MarkBaseSubtable::getMarkAnchor(std::string markGlyphName, std::string cl
     coordinate = markClass.markparameters[markGlyphName];
   }
 
+  GlyphVis* curr = &m_layout->glyphs[markGlyphName];
   const QString qMarkGlyphName = QString::fromStdString(markGlyphName);
-  GlyphVis* curr = &m_layout->glyphs[qMarkGlyphName];
 
   curr = curr->getAlternate(parameters);
 

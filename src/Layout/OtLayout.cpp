@@ -206,7 +206,7 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
   } else {
     QString name = layout->glyphNamePerCode[glyph];
 
-    GlyphVis* pglyph = &layout->glyphs[name];
+    GlyphVis* pglyph = &layout->glyphs[name.toStdString()];
 
     if (parameters.lefttatweel != 0 || parameters.righttatweel != 0) {
       pglyph = layout->getAlternate(pglyph->charcode, parameters);
@@ -365,7 +365,7 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
     if (context->type == hb_cursive_anchor_context_t::base) {
       QString baseGlyphName = layout->glyphNamePerCode[context->base_glyph_id];
 
-      GlyphVis& curr = layout->glyphs[baseGlyphName];
+      GlyphVis& curr = layout->glyphs[baseGlyphName.toStdString()];
 
       auto anchor = subtableTable->getBaseAnchor(context->glyph_id, context->base_glyph_id, {.lefttatweel = lefttatweel, .righttatweel = righttatweel});
       if (anchor) {
@@ -381,7 +381,7 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
     } else if (context->type == hb_cursive_anchor_context_t::mark) {
       QString markGlyphName = layout->glyphNamePerCode[context->glyph_id];
 
-      GlyphVis& curr = layout->glyphs[markGlyphName];
+      GlyphVis& curr = layout->glyphs[markGlyphName.toStdString()];
 
       auto anchor = subtableTable->getMarkAnchor(context->glyph_id, context->base_glyph_id, {.lefttatweel = lefttatweel, .righttatweel = righttatweel});
       if (anchor) {
@@ -581,7 +581,7 @@ QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, Glyp
       adjustoriginal = subtable.classes[className.toStdString()].baseparameters[originalGlyphName.toStdString()];
     }
 
-    originalglyph = &y.glyphs[originalGlyphName];
+    originalglyph = &y.glyphs[curr->originalglyph];
     if (curr->leftAnchor) {
       double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
       double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
@@ -599,7 +599,7 @@ QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, Glyp
 }
 
 GlyphVis* OtLayout::getGlyph(const QString& name, GlyphParameters parameters) {
-  GlyphVis* pglyph = &this->glyphs[name];
+  GlyphVis* pglyph = &this->glyphs[name.toStdString()];
 
   if (parameters.lefttatweel != 0 || parameters.righttatweel != 0 || parameters.scalex != 0) {
     pglyph = getAlternate(pglyph->charcode, parameters);
@@ -622,7 +622,7 @@ GlyphVis* OtLayout::getGlyph(int code) {
   if (glyphNamePerCode.contains(code)) {
     QString baseGlyphName = glyphNamePerCode[code];
 
-    curr = &glyphs[baseGlyphName];
+    curr = &glyphs[baseGlyphName.toStdString()];
   }
 
   return curr;
@@ -1448,7 +1448,7 @@ void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableI
     if (!shift) {
       QString baseGlyphName = glyphNamePerCode[baseCode];
 
-      GlyphVis& curr = glyphs[baseGlyphName];
+      GlyphVis& curr = glyphs[baseGlyphName.toStdString()];
 
       if (ctrl && !curr.originalglyph.empty() && (curr.charlt != 0 || curr.charrt != 0)) {
         baseGlyphName = QString::fromStdString(curr.originalglyph);
@@ -1485,7 +1485,7 @@ void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableI
 
     QString baseGlyphName = glyphNamePerCode[baseCode];
 
-    GlyphVis& curr = glyphs[glyphName];
+    GlyphVis& curr = glyphs[glyphName.toStdString()];
 
     Lookup* lookup = subtableTable->getLookup();
 
@@ -1600,7 +1600,7 @@ void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& dif
 
       for (int i = 0; i < justificationContext.GlyphsToExtend.size(); i++) {
         int index = justificationContext.GlyphsToExtend[i];
-        GlyphVis& substitute = this->glyphs[this->glyphNamePerCode[justificationContext.Substitutes[i]]];
+        GlyphVis& substitute = this->glyphs[this->glyphNamePerCode[justificationContext.Substitutes[i]].toStdString()];
 
         GlyphExpansion& expa = justificationContext.Expansions[index];
 
@@ -1805,7 +1805,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
 
         for (int i = 0; i < justificationContext.GlyphsToExtend.size(); i++) {
           int index = justificationContext.GlyphsToExtend[i];  // glyph_count - 1 - JustificationContext::GlyphsToExtend[i];
-          GlyphVis& substitute = this->glyphs[this->glyphNamePerCode[justificationContext.Substitutes[i]]];
+          GlyphVis& substitute = this->glyphs[this->glyphNamePerCode[justificationContext.Substitutes[i]].toStdString()];
 
           GlyphExpansion& expa = justificationContext.Expansions[index];
 
@@ -3215,7 +3215,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
     parameters.lefttatweel += glyph->charlt;
     parameters.righttatweel += glyph->charrt;
 
-    glyph = &glyphs[QString::fromStdString(originalGlyph)];
+    glyph = &glyphs[originalGlyph];
 
     glyphCode = glyph->charcode;
   }
@@ -3281,7 +3281,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
 
     QString name = QString("%1.added_%2").arg(QString::fromStdString(glyph->name)).arg(charcode);
 
-    GlyphVis& temp = *glyphs.insert(name, GlyphVis(this, edge));
+    GlyphVis& temp = glyphs.insert_or_assign(name.toStdString(), GlyphVis(this, edge)).first->second;
 
     newglyph = &temp;
 
@@ -3529,7 +3529,7 @@ void OtLayout::saveFontInfo() {
   QJsonObject glyphsObject;
 
   for (auto i = glyphNamePerCode.cbegin(), end = glyphNamePerCode.cend(); i != end; ++i) {
-    auto& glyph = glyphs[i.value()];
+    auto& glyph = glyphs[i.value().toStdString()];
     QJsonObject glyphJson;
 
     glyphJson["code"] = i.key();

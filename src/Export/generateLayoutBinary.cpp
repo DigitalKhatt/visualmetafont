@@ -101,7 +101,7 @@ static void edgetoHTML5Path(mp_graphic_object* body, QByteArray& pathsArray) {
 static void generateBinaryGlyphs(OtLayout& layout, QByteArray& data) {
   data << (uint16_t)layout.glyphs.size();    
   
-  for (auto& glyph : layout.glyphs) {
+  for (auto& [name, glyph] : layout.glyphs) {
 
     
 

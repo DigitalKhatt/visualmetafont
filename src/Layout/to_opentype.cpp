@@ -119,7 +119,7 @@ void ToOpenType::setAxes() {
   for (auto it = ot_layout->glyphCodePerName.keyValueBegin(); it != ot_layout->glyphCodePerName.keyValueEnd(); ++it) {
     auto glyphName = it->first;
     auto glyphCode = it->second;
-    auto* glyph = &ot_layout->glyphs[glyphName];
+    auto* glyph = &ot_layout->glyphs[glyphName.toStdString()];
     std::vector<int> regionIndexes;
     if (leftTatweelIndex != -1 || rightTatweelIndex != -1) {
       auto ff = ot_layout->expandableGlyphs.find(glyphName);
@@ -220,7 +220,7 @@ void ToOpenType::setAxes() {
 }
 
 void ToOpenType::populateGlyphs() {
-  for (auto& glyph : ot_layout->glyphs) {
+  for (auto& [name, glyph] : ot_layout->glyphs) {
     glyphs.insert(glyph.charcode, &glyph);
   }
 }
@@ -304,11 +304,11 @@ void ToOpenType::setGIds() {
     auto name = ot_layout->glyphNamePerCode.value(code);
     if (name.isEmpty()) continue;
     if (name != "notdef" && name != "null") {
-      if (!ot_layout->glyphs.contains(name)) {
+      if (!ot_layout->glyphs.contains(name.toStdString())) {
         throw new std::runtime_error("Glyph name " + name.toStdString() + " not found");
       }
       newCodes.insert(code, newCode);
-      auto glyph = &ot_layout->glyphs[name];
+      auto glyph = &ot_layout->glyphs[name.toStdString()];
       glyph->charcode = newCode;
       newCode++;
     }
@@ -445,7 +445,7 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
 
   glyphs.clear();
   for (auto it = ot_layout->glyphCodePerName.keyValueBegin(); it != ot_layout->glyphCodePerName.keyValueEnd(); ++it) {
-    glyphs.insert(it->second, &ot_layout->glyphs[it->first]);
+    glyphs.insert(it->second, &ot_layout->glyphs[it->first.toStdString()]);
   }
 
   initiliazeGlobals();
@@ -976,7 +976,7 @@ void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_graphic_object**
     if (fill->pre_script && strcmp(fill->pre_script, "begincomponent") == 0) {
       auto comp = QString(fill->post_script).split(",");
       QString name = comp[0];
-      GlyphVis& compGlyph = ot_layout->glyphs[name];
+      GlyphVis& compGlyph = ot_layout->glyphs[name.toStdString()];
 
       if (subrByGlyph.contains(compGlyph.charcode)) {
         auto subrByGlyphInfo = subrByGlyph.value(compGlyph.charcode);
@@ -1293,7 +1293,7 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
   }
 
   for (auto coloredGlyp : coloredglyphs) {
-    GlyphVis& glyph = ot_layout->glyphs[coloredGlyp.second];
+    GlyphVis& glyph = ot_layout->glyphs[coloredGlyp.second.toStdString()];
     QVector<Layer> layers;
 
     QByteArray glyphData;
@@ -1801,7 +1801,7 @@ void ToOpenType::generateComponents() {
   }
 
   for (auto& componentName : components) {
-    GlyphVis& glyph = ot_layout->glyphs[componentName];
+    GlyphVis& glyph = ot_layout->glyphs[componentName.toStdString()];
     double currentx = 0.0;
     double currenty = 0.0;
 

@@ -169,7 +169,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
         if (digit == -1) break;
 
         auto& digitglyph =
-            m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + digit]];
+            m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + digit].toStdString()];
         GlyphLayoutInfo glyphInfo;
 
         glyphInfo.codepoint = 1632 + digit;
@@ -306,7 +306,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
         }
 
         if (glyphName.contains("space") || glyphName.contains("linefeed") ||
-            !m_otlayout->glyphs.contains(glyphName))
+            !m_otlayout->glyphs.contains(glyphName.toStdString()))
           continue;
 
         // bool isIsol = glyphName.contains("isol");

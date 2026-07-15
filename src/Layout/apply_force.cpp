@@ -355,7 +355,7 @@ void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
 
         QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
-        if (glyphName.contains("space") || glyphName.contains("linefeed") || !m_otlayout->glyphs.contains(glyphName)) continue;
+        if (glyphName.contains("space") || glyphName.contains("linefeed") || !m_otlayout->glyphs.contains(glyphName.toStdString())) continue;
 
         //bool isIsol = glyphName.contains("isol");
 

@@ -62,7 +62,7 @@ class Automedina {
   };
   std::unordered_set<std::uint16_t> regexptoUnicode(const std::string& regexp);
   QSet<QString> classtoGlyphName(QString className);
-  QHash<QString, GlyphVis>& glyphs;
+  std::unordered_map<std::string, GlyphVis>& glyphs;
   virtual ~Automedina();
 
   virtual Lookup* getLookup(std::string lookupName) = 0;

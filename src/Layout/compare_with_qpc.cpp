@@ -952,7 +952,7 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
                                  .scalex = 0};
       QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
-      GlyphVis& glyph = m_otlayout->glyphs[glyphName];
+      GlyphVis& glyph = m_otlayout->glyphs[glyphName.toStdString()];
 
       auto glyphPath = glyph.getAlternate(parameters)->path;
 
@@ -991,7 +991,7 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
                                      .scalex = 0};
           QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
-          GlyphVis& glyph = m_otlayout->glyphs[glyphName];
+          GlyphVis& glyph = m_otlayout->glyphs[glyphName.toStdString()];
 
           auto glyphPath = glyph.getAlternate(parameters)->path;
 

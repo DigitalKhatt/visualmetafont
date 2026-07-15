@@ -225,7 +225,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
 
         auto glyphCode = m_otlayout->unicodeToGlyphCode[1632 + digit];
 
-        auto& digitglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[glyphCode]];
+        auto& digitglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[glyphCode].toStdString()];
         GlyphLayoutInfo glyphInfo;
 
         glyphInfo.codepoint = glyphCode;
@@ -656,7 +656,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
 
         QString& glyphName = geometrySet.glyphName;  // m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
-        if (glyphName.contains(spaceName) || glyphName.contains(linefeedName) || !m_otlayout->glyphs.contains(glyphName))
+        if (glyphName.contains(spaceName) || glyphName.contains(linefeedName) || !m_otlayout->glyphs.contains(glyphName.toStdString()))
           continue;
 
         bool isMark =

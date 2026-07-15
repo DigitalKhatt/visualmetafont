@@ -97,9 +97,8 @@ GlyphVis* GlyphVis::getColoredGlyph() {
   GlyphVis* coloredGlyph = nullptr;
 
   if (!coloredglyph.empty()) {
-    auto coloredglyphQString = QString::fromStdString(coloredglyph);
-    if (m_otLayout->glyphs.contains(coloredglyphQString)) {
-      coloredGlyph = &m_otLayout->glyphs[coloredglyphQString];
+    if (m_otLayout->glyphs.contains(coloredglyph)) {
+      coloredGlyph = &m_otLayout->glyphs[coloredglyph];
     }
   }
 

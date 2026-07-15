@@ -28,7 +28,7 @@ public:
   Defaulbaseanchorfortop(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
 
-    GlyphVis* curr = &_y.glyphs[glyphName];
+    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
 
     curr = curr->getAlternate(parameters);
 
@@ -91,7 +91,7 @@ public:
   QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
 
 
-    GlyphVis* curr = &_y.glyphs[glyphName];
+    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
 
     curr = curr->getAlternate(parameters);
 
@@ -122,7 +122,7 @@ public:
   Defaultopmarkanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
 
-    GlyphVis* curr = &_y.glyphs[glyphName];
+    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
 
     auto ori_width = curr->width;
 
@@ -154,7 +154,7 @@ public:
   Defaullowmarkanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
 
-    GlyphVis* glyph = &_y.glyphs[glyphName];
+    GlyphVis* glyph = &_y.glyphs[glyphName.toStdString()];
 
     glyph = glyph->getAlternate(parameters);
 
@@ -183,7 +183,7 @@ public:
   Defaultmarkabovemark(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
 
-    GlyphVis& curr = _y.glyphs[glyphName];
+    GlyphVis& curr = _y.glyphs[glyphName.toStdString()];
 
     int width = curr.width * 0.5;
     int height = curr.height;
@@ -205,7 +205,7 @@ public:
   Defaultmarkbelowmark(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
 
-    GlyphVis& curr = _y.glyphs[glyphName];
+    GlyphVis& curr = _y.glyphs[glyphName.toStdString()];
 
 
     int width = curr.width * 0.5;
@@ -230,7 +230,7 @@ public:
 
 
 
-    GlyphVis* curr = &_y.glyphs[glyphName];
+    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
 
     curr = curr->getAlternate(parameters);
 
@@ -242,7 +242,7 @@ public:
     //if (curr->name == "alternatechar" || curr->name.contains(".added_")) {
     if (curr->expanded) {
       auto originalGlyphName = QString::fromStdString(curr->originalglyph);
-      originalglyph = &_y.glyphs[originalGlyphName];
+      originalglyph = &_y.glyphs[curr->originalglyph];
       adjustoriginal = _subtable.classes[className.toStdString()].baseparameters[originalGlyphName.toStdString()];
       if (curr->leftAnchor) {
         double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
@@ -282,7 +282,7 @@ public:
   Defaulbaseanchorfortopdots(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
 
-    GlyphVis* curr = &_y.glyphs[glyphName];
+    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
 
     curr = curr->getAlternate(parameters);
 
@@ -326,7 +326,7 @@ public:
   Defaulbaseanchorforlowdots(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
   QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
 
-    GlyphVis* curr = &_y.glyphs[glyphName];
+    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
 
     curr = curr->getAlternate(parameters);
 
@@ -359,7 +359,7 @@ public:
 
 
 
-    GlyphVis* curr = &_y.glyphs[glyphName];
+    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
 
     curr = curr->getAlternate(parameters);
 

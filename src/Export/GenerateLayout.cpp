@@ -56,7 +56,7 @@ GenerateLayout::~GenerateLayout()
 {
 }
 void GenerateLayout::generateGlyphs(QJsonObject& glyphsObject) {
-  for (auto& glyph : m_otlayout->glyphs) {
+  for (auto& [name, glyph] : m_otlayout->glyphs) {
     QJsonObject glyphObject;
 
     glyphObject["name"] = QString::fromStdString(glyph.name);

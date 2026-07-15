@@ -108,7 +108,7 @@ void GenerateLayout::generateLayoutProtoBuf(int lineWidth, int scale) {
 
   auto& glyphs = *font.mutable_glyphs();
 
-  for (auto& glyph : m_otlayout->glyphs) {
+  for (auto& [name, glyph] : m_otlayout->glyphs) {
     protobuf::Glyph glyphProto;
 
     bool isColored = glyph.name.find("aya") != std::string::npos;

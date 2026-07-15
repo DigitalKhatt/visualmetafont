@@ -417,7 +417,7 @@ void ExportToHTML::generateQuranPagesOld(QList<QList<LineLayoutInfo>> pages, int
 
   out << "glyphs = {};\n";
 
-  for (auto& glyph : glyphs) {
+  for (auto& [name, glyph] : glyphs) {
     //if (usedGlyphs.contains(glyph.charcode)) {
     out << "glyphs['" << QString::fromStdString(glyph.name) << "'] = function(ctx) {\n";
 
@@ -491,7 +491,7 @@ void ExportToHTML::generateGlyph(GlyphVis& glyph, QTextStream& out) {
     out << "\tctx.save();\n";
 
     if (ayaNumber < 10) {
-      auto& onesglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + ayaNumber]];
+      auto& onesglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + ayaNumber].toStdString()];
 
       auto position = m_otlayout->glyphs["endofaya"].width / 2 - (onesglyph.width) / 2;
 
@@ -503,8 +503,8 @@ void ExportToHTML::generateGlyph(GlyphVis& glyph, QTextStream& out) {
       int onesdigit = ayaNumber % 10;
       int tensdigit = ayaNumber / 10;
 
-      auto& onesglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + onesdigit]];
-      auto& tensglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + tensdigit]];
+      auto& onesglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + onesdigit].toStdString()];
+      auto& tensglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + tensdigit].toStdString()];
 
 
 
@@ -522,9 +522,9 @@ void ExportToHTML::generateGlyph(GlyphVis& glyph, QTextStream& out) {
       int tensdigit = (ayaNumber / 10) % 10;
       int hundredsdigit = ayaNumber / 100;
 
-      auto& onesglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + onesdigit]];
-      auto& tensglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + tensdigit]];
-      auto& hundredsglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + hundredsdigit]];
+      auto& onesglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + onesdigit].toStdString()];
+      auto& tensglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + tensdigit].toStdString()];
+      auto& hundredsglyph = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + hundredsdigit].toStdString()];
 
       auto position = m_otlayout->glyphs["endofaya"].width / 2 - (onesglyph.width + tensglyph.width + hundredsglyph.width + 80) / 2;
 

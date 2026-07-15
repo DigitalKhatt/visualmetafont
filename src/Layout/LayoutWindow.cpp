@@ -1189,7 +1189,7 @@ bool LayoutWindow::exportpdf() {
         auto glyph = line.glyphs[i];
 
         QString glyphName = m_otlayout->glyphNamePerCode[glyph.codepoint];
-        GlyphVis* glyphVis = &m_otlayout->glyphs[glyphName];
+        GlyphVis* glyphVis = &m_otlayout->glyphs[glyphName.toStdString()];
 
         if (glyph.lefttatweel != 0 || glyph.righttatweel != 0) {
           GlyphParameters parameters{};
@@ -3818,8 +3818,8 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
     for (auto& glyphLayout : line.glyphs) {
       QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
-      if (m_otlayout->glyphs.contains(glyphName)) {
-        GlyphVis& glyph = m_otlayout->glyphs[glyphName];
+      if (m_otlayout->glyphs.contains(glyphName.toStdString())) {
+        GlyphVis& glyph = m_otlayout->glyphs[glyphName.toStdString()];
 
         GlyphItem* glyphItem = nullptr;
         if (refresh) {
@@ -4085,7 +4085,7 @@ void LayoutWindow::convertCursiveToKern() {
                 auto entry = curSub->getEntry(entryGlyphCode, {});
                 if (entry) {
                   QString entryGlyphName = m_otlayout->glyphNamePerCode[entryGlyphCode];
-                  auto& entryGlyph = m_otlayout->glyphs[entryGlyphName];
+                  auto& entryGlyph = m_otlayout->glyphs[entryGlyphName.toStdString()];
                   if (isolGlyphs.contains(entryGlyphCode) && !rehWawGlyphs.contains(entryGlyphName)) {
                     if (!useBaseToBase) {
                       if (entry->y() != 0 || entry->x() != (int)entryGlyph.width) {
@@ -4174,7 +4174,7 @@ void LayoutWindow::convertCursiveToKern() {
                     baseBaseMarkPos += "  pos base [" + exitGlyphName + "] " + QString("<anchor %1 %2>").arg(exit->x()).arg(exit->y());
                     baseBaseMarkPos += " markClass [" + entryGlyphName + "] " + QString("<anchor %1 %2>").arg(entry->x()).arg(entry->y()) + " @" + QString::fromStdString(curSub->name) + ";\n";
 
-                    auto& entryGlyph = m_otlayout->glyphs[entryGlyphName];
+                    auto& entryGlyph = m_otlayout->glyphs[entryGlyphName.toStdString()];
                     auto kern = entry->x() - (int)entryGlyph.width - exit->x();
                     if (kern != 0) {
                       baseBaseKernPos += "  pos [" + exitGlyphName + "] [" + entryGlyphName + "]'<0 0 " + QString("%1").arg(kern) + " 0>;\n";

@@ -695,7 +695,7 @@ QByteArray QuranPdfWriterPdfHummus::generateGlyphStream(GlyphVis& glyph) {
     }
 
     auto drawDigit = [&](int digit, int x) {
-      GlyphVis& dg = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + digit]];
+      GlyphVis& dg = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + digit].toStdString()];
       auto idx = getIndex({dg.charcode, 0, 0});
       s << "/F" << idx.font << " 1000 Tf\n";
       s << "1 0 0 1 " << x << ' ' << digitheight << " Tm <"
@@ -703,13 +703,13 @@ QByteArray QuranPdfWriterPdfHummus::generateGlyphStream(GlyphVis& glyph) {
     };
 
     if (ayaNumber < 10) {
-      GlyphVis& ones = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + ayaNumber]];
+      GlyphVis& ones = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + ayaNumber].toStdString()];
       int x = endGlyph.width / 2 - ones.width / 2;
       drawDigit(ayaNumber, x);
     } else if (ayaNumber < 100) {
       int onesD = ayaNumber % 10, tensD = ayaNumber / 10;
-      GlyphVis& ones = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + onesD]];
-      GlyphVis& tens = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + tensD]];
+      GlyphVis& ones = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + onesD].toStdString()];
+      GlyphVis& tens = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + tensD].toStdString()];
       int x = endGlyph.width / 2 - (ones.width + tens.width + 40) / 2;
       drawDigit(tensD, x);
       drawDigit(onesD, x + tens.width + 40);
@@ -717,9 +717,9 @@ QByteArray QuranPdfWriterPdfHummus::generateGlyphStream(GlyphVis& glyph) {
       int onesD = ayaNumber % 10;
       int tensD = (ayaNumber / 10) % 10;
       int hundredsD = ayaNumber / 100;
-      GlyphVis& ones = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + onesD]];
-      GlyphVis& tens = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + tensD]];
-      GlyphVis& hundreds = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + hundredsD]];
+      GlyphVis& ones = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + onesD].toStdString()];
+      GlyphVis& tens = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + tensD].toStdString()];
+      GlyphVis& hundreds = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + hundredsD].toStdString()];
       int x = endGlyph.width / 2 - (ones.width + tens.width + hundreds.width + 80) / 2;
       drawDigit(hundredsD, x);
       drawDigit(tensD, x + hundreds.width + 40);
@@ -871,7 +871,7 @@ bool QuranPdfWriterPdfHummus::writeType3Fonts() {
 
       if (!isSurahFont) {
         glyphName = m_otlayout->glyphNamePerCode[glyphCode.code];
-        GlyphVis* glyph = &glyphs[glyphName];
+        GlyphVis* glyph = &glyphs[glyphName.toStdString()];
         if (glyphCode.lefttatweel != 0 || glyphCode.righttatweel != 0) {
           GlyphParameters params{};
           params.lefttatweel = glyphCode.lefttatweel;
