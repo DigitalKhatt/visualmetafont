@@ -364,7 +364,7 @@ MPGlyphInfo PenStrokeEditor::render(const StrokeModel& model) {
   m_font->pictureNames.append("trajectoryPic");
 
   try {
-    m_font->executeMetaPost(source);
+    m_font->executeMetaPost(source.toLatin1().toStdString());
     m_font->pictureNames.clear();
   } catch (const std::exception& e) {
     m_font->pictureNames.clear();

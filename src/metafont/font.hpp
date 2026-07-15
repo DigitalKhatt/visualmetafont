@@ -24,6 +24,8 @@
 #include <QObject>
 #include <QVector>
 
+#include <string>
+
 #include "OtLayout.h"
 #include "metafont.h"
 
@@ -70,7 +72,7 @@ class Font : public QObject {
   QString currentDir() {
     return m_currentDir;
   }
-  QString executeMetaPost(QString command);
+  std::string executeMetaPost(std::string command);
   std::vector<mp_edge_object*> getEdges() const;
   mp_edge_object* getEdge(int charCode);
   MPGlyphInfo getMPGlyphInfo(int charCode);

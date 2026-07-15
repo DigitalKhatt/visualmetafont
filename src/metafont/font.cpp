@@ -364,16 +364,14 @@ Glyph* Font::getGlyph(uint charcode) {
 
   return NULL;
 }
-QString Font::executeMetaPost(QString command) {
+std::string Font::executeMetaPost(std::string command) {
   mp->history = mp_spotless;
-  QByteArray commandBytes = command.toLatin1();
-  int status = mp_execute(mp, (char*)commandBytes.constData(), commandBytes.size());
+  int status = mp_execute(mp, command.data(), command.size());
   mp_run_data* results = mp_rundata(mp);
-  QString ret(results->term_out.data);
-  ret.trimmed();
+  std::string ret = results && results->term_out.data ? results->term_out.data : "";
   if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-    std::cout << ret.toStdString() << std::endl;
-    throw ret;
+    std::cout << ret << std::endl;
+    throw std::runtime_error(ret);
   }
 
   return ret;
@@ -420,14 +418,14 @@ void Font::generateAlternate(QString macroname, GlyphParameters params, QString 
 
   if (!sourceCode.isEmpty()) {
     auto source = qMetaParams + sourceCode;
-    executeMetaPost(source);
+    executeMetaPost(source.toLatin1().toStdString());
     return;
   }
 
   if (params.lefttatweel != 0 || params.righttatweel != 0) {
     auto metapostString = QString("%1generateAlternate(%2$,params);").arg(qMetaParams).arg(macroname);
 
-    executeMetaPost(metapostString);
+    executeMetaPost(metapostString.toLatin1().toStdString());
   } else if (params.scalex != 0) {
     if (glyphperName.contains(macroname)) {
       auto glyph = glyphperName[macroname];
@@ -438,7 +436,7 @@ void Font::generateAlternate(QString macroname, GlyphParameters params, QString 
       auto index = source.indexOf("\n");
       source.insert(index, QString("originalglyph := \"%1\";").arg(macroname));*/
 
-      executeMetaPost(source);
+      executeMetaPost(source.toLatin1().toStdString());
 
     } else {
       throw std::runtime_error("Error");
@@ -452,7 +450,7 @@ void Font::generateAlternate(QString macroname, GlyphParameters params, QString 
     // auto index = source.indexOf("\n");
     // source.insert(index, QString("originalglyph := \"%1\";").arg(macroname));*/
 
-    executeMetaPost(source);
+    executeMetaPost(source.toLatin1().toStdString());
   }
 }
 mp_graphic_object* Font::copyEdgeBody(mp_graphic_object* body) {

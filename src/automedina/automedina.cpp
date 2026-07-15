@@ -84,19 +84,30 @@ std::unordered_set<std::uint16_t> Automedina::classtoUnicode(const std::string& 
   return unicodes;
 }
 
-void Automedina::generateAyas(QString ayaName, bool colored) {
-  for (int ayaNumber = 1; ayaNumber <= 286; ayaNumber++) {
-    QString setcolored;
+void Automedina::generateAyas(std::string_view ayaName, bool colored) {
+  const std::string ayaNameString(ayaName);
+  for (int ayaNumber = 1; ayaNumber <= 286; ++ayaNumber) {
+    const std::string number = std::to_string(ayaNumber);
+    const std::string glyphName = ayaNameString + number;
+
+    std::string setColored;
     if (colored) {
-      setcolored = QString("coloredglyph:=\"%1.colored%2\"").arg(ayaName).arg(ayaNumber);
+      setColored = "coloredglyph:=\"" + ayaNameString + ".colored" + number + '"';
     }
-    QString data = QString("beginchar(%1%2,-1,-1,2,-1);\n%%beginbody\ngenAyaNumber(%1, %2,3000);%3;endchar;").arg(ayaName).arg(ayaNumber).arg(setcolored);
+
+    std::string data = "beginchar(" + glyphName + ",-1,-1,2,-1);\n"
+                       "%%beginbody\n"
+                       "genAyaNumber(" + ayaNameString + ", " + number + ",3000);" + setColored + ";endchar;";
     m_layout->font->executeMetaPost(data);
-    addedGlyphs[QString("%1%2").arg(ayaName).arg(ayaNumber).toStdString()] = data.toStdString();
+    addedGlyphs[glyphName] = data;
+
     if (colored) {
-      data = QString("beginchar(%1.colored%2,-1,-1,5,-1);\n%%beginbody\ngenAyaNumber(%1.colored, %2,3000);endchar;").arg(ayaName).arg(ayaNumber);
+      const std::string coloredGlyphName = ayaNameString + ".colored" + number;
+      data = "beginchar(" + coloredGlyphName + ",-1,-1,5,-1);\n"
+             "%%beginbody\n"
+             "genAyaNumber(" + ayaNameString + ".colored, " + number + ",3000);endchar;";
       m_layout->font->executeMetaPost(data);
-      addedGlyphs[QString("%1.colored%2").arg(ayaName).arg(ayaNumber).toStdString()] = data.toStdString();
+      addedGlyphs[coloredGlyphName] = data;
     }
   }
 }

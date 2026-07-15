@@ -536,9 +536,9 @@ mp_edge_object* Glyph::getEdge() {
 
   try {
     font->pictureNames = pictureNames;
-    font->executeMetaPost(data);
+    font->executeMetaPost(data.toLatin1().toStdString());
     font->pictureNames.clear();
-  } catch (QString err) {
+  } catch (const std::exception&) {
     font->pictureNames.clear();
     return nullptr;
   }

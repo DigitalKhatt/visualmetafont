@@ -318,7 +318,7 @@ void GlyphWindow::updateWindowMenu() {
 void GlyphWindow::showAnchors(bool checked) {
   QString command = QString("showAnchors:=%1;").arg(checked ? 1 : 0);
 
-  glyph->font->executeMetaPost(command);
+  glyph->font->executeMetaPost(command.toLatin1().toStdString());
 
   glyph->setWidth(glyph->width());
 }

@@ -22,15 +22,13 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
 #include "OtLayout.h"
 #include "digitalkhatt/layout/ClassMap.h"
-#include "qhash.h"
-#include "qmap.h"
 #include "qpoint.h"
-#include "qset.h"
 
 class LayoutWindow;
 
@@ -85,7 +83,6 @@ class Automedina {
   digitalkhatt::layout::ClassMap classes;
 
   std::map<std::string, std::unordered_set<std::uint16_t>> cachedClasstoUnicode;
-  // QMap<QString, AnchorCalc*> anchorCalcFunctions;
 
   std::unordered_set<std::string> initchar;
   std::unordered_set<std::string> medichar;
@@ -102,5 +99,5 @@ class Automedina {
 
   std::vector<std::map<uint16_t, std::vector<ExtendedGlyph>>> cvxxfeatures;
 
-  void generateAyas(QString ayaName, bool colored);
+  void generateAyas(std::string_view ayaName, bool colored);
 };
