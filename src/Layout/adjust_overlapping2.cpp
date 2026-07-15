@@ -273,7 +273,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
 struct GlyphInfo {
   GeometrySet geometrySet;
   GlyphVis* glyphVis;
-  QString& glyphName;
+  QString glyphName;
   bool isInit;
   bool isMedi;
   bool isFina;
