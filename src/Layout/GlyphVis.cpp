@@ -96,9 +96,10 @@ bool GlyphVis::isColored() {
 GlyphVis* GlyphVis::getColoredGlyph() {
   GlyphVis* coloredGlyph = nullptr;
 
-  if (!coloredglyph.isEmpty()) {
-    if (m_otLayout->glyphs.contains(coloredglyph)) {
-      coloredGlyph = &m_otLayout->glyphs[coloredglyph];
+  if (!coloredglyph.empty()) {
+    auto coloredglyphQString = QString::fromStdString(coloredglyph);
+    if (m_otLayout->glyphs.contains(coloredglyphQString)) {
+      coloredGlyph = &m_otLayout->glyphs[coloredglyphQString];
     }
   }
 
@@ -217,7 +218,7 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
   charlt = m_edge->charlt;
   charrt = m_edge->charrt;
   if (m_edge->coloredglyph) {
-    coloredglyph = QString(m_edge->coloredglyph);
+    coloredglyph = m_edge->coloredglyph;
   }
   glyphtype = (GlyphType)m_edge->glyphtype;
 
@@ -273,10 +274,10 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
   }
 }
 
-bool GlyphVis::conatinsAnchor(QString name, AnchorType type) {
+bool GlyphVis::conatinsAnchor(const std::string& name, AnchorType type) {
   return anchors.contains({name, type});
 }
 
-QPoint GlyphVis::getAnchor(QString name, AnchorType type) {
+QPoint GlyphVis::getAnchor(const std::string& name, AnchorType type) {
   return anchors.value({name, type}).anchor;
 }

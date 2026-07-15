@@ -577,7 +577,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
   }
   double minDistance = 10;
 
-  auto& markClass = m_otlayout->automedina->classes["marks"];
+  auto& markClass = digitalkhatt::layout::classesOrEmpty(m_otlayout->automedina->classes, "marks");
   QString spaceName("space");
   QString linefeedName("linefeed");
   QString initName(".init");
@@ -611,7 +611,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
       for (size_t g = 0; g < line.glyphs.size(); g++) {
         auto& glyphLayout = line.glyphs[g];
 
-        QString& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
+        auto glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
         auto currentGlyph = m_otlayout->getGlyph(
             glyphName, {.lefttatweel = glyphLayout.lefttatweel,
                         .righttatweel = glyphLayout.righttatweel,
@@ -627,7 +627,7 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
         bool isInit = glyphName.contains(initName);
         bool isMedi = glyphName.contains(mediName);
         bool isFina = glyphName.contains(finaName);
-        auto isMark = markClass.contains(glyphName);
+        auto isMark = markClass.contains(glyphName.toStdString());
         if (xScale == 1 && yScale == 1) {
           geoSet.emplace_back(
               GlyphInfo{
@@ -747,13 +747,13 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
               auto aabb2 = otherGeometrySet.boundingAABB();
               auto bRec1 = path.boundingRect();
               auto bRec2 = otherpath.boundingRect();
-              std::cout << currentGlyph.name.toStdString() << " AABB1=["
+              std::cout << currentGlyph.name << " AABB1=["
                         << aabb1.minx << "," << aabb1.maxy << "," << aabb1.maxx
                         << "," << aabb1.miny << "] BRec1=["
                         << bRec1.bottomLeft().x() << ","
                         << bRec1.bottomLeft().y() << "," << bRec1.topRight().x()
                         << "," << bRec1.topRight().y() << "]" << std::endl;
-              std::cout << otherGlyph.name.toStdString() << " AABB2=["
+              std::cout << otherGlyph.name << " AABB2=["
                         << aabb2.minx << "," << aabb2.maxy << "," << aabb2.maxx
                         << "," << aabb2.miny << "] bRec2=["
                         << bRec2.bottomLeft().x() << ","

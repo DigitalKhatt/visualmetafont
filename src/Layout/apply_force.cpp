@@ -232,14 +232,16 @@ void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
   auto& downdotmarks = classes["downdotmarks"];
 
   auto isTopMark = [topmarks, lowmarks, waqfmarks, topdotmarks, downdotmarks](QString glyphName) {
-    return topmarks.contains(glyphName)
-      || waqfmarks.contains(glyphName)
-      || topdotmarks.contains(glyphName);
+    auto glyphNameStd = glyphName.toStdString();
+    return topmarks.contains(glyphNameStd)
+      || waqfmarks.contains(glyphNameStd)
+      || topdotmarks.contains(glyphNameStd);
     };
 
   auto isBottomMark = [topmarks, lowmarks, waqfmarks, topdotmarks, downdotmarks](QString glyphName) {
-    return lowmarks.contains(glyphName)
-      || downdotmarks.contains(glyphName);
+    auto glyphNameStd = glyphName.toStdString();
+    return lowmarks.contains(glyphNameStd)
+      || downdotmarks.contains(glyphNameStd);
     };
 
   for (int p = beginPage; p < beginPage + nbPages; p++) {
@@ -286,7 +288,7 @@ void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
 
         auto& currentNode = simulation.nodes.back();
 
-        bool isMark = marks.contains(glyphName);
+        bool isMark = marks.contains(glyphName.toStdString());
 
         if (isMark) {
           currMarks.push_back(currentNode.get());

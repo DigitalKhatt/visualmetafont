@@ -20,12 +20,14 @@
 #ifndef H_FEAAST
 #define H_FEAAST
 
-#include <qdebug.h>
-#include <qstack.h>
-
+#include <algorithm>
+#include <cstdint>
 #include <cmath>
 #include <map>
 #include <ostream>
+#include <set>
+#include <stack>
+#include <unordered_set>
 #include <stdexcept>
 #include <variant>
 #include <vector>
@@ -36,8 +38,6 @@
 #include "Subtable.h"
 #include "just.h"
 #include "statement.h"
-
-class QJsonObject;
 
 namespace feayy {
 
@@ -80,7 +80,7 @@ class ClassComponent {
   virtual ~ClassComponent() {
   }
 
-  virtual QSet<quint16> getCodes(OtLayout* otlayout) = 0;
+  virtual std::unordered_set<std::uint16_t> getCodes(OtLayout* otlayout) = 0;
 
   virtual ClassComponent* clone() = 0;
 };
@@ -95,7 +95,7 @@ class Glyph : public ClassComponent {
     return _glyphtype;
   }
 
-  virtual quint16 getCode(OtLayout* otlayout) = 0;
+  virtual std::uint16_t getCode(OtLayout* otlayout) = 0;
 
   virtual Glyph* clone() = 0;
 };
@@ -168,24 +168,9 @@ class GlyphName : public Glyph {
     return new GlyphName(name);
   }
 
-  QSet<quint16> getCodes(OtLayout* otlayout) override {
-    auto charcode = getCode(otlayout);
-    QSet set{charcode};
-    set.unite(otlayout->getSubsts(charcode));
-    return set;
-  }
+  std::unordered_set<std::uint16_t> getCodes(OtLayout* otlayout) override;
 
-  virtual quint16 getCode(OtLayout* otlayout) override {
-    QString lname = QString::fromStdString(name);
-    if (otlayout->glyphCodePerName.contains(lname)) {
-      auto charcode = otlayout->glyphCodePerName[lname];
-      return charcode;
-    } else {
-      qDebug() << "Glyph Name " + lname + " not found";
-      // return { otlayout->glyphCodePerName[lname] };
-      throw "Glyph Name " + lname + " not found";
-    }
-  }
+  std::uint16_t getCode(OtLayout* otlayout) override;
 };
 
 class ClassName : public ClassComponent {
@@ -200,14 +185,7 @@ class ClassName : public ClassComponent {
     return new ClassName(name);
   }
 
-  QSet<quint16> getCodes(OtLayout* otlayout) override {
-    QString lname = QString::fromStdString(name);
-    auto set = otlayout->classtoUnicode(lname);
-    if (set.isEmpty()) {
-      throw "Class " + lname + " is empty";
-    }
-    return set;
-  }
+  std::unordered_set<std::uint16_t> getCodes(OtLayout* otlayout) override;
 };
 
 class RegExpClass : public ClassComponent {
@@ -222,11 +200,7 @@ class RegExpClass : public ClassComponent {
     return new RegExpClass(_regexpr);
   }
 
-  QSet<quint16> getCodes(OtLayout* otlayout) override {
-    QString regexp = QString::fromStdString(_regexpr);
-    auto set = otlayout->regexptoUnicode(regexp);
-    return set;
-  }
+  std::unordered_set<std::uint16_t> getCodes(OtLayout* otlayout) override;
 };
 
 class GlyphCID : public Glyph {
@@ -235,24 +209,13 @@ class GlyphCID : public Glyph {
 
   operator int() const { return cid; }
 
-  QSet<quint16> getCodes(OtLayout* otlayout) override {
-    auto code = getCode(otlayout);
-    QSet set = {code};
-    set.unite(otlayout->getSubsts(code));
-    return set;
-  }
+  std::unordered_set<std::uint16_t> getCodes(OtLayout* otlayout) override;
 
   GlyphCID* clone() override {
     return new GlyphCID(cid);
   }
 
-  virtual quint16 getCode(OtLayout* otlayout) override {
-    if (otlayout->glyphNamePerCode.contains(cid)) {
-      return (quint16)cid;
-    } else {
-      throw new std::runtime_error("GlyphID " + std::to_string(cid) + "does not exist\n");
-    }
-  }
+  std::uint16_t getCode(OtLayout* otlayout) override;
 
  private:
   int cid;
@@ -263,13 +226,13 @@ class GlyphWithParameters : public Glyph {
   explicit GlyphWithParameters(Glyph* glyph, GlyphParameters parameters)
       : Glyph(glyph->glyphType()), glyph{glyph}, parameters{parameters} {}
 
-  QSet<quint16> getCodes(OtLayout* otlayout) override {
+  std::unordered_set<std::uint16_t> getCodes(OtLayout* otlayout) override {
     auto glyphCode = glyph->getCode(otlayout);
     auto alternate = otlayout->getAlternate(glyphCode, parameters, true, true);
-    return {static_cast<quint16>(alternate->charcode)};
+    return {static_cast<std::uint16_t>(alternate->charcode)};
   }
 
-  virtual quint16 getCode(OtLayout* otlayout) override {
+  std::uint16_t getCode(OtLayout* otlayout) override {
     return glyph->getCode(otlayout);
   }
   GlyphWithParameters* clone() override {
@@ -317,11 +280,11 @@ class GlyphClass {
     return new GlyphClass(std::move(componentsclone));
   }
 
-  QSet<quint16> getCodes(OtLayout* otlayout) {
-    QSet<quint16> unicodes;
+  std::unordered_set<std::uint16_t> getCodes(OtLayout* otlayout) {
+    std::unordered_set<std::uint16_t> unicodes;
     for (auto comp : _components) {
       auto codes = comp->getCodes(otlayout);
-      unicodes.unite(codes);
+      unicodes.insert(codes.begin(), codes.end());
       /*if (auto glyph = dynamic_cast<Glyph*>(comp)) {
         for (auto code : codes) {
           auto set = otlayout->getSubsts(code);
@@ -365,19 +328,20 @@ class GlyphSet {
     } else if (type == Tag::glyph) {
       return new GlyphSet(_glyph->clone());
     }
+    return new GlyphSet();
   }
 
-  QSet<quint16> getCodes(OtLayout* otlayout) {
+  std::unordered_set<std::uint16_t> getCodes(OtLayout* otlayout) {
     if (type == Tag::glyphclass) {
       return _glyphClass->getCodes(otlayout);
     } else if (type == Tag::glyph) {
       return _glyph->getCodes(otlayout);
     } else {
-      return QSet<quint16>();
+      return {};
     }
   }
 
-  QSet<quint16> getCachedCodes(OtLayout* otlayout) {
+  const std::unordered_set<std::uint16_t>& getCachedCodes(OtLayout* otlayout) {
     if (!isCached) {
       cached = getCodes(otlayout);
       isCached = true;
@@ -386,11 +350,11 @@ class GlyphSet {
     return cached;
   }
 
-  QList<quint16> getSortedCodes(OtLayout* otlayout) {
-    auto set = getCodes(otlayout);
-    auto list = set.values();
-    std::sort(list.begin(), list.end());
-    return list;
+  std::vector<std::uint16_t> getSortedCodes(OtLayout* otlayout) {
+    const auto codes = getCodes(otlayout);
+    std::vector<std::uint16_t> sorted(codes.begin(), codes.end());
+    std::sort(sorted.begin(), sorted.end());
+    return sorted;
   }
 
   bool isEmpty() {
@@ -409,7 +373,7 @@ class GlyphSet {
   Tag type;
 
   bool isCached = false;
-  QSet<quint16> cached;
+  std::unordered_set<std::uint16_t> cached;
 };
 
 class Mark2BaseClass {
@@ -435,7 +399,7 @@ class GlyphSetRegExp {
   virtual ~GlyphSetRegExp() {
   }
 
-  virtual QVector<QVector<GlyphSet*>> getSequences() = 0;
+  virtual std::vector<std::vector<GlyphSet*>> getSequences() = 0;
 };
 
 class GlyphSetRegExpSingle : public GlyphSetRegExp {
@@ -448,7 +412,7 @@ class GlyphSetRegExpSingle : public GlyphSetRegExp {
     delete element;
   }
 
-  QVector<QVector<GlyphSet*>> getSequences() override {
+  std::vector<std::vector<GlyphSet*>> getSequences() override {
     if (element->isEmpty()) {
       return {{}};
     } else {
@@ -459,11 +423,11 @@ class GlyphSetRegExpSingle : public GlyphSetRegExp {
 
 class GlyphSetRegExpGlyphSeq : public GlyphSetRegExp {
  public:
-  QVector<GlyphSet*> seq;
+  std::vector<GlyphSet*> seq;
 
   explicit GlyphSetRegExpGlyphSeq(std::vector<Glyph*>* glyphSeq) {
     for (auto glyph : *glyphSeq) {
-      this->seq.append(new GlyphSet(glyph));
+      this->seq.push_back(new GlyphSet(glyph));
     }
     delete glyphSeq;
   }
@@ -474,8 +438,8 @@ class GlyphSetRegExpGlyphSeq : public GlyphSetRegExp {
     }
   }
 
-  QVector<QVector<GlyphSet*>> getSequences() override {
-    if (seq.isEmpty()) {
+  std::vector<std::vector<GlyphSet*>> getSequences() override {
+    if (seq.empty()) {
       return {{}};
     } else {
       return {seq};
@@ -498,16 +462,15 @@ class GlyphSetRegExpSeq : public GlyphSetRegExp {
     delete right;
   }
 
-  QVector<QVector<GlyphSet*>> getSequences() override {
+  std::vector<std::vector<GlyphSet*>> getSequences() override {
     auto lefseqs = left->getSequences();
     auto rightseqs = right->getSequences();
-    QVector<QVector<GlyphSet*>> ret;
+    std::vector<std::vector<GlyphSet*>> ret;
     for (auto leftseq : lefseqs) {
-      QVector<GlyphSet*> newseq = leftseq;
       for (auto rightseq : rightseqs) {
-        QVector<GlyphSet*> newseq{leftseq};
-        newseq.append(rightseq);
-        ret.append(newseq);
+        std::vector<GlyphSet*> newseq{leftseq};
+        newseq.insert(newseq.end(), rightseq.begin(), rightseq.end());
+        ret.push_back(std::move(newseq));
       }
     }
 
@@ -530,44 +493,44 @@ class GlyphSetRegExpRep : public GlyphSetRegExp {
     delete expr;
   }
 
-  QVector<QVector<GlyphSet*>> getSequences() override {
-    QVector<QVector<GlyphSet*>> minSeqs;
+  std::vector<std::vector<GlyphSet*>> getSequences() override {
+    std::vector<std::vector<GlyphSet*>> minSeqs;
 
     auto rightseqs = expr->getSequences();
 
     if (minRep == 0) {
-      minSeqs.append(QVector<GlyphSet*>{});
+      minSeqs.push_back({});
     } else {
       for (int i = 0; i < minRep; i++) {
         auto lefseqs = minSeqs;
         for (auto leftseq : lefseqs) {
           for (auto rightseq : rightseqs) {
-            QVector<GlyphSet*> newseq{leftseq};
-            newseq.append(rightseq);
-            minSeqs.append(newseq);
+            std::vector<GlyphSet*> newseq{leftseq};
+            newseq.insert(newseq.end(), rightseq.begin(), rightseq.end());
+            minSeqs.push_back(std::move(newseq));
           }
         }
       }
     }
 
-    QVector<QVector<GlyphSet*>> ret = minSeqs;
-    QVector<QVector<GlyphSet*>> latSeqs = minSeqs;
+    std::vector<std::vector<GlyphSet*>> ret = minSeqs;
+    std::vector<std::vector<GlyphSet*>> latSeqs = minSeqs;
 
     for (int i = minRep; i < maxRep; i++) {
       auto lefseqs = latSeqs;
       latSeqs = {};
       for (auto leftseq : lefseqs) {
         for (auto rightseq : rightseqs) {
-          QVector<GlyphSet*> newseq{leftseq};
-          newseq.append(rightseq);
-          latSeqs.append(newseq);
+          std::vector<GlyphSet*> newseq{leftseq};
+          newseq.insert(newseq.end(), rightseq.begin(), rightseq.end());
+          latSeqs.push_back(std::move(newseq));
         }
       }
-      ret.append(latSeqs);
+      ret.insert(ret.end(), latSeqs.begin(), latSeqs.end());
     }
 
     std::sort(ret.begin(), ret.end(),
-              [](const QVector<GlyphSet*>& a, const QVector<GlyphSet*>& b) {
+              [](const std::vector<GlyphSet*>& a, const std::vector<GlyphSet*>& b) {
                 return a.size() > b.size();
               });
 
@@ -587,18 +550,18 @@ class GlyphSetRegExpOr : public GlyphSetRegExp {
     delete right;
   }
 
-  QVector<QVector<GlyphSet*>> getSequences() override {
-    QVector<QVector<GlyphSet*>> ret;
+  std::vector<std::vector<GlyphSet*>> getSequences() override {
+    std::vector<std::vector<GlyphSet*>> ret;
 
     auto lefseqs = left->getSequences();
     auto rightseqs = right->getSequences();
 
     for (auto leftseq : lefseqs) {
-      ret.append(leftseq);
+      ret.push_back(leftseq);
     }
 
     for (auto rightseq : rightseqs) {
-      ret.append(rightseq);
+      ret.push_back(rightseq);
     }
 
     return ret;
@@ -694,11 +657,11 @@ class MarkedGlyphSetRegExp {
 
 class ClassDefinition : public LookupStatement {
  public:
-  QString name;
+  std::string name;
   GlyphClass* components;
 
   explicit ClassDefinition(std::string name, GlyphClass* components)
-      : name{QString::fromStdString(name)}, components{components} {}
+      : name{std::move(name)}, components{components} {}
 
   void accept(Visitor&) override;
 
@@ -709,20 +672,20 @@ class ClassDefinition : public LookupStatement {
 
 class FeatureReference : public LookupStatement {
  public:
-  QString featureName;
+  std::string featureName;
 
   explicit FeatureReference(std::string name)
-      : featureName{QString::fromStdString(name)} {}
+      : featureName{std::move(name)} {}
 
   void accept(Visitor&) override;
 };
 
 class LookupReference : public LookupStatement {
  public:
-  QString lookupName;
+  std::string lookupName;
 
   explicit LookupReference(std::string name)
-      : lookupName{QString::fromStdString(name)} {}
+      : lookupName{std::move(name)} {}
 
   void accept(Visitor&) override;
 };
@@ -1148,10 +1111,10 @@ class LookupDefinitionVisitor : public Visitor {
 
  private:
   OtLayout* otlayout;
-  QSet<QString>* refLookups;
+  std::unordered_set<std::string>* refLookups;
   FeaContext& context;
 
-  QStack<std::tuple<Lookup*, QSet<QString>*, int>> lookupStack;
+  std::stack<std::tuple<Lookup*, std::unordered_set<std::string>*, int>> lookupStack;
   int nextautolookup = 1;
 };
 

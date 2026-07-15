@@ -33,10 +33,10 @@
 using namespace std;
 
 Automedina::~Automedina() {}  // not inline
-QSet<quint16> Automedina::regexptoUnicode(QString regexp) {
-  QSet<quint16> unicodes;
+std::unordered_set<std::uint16_t> Automedina::regexptoUnicode(const std::string& regexp) {
+  std::unordered_set<std::uint16_t> unicodes;
 
-  QRegularExpression re(regexp);
+  QRegularExpression re(QString::fromStdString(regexp));
 
   for (auto it = m_layout->glyphCodePerName.keyValueBegin(); it != m_layout->glyphCodePerName.keyValueEnd(); ++it) {
     if (re.match(it->first).hasMatch()) {
@@ -46,40 +46,37 @@ QSet<quint16> Automedina::regexptoUnicode(QString regexp) {
 
   return unicodes;
 }
-QSet<quint16> Automedina::classtoUnicode(QString exprName, bool includeExpandables) {
-  if (cachedClasstoUnicode.contains(exprName)) {
-    return cachedClasstoUnicode[exprName];
+std::unordered_set<std::uint16_t> Automedina::classtoUnicode(const std::string& exprName, bool includeExpandables) {
+  if (auto cached = cachedClasstoUnicode.find(exprName); cached != cachedClasstoUnicode.end()) {
+    return cached->second;
   }
 
-  QSet<quint16> unicodes;
+  std::unordered_set<std::uint16_t> unicodes;
+  const auto qexprName = QString::fromStdString(exprName);
 
   if (!classes.contains(exprName)) {
-    if (m_layout->glyphCodePerName.contains(exprName)) {
-      auto charcode = m_layout->glyphCodePerName[exprName];
+    if (m_layout->glyphCodePerName.contains(qexprName)) {
+      auto charcode = m_layout->glyphCodePerName[qexprName];
       unicodes.insert(charcode);
 
       if (includeExpandables) {
         auto set = m_layout->getSubsts(charcode);
-        unicodes.unite(set);
+        unicodes.insert(set.cbegin(), set.cend());
       }
     } else {
       bool ok;
-      quint16 uniode = exprName.toUInt(&ok, 16);
+      std::uint16_t unicode = qexprName.toUShort(&ok, 16);
       if (!ok) {
-        /*QRegularExpression re(exprName);
-        for (auto it = m_layout->glyphCodePerName.keyValueBegin(); it != m_layout->glyphCodePerName.keyValueEnd(); ++it) {
-          if (re.match(it->first).hasMatch()) {
-            unicodes.insert(it->second);
-          }
-        }*/
-        unicodes.unite(regexptoUnicode(exprName));
+        const auto matches = regexptoUnicode(exprName);
+        unicodes.insert(matches.cbegin(), matches.cend());
       } else {
-        unicodes.insert(uniode);
+        unicodes.insert(unicode);
       }
     }
   } else {
-    for (auto name : classes[exprName]) {
-      unicodes.unite(classtoUnicode(name));
+    for (const auto& name : classes[exprName]) {
+      const auto classUnicodes = classtoUnicode(name);
+      unicodes.insert(classUnicodes.cbegin(), classUnicodes.cend());
     }
   }
 
@@ -90,7 +87,8 @@ QSet<quint16> Automedina::classtoUnicode(QString exprName, bool includeExpandabl
 QSet<QString> Automedina::classtoGlyphName(QString className) {
   QSet<QString> names;
   // TODO use classtoUnicode
-  if (!classes.contains(className)) {
+  auto classNameStd = className.toStdString();
+  if (!classes.contains(classNameStd)) {
     if (m_layout->glyphCodePerName.contains(className)) {
       names.insert(className);
     } else {
@@ -102,8 +100,8 @@ QSet<QString> Automedina::classtoGlyphName(QString className) {
       }
     }
   } else {
-    for (auto name : classes[className]) {
-      names.unite(classtoGlyphName(name));
+    for (auto& name : classes[classNameStd]) {
+      names.unite(classtoGlyphName(QString::fromStdString(name)));
     }
   }
 
@@ -118,11 +116,11 @@ void Automedina::generateAyas(QString ayaName, bool colored) {
     }
     QString data = QString("beginchar(%1%2,-1,-1,2,-1);\n%%beginbody\ngenAyaNumber(%1, %2,3000);%3;endchar;").arg(ayaName).arg(ayaNumber).arg(setcolored);
     m_layout->font->executeMetaPost(data);
-    addedGlyphs.insert(QString("%1%2").arg(ayaName).arg(ayaNumber), data);
+    addedGlyphs[QString("%1%2").arg(ayaName).arg(ayaNumber).toStdString()] = data.toStdString();
     if (colored) {
       data = QString("beginchar(%1.colored%2,-1,-1,5,-1);\n%%beginbody\ngenAyaNumber(%1.colored, %2,3000);endchar;").arg(ayaName).arg(ayaNumber);
       m_layout->font->executeMetaPost(data);
-      addedGlyphs.insert(QString("%1.colored%2").arg(ayaName).arg(ayaNumber), data);
+      addedGlyphs[QString("%1.colored%2").arg(ayaName).arg(ayaNumber).toStdString()] = data.toStdString();
     }
   }
 }

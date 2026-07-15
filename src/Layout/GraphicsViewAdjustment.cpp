@@ -100,7 +100,7 @@ void GraphicsViewAdjustment::contextMenuEvent(QContextMenuEvent* event) {
 
         for (auto item : selectItems) {
           GlyphItem* glyphItem = (GlyphItem*)item;
-          pattern = pattern % "[" % glyphItem->m_glyph->name % "]' ";
+          pattern = pattern % "[" % QString::fromStdString(glyphItem->m_glyph->name) % "]' ";
         }
         QClipboard* clipboard = QGuiApplication::clipboard();
         clipboard->setText(pattern);

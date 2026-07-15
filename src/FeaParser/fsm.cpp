@@ -514,8 +514,15 @@ namespace feayy {
     EqClassesVisitor eqClassesVisitor{ &otlayout };
     globalRes[dfa.maxBackup]->accept(eqClassesVisitor);
     eqClassesVisitor.generateClasses();
-    dfa.eqClasses = eqClassesVisitor.eqClasses;
-    dfa.glyphToClass = eqClassesVisitor.glyphToClass;
+    dfa.eqClasses.clear();
+    dfa.eqClasses.reserve(eqClassesVisitor.eqClasses.size());
+    for (const auto& eqClass : eqClassesVisitor.eqClasses) {
+      dfa.eqClasses.emplace_back(eqClass.begin(), eqClass.end());
+    }
+    dfa.glyphToClass.clear();
+    for (auto it = eqClassesVisitor.glyphToClass.cbegin(); it != eqClassesVisitor.glyphToClass.cend(); ++it) {
+      dfa.glyphToClass.emplace(it.key(), it.value());
+    }
 
     int stateNumber = 0;
     std::set<TDFAConstState> dstates;

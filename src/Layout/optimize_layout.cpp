@@ -43,24 +43,6 @@
 
 using namespace geometry;
 
-namespace {
-
-digitalkhatt::layout::ClassMap toCoreClasses(const QHash<QString, QSet<QString>>& classes) {
-  digitalkhatt::layout::ClassMap result;
-  result.reserve(classes.size());
-  for (auto it = classes.constBegin(); it != classes.constEnd(); ++it) {
-    digitalkhatt::layout::ClassSet set;
-    set.reserve(it.value().size());
-    for (const auto& name : it.value()) {
-      set.insert(name.toStdString());
-    }
-    result.emplace(it.key().toStdString(), std::move(set));
-  }
-  return result;
-}
-
-}  // namespace
-
 void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, const QList<QStringList>& originalPages, int beginPage, int nbPages, double emScale) {
   auto scale = emScale;
 
@@ -75,11 +57,13 @@ void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, const QLi
   auto& downdotmarks = classes["downdotmarks"];
 
   auto isTopMark = [&topmarks, &lowmarks, &waqfmarks, &topdotmarks, &downdotmarks](QString glyphName) {
-    return topmarks.contains(glyphName) || waqfmarks.contains(glyphName) || topdotmarks.contains(glyphName);
+    auto glyphNameStd = glyphName.toStdString();
+    return topmarks.contains(glyphNameStd) || waqfmarks.contains(glyphNameStd) || topdotmarks.contains(glyphNameStd);
   };
 
   auto isBottomMark = [&topmarks, &lowmarks, &waqfmarks, &topdotmarks, &downdotmarks](QString glyphName) {
-    return lowmarks.contains(glyphName) || downdotmarks.contains(glyphName);
+    auto glyphNameStd = glyphName.toStdString();
+    return lowmarks.contains(glyphNameStd) || downdotmarks.contains(glyphNameStd);
   };
 
   // fetch all gryph initially otherwise mpost is not thread safe when
@@ -115,7 +99,7 @@ void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, const QLi
         auto glyphToPoly = glyphToPolys.find(glyphVis);
 
         if (glyphToPoly == glyphToPolys.end()) {
-          if (marks.contains(glyphName)) {
+          if (marks.contains(glyphName.toStdString())) {
             glyphToPoly = glyphToPolys.insert(
                                           {glyphVis,
                                            buildPolyFromCubics(
@@ -138,7 +122,7 @@ void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, const QLi
 
         auto& glyphInstance = lineGlyphs.emplace_back(digitalkhatt::layout::GlyphInstance{});
 
-        glyphInstance.isMark = marks.contains(glyphName);
+        glyphInstance.isMark = marks.contains(glyphName.toStdString());
         glyphInstance.isTopMark = isTopMark(glyphName);
         glyphInstance.lineY = currentyPos;
         glyphInstance.baseX = currentxPos + (glyphLayout.x_offset * line.xscale);
@@ -170,7 +154,7 @@ void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, const QLi
 
   // optimize Pages (m_solverParams is a persistent member so the Solver
   // Tuning dock's edits take effect on the next render)
-  auto coreClasses = toCoreClasses(classes);
+  auto coreClasses = classes;
   // Seed the bowl-base allowlist used by BowlClusterConstraint's named-override
   // detection, if the font's features.fea did not define one. Geometric
   // enclosure is the primary signal; this list is a safety net for the known

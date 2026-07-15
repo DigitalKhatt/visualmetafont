@@ -18,9 +18,15 @@
 */
 
 #pragma once
+#include <cstdint>
+#include <map>
 #include <optional>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
 #include "OtLayout.h"
+#include "digitalkhatt/layout/ClassMap.h"
 #include "qhash.h"
 #include "qmap.h"
 #include "qpoint.h"
@@ -37,8 +43,8 @@ class Automedina {
   friend class GenerateLayout;
 
  public:
-  // static const quint16 AyaNumberCode = 65200;
-  static const quint16 AyaNumberCode = 0xE000;
+  // static const uint16_t AyaNumberCode = 65200;
+  static const uint16_t AyaNumberCode = 0xE000;
   const int markheigh = 500;
   const int markdepth = 80;
   const int spacemkmk = 100;
@@ -50,18 +56,18 @@ class Automedina {
  public:
   Automedina(OtLayout* layout, Font* font, bool extended) : glyphs{layout->glyphs}, m_layout{layout}, font{font}, extended{extended} {}
 
-  QSet<quint16> classtoUnicode(QString exprName, bool includeExpandables);
-  QSet<quint16> classtoUnicode(QString exprName) {
+  std::unordered_set<std::uint16_t> classtoUnicode(const std::string& exprName, bool includeExpandables);
+  std::unordered_set<std::uint16_t> classtoUnicode(const std::string& exprName) {
     return classtoUnicode(exprName, true);
   };
-  QSet<quint16> regexptoUnicode(QString regexp);
+  std::unordered_set<std::uint16_t> regexptoUnicode(const std::string& regexp);
   QSet<QString> classtoGlyphName(QString className);
   QHash<QString, GlyphVis>& glyphs;
   virtual ~Automedina();
 
-  virtual Lookup* getLookup(QString lookupName) = 0;
-  virtual CalcAnchor getanchorCalcFunctions(QString functionName, Subtable* subtable) = 0;
-  virtual CursiveAnchorFunc getCursiveFunctions(QString functionName, Subtable* subtable) {
+  virtual Lookup* getLookup(std::string lookupName) = 0;
+  virtual CalcAnchor getanchorCalcFunctions(std::string functionName, Subtable* subtable) = 0;
+  virtual CursiveAnchorFunc getCursiveFunctions(std::string functionName, Subtable* subtable) {
     CursiveAnchorFunc func;
     return func;
   }
@@ -71,30 +77,30 @@ class Automedina {
   }
   virtual void generateSubstEquivGlyphs() {}
 
-  QMap<QString, QString> addedGlyphs;
+  std::map<std::string, std::string> addedGlyphs;
 
  protected:
   OtLayout* m_layout;
 
-  QHash<QString, QSet<QString>> classes;
+  digitalkhatt::layout::ClassMap classes;
 
-  QMap<QString, QSet<quint16>> cachedClasstoUnicode;
+  std::map<std::string, std::unordered_set<std::uint16_t>> cachedClasstoUnicode;
   // QMap<QString, AnchorCalc*> anchorCalcFunctions;
 
-  QSet<QString> initchar;
-  QSet<QString> medichar;
+  std::unordered_set<std::string> initchar;
+  std::unordered_set<std::string> medichar;
 
   Font* font;
 
-  QMap<QString, QMap<quint16, QPoint>> markAnchors;
-  QMap<QString, QMap<quint16, QPoint>> entryAnchors;
-  QMap<QString, QMap<quint16, QPoint>> exitAnchors;
-  QMap<QString, QMap<quint16, QPoint>> entryAnchorsRTL;
-  QMap<QString, QMap<quint16, QPoint>> exitAnchorsRTL;
+  std::map<std::string, std::map<uint16_t, QPoint>> markAnchors;
+  std::map<std::string, std::map<uint16_t, QPoint>> entryAnchors;
+  std::map<std::string, std::map<uint16_t, QPoint>> exitAnchors;
+  std::map<std::string, std::map<uint16_t, QPoint>> entryAnchorsRTL;
+  std::map<std::string, std::map<uint16_t, QPoint>> exitAnchorsRTL;
 
   bool extended;
 
-  QVector<QMap<quint16, QVector<ExtendedGlyph>>> cvxxfeatures;
+  std::vector<std::map<uint16_t, std::vector<ExtendedGlyph>>> cvxxfeatures;
 
   void generateAyas(QString ayaName, bool colored);
 };

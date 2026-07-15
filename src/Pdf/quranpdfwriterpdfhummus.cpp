@@ -670,9 +670,10 @@ QByteArray QuranPdfWriterPdfHummus::generateGlyphStream(GlyphVis& glyph) {
   s.setRealNumberPrecision(6);
 
   if (glyph.name == "endofaya") {
-    if (m_xobjects.contains(glyph.name)) {
+    auto glyphName = QString::fromStdString(glyph.name);
+    if (m_xobjects.contains(glyphName)) {
       s << glyph.width << " 0 d0\n";
-      s << "/Im" << m_xobjects[glyph.name] << " Do\n";
+      s << "/Im" << m_xobjects[glyphName] << " Do\n";
     } else {
       out += QByteArray::number(glyph.width) + " 0 d0\n";
       out += getImageStream(glyph);
@@ -725,7 +726,7 @@ QByteArray QuranPdfWriterPdfHummus::generateGlyphStream(GlyphVis& glyph) {
       drawDigit(onesD, x + hundreds.width + tens.width + 80);
     }
     s << "ET\n";
-  } else if (glyph.name.startsWith("endofaya")) {
+  } else if (glyph.name.starts_with("endofaya")) {
     auto colored = glyph.getColoredGlyph();
     if (colored) {
       out += QByteArray::number(colored->width) + " 0 d0\n";

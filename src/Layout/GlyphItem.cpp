@@ -39,7 +39,7 @@ GlyphItem::GlyphItem(double xscale, double yscale, GlyphVis* glyph, OtLayout* la
 
   path.setFillRule(Qt::WindingFill);
 
-  if (m_glyph->name.contains("aya")) {
+  if (m_glyph->name.find("aya") != std::string::npos) {
     path.setFillRule(Qt::OddEvenFill);
   }
 
@@ -101,4 +101,3 @@ void GlyphItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
     QGraphicsPathItem::paint(painter, option, widget);
   }
 }
-

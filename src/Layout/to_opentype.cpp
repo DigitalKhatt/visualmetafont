@@ -119,7 +119,7 @@ void ToOpenType::setAxes() {
   for (auto it = ot_layout->glyphCodePerName.keyValueBegin(); it != ot_layout->glyphCodePerName.keyValueEnd(); ++it) {
     auto glyphName = it->first;
     auto glyphCode = it->second;
-    auto* glyph = &ot_layout->glyphs[it->first];
+    auto* glyph = &ot_layout->glyphs[glyphName];
     std::vector<int> regionIndexes;
     if (leftTatweelIndex != -1 || rightTatweelIndex != -1) {
       auto ff = ot_layout->expandableGlyphs.find(glyphName);
@@ -305,7 +305,7 @@ void ToOpenType::setGIds() {
     if (name.isEmpty()) continue;
     if (name != "notdef" && name != "null") {
       if (!ot_layout->glyphs.contains(name)) {
-        throw new std::runtime_error(QString("Glyph name %1 not found").arg(name).toStdString());
+        throw new std::runtime_error("Glyph name " + name.toStdString() + " not found");
       }
       newCodes.insert(code, newCode);
       auto glyph = &ot_layout->glyphs[name];
@@ -326,8 +326,8 @@ void ToOpenType::setGIds() {
     iter++;
   }
 
-  QMap<quint16, quint16>::const_iterator unicodeToGlyphCodeIter = ot_layout->unicodeToGlyphCode.constBegin();
-  while (unicodeToGlyphCodeIter != ot_layout->unicodeToGlyphCode.constEnd()) {
+  auto unicodeToGlyphCodeIter = ot_layout->unicodeToGlyphCode.cbegin();
+  while (unicodeToGlyphCodeIter != ot_layout->unicodeToGlyphCode.cend()) {
     if (!newCodes.contains(unicodeToGlyphCodeIter.value())) {
       throw new std::runtime_error(QString("Code %1 not found").arg(unicodeToGlyphCodeIter.value()).toStdString());
     }
@@ -339,8 +339,8 @@ void ToOpenType::setGIds() {
     unicodeToGlyphCodeIter++;
   }
 
-  QMap<quint16, OtLayout::GDEFClasses>::const_iterator glyphGlobalClassesIter = ot_layout->glyphGlobalClasses.constBegin();
-  while (glyphGlobalClassesIter != ot_layout->glyphGlobalClasses.constEnd()) {
+  auto glyphGlobalClassesIter = ot_layout->glyphGlobalClasses.cbegin();
+  while (glyphGlobalClassesIter != ot_layout->glyphGlobalClasses.cend()) {
     if (!newCodes.contains(glyphGlobalClassesIter.key())) {
       throw new std::runtime_error(QString("Code %1 not found").arg(glyphGlobalClassesIter.key()).toStdString());
     }
@@ -376,25 +376,21 @@ void ToOpenType::setGIds() {
 
   for (int i = 0; i <= 4; i++) {
     auto automedina = ot_layout->automedina;
-    QMap<QString, QMap<quint16, QPoint>>& currentAnchors = i == 0 ? automedina->markAnchors : i == 1 ? automedina->entryAnchors
+    std::map<std::string, std::map<uint16_t, QPoint>>& currentAnchors = i == 0 ? automedina->markAnchors : i == 1 ? automedina->entryAnchors
                                                                                           : i == 2   ? automedina->exitAnchors
                                                                                           : i == 3   ? automedina->entryAnchorsRTL
                                                                                                      : automedina->exitAnchorsRTL;
-    if (!currentAnchors.isEmpty()) {
-      QMap<QString, QMap<quint16, QPoint>> anchors;
-      QMap<QString, QMap<quint16, QPoint>>::const_iterator anchorsIter = currentAnchors.constBegin();
-      while (anchorsIter != currentAnchors.end()) {
-        QMap<quint16, QPoint> map;
-        QMap<quint16, QPoint>::ConstIterator mapIter = anchorsIter.value().constBegin();
-        while (mapIter != anchorsIter.value().constEnd()) {
-          if (!newCodes.contains(mapIter.key())) {
-            throw new std::runtime_error(QString("Code %1 not found").arg(mapIter.key()).toStdString());
+    if (!currentAnchors.empty()) {
+      std::map<std::string, std::map<uint16_t, QPoint>> anchors;
+      for (auto& [anchorName, codeMap] : currentAnchors) {
+        std::map<uint16_t, QPoint> map;
+        for (auto& [code, point] : codeMap) {
+          if (!newCodes.contains(code)) {
+            throw new std::runtime_error(QString("Code %1 not found").arg(code).toStdString());
           }
-          map.insert(newCodes.value(mapIter.key()), mapIter.value());
-          mapIter++;
+          map.insert({newCodes.value(code), point});
         }
-        anchors.insert(anchorsIter.key(), map);
-        anchorsIter++;
+        anchors.insert({anchorName, map});
       }
       currentAnchors = anchors;
     }
@@ -410,13 +406,12 @@ void ToOpenType::setGIds() {
   ot_layout->glyphGlobalClasses = glyphGlobalClasses;
 
   for (auto& cvlo : ot_layout->automedina->cvxxfeatures) {
-    QMap<quint16, QVector<ExtendedGlyph>> newalternates;
-    for (auto iter = cvlo.begin(); iter != cvlo.end(); ++iter) {
-      auto oldid = iter.key();
+    std::map<uint16_t, std::vector<ExtendedGlyph>> newalternates;
+    for (auto& [oldid, glyphList] : cvlo) {
       auto newid = newCodes[oldid];
-      for (auto glyph : iter.value()) {
+      for (auto& glyph : glyphList) {
         ExtendedGlyph extendedGlyph = {newCodes[glyph.code], glyph.lefttatweel, glyph.righttatweel};
-        newalternates[newid].append(extendedGlyph);
+        newalternates[newid].push_back(extendedGlyph);
       }
     }
     cvlo = newalternates;
@@ -730,14 +725,14 @@ QByteArray ToOpenType::hhea() {
 QByteArray ToOpenType::hmtx() {
   QByteArray data;
 
-  auto& marks = ot_layout->automedina->classes.value("marks");
+  auto& marks = digitalkhatt::layout::classesOrEmpty(ot_layout->automedina->classes, "marks");
 
   for (int i = 0; i < glyphs.lastKey() + 1; i++) {
     if (glyphs.contains(i)) {
       auto glyph = glyphs.value(i);
 
       bool ismark = false;
-      if (!glyph->originalglyph.isEmpty()) {
+      if (!glyph->originalglyph.empty()) {
         ismark = marks.contains(glyph->originalglyph);
       } else {
         ismark = marks.contains(glyph->name);
@@ -960,7 +955,7 @@ QByteArray ToOpenType::post() {
         data << (uint16_t)(index + 258);
         index++;
         auto glyph = glyphs.value(i);
-        auto newName = glyph->name;
+        auto newName = QString::fromStdString(glyph->name);
         newName.replace("added", QString("%1_%2").arg(glyph->charlt * 10).arg(glyph->charrt * 10));
 
         auto name = newName.toLatin1();
@@ -986,7 +981,7 @@ void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_graphic_object**
       if (subrByGlyph.contains(compGlyph.charcode)) {
         auto subrByGlyphInfo = subrByGlyph.value(compGlyph.charcode);
 
-        const auto& ff = regionIndexesIndexByGlyph.find(glyph.name);
+        const auto& ff = regionIndexesIndexByGlyph.find(QString::fromStdString(glyph.name));
 
         int mainGlyphregionIndexesArrayIndex = -1;
 
@@ -1231,8 +1226,8 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
     if (glyphs.contains(i)) {
       auto& glyph = *glyphs.value(i);
 
-      if (!glyph.coloredglyph.isEmpty()) {
-        coloredglyphs.insert({glyph.charcode, glyph.coloredglyph});
+      if (!glyph.coloredglyph.empty()) {
+        coloredglyphs.insert({glyph.charcode, QString::fromStdString(glyph.coloredglyph)});
       }
 
       QByteArray glyphData;
@@ -1249,7 +1244,7 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
         ContourLimits contourLimits;
 
         if (ot_layout->isOTVar) {
-          const auto& ff = regionIndexesIndexByGlyph.find(glyph.name);
+          const auto& ff = regionIndexesIndexByGlyph.find(QString::fromStdString(glyph.name));
 
           if (ff != regionIndexesIndexByGlyph.end()) {
             regionIndexesArrayIndex = ff->second;
@@ -1817,7 +1812,7 @@ void ToOpenType::generateComponents() {
     int regionIndexesArrayIndex = -1;
 
     if (ot_layout->isOTVar) {
-      const auto& ff = regionIndexesIndexByGlyph.find(glyph.name);
+      const auto& ff = regionIndexesIndexByGlyph.find(QString::fromStdString(glyph.name));
 
       if (ff != regionIndexesIndexByGlyph.end()) {
         regionIndexesArrayIndex = ff->second;
@@ -2050,7 +2045,7 @@ QByteArray ToOpenType::HVAR() {
     if (glyphs.contains(i)) {
       auto& glyph = *glyphs.value(i);
 
-      auto find = regionIndexesIndexByGlyph.find(glyph.name);
+      auto find = regionIndexesIndexByGlyph.find(QString::fromStdString(glyph.name));
       if (find != regionIndexesIndexByGlyph.end()) {
         DefaultDelta advanceDelta;
         DefaultDelta lsbDelta;

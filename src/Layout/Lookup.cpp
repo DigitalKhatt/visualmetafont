@@ -41,7 +41,8 @@ void Lookup::setGlyphSet(QVector<QString> list) {
   QSet<quint16> set;
   for (auto className : list) {
     markGlyphSet.append(className);
-    set.unite(layout->classtoUnicode(className));
+    const auto codes = layout->classtoUnicode(className.toStdString());
+    for (const auto code : codes) set.insert(code);
   }
 
   markGlyphSetIndex = -1;
@@ -78,7 +79,8 @@ void Lookup::readJson(const QJsonObject& jsonsubtable) {
   for (int index = 0; index < markGlyphSetArray.size(); ++index) {
     QString className = markGlyphSetArray[index].toString();
     markGlyphSet.append(className);
-    set.unite(layout->classtoUnicode(className));
+    const auto codes = layout->classtoUnicode(className.toStdString());
+    for (const auto code : codes) set.insert(code);
   }
 
   markGlyphSetIndex = -1;
@@ -92,7 +94,7 @@ void Lookup::readJson(const QJsonObject& jsonsubtable) {
   if (type == "color") {
     SingleAdjustmentSubtable* newsubtable = new SingleAdjustmentSubtable(this, 3);
     this->type = Lookup::singleadjustment;
-    newsubtable->name = name;
+    newsubtable->name = name.toStdString();
     newsubtable->readJson(jsonsubtable["data"].toObject());
     subtables.append(newsubtable);
 
@@ -100,7 +102,7 @@ void Lookup::readJson(const QJsonObject& jsonsubtable) {
   else if (type == "singleadj") {
     SingleAdjustmentSubtable* newsubtable = new SingleAdjustmentSubtable(this);
     this->type = Lookup::singleadjustment;
-    newsubtable->name = name;
+    newsubtable->name = name.toStdString();
     newsubtable->readJson(jsonsubtable["data"].toObject());
     subtables.append(newsubtable);
 
@@ -108,7 +110,7 @@ void Lookup::readJson(const QJsonObject& jsonsubtable) {
   else if (type == "cursive") {
     CursiveSubtable* newsubtable = new CursiveSubtable(this);
     this->type = Lookup::cursive;
-    newsubtable->name = name;
+    newsubtable->name = name.toStdString();
     newsubtable->readJson(jsonsubtable);
     subtables.append(newsubtable);
 
@@ -116,7 +118,7 @@ void Lookup::readJson(const QJsonObject& jsonsubtable) {
   else if (type == "mark2base") {
     MarkBaseSubtable* newsubtable = new MarkBaseSubtable(this);
     this->type = Lookup::mark2base;
-    newsubtable->name = name;
+    newsubtable->name = name.toStdString();
     newsubtable->readJson(jsonsubtable);
     subtables.append(newsubtable);
 
@@ -124,7 +126,7 @@ void Lookup::readJson(const QJsonObject& jsonsubtable) {
   else if (type == "mark2mark") {
     MarkBaseSubtable* newsubtable = new MarkBaseSubtable(this);
     this->type = Lookup::mark2mark;
-    newsubtable->name = name;
+    newsubtable->name = name.toStdString();
     newsubtable->readJson(jsonsubtable);
     this->subtables.append(newsubtable);
 
@@ -132,21 +134,21 @@ void Lookup::readJson(const QJsonObject& jsonsubtable) {
   else if (type == "single") {
     SingleSubtable* newsubtable = new SingleSubtable(this);
     this->type = Lookup::single;
-    newsubtable->name = name;
+    newsubtable->name = name.toStdString();
     newsubtable->readJson(jsonsubtable["data"].toObject());
     this->subtables.append(newsubtable);
   }
   else if (type == "multiple") {
     MultipleSubtable* newsubtable = new MultipleSubtable(this);
     this->type = Lookup::multiple;
-    newsubtable->name = name;
+    newsubtable->name = name.toStdString();
     newsubtable->readJson(jsonsubtable["data"].toObject());
     this->subtables.append(newsubtable);
   }
   else if (type == "ligature") {
     LigatureSubtable* newsubtable = new LigatureSubtable(this);
     this->type = Lookup::ligature;
-    newsubtable->name = name;
+    newsubtable->name = name.toStdString();
     newsubtable->readJson(jsonsubtable["data"].toObject());
     this->subtables.append(newsubtable);
   }
@@ -158,7 +160,7 @@ void Lookup::readJson(const QJsonObject& jsonsubtable) {
       QJsonObject ruleObject = subtablesArray[index].toObject();
       ChainingSubtable* newsubtable = new ChainingSubtable(this);
       this->type = Lookup::chainingsub;
-      newsubtable->name = name + QString::number(index);
+      newsubtable->name = name.toStdString() + std::to_string(index);
       this->subtables.append(newsubtable);
       newsubtable->readJson(ruleObject);
     }
@@ -172,7 +174,7 @@ void Lookup::readJson(const QJsonObject& jsonsubtable) {
       QJsonObject ruleObject = subtablesArray[index].toObject();
       ChainingSubtable* newsubtable = new ChainingSubtable(this);
       this->type = Lookup::chainingpos;
-      newsubtable->name = name + QString::number(index);
+      newsubtable->name = name.toStdString() + std::to_string(index);
       this->subtables.append(newsubtable);
       newsubtable->readJson(ruleObject);
 
@@ -186,7 +188,7 @@ void Lookup::saveParameters(QJsonObject& json) const {
     QJsonObject  subtableObject;
     subtable->saveParameters(subtableObject);
     if (!subtableObject.isEmpty()) {
-      json[subtable->name] = subtableObject;
+      json[QString::fromStdString(subtable->name)] = subtableObject;
     }
 
   }
@@ -195,7 +197,7 @@ void Lookup::readParameters(const QJsonObject& json) {
   for (int index = 0; index < json.size(); ++index) {
     QString subtableName = json.keys()[index];
     for (auto subtable : subtables) {
-      if (subtable->name == subtableName) {
+      if (subtable->name == subtableName.toStdString()) {
         subtable->readParameters(json[subtableName].toObject());
         break;
       }

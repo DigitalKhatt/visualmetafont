@@ -3612,9 +3612,10 @@ QByteArray MyQPdfEnginePrivate::generateGlyph(GlyphVis& glyph) {
   MyQPdf::ByteStream steamDataByteStream(&steamDataByteArray);
 
   if (glyph.name == "endofaya") {  //||  glyph->name == "rubelhizb" glyph->name == "placeofsajdah" ||
-    if (XObjects.contains(glyph.name)) {
+    auto glyphName = QString::fromStdString(glyph.name);
+    if (XObjects.contains(glyphName)) {
       steamDataByteStream << glyph.width << 0 << "d0\n";
-      int xobjectnum = XObjects[glyph.name];
+      int xobjectnum = XObjects[glyphName];
       steamDataByteStream << "/Im" << xobjectnum << " Do\n";
     } else {
       auto bytearray = getImageStream(glyph);
@@ -3718,7 +3719,7 @@ QByteArray MyQPdfEnginePrivate::generateGlyph(GlyphVis& glyph) {
     }
 
     steamDataByteStream << "ET\n";
-  } else if (glyph.name.startsWith("endofaya")) {
+  } else if (glyph.name.starts_with("endofaya")) {
     auto coloredGlyph = glyph.getColoredGlyph();
     if (coloredGlyph) {
       auto bytearray = getImageStream(*coloredGlyph);

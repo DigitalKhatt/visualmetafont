@@ -107,7 +107,7 @@ void FSMDriver::executeFSM(FSMSubtable& table, OT::hb_ot_apply_context_t* contex
     int classId = -1;
 
     if (dfa.glyphToClass.contains(codepoint)) {
-      classId = dfa.glyphToClass.value(codepoint);
+      classId = dfa.glyphToClass.at(codepoint);
     }
 
     const auto& it = currentState->transtitions.find(classId);

@@ -144,7 +144,7 @@ namespace feayy {
 
     for (auto pass : tableDefinition.passes) {
       FSMSubtable* fsm = new FSMSubtable(lookup);
-      fsm->name = QString::fromStdString(tableDefinition.name) + QString("%1").arg(pass.number());
+      fsm->name = tableDefinition.name + std::to_string(pass.number());
       fsm->dfa = pass.computeDFA(*otlayout);
       lookup->subtables.append(fsm);
     }
@@ -190,40 +190,26 @@ namespace feayy {
 
     auto codes = glyphSet->getCachedCodes(otlayout);
 
-    if (codes.isEmpty()) return;
+    if (codes.empty()) return;
 
-    QMutableVectorIterator<QSet<quint16>> i(eqClasses);
-
-    QVector<QSet<quint16>> newSets;
-
-    while (i.hasNext()) {
-      auto set = i.next();
-
-      auto intersect = set & codes;
-
-      if (!intersect.isEmpty()) {
-
-        auto newset = set - intersect;
-
-        if (!newset.isEmpty()) {
-          i.setValue(newset);
-          newSets.append(intersect);
-        }
-
-        codes = codes - intersect;
-
-        if (codes.isEmpty()) break;
-
+    std::vector<std::unordered_set<std::uint16_t>> newSets;
+    for (auto& existing : eqClasses) {
+      std::unordered_set<std::uint16_t> intersection;
+      for (const auto code : codes) {
+        if (existing.contains(code)) intersection.insert(code);
       }
+      if (intersection.empty()) continue;
+
+      for (const auto code : intersection) {
+        existing.erase(code);
+        codes.erase(code);
+      }
+      newSets.push_back(intersection);
+      if (codes.empty()) break;
     }
 
-    if (!newSets.isEmpty()) {
-      eqClasses.append(newSets);
-    }
-
-    if (!codes.isEmpty()) {
-      eqClasses.append(codes);
-    }
+    eqClasses.insert(eqClasses.end(), newSets.begin(), newSets.end());
+    if (!codes.empty()) eqClasses.push_back(std::move(codes));
 
 
 

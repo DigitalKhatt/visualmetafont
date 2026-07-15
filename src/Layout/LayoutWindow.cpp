@@ -756,9 +756,8 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended,
 
   out << fileInfo.baseName() << ".glyphnames = {\n";
 
-  for (auto& key : layout.glyphNamePerCode.keys()) {
-    auto name = layout.glyphNamePerCode.value(key);
-    out << "  [" << key << "] = \"" << name << "\", \n";
+  for (auto it = layout.glyphNamePerCode.keyValueBegin(); it != layout.glyphNamePerCode.keyValueEnd(); ++it) {
+    out << "  [" << it->first << "] = \"" << it->second << "\", \n";
   }
 
   out << "}";
@@ -1002,7 +1001,7 @@ void LayoutWindow::checkOffMarks() {
         QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
         bool isMark =
-            m_otlayout->automedina->classes["marks"].contains(glyphName);
+            digitalkhatt::layout::classesOrEmpty(m_otlayout->automedina->classes, "marks").contains(glyphName.toStdString());
 
         if (!isMark) {
           baseGlyph = m_otlayout->getGlyph(
@@ -1067,8 +1066,8 @@ void LayoutWindow::checkOffMarks() {
                                    ? markGlyph->originalglyph
                                    : markGlyph->name;
 
-          results.append({p, l, baseIndex, g, baseGlyphName, baseGlyph->charlt,
-                          baseGlyph->charrt, markGlyphName, markGlyph->charlt,
+          results.append({p, l, baseIndex, g, QString::fromStdString(baseGlyphName), baseGlyph->charlt,
+                          baseGlyph->charrt, QString::fromStdString(markGlyphName), markGlyph->charlt,
                           markGlyph->charrt, word});
         }
       }
@@ -1824,8 +1823,8 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
   layout.automedina->cvxxfeatures.clear();
 
-  layout.automedina->cvxxfeatures.append(
-      QMap<quint16, QVector<ExtendedGlyph>>());
+  layout.automedina->cvxxfeatures.push_back(
+      std::map<uint16_t, std::vector<ExtendedGlyph>>());
 
   auto& cv01feature = layout.automedina->cvxxfeatures[0];
 
@@ -2066,7 +2065,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
           if (alternateIndex == -1) {
             // if (value.glyphs[0]->codepoint != unicode) {
-            alternates.append({value.glyphs[0]->codepoint, 0.0, 0.0});
+            alternates.push_back({value.glyphs[0]->codepoint, 0.0, 0.0});
             alternateIndex = alternates.size();
             //}
           }
@@ -4029,7 +4028,7 @@ void LayoutWindow::convertCursiveToKern() {
 
   QString isolglyphsRegExpr = "[.]isol";  //"^alef[.]isol|^hamza[.]isol";
 
-  auto isolGlyphs = m_otlayout->classtoUnicode(isolglyphsRegExpr);
+  auto isolGlyphs = m_otlayout->classtoUnicode(isolglyphsRegExpr.toStdString());
 
   int subLookupNumber = 2;
 
@@ -4045,7 +4044,7 @@ void LayoutWindow::convertCursiveToKern() {
       for (auto& subtable : lookup->subtables) {
         if (auto curSub = dynamic_cast<CursiveSubtable*>(subtable)) {
           for (auto i = curSub->anchors.cbegin(), end = curSub->anchors.cend(); i != end; ++i) {
-            auto exitGlyphCode = i.key();
+            auto exitGlyphCode = i->first;
             auto exit = curSub->getExit(exitGlyphCode, {});
             if (exit) {
               if (exit->x() != 150 || exit->y() != 0) {
@@ -4075,14 +4074,14 @@ void LayoutWindow::convertCursiveToKern() {
       for (auto& subtable : lookup->subtables) {
         if (auto curSub = dynamic_cast<CursiveSubtable*>(subtable)) {
           for (auto i = curSub->anchors.cbegin(), end = curSub->anchors.cend(); i != end; ++i) {
-            auto exitGlyphCode = i.key();
+            auto exitGlyphCode = i->first;
             auto exit = curSub->getExit(exitGlyphCode, {});
             QString exitGlyphName = m_otlayout->glyphNamePerCode[exitGlyphCode];
             if (exit) {
               QString sublookupPos;
               QString mainLookupPos = "  pos [" + exitGlyphName + "] [";
               for (auto j = curSub->anchors.cbegin(), end = curSub->anchors.cend(); j != end; ++j) {
-                auto entryGlyphCode = j.key();
+                auto entryGlyphCode = j->first;
                 auto entry = curSub->getEntry(entryGlyphCode, {});
                 if (entry) {
                   QString entryGlyphName = m_otlayout->glyphNamePerCode[entryGlyphCode];
@@ -4096,7 +4095,7 @@ void LayoutWindow::convertCursiveToKern() {
                     } else {
                       mainLookupPos += " " + entryGlyphName;
                       localbaseBaseMarkPos += "    pos base [" + exitGlyphName + "] " + QString("<anchor %1 %2>").arg(exit->x()).arg(exit->y());
-                      localbaseBaseMarkPos += " markClass [" + entryGlyphName + "] " + QString("<anchor %1 %2>").arg(entry->x()).arg(entry->y()) + " @" + curSub->name + ";\n";
+                      localbaseBaseMarkPos += " markClass [" + entryGlyphName + "] " + QString("<anchor %1 %2>").arg(entry->x()).arg(entry->y()) + " @" + QString::fromStdString(curSub->name) + ";\n";
                       auto kern = entry->x() - (int)entryGlyph.width - exit->x();
                       if (kern != 0) {
                         sublookupPos += "    pos [" + entryGlyphName + "]'<0 0 " + QString("%1").arg(kern) + " 0>;\n";
@@ -4109,7 +4108,7 @@ void LayoutWindow::convertCursiveToKern() {
                       sublookupPos += "    pos [" + entryGlyphName + "] <0 " + QString("%1").arg(-entry->y()) + " " + QString("%1").arg(entry->x() - (int)entryGlyph.width - 150) + " 0>;\n";
                     } else {
                       localbaseBaseMarkPos += "    pos base [" + exitGlyphName + "] " + QString("<anchor %1 %2>").arg(exit->x()).arg(exit->y());
-                      localbaseBaseMarkPos += " markClass [" + entryGlyphName + "] " + QString("<anchor %1 %2>").arg(entry->x()).arg(entry->y()) + " @" + curSub->name + ";\n";
+                      localbaseBaseMarkPos += " markClass [" + entryGlyphName + "] " + QString("<anchor %1 %2>").arg(entry->x()).arg(entry->y()) + " @" + QString::fromStdString(curSub->name) + ";\n";
                       auto kern = entry->x() - (int)entryGlyph.width - exit->x();
                       if (kern != 0) {
                         sublookupPos += "    pos [" + entryGlyphName + "]'<0 0 " + QString("%1").arg(kern) + " 0>;\n";
@@ -4119,7 +4118,7 @@ void LayoutWindow::convertCursiveToKern() {
                 }
               }
               if (!sublookupPos.isEmpty()) {
-                QString subLookupName = QString("rehwawcursivecoretext." + curSub->name + ".l%1").arg(subLookupNumber++);
+                QString subLookupName = QString("rehwawcursivecoretext.%1.l%2").arg(QString::fromStdString(curSub->name)).arg(subLookupNumber++);
                 QString sublookup = "  lookup " + subLookupName + "{\n";
                 sublookup += sublookupPos;
                 sublookup += "  } " + subLookupName + ";\n";
@@ -4133,7 +4132,7 @@ void LayoutWindow::convertCursiveToKern() {
             }
           }
         } else {
-          std::cerr << "Problem in lookup=" << lookup->name.toStdString() << "Subtable=" << curSub->name.toStdString() << "\n";
+          std::cerr << "Problem in lookup=" << lookup->name.toStdString() << "Subtable=" << curSub->name << "\n";
         }
       }
       if (!localbaseBaseMarkPos.isEmpty()) {
@@ -4151,12 +4150,12 @@ void LayoutWindow::convertCursiveToKern() {
       for (auto& subtable : lookup->subtables) {
         if (auto curSub = dynamic_cast<CursiveSubtable*>(subtable)) {
           for (auto i = curSub->anchors.cbegin(), end = curSub->anchors.cend(); i != end; ++i) {
-            auto exitGlyphCode = i.key();
+            auto exitGlyphCode = i->first;
             auto exit = curSub->getExit(exitGlyphCode, {});
             QString exitGlyphName = m_otlayout->glyphNamePerCode[exitGlyphCode];
             if (exit) {
               for (auto j = curSub->anchors.cbegin(), end = curSub->anchors.cend(); j != end; ++j) {
-                auto entryGlyphCode = j.key();
+                auto entryGlyphCode = j->first;
                 auto entry = curSub->getEntry(entryGlyphCode, {});
                 if (entry) {
                   QString entryGlyphName = m_otlayout->glyphNamePerCode[entryGlyphCode];
@@ -4173,7 +4172,7 @@ void LayoutWindow::convertCursiveToKern() {
                   // Add kerning since  base to base positiong does not affect kerning
                   if (false && isolCodes.contains(entryGlyphCode) && !rehWawGlyphs.contains(entryGlyphName)) {
                     baseBaseMarkPos += "  pos base [" + exitGlyphName + "] " + QString("<anchor %1 %2>").arg(exit->x()).arg(exit->y());
-                    baseBaseMarkPos += " markClass [" + entryGlyphName + "] " + QString("<anchor %1 %2>").arg(entry->x()).arg(entry->y()) + " @" + curSub->name + ";\n";
+                    baseBaseMarkPos += " markClass [" + entryGlyphName + "] " + QString("<anchor %1 %2>").arg(entry->x()).arg(entry->y()) + " @" + QString::fromStdString(curSub->name) + ";\n";
 
                     auto& entryGlyph = m_otlayout->glyphs[entryGlyphName];
                     auto kern = entry->x() - (int)entryGlyph.width - exit->x();

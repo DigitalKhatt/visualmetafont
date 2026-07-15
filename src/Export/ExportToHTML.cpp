@@ -419,7 +419,7 @@ void ExportToHTML::generateQuranPagesOld(QList<QList<LineLayoutInfo>> pages, int
 
   for (auto& glyph : glyphs) {
     //if (usedGlyphs.contains(glyph.charcode)) {
-    out << "glyphs['" << glyph.name << "'] = function(ctx) {\n";
+    out << "glyphs['" << QString::fromStdString(glyph.name) << "'] = function(ctx) {\n";
 
     generateGlyph(glyph, out);
 
@@ -496,7 +496,7 @@ void ExportToHTML::generateGlyph(GlyphVis& glyph, QTextStream& out) {
       auto position = m_otlayout->glyphs["endofaya"].width / 2 - (onesglyph.width) / 2;
 
       out << "\tctx.translate(" << position << "," << digitheight << ");\n";
-      out << "\tglyphs['" << onesglyph.name << "'](ctx);\n";
+      out << "\tglyphs['" << QString::fromStdString(onesglyph.name) << "'](ctx);\n";
 
     }
     else if (ayaNumber < 100) {
@@ -511,10 +511,10 @@ void ExportToHTML::generateGlyph(GlyphVis& glyph, QTextStream& out) {
       auto position = m_otlayout->glyphs["endofaya"].width / 2 - (onesglyph.width + tensglyph.width + 40) / 2;
 
       out << "\tctx.translate(" << position << "," << digitheight << ");\n";
-      out << "\tglyphs['" << tensglyph.name << "'](ctx);\n";
+      out << "\tglyphs['" << QString::fromStdString(tensglyph.name) << "'](ctx);\n";
 
       out << "\tctx.translate(" << tensglyph.width + 40 << "," << 0 << ");\n";
-      out << "\tglyphs['" << onesglyph.name << "'](ctx);\n";
+      out << "\tglyphs['" << QString::fromStdString(onesglyph.name) << "'](ctx);\n";
 
     }
     else {
@@ -529,13 +529,13 @@ void ExportToHTML::generateGlyph(GlyphVis& glyph, QTextStream& out) {
       auto position = m_otlayout->glyphs["endofaya"].width / 2 - (onesglyph.width + tensglyph.width + hundredsglyph.width + 80) / 2;
 
       out << "\tctx.translate(" << position << "," << digitheight << ");\n";
-      out << "\tglyphs['" << hundredsglyph.name << "'](ctx);\n";
+      out << "\tglyphs['" << QString::fromStdString(hundredsglyph.name) << "'](ctx);\n";
 
       out << "\tctx.translate(" << hundredsglyph.width + 40 << "," << 0 << ");\n";
-      out << "\tglyphs['" << tensglyph.name << "'](ctx);\n";
+      out << "\tglyphs['" << QString::fromStdString(tensglyph.name) << "'](ctx);\n";
 
       out << "\tctx.translate(" << tensglyph.width + 40 << "," << 0 << ");\n";
-      out << "\tglyphs['" << onesglyph.name << "'](ctx);\n";
+      out << "\tglyphs['" << QString::fromStdString(onesglyph.name) << "'](ctx);\n";
 
     }
 

@@ -33,6 +33,7 @@
 #include <set>
 #include <stdexcept>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "FSMDriver.h"
 #include "JustificationContext.h"
@@ -192,8 +193,8 @@ class OtLayout : public QObject {
 
   void parseFeatureFile(std::string fileName);
   hb_font_t* createFont(double scale, bool newFace = true);
-  QSet<quint16> classtoUnicode(QString className);
-  QSet<quint16> regexptoUnicode(QString regexp);
+  std::unordered_set<std::uint16_t> classtoUnicode(const std::string& className);
+  std::unordered_set<std::uint16_t> regexptoUnicode(const std::string& regexp);
 
   QSet<QString> classtoGlyphName(QString className);
   void saveParameters(QJsonObject& json) const;
@@ -232,8 +233,6 @@ class OtLayout : public QObject {
   QByteArray gsub_array;
   QByteArray gpos_array;
   QByteArray gdef_array;
-
-  // QJSEngine myEngine;
 
   QMap<QString, quint16> glyphCodePerName;
   QMap<quint16, QString> glyphNamePerCode;

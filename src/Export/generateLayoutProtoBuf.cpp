@@ -111,7 +111,7 @@ void GenerateLayout::generateLayoutProtoBuf(int lineWidth, int scale) {
   for (auto& glyph : m_otlayout->glyphs) {
     protobuf::Glyph glyphProto;
 
-    bool isColored = glyph.name.contains("aya");
+    bool isColored = glyph.name.find("aya") != std::string::npos;
 
     if (isColored) {
       //glyphProto.set_name(glyph.name.toStdString());
@@ -125,7 +125,7 @@ void GenerateLayout::generateLayoutProtoBuf(int lineWidth, int scale) {
 
     ::edgetoHTML5Path(glyph.copiedPath, glyphProto, &protobuf::Glyph::add_default_, isColored);
 
-    const auto& ff = m_otlayout->expandableGlyphs.find(glyph.name);
+    const auto& ff = m_otlayout->expandableGlyphs.find(QString::fromStdString(glyph.name));
 
     if (ff != m_otlayout->expandableGlyphs.end()) {
 

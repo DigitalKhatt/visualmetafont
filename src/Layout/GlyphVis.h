@@ -20,9 +20,9 @@
 #pragma once
 
 #include <optional>
+#include <string>
 
 #include "font.hpp"
-#include "qstring.h"
 #ifndef DIGITALKHATT_WEBLIB
 #include "qpainterpath.h"
 #include "qpicture.h"
@@ -78,9 +78,9 @@ class GlyphVis {
   GlyphVis(const GlyphVis& other);
   GlyphVis& operator=(const GlyphVis& other);
 
-  QString name;
-  QString originalglyph;
-  QString coloredglyph;
+  std::string name;
+  std::string originalglyph;
+  std::string coloredglyph;
   GlyphType glyphtype;
   int charcode = 0;
   int unicode = -1;
@@ -116,7 +116,7 @@ class GlyphVis {
     Anchor = 6,
   };
   struct AnchorKey {
-    QString name;
+    std::string name;
     AnchorType type;
     bool operator<(const AnchorKey& other) const {
       return std::tie(name, type) < std::tie(other.name, other.type);
@@ -137,9 +137,9 @@ class GlyphVis {
 
   GlyphVis* getAlternate(GlyphParameters parameters);
 
-  QPoint getAnchor(QString name, AnchorType type);
+  QPoint getAnchor(const std::string& name, AnchorType type);
 
-  bool conatinsAnchor(QString name, AnchorType type);
+  bool conatinsAnchor(const std::string& name, AnchorType type);
   bool expanded = false;
   bool isAlternate = false;
 

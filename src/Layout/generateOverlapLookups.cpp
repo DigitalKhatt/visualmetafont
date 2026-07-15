@@ -405,11 +405,12 @@ void LayoutWindow::generateOverlapLookups(
 
         for (int pos = 0; pos < chainingSubtable->compiledRule.input.size();
              pos++) {
-          GlyphPos glyphPos{chainingSubtable->compiledRule.input[pos], {}};
+          const auto& inputSet = chainingSubtable->compiledRule.input[pos];
+          GlyphPos glyphPos{QSet<quint16>(inputSet.begin(), inputSet.end()), {}};
           for (auto& lookupRecord :
                chainingSubtable->compiledRule.lookupRecords) {
             if (lookupRecord.position == pos) {
-              glyphPos.lookupName = lookupRecord.lookupName;
+              glyphPos.lookupName = QString::fromStdString(lookupRecord.lookupName);
               break;
             }
           }
@@ -419,20 +420,21 @@ void LayoutWindow::generateOverlapLookups(
         mainLookup.posSubtables.append(positions);
         for (auto& lookupRecord :
              chainingSubtable->compiledRule.lookupRecords) {
-          if (!lookupRecord.lookupName.isEmpty()) {
+          if (!lookupRecord.lookupName.empty()) {
+            const QString lookupName = QString::fromStdString(lookupRecord.lookupName);
             SingleAdjustmentSubtable* kernTable = dynamic_cast<
                 SingleAdjustmentSubtable*>(
                 m_otlayout
                     ->lookups[m_otlayout
-                                  ->lookupsIndexByName[lookupRecord.lookupName]]
+                                  ->lookupsIndexByName[lookupName]]
                     ->subtables[0]);
-            if (subLookupKerns.find(lookupRecord.lookupName) ==
+            if (subLookupKerns.find(lookupName) ==
                 subLookupKerns.end()) {
               int number =
-                  std::stoi(lookupRecord.lookupName.mid(15).toStdString());
-              auto pair = subLookupKerns.insert({lookupRecord.lookupName, {}});
+                  std::stoi(lookupRecord.lookupName.substr(15));
+              auto pair = subLookupKerns.insert({lookupName, {}});
               auto& res = *pair.first;
-              for (auto codepoint : kernTable->singlePos.keys()) {
+              for (const auto& [codepoint, value] : kernTable->singlePos) {
                 res.second.insert(codepoint);
               }
               if (number > lastsubLookupNumber) {
@@ -454,15 +456,13 @@ void LayoutWindow::generateOverlapLookups(
     auto& text = originalPages[overlap.pageIndex][overlap.lineIndex];
 
     auto& prevGlyphLayout = line.glyphs[overlap.prevGlyph];
-    QString prevGlyphName =
-        m_otlayout->glyphNamePerCode[prevGlyphLayout.codepoint];
+    QString prevGlyphName = m_otlayout->glyphNamePerCode[prevGlyphLayout.codepoint];
 
     auto& nextGlyphLayout = line.glyphs[overlap.nextGlyph];
-    QString nextGlyphName =
-        m_otlayout->glyphNamePerCode[nextGlyphLayout.codepoint];
+    QString nextGlyphName = m_otlayout->glyphNamePerCode[nextGlyphLayout.codepoint];
 
-    bool betweenBases = basesClass.contains(prevGlyphName) &&
-                        basesClass.contains(nextGlyphName);
+    bool betweenBases = basesClass.contains(prevGlyphName.toStdString()) &&
+                        basesClass.contains(nextGlyphName.toStdString());
 
     QVector<int> basesIndexes;
 
@@ -471,7 +471,7 @@ void LayoutWindow::generateOverlapLookups(
          prevBaseIndex--) {
       auto& glyphLayout = line.glyphs[prevBaseIndex];
       QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-      if (basesClass.contains(glyphName)) {
+      if (basesClass.contains(glyphName.toStdString())) {
         break;
       }
     }
@@ -482,7 +482,7 @@ void LayoutWindow::generateOverlapLookups(
          nextBaseIndex <= overlap.nextGlyph; nextBaseIndex++) {
       auto& glyphLayout = line.glyphs[nextBaseIndex];
       QString glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-      if (basesClass.contains(glyphName)) {
+      if (basesClass.contains(glyphName.toStdString())) {
         basesIndexes.append(nextBaseIndex);
       }
     }

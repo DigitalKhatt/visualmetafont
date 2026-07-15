@@ -314,7 +314,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
         // bool isFina = glyphName.contains(".fina");
 
         bool isMark =
-            m_otlayout->automedina->classes["marks"].contains(glyphName);
+            digitalkhatt::layout::classesOrEmpty(m_otlayout->automedina->classes, "marks").contains(glyphName.toStdString());
 
         // bool isWaqfMark =
         // m_otlayout->automedina->classes["waqfmarks"].contains(glyphName);
@@ -328,11 +328,10 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
 
           for (int prev_g = 0; prev_g < prev_line.glyphs.size(); prev_g++) {
             auto& prev_glyphLayout = prev_line.glyphs[prev_g];
-            QString prev_glyphName =
-                m_otlayout->glyphNamePerCode[prev_glyphLayout.codepoint];
+            QString prev_glyphName = m_otlayout->glyphNamePerCode[prev_glyphLayout.codepoint];
 
-            bool isPrevMark = m_otlayout->automedina->classes["marks"].contains(
-                prev_glyphName);
+            bool isPrevMark = digitalkhatt::layout::classesOrEmpty(m_otlayout->automedina->classes, "marks").contains(
+                prev_glyphName.toStdString());
             bool isPrevrSpace = prev_glyphName.contains("space") ||
                                 prev_glyphName.contains("linefeed");
             // bool isPrevIsol = prev_glyphName.contains("isol");
@@ -368,8 +367,7 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
 
           for (int gg = g - 1; gg >= 0; gg--) {
             auto& otherglyphLayout = line.glyphs[gg];
-            QString otherglyphName =
-                m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
+            QString otherglyphName = m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
 
             bool isOtherSpace = otherglyphName.contains("space") ||
                                 otherglyphName.contains("linefeed");

@@ -59,7 +59,7 @@ void GenerateLayout::generateGlyphs(QJsonObject& glyphsObject) {
   for (auto& glyph : m_otlayout->glyphs) {
     QJsonObject glyphObject;
 
-    glyphObject["name"] = glyph.name;
+    glyphObject["name"] = QString::fromStdString(glyph.name);
 
     QJsonArray bbox;
 
@@ -76,7 +76,7 @@ void GenerateLayout::generateGlyphs(QJsonObject& glyphsObject) {
 
     glyphObject["default"] = pathArray;
 
-    const auto& ff = m_otlayout->expandableGlyphs.find(glyph.name);
+    const auto& ff = m_otlayout->expandableGlyphs.find(QString::fromStdString(glyph.name));
 
     if (ff != m_otlayout->expandableGlyphs.end()) {
 
@@ -272,12 +272,12 @@ void GenerateLayout::generateLayoutJson(int lineWidth, int scale) {
 
   QJsonObject classesObject;
 
-  for (auto i = m_otlayout->automedina->classes.cbegin(), end = m_otlayout->automedina->classes.cend(); i != end; ++i) {
+  for (auto& [className, glyphNames] : m_otlayout->automedina->classes) {
     QJsonArray array;
-    for (auto code : i.value()) {
-      array.append(m_otlayout->glyphCodePerName[code]);
+    for (auto& glyphName : glyphNames) {
+      array.append(m_otlayout->glyphCodePerName[QString::fromStdString(glyphName)]);
     }
-    classesObject[i.key()] = array;
+    classesObject[QString::fromStdString(className)] = array;
   }
 
   quranObject["classes"] = classesObject;
