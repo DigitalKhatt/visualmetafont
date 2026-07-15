@@ -84,30 +84,6 @@ std::unordered_set<std::uint16_t> Automedina::classtoUnicode(const std::string& 
   return unicodes;
 }
 
-QSet<QString> Automedina::classtoGlyphName(QString className) {
-  QSet<QString> names;
-  // TODO use classtoUnicode
-  auto classNameStd = className.toStdString();
-  if (!classes.contains(classNameStd)) {
-    if (m_layout->glyphCodePerName.contains(classNameStd)) {
-      names.insert(className);
-    } else {
-      QRegularExpression re(className);
-      for (const auto& [name, code] : m_layout->glyphCodePerName) {
-        if (re.match(QString::fromStdString(name)).hasMatch()) {
-          names.insert(QString::fromStdString(name));
-        }
-      }
-    }
-  } else {
-    for (auto& name : classes[classNameStd]) {
-      names.unite(classtoGlyphName(QString::fromStdString(name)));
-    }
-  }
-
-  return names;
-}
-
 void Automedina::generateAyas(QString ayaName, bool colored) {
   for (int ayaNumber = 1; ayaNumber <= 286; ayaNumber++) {
     QString setcolored;

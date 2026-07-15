@@ -196,7 +196,6 @@ class OtLayout : public QObject {
   std::unordered_set<std::uint16_t> classtoUnicode(const std::string& className);
   std::unordered_set<std::uint16_t> regexptoUnicode(const std::string& regexp);
 
-  QSet<QString> classtoGlyphName(QString className);
   void saveParameters(QJsonObject& json) const;
   void readParameters(const QJsonObject& json);
 

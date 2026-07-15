@@ -1384,10 +1384,6 @@ std::unordered_set<std::uint16_t> OtLayout::regexptoUnicode(const std::string& r
   return automedina->regexptoUnicode(regexp);
 }
 
-QSet<QString> OtLayout::classtoGlyphName(QString className) {
-  return automedina->classtoGlyphName(className);
-}
-
 double OtLayout::nuqta() {
   if (_nuqta == -1) {
     _nuqta = font->getNumericVariable("nuqta");
