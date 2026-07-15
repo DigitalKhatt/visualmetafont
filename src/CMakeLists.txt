@@ -430,6 +430,7 @@ set(QT_STATIC_PLUGINS
 endif()
 
 add_dependencies(${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout)
+add_dependencies(${WEBLIB_NAME} harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout)
 add_dependencies(${LUATEX_NAME} harfbuzz mplib)
 
 if (UNIX)
@@ -461,7 +462,7 @@ else()
     )
 endif()
 
-target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib Qt5::Core)
+target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout Qt5::Core)
 
 target_link_libraries(${LUATEX_NAME} PUBLIC harfbuzz mplib Qt5::Core)
 

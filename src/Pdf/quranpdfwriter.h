@@ -86,7 +86,7 @@ class QuranPdfWriter : public QObject, public QPagedPaintDevice {
   int endFormXObject(QRectF bbox);
   void writeRawPDFtoCurrentStream(QString rawPDF);
   void addImagetoResources(int objectID);
-  void generateQuranPages(QList<QList<LineLayoutInfo>> pages, int lineWidth, QList<QStringList> originalText, double scale, int margin = 400 << OtLayout::SCALEBY);
+  void generateQuranPages(LayoutPageList pages, int lineWidth, OriginalPageList originalText, double scale, int margin = 400 << OtLayout::SCALEBY);
 
  protected:
   QPaintEngine* paintEngine() const override;

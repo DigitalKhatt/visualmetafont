@@ -300,11 +300,11 @@ void GenerateLayout::generateSuraLocations(QJsonArray& surasArray) {
       auto& line = page.at(lineIndex);
       if (line.type == LineType::Sura) {
         int y = (line.ystartposition - 3 * height / 5) * 72. / (4800 << OtLayout::SCALEBY);
-        SuraLocation location{ QString("%1 ( %2 )").arg(layoutPages.originalPages.at(pageIndex).at(lineIndex)).arg(suraNumber++)
+        SuraLocation location{ QString("%1 ( %2 )").arg(toQString(layoutPages.originalPages.at(pageIndex).at(lineIndex))).arg(suraNumber++)
           ,pageIndex,0, y };
         QJsonObject sura;
 
-        sura["name"] = QString("%1 ( %2 )").arg(layoutPages.originalPages.at(pageIndex).at(lineIndex)).arg(suraNumber++);
+        sura["name"] = QString("%1 ( %2 )").arg(toQString(layoutPages.originalPages.at(pageIndex).at(lineIndex))).arg(suraNumber++);
         sura["pageNumber"] = pageIndex;
         sura["x"] = 0;
         sura["y"] = y;

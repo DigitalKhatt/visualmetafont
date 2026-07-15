@@ -798,15 +798,16 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
         getJustOption(),
         mushafLayouts->currentText());
 
-    QList<QList<LineLayoutInfo>> pages = {tempPage};
+    LayoutPageList pages = {LayoutPage(tempPage.begin(), tempPage.end())};
 
-    QList<QStringList> originalPages = {lines};
+    OriginalPageList originalPages = {toOriginalPage(lines)};
 
     if (this->applyForce) {
       optimizeLayout(pages, originalPages, 0, 1, emScale);
     }
 
-    page = std::move(pages[0]);
+    page.clear();
+    for (auto& line : pages[0]) page.push_back(std::move(line));
   }
 
   QVector<LineData> lines;

@@ -74,10 +74,15 @@ using JustStyle = digitalkhatt::JustStyle;
 using ShrinkType = digitalkhatt::ShrinkType;
 using JustOption = digitalkhatt::JustOption;
 
+using LayoutPage = std::vector<LineLayoutInfo>;
+using LayoutPageList = std::vector<LayoutPage>;
+using OriginalPage = std::vector<digitalkhatt::TextString>;
+using OriginalPageList = std::vector<OriginalPage>;
+
 struct LayoutPages {
-  QList<QList<LineLayoutInfo>> pages;
-  QList<QStringList> originalPages;
-  QList<QString> suraNamebyPage;
+  LayoutPageList pages;
+  OriginalPageList originalPages;
+  std::vector<digitalkhatt::TextString> suraNamebyPage;
 };
 
 struct SuraLocation {

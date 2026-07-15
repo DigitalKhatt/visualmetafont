@@ -31,8 +31,8 @@ class ExportToHTML
 public:
 	ExportToHTML(OtLayout* otlayout);	
 	~ExportToHTML();
-	void generateQuranPages(QList<QList<LineLayoutInfo>> pages, int lineWidth, QList<QStringList> originalText, int scale);
-  void generateQuranPagesOld(QList<QList<LineLayoutInfo>> pages, int lineWidth, QList<QStringList> originalText, int scale);
+	void generateQuranPages(LayoutPageList pages, int lineWidth, OriginalPageList originalText, int scale);
+	void generateQuranPagesOld(LayoutPageList pages, int lineWidth, OriginalPageList originalText, int scale);
   
 	void edgetoHTML5Path(mp_graphic_object* body, QTextStream& out);
 	void filltoHTML5Path(mp_gr_knot h, QTextStream& out);

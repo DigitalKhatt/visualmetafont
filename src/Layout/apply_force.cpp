@@ -215,7 +215,7 @@ struct BaseMark : Force {
   void execute(double alpha)  override {}
 };
 
-void LayoutWindow::applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages, QList<QStringList> originalPages, int lineWidth, int beginPage, int nbPages, double emScale) {
+void LayoutWindow::applyDirectedForceLayout(LayoutPageList& pages, OriginalPageList originalPages, int lineWidth, int beginPage, int nbPages, double emScale) {
 
   double scale = (double)emScale;
 

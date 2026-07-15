@@ -2895,11 +2895,11 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
     return {};
   }
 
-  QList<LineLayoutInfo> currentPage;
-  QList<QList<LineLayoutInfo>> pages;
-  QStringList originalPage;
-  QList<QStringList> originalPages;
-  QList<QString> suraNamebyPage;
+  LayoutPage currentPage;
+  LayoutPageList pages;
+  OriginalPage originalPage;
+  OriginalPageList originalPages;
+  std::vector<digitalkhatt::TextString> suraNamebyPage;
 
   auto cand = bestCandidate;
   int currentpageNumber = bestCandidate->pageNumber;
@@ -2942,7 +2942,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
 
     if (cand->pageNumber != currentpageNumber) {
       if (!firstSuraInCurrentage.isEmpty()) {
-        suraNamebyPage.prepend(firstSuraInCurrentage);
+        suraNamebyPage.insert(suraNamebyPage.begin(), firstSuraInCurrentage.toStdU16String());
 
         if (suraIndex - 1 >= 0) {
           currentSuraName = suraNames[suraIndex - 1];
@@ -2951,7 +2951,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
         }
 
       } else {
-        suraNamebyPage.prepend(currentSuraName);
+        suraNamebyPage.insert(suraNamebyPage.begin(), currentSuraName.toStdU16String());
       }
 
       firstSuraInCurrentage = "";
@@ -3028,19 +3028,19 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
 
     if (cand->pageNumber == currentpageNumber) {
       lineLayout.ystartposition = currentyPos;
-      currentPage.prepend(lineLayout);
-      originalPage.prepend(originalLine);
+      currentPage.insert(currentPage.begin(), lineLayout);
+      originalPage.insert(originalPage.begin(), originalLine.toStdU16String());
     } else {
       currentyPos = lastLinePos;
       lineLayout.ystartposition = currentyPos;
       currentpageNumber--;
 
-      pages.prepend(currentPage);
-      originalPages.prepend(originalPage);
-      currentPage = QList<LineLayoutInfo>();
+      pages.insert(pages.begin(), currentPage);
+      originalPages.insert(originalPages.begin(), originalPage);
+      currentPage = LayoutPage();
       originalPage.clear();
-      originalPage.append(originalLine);
-      currentPage.append(lineLayout);
+      originalPage.push_back(originalLine.toStdU16String());
+      currentPage.push_back(lineLayout);
     }
 
     currentyPos -= OtLayout::InterLineSpacing << OtLayout::SCALEBY;
@@ -3054,9 +3054,9 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
     qDebug() << "nbendsajda problems?";
   }
 
-  pages.prepend(currentPage);
-  originalPages.prepend(originalPage);
-  suraNamebyPage.prepend(currentSuraName);
+  pages.insert(pages.begin(), currentPage);
+  originalPages.insert(originalPages.begin(), originalPage);
+  suraNamebyPage.insert(suraNamebyPage.begin(), currentSuraName.toStdU16String());
 
   // First & second pages : Al fatiha &  Al Bakara
 
@@ -3070,7 +3070,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
     int pageWidth = lineWidth;
     int newLineWidth = 0;
 
-    QList<LineLayoutInfo> page;
+    LayoutPage page;
 
     for (int lineIndex = 0; lineIndex < lines.length(); lineIndex++) {
       if (lineIndex > 0) {
@@ -3099,21 +3099,24 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
         beginsura += OtLayout::InterLineSpacing << OtLayout::SCALEBY;
       }
 
-      page.append(lineResult);
+      page.push_back(lineResult);
     }
-    pages.prepend(page);
-    originalPages.prepend(lines);
+    pages.insert(pages.begin(), page);
+    OriginalPage originalLines;
+    originalLines.reserve(lines.size());
+    for (const auto& line : lines) originalLines.push_back(line.toStdU16String());
+    originalPages.insert(originalPages.begin(), std::move(originalLines));
 
     if (pageNumber == 1) {
-      suraNamebyPage.prepend(currentSuraName);
+      suraNamebyPage.insert(suraNamebyPage.begin(), currentSuraName.toStdU16String());
     } else {
-      suraNamebyPage.prepend("سُورَةُ الفَاتِحَةِ");
+      suraNamebyPage.insert(suraNamebyPage.begin(), QString("سُورَةُ الفَاتِحَةِ").toStdU16String());
     }
   }
 
   // Last pages
 
-  currentSuraName = suraNamebyPage.last();
+  currentSuraName = QString::fromStdU16String(suraNamebyPage.back());
 
   for (int pageNumber = lastPage; pageNumber < 604; pageNumber++) {
     QString textt = QString::fromUtf8(qurantext[pageNumber] + 1);
@@ -3139,9 +3142,12 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
       }
     }
 
-    suraNamebyPage.append(currentSuraName);
-    pages.append(page);
-    originalPages.append(lines);
+    suraNamebyPage.push_back(currentSuraName.toStdU16String());
+    pages.emplace_back(page.begin(), page.end());
+    OriginalPage originalLines;
+    originalLines.reserve(lines.size());
+    for (const auto& line : lines) originalLines.push_back(line.toStdU16String());
+    originalPages.push_back(std::move(originalLines));
   }
 
   delete font;

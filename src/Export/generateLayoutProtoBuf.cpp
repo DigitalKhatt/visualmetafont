@@ -201,7 +201,7 @@ void GenerateLayout::generateLayoutProtoBuf(int lineWidth, int scale) {
       lineStream->set_type((int)line.type);
       lineStream->set_x(line.xstartposition);
       lineStream->set_y(line.ystartposition);
-      lineStream->set_text(pagetext[lineIndex].toStdString());
+      lineStream->set_text(toQString(pagetext[lineIndex]).toStdString());
       for (auto& glyph : line.glyphs) {
         auto glphStream = lineStream->add_glyphs();
 
@@ -255,12 +255,12 @@ void GenerateLayout::generateLayoutProtoBuf(int lineWidth, int scale) {
       auto& line = page.at(lineIndex);
       if (line.type == LineType::Sura) {
         int y = (line.ystartposition - 3 * height / 5) * 72. / (4800 << OtLayout::SCALEBY);
-        SuraLocation location{ QString("%1 ( %2 )").arg(layoutPages.originalPages.at(pageIndex).at(lineIndex)).arg(suraNumber++)
+        SuraLocation location{ QString("%1 ( %2 )").arg(toQString(layoutPages.originalPages.at(pageIndex).at(lineIndex))).arg(suraNumber++)
           ,pageIndex,0, y };
 
         auto sura = layout.add_suras();
 
-        sura->set_name(QString("%1 ( %2 )").arg(layoutPages.originalPages.at(pageIndex).at(lineIndex)).arg(suraNumber++).toStdString());
+        sura->set_name(QString("%1 ( %2 )").arg(toQString(layoutPages.originalPages.at(pageIndex).at(lineIndex))).arg(suraNumber++).toStdString());
         sura->set_page_number(pageIndex);
         sura->set_x(0);
         sura->set_y(y);

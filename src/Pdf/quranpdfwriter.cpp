@@ -643,7 +643,7 @@ static void drawOfficialUrlFooter(
 
   painter.restore();
 }
-void QuranPdfWriter::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int lineWidth, QList<QStringList> originalText, double scale, int margin) {
+void QuranPdfWriter::generateQuranPages(LayoutPageList pages, int lineWidth, OriginalPageList originalText, double scale, int margin) {
   Q_D(const QuranPdfWriter);
 
   QPainter painter;
@@ -704,7 +704,7 @@ void QuranPdfWriter::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int 
 
     for (int l = 0; l < page.size(); l++) {
       auto line = page.at(l);
-      auto originalLine = originalPage.at(l);
+      auto originalLine = QString::fromStdU16String(originalPage.at(l));
 
       hb_position_t currentxPos = (lineWidth) + margin - line.xstartposition;
       hb_position_t currentyPos = line.ystartposition;

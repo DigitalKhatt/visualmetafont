@@ -44,9 +44,9 @@
 #include "gllobal_strings.h"
 #include "to_opentype.h"
 
-void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
+void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
                                      int lineWidth,
-                                     QList<QStringList> originalPages,
+                                     OriginalPageList originalPages,
                                      double emScale, bool sameLine,
                                      bool interLine) {
   // QPageSize pageSize{ { 90.2,144.5 },QPageSize::Millimeter, "MedianQuranBook"
@@ -137,13 +137,13 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
 
   generateOverlapLookups(pages, originalPages, overlapResult);
 
-  QList<QList<LineLayoutInfo>> newpages;
-  QList<QStringList> neworiginalPages;
+  LayoutPageList newpages;
+  OriginalPageList neworiginalPages;
 
   for (auto t : overlappages) {
     for (auto pIndex : *t) {
-      newpages.append(pages[pIndex]);
-      neworiginalPages.append(originalPages[pIndex]);
+      newpages.push_back(pages[pIndex]);
+      neworiginalPages.push_back(originalPages[pIndex]);
 
       // ADD page number
 
@@ -191,12 +191,12 @@ void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
       lineInfo.ystartposition = 27400 + 200 << OtLayout::SCALEBY;
       lineInfo.xstartposition = (lineWidth - totalwidth) / 2;
 
-      auto& curpage = newpages.last();
+      auto& curpage = newpages.back();
 
-      curpage.append(lineInfo);
+      curpage.push_back(lineInfo);
 
-      auto& gg = neworiginalPages.last();
-      gg.append(QString::number(pageNumber));
+      auto& gg = neworiginalPages.back();
+      gg.push_back(QString::number(pageNumber).toStdU16String());
     }
 
     delete t;
@@ -233,7 +233,7 @@ static QPainterPath qt_graphicsItem_shapeFromPath(const QPainterPath& path,
   return p;
 }
 
-void LayoutWindow::adjustOverlapping(QList<QList<LineLayoutInfo>>& pages,
+void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
                                      int lineWidth, int beginPage, int nbPages,
                                      QVector<int>& set, double emScale,
                                      QVector<OverlapResult>& result,

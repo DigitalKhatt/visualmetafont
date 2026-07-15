@@ -1034,7 +1034,7 @@ void LayoutWindow::checkOffMarks() {
         auto maxAcceptOff = markWidth * 0.5;
 
         if ((leftOff > maxAcceptOff || rightOff > maxAcceptOff) /*&& baseWidth > 1.5 * markWidth*/) {
-          QString text = result.originalPages[p][l];
+          QString text = toQString(result.originalPages[p][l]);
           int startCluster = 0;
           int endCluster = text.size();
 
@@ -1158,8 +1158,8 @@ bool LayoutWindow::exportpdf() {
       HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES,
       getJustOption(), mushafLayouts->currentText());
 
-  QList<QList<LineLayoutInfo>> pages{page};
-  QList<QStringList> originalPages{lines};
+  LayoutPageList pages{LayoutPage(page.begin(), page.end())};
+  OriginalPageList originalPages{toOriginalPage(lines)};
 
   if (this->applyForce) {
     optimizeLayout(pages, originalPages, 0,
@@ -1437,8 +1437,8 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth,
     }
 
     newface = false;
-    result.pages.append(shapedPage);
-    result.originalPages.append(lines);
+    result.pages.emplace_back(shapedPage.begin(), shapedPage.end());
+    result.originalPages.push_back(toOriginalPage(lines));
   }
 
   if (beginsajda != 15 || endsajda != 15 || sajdamatched != 15) {
@@ -1775,8 +1775,8 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
       }
     }
 
-    result.pages.append(shapedPage);
-    result.originalPages.append(lines);
+    result.pages.emplace_back(shapedPage.begin(), shapedPage.end());
+    result.originalPages.push_back(toOriginalPage(lines));
   }
 
   if (beginsajda != 15 || endsajda != 15 || sajdamatched != 15) {
@@ -1904,7 +1904,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
   out << "</head>\n";
   out << "<body>\n";
 
-  for (int p = 0; p < originalText.length(); p++) {
+  for (int p = 0; p < originalText.size(); p++) {
     auto& pageText = originalText[p];
     auto& page = pages[p];
     out << "<div #page class='page";
@@ -1915,8 +1915,8 @@ bool LayoutWindow::generateMadinaVARHTML() {
     }
     out << "' data-page-number='" << p + 1 << "'>" << '\n';
     out << "<div class='innerpage'>" << '\n';
-    for (int l = 0; l < pageText.length(); l++) {
-      auto& lineText = pageText[l];
+    for (int l = 0; l < pageText.size(); l++) {
+      QString lineText = toQString(pageText[l]);
       auto& line = page[l];
       // out << "<div style='right:" << line.xstartposition << "px;top:" <<
       // line.ystartposition << "px;' data-line-number='" << l + 1 << "'";
@@ -2448,7 +2448,7 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
       }
     }
   }
-  out2 << result.originalPages;
+  out2 << toQStringPages(result.originalPages);
   // out << result.suraNamebyPage;
   // out << locations;
   file2.close();
@@ -2479,10 +2479,14 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
 
   LayoutPages pages;
 
-  pages.originalPages =
+  const auto qtOriginalPages =
       m_otlayout->pageBreak(scale, lineWidth, true, quran, 19);
+  pages.originalPages.reserve(qtOriginalPages.size());
+  for (const auto& page : qtOriginalPages) {
+    pages.originalPages.push_back(toOriginalPage(page));
+  }
 
-  if (pages.originalPages.count() == 0) {
+  if (pages.originalPages.empty()) {
     QMessageBox msgBox;
     msgBox.setText("No feasable solution. Try to change the scale.");
     msgBox.exec();
@@ -2490,14 +2494,14 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
   }
 
   if (this->applyJustification) {
-    for (int pagenum = 0; pagenum < pages.originalPages.length(); pagenum++) {
+    for (int pagenum = 0; pagenum < pages.originalPages.size(); pagenum++) {
       auto justification = LineJustification::Distribute;
 
       auto page = m_otlayout->justifyPage(
-          scale, lineWidth, lineWidth, pages.originalPages[pagenum],
+          scale, lineWidth, lineWidth, toQStringList(pages.originalPages[pagenum]),
           justification, false, tajweedEnabled, mushafLayouts->currentText());
 
-      pages.pages.append(page);
+      pages.pages.emplace_back(page.begin(), page.end());
 
       /*
       for (int lineIndex = 0; lineIndex < page.length(); lineIndex++) {
@@ -2834,7 +2838,7 @@ void LayoutWindow::serializeTexPages() {
 
   auto result = m_otlayout->pageBreak(scale, lineWidth, false, 600);
 
-  if (result.pages.count() == 0) {
+  if (result.pages.empty()) {
     QMessageBox msgBox;
     msgBox.setText("No feasable solution. Try to change the scale.");
     msgBox.exec();
@@ -2856,7 +2860,7 @@ void LayoutWindow::serializeTexPages() {
                 (4800 << OtLayout::SCALEBY);
         SuraLocation location{
             QString("%1 ( %2 )")
-                .arg(result.originalPages.at(pageIndex).at(lineIndex))
+                .arg(toQString(result.originalPages.at(pageIndex).at(lineIndex)))
                 .arg(suraNumber++),
             pageIndex, 0, y};
         locations.append(location);
@@ -2868,8 +2872,8 @@ void LayoutWindow::serializeTexPages() {
   file.open(QIODevice::WriteOnly);
   QDataStream out(&file);  // we will serialize the data into the file
   out << OtLayout::EMSCALE;
-  out << result.originalPages;
-  out << result.suraNamebyPage;
+  out << toQStringPages(result.originalPages);
+  out << toQStringList(result.suraNamebyPage);
   out << locations;
 }
 void LayoutWindow::createDataBase() {
@@ -3260,7 +3264,7 @@ void LayoutWindow::serializeMedinaPages() {
                 (4800 << OtLayout::SCALEBY);
         SuraLocation location{
             QString("%1 ( %2 )")
-                .arg(result.originalPages.at(pageIndex).at(lineIndex))
+                .arg(toQString(result.originalPages.at(pageIndex).at(lineIndex)))
                 .arg(suraNumber++),
             pageIndex, 0, y};
         locations.append(location);
@@ -3272,8 +3276,8 @@ void LayoutWindow::serializeMedinaPages() {
   file.open(QIODevice::WriteOnly);
   QDataStream out(&file);  // we will serialize the data into the file
   out << OtLayout::EMSCALE;
-  out << result.originalPages;
-  out << result.suraNamebyPage;
+  out << toQStringPages(result.originalPages);
+  out << toQStringList(result.suraNamebyPage);
   out << locations;
 }
 
@@ -3386,7 +3390,7 @@ void LayoutWindow::findOverflows(bool overfull) {
     const auto& page = result.pages[pagenum];
     PageWidths minmax{pagenum + 1, std::numeric_limits<float>::max(), std::numeric_limits<float>::min(), 0, 0, 0, 1.0};
 
-    for (int linenum = 0; linenum < page.length(); linenum++) {
+    for (int linenum = 0; linenum < page.size(); linenum++) {
       auto& line = page[linenum];
 
       if (line.type == LineType::Line) {
@@ -3593,12 +3597,12 @@ void LayoutWindow::setQuranText(int type) {
     for (auto& page : result.originalPages) {
       QString newPage;
       for (auto& line : page) {
-        newPage.append(line + "\n");
+        newPage.append(toQString(line) + "\n");
       }
       currentQuranText.append(newPage);
     }
 
-    suraNameByPage = result.suraNamebyPage;
+    suraNameByPage = toQStringList(result.suraNamebyPage);
   }
 
   integerSpinBox->setRange(1, currentQuranText.size());
@@ -3772,9 +3776,9 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
 
   QVector<int> set;
 
-  QList<QList<LineLayoutInfo>> pages = {page};
+  LayoutPageList pages = {LayoutPage(page.begin(), page.end())};
 
-  QList<QStringList> originalPages = {lines};
+  OriginalPageList originalPages = {toOriginalPage(lines)};
 
   if (this->applyForce) {
     optimizeLayout(pages, originalPages, 0, 1, scale);
@@ -3785,7 +3789,8 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
     adjustOverlapping2(pages, lineWidth, 0, 1, set, scale, result, true, true);
   }
 
-  page = pages[0];
+  page.clear();
+  for (const auto& line : pages[0]) page.push_back(line);
 
   int itemCount = 0;
 

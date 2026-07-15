@@ -90,9 +90,9 @@ std::map<std::string, double> Timer::ms_Times;
 
 static std::unordered_map<GlyphVis*, GeometrySet> glyphToPolys;
 
-void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
+void LayoutWindow::adjustOverlapping2(LayoutPageList& pages,
                                       int lineWidth,
-                                      const QList<QStringList>& originalPages,
+                                      const OriginalPageList& originalPages,
                                       double emScale, bool sameLine,
                                       bool interLine) {
   // QPageSize pageSize{ { 90.2,144.5 },QPageSize::Millimeter, "MedianQuranBook"
@@ -192,13 +192,13 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
 
   generateOverlapLookups(pages, originalPages, overlapResult);
 
-  QList<QList<LineLayoutInfo>> newpages;
-  QList<QStringList> neworiginalPages;
+  LayoutPageList newpages;
+  OriginalPageList neworiginalPages;
 
   for (auto t : overlappages) {
     for (auto pIndex : *t) {
-      newpages.append(pages[pIndex]);
-      neworiginalPages.append(originalPages[pIndex]);
+      newpages.push_back(pages[pIndex]);
+      neworiginalPages.push_back(originalPages[pIndex]);
 
       // ADD page number
 
@@ -247,12 +247,12 @@ void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
       lineInfo.ystartposition = 27400 + 200 << OtLayout::SCALEBY;
       lineInfo.xstartposition = (lineWidth - totalwidth) / 2;
 
-      auto& curpage = newpages.last();
+      auto& curpage = newpages.back();
 
-      curpage.append(lineInfo);
+      curpage.push_back(lineInfo);
 
-      auto& gg = neworiginalPages.last();
-      gg.append(QString::number(pageNumber));
+      auto& gg = neworiginalPages.back();
+      gg.push_back(QString::number(pageNumber).toStdU16String());
     }
 
     delete t;
@@ -415,7 +415,7 @@ void debugIntersection(const GlyphInfo& glyphInfo1, const GlyphInfo& glyphInfo2,
 
 void findIntersections(
     OtLayout* layout,
-    QList<QList<LineLayoutInfo>>& pages,
+    LayoutPageList& pages,
     int pageIndex,
     const std::vector<std::vector<GlyphInfo>>& glyphs,
     double minDistance,
@@ -548,7 +548,7 @@ void findIntersections(
   }
 }
 
-void LayoutWindow::adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages,
+void LayoutWindow::adjustOverlapping2(LayoutPageList& pages,
                                       int lineWidth, int beginPage, int nbPages,
                                       QVector<int>& set, double emScale,
                                       std::vector<OverlapResult>& result,

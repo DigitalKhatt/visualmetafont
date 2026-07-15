@@ -52,6 +52,31 @@ struct OverlapResult {
   int prevGlyph;
 };
 
+inline QString toQString(const digitalkhatt::TextString& text) {
+  return QString::fromStdU16String(text);
+}
+
+inline OriginalPage toOriginalPage(const QStringList& lines) {
+  OriginalPage result;
+  result.reserve(lines.size());
+  for (const auto& line : lines) result.push_back(line.toStdU16String());
+  return result;
+}
+
+inline QStringList toQStringList(const OriginalPage& lines) {
+  QStringList result;
+  result.reserve(static_cast<int>(lines.size()));
+  for (const auto& line : lines) result.push_back(toQString(line));
+  return result;
+}
+
+inline QList<QStringList> toQStringPages(const OriginalPageList& pages) {
+  QList<QStringList> result;
+  result.reserve(static_cast<int>(pages.size()));
+  for (const auto& page : pages) result.push_back(toQStringList(page));
+  return result;
+}
+
 class LayoutWindow : public QMainWindow {
   Q_OBJECT
 
@@ -105,28 +130,28 @@ class LayoutWindow : public QMainWindow {
   void testQuarn();
   void simpleAdjustPage(hb_buffer_t* buffer);
   void adjustPage(QString text, hb_font_t* shapeFont, hb_buffer_t* buffer);
-  void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth,
+  void adjustOverlapping(LayoutPageList& pages, int lineWidth,
                          int beginPage, int nbPages, QVector<int>&,
                          double emScale, QVector<OverlapResult>& result,
                          bool sameLine, bool interLine);
-  void adjustOverlapping(QList<QList<LineLayoutInfo>>& pages, int lineWidth,
-                         QList<QStringList> originalPages, double emScale,
+  void adjustOverlapping(LayoutPageList& pages, int lineWidth,
+                         OriginalPageList originalPages, double emScale,
                          bool sameLine, bool interLine);
-  void adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages, int lineWidth,
-                          const QList<QStringList>& originalPages, double emScale,
+  void adjustOverlapping2(LayoutPageList& pages, int lineWidth,
+                          const OriginalPageList& originalPages, double emScale,
                           bool sameLine, bool interLine);
-  void adjustOverlapping2(QList<QList<LineLayoutInfo>>& pages, int lineWidth,
+  void adjustOverlapping2(LayoutPageList& pages, int lineWidth,
                           int beginPage, int nbPages, QVector<int>&,
                           double emScale, std::vector<OverlapResult>& result,
                           bool sameLine, bool interLine);
-  void applyDirectedForceLayout(QList<QList<LineLayoutInfo>>& pages,
-                                QList<QStringList> originalPages, int lineWidth,
+  void applyDirectedForceLayout(LayoutPageList& pages,
+                                OriginalPageList originalPages, int lineWidth,
                                 int beginPage, int nbPages, double emScale);
-  void optimizeLayout(QList<QList<LineLayoutInfo>>& pages,
-                      const QList<QStringList>& originalPages,
+  void optimizeLayout(LayoutPageList& pages,
+                      const OriginalPageList& originalPages,
                       int beginPage, int nbPages, double emScale);
-  void generateOverlapLookups(const QList<QList<LineLayoutInfo>>& pages,
-                              const QList<QStringList>& originalPages,
+  void generateOverlapLookups(const LayoutPageList& pages,
+                              const OriginalPageList& originalPages,
                               const QVector<OverlapResult>& result);
   void editLookup(QString lookupName);
   void saveCollision();

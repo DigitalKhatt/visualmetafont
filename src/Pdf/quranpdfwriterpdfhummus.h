@@ -84,9 +84,9 @@ class QuranPdfWriterPdfHummus : public QObject {
   void setOptions(const Options& options) { m_options = options; }
   const Options& options() const { return m_options; }
 
-  bool generateQuranPages(QList<QList<LineLayoutInfo>> pages,
+  bool generateQuranPages(LayoutPageList pages,
                           int lineWidth,
-                          QList<QStringList> originalText,
+                          OriginalPageList originalText,
                           double scale,
                           int margin = 400 << OtLayout::SCALEBY);
 

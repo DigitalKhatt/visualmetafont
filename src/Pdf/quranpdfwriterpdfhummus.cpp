@@ -1120,9 +1120,9 @@ void QuranPdfWriterPdfHummus::writeCatalogPageLabels() {
   // /PageLabels << /Nums [ 0 << /S /r /St 1 >> 1 << /S /D /St 1 >> ] >>
 }
 
-bool QuranPdfWriterPdfHummus::generateQuranPages(QList<QList<LineLayoutInfo>> pages,
+bool QuranPdfWriterPdfHummus::generateQuranPages(LayoutPageList pages,
                                                  int lineWidth,
-                                                 QList<QStringList> originalText,
+                                                 OriginalPageList originalText,
                                                  double scale,
                                                  int margin) {
   Q_UNUSED(scale);
@@ -1180,7 +1180,7 @@ bool QuranPdfWriterPdfHummus::generateQuranPages(QList<QList<LineLayoutInfo>> pa
 
     for (int l = 0; l < page.size(); ++l) {
       const auto line = page.at(l);
-      const auto originalLine = originalPage.at(l);
+      const auto originalLine = QString::fromStdU16String(originalPage.at(l));
 
       hb_position_t currentxPos = lineWidth + margin - line.xstartposition;
       hb_position_t currentyPos = line.ystartposition;

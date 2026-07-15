@@ -43,7 +43,7 @@
 
 using namespace geometry;
 
-void LayoutWindow::optimizeLayout(QList<QList<LineLayoutInfo>>& pages, const QList<QStringList>& originalPages, int beginPage, int nbPages, double emScale) {
+void LayoutWindow::optimizeLayout(LayoutPageList& pages, const OriginalPageList& originalPages, int beginPage, int nbPages, double emScale) {
   auto scale = emScale;
 
   std::unordered_map<GlyphVis*, GeometrySet> glyphToPolys;

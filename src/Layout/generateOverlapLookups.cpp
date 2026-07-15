@@ -319,8 +319,8 @@ QVector<QVector<QVector<int>>> partitionMinNoOverlapAuto(
 }
 
 void LayoutWindow::generateOverlapLookups(
-    const QList<QList<LineLayoutInfo>>& pages,
-    const QList<QStringList>& originalPages,
+    const LayoutPageList& pages,
+    const OriginalPageList& originalPages,
     const QVector<OverlapResult>& result) {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
@@ -453,7 +453,7 @@ void LayoutWindow::generateOverlapLookups(
   for (auto overlap : result) {
     auto& page = pages[overlap.pageIndex];
     auto& line = page[overlap.lineIndex];
-    auto& text = originalPages[overlap.pageIndex][overlap.lineIndex];
+    auto text = toQString(originalPages[overlap.pageIndex][overlap.lineIndex]);
 
     auto& prevGlyphLayout = line.glyphs[overlap.prevGlyph];
     const auto& prevGlyphName = m_otlayout->glyphNamePerCode[prevGlyphLayout.codepoint];

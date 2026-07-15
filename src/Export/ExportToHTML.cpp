@@ -64,7 +64,7 @@ struct std::hash<QColor>
 };
 
 
-void ExportToHTML::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int lineWidth, QList<QStringList> originalText, int scale) {
+void ExportToHTML::generateQuranPages(LayoutPageList pages, int lineWidth, OriginalPageList originalText, int scale) {
   bool newHtml = true;
 
   auto path = m_otlayout->font->filePath();
@@ -96,7 +96,7 @@ void ExportToHTML::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int li
     {QColor{ 140, 0, 0   },"red4"}
   };
 
-  for (int p = 0; p < originalText.length(); p++) {
+  for (int p = 0; p < originalText.size(); p++) {
     auto& pageText = originalText[p];
     auto& page = pages[p];
     if (!newHtml) {
@@ -115,8 +115,8 @@ void ExportToHTML::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int li
       out << "<div class='page'>" << '\n';
     }
 
-    for (int l = 0; l < pageText.length(); l++) {
-      auto& lineText = pageText[l];
+    for (int l = 0; l < pageText.size(); l++) {
+      QString lineText = toQString(pageText[l]);
       auto& line = page[l];
       out << "<div";
       if (!newHtml) {
@@ -210,7 +210,7 @@ void ExportToHTML::generateQuranPages(QList<QList<LineLayoutInfo>> pages, int li
   qtOut << "\nexport { quranText };";
 }
 
-void ExportToHTML::generateQuranPagesOld(QList<QList<LineLayoutInfo>> pages, int lineWidth, QList<QStringList> originalText, int scale)
+void ExportToHTML::generateQuranPagesOld(LayoutPageList pages, int lineWidth, OriginalPageList originalText, int scale)
 {
 
   QFile file("web/glyphs.js");
@@ -238,7 +238,7 @@ void ExportToHTML::generateQuranPagesOld(QList<QList<LineLayoutInfo>> pages, int
 
     for (int l = 0; l < page.size(); l++) {
       auto line = page.at(l);
-      auto originalLine = originalPage.at(l);
+      auto originalLine = toQString(originalPage.at(l));
 
       hb_position_t currentxPos = (lineWidth)+margin - line.xstartposition;
       hb_position_t currentyPos = line.ystartposition;
