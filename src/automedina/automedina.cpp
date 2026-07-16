@@ -20,26 +20,40 @@
 #include "automedina.h"
 
 #include <algorithm>
+#include <charconv>
 
 #include "GlyphVis.h"
 #include "Lookup.h"
 #include "Subtable.h"
+#include "digitalkhatt/core/Regex16.h"
 #include "font.hpp"
 #include "metafont.h"
-#include "qdebug.h"
-#include "qregularexpression.h"
-#include "qstring.h"
 
 using namespace std;
+
+namespace {
+
+digitalkhatt::TextString toTextString(std::string_view text) {
+  return {text.begin(), text.end()};
+}
+
+std::optional<std::uint16_t> parseHexUInt16(std::string_view text) {
+  std::uint16_t value = 0;
+  const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value, 16);
+  if (error != std::errc{} || end != text.data() + text.size()) return std::nullopt;
+  return value;
+}
+
+}  // namespace
 
 Automedina::~Automedina() {}  // not inline
 std::unordered_set<std::uint16_t> Automedina::regexptoUnicode(const std::string& regexp) {
   std::unordered_set<std::uint16_t> unicodes;
 
-  QRegularExpression re(QString::fromStdString(regexp));
+  const auto re = digitalkhatt::makeRegex16(toTextString(regexp));
 
   for (const auto& [name, code] : m_layout->glyphCodePerName) {
-    if (re.match(QString::fromStdString(name)).hasMatch()) {
+    if (re.match(toTextString(name)).hasMatch()) {
       unicodes.insert(code);
     }
   }
@@ -52,7 +66,6 @@ std::unordered_set<std::uint16_t> Automedina::classtoUnicode(const std::string& 
   }
 
   std::unordered_set<std::uint16_t> unicodes;
-  const auto qexprName = QString::fromStdString(exprName);
 
   if (!classes.contains(exprName)) {
     if (m_layout->glyphCodePerName.contains(exprName)) {
@@ -64,13 +77,11 @@ std::unordered_set<std::uint16_t> Automedina::classtoUnicode(const std::string& 
         unicodes.insert(set.cbegin(), set.cend());
       }
     } else {
-      bool ok;
-      std::uint16_t unicode = qexprName.toUShort(&ok, 16);
-      if (!ok) {
+      if (const auto unicode = parseHexUInt16(exprName)) {
+        unicodes.insert(*unicode);
+      } else {
         const auto matches = regexptoUnicode(exprName);
         unicodes.insert(matches.cbegin(), matches.cend());
-      } else {
-        unicodes.insert(unicode);
       }
     }
   } else {

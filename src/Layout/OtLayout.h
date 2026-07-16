@@ -88,11 +88,20 @@ struct LayoutPages {
 };
 
 struct SuraLocation {
-  QString name;
+  digitalkhatt::TextString name;
   int pageNumber;
   int x;
   int y;
 };
+
+inline digitalkhatt::TextString makeSuraLocationName(digitalkhatt::TextView name, int suraNumber) {
+  digitalkhatt::TextString result{name};
+  result += u" ( ";
+  const auto number = std::to_string(suraNumber);
+  result.append(number.begin(), number.end());
+  result += u" )";
+  return result;
+}
 
 QDataStream& operator<<(QDataStream& stream, const SuraLocation& location);
 QDataStream& operator>>(QDataStream& stream, SuraLocation& location);

@@ -32,8 +32,7 @@
 #include "qjsondocument.h"
 #include "qjsonarray.h"
 
-extern "C"
-{
+extern "C" {
 #include "mplibps.h"
 }
 
@@ -47,13 +46,10 @@ static double round_up(double value, int decimal_places = -1) {
   return std::ceil(value * multiplier) / multiplier;
 }
 
-
-GenerateLayout::GenerateLayout(OtLayout* otlayout, LayoutPages& layoutPages) :m_otlayout(otlayout), layoutPages{ layoutPages }
-{
+GenerateLayout::GenerateLayout(OtLayout* otlayout, LayoutPages& layoutPages) : m_otlayout(otlayout), layoutPages{layoutPages} {
 }
 
-GenerateLayout::~GenerateLayout()
-{
+GenerateLayout::~GenerateLayout() {
 }
 void GenerateLayout::generateGlyphs(QJsonObject& glyphsObject) {
   for (auto& [name, glyph] : m_otlayout->glyphs) {
@@ -79,7 +75,6 @@ void GenerateLayout::generateGlyphs(QJsonObject& glyphsObject) {
     const auto& ff = m_otlayout->expandableGlyphs.find(glyph.name);
 
     if (ff != m_otlayout->expandableGlyphs.end()) {
-
       QJsonArray limitsArray;
 
       auto& jj = ff->second;
@@ -146,8 +141,6 @@ void GenerateLayout::generateGlyphs(QJsonObject& glyphsObject) {
         edgetoHTML5Path(alternate->copiedPath, pathArray);
         glyphObject["maxRight"] = pathArray;
       }
-
-
     }
 
     glyphsObject[QString("%1").arg(glyph.charcode)] = glyphObject;
@@ -155,7 +148,6 @@ void GenerateLayout::generateGlyphs(QJsonObject& glyphsObject) {
 }
 void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int scale) {
   for (auto& page : layoutPages.pages) {
-
     QJsonObject pageObject;
 
     QJsonArray linesArray;
@@ -178,9 +170,8 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
 
         glyphsArray.append(measures);*/
 
-        QJsonObject glyphObject;        
-        
-        
+        QJsonObject glyphObject;
+
         glyphObject["codepoint"] = glyph.codepoint;
         glyphObject["cluster"] = glyph.cluster;
 
@@ -198,7 +189,6 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
         if (glyph.color != 0) {
           glyphObject["color"] = (int)glyph.color;
         }
-        
 
         if (glyph.lefttatweel != 0) {
           glyphObject["lefttatweel"] = glyph.lefttatweel;
@@ -216,7 +206,6 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
         }
 
         glyphsArray.append(glyphObject);
-
       }
 
       lineObject["glyphs"] = glyphsArray;
@@ -226,16 +215,13 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
       if (line.xscale != 1) {
         lineObject["xscale"] = line.xscale;
       }
-      
 
       linesArray.append(lineObject);
     }
 
     pageObject["lines"] = linesArray;
     pagesArray.append(pageObject);
-
   }
-
 }
 
 void GenerateLayout::generateLayoutJson(int lineWidth, int scale) {
@@ -244,12 +230,11 @@ void GenerateLayout::generateLayoutJson(int lineWidth, int scale) {
   auto path = m_otlayout->font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
 
-
   auto fileName = fileInfo.path() + "/output/" + fileInfo.completeBaseName();
 
   QFile saveFile(Json
-    ? fileName + ".json"
-    : fileName + ".dat");
+                     ? fileName + ".json"
+                     : fileName + ".dat");
 
   if (!saveFile.open(QIODevice::WriteOnly)) {
     qWarning("Couldn't open save file.");
@@ -268,7 +253,6 @@ void GenerateLayout::generateLayoutJson(int lineWidth, int scale) {
   quranObject["glyphs"] = glyphsObject;
   quranObject["pages"] = pagesObject;
   quranObject["suras"] = suraLocationsArray;
-  
 
   QJsonObject classesObject;
 
@@ -282,14 +266,11 @@ void GenerateLayout::generateLayoutJson(int lineWidth, int scale) {
 
   quranObject["classes"] = classesObject;
 
-
   saveFile.write(Json
-    ? QJsonDocument(quranObject).toJson(QJsonDocument::JsonFormat::Compact)
-    : QCborValue::fromJsonValue(quranObject).toCbor());
+                     ? QJsonDocument(quranObject).toJson(QJsonDocument::JsonFormat::Compact)
+                     : QCborValue::fromJsonValue(quranObject).toCbor());
 }
 void GenerateLayout::generateSuraLocations(QJsonArray& surasArray) {
-
-
   int height = OtLayout::TopSpace << OtLayout::SCALEBY;
 
   int suraNumber = 1;
@@ -300,11 +281,11 @@ void GenerateLayout::generateSuraLocations(QJsonArray& surasArray) {
       auto& line = page.at(lineIndex);
       if (line.type == LineType::Sura) {
         int y = (line.ystartposition - 3 * height / 5) * 72. / (4800 << OtLayout::SCALEBY);
-        SuraLocation location{ QString("%1 ( %2 )").arg(toQString(layoutPages.originalPages.at(pageIndex).at(lineIndex))).arg(suraNumber++)
-          ,pageIndex,0, y };
+        auto suraName = makeSuraLocationName(layoutPages.originalPages.at(pageIndex).at(lineIndex), suraNumber++);
+        SuraLocation location{suraName, pageIndex, 0, y};
         QJsonObject sura;
 
-        sura["name"] = QString("%1 ( %2 )").arg(toQString(layoutPages.originalPages.at(pageIndex).at(lineIndex))).arg(suraNumber++);
+        sura["name"] = QString::fromStdU16String(suraName);
         sura["pageNumber"] = pageIndex;
         sura["x"] = 0;
         sura["y"] = y;
@@ -315,9 +296,7 @@ void GenerateLayout::generateSuraLocations(QJsonArray& surasArray) {
   }
 }
 
-void GenerateLayout::filltoHTML5Path(mp_gr_knot h, QJsonArray& pathArray)
-{
-
+void GenerateLayout::filltoHTML5Path(mp_gr_knot h, QJsonArray& pathArray) {
   if (!h) return;
   mp_gr_knot p, q;
 
@@ -344,48 +323,38 @@ void GenerateLayout::filltoHTML5Path(mp_gr_knot h, QJsonArray& pathArray)
 
     p = q;
   } while (p != h);
-
 }
 void GenerateLayout::edgetoHTML5Path(mp_graphic_object* body, QJsonArray& pathsArray) {
-
-
   if (body) {
     do {
-      switch (body->type)
-      {
-      case mp_fill_code: {
+      switch (body->type) {
+        case mp_fill_code: {
+          QJsonObject pathObject;
 
-        QJsonObject pathObject;
+          auto fillobject = (mp_fill_object*)body;
 
-        auto fillobject = (mp_fill_object*)body;
+          QJsonArray pathArray;
 
-        QJsonArray pathArray;
+          filltoHTML5Path(fillobject->path_p, pathArray);
 
-        filltoHTML5Path(fillobject->path_p, pathArray);
+          pathObject["path"] = pathArray;
 
-        pathObject["path"] = pathArray;
+          if (fillobject->color_model == mp_rgb_model) {
+            QJsonArray rgbArray;
 
+            rgbArray.append(fillobject->color.a_val * 255);
+            rgbArray.append(fillobject->color.b_val * 255);
+            rgbArray.append(fillobject->color.c_val * 255);
 
+            pathObject["color"] = rgbArray;
+          }
 
-        if (fillobject->color_model == mp_rgb_model) {
+          pathsArray.append(pathObject);
 
-          QJsonArray rgbArray;
-
-          rgbArray.append(fillobject->color.a_val * 255);
-          rgbArray.append(fillobject->color.b_val * 255);
-          rgbArray.append(fillobject->color.c_val * 255);
-
-          pathObject["color"] = rgbArray;
-
+          break;
         }
-
-        pathsArray.append(pathObject);
-
-
-        break;
-      }
-      default:
-        break;
+        default:
+          break;
       }
 
     } while (body = body->next);

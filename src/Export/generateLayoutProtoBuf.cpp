@@ -255,12 +255,12 @@ void GenerateLayout::generateLayoutProtoBuf(int lineWidth, int scale) {
       auto& line = page.at(lineIndex);
       if (line.type == LineType::Sura) {
         int y = (line.ystartposition - 3 * height / 5) * 72. / (4800 << OtLayout::SCALEBY);
-        SuraLocation location{ QString("%1 ( %2 )").arg(toQString(layoutPages.originalPages.at(pageIndex).at(lineIndex))).arg(suraNumber++)
-          ,pageIndex,0, y };
+        auto suraName = makeSuraLocationName(layoutPages.originalPages.at(pageIndex).at(lineIndex), suraNumber++);
+        SuraLocation location{suraName, pageIndex, 0, y};
 
         auto sura = layout.add_suras();
 
-        sura->set_name(QString("%1 ( %2 )").arg(toQString(layoutPages.originalPages.at(pageIndex).at(lineIndex))).arg(suraNumber++).toStdString());
+        sura->set_name(QString::fromStdU16String(suraName).toStdString());
         sura->set_page_number(pageIndex);
         sura->set_x(0);
         sura->set_y(y);

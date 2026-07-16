@@ -77,11 +77,14 @@ QDataStream& operator<<(QDataStream& s, const QSet<quint32>& v) {
 }
 
 QDataStream& operator<<(QDataStream& stream, const SuraLocation& location) {
-  stream << location.name << location.pageNumber << location.x << location.y;
+  stream << QString::fromStdU16String(location.name) << location.pageNumber << location.x << location.y;
   return stream;
 }
 QDataStream& operator>>(QDataStream& stream, SuraLocation& location) {
-  return stream >> location.name >> location.pageNumber >> location.x >> location.y;
+  QString name;
+  stream >> name >> location.pageNumber >> location.x >> location.y;
+  location.name = name.toStdU16String();
+  return stream;
 }
 
 #include <qdir.h>

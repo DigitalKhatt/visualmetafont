@@ -2859,9 +2859,7 @@ void LayoutWindow::serializeTexPages() {
         int y = (line.ystartposition - 3 * height / 5) * 72. /
                 (4800 << OtLayout::SCALEBY);
         SuraLocation location{
-            QString("%1 ( %2 )")
-                .arg(toQString(result.originalPages.at(pageIndex).at(lineIndex)))
-                .arg(suraNumber++),
+            makeSuraLocationName(result.originalPages.at(pageIndex).at(lineIndex), suraNumber++),
             pageIndex, 0, y};
         locations.append(location);
       }
@@ -3263,9 +3261,7 @@ void LayoutWindow::serializeMedinaPages() {
         int y = (line.ystartposition - 3 * height / 5) * 72. /
                 (4800 << OtLayout::SCALEBY);
         SuraLocation location{
-            QString("%1 ( %2 )")
-                .arg(toQString(result.originalPages.at(pageIndex).at(lineIndex)))
-                .arg(suraNumber++),
+            makeSuraLocationName(result.originalPages.at(pageIndex).at(lineIndex), suraNumber++),
             pageIndex, 0, y};
         locations.append(location);
       }
