@@ -237,14 +237,14 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
     if (std::modf(m_edge->xleftanchor, &intpart) != 0.0 || std::modf(m_edge->yleftanchor, &intpart) != 0.0) {
       int stop = 5;
     }
-    leftAnchor = QPoint(round(m_edge->xleftanchor), round(m_edge->yleftanchor));
+    leftAnchor = Point(round(m_edge->xleftanchor), round(m_edge->yleftanchor));
   }
   if (!std::isnan(m_edge->xrightanchor)) {
     // if (!isdigit(m_edge->xrightanchor) || !isdigit(m_edge->xrightanchor)) {
     if (std::modf(m_edge->xrightanchor, &intpart) != 0.0 || std::modf(m_edge->yrightanchor, &intpart) != 0.0) {
       int stop = 5;
     }
-    rightAnchor = QPoint(round(m_edge->xrightanchor), round(m_edge->yrightanchor));
+    rightAnchor = Point(round(m_edge->xrightanchor), round(m_edge->yrightanchor));
   }
 
   // matrix = getMatrix(m_otLayout->mp, charcode);
@@ -269,7 +269,7 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
   for (int i = 0; i < m_edge->numAnchors; i++) {
     AnchorPoint anchor = m_edge->anchors[i];
     // auto type = anchor.type == (int)AnchorType::EntryAnchorRTL ? AnchorType::EntryAnchor : (anchor.type == (int)AnchorType::ExitAnchorRTL ? AnchorType::ExitAnchor : (AnchorType)anchor.type);
-    anchors.insert({anchor.anchorName, (AnchorType)anchor.type}, {QPoint(anchor.x, anchor.y), anchor.type});
+    anchors.insert({anchor.anchorName, (AnchorType)anchor.type}, {Point(anchor.x, anchor.y), anchor.type});
   }
 }
 
@@ -277,6 +277,6 @@ bool GlyphVis::conatinsAnchor(const std::string& name, AnchorType type) {
   return anchors.contains({name, type});
 }
 
-QPoint GlyphVis::getAnchor(const std::string& name, AnchorType type) {
+Point GlyphVis::getAnchor(const std::string& name, AnchorType type) {
   return anchors.value({name, type}).anchor;
 }

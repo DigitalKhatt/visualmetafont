@@ -29,6 +29,8 @@
 #include <QSet>
 #include <QVector>
 #include <iostream>
+#include <concepts>
+#include <cstdint>
 #include <optional>
 #include <set>
 #include <stdexcept>
@@ -96,13 +98,14 @@ QDataStream& operator<<(QDataStream& stream, const SuraLocation& location);
 QDataStream& operator>>(QDataStream& stream, SuraLocation& location);
 
 struct ValueRecord {
-  qint16 xPlacement;
-  qint16 yPlacement;
-  qint16 xAdvance;
-  qint16 yAdvance;
+  std::int16_t xPlacement;
+  std::int16_t yPlacement;
+  std::int16_t xAdvance;
+  std::int16_t yAdvance;
 
   bool operator==(const ValueRecord& rhs) const {
-    return (this->xAdvance == rhs.xAdvance) && (this->yPlacement == rhs.yPlacement) && (this->xAdvance == rhs.xAdvance) && (this->yAdvance == rhs.yAdvance);
+    return xPlacement == rhs.xPlacement && yPlacement == rhs.yPlacement &&
+           xAdvance == rhs.xAdvance && yAdvance == rhs.yAdvance;
   }
 
   bool isEmpty() const {
@@ -110,8 +113,8 @@ struct ValueRecord {
     return *this == empty;
   }
 
-  u_int8_t format() const {
-    u_int8_t f = xPlacement == 0 ? 0 : 1;
+  std::uint8_t format() const {
+    std::uint8_t f = xPlacement == 0 ? 0 : 1;
     if (yPlacement != 0) {
       f = f | 0x02;
     }
@@ -125,16 +128,63 @@ struct ValueRecord {
   }
 };
 
-using CalcAnchor = std::function<QPoint(QString, QString, QPoint, GlyphParameters)>;
-using CursiveAnchorFunc = std::function<QPoint(bool, GlyphVis*, GlyphVis*)>;
+struct Point {
+  constexpr Point() = default;
+  constexpr Point(int x, int y) : x_{x}, y_{y} {}
+
+  template <typename T>
+    requires requires(const T& point) {
+      { point.x() } -> std::convertible_to<int>;
+      { point.y() } -> std::convertible_to<int>;
+    }
+  constexpr Point(const T& point) : x_{point.x()}, y_{point.y()} {}
+
+  template <typename T>
+    requires std::constructible_from<T, int, int>
+  constexpr operator T() const {
+    return T{x_, y_};
+  }
+
+  constexpr int x() const { return x_; }
+  constexpr int y() const { return y_; }
+  constexpr void setX(int x) { x_ = x; }
+  constexpr void setY(int y) { y_ = y; }
+  constexpr bool isNull() const { return x_ == 0 && y_ == 0; }
+
+  constexpr Point& operator+=(Point rhs) {
+    x_ += rhs.x_;
+    y_ += rhs.y_;
+    return *this;
+  }
+
+  constexpr Point& operator-=(Point rhs) {
+    x_ -= rhs.x_;
+    y_ -= rhs.y_;
+    return *this;
+  }
+
+  friend constexpr Point operator+(Point lhs, Point rhs) { return lhs += rhs; }
+  friend constexpr Point operator-(Point lhs, Point rhs) { return lhs -= rhs; }
+  friend constexpr bool operator==(Point, Point) = default;
+
+ private:
+  int x_{};
+  int y_{};
+};
+
+using CalcAnchor = std::function<Point(std::string, std::string, Point, GlyphParameters)>;
+using CursiveAnchorFunc = std::function<Point(bool, GlyphVis*, GlyphVis*)>;
 using PairAdjustFunc = std::function<ValueRecord(GlyphVis*, GlyphVis*)>;
 
 class AnchorCalc {
  public:
-  virtual QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) {
-    return QPoint(0, 0);
+  virtual Point operator()(std::string glyphName, std::string className,
+                           Point adjust, GlyphParameters parameters) {
+    return {};
   };
-  QPoint getAdjustment(Automedina& y, MarkBaseSubtable& subtable, GlyphVis* curr, QString className, QPoint adjust, GlyphParameters parameters, GlyphVis** poriginalglyph);
+  Point getAdjustment(Automedina& y, MarkBaseSubtable& subtable, GlyphVis* curr,
+                      const std::string& className, Point adjust,
+                      GlyphParameters parameters, GlyphVis** poriginalglyph);
 };
 
 struct Just {
@@ -245,8 +295,8 @@ class OtLayout : public QObject {
   QMap<quint16, GDEFClasses> glyphGlobalClasses;
 
   // QMap<QString, AnchorCalc*> anchorCalcFunctions;
-  CalcAnchor getanchorCalcFunctions(QString functionName, Subtable* subtable);
-  CursiveAnchorFunc getCursiveFunctions(QString functionName, Subtable* subtable);
+  CalcAnchor getanchorCalcFunctions(const std::string& functionName, Subtable* subtable);
+  CursiveAnchorFunc getCursiveFunctions(const std::string& functionName, Subtable* subtable);
   PairAdjustFunc getPairAdjustFunction(std::string functionName, Subtable* subtable);
   void setParameter(quint16 glyphCode, quint32 lookup, quint32 subtable, quint16 markCode, quint16 baseCode, QPoint displacement, Qt::KeyboardModifiers modifiers);
 

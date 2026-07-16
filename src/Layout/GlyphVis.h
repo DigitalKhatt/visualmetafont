@@ -26,7 +26,6 @@
 #ifndef DIGITALKHATT_WEBLIB
 #include "qpainterpath.h"
 #include "qpicture.h"
-#include "qpoint.h"
 #endif
 #include <unordered_map>
 
@@ -41,7 +40,7 @@ class QPainterPath;
 // struct mp_graphic_object;
 
 struct GlyphVisAnchor {
-  QPoint anchor;
+  Point anchor;
   int type;
 };
 
@@ -90,8 +89,8 @@ class GlyphVis {
   double charlt = 0;
   double charrt = 0;
   BBox bbox;
-  std::optional<QPoint> leftAnchor;
-  std::optional<QPoint> rightAnchor;
+  std::optional<Point> leftAnchor;
+  std::optional<Point> rightAnchor;
   mp_graphic_object* copiedPath = nullptr;
 
   mp_graphic_object* mpPath() {
@@ -137,7 +136,7 @@ class GlyphVis {
 
   GlyphVis* getAlternate(GlyphParameters parameters);
 
-  QPoint getAnchor(const std::string& name, AnchorType type);
+  Point getAnchor(const std::string& name, AnchorType type);
 
   bool conatinsAnchor(const std::string& name, AnchorType type);
   bool expanded = false;

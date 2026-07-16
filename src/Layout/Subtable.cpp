@@ -1420,15 +1420,15 @@ void MarkBaseSubtable::readJson(const QJsonObject& json) {
       }
     }
 
-    newclass.basefunction = m_layout->getanchorCalcFunctions(classobject["basefunction"].toString(), this);
-    newclass.markfunction = m_layout->getanchorCalcFunctions(classobject["markfunction"].toString(), this);
+    newclass.basefunction = m_layout->getanchorCalcFunctions(classobject["basefunction"].toString().toStdString(), this);
+    newclass.markfunction = m_layout->getanchorCalcFunctions(classobject["markfunction"].toString().toStdString(), this);
 
     if (classobject["baseparameters"].isObject()) {
       QJsonObject baseparametersObject = classobject["baseparameters"].toObject();
       for (int ia = 0; ia < baseparametersObject.size(); ++ia) {
         QString glyphName = baseparametersObject.keys()[ia];
         QJsonArray pointArray = baseparametersObject[glyphName].toArray();
-        newclass.baseparameters[glyphName.toStdString()] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
+        newclass.baseparameters[glyphName.toStdString()] = Point(pointArray[0].toInt(), pointArray[1].toInt());
       }
     }
 
@@ -1437,7 +1437,7 @@ void MarkBaseSubtable::readJson(const QJsonObject& json) {
       for (int ia = 0; ia < markparametersObject.size(); ++ia) {
         QString glyphName = markparametersObject.keys()[ia];
         QJsonArray pointArray = markparametersObject[glyphName].toArray();
-        newclass.markparameters[glyphName.toStdString()] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
+        newclass.markparameters[glyphName.toStdString()] = Point(pointArray[0].toInt(), pointArray[1].toInt());
       }
     }
 
@@ -1446,7 +1446,7 @@ void MarkBaseSubtable::readJson(const QJsonObject& json) {
       for (int ia = 0; ia < baseanchorsObject.size(); ++ia) {
         QString glyphName = baseanchorsObject.keys()[ia];
         QJsonArray pointArray = baseanchorsObject[glyphName].toArray();
-        newclass.baseanchors[glyphName.toStdString()] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
+        newclass.baseanchors[glyphName.toStdString()] = Point(pointArray[0].toInt(), pointArray[1].toInt());
       }
     }
 
@@ -1455,15 +1455,15 @@ void MarkBaseSubtable::readJson(const QJsonObject& json) {
       for (int ia = 0; ia < markanchorsObject.size(); ++ia) {
         QString glyphName = markanchorsObject.keys()[ia];
         QJsonArray pointArray = markanchorsObject[glyphName].toArray();
-        newclass.markanchors[glyphName.toStdString()] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
+        newclass.markanchors[glyphName.toStdString()] = Point(pointArray[0].toInt(), pointArray[1].toInt());
       }
     }
 
     classes[className.toStdString()] = newclass;
   }
 }
-optional<QPoint> CursiveSubtable::getExit(quint16 glyph_id, GlyphParameters parameters) {
-  optional<QPoint> exit;
+optional<Point> CursiveSubtable::getExit(quint16 glyph_id, GlyphParameters parameters) {
+  optional<Point> exit;
 
   auto anchorType = m_lookup->flags & Lookup::Flags::RightToLeft ? GlyphVis::AnchorType::ExitAnchorRTL : GlyphVis::AnchorType::ExitAnchor;
 
@@ -1498,8 +1498,8 @@ optional<QPoint> CursiveSubtable::getExit(quint16 glyph_id, GlyphParameters para
   return exit;
 }
 
-optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, GlyphParameters parameters) {
-  optional<QPoint> entry;
+optional<Point> CursiveSubtable::getEntry(quint16 glyph_id, GlyphParameters parameters) {
+  optional<Point> entry;
 
   auto anchorType = m_lookup->flags & Lookup::Flags::RightToLeft ? GlyphVis::AnchorType::EntryAnchorRTL : GlyphVis::AnchorType::EntryAnchor;
 
@@ -1535,7 +1535,7 @@ optional<QPoint> CursiveSubtable::getEntry(quint16 glyph_id, GlyphParameters par
 
   return entry;
 }
-QPoint CursiveSubtable::calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint entry) {
+Point CursiveSubtable::calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, Point entry) {
   /*
   double xshift = extendedglyph->matrix.xpart - originalglyph->matrix.xpart;
   double yshift = extendedglyph->matrix.ypart - originalglyph->matrix.ypart;*/
@@ -1544,7 +1544,7 @@ QPoint CursiveSubtable::calculateEntry(GlyphVis* originalglyph, GlyphVis* extend
 
   double yshift = 0;
 
-  entry += QPoint(xshift, yshift);
+  entry += Point(xshift, yshift);
 
   return entry;
 }
@@ -1560,12 +1560,12 @@ void CursiveSubtable::readJson(const QJsonObject& json) {
 
       if (entryexitObject["exit"].isArray()) {
         QJsonArray pointArray = entryexitObject["exit"].toArray();
-        value.exit = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
+        value.exit = Point(pointArray[0].toInt(), pointArray[1].toInt());
       }
 
       if (entryexitObject["entry"].isArray()) {
         QJsonArray pointArray = entryexitObject["entry"].toArray();
-        value.entry = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
+        value.entry = Point(pointArray[0].toInt(), pointArray[1].toInt());
       }
 
       if (value.entry || value.exit) {
@@ -1584,7 +1584,7 @@ void CursiveSubtable::readParameters(const QJsonObject& json) {
     for (int ia = 0; ia < exitParametersObject.size(); ++ia) {
       QString glyphName = exitParametersObject.keys()[ia];
       QJsonArray pointArray = exitParametersObject[glyphName].toArray();
-      exitParameters[m_layout->glyphCodePerName[glyphName.toStdString()]] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
+      exitParameters[m_layout->glyphCodePerName[glyphName.toStdString()]] = Point(pointArray[0].toInt(), pointArray[1].toInt());
     }
   }
 
@@ -1593,7 +1593,7 @@ void CursiveSubtable::readParameters(const QJsonObject& json) {
     for (int ia = 0; ia < entryParametersObject.size(); ++ia) {
       QString glyphName = entryParametersObject.keys()[ia];
       QJsonArray pointArray = entryParametersObject[glyphName].toArray();
-      entryParameters[m_layout->glyphCodePerName[glyphName.toStdString()]] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
+      entryParameters[m_layout->glyphCodePerName[glyphName.toStdString()]] = Point(pointArray[0].toInt(), pointArray[1].toInt());
     }
   }
 }
@@ -1651,14 +1651,14 @@ void CursiveSubtable::setAnchorTable(quint16 glyphCode,
 
   auto& originalGlyph = m_layout->glyphs[originalGlyphName];
 
-  std::optional<QPoint> calcanchor = isEntry ? getEntry(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt}) : getExit(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt});
+  std::optional<Point> calcanchor = isEntry ? getEntry(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt}) : getExit(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt});
 
   if (!calcanchor) {
     entryExitRecords << (quint16)0;
     return;
   }
 
-  QPoint anchor{*(calcanchor)};
+  Point anchor{*(calcanchor)};
 
   entryExitRecords << (quint16)anchorOffset;
 
@@ -1824,7 +1824,7 @@ void MarkBaseSubtable::readParameters(const QJsonObject& json) {
       for (int ia = 0; ia < baseparametersObject.size(); ++ia) {
         QString glyphName = baseparametersObject.keys()[ia];
         QJsonArray pointArray = baseparametersObject[glyphName].toArray();
-        newclass.baseparameters[glyphName.toStdString()] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
+        newclass.baseparameters[glyphName.toStdString()] = Point(pointArray[0].toInt(), pointArray[1].toInt());
       }
     }
 
@@ -1833,13 +1833,13 @@ void MarkBaseSubtable::readParameters(const QJsonObject& json) {
       for (int ia = 0; ia < markparametersObject.size(); ++ia) {
         QString glyphName = markparametersObject.keys()[ia];
         QJsonArray pointArray = markparametersObject[glyphName].toArray();
-        newclass.markparameters[glyphName.toStdString()] = QPoint(pointArray[0].toInt(), pointArray[1].toInt());
+        newclass.markparameters[glyphName.toStdString()] = Point(pointArray[0].toInt(), pointArray[1].toInt());
       }
     }
   }
 }
-QPoint MarkBaseSubtable::getBaseAnchor(std::string baseGlyphName, std::string className, GlyphParameters parameters) {
-  QPoint coordinate;
+Point MarkBaseSubtable::getBaseAnchor(std::string baseGlyphName, std::string className, GlyphParameters parameters) {
+  Point coordinate;
 
   auto markClass = classes[className];
 
@@ -1863,7 +1863,7 @@ QPoint MarkBaseSubtable::getBaseAnchor(std::string baseGlyphName, std::string cl
       if (curr->conatinsAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
         coordinate += curr->getAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor);
       } else if (markClass.basefunction) {
-        coordinate = markClass.basefunction(qBaseGlyphName, QString::fromStdString(className), coordinate, parameters);
+        coordinate = markClass.basefunction(baseGlyphName, className, coordinate, parameters);
       } else if (markClass.baseanchors.contains(baseGlyphName)) {
         coordinate += markClass.baseanchors[baseGlyphName];
       }
@@ -1873,7 +1873,7 @@ QPoint MarkBaseSubtable::getBaseAnchor(std::string baseGlyphName, std::string cl
   return coordinate;
 }
 
-optional<QPoint> MarkBaseSubtable::getBaseAnchor(quint16 mark_id, quint16 base_id, GlyphParameters parameters) {
+optional<Point> MarkBaseSubtable::getBaseAnchor(quint16 mark_id, quint16 base_id, GlyphParameters parameters) {
   quint16 classIndex = markCodes[mark_id];
 
   const std::string& className = classNamebyIndex[classIndex];
@@ -1882,8 +1882,8 @@ optional<QPoint> MarkBaseSubtable::getBaseAnchor(quint16 mark_id, quint16 base_i
 
   return getBaseAnchor(baseGlyphName, className, parameters);
 }
-QPoint MarkBaseSubtable::getMarkAnchor(std::string markGlyphName, std::string className, GlyphParameters parameters) {
-  QPoint coordinate;
+Point MarkBaseSubtable::getMarkAnchor(std::string markGlyphName, std::string className, GlyphParameters parameters) {
+  Point coordinate;
 
   auto markClass = classes[className];
 
@@ -1907,7 +1907,7 @@ QPoint MarkBaseSubtable::getMarkAnchor(std::string markGlyphName, std::string cl
       if (curr->conatinsAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
         coordinate += curr->getAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor);
       } else if (markClass.markfunction != nullptr) {
-        coordinate = markClass.markfunction(qMarkGlyphName, QString::fromStdString(className), coordinate, parameters);
+        coordinate = markClass.markfunction(markGlyphName, className, coordinate, parameters);
       } else if (markClass.markanchors.contains(markGlyphName)) {
         coordinate += markClass.markanchors[markGlyphName];
       }
@@ -1916,7 +1916,7 @@ QPoint MarkBaseSubtable::getMarkAnchor(std::string markGlyphName, std::string cl
 
   return coordinate;
 }
-optional<QPoint> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_id, GlyphParameters parameters) {
+optional<Point> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_id, GlyphParameters parameters) {
   quint16 classIndex = markCodes[mark_id];
 
   const std::string& className = classNamebyIndex[classIndex];
@@ -1948,7 +1948,7 @@ void MarkBaseSubtable::setAnchorTable(std::string className,
     charrt = glyph->charrt;
   }
 
-  QPoint coordinate = isBase ? getBaseAnchor(originalGlyph, className, {.lefttatweel = charlt, .righttatweel = charrt}) : getMarkAnchor(originalGlyph, className, {.lefttatweel = charlt, .righttatweel = charrt});
+  Point coordinate = isBase ? getBaseAnchor(originalGlyph, className, {.lefttatweel = charlt, .righttatweel = charrt}) : getMarkAnchor(originalGlyph, className, {.lefttatweel = charlt, .righttatweel = charrt});
 
   bool done = false;
   if (m_layout->isOTVar) {

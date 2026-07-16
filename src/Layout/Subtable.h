@@ -248,10 +248,10 @@ struct PairAdjustmentSubtable : Subtable {
 
 struct CursiveSubtable : Subtable {
   struct EntryExit {
-    std::optional<QPoint> entry;
+    std::optional<Point> entry;
     CursiveAnchorFunc entryFunction;
     std::string entryName;
-    std::optional<QPoint> exit;
+    std::optional<Point> exit;
     CursiveAnchorFunc exitFunction;
     std::string exitName;
   };
@@ -263,14 +263,14 @@ struct CursiveSubtable : Subtable {
 
   std::map<std::uint16_t, EntryExit> anchors;
 
-  std::map<std::uint16_t, QPoint> exitParameters;
-  std::map<std::uint16_t, QPoint> entryParameters;
+  std::map<std::uint16_t, Point> exitParameters;
+  std::map<std::uint16_t, Point> entryParameters;
 
-  virtual std::optional<QPoint> getEntry(std::uint16_t glyph_id, GlyphParameters parameters);
+  virtual std::optional<Point> getEntry(std::uint16_t glyph_id, GlyphParameters parameters);
 
-  virtual QPoint calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, QPoint entry);
+  virtual Point calculateEntry(GlyphVis* originalglyph, GlyphVis* extendedglyph, Point entry);
 
-  virtual std::optional<QPoint> getExit(std::uint16_t glyph_id, GlyphParameters parameters);
+  virtual std::optional<Point> getExit(std::uint16_t glyph_id, GlyphParameters parameters);
 
  private:
   void setAnchorTable(std::uint16_t glyphCode,
@@ -288,10 +288,10 @@ struct MarkBaseSubtable : Subtable {
     std::unordered_set<std::uint16_t> markCodes;
     CalcAnchor basefunction;
     CalcAnchor markfunction;
-    std::map<std::string, QPoint> baseparameters;
-    std::map<std::string, QPoint> markparameters;
-    std::map<std::string, QPoint> baseanchors;
-    std::map<std::string, QPoint> markanchors;
+    std::map<std::string, Point> baseparameters;
+    std::map<std::string, Point> markparameters;
+    std::map<std::string, Point> baseanchors;
+    std::map<std::string, Point> markanchors;
   };
   MarkBaseSubtable(Lookup* lookup);
 
@@ -312,10 +312,10 @@ struct MarkBaseSubtable : Subtable {
   std::map<std::uint16_t, std::uint16_t> markCodes;
   std::map<std::uint16_t, std::string> classNamebyIndex;
 
-  virtual std::optional<QPoint> getBaseAnchor(std::uint16_t mark_id, std::uint16_t base_id, GlyphParameters parameters);
-  virtual QPoint getBaseAnchor(std::string baseGlyphName, std::string className, GlyphParameters parameters);
-  virtual std::optional<QPoint> getMarkAnchor(std::uint16_t mark_id, std::uint16_t base_id, GlyphParameters parameters);
-  QPoint getMarkAnchor(std::string markGlyphName, std::string className, GlyphParameters parameters);
+  virtual std::optional<Point> getBaseAnchor(std::uint16_t mark_id, std::uint16_t base_id, GlyphParameters parameters);
+  virtual Point getBaseAnchor(std::string baseGlyphName, std::string className, GlyphParameters parameters);
+  virtual std::optional<Point> getMarkAnchor(std::uint16_t mark_id, std::uint16_t base_id, GlyphParameters parameters);
+  Point getMarkAnchor(std::string markGlyphName, std::string className, GlyphParameters parameters);
 
  private:
   void setAnchorTable(std::string className,

@@ -570,15 +570,17 @@ static hb_font_funcs_t* getFontFunctions(hb_font_t* font, bool otVar) {
   return harfbuzzCoreTextFontFuncs;
 }
 
-QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, GlyphVis* curr, QString className, QPoint adjust, GlyphParameters parameters, GlyphVis** poriginalglyph) {
+Point AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable,
+                                GlyphVis* curr, const std::string& className,
+                                Point adjust, GlyphParameters parameters,
+                                GlyphVis** poriginalglyph) {
   GlyphVis* originalglyph = curr;
 
-  QPoint adjustoriginal;
+  Point adjustoriginal;
 
   if (curr->expanded) {
-    auto originalGlyphName = QString::fromStdString(curr->originalglyph);
     if (curr->name != "alternatechar" && (!curr->originalglyph.empty() && (curr->charlt != 0 || curr->charrt != 0))) {
-      adjustoriginal = subtable.classes[className.toStdString()].baseparameters[originalGlyphName.toStdString()];
+      adjustoriginal = subtable.classes[className].baseparameters[curr->originalglyph];
     }
 
     originalglyph = &y.glyphs[curr->originalglyph];
@@ -586,7 +588,7 @@ QPoint AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable, Glyp
       double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
       double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
 
-      adjustoriginal += QPoint(xshift, yshift);
+      adjustoriginal += Point(xshift, yshift);
     } else if (curr->rightAnchor && !(curr->originalglyph.find("fina") != std::string::npos && curr->originalglyph.find("expa") != std::string::npos)) {
     } else {
       originalglyph = curr;
@@ -1062,11 +1064,11 @@ void OtLayout::clearAlternates() {
   tempGlyphs.clear();
 }
 
-CalcAnchor OtLayout::getanchorCalcFunctions(QString functionName, Subtable* subtable) {
-  return automedina->getanchorCalcFunctions(functionName.toStdString(), subtable);
+CalcAnchor OtLayout::getanchorCalcFunctions(const std::string& functionName, Subtable* subtable) {
+  return automedina->getanchorCalcFunctions(functionName, subtable);
 }
-CursiveAnchorFunc OtLayout::getCursiveFunctions(QString functionName, Subtable* subtable) {
-  return automedina->getCursiveFunctions(functionName.toStdString(), subtable);
+CursiveAnchorFunc OtLayout::getCursiveFunctions(const std::string& functionName, Subtable* subtable) {
+  return automedina->getCursiveFunctions(functionName, subtable);
 }
 PairAdjustFunc OtLayout::getPairAdjustFunction(std::string functionName, Subtable* subtable) {
   return automedina->getPairAdjustFunction(functionName, subtable);
@@ -1494,15 +1496,15 @@ void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableI
     //}
     // else {
     if (!shift) {
-      QPoint newvalue = subtableTable->entryParameters[glyphCode] - displacement;
+      Point newvalue = subtableTable->entryParameters[glyphCode] - Point(displacement);
       subtableTable->entryParameters[glyphCode] = newvalue;
 
-      qDebug() << QString("Changing cursive entry anchor %1::%2::%3 :").arg(lookupTable->name, QString::fromStdString(subtable->name), QString::fromStdString(glyphName)) << newvalue;
+      qDebug() << QString("Changing cursive entry anchor %1::%2::%3 :").arg(lookupTable->name, QString::fromStdString(subtable->name), QString::fromStdString(glyphName)) << QPoint(newvalue);
     } else {
-      QPoint newvalue = subtableTable->exitParameters[baseCode] + displacement;
+      Point newvalue = subtableTable->exitParameters[baseCode] + Point(displacement);
       subtableTable->exitParameters[baseCode] = newvalue;
 
-      qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :").arg(lookupTable->name, QString::fromStdString(subtable->name), QString::fromStdString(baseGlyphName)) << newvalue;
+      qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :").arg(lookupTable->name, QString::fromStdString(subtable->name), QString::fromStdString(baseGlyphName)) << QPoint(newvalue);
     }
     //}
 

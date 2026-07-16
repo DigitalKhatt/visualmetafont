@@ -301,24 +301,24 @@ void LookupDefinitionVisitor::accept(CursiveRule& cursiveRule) {
 
   if (cursiveRule.entryAnchor->anchortype() == AnchorType::FormatA) {
     auto anchor = static_cast<AnchorFormatA*>(cursiveRule.entryAnchor);
-    value.entry = QPoint(anchor->x, anchor->y);
+    value.entry = Point(anchor->x, anchor->y);
   } else if (cursiveRule.entryAnchor->anchortype() == AnchorType::Name) {
     auto anchor = static_cast<AnchorName*>(cursiveRule.entryAnchor);
     value.entryName = anchor->name;
   } else if (cursiveRule.entryAnchor->anchortype() == AnchorType::Function) {
     auto functionAnchor = static_cast<AnchorFunction*>(cursiveRule.entryAnchor);
-    value.entryFunction = otlayout->getCursiveFunctions(QString::fromStdString(functionAnchor->name), newsubtable);
+    value.entryFunction = otlayout->getCursiveFunctions(functionAnchor->name, newsubtable);
   }
 
   if (cursiveRule.exitAnchor->anchortype() == AnchorType::FormatA) {
     auto anchor = static_cast<AnchorFormatA*>(cursiveRule.exitAnchor);
-    value.exit = QPoint(anchor->x, anchor->y);
+    value.exit = Point(anchor->x, anchor->y);
   } else if (cursiveRule.exitAnchor->anchortype() == AnchorType::Name) {
     auto anchor = static_cast<AnchorName*>(cursiveRule.exitAnchor);
     value.exitName = anchor->name;
   } else if (cursiveRule.exitAnchor->anchortype() == AnchorType::Function) {
     auto functionAnchor = static_cast<AnchorFunction*>(cursiveRule.exitAnchor);
-    value.exitFunction = otlayout->getCursiveFunctions(QString::fromStdString(functionAnchor->name), newsubtable);
+    value.exitFunction = otlayout->getCursiveFunctions(functionAnchor->name, newsubtable);
   }
 
   auto codes = cursiveRule.glyphset->getCodes(otlayout);
@@ -355,10 +355,10 @@ void LookupDefinitionVisitor::accept(Mark2BaseRule& mark2BaseRule) {
 
     if (mark2baseclass->baseAnchor->anchortype() == AnchorType::Function) {
       auto functionAnchor = static_cast<AnchorFunction*>(mark2baseclass->baseAnchor);
-      newclass.basefunction = otlayout->getanchorCalcFunctions(QString::fromStdString(functionAnchor->name), newsubtable);
+      newclass.basefunction = otlayout->getanchorCalcFunctions(functionAnchor->name, newsubtable);
     } else if (mark2baseclass->baseAnchor->anchortype() == AnchorType::FormatA) {
       auto formaAAnchor = static_cast<AnchorFormatA*>(mark2baseclass->baseAnchor);
-      auto anchor = QPoint{formaAAnchor->x, formaAAnchor->y};
+      auto anchor = Point{formaAAnchor->x, formaAAnchor->y};
       for (auto code : newsubtable->sortedBaseCodes) {
         auto glyphName = otlayout->glyphNamePerCode[code];
         newclass.baseanchors[glyphName] = anchor;
@@ -367,10 +367,10 @@ void LookupDefinitionVisitor::accept(Mark2BaseRule& mark2BaseRule) {
 
     if (mark2baseclass->markAnchor->anchortype() == AnchorType::Function) {
       auto functionAnchor = static_cast<AnchorFunction*>(mark2baseclass->markAnchor);
-      newclass.markfunction = otlayout->getanchorCalcFunctions(QString::fromStdString(functionAnchor->name), newsubtable);
+      newclass.markfunction = otlayout->getanchorCalcFunctions(functionAnchor->name, newsubtable);
     } else if (mark2baseclass->markAnchor->anchortype() == AnchorType::FormatA) {
       auto formaAAnchor = static_cast<AnchorFormatA*>(mark2baseclass->markAnchor);
-      auto anchor = QPoint{formaAAnchor->x, formaAAnchor->y};
+      auto anchor = Point{formaAAnchor->x, formaAAnchor->y};
       for (auto code : newclass.markCodes) {
         auto markName = otlayout->glyphNamePerCode[code];
         newclass.markanchors[markName] = anchor;

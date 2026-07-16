@@ -26,22 +26,22 @@
 class Defaulbaseanchorfortop : public AnchorCalc {
 public:
   Defaulbaseanchorfortop(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-  QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
+  Point operator()(std::string glyphName, std::string className, Point adjust, GlyphParameters parameters) override {
 
-    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
     curr = curr->getAlternate(parameters);
 
-    if (curr->conatinsAnchor(className.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
-      QPoint anchor = curr->getAnchor(className.toStdString(), GlyphVis::AnchorType::MarkAnchor) + adjust;
+    if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
+      Point anchor = Point(curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor)) + adjust;
       return anchor;
     }
     else {
       GlyphVis* originalglyph;
 
-      QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, parameters, &originalglyph);
+      Point adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, parameters, &originalglyph);
 
-      QPoint anchor;
+      Point anchor;
 
 
       anchor = caclAnchor(*originalglyph, *curr, className) + adjustoriginal + adjust;
@@ -56,7 +56,7 @@ public:
 private:
   Automedina& _y;
   MarkBaseSubtable& _subtable;
-  QPoint caclAnchor(GlyphVis& glyph, GlyphVis& curr, QString className) {
+  Point caclAnchor(GlyphVis& glyph, GlyphVis& curr, std::string className) {
 
     int height = std::max((int)curr.height + _y.spacebasetotopmark, className == "shadda" ? _y.shaddamarkheight : _y.markheigh);    
 
@@ -81,23 +81,23 @@ private:
       width = 100;
     }
 
-    return QPoint(width, height);
+    return Point(width, height);
   }
 };
 
 class Defaulbaseanchorforlow : public AnchorCalc {
 public:
   Defaulbaseanchorforlow(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-  QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
+  Point operator()(std::string glyphName, std::string className, Point adjust, GlyphParameters parameters) override {
 
 
-    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
     curr = curr->getAlternate(parameters);
 
     GlyphVis* originalglyph;
 
-    QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, parameters, &originalglyph);
+    Point adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, parameters, &originalglyph);
 
     if (curr->originalglyph.find("isol.expa") != std::string::npos) {
       originalglyph = curr;
@@ -106,7 +106,7 @@ public:
 
     int depth = std::max((int)-originalglyph->depth + _y.spacebasetobottommark, _y.markdepth);
 
-    QPoint anchor = QPoint{ (int)(originalglyph->width * 0.5),-depth } + adjustoriginal + adjust;
+    Point anchor = Point{ (int)(originalglyph->width * 0.5),-depth } + adjustoriginal + adjust;
 
     return anchor;
 
@@ -120,9 +120,9 @@ private:
 class Defaultopmarkanchor : public AnchorCalc {
 public:
   Defaultopmarkanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-  QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
+  Point operator()(std::string glyphName, std::string className, Point adjust, GlyphParameters parameters) override {
 
-    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
     auto ori_width = curr->width;
 
@@ -141,7 +141,7 @@ public:
     height = height + adjust.y();
 
 
-    return QPoint(width, height);
+    return Point(width, height);
   };
 private:
   Automedina& _y;
@@ -152,9 +152,9 @@ private:
 class Defaullowmarkanchor : public AnchorCalc {
 public:
   Defaullowmarkanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-  QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
+  Point operator()(std::string glyphName, std::string className, Point adjust, GlyphParameters parameters) override {
 
-    GlyphVis* glyph = &_y.glyphs[glyphName.toStdString()];
+    GlyphVis* glyph = &_y.glyphs[glyphName];
 
     glyph = glyph->getAlternate(parameters);
 
@@ -163,14 +163,14 @@ public:
 
     /*
     if (!adjust.isNull()) {
-      std::cout << _subtable.getLookup()->name.toStdString() << "::" << _subtable.name.toStdString() << "::" << className.toStdString() << "::" << glyphName.toStdString() << std::endl;
+      std::cout << _subtable.getLookup()->name.toStdString() << "::" << _subtable.name.toStdString() << "::" << className << "::" << glyphName << std::endl;
     }*/
 
     width = width + adjust.x();
     height = height + adjust.y();
 
 
-    return QPoint(width, height);
+    return Point(width, height);
 
   };
 private:
@@ -181,9 +181,9 @@ private:
 class Defaultmarkabovemark : public AnchorCalc {
 public:
   Defaultmarkabovemark(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-  QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
+  Point operator()(std::string glyphName, std::string className, Point adjust, GlyphParameters parameters) override {
 
-    GlyphVis& curr = _y.glyphs[glyphName.toStdString()];
+    GlyphVis& curr = _y.glyphs[glyphName];
 
     int width = curr.width * 0.5;
     int height = curr.height;
@@ -192,7 +192,7 @@ public:
     height = height + adjust.y();
 
 
-    return QPoint(width, height);
+    return Point(width, height);
 
   };
 private:
@@ -203,9 +203,9 @@ private:
 class Defaultmarkbelowmark : public AnchorCalc {
 public:
   Defaultmarkbelowmark(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-  QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
+  Point operator()(std::string glyphName, std::string className, Point adjust, GlyphParameters parameters) override {
 
-    GlyphVis& curr = _y.glyphs[glyphName.toStdString()];
+    GlyphVis& curr = _y.glyphs[glyphName];
 
 
     int width = curr.width * 0.5;
@@ -215,7 +215,7 @@ public:
     height = height - adjust.y();
 
 
-    return QPoint(width, height);
+    return Point(width, height);
 
   };
 private:
@@ -226,34 +226,34 @@ private:
 class Defaulbaseanchorforsmallalef : public AnchorCalc {
 public:
   Defaulbaseanchorforsmallalef(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-  QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
+  Point operator()(std::string glyphName, std::string className, Point adjust, GlyphParameters parameters) override {
 
 
 
-    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
     curr = curr->getAlternate(parameters);
 
     GlyphVis* originalglyph = curr;
-    QPoint adjustoriginal;
+    Point adjustoriginal;
 
-    // QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
+    // Point adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
     //if (curr->name == "alternatechar" || curr->name.contains(".added_")) {
     if (curr->expanded) {
       auto originalGlyphName = QString::fromStdString(curr->originalglyph);
       originalglyph = &_y.glyphs[curr->originalglyph];
-      adjustoriginal = _subtable.classes[className.toStdString()].baseparameters[originalGlyphName.toStdString()];
+      adjustoriginal = _subtable.classes[className].baseparameters[originalGlyphName.toStdString()];
       if (curr->leftAnchor) {
         double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
         double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;
 
-        adjustoriginal += QPoint(xshift / 2, yshift);
+        adjustoriginal += Point(xshift / 2, yshift);
       }
     }
 
 
-    QPoint anchor = caclAnchor(originalglyph) + adjustoriginal + adjust;
+    Point anchor = caclAnchor(originalglyph) + adjustoriginal + adjust;
 
     return anchor;
    
@@ -262,7 +262,7 @@ private:
   Automedina& _y;
   MarkBaseSubtable& _subtable;
 
-  QPoint caclAnchor(GlyphVis* glyph) {
+  Point caclAnchor(GlyphVis* glyph) {
     int height = 250;
     int width = 0; // glyph->width * 0.5;
     if (glyph->name.find("isol") == std::string::npos) {
@@ -273,27 +273,27 @@ private:
       width = glyph->width * 0;
     }*/
 
-    return QPoint(width, height);
+    return Point(width, height);
   }
 };
 
 class Defaulbaseanchorfortopdots : public AnchorCalc {
 public:
   Defaulbaseanchorfortopdots(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-  QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
+  Point operator()(std::string glyphName, std::string className, Point adjust, GlyphParameters parameters) override {
 
-    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
     curr = curr->getAlternate(parameters);
 
-    if (curr->conatinsAnchor(className.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
-      QPoint anchor = curr->getAnchor(className.toStdString(), GlyphVis::AnchorType::MarkAnchor) + adjust;
+    if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
+      Point anchor = Point(curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor)) + adjust;
       return anchor;
     }
 
     GlyphVis* originalglyph;
 
-    QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, parameters, &originalglyph);
+    Point adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, parameters, &originalglyph);
 
     int width = (int)(originalglyph->width * 0.5);
 
@@ -311,7 +311,7 @@ public:
     }
 
 
-    QPoint anchor = QPoint{ width,(int)(originalglyph->height + 80) } + adjustoriginal + adjust;
+    Point anchor = Point{ width,(int)(originalglyph->height + 80) } + adjustoriginal + adjust;
 
     return anchor;
 
@@ -324,24 +324,24 @@ private:
 class Defaulbaseanchorforlowdots : public AnchorCalc {
 public:
   Defaulbaseanchorforlowdots(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-  QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
+  Point operator()(std::string glyphName, std::string className, Point adjust, GlyphParameters parameters) override {
 
-    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
     curr = curr->getAlternate(parameters);
 
-    if (curr->conatinsAnchor(className.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
-      QPoint anchor = curr->getAnchor(className.toStdString(), GlyphVis::AnchorType::MarkAnchor) + adjust;
+    if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
+      Point anchor = Point(curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor)) + adjust;
       return anchor;
     }
     else if ((curr->name == "behshape.fina.expa" || curr->originalglyph == "behshape.fina.expa") && curr->conatinsAnchor("dotbelow", GlyphVis::AnchorType::MarkAnchor)) {
-      QPoint anchor = curr->getAnchor("dotbelow", GlyphVis::AnchorType::MarkAnchor) + adjust;
+      Point anchor = Point(curr->getAnchor("dotbelow", GlyphVis::AnchorType::MarkAnchor)) + adjust;
       return anchor;
     }
     else {
-      QPoint adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, parameters, &curr);
+      Point adjustoriginal = getAdjustment(_y, _subtable, curr, className, adjust, parameters, &curr);
 
-      QPoint anchor = QPoint{ (int)(curr->width * 0.5),(int)(curr->depth - 50) } + adjustoriginal + adjust;
+      Point anchor = Point{ (int)(curr->width * 0.5),(int)(curr->depth - 50) } + adjustoriginal + adjust;
 
       return anchor;
     }
@@ -355,19 +355,19 @@ private:
 class Joinedsmalllettersbaseanchor : public AnchorCalc {
 public:
   Joinedsmalllettersbaseanchor(Automedina& y, MarkBaseSubtable& subtable) : _y(y), _subtable(subtable) {}
-  QPoint operator()(QString glyphName, QString className, QPoint adjust, GlyphParameters parameters) override {
+  Point operator()(std::string glyphName, std::string className, Point adjust, GlyphParameters parameters) override {
 
 
 
-    GlyphVis* curr = &_y.glyphs[glyphName.toStdString()];
+    GlyphVis* curr = &_y.glyphs[glyphName];
 
     curr = curr->getAlternate(parameters);
 
-    //QPoint adjustoriginal = getAdjustment(_y, _subtable, originalglyph, className, adjust, lefttatweel, righttatweel, &originalglyph);
+    //Point adjustoriginal = getAdjustment(_y, _subtable, originalglyph, className, adjust, lefttatweel, righttatweel, &originalglyph);
 
     // TODO يُضَٰهِـُٔونَ different from standard
     if (curr->name.find("added") != std::string::npos) {
-      adjust = _subtable.classes[className.toStdString()].baseparameters[curr->originalglyph];
+      adjust = _subtable.classes[className].baseparameters[curr->originalglyph];
     }
 
 
@@ -376,14 +376,14 @@ public:
       int width = curr->width * 0.5;
       int height = 200;
 
-      auto value = QPoint{ width , height };
+      auto value = Point{ width , height };
 
       return value + adjust;
     }
     else if (className == "smallhighwaw") {
       auto anchor = curr->getAnchor("smallhighwaw", GlyphVis::AnchorType::MarkAnchor);
 
-      auto value = anchor + adjust;
+      auto value = Point(anchor) + adjust;
 
       int diff = value.x() - 300;
 
@@ -398,7 +398,7 @@ public:
       int width = 300;
       int height = 200;
 
-      auto value = QPoint{ width , height };
+      auto value = Point{ width , height };
 
       return value + adjust;
     }
@@ -406,7 +406,7 @@ public:
       int width = 100;
       int height = 200;
 
-      auto value = QPoint{ width , height };
+      auto value = Point{ width , height };
 
       return value + adjust;
     }
@@ -414,7 +414,7 @@ public:
       int width = 420;
       int height = 200;
 
-      auto value = QPoint{ width , height };
+      auto value = Point{ width , height };
 
       return value + adjust;
     }
@@ -422,7 +422,7 @@ public:
       int width = 225;
       int height = 200;
 
-      auto value = QPoint{ width , height };
+      auto value = Point{ width , height };
 
       return value + adjust;
     }
