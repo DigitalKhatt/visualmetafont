@@ -867,18 +867,17 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended,
   OtLayout layout =
       OtLayout(m_font, extended, extended ? true : generateVariableOpenType);
 
-  // OtLayout no longer reads QSettings itself. Keep the UI-owned setting at
-  // this boundary so temporary layouts used for export generate the same set
-  // of lookups as the main layout.
+  // allFeatures is still empty here: GenerateFile parses the feature file
+  // later. Read disabled lookup names directly so this does not depend on
+  // Lookup objects having been created yet.
   QSettings settings;
-  for (const auto& [feature, featureLookups] : layout.allFeatures) {
-    for (auto* lookup : featureLookups) {
-      const auto lookupName = QString::fromStdString(lookup->name);
-      if (settings.value("DisabledLookups/" + lookupName).toBool()) {
-        layout.setLookupDisabled(lookup, true);
-      }
+  settings.beginGroup("DisabledLookups");
+  for (const auto& lookupName : settings.childKeys()) {
+    if (settings.value(lookupName).toBool()) {
+      layout.setLookupDisabled(lookupName.toStdString(), true);
     }
   }
+  settings.endGroup();
 
   layout.toOpenType->isCff2 = true;
 

@@ -809,7 +809,7 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
   lookups.clear();
 
   for (auto lookup : this->lookups) {
-    if (!disabledLookups.contains(lookup) && (extended || (lookup->type != Lookup::fsmgsub))) {
+    if (!disabledLookups.contains(lookup->name) && (extended || (lookup->type != Lookup::fsmgsub))) {
       if (isgsub == lookup->isGsubLookup()) {
         std::uint16_t lookupIndex = lookups.size();
 
@@ -946,11 +946,27 @@ OtLayout::~OtLayout() {
   delete toOpenType;
 }
 
+void OtLayout::setDisabled(Lookup* lookup) {
+  disabledLookups.insert(lookup->name);
+}
+
+void OtLayout::setLookupDisabled(Lookup* lookup, bool disabled) {
+  setLookupDisabled(lookup->name, disabled);
+}
+
+void OtLayout::setLookupDisabled(std::string lookupName, bool disabled) {
+  if (disabled) {
+    disabledLookups.insert(std::move(lookupName));
+  } else {
+    disabledLookups.erase(lookupName);
+  }
+}
+
 void OtLayout::generateSubstEquivGlyphs() {
   if (!extended && substEquivGlyphs.size() == 0) {
     automedina->generateSubstEquivGlyphs();
     for (auto lookup : lookups) {
-      if (!disabledLookups.contains(lookup)) {
+      if (!disabledLookups.contains(lookup->name)) {
         if (lookup->isGsubLookup() && lookup->type != Lookup::SubType::fsmgsub) {
           auto subtables = lookup->getSubtables(extended);
           for (auto subtable : subtables) {
@@ -1060,7 +1076,9 @@ void OtLayout::parseFeatureFile(std::string fileName) {
   automedina->cachedClasstoUnicode.clear();
   // automedina->cvxxfeatures.clear();
   allFeatures.clear();
-  disabledLookups.clear();
+  // Do not clear disabledLookups here. GenerateFile reparses the feature file
+  // twice, recreating every Lookup object; the name-based disabled state must
+  // remain in effect across those reparses.
   tables.clear();
   // nojustalternatePaths.clear();
 

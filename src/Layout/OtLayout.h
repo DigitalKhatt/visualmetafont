@@ -342,15 +342,9 @@ class OtLayout {
 
   ToOpenType* toOpenType = nullptr;
 
-  void setDisabled(Lookup* lookup) {
-    disabledLookups.insert(lookup);
-  }
-  void setLookupDisabled(Lookup* lookup, bool disabled) {
-    if (disabled)
-      disabledLookups.insert(lookup);
-    else
-      disabledLookups.erase(lookup);
-  }
+  void setDisabled(Lookup* lookup);
+  void setLookupDisabled(Lookup* lookup, bool disabled);
+  void setLookupDisabled(std::string lookupName, bool disabled);
 
   void executeFSM(FSMSubtable& subtable, OT::hb_ot_apply_context_t* c) {
     fsmDriver.executeFSM(subtable, c);
@@ -396,7 +390,9 @@ class OtLayout {
 
   double _nuqta = -1;
 
-  std::unordered_set<Lookup*> disabledLookups;
+  // Lookup objects are recreated whenever a feature file is parsed. Keep the
+  // disabled state by name so it survives those reparses during font export.
+  std::unordered_set<std::string> disabledLookups;
 
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> tempGlyphs;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> addedGlyphs;
