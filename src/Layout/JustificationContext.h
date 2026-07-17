@@ -19,9 +19,8 @@
 
 #pragma once
 
-#include "qvector.h"
-#include "qmap.h"
 #include <unordered_map>
+#include <vector>
 
 enum class StartEndLig {
   StartEnd,

@@ -89,7 +89,7 @@ void ToOpenType::setAxes() {
     return region;
   };
 
-  auto getAxisIndex = [&axes = axes](QString axisName) {
+  auto getAxisIndex = [&axes = axes](std::string_view axisName) {
     for (int i = 0; i < axes.size(); i++) {
       auto& axis = axes[i];
       if (axis.name == axisName) {
@@ -293,7 +293,7 @@ void ToOpenType::setGIds() {
   std::unordered_map<std::string, std::uint16_t> glyphCodePerName;
   std::map<std::uint16_t, std::string> glyphNamePerCode;
   std::map<std::uint16_t, std::uint16_t> unicodeToGlyphCode;
-  QMap<quint16, OtLayout::GDEFClasses> glyphGlobalClasses;
+  std::map<std::uint16_t, OtLayout::GDEFClasses> glyphGlobalClasses;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> tempGlyphs;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> addedGlyphs;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> substEquivGlyphs;
@@ -354,15 +354,12 @@ void ToOpenType::setGIds() {
     unicodeToGlyphCodeIter++;
   }
 
-  auto glyphGlobalClassesIter = ot_layout->glyphGlobalClasses.cbegin();
-  while (glyphGlobalClassesIter != ot_layout->glyphGlobalClasses.cend()) {
-    if (!newCodes.contains(glyphGlobalClassesIter.key())) {
-      throw new std::runtime_error(QString("Code %1 not found").arg(glyphGlobalClassesIter.key()).toStdString());
+  for (const auto& [oldCode, glyphClass] : ot_layout->glyphGlobalClasses) {
+    if (!newCodes.contains(oldCode)) {
+      throw new std::runtime_error(QString("Code %1 not found").arg(oldCode).toStdString());
     }
 
-    glyphGlobalClasses.insert(newCodes.value(glyphGlobalClassesIter.key()), glyphGlobalClassesIter.value());
-
-    glyphGlobalClassesIter++;
+    glyphGlobalClasses.emplace(newCodes.value(oldCode), glyphClass);
   }
 
   for (std::pair<int, std::unordered_map<GlyphParameters, GlyphVis*>> element : ot_layout->tempGlyphs) {
@@ -821,7 +818,7 @@ digitalkhatt::ByteBuffer ToOpenType::name() {
   names.append(Name{22, globalValues.subFamilyName});
 
   for (int i = 0; i < axisCount; i++) {
-    names.append(Name{(ushort)axisNameIds[i], ot_layout->font->axes[i].name});
+    names.append(Name{(ushort)axisNameIds[i], QString::fromStdString(ot_layout->font->axes[i].name)});
   }
 
   digitalkhatt::ByteBuffer stringStorage;

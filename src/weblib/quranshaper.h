@@ -23,6 +23,7 @@
 
 #include <string>
 #include "OtLayout.h"
+#include "QtLayoutSerialization.h"
 #include "qregularexpression.h"
 #include "GlyphVis.h"
 #include "automedina/automedina.h"
@@ -216,6 +217,9 @@ public:
     QString input = QString::fromStdString(text);
 
     auto lines = input.split(10, QString::SkipEmptyParts);
+    std::vector<std::string> stdLines;
+    stdLines.reserve(lines.size());
+    for (const auto& line : lines) stdLines.push_back(line.toStdString());
 
     auto justification = LineJustification::Distribute;
 
@@ -229,7 +233,9 @@ public:
 
     lineWidth = lineWidth / scale;
 
-    auto page = layout->justifyPage(fontScale, lineWidth, lineWidth, lines, justification, true, tajweedColor, fontExpansion);
+    auto page = layout->justifyPage(fontScale, lineWidth, lineWidth,
+                                    std::move(stdLines), justification, true,
+                                    tajweedColor);
 
     int currentyPos = 0;
     int margin = 0;
@@ -378,7 +384,12 @@ public:
 
     }
 
-    auto page = layout->justifyPage(fontScale, lineWidth, pageWidth, lines, justification, false, tajweedColor, changeSize);
+    std::vector<std::string> stdLines;
+    stdLines.reserve(lines.size());
+    for (const auto& line : lines) stdLines.push_back(line.toStdString());
+    auto page = layout->justifyPage(fontScale, lineWidth, pageWidth,
+                                    std::move(stdLines), justification, false,
+                                    tajweedColor);
 
 
     if (pageIndex == 0 && lineIndex == 0) {
@@ -399,7 +410,10 @@ public:
         auto match = surabism.match(lines[i]);
         if (match.hasMatch()) {
 
-          auto temp = layout->justifyPage(fontScale, 0, pageWidth, QStringList{ lines[i] }, LineJustification::Center, false, tajweedColor);
+          auto temp = layout->justifyPage(
+              fontScale, 0, pageWidth,
+              std::vector<std::string>{lines[i].toStdString()},
+              LineJustification::Center, false, tajweedColor);
 
           if (match.captured(0).startsWith("سُ")) {
             temp[0].type = LineType::Sura;

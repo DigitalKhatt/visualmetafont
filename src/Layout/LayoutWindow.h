@@ -25,6 +25,10 @@
 #include <digitalkhatt/layout/OptParams.h>
 
 #include "OtLayout.h"
+
+Q_DECLARE_METATYPE(JustType)
+Q_DECLARE_METATYPE(JustStyle)
+Q_DECLARE_METATYPE(ShrinkType)
 #include "qmainwindow.h"
 #include "qsqldatabase.h"
 
@@ -89,6 +93,12 @@ class LayoutWindow : public QMainWindow {
   void layoutParameterChanged();
   void executeRunText(bool newFace, int refresh = 2);
 
+ public:
+  void setParameter(std::uint16_t glyphCode, std::uint32_t lookup,
+                    std::uint32_t subtable, std::uint16_t markCode,
+                    std::uint16_t baseCode, QPoint displacement,
+                    Qt::KeyboardModifiers modifiers);
+
  protected:
   void resizeEvent(QResizeEvent* event) override;
 
@@ -113,6 +123,7 @@ class LayoutWindow : public QMainWindow {
   bool generateOpenTypeCff2StandardWithoutVar();
   bool generateOpenTypeCff2Extended();
   bool generateOpenTypeCff2(bool extended, bool generateVariableOpenType);
+  void saveFontInfo(const OtLayout& layout);
   bool exportpdf();
   bool generateAllQuranTexBreaking();
   bool generateMushaf(bool isHTML);

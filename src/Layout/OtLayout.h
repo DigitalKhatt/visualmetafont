@@ -20,14 +20,7 @@
 #ifndef OTLAYOUT_H
 #define OTLAYOUT_H
 
-#include <qpoint.h>
-#include <qstring.h>
-
-#include <QDataStream>
 #include "digitalkhatt/core/ByteBuffer.h"
-#include <QMap>
-#include <QSet>
-#include <QVector>
 #include <iostream>
 #include <concepts>
 #include <cstdint>
@@ -43,17 +36,16 @@
 #include "commontypes.h"
 #include "global.h"
 #include "hb.h"
-#include "qobject.h"
-#include "to_opentype.h"
 #include <digitalkhatt/core/digitalkahtt_types.h>
+#include <digitalkhatt/layout/ClassMap.h>
 
 struct Lookup;
-class QJsonObject;
 class Font;
 struct hb_font_t;
 struct hb_face_t;
 class Automedina;
 class GlyphVis;
+class ToOpenType;
 struct Subtable;
 struct MarkBaseSubtable;
 
@@ -104,14 +96,6 @@ inline digitalkhatt::TextString makeSuraLocationName(digitalkhatt::TextView name
   return result;
 }
 
-QDataStream& operator<<(QDataStream& stream, const SuraLocation& location);
-QDataStream& operator>>(QDataStream& stream, SuraLocation& location);
-inline QDataStream& operator<<(QDataStream& stream,
-                               const digitalkhatt::ByteBuffer& buffer) {
-  stream.writeRawData(reinterpret_cast<const char*>(buffer.data()),
-                      static_cast<int>(buffer.size()));
-  return stream;
-}
 
 struct ValueRecord {
   std::int16_t xPlacement;
@@ -220,21 +204,11 @@ struct Just {
   OtLayout* layout;
 };
 
-Q_DECLARE_METATYPE(JustType)
-Q_DECLARE_METATYPE(JustStyle)
-Q_DECLARE_METATYPE(ShrinkType)
-#ifdef DIGITALKHATT_WEBLIB
 class OtLayout {
-#else
-class OtLayout : public QObject {
-  Q_OBJECT
-#endif
 
   friend class Automedina;
   friend class GlyphVis;
-  friend class LayoutWindow;
   friend class ToOpenType;
-  friend class GenerateLayout;
 
  public:
   constexpr static int FrameHeight = 27400;
@@ -253,11 +227,8 @@ class OtLayout : public QObject {
     ComponentGlyph = 4
   };
 
-#if defined DIGITALKHATT_WEBLIB
-  OtLayout(Font* font, bool extended);
-#else
-  OtLayout(Font* font, bool extended, bool generateVariableOpenType, QObject* parent = Q_NULLPTR);
-#endif
+  OtLayout(Font* font, bool extended,
+           bool generateVariableOpenType = false);
   ~OtLayout();
 
   void loadLookupFile(std::string fileName);
@@ -283,7 +254,7 @@ class OtLayout : public QObject {
   static int SPACEWIDTH;
   static int MAXSPACEWIDTH;
 
-  QString import;
+  std::string import;
 
   std::vector<Lookup*> gsublookups;
   std::vector<Lookup*> gposlookups;
@@ -308,20 +279,18 @@ class OtLayout : public QObject {
   std::map<std::uint16_t, std::string> glyphNamePerCode;
   std::map<std::uint16_t, std::uint16_t> unicodeToGlyphCode;
 
-  QMap<quint16, GDEFClasses> glyphGlobalClasses;
+  std::map<std::uint16_t, GDEFClasses> glyphGlobalClasses;
 
-  // QMap<QString, AnchorCalc*> anchorCalcFunctions;
   CalcAnchor getanchorCalcFunctions(const std::string& functionName, Subtable* subtable);
   CursiveAnchorFunc getCursiveFunctions(const std::string& functionName, Subtable* subtable);
   PairAdjustFunc getPairAdjustFunction(std::string functionName, Subtable* subtable);
-  void setParameter(quint16 glyphCode, quint32 lookup, quint32 subtable, quint16 markCode, quint16 baseCode, QPoint displacement, Qt::KeyboardModifiers modifiers);
 
   std::unordered_map<std::string, GlyphVis> glyphs;
 
-  QVector<QList<quint16>> markGlyphSets;
+  std::vector<std::vector<std::uint16_t>> markGlyphSets;
 
-  quint16 addMarkSet(QList<quint16> list);
-  quint16 addMarkSet(QVector<QString> list);
+  std::uint16_t addMarkSet(std::vector<std::uint16_t> list);
+  std::uint16_t addMarkSet(const std::vector<std::string>& list);
 
   void generateSubstEquivGlyphs();
 
@@ -341,18 +310,23 @@ class OtLayout : public QObject {
 
   int tajweedcolorindex = 0xFFFF;
 
-  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, QString mushafLayoutType) {
+  std::vector<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, std::vector<std::string> lines, LineJustification justification, bool newFace, bool tajweedColor, std::string mushafLayoutType = {}) {
     return justifyPage(emScale, lineWidth, pageWidth, lines, justification, newFace, tajweedColor, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, {JustType::HarfBuzz, JustStyle::None, ShrinkType::None}, mushafLayoutType);
   }
 
-  QList<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level, JustOption justOption, QString mushafLayoutType);
-  QList<LineLayoutInfo> justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level, JustOption justOption, QString mushafLayoutType);
+  std::vector<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, std::vector<std::string> lines, LineJustification justification, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level, JustOption justOption, std::string mushafLayoutType);
+  std::vector<LineLayoutInfo> justifyPage(double emScale, int pageWidth, const std::vector<LineToJustify>& lines, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level, JustOption justOption, std::string mushafLayoutType);
 
-  QList<LineLayoutInfo> justifyPageUsingFeatures(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor,
-                                                 hb_buffer_cluster_level_t cluster_level, JustOption justOption, QString mushafLayout);
+  std::vector<LineLayoutInfo> justifyPageUsingFeatures(double emScale, int pageWidth, const std::vector<LineToJustify>& lines, bool newFace, bool tajweedColor,
+                                                       hb_buffer_cluster_level_t cluster_level, JustOption justOption, std::string mushafLayout);
   LayoutPages pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
-  QList<QStringList> pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, QSet<int> forcedBreaks, int nbPages);
-  QList<QStringList> pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, int nbPages);
+  OriginalPageList pageBreak(double emScale, int lineWidth,
+                             bool pageFinishbyaVerse,
+                             digitalkhatt::TextString text,
+                             std::unordered_set<int> forcedBreaks, int nbPages);
+  OriginalPageList pageBreak(double emScale, int lineWidth,
+                             bool pageFinishbyaVerse,
+                             digitalkhatt::TextString text, int nbPages);
 
   bool applyJustification = true;
 
@@ -362,7 +336,7 @@ class OtLayout : public QObject {
 
   void clearAlternates();
 
-  bool parseCppLookup(QString lookupName);
+  bool parseCppLookup(const std::string& lookupName);
 
   digitalkhatt::ByteBuffer getCmap();
 
@@ -370,6 +344,12 @@ class OtLayout : public QObject {
 
   void setDisabled(Lookup* lookup) {
     disabledLookups.insert(lookup);
+  }
+  void setLookupDisabled(Lookup* lookup, bool disabled) {
+    if (disabled)
+      disabledLookups.insert(lookup);
+    else
+      disabledLookups.erase(lookup);
   }
 
   void executeFSM(FSMSubtable& subtable, OT::hb_ot_apply_context_t* c) {
@@ -384,73 +364,22 @@ class OtLayout : public QObject {
 
   std::unordered_map<std::string, ValueLimits> expandableGlyphs;
 
-  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const int subregionIndex) {
-    return toOpenType->getDeltaSetEntry(delta, subregionIndex);
-  }
+  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, int subregionIndex);
 
   digitalkhatt::ByteBuffer JTST();
 
   Just justTable;
 
-  float normalToParameter(unsigned int code, float tatweel, bool left) {
-    if (!useNormAxisValues || tatweel == 0.0)
-      return tatweel;
-
-    if (tatweel < -1) {
-      // throw new std::runtime_error("tatweel error for glyph " + code);
-      const auto& name = glyphNamePerCode.at(code);
-      std::cout.precision(17);
-      std::cout << "min tatweel " << std::fixed << tatweel << " error for glyph " << name << '\n';
-      tatweel = -1;
-    }
-
-    if (tatweel > 1) {
-      // throw new std::runtime_error("tatweel error for glyph " + code);
-      const auto& name = glyphNamePerCode.at(code);
-      std::cout.precision(17);
-      std::cout << "max tatweel " << std::fixed << tatweel << " error for glyph " << name << '\n';
-      tatweel = 1;
-    }
-
-    ValueLimits limits;
-
-    const auto& name = glyphNamePerCode.at(code);
-
-    const auto& find = expandableGlyphs.find(name);
-
-    if (find == expandableGlyphs.end()) {
-      // throw new std::runtime_error("tatweel error for glyph " + name.toStdString());
-      std::cout << "No expandable glyph " + name + "\n";
-      return tatweel;
-    }
-
-    limits = find->second;
-
-    double min = left ? limits.minLeft : limits.minRight;
-    double max = left ? limits.maxLeft : limits.maxRight;
-
-    if (toOpenType->isUniformAxis()) {
-      min = left ? toOpenType->axisLimits.minLeft : toOpenType->axisLimits.minRight;
-      max = left ? toOpenType->axisLimits.maxLeft : toOpenType->axisLimits.maxRight;
-    }
-
-    if (tatweel < 0) {
-      return (-tatweel * min);
-    } else {
-      return (tatweel * max);
-    }
-  }
+  float normalToParameter(unsigned int code, float tatweel, bool left);
   static int AlternatelastCode;
-  bool isExtended() { return extended; }
+  bool isExtended() const { return extended; }
+  void setExtended(bool value) { extended = value; }
 
-  QSet<quint16> getSubsts(int charCode);
+  std::unordered_set<std::uint16_t> getSubsts(int charCode);
 
-  void saveFontInfo();
-
-#ifndef DIGITALKHATT_WEBLIB
- signals:
-  void parameterChanged();
-#endif
+  const digitalkhatt::layout::ClassMap& glyphClasses() const;
+  std::unordered_set<std::uint16_t> classToUnicode(const std::string& className);
+  std::map<std::uint16_t, std::vector<ExtendedGlyph>>& resetCvxxFeatures();
 
  private:
   // void evaluateImport();
@@ -458,16 +387,16 @@ class OtLayout : public QObject {
 
   Automedina* automedina;
 
-  QMap<QString, QSet<quint16>> allGposFeatures;
-  QMap<QString, QSet<quint16>> allGsubFeatures;
+  std::map<std::string, std::set<std::uint16_t>> allGposFeatures;
+  std::map<std::string, std::set<std::uint16_t>> allGsubFeatures;
 
-  digitalkhatt::ByteBuffer getGSUBorGPOS(bool isgsub, std::vector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures, std::map<std::string, int>& lookupsIndexByName);
-  digitalkhatt::ByteBuffer getFeatureList(QMap<QString, QSet<quint16>> allFeatures);
+  digitalkhatt::ByteBuffer getGSUBorGPOS(bool isgsub, std::vector<Lookup*>& lookups, std::map<std::string, std::set<std::uint16_t>>& allFeatures, std::map<std::string, int>& lookupsIndexByName);
+  digitalkhatt::ByteBuffer getFeatureList(const std::map<std::string, std::set<std::uint16_t>>& allFeatures);
   digitalkhatt::ByteBuffer getScriptList(int featureCount);
 
   double _nuqta = -1;
 
-  QSet<Lookup*> disabledLookups;
+  std::unordered_set<Lookup*> disabledLookups;
 
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> tempGlyphs;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> addedGlyphs;
@@ -475,8 +404,8 @@ class OtLayout : public QObject {
 
   bool JustificationInProgress = false;
 
-  void applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, double emScale);
-  void applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, double emScale);
+  void applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& diff, const std::string& feature, hb_font_t* shapefont, double nuqta, double emScale);
+  void applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double& diff, const std::string& feature, hb_font_t* shapefont, double nuqta, double emScale);
 
   void jutifyLine(hb_font_t* shapefont, hb_buffer_t* buffer, int lineWidth, bool tajweedColor);
   void jutifyLine_old(hb_font_t* shapefont, hb_buffer_t* buffer, int lineWidth, double emScale, bool tajweedColor);

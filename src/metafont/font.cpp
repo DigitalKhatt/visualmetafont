@@ -351,6 +351,9 @@ Font::~Font() {
 QString Font::filePath() {
   return m_path;
 }
+std::string Font::filePathStd() const {
+  return m_path.toStdString();
+}
 QString Font::fontName() {
   return m_fontName;
 }
@@ -452,6 +455,18 @@ void Font::generateAlternate(QString macroname, GlyphParameters params, QString 
 
     executeMetaPost(source.toLatin1().toStdString());
   }
+}
+
+void Font::generateAlternate(std::string_view macroName, GlyphParameters params,
+                             std::string_view sourceCode) {
+  generateAlternate(QString::fromUtf8(macroName.data(), static_cast<int>(macroName.size())),
+                    params,
+                    QString::fromUtf8(sourceCode.data(), static_cast<int>(sourceCode.size())));
+}
+
+bool Font::hasGlyph(std::string_view glyphName) const {
+  return glyphperName.contains(
+      QString::fromUtf8(glyphName.data(), static_cast<int>(glyphName.size())));
 }
 mp_graphic_object* Font::copyEdgeBody(mp_graphic_object* body) {
   mp_graphic_object* result = nullptr;
@@ -595,7 +610,7 @@ void Font::readAxes() {
     auto varname = std::format("axes {} name", i);
     auto found = getMPStringVariable(mp, varname.c_str(), &value);
     if (found) {
-      axis.name = QString::fromUtf8(value);
+      axis.name = value;
     }
     varname = std::format("axes {} tag", i);
     found = getMPStringVariable(mp, varname.c_str(), &value);
@@ -606,7 +621,7 @@ void Font::readAxes() {
     varname = std::format("axes {} equivExpr", i);
     found = getMPStringVariable(mp, varname.c_str(), &value);
     if (found) {
-      axis.equivExpr = QString::fromUtf8(value);
+      axis.equivExpr = value;
     }
     double dbValue = 0.0;
 

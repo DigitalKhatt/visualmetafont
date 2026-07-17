@@ -140,7 +140,8 @@ void LookupDefinitionVisitor::accept(LookupFlag& flag) {
 
   if (glyphSet != nullptr) {
     const auto codes = glyphSet->getCodes(otlayout);
-    lookup->markGlyphSetIndex = otlayout->addMarkSet(QList<quint16>(codes.begin(), codes.end()));
+    lookup->markGlyphSetIndex = otlayout->addMarkSet(
+        std::vector<std::uint16_t>(codes.begin(), codes.end()));
   }
 }
 void LookupDefinitionVisitor::accept(LookupDefinition& lookupDefinition) {
@@ -687,7 +688,7 @@ void LookupDefinitionVisitor::accept(LookupReference& lookupReference) {
     auto liter = context.lookups.find(lookupReference.lookupName);
 
     if (liter == context.lookups.end()) {
-      auto ret = otlayout->parseCppLookup(qLookupName);
+      auto ret = otlayout->parseCppLookup(qLookupName.toStdString());
       if (!ret) {
         qDebug() << "Lookup " << qLookupName << " not found";
       }

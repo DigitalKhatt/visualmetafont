@@ -269,7 +269,8 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
   for (int i = 0; i < m_edge->numAnchors; i++) {
     AnchorPoint anchor = m_edge->anchors[i];
     // auto type = anchor.type == (int)AnchorType::EntryAnchorRTL ? AnchorType::EntryAnchor : (anchor.type == (int)AnchorType::ExitAnchorRTL ? AnchorType::ExitAnchor : (AnchorType)anchor.type);
-    anchors.insert({anchor.anchorName, (AnchorType)anchor.type}, {Point(anchor.x, anchor.y), anchor.type});
+    anchors.insert_or_assign({anchor.anchorName, (AnchorType)anchor.type},
+                             GlyphVisAnchor{Point(anchor.x, anchor.y), anchor.type});
   }
 }
 
@@ -278,5 +279,6 @@ bool GlyphVis::conatinsAnchor(const std::string& name, AnchorType type) {
 }
 
 Point GlyphVis::getAnchor(const std::string& name, AnchorType type) {
-  return anchors.value({name, type}).anchor;
+  const auto anchor = anchors.find({name, type});
+  return anchor != anchors.end() ? anchor->second.anchor : Point{};
 }

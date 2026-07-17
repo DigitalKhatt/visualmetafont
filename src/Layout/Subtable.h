@@ -105,6 +105,10 @@ struct Subtable {
     return m_lookup;
   }
 
+  void markDirty() noexcept {
+    isDirty = true;
+  }
+
   std::string name;
 
  protected:

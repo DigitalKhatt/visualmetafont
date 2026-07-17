@@ -48,13 +48,13 @@ void LayoutWindow::optimizeLayout(LayoutPageList& pages, const OriginalPageList&
 
   std::unordered_map<GlyphVis*, GeometrySet> glyphToPolys;
 
-  auto& classes = m_otlayout->automedina->classes;
-  auto& marks = classes["marks"];
-  auto& topmarks = classes["topmarks"];
-  auto& lowmarks = classes["lowmarks"];
-  auto& waqfmarks = classes["waqfmarks"];
-  auto& topdotmarks = classes["topdotmarks"];
-  auto& downdotmarks = classes["downdotmarks"];
+  const auto& classes = m_otlayout->glyphClasses();
+  const auto& marks = digitalkhatt::layout::classesOrEmpty(classes, "marks");
+  const auto& topmarks = digitalkhatt::layout::classesOrEmpty(classes, "topmarks");
+  const auto& lowmarks = digitalkhatt::layout::classesOrEmpty(classes, "lowmarks");
+  const auto& waqfmarks = digitalkhatt::layout::classesOrEmpty(classes, "waqfmarks");
+  const auto& topdotmarks = digitalkhatt::layout::classesOrEmpty(classes, "topdotmarks");
+  const auto& downdotmarks = digitalkhatt::layout::classesOrEmpty(classes, "downdotmarks");
 
   auto isTopMark = [&topmarks, &lowmarks, &waqfmarks, &topdotmarks, &downdotmarks](const std::string& glyphName) {
     return topmarks.contains(glyphName) || waqfmarks.contains(glyphName) || topdotmarks.contains(glyphName);

@@ -256,7 +256,7 @@ void GenerateLayout::generateLayoutJson(int lineWidth, int scale) {
 
   QJsonObject classesObject;
 
-  for (auto& [className, glyphNames] : m_otlayout->automedina->classes) {
+  for (const auto& [className, glyphNames] : m_otlayout->glyphClasses()) {
     QJsonArray array;
     for (auto& glyphName : glyphNames) {
       array.append(m_otlayout->glyphCodePerName[glyphName]);

@@ -20,6 +20,7 @@
 #pragma once
 
 #include <optional>
+#include <map>
 #include <string>
 
 #include "font.hpp"
@@ -31,7 +32,6 @@
 
 #include "OtLayout.h"
 #include "metafont.h"
-#include "qmap.h"
 
 class OtLayout;
 // struct mp_edge_object;
@@ -121,7 +121,7 @@ class GlyphVis {
       return std::tie(name, type) < std::tie(other.name, other.type);
     }
   };
-  QMap<AnchorKey, GlyphVisAnchor> anchors;
+  std::map<AnchorKey, GlyphVisAnchor> anchors;
   Transform matrix = {};
 
   mp_edge_object* edge() {

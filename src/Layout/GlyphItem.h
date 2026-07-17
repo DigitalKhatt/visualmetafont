@@ -19,17 +19,22 @@
 
 #pragma once
 
+#include <cstdint>
 #include <QGraphicsPathItem>
 #include "commontypes.h"
 
 class GlyphVis;
-class OtLayout;
+class LayoutWindow;
 
 class GlyphItem : public QGraphicsPathItem
 {
   friend class GraphicsViewAdjustment;
 public:
-  GlyphItem(double xscale, double yscale, GlyphVis* glyph, OtLayout* layout, GlyphParameters parameters, quint32 lookup = 0, quint32 subtable = 0, quint16 baseChar = 0, QGraphicsItem* parent = Q_NULLPTR);
+  GlyphItem(double xscale, double yscale, GlyphVis* glyph,
+            LayoutWindow* layoutWindow, GlyphParameters parameters,
+            std::uint32_t lookup = 0, std::uint32_t subtable = 0,
+            std::uint16_t baseChar = 0,
+            QGraphicsItem* parent = Q_NULLPTR);
   ~GlyphItem();
   //QRectF boundingRect() const Q_DECL_OVERRIDE;
   //void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) Q_DECL_OVERRIDE;
@@ -42,10 +47,10 @@ protected:
 
 private:
   GlyphVis* m_glyph;
-  OtLayout* m_layout;
-  quint32 m_lookup;
-  quint32 m_subtable;
-  quint16 m_baseChar;
+  LayoutWindow* m_layoutWindow;
+  std::uint32_t m_lookup;
+  std::uint32_t m_subtable;
+  std::uint16_t m_baseChar;
   QPointF lastPos;
   QPoint lastdiff;
   double m_scale;

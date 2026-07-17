@@ -20,7 +20,11 @@
 #ifndef H_COMMONTYPES
 #define H_COMMONTYPES
 
-#include <math.h>
+#include <cmath>
+#include <cstdint>
+#include <functional>
+#include <string>
+#include <vector>
 
 struct GlyphParameters {
   double lefttatweel{0.0};
@@ -156,12 +160,12 @@ struct equal_to<RegionAxisCoordinate> {
 }  // namespace std
 
 struct VarAxis {
-  QString name;
+  std::string name;
   uint32_t axisTag = 0;
   float minValue = 0.0;
   float defaultValue = 0.0;
   float maxValue = 0.0;
-  QString equivExpr;
+  std::string equivExpr;
 };
 
 #endif  // H_COMMONTYPES

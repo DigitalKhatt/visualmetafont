@@ -30,6 +30,7 @@
 #include "GlyphVis.h"
 #include "Lookup.h"
 #include "OtLayout.h"
+#include "to_opentype.h"
 #include "digitalkhatt/core/ByteBuffer.h"
 #include "font.hpp"
 

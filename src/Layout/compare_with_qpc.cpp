@@ -790,13 +790,16 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
     QString textt = currentQuranText[pageNumber - 1];
 
     auto lines = textt.split(char(10), Qt::SkipEmptyParts);
+    std::vector<std::string> stdLines;
+    stdLines.reserve(lines.size());
+    for (const auto& line : lines) stdLines.push_back(line.toStdString());
 
     auto tempPage = m_otlayout->justifyPage(
-        emScale, lineWidth, lineWidth, lines, LineJustification::Distribute,
+        emScale, lineWidth, lineWidth, std::move(stdLines), LineJustification::Distribute,
         false, tajweedEnabled,
         HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS,
         getJustOption(),
-        mushafLayouts->currentText());
+        mushafLayouts->currentText().toStdString());
 
     LayoutPageList pages = {LayoutPage(tempPage.begin(), tempPage.end())};
 

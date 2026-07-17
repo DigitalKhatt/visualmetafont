@@ -338,8 +338,8 @@ void LayoutWindow::generateOverlapLookups(
       &featureFile);  // we will serialize the data into the file
   featureOut.setCodec("UTF-8");
 
-  auto& basesClass = m_otlayout->automedina->classes["bases"];
-  auto& marksClass = m_otlayout->automedina->classes["marks"];
+  const auto& basesClass =
+      digitalkhatt::layout::classesOrEmpty(m_otlayout->glyphClasses(), "bases");
 
   QString innerLookupsString;
 

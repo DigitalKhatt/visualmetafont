@@ -20,15 +20,19 @@
 #include "GlyphItem.h"
 #include "GlyphVis.h"
 #include "QPainter"
-#include "OtLayout.h"
+#include "LayoutWindow.h"
 #include <QGraphicsSceneMouseEvent>
 #include "qdebug.h"
 
-GlyphItem::GlyphItem(double xscale, double yscale, GlyphVis* glyph, OtLayout* layout, GlyphParameters parameters, quint32 lookup, quint32 subtable, quint16 baseChar, QGraphicsItem* parent) :QGraphicsPathItem(parent)
+GlyphItem::GlyphItem(double xscale, double yscale, GlyphVis* glyph,
+                     LayoutWindow* layoutWindow, GlyphParameters parameters,
+                     std::uint32_t lookup, std::uint32_t subtable,
+                     std::uint16_t baseChar, QGraphicsItem* parent)
+    : QGraphicsPathItem(parent)
 {
 
   m_glyph = glyph;
-  m_layout = layout;
+  m_layoutWindow = layoutWindow;
   m_lookup = lookup;
   m_subtable = subtable;
   m_parameters = parameters;
@@ -82,7 +86,9 @@ void GlyphItem::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
 
   lastdiff = newdiff;
 
-  m_layout->setParameter(m_glyph->charcode, m_lookup, m_subtable, m_glyph->charcode, m_baseChar, disp, modifiers);
+  m_layoutWindow->setParameter(m_glyph->charcode, m_lookup, m_subtable,
+                               m_glyph->charcode, m_baseChar, disp,
+                               modifiers);
 
 
 

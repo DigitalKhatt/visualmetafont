@@ -45,7 +45,8 @@ void Lookup::setGlyphSet(std::vector<std::string> list) {
 
   markGlyphSetIndex = NoMarkGlyphSet;
   if (!set.empty()) {
-    markGlyphSetIndex = layout->addMarkSet(QList<quint16>(set.begin(), set.end()));
+    markGlyphSetIndex = layout->addMarkSet(
+        std::vector<std::uint16_t>(set.begin(), set.end()));
     flags = flags | Flags::UseMarkFilteringSet;
   }
 }
@@ -83,7 +84,8 @@ void Lookup::readJson(const ParameterJsonObject& jsonsubtable) {
 
   markGlyphSetIndex = NoMarkGlyphSet;
   if (!set.empty()) {
-    markGlyphSetIndex = layout->addMarkSet(QList<quint16>(set.begin(), set.end()));
+    markGlyphSetIndex = layout->addMarkSet(
+        std::vector<std::uint16_t>(set.begin(), set.end()));
     flags = flags | Flags::UseMarkFilteringSet;
   }
 

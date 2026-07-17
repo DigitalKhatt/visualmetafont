@@ -223,13 +223,13 @@ void LayoutWindow::applyDirectedForceLayout(LayoutPageList& pages, OriginalPageL
 
   pathtransform = pathtransform.scale(scale, -scale);
 
-  auto& classes = m_otlayout->automedina->classes;
-  auto& marks = classes["marks"];
-  auto& topmarks = classes["topmarks"];
-  auto& lowmarks = classes["lowmarks"];
-  auto& waqfmarks = classes["waqfmarks"];
-  auto& topdotmarks = classes["topdotmarks"];
-  auto& downdotmarks = classes["downdotmarks"];
+  const auto& classes = m_otlayout->glyphClasses();
+  const auto& marks = digitalkhatt::layout::classesOrEmpty(classes, "marks");
+  const auto& topmarks = digitalkhatt::layout::classesOrEmpty(classes, "topmarks");
+  const auto& lowmarks = digitalkhatt::layout::classesOrEmpty(classes, "lowmarks");
+  const auto& waqfmarks = digitalkhatt::layout::classesOrEmpty(classes, "waqfmarks");
+  const auto& topdotmarks = digitalkhatt::layout::classesOrEmpty(classes, "topdotmarks");
+  const auto& downdotmarks = digitalkhatt::layout::classesOrEmpty(classes, "downdotmarks");
 
   auto isTopMark = [topmarks, lowmarks, waqfmarks, topdotmarks, downdotmarks](const std::string& glyphName) {
     return topmarks.contains(glyphName)
@@ -360,7 +360,7 @@ void LayoutWindow::applyDirectedForceLayout(LayoutPageList& pages, OriginalPageL
 
         //bool isFina = glyphName.contains(".fina");
 
-        bool isMark = m_otlayout->automedina->classes["marks"].contains(glyphName);
+        bool isMark = marks.contains(glyphName);
 
         //bool isWaqfMark = m_otlayout->automedina->classes["waqfmarks"].contains(glyphName);
 
@@ -380,7 +380,7 @@ void LayoutWindow::applyDirectedForceLayout(LayoutPageList& pages, OriginalPageL
             auto& prev_glyphLayout = prev_line.glyphs[prev_g];
             const auto& prev_glyphName = m_otlayout->glyphNamePerCode[prev_glyphLayout.codepoint];
 
-            bool isPrevMark = m_otlayout->automedina->classes["marks"].contains(prev_glyphName);
+            bool isPrevMark = marks.contains(prev_glyphName);
             bool isPrevrSpace = prev_glyphName.contains("space") || prev_glyphName.contains("linefeed");
             //bool isPrevIsol = prev_glyphName.contains("isol");
 
@@ -413,7 +413,7 @@ void LayoutWindow::applyDirectedForceLayout(LayoutPageList& pages, OriginalPageL
           auto& otherglyphLayout = line.glyphs[gg];
           const auto& otherglyphName = m_otlayout->glyphNamePerCode[otherglyphLayout.codepoint];
 
-          bool isOtherMark = m_otlayout->automedina->classes["marks"].contains(otherglyphName);
+          bool isOtherMark = marks.contains(otherglyphName);
           //bool isOtherWaqfMark = m_otlayout->automedina->classes["waqfmarks"].contains(otherglyphName);
           bool isOtherSpace = otherglyphName.contains("space") || otherglyphName.contains("linefeed");
           //bool isPrevIsol = otherglyphName.contains("isol");

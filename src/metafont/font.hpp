@@ -21,10 +21,13 @@
 #ifndef FONT_H
 #define FONT_H
 #include <QHash>
+#include <QMap>
 #include <QObject>
+#include <QString>
 #include <QVector>
 
 #include <string>
+#include <string_view>
 
 #include "OtLayout.h"
 #include "metafont.h"
@@ -59,6 +62,7 @@ class Font : public QObject {
   QVector<Glyph*> glyphs;
   QHash<QString, Glyph*> glyphperName;
   QString filePath();
+  std::string filePathStd() const;
   QString fontName();
   double lineHeight();
   double getNumericVariable(QString name);
@@ -77,6 +81,9 @@ class Font : public QObject {
   mp_edge_object* getEdge(int charCode);
   MPGlyphInfo getMPGlyphInfo(int charCode);
   void generateAlternate(QString macroname, GlyphParameters params, QString sourceCode = "");
+  void generateAlternate(std::string_view macroName, GlyphParameters params,
+                         std::string_view sourceCode = {});
+  bool hasGlyph(std::string_view glyphName) const;
   mp_graphic_object* copyEdgeBody(mp_graphic_object* source);
   QString getLog();
   // TODO protected:

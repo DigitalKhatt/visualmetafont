@@ -577,7 +577,7 @@ void LayoutWindow::adjustOverlapping2(LayoutPageList& pages,
   }
   double minDistance = 10;
 
-  auto& markClass = digitalkhatt::layout::classesOrEmpty(m_otlayout->automedina->classes, "marks");
+  const auto& markClass = digitalkhatt::layout::classesOrEmpty(m_otlayout->glyphClasses(), "marks");
   std::string spaceName("space");
   std::string linefeedName("linefeed");
   std::string initName(".init");

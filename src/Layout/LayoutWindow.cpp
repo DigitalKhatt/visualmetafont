@@ -61,6 +61,7 @@
 #include <set>
 #include <unordered_set>
 #include "GlazeJson.h"
+#include "QtLayoutSerialization.h"
 
 #include "Export/ExportToHTML.h"
 #include "Export/GenerateLayout.h"
@@ -79,6 +80,130 @@ static hb_buffer_t* copyandreverse_buffer(hb_buffer_t* src) {
   dst->reverse();
 
   return dst;
+}
+
+static std::vector<std::string> toStdStrings(const QStringList& lines) {
+  std::vector<std::string> result;
+  result.reserve(lines.size());
+  for (const auto& line : lines) result.push_back(line.toStdString());
+  return result;
+}
+
+static QList<QStringList> pageBreakQt(OtLayout* layout, double emScale,
+                                     int lineWidth, bool pageFinishByVerse,
+                                     const QString& text, int pageCount) {
+  const auto stdPages =
+      layout->pageBreak(emScale, lineWidth, pageFinishByVerse,
+                        text.toStdU16String(), pageCount);
+  QList<QStringList> pages;
+  pages.reserve(static_cast<int>(stdPages.size()));
+  for (const auto& stdPage : stdPages) {
+    QStringList page;
+    page.reserve(static_cast<int>(stdPage.size()));
+    for (const auto& line : stdPage) {
+      page.push_back(QString::fromStdU16String(line));
+    }
+    pages.push_back(std::move(page));
+  }
+  return pages;
+}
+
+void LayoutWindow::setParameter(
+    std::uint16_t glyphCode, std::uint32_t lookup,
+    std::uint32_t subtableIndex, std::uint16_t markCode,
+    std::uint16_t baseCode, QPoint displacement,
+    Qt::KeyboardModifiers modifiers) {
+  const bool shift = modifiers & Qt::ShiftModifier;
+  const bool ctrl = modifiers & Qt::ControlModifier;
+  const bool alt = modifiers & Qt::AltModifier;
+
+  Lookup* lookupTable = m_otlayout->gposlookups.at(lookup);
+  auto* subtable = lookupTable->subtables.at(subtableIndex);
+
+  if (lookupTable->type == Lookup::singleadjustment) {
+    auto* adjustment = static_cast<SingleAdjustmentSubtable*>(subtable);
+    const auto& glyphName = m_otlayout->glyphNamePerCode[markCode];
+    const ValueRecord previous = adjustment->parameters[markCode];
+    ValueRecord value{
+        static_cast<std::int16_t>(previous.xPlacement + displacement.x()),
+        static_cast<std::int16_t>(previous.yPlacement + displacement.y()),
+        previous.xAdvance, 0};
+
+    if (shift) {
+      value.xAdvance += displacement.x();
+    } else if (alt) {
+      value.xAdvance -= displacement.x();
+    }
+
+    adjustment->parameters[markCode] = value;
+    qDebug() << QString("Changing single adjust anchor %1.%2.%3 :")
+                    .arg(QString::fromStdString(lookupTable->name),
+                         QString::fromStdString(subtable->name),
+                         QString::fromStdString(glyphName))
+             << value.xPlacement << value.yPlacement << value.xAdvance;
+    adjustment->markDirty();
+  } else if (lookupTable->type == Lookup::mark2base ||
+             lookupTable->type == Lookup::mark2mark) {
+    auto* markBase = static_cast<MarkBaseSubtable*>(subtable);
+    const std::uint16_t classIndex = markBase->markCodes[markCode];
+    const std::string& className = markBase->classNamebyIndex[classIndex];
+
+    if (!shift) {
+      auto baseGlyphName = m_otlayout->glyphNamePerCode[baseCode];
+      GlyphVis& glyph = m_otlayout->glyphs[baseGlyphName];
+      if (ctrl && !glyph.originalglyph.empty() &&
+          (glyph.charlt != 0 || glyph.charrt != 0)) {
+        baseGlyphName = glyph.originalglyph;
+      }
+
+      Point& value = markBase->classes[className].baseparameters[baseGlyphName];
+      value = value + Point(displacement);
+      qDebug() << QString("Changing base anchor %1::%2::%3::%4 : (%5,%6)")
+                      .arg(QString::fromStdString(lookupTable->name),
+                           QString::fromStdString(subtable->name),
+                           QString::fromStdString(className),
+                           QString::fromStdString(baseGlyphName),
+                           QString::number(value.x()), QString::number(value.y()));
+    } else {
+      const auto& markGlyphName = m_otlayout->glyphNamePerCode[markCode];
+      Point& value = markBase->classes[className].markparameters[markGlyphName];
+      value = value - Point(displacement);
+      qDebug() << QString("Changing mark anchor %1::%2::%3::%4 : (%5,%6)")
+                      .arg(QString::fromStdString(lookupTable->name),
+                           QString::fromStdString(subtable->name),
+                           QString::fromStdString(className),
+                           QString::fromStdString(markGlyphName),
+                           QString::number(value.x()), QString::number(value.y()));
+    }
+    markBase->markDirty();
+  } else if (lookupTable->type == Lookup::cursive) {
+    auto* cursive = static_cast<CursiveSubtable*>(subtable);
+    const auto& glyphName = m_otlayout->glyphNamePerCode[glyphCode];
+    const auto& baseGlyphName = m_otlayout->glyphNamePerCode[baseCode];
+
+    if (!shift) {
+      Point& value = cursive->entryParameters[glyphCode];
+      value = value - Point(displacement);
+      qDebug() << QString("Changing cursive entry anchor %1::%2::%3 :")
+                      .arg(QString::fromStdString(lookupTable->name),
+                           QString::fromStdString(subtable->name),
+                           QString::fromStdString(glyphName))
+               << QPoint(value);
+    } else {
+      Point& value = cursive->exitParameters[baseCode];
+      value = value + Point(displacement);
+      qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :")
+                      .arg(QString::fromStdString(lookupTable->name),
+                           QString::fromStdString(subtable->name),
+                           QString::fromStdString(baseGlyphName))
+               << QPoint(value);
+    }
+    cursive->markDirty();
+  } else {
+    return;
+  }
+
+  layoutParameterChanged();
 }
 
 LayoutWindow::LayoutWindow(Font* font, QWidget* parent, Qt::WindowFlags flags)
@@ -742,6 +867,19 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended,
   OtLayout layout =
       OtLayout(m_font, extended, extended ? true : generateVariableOpenType);
 
+  // OtLayout no longer reads QSettings itself. Keep the UI-owned setting at
+  // this boundary so temporary layouts used for export generate the same set
+  // of lookups as the main layout.
+  QSettings settings;
+  for (const auto& [feature, featureLookups] : layout.allFeatures) {
+    for (auto* lookup : featureLookups) {
+      const auto lookupName = QString::fromStdString(lookup->name);
+      if (settings.value("DisabledLookups/" + lookupName).toBool()) {
+        layout.setLookupDisabled(lookup, true);
+      }
+    }
+  }
+
   layout.toOpenType->isCff2 = true;
 
   auto ret = layout.toOpenType->GenerateFile(otfFileName);
@@ -786,9 +924,38 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended,
 
   file2.close();
 
-  layout.saveFontInfo();
+  saveFontInfo(layout);
 
   return ret;
+}
+
+void LayoutWindow::saveFontInfo(const OtLayout& layout) {
+  const QFileInfo fileInfo(m_font->filePath());
+  const QString fileName = fileInfo.path() + "/output/" + fileInfo.baseName() + "_info.json";
+  QFile file(fileName);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
+
+  QJsonObject glyphsObject;
+  for (const auto& [code, glyphName] : layout.glyphNamePerCode) {
+    QJsonObject glyphJson;
+    glyphJson["code"] = code;
+    glyphsObject[QString::fromStdString(glyphName)] = glyphJson;
+  }
+
+  QJsonObject classesObject;
+  for (const auto& [className, glyphNames] : layout.glyphClasses()) {
+    QJsonArray array;
+    for (const auto& glyphName : glyphNames) {
+      const auto code = layout.glyphCodePerName.find(glyphName);
+      if (code != layout.glyphCodePerName.end()) array.append(code->second);
+    }
+    classesObject[QString::fromStdString(className)] = array;
+  }
+
+  QJsonObject info;
+  info["glyphs"] = glyphsObject;
+  info["classes"] = classesObject;
+  file.write(QJsonDocument(info).toJson(QJsonDocument::Compact));
 }
 
 void LayoutWindow::generateTestFile() {
@@ -1002,7 +1169,7 @@ void LayoutWindow::checkOffMarks() {
         const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
         bool isMark =
-            digitalkhatt::layout::classesOrEmpty(m_otlayout->automedina->classes, "marks").contains(glyphName);
+            digitalkhatt::layout::classesOrEmpty(m_otlayout->glyphClasses(), "marks").contains(glyphName);
 
         if (!isMark) {
           baseGlyph = m_otlayout->getGlyph(
@@ -1160,10 +1327,10 @@ bool LayoutWindow::exportpdf() {
   ;
 
   auto page = m_otlayout->justifyPage(
-      scale, lineWidth, lineWidth, lines, LineJustification::Distribute, true,
+      scale, lineWidth, lineWidth, toStdStrings(lines), LineJustification::Distribute, true,
       tajweedEnabled,
       HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES,
-      getJustOption(), mushafLayouts->currentText());
+      getJustOption(), mushafLayouts->currentText().toStdString());
 
   LayoutPageList pages{LayoutPage(page.begin(), page.end())};
   OriginalPageList originalPages{toOriginalPage(lines)};
@@ -1353,7 +1520,7 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth,
     auto& pageText = currentQuranText[pagenum];
 
     auto lines = pageText.split(char(10), Qt::SkipEmptyParts);
-    QVector<LineToJustify> newLines;
+    std::vector<LineToJustify> newLines;
 
     for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
       auto newJustification = justification;
@@ -1389,14 +1556,14 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth,
         }
       }
 
-      newLines.append({lines[lineIndex].toStdU16String(), lineWidth, newJustification, lineType, basm2});
+      newLines.push_back({lines[lineIndex].toStdU16String(), lineWidth, newJustification, lineType, basm2});
     }
 
     auto shapedPage = layout->justifyPage(
         scale, pageWidth, newLines, newface, tajweedEnabled,
         cluster_level,
         getJustOption(),
-        mushafLayouts->currentText());
+        mushafLayouts->currentText().toStdString());
     if (pagenum == 0 || pagenum == 1) {
       for (int i = 0; i < shapedPage.size(); i++) {
         auto& line = shapedPage[i];
@@ -1511,7 +1678,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
     if (!oldMadinah) {
       if (pagenum == 583) {
         textt.append(QString("سُورَةُ عَبَسَ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1521,10 +1688,10 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
 
       } else if (pagenum == 584) {
         textt = textt.replace(QString("سُورَةُ عَبَسَ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 75) {
         textt.append(QString("سُورَةُ النِّسَاءِ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1532,10 +1699,10 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       } else if (pagenum == 76) {
         textt = textt.replace(QString("سُورَةُ النِّسَاءِ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 348) {
         textt.append(QString("سُورَةُ النُّورِ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1543,10 +1710,10 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       } else if (pagenum == 349) {
         textt = textt.replace(QString("سُورَةُ النُّورِ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 365) {
         textt.append(QString("سُورَةُ الشُّعَرَاءِ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1554,10 +1721,10 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       } else if (pagenum == 366) {
         textt = textt.replace(QString("سُورَةُ الشُّعَرَاءِ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 375) {
         textt.append(QString("سُورَةُ النَّمْلِ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1565,10 +1732,10 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       } else if (pagenum == 376) {
         textt = textt.replace(QString("سُورَةُ النَّمْلِ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 444) {
         textt.append(QString("سُورَةُ الصَّافَّاتِ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1576,10 +1743,10 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       } else if (pagenum == 445) {
         textt = textt.replace(QString("سُورَةُ الصَّافَّاتِ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 451) {
         textt.append(QString("سُورَةُ صٓ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1587,10 +1754,10 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       } else if (pagenum == 452) {
         textt = textt.replace(QString("سُورَةُ صٓ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 497) {
         textt.append(QString("سُورَةُ الجَاثِيَةِ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1598,10 +1765,10 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       } else if (pagenum == 498) {
         textt = textt.replace(QString("سُورَةُ الجَاثِيَةِ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 505) {
         textt.append(QString("سُورَةُ مُحَمَّدٍ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1609,10 +1776,10 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       } else if (pagenum == 506) {
         textt = textt.replace(QString("سُورَةُ مُحَمَّدٍ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 524) {
         textt.append(QString("سُورَةُ النَّجْمِ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1620,12 +1787,12 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       } else if (pagenum == 525) {
         textt = textt.replace(QString("سُورَةُ النَّجْمِ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 527) {
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 547) {
         textt.append(QString("سُورَةُ المُمْتَحنَةِ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1633,10 +1800,10 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       } else if (pagenum == 548) {
         textt = textt.replace(QString("سُورَةُ المُمْتَحنَةِ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 554) {
         textt.append(QString("سُورَةُ التَّغَابُنِ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1644,10 +1811,10 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       } else if (pagenum == 555) {
         textt = textt.replace(QString("سُورَةُ التَّغَابُنِ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else if (pagenum == 556) {
         textt.append(QString("سُورَةُ الطَّلَاقِ") + "\n");
-        auto page = layout->pageBreak(scale, pageWidth, false, textt, 1);
+        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
         if (page.size() == 1) {
           lines = page[0];
         } else {
@@ -1655,7 +1822,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       } else if (pagenum == 557) {
         textt = textt.replace(QString("سُورَةُ الطَّلَاقِ") + "\n", "");
-        lines = layout->pageBreak(scale, pageWidth, false, textt, 1)[0];
+        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
       } else {
         lines = textt.split(char(10), Qt::SkipEmptyParts);
       }
@@ -1664,7 +1831,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
     }
 
     if (applyTeXAlgo && pagenum <= 599 && pagenum > 1 && pagenum != 378) {
-      auto result = layout->pageBreak(scale, pageWidth, false, textt, 1);
+      auto result = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
       if (result.size() == 1) {
         lines = result[0];
       } else {
@@ -1690,7 +1857,7 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
                   << OtLayout::SCALEBY;
     }
 
-    QVector<LineToJustify> newLines;
+    std::vector<LineToJustify> newLines;
 
     for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
       auto newJustification = justification;
@@ -1723,14 +1890,14 @@ LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
         }
       }
 
-      newLines.append({lines[lineIndex].toStdU16String(), lineWidth, newJustification, lineType});
+      newLines.push_back({lines[lineIndex].toStdU16String(), lineWidth, newJustification, lineType});
     }
 
     auto shapedPage = layout->justifyPage(
         scale, pageWidth, newLines, newface, tajweedEnabled,
         cluster_level,
         getJustOption(),
-        mushafLayouts->currentText());
+        mushafLayouts->currentText().toStdString());
 
     for (int lineIndex = 0; lineIndex < shapedPage.size(); lineIndex++) {
       auto& lineLayoutInfo = shapedPage[lineIndex];
@@ -1826,12 +1993,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
   OtLayout layout = OtLayout(m_font, true, true);
 
-  layout.automedina->cvxxfeatures.clear();
-
-  layout.automedina->cvxxfeatures.push_back(
-      std::map<uint16_t, std::vector<ExtendedGlyph>>());
-
-  auto& cv01feature = layout.automedina->cvxxfeatures[0];
+  auto& cv01feature = layout.resetCvxxFeatures();
 
   QMap<quint16, quint16> unicodeMappings;
 
@@ -2487,7 +2649,7 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
   LayoutPages pages;
 
   const auto qtOriginalPages =
-      m_otlayout->pageBreak(scale, lineWidth, true, quran, 19);
+      pageBreakQt(m_otlayout, scale, lineWidth, true, quran, 19);
   pages.originalPages.reserve(qtOriginalPages.size());
   for (const auto& page : qtOriginalPages) {
     pages.originalPages.push_back(toOriginalPage(page));
@@ -2505,8 +2667,10 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
       auto justification = LineJustification::Distribute;
 
       auto page = m_otlayout->justifyPage(
-          scale, lineWidth, lineWidth, toQStringList(pages.originalPages[pagenum]),
-          justification, false, tajweedEnabled, mushafLayouts->currentText());
+          scale, lineWidth, lineWidth,
+          toStdStrings(toQStringList(pages.originalPages[pagenum])),
+          justification, false, tajweedEnabled,
+          mushafLayouts->currentText().toStdString());
 
       pages.pages.emplace_back(page.begin(), page.end());
 
@@ -2578,7 +2742,7 @@ void LayoutWindow::loadLookupFile(QString fileName) {
       lookupItem->setCheckState(0, disabled ? Qt::Checked : Qt::Unchecked);
       featureItem->addChild(lookupItem);
       if (disabled) {
-        m_otlayout->disabledLookups.insert(lookup);
+        m_otlayout->setLookupDisabled(lookup, true);
       }
       alldisabled = alldisabled && disabled;
       onedisabled = onedisabled || disabled;
@@ -2776,13 +2940,10 @@ void LayoutWindow::createDockWindows() {
   connect(action, &QAction::triggered, [this]() { this->compareWithOldMadinah(false, true); });
   otherMenu->addAction(action);
 
-  m_otlayout = new OtLayout(m_font, true, true, this);
+  m_otlayout = new OtLayout(m_font, true, true);
   m_otlayout->useNormAxisValues = false;
-  m_otlayout->extended = true;
+  m_otlayout->setExtended(true);
   m_otlayout->applyJustification = applyJustification;
-
-  connect(m_otlayout, &OtLayout::parameterChanged, this,
-          &LayoutWindow::layoutParameterChanged);
 
   lokkupTreeWidget = new QTreeWidget(this);
 
@@ -2802,9 +2963,9 @@ void LayoutWindow::createDockWindows() {
                     this->m_otlayout->lookupsIndexByName[child->text(0).toStdString()];
                 Lookup* lookup = this->m_otlayout->lookups[lookupIndex];
                 if (item->checkState(0) == Qt::Checked) {
-                  this->m_otlayout->disabledLookups.insert(lookup);
+                  this->m_otlayout->setLookupDisabled(lookup, true);
                 } else {
-                  this->m_otlayout->disabledLookups.remove(lookup);
+                  this->m_otlayout->setLookupDisabled(lookup, false);
                 }
               }
             } else if (this->m_otlayout->lookupsIndexByName.contains(
@@ -2815,9 +2976,9 @@ void LayoutWindow::createDockWindows() {
                   this->m_otlayout->lookupsIndexByName[item->text(0).toStdString()];
               Lookup* lookup = this->m_otlayout->lookups[lookupIndex];
               if (item->checkState(0) == Qt::Checked) {
-                this->m_otlayout->disabledLookups.insert(lookup);
+                this->m_otlayout->setLookupDisabled(lookup, true);
               } else {
-                this->m_otlayout->disabledLookups.remove(lookup);
+                this->m_otlayout->setLookupDisabled(lookup, false);
               }
             }
             this->m_otlayout->dirty = true;
@@ -3523,11 +3684,11 @@ void LayoutWindow::calculateMinimumSize() {
       auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
       auto page = m_otlayout->justifyPage(
-          emScale, lineWidth, lineWidth, lines, LineJustification::Distribute,
+          emScale, lineWidth, lineWidth, toStdStrings(lines), LineJustification::Distribute,
           false, tajweedEnabled,
           HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS,
           getJustOption(),
-          mushafLayouts->currentText());
+          mushafLayouts->currentText().toStdString());
 
       // auto page = m_otlayout->justifyPage(emScale, lineWidth, lineWidth,
       // lines, LineJustification::Distribute, false, true);
@@ -3669,8 +3830,8 @@ void LayoutWindow::testQuarn() {
   // &glyph_count);
 
   // auto automedina = m_otlayout->automedina;
-  auto waqgmark = m_otlayout->automedina->classtoUnicode("waqfmarks");
-  auto marks = m_otlayout->automedina->classtoUnicode("marks");
+  auto waqgmark = m_otlayout->classToUnicode("waqfmarks");
+  auto marks = m_otlayout->classToUnicode("marks");
   int totlaWaqfMark = 0;
 
   QMultiMap<QString, QString> beforewagf;
@@ -3752,7 +3913,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
   if (refresh == 2) {
     newFace = true;
     loadLookupFile("features.fea");
-    if (!m_otlayout->extended) {
+    if (!m_otlayout->isExtended()) {
       m_otlayout->generateSubstEquivGlyphs();
       loadLookupFile("features.fea");
     }
@@ -3764,7 +3925,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
 
   QStringList lines;
   if (applyTeXAlgo) {
-    auto result = m_otlayout->pageBreak(scale, lineWidth, false, textt, 1);
+    auto result = pageBreakQt(m_otlayout, scale, lineWidth, false, textt, 1);
     if (result.size() == 1) {
       lines = result[0];
     }
@@ -3773,10 +3934,10 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
   }
 
   auto page = m_otlayout->justifyPage(
-      scale, lineWidth, lineWidth, lines, LineJustification::Distribute,
+      scale, lineWidth, lineWidth, toStdStrings(lines), LineJustification::Distribute,
       newFace, tajweedEnabled,
       HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS,
-      getJustOption(), mushafLayouts->currentText());
+      getJustOption(), mushafLayouts->currentText().toStdString());
 
   QVector<int> set;
 
@@ -3830,7 +3991,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
 
         GlyphItem* glyphItem = nullptr;
         if (refresh) {
-          glyphItem = new GlyphItem(xScale, yScale, &glyph, m_otlayout,
+          glyphItem = new GlyphItem(xScale, yScale, &glyph, this,
                                     {.lefttatweel = glyphLayout.lefttatweel,
                                      .righttatweel = glyphLayout.righttatweel,
                                      .scalex = 0},

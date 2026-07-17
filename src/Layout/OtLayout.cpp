@@ -20,35 +20,21 @@
 #include "hb-ot-hmtx-table.hh"
 #include "hb-ot-layout-gsub-table.hh"
 #undef max
-#include <qmap.h>
-#include <qset.h>
-
 #include "Lookup.h"
 #include "OtLayout.h"
 #include "Subtable.h"
+#include "to_opentype.h"
 #include "hb-ot-cmap-table.hh"
 #include "hb-ot-post-table.hh"
 #include "hb-ot.h"
-#include "qjsonarray.h"
-#include "qjsondocument.h"
-#include "qjsonobject.h"
 #include "GlazeJson.h"
-// #include <QFile>
-// #include <QTextStream>
-// #include "QJSValueIterator"
 #include <iostream>
-#ifndef DIGITALKHATT_WEBLIB
-#include <QDebug>
-#endif
 #include "FeaParser/driver.h"
 #include "FeaParser/feaast.h"
 #include "GlyphVis.h"
 #include "digitalkhatt/core/ByteBuffer.h"
+#include "digitalkhatt/core/Regex16.h"
 #include "automedina/automedina.h"
-#include "qiodevice.h"
-// #include "hb-ot-layout-gsubgpos.hh"
-
-#include <QtCore/qmath.h>
 
 #include <cfenv>
 #include <filesystem>
@@ -60,8 +46,72 @@
 #include <string_view>
 
 #include "metafont.h"
-#include "qregularexpression.h"
 #include "qurantext/quran.h"
+
+namespace {
+digitalkhatt::TextString utf8ToUtf16(std::string_view input) {
+  digitalkhatt::TextString result;
+  result.reserve(input.size());
+  for (std::size_t i = 0; i < input.size();) {
+    const auto first = static_cast<unsigned char>(input[i]);
+    char32_t codepoint = 0;
+    std::size_t length = 0;
+    if (first < 0x80) {
+      codepoint = first;
+      length = 1;
+    } else if ((first & 0xe0) == 0xc0) {
+      codepoint = first & 0x1f;
+      length = 2;
+    } else if ((first & 0xf0) == 0xe0) {
+      codepoint = first & 0x0f;
+      length = 3;
+    } else if ((first & 0xf8) == 0xf0) {
+      codepoint = first & 0x07;
+      length = 4;
+    } else {
+      codepoint = 0xfffd;
+      length = 1;
+    }
+    if (i + length > input.size()) {
+      codepoint = 0xfffd;
+      length = 1;
+    } else {
+      for (std::size_t j = 1; j < length; ++j) {
+        const auto continuation = static_cast<unsigned char>(input[i + j]);
+        if ((continuation & 0xc0) != 0x80) {
+          codepoint = 0xfffd;
+          length = j;
+          break;
+        }
+        codepoint = (codepoint << 6) | (continuation & 0x3f);
+      }
+    }
+    if (codepoint <= 0xffff) {
+      result.push_back(static_cast<char16_t>(codepoint));
+    } else if (codepoint <= 0x10ffff) {
+      codepoint -= 0x10000;
+      result.push_back(static_cast<char16_t>(0xd800 + (codepoint >> 10)));
+      result.push_back(static_cast<char16_t>(0xdc00 + (codepoint & 0x3ff)));
+    } else {
+      result.push_back(u'\ufffd');
+    }
+    i += length;
+  }
+  return result;
+}
+
+std::vector<digitalkhatt::TextString> splitLines(digitalkhatt::TextView text) {
+  std::vector<digitalkhatt::TextString> lines;
+  for (std::size_t start = 0; start <= text.size();) {
+    const auto end = text.find(u'\n', start);
+    const auto count = end == digitalkhatt::TextView::npos ? text.size() - start : end - start;
+    if (count != 0) lines.emplace_back(text.substr(start, count));
+    if (end == digitalkhatt::TextView::npos) break;
+    start = end + 1;
+  }
+  return lines;
+}
+}  // namespace
 
 int OtLayout::SCALEBY = 0;
 double OtLayout::EMSCALE = 1;
@@ -69,31 +119,39 @@ int OtLayout::MINSPACEWIDTH = 0;
 int OtLayout::SPACEWIDTH = 75;
 int OtLayout::MAXSPACEWIDTH = 100;
 
-QDataStream& operator<<(QDataStream& s, const QSet<quint16>& v) {
-  for (QSet<quint16>::const_iterator it = v.begin(); it != v.end(); ++it)
-    s << *it;
-  return s;
+std::pair<int, int> OtLayout::getDeltaSetEntry(DefaultDelta delta, int subregionIndex) {
+  return toOpenType->getDeltaSetEntry(delta, subregionIndex);
 }
 
-QDataStream& operator<<(QDataStream& s, const QSet<quint32>& v) {
-  for (QSet<quint32>::const_iterator it = v.begin(); it != v.end(); ++it)
-    s << *it;
-  return s;
+float OtLayout::normalToParameter(unsigned int code, float tatweel, bool left) {
+  if (!useNormAxisValues || tatweel == 0.0) return tatweel;
+
+  const auto& name = glyphNamePerCode.at(code);
+  if (tatweel < -1) {
+    std::cout.precision(17);
+    std::cout << "min tatweel " << std::fixed << tatweel << " error for glyph " << name << '\n';
+    tatweel = -1;
+  } else if (tatweel > 1) {
+    std::cout.precision(17);
+    std::cout << "max tatweel " << std::fixed << tatweel << " error for glyph " << name << '\n';
+    tatweel = 1;
+  }
+
+  const auto limitsIt = expandableGlyphs.find(name);
+  if (limitsIt == expandableGlyphs.end()) {
+    std::cout << "No expandable glyph " << name << '\n';
+    return tatweel;
+  }
+
+  double min = left ? limitsIt->second.minLeft : limitsIt->second.minRight;
+  double max = left ? limitsIt->second.maxLeft : limitsIt->second.maxRight;
+  if (toOpenType->isUniformAxis()) {
+    min = left ? toOpenType->axisLimits.minLeft : toOpenType->axisLimits.minRight;
+    max = left ? toOpenType->axisLimits.maxLeft : toOpenType->axisLimits.maxRight;
+  }
+  return tatweel < 0 ? -tatweel * min : tatweel * max;
 }
 
-QDataStream& operator<<(QDataStream& stream, const SuraLocation& location) {
-  stream << QString::fromStdU16String(location.name) << location.pageNumber << location.x << location.y;
-  return stream;
-}
-QDataStream& operator>>(QDataStream& stream, SuraLocation& location) {
-  QString name;
-  stream >> name >> location.pageNumber >> location.x >> location.y;
-  location.name = name.toStdU16String();
-  return stream;
-}
-
-#include <qdir.h>
-#include <qsettings.h>
 
 #include "hb-ot-name-table.hh"
 
@@ -355,7 +413,7 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
   } else if (lookupTable->type == Lookup::mark2base || lookupTable->type == Lookup::mark2mark) {
     MarkBaseSubtable* subtableTable = static_cast<MarkBaseSubtable*>(subtable);
 
-    quint16 classIndex = subtableTable->markCodes[context->glyph_id];
+    std::uint16_t classIndex = subtableTable->markCodes[context->glyph_id];
 
     const std::string& className = subtableTable->classNamebyIndex[classIndex];
 
@@ -429,9 +487,9 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
 
     char prevName[64];
     hb_font_get_glyph_name(font, prev_info.codepoint, prevName, sizeof(prevName));
-    if (QString(prevName) == "behshape.medi.expa") {
+    if (std::string_view(prevName) == "behshape.medi.expa") {
       curr_info.lefttatweel = (std::min)(prev_info.lefttatweel, 1.5);
-    } else if (QString(prevName).contains(".expa")) {
+    } else if (std::string_view(prevName).find(".expa") != std::string_view::npos) {
       curr_info.lefttatweel = 1.5;
 
     } else {
@@ -637,11 +695,11 @@ digitalkhatt::ByteBuffer OtLayout::getGDEF() {
 
   gdef_array.clear();
 
-  quint16 markGlyphSetsDefOffset = 0;
-  quint16 glyphClassDefOffset = 18;
+  std::uint16_t markGlyphSetsDefOffset = 0;
+  std::uint16_t glyphClassDefOffset = 18;
 
-  quint16 glyphCount = glyphGlobalClasses.size();
-  quint16 markGlyphSetCount = markGlyphSets.size();
+  std::uint16_t glyphCount = glyphGlobalClasses.size();
+  std::uint16_t markGlyphSetCount = markGlyphSets.size();
 
   // if (markGlyphSetCount > 0) {
   markGlyphSetsDefOffset = glyphClassDefOffset + 2 + 2 + glyphCount * 6;
@@ -677,11 +735,10 @@ digitalkhatt::ByteBuffer OtLayout::getGDEF() {
   gdef.writeU32(itemVarStoreOffset);      // itemVarStoreOffset
   gdef.writeU16(2);                       // ClassDef format
   gdef.writeU16(glyphCount);              // classRangeCount
-  for (auto it = glyphGlobalClasses.constBegin();
-       it != glyphGlobalClasses.constEnd(); ++it) {
-    gdef.writeU16(it.key());
-    gdef.writeU16(it.key());
-    gdef.writeU16(it.value());
+  for (const auto& [glyphCode, glyphClass] : glyphGlobalClasses) {
+    gdef.writeU16(glyphCode);
+    gdef.writeU16(glyphCode);
+    gdef.writeU16(glyphClass);
   }
   gdef.append(markGlyphSetsTable);
   gdef.append(itemVariationStore);
@@ -709,20 +766,21 @@ digitalkhatt::ByteBuffer OtLayout::getGPOS() {
 
   return gpos_array;
 }
-digitalkhatt::ByteBuffer OtLayout::getFeatureList(QMap<QString, QSet<quint16>> allFeatures) {
-  quint16 featureCount = allFeatures.size();
+digitalkhatt::ByteBuffer OtLayout::getFeatureList(
+    const std::map<std::string, std::set<std::uint16_t>>& allFeatures) {
+  std::uint16_t featureCount = allFeatures.size();
   digitalkhatt::ByteBuffer featureList;
   digitalkhatt::ByteBuffer features;
   featureList.writeU16(featureCount);  // featureCount
   uint16_t featureOffset = 2 + 6 * featureCount;
-  for (auto it = allFeatures.cbegin(); it != allFeatures.cend(); ++it) {
+  for (const auto& [featureName, lookupIndexes] : allFeatures) {
     for (int tagIndex = 0; tagIndex < 4; ++tagIndex)
-      featureList.writeU8(it.key().at(tagIndex).toLatin1());  // featureTag
+      featureList.writeU8(featureName.at(tagIndex));          // featureTag
     featureList.writeU16(featureOffset);                      // featureOffset
     features.writeU16(0);                                    // featureParams
-    features.writeU16(it.value().size());                     // lookupIndexCount
-    for (auto lookupIndex : it.value()) features.writeU16(lookupIndex);
-    featureOffset += 4 + 2 * it.value().size();
+    features.writeU16(lookupIndexes.size());                  // lookupIndexCount
+    for (auto lookupIndex : lookupIndexes) features.writeU16(lookupIndex);
+    featureOffset += 4 + 2 * lookupIndexes.size();
   }
   featureList.append(features);
   return featureList;
@@ -744,7 +802,7 @@ digitalkhatt::ByteBuffer OtLayout::getScriptList(int featureCount) {
   return scriptList;
 }
 
-digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures,
+digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup*>& lookups, std::map<std::string, std::set<std::uint16_t>>& allFeatures,
                                    std::map<std::string, int>& lookupsIndexByName) {
   allFeatures.clear();
   lookupsIndexByName.clear();
@@ -753,7 +811,7 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
   for (auto lookup : this->lookups) {
     if (!disabledLookups.contains(lookup) && (extended || (lookup->type != Lookup::fsmgsub))) {
       if (isgsub == lookup->isGsubLookup()) {
-        quint16 lookupIndex = lookups.size();
+        std::uint16_t lookupIndex = lookups.size();
 
         lookupsIndexByName[lookup->name] = lookupIndex;
         lookups.push_back(lookup);
@@ -766,27 +824,27 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
       const auto found = lookupsIndexByName.find(lookup->name);
       int lookupIndex = found == lookupsIndexByName.end() ? -1 : found->second;
       if (lookupIndex != -1) {
-        allFeatures[QString::fromStdString(featureName)].insert(lookupIndex);
+        allFeatures[featureName].insert(lookupIndex);
       }
     }
   }
 
-  auto scriptList = getScriptList(allFeatures.count());
+  auto scriptList = getScriptList(allFeatures.size());
   auto featureList = getFeatureList(allFeatures);
 
 
-  const quint16 scriptListOffset = 10;
-  const quint16 featureListOffset = scriptListOffset + scriptList.size();
-  const quint16 lookupListOffset = featureListOffset + featureList.size();
-  const quint16 lookupCount = lookups.size();
-  quint32 lookupListtotalSize = 2 + 2 * lookupCount;
+  const std::uint16_t scriptListOffset = 10;
+  const std::uint16_t featureListOffset = scriptListOffset + scriptList.size();
+  const std::uint16_t lookupListOffset = featureListOffset + featureList.size();
+  const std::uint16_t lookupCount = lookups.size();
+  std::uint32_t lookupListtotalSize = 2 + 2 * lookupCount;
   for (auto* lookup : lookups) {
     const auto subtableCount = lookup->getSubtables(extended).size();
     lookupListtotalSize += 6 + 2 * subtableCount;
     if (lookup->markGlyphSetIndex != Lookup::NoMarkGlyphSet) lookupListtotalSize += 2;
     lookupListtotalSize += 8 * subtableCount;
   }
-  const quint16 extensiontype =
+  const std::uint16_t extensiontype =
       isgsub ? Lookup::extensiongsub : Lookup::extensiongpos;
 
   digitalkhatt::ByteBuffer root;
@@ -816,7 +874,7 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
     for (auto* subtable : lookupSubtables) {
       lookupTable.writeU16(extensionOffset);
       extensions.writeU16(1);  // extension format
-      extensions.writeU16(static_cast<quint16>(lookup->type));  // extensionLookupType
+      extensions.writeU16(static_cast<std::uint16_t>(lookup->type));  // extensionLookupType
       extensions.writeU32(subtablesDataOffset -
                              (lookupOffset + extensionOffset));
       const auto subtableBytes = !extended && subtable->isConvertible()
@@ -838,27 +896,26 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
   root.append(lookupList);
   return root;
 }
-#if DIGITALKHATT_WEBLIB
-OtLayout::OtLayout(Font* font, bool extended) : fsmDriver{*this}, justTable{this}, font{font} {
-#else
-OtLayout::OtLayout(Font* font, bool extended, bool generateVariableOpenType, QObject* parent) : QObject(parent), fsmDriver{*this}, justTable{this}, font{font}, isOTVar{generateVariableOpenType} {
-#endif
+OtLayout::OtLayout(Font* font, bool extended, bool generateVariableOpenType)
+    : fsmDriver{*this}, justTable{this}, font{font},
+      isOTVar{generateVariableOpenType} {
 
   this->extended = extended;
   face = hb_face_create_for_tables(harfbuzzGetTables, this, 0);
 
   dirty = true;
 
-  auto path = font->filePath();
-  QFileInfo fileInfo = QFileInfo(path);
+  const std::filesystem::path fontPath = font->filePathStd();
 #ifdef NDEBUG
-  QString debugPostfix = "";
+  constexpr std::string_view debugPostfix = "";
 #else
-  QString debugPostfix = "d";
+  constexpr std::string_view debugPostfix = "d";
 #endif
-  QString fileName = fileInfo.path() + "/" + SLPREFIX + fileInfo.baseName() + debugPostfix + SLEXT;
-
-  auto ff = fileName.toStdString();
+  const auto ff =
+      (fontPath.parent_path() /
+       (std::string{SLPREFIX} + fontPath.stem().string() +
+        std::string{debugPostfix} + SLEXT))
+          .string();
   dlhandle slhandle = dlopen(ff.c_str(), 0);
   if (!slhandle) {
     std::cout << "could not load the dynamic library " << ff << std::endl;
@@ -932,99 +989,6 @@ CursiveAnchorFunc OtLayout::getCursiveFunctions(const std::string& functionName,
 PairAdjustFunc OtLayout::getPairAdjustFunction(std::string functionName, Subtable* subtable) {
   return automedina->getPairAdjustFunction(functionName, subtable);
 }
-/*
-void OtLayout::prepareJSENgine() {
-
-  evaluateImport();
-
-  QJSValue descriptions = myEngine.newObject();
-  myEngine.globalObject().setProperty("desc", descriptions);
-  QJSValue classes = myEngine.globalObject().property("classes");
-  QJSValue marksClass = classes.property("marks");
-  QJSValue basesClass = myEngine.newObject();
-  classes.setProperty("bases", basesClass);
-
-  for (int i = 0; i < m_font->glyphs.length(); i++) {
-
-    Glyph* curr = m_font->glyphs[i];
-
-    Glyph::ComputedValues & values = curr->getComputedValues();
-
-    QJSValue item = myEngine.newObject();
-
-    item.setProperty("width", values.width);
-    item.setProperty("height", values.height);
-    item.setProperty("depth", values.depth);
-    item.setProperty("charcode", values.charcode);
-    QJSValue bbox = myEngine.newObject();
-
-    bbox.setProperty("llx", values.bbox.llx);
-    bbox.setProperty("lly", values.bbox.lly);
-    bbox.setProperty("urx", values.bbox.urx);
-    bbox.setProperty("ury", values.bbox.ury);
-
-    item.setProperty("boundingbox", bbox);
-    item.setProperty("name", curr->name());
-
-
-    if (values.leftAnchor.has_value()) {
-      QJSValue leftAnchor = myEngine.newObject();
-      leftAnchor.setProperty("x", values.leftAnchor.value().x());
-      leftAnchor.setProperty("y", values.leftAnchor.value().y());
-      item.setProperty("leftanchor", leftAnchor);
-    }
-
-    if (values.rightAnchor.has_value()) {
-      QJSValue rightAnchor = myEngine.newObject();
-      rightAnchor.setProperty("x", values.rightAnchor.value().x());
-      rightAnchor.setProperty("y", values.rightAnchor.value().y());
-      item.setProperty("rightanchor", rightAnchor);
-    }
-
-    descriptions.setProperty(curr->name(), item);
-
-    if (!marksClass.hasProperty(curr->name())) {
-      basesClass.setProperty(curr->name(), true);
-      glyphGlobalClasses[curr->name()] = BaseGlyph;
-    }
-    else {
-      glyphGlobalClasses[curr->name()] = MarkGlyph;
-    }
-  }
-
-
-  //QJSValueIterator it(myEngine.globalObject().property("desc"));
-  //while (it.hasNext()) {
-  //	it.next();
-    //std::cout << it.name().toLatin1().data() << ": " << it.value().toString().toLatin1().data() << "\n";
-    //ebug() << it.name() << ": " << it.value().toString();
-  //}
-
-
-
-}
-
-void OtLayout::evaluateImport() {
-  QString fileName = import;
-  QFile scriptFile(fileName);
-  if (!scriptFile.open(QIODevice::ReadOnly)) {
-    return;
-  }
-  // handle error
-  QTextStream stream(&scriptFile);
-  QString contents = stream.readAll();
-  scriptFile.close();
-  QJSValue result = myEngine.evaluate(contents, fileName);
-
-  if (result.isError()) {
-    qDebug()
-      << "Uncaught exception at line"
-      << result.property("lineNumber").toInt()
-      << ":" << result.toString();
-    //printf("Uncaught exception at line %d :\n%s\n", result.property("lineNumber").toInt(), result.toString().toLatin1().constData());
-  }
-
-}*/
 void OtLayout::addLookup(Lookup* lookup) {
   if (lookup->type == Lookup::none) {
     throw "Lookup Type not defined";
@@ -1038,7 +1002,7 @@ void OtLayout::addLookup(Lookup* lookup) {
     allFeatures[lookup->feature].insert(lookup);
   }
 
-  quint16 lookupIndex = lookups.size();
+  std::uint16_t lookupIndex = lookups.size();
 
   lookupsIndexByName[lookup->name] = lookupIndex;
   lookups.push_back(lookup);
@@ -1059,9 +1023,11 @@ void OtLayout::loadLookupFile(std::string fileName) {
 
   parseFeatureFile(absoluteFileName);
 
-  auto parametersFileName = QDir(font->currentDir()).filePath("parameters.json");
+  const auto parametersFileName =
+      std::filesystem::path{font->currentDir().toStdString()} /
+      "parameters.json";
 
-  std::ifstream parametersStream(parametersFileName.toStdString(), std::ios::binary);
+  std::ifstream parametersStream(parametersFileName, std::ios::binary);
 
   if (parametersStream) {
     std::string buffer{std::istreambuf_iterator<char>{parametersStream}, {}};
@@ -1073,18 +1039,6 @@ void OtLayout::loadLookupFile(std::string fileName) {
     }
 
     parametersStream.close();
-    QSettings settings;
-    for (auto& [feature, featureLookups] : allFeatures) {
-      for (auto lookup : featureLookups) {
-        bool disabled = settings
-                            .value("DisabledLookups/" +
-                                   QString::fromStdString(lookup->name))
-                            .toBool();
-        if (disabled) {
-          disabledLookups.insert(lookup);
-        }
-      }
-    }
   }
 
   // addGlyphs();
@@ -1114,7 +1068,7 @@ void OtLayout::parseFeatureFile(std::string fileName) {
 
   feayy::Driver driver(context);
   if (!driver.parse_file(fileName)) {
-    std::cout << "Error in parsing " << fileName << endl;
+    std::cout << "Error in parsing " << fileName << std::endl;
   };
 
   context.populateFeatures();
@@ -1124,8 +1078,8 @@ void OtLayout::parseFeatureFile(std::string fileName) {
     face = nullptr;
   }
 }
-bool OtLayout::parseCppLookup(QString lookupName) {
-  Lookup* newlookup = automedina->getLookup(lookupName.toStdString());
+bool OtLayout::parseCppLookup(const std::string& lookupName) {
+  Lookup* newlookup = automedina->getLookup(lookupName);
   if (newlookup) {
     addLookup(newlookup);
     return true;
@@ -1193,21 +1147,21 @@ hb_font_t* OtLayout::createFont(double emScale, bool newFace) {
   return subfont;
 }
 
-quint16 OtLayout::addMarkSet(QList<quint16> list) {
-  quint16 index = markGlyphSets.size();
+std::uint16_t OtLayout::addMarkSet(std::vector<std::uint16_t> list) {
+  std::uint16_t index = markGlyphSets.size();
 
-  markGlyphSets.append(list);
+  markGlyphSets.push_back(std::move(list));
 
   return index;
 }
-quint16 OtLayout::addMarkSet(QVector<QString> list) {
-  QList<quint16> codeList;
-  for (auto glyphName : list) {
-    if (auto found = glyphCodePerName.find(glyphName.toStdString()); found != glyphCodePerName.end()) {
-      quint16 glyphcode = found->second;
-      codeList.append(glyphcode);
+std::uint16_t OtLayout::addMarkSet(const std::vector<std::string>& list) {
+  std::vector<std::uint16_t> codeList;
+  for (const auto& glyphName : list) {
+    if (auto found = glyphCodePerName.find(glyphName); found != glyphCodePerName.end()) {
+      std::uint16_t glyphcode = found->second;
+      codeList.push_back(glyphcode);
     } else {
-      std::cout << "addMarkSet : Glyph Name '" << glyphName.toStdString() << "' does not exist.\n";
+      std::cout << "addMarkSet : Glyph Name '" << glyphName << "' does not exist.\n";
     }
   }
 
@@ -1217,8 +1171,8 @@ std::unordered_set<std::uint16_t> OtLayout::classtoUnicode(const std::string& cl
   return automedina->classtoUnicode(className);
 }
 
-QSet<quint16> OtLayout::getSubsts(int charCode) {
-  QSet<quint16> set;
+std::unordered_set<std::uint16_t> OtLayout::getSubsts(int charCode) {
+  std::unordered_set<std::uint16_t> set;
   auto addedGlyphs = substEquivGlyphs.find(charCode);
   if (addedGlyphs != substEquivGlyphs.end()) {
     for (auto& addedGlyph : addedGlyphs->second) {
@@ -1240,128 +1194,7 @@ double OtLayout::nuqta() {
   return _nuqta;
 }
 
-#ifndef DIGITALKHATT_WEBLIB
-void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableIndex, quint16 markCode, quint16 baseCode, QPoint displacement, Qt::KeyboardModifiers modifiers) {
-  bool shift = false;
-  bool ctrl = false;
-  bool alt = false;
-
-  if (modifiers & Qt::ShiftModifier) {
-    shift = true;
-  }
-
-  if (modifiers & Qt::ControlModifier) {
-    ctrl = true;
-  }
-
-  if (modifiers & Qt::AltModifier) {
-    alt = true;
-  }
-
-  Lookup* lookupTable = gposlookups.at(lookup);
-
-  auto subtable = lookupTable->subtables.at(subtableIndex);
-
-  if (lookupTable->type == Lookup::singleadjustment) {
-    SingleAdjustmentSubtable* subtableTable = static_cast<SingleAdjustmentSubtable*>(subtable);
-    const auto& glyphName = glyphNamePerCode[markCode];
-
-    ValueRecord prev = subtableTable->parameters[markCode];
-
-    ValueRecord newvalue{(qint16)(prev.xPlacement + displacement.x()), (qint16)(prev.yPlacement + displacement.y()), prev.xAdvance, (qint16)0};
-
-    if (shift) {
-      newvalue.xAdvance += displacement.x();
-    } else if (alt) {
-      newvalue.xAdvance -= displacement.x();
-    }
-
-    subtableTable->parameters[markCode] = newvalue;
-
-    qDebug() << QString("Changing single adjust anchor %1.%2.%3 :").arg(QString::fromStdString(lookupTable->name), QString::fromStdString(subtable->name), QString::fromStdString(glyphName)) << newvalue.xPlacement << newvalue.yPlacement << newvalue.xAdvance;
-
-    subtableTable->isDirty = true;
-
-    emit parameterChanged();
-  } else if (lookupTable->type == Lookup::mark2base || lookupTable->type == Lookup::mark2mark) {
-    MarkBaseSubtable* subtableTable = static_cast<MarkBaseSubtable*>(subtable);
-
-    quint16 classIndex = subtableTable->markCodes[markCode];
-
-    const std::string& className = subtableTable->classNamebyIndex[classIndex];
-
-    if (!shift) {
-      auto baseGlyphName = glyphNamePerCode[baseCode];
-
-      GlyphVis& curr = glyphs[baseGlyphName];
-
-      if (ctrl && !curr.originalglyph.empty() && (curr.charlt != 0 || curr.charrt != 0)) {
-        baseGlyphName = curr.originalglyph;
-      }
-
-      QPoint prev = subtableTable->classes[className].baseparameters[baseGlyphName];
-
-      QPoint newvalue = prev + displacement;
-
-      subtableTable->classes[className].baseparameters[baseGlyphName] = newvalue;
-
-      qDebug() << QString("Changing base anchor %1::%2::%3::%4 : (%5,%6)").arg(QString::fromStdString(lookupTable->name), QString::fromStdString(subtable->name), QString::fromStdString(className), QString::fromStdString(baseGlyphName), QString::number(newvalue.x()), QString::number(newvalue.y()));
-
-    } else {
-      const auto& markGlyphName = glyphNamePerCode[markCode];
-      QPoint prev = subtableTable->classes[className].markparameters[markGlyphName];
-
-      QPoint newvalue = prev - displacement;
-
-      subtableTable->classes[className].markparameters[markGlyphName] = prev - displacement;
-
-      qDebug() << QString("Changing mark anchor %1::%2::%3::%4 : (%5,%6)").arg(QString::fromStdString(lookupTable->name), QString::fromStdString(subtable->name), QString::fromStdString(className), QString::fromStdString(markGlyphName), QString::number(newvalue.x()), QString::number(newvalue.y()));
-    }
-    subtableTable->isDirty = true;
-
-    // qDebug() << "prev : " << prev << "new" << subtableTable->classes[className].baseparameters[baseGlyphName];
-
-    emit parameterChanged();
-
-  } else if (lookupTable->type == Lookup::cursive) {
-    CursiveSubtable* subtableTable = static_cast<CursiveSubtable*>(subtable);
-
-    const auto& glyphName = glyphNamePerCode[glyphCode];
-
-    const auto& baseGlyphName = glyphNamePerCode[baseCode];
-
-    GlyphVis& curr = glyphs[glyphName];
-
-    Lookup* lookup = subtableTable->getLookup();
-
-    // if (lookup->flags & Lookup::RightToLeft) {
-    //	QPoint newvalue = subtableTable->exitParameters[glyphCode] + displacement;
-    //	subtableTable->exitParameters[glyphCode] = newvalue;
-
-    //    qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :").arg(lookupTable->name, subtable->name, glyphName) << newvalue;
-    //}
-    // else {
-    if (!shift) {
-      Point newvalue = subtableTable->entryParameters[glyphCode] - Point(displacement);
-      subtableTable->entryParameters[glyphCode] = newvalue;
-
-      qDebug() << QString("Changing cursive entry anchor %1::%2::%3 :").arg(QString::fromStdString(lookupTable->name), QString::fromStdString(subtable->name), QString::fromStdString(glyphName)) << QPoint(newvalue);
-    } else {
-      Point newvalue = subtableTable->exitParameters[baseCode] + Point(displacement);
-      subtableTable->exitParameters[baseCode] = newvalue;
-
-      qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :").arg(QString::fromStdString(lookupTable->name), QString::fromStdString(subtable->name), QString::fromStdString(baseGlyphName)) << QPoint(newvalue);
-    }
-    //}
-
-    subtableTable->isDirty = true;
-
-    emit parameterChanged();
-  }
-}
-#endif
-
-void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, double emScale) {
+void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& diff, const std::string& feature, hb_font_t* shapefont, double nuqta, double emScale) {
   if (!this->allGsubFeatures.contains(feature))
     return;
 
@@ -1379,7 +1212,8 @@ void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& dif
   OT::hb_ot_apply_context_t c(table_index, shapefont, buffer);
   c.set_recurse_func(OT::SubstLookup::template dispatch_recurse_func<
                      OT::hb_ot_apply_context_t>);
-  auto list = this->allGsubFeatures[feature].values();
+  std::vector<std::uint16_t> list(this->allGsubFeatures[feature].begin(),
+                                  this->allGsubFeatures[feature].end());
   std::sort(list.begin(), list.end());
 
   bool stretch = diff > 0;
@@ -1432,14 +1266,14 @@ void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& dif
 
       totalWeight = 0;
 
-      QMap<int, GlyphExpansion> affectedIndexes;
+      std::map<int, GlyphExpansion> affectedIndexes;
 
       bool insideGroup = false;
       hb_position_t oldWidth = 0;
       hb_position_t newWidth = 0;
       GlyphExpansion groupExpa{};
       groupExpa.weight = 0;
-      QVector<int> group;
+      std::vector<int> group;
       remaining = false;
       remainingWidth = 0.0;
 
@@ -1461,7 +1295,7 @@ void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& dif
           expa.shrinkIsAbsolute = false;
         }
 
-        group.append(i);
+        group.push_back(i);
         oldWidth += glyph_pos[index].x_advance;
         if (glyph_info[index].codepoint == justificationContext.Substitutes[i]) {
           newWidth += glyph_pos[index].x_advance;
@@ -1589,7 +1423,7 @@ void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& dif
     hb_buffer_destroy(copy_buffer);
 }
 
-void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double& diff, QString feature, hb_font_t* shapefont, double nuqta, double emScale) {
+void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double& diff, const std::string& feature, hb_font_t* shapefont, double nuqta, double emScale) {
   if (!this->allGsubFeatures.contains(feature))
     return;
 
@@ -1607,7 +1441,8 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
   OT::hb_ot_apply_context_t c(table_index, shapefont, buffer);
   c.set_recurse_func(OT::SubstLookup::template dispatch_recurse_func<
                      OT::hb_ot_apply_context_t>);
-  auto list = this->allGsubFeatures[feature].values();
+  std::vector<std::uint16_t> list(this->allGsubFeatures[feature].begin(),
+                                  this->allGsubFeatures[feature].end());
   std::sort(list.begin(), list.end());
   bool stretch = diff > 0;
 
@@ -1641,12 +1476,12 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
       if (justificationContext.GlyphsToExtend.size() != 0) {
         // double tatweel = diff / JustificationContext::GlyphsToExtend.count() / nuqta;
 
-        QMap<int, GlyphExpansion> affectedIndexes;
+        std::map<int, GlyphExpansion> affectedIndexes;
 
         bool insideGroup = false;
         hb_position_t oldWidth = 0;
         hb_position_t newWidth = 0;
-        QVector<int> group;
+        std::vector<int> group;
 
         for (int i = 0; i < justificationContext.GlyphsToExtend.size(); i++) {
           int index = justificationContext.GlyphsToExtend[i];  // glyph_count - 1 - JustificationContext::GlyphsToExtend[i];
@@ -1654,7 +1489,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
 
           GlyphExpansion& expa = justificationContext.Expansions[index];
 
-          group.append(i);
+          group.push_back(i);
           oldWidth += glyph_pos[index].x_advance;
           if (glyph_info[index].codepoint == justificationContext.Substitutes[i]) {
             newWidth += glyph_pos[index].x_advance;
@@ -1687,7 +1522,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
                 if (stretch && expa.MaxLeftTatweel <= 0 && expa.MaxRightTatweel <= 0 || !stretch && expa.MinLeftTatweel >= 0 && expa.MinRightTatweel >= 0)
                   continue;
 
-                affectedIndexes.insert(i, expa);
+                affectedIndexes.insert_or_assign(i, expa);
               } else {
                 // GlyphVis& glyph = this->glyphs[this->glyphNamePerCode[glyph_info[index].codepoint]];
                 // GlyphVis& substitute = this->glyphs[this->glyphNamePerCode[JustificationContext::Substitutes[i]]];
@@ -1707,11 +1542,11 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
 
                 if (stretch) {
                   if (expa.MaxLeftTatweel > 0 || expa.MaxRightTatweel > 0) {
-                    affectedIndexes.insert(i, expa);
+                    affectedIndexes.insert_or_assign(i, expa);
                   }
                 } else if (!stretch) {
                   if (expa.MinLeftTatweel < 0 || expa.MinRightTatweel < 0) {
-                    affectedIndexes.insert(i, expa);
+                    affectedIndexes.insert_or_assign(i, expa);
                   }
                 }
               }
@@ -1729,12 +1564,12 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
 
           if (meanTatweel == 0.0) break;
 
-          QMap<int, GlyphExpansion>::iterator i;
-          QMap<int, GlyphExpansion> newaffectedIndexes;
+          std::map<int, GlyphExpansion>::iterator i;
+          std::map<int, GlyphExpansion> newaffectedIndexes;
           for (i = affectedIndexes.begin(); i != affectedIndexes.end(); ++i) {
-            int index = justificationContext.GlyphsToExtend[i.key()];  // glyph_count - 1 - JustificationContext::GlyphsToExtend[i];
+            int index = justificationContext.GlyphsToExtend[i->first];
 
-            auto expa = i.value();
+            auto expa = i->second;
 
             if (stretch) {
               expa.MaxLeftTatweel = expa.MaxLeftTatweel > 0 ? expa.MaxLeftTatweel : 0;
@@ -1760,7 +1595,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
               if (meanTatweel < maxStretch && diff > 0) {
                 expa.MaxLeftTatweel -= leftTatweel;
                 expa.MaxRightTatweel -= rightTatweel;
-                newaffectedIndexes.insert(i.key(), expa);
+                newaffectedIndexes.insert_or_assign(i->first, expa);
               }
 
             } else {
@@ -1787,7 +1622,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
               if (meanTatweel > minShrink && diff < 0) {
                 expa.MinLeftTatweel -= leftTatweel;
                 expa.MinRightTatweel -= rightTatweel;
-                newaffectedIndexes.insert(i.key(), expa);
+                newaffectedIndexes.insert_or_assign(i->first, expa);
               }
             }
           }
@@ -1863,13 +1698,13 @@ void OtLayout::jutifyLine_old(hb_font_t* shapefont, hb_buffer_t* text_buffer, in
 
       hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
       hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
-      QVector<quint32> spaces;
+      std::vector<std::uint32_t> spaces;
       int currentlineWidth = 0;
 
       for (int i = glyph_count - 1; i >= 0; i--) {
         if (glyph_info[i].codepoint == 32) {
           glyph_pos[i].x_advance = minSpace;
-          spaces.append(i);
+          spaces.push_back(i);
         } else {
           currentlineWidth += glyph_pos[i].x_advance;
         }
@@ -1963,8 +1798,8 @@ void OtLayout::jutifyLine(hb_font_t* shapefont, hb_buffer_t* text_buffer, int li
   JustificationInProgress = false;
 }
 
-QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const QVector<LineToJustify>& lines, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level,
-                                            JustOption justOption, QString mushafLayout) {
+std::vector<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const std::vector<LineToJustify>& lines, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level,
+                                                  JustOption justOption, std::string mushafLayout) {
   auto justType = justOption.justType;
   auto justStyle = justOption.justStyle;
 
@@ -1972,7 +1807,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
     return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, cluster_level, justOption, mushafLayout);
   }
 
-  QList<LineLayoutInfo> page;
+  std::vector<LineLayoutInfo> page;
 
   hb_buffer_t* buffer = buffer = hb_buffer_create();
   hb_font_t* shapefont = this->createFont(emScale, newFace);
@@ -2023,7 +1858,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
 
       hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
       hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
-      QVector<quint32> spaces;
+      std::vector<std::uint32_t> spaces;
       int currentlineWidth = 0;
       int spaceWidth = 0;
 
@@ -2051,7 +1886,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
         currentlineWidth += glyphLayout.x_advance;
 
         if (glyphLayout.codepoint == 32) {
-          spaces.append(lineLayout.glyphs.size());
+          spaces.push_back(lineLayout.glyphs.size());
           spaceWidth += glyphLayout.x_advance;
         }
 
@@ -2118,7 +1953,7 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
 
       lineLayout.type = line.lineType;
 
-      page.append(lineLayout);
+      page.push_back(lineLayout);
     }
   }
 
@@ -2128,42 +1963,60 @@ QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth, const
   return page;
 }
 
-QList<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int pageWidth, QStringList lines, LineJustification justification,
-                                            bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level, JustOption justOption, QString mushafLayoutType) {
-  QVector<LineToJustify> newLines;
+std::vector<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int pageWidth, std::vector<std::string> lines, LineJustification justification,
+                                                  bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level, JustOption justOption, std::string mushafLayoutType) {
+  std::vector<LineToJustify> newLines;
 
   for (auto& line : lines) {
-    newLines.append({line.toStdU16String(), lineWidth, justification, LineType::Line});
+    newLines.push_back({utf8ToUtf16(line), lineWidth, justification, LineType::Line});
   }
   return justifyPage(emScale, pageWidth, newLines, newFace, tajweedColor, cluster_level, justOption, mushafLayoutType);
 }
 
-QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, int nbPages) {
-  QSet<int> forcedBreaks;
+OriginalPageList OtLayout::pageBreak(double emScale, int lineWidth,
+                                      bool pageFinishbyaVerse,
+                                      digitalkhatt::TextString text,
+                                      int nbPages) {
+  std::unordered_set<int> forcedBreaks;
+  constexpr std::u16string_view suraWord = u"سُورَةُ";
+  constexpr std::u16string_view bism = u"بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
+  constexpr std::u16string_view alternateBism =
+      u"بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
 
-  QString suraWord = "سُورَةُ";
-  QString bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
-
-  QString surapattern = "^(" + suraWord + " .*|" + bism + "|" + "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" + ")$";
-
-  QList<QString> suraNames;
-
-  QRegularExpression suraRe(surapattern, QRegularExpression::MultilineOption);
-  QRegularExpressionMatchIterator i = suraRe.globalMatch(text);
-  while (i.hasNext()) {
-    QRegularExpressionMatch match = i.next();
-    int startOffset = match.capturedStart();  // startOffset == 6
-    int endOffset = match.capturedEnd();      // endOffset == 9
-    forcedBreaks.insert(endOffset);
-    forcedBreaks.insert(startOffset - 1);
+  std::size_t lineStart = 0;
+  while (lineStart <= text.size()) {
+    const auto lineEnd = text.find(u'\n', lineStart);
+    const auto end = lineEnd == digitalkhatt::TextString::npos
+                         ? text.size()
+                         : lineEnd;
+    const std::u16string_view line{text.data() + lineStart, end - lineStart};
+    if (line.starts_with(suraWord) || line == bism || line == alternateBism) {
+      forcedBreaks.insert(static_cast<int>(end));
+      if (lineStart > 0) forcedBreaks.insert(static_cast<int>(lineStart - 1));
+    }
+    if (lineEnd == digitalkhatt::TextString::npos) break;
+    lineStart = lineEnd + 1;
   }
 
-  text = text.replace(char(10), char(32));
-  text = text.replace(bism + char(32), bism + char(10));
+  std::replace(text.begin(), text.end(), u'\n', u' ');
+  const digitalkhatt::TextString bismWithSpace =
+      digitalkhatt::TextString{bism} + u' ';
+  const digitalkhatt::TextString bismWithBreak =
+      digitalkhatt::TextString{bism} + u'\n';
+  for (auto pos = text.find(bismWithSpace);
+       pos != digitalkhatt::TextString::npos;
+       pos = text.find(bismWithSpace, pos + bismWithBreak.size())) {
+    text.replace(pos, bismWithSpace.size(), bismWithBreak);
+  }
 
-  return pageBreak(emScale, lineWidth, pageFinishbyaVerse, text, forcedBreaks, nbPages);
+  return pageBreak(emScale, lineWidth, pageFinishbyaVerse, std::move(text),
+                   std::move(forcedBreaks), nbPages);
 }
-QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, QString text, QSet<int> forcedBreaks, int nbPages) {
+
+OriginalPageList OtLayout::pageBreak(
+    double emScale, int lineWidth, bool pageFinishbyaVerse,
+    digitalkhatt::TextString text, std::unordered_set<int> forcedBreaks,
+    int nbPages) {
   typedef long ParaWidth;
 
   struct Candidate {
@@ -2189,7 +2042,9 @@ QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageF
 
   hb_font_t* font = this->createFont(emScale);
 
-  hb_buffer_add_utf16(buffer, text.utf16(), text.size(), 0, text.size());
+  hb_buffer_add_utf16(buffer,
+                      reinterpret_cast<const std::uint16_t*>(text.data()),
+                      text.size(), 0, text.size());
 
   hb_shape(font, buffer, NULL, 0);
 
@@ -2246,11 +2101,11 @@ QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageF
       penalty = -1;
     }
 
-    auto forcedBreak = forcedBreaks.contains(glyph_info[i].cluster);
+    const bool forcedBreak = forcedBreaks.contains(glyph_info[i].cluster);
 
     totalSpaces++;
 
-    QHash<int, Candidate> potcandidates;
+    std::unordered_map<int, Candidate> potcandidates;
 
     auto activeit = actives.begin();
     while (activeit != actives.end()) {
@@ -2374,7 +2229,7 @@ QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageF
       actives.clear();
     }
 
-    for (auto& cand : potcandidates) {
+    for (auto& [key, cand] : potcandidates) {
       actives.push_back(candidates.size());
       candidates.push_back(cand);
     }
@@ -2397,8 +2252,8 @@ QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageF
     return {};
   }
 
-  QStringList originalPage;
-  QList<QStringList> originalPages;
+  OriginalPage originalPage;
+  OriginalPageList originalPages;
 
   auto cand = bestCandidate;
   int currentpageNumber = bestCandidate->pageNumber;
@@ -2411,9 +2266,9 @@ QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageF
     int beginIndex = prev->index - 1;
     int endIndex = cand->index + 1;
 
-    QString originalLine;
-
-    originalLine.append(text.mid(glyph_info[prev->index - 1].cluster, glyph_info[cand->index].cluster - glyph_info[prev->index - 1].cluster));
+    const auto start = glyph_info[prev->index - 1].cluster;
+    const auto length = glyph_info[cand->index].cluster - start;
+    digitalkhatt::TextString originalLine = text.substr(start, length);
 
     /*
     int currentcluster = glyph_info[beginIndex].cluster;
@@ -2433,12 +2288,12 @@ QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageF
     // originalLine.append(text.mid(currentcluster, glyph_info[endIndex - 1].cluster - currentcluster));
 
     if (cand->pageNumber == currentpageNumber) {
-      originalPage.prepend(originalLine);
+      originalPage.insert(originalPage.begin(), std::move(originalLine));
     } else {
       currentpageNumber--;
-      originalPages.prepend(originalPage);
+      originalPages.insert(originalPages.begin(), std::move(originalPage));
       originalPage.clear();
-      originalPage.append(originalLine);
+      originalPage.push_back(std::move(originalLine));
     }
 
     /*
@@ -2456,7 +2311,7 @@ QList<QStringList> OtLayout::pageBreak(double emScale, int lineWidth, bool pageF
     cand = prev;
   }
 
-  originalPages.prepend(originalPage);
+  originalPages.insert(originalPages.begin(), std::move(originalPage));
 
   return originalPages;
 }
@@ -2489,7 +2344,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
 
   hb_font_t* font = this->createFont(emScale);
 
-  QString quran;
+  digitalkhatt::TextString quran;
 
   // for (int i = 2; i < lastPage; i++) {
   for (int i = 581; i < 600; i++) {
@@ -2504,72 +2359,80 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
 
     // unsigned int text_len = strlen(tt);
 
-    quran.append(quran.fromUtf8(tt));
+    quran.append(utf8ToUtf16(tt));
 
     // hb_buffer_add_utf8(buffer, tt, text_len, 0, text_len);
   }
 
   // quran = quran.replace(QRegularExpression("\\s*" + QString("۞") + "\\s*"), QString("۞") + " ");
 
-  QSet<int> lineBreaks;
-  QSet<int> suraLines;
-  QSet<int> bismLines;
+  std::unordered_set<int> lineBreaks;
+  std::unordered_set<int> suraLines;
+  std::unordered_set<int> bismLines;
 
-  QString suraWord = "سُورَةُ";
-  QString bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
+  constexpr digitalkhatt::TextView bism = u"بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
 
-  QString surapattern = "^(" + suraWord + " .*|" + bism + "|" + "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" + ")$";
+  constexpr digitalkhatt::TextView surapattern =
+      u"(?m)^(سُورَةُ .*|بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ|بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ)$";
 
-  QList<QString> suraNames;
+  std::vector<digitalkhatt::TextString> suraNames;
 
-  QRegularExpression suraRe(surapattern, QRegularExpression::MultilineOption);
-  QRegularExpressionMatchIterator i = suraRe.globalMatch(quran);
-  while (i.hasNext()) {
-    QRegularExpressionMatch match = i.next();
-    int startOffset = match.capturedStart();  // startOffset == 6
-    int endOffset = match.capturedEnd();      // endOffset == 9
+  digitalkhatt::Regex16 suraRe(surapattern);
+  for (int offset = 0; offset <= static_cast<int>(quran.size());) {
+    auto match = suraRe.match(quran, offset);
+    if (!match.hasMatch()) break;
+    const int startOffset = match.start();
+    const int endOffset = match.end();
+    const auto captured = quran.substr(startOffset, endOffset - startOffset);
     lineBreaks.insert(endOffset);
     lineBreaks.insert(startOffset - 1);
 
-    if (match.captured(0).startsWith("سُ")) {
+    if (captured.starts_with(u"سُ")) {
       suraLines.insert(startOffset);
-      suraNames.append(match.captured(0));
+      suraNames.push_back(captured);
     } else {
       bismLines.insert(startOffset);
     }
+    offset = endOffset > offset ? endOffset : offset + 1;
   }
 
-  quran = quran.replace(char(10), char(32));
-  quran = quran.replace(bism + char(32), bism + char(10));
+  std::ranges::replace(quran, u'\n', u' ');
+  quran = digitalkhatt::replaceAll(quran, digitalkhatt::TextString{bism} + u' ',
+                                    digitalkhatt::TextString{bism} + u'\n');
 
   // Mark sajda rules
-  QSet<int> beginsajdas;
-  QSet<int> endsajdas;
+  std::unordered_set<int> beginsajdas;
+  std::unordered_set<int> endsajdas;
 
   // QString gg = //"يَخِرُّونَ لِلْأَذْقَانِ سُجَّدٗا|يَسْجُدُ لَهُۥ|وَخَرَّ رَاكِعٗا|أَلَّا يَسْجُدُوا۟ لِلَّهِ|وَٱسْجُدُوا۟ لِلَّهِ|فَٱسْجُدُوا۟ لِلَّهِ|يَسْجُدُونَ|وَلِلَّهِ يَسْجُدُ|خَرُّوا۟ سُجَّدٗا";
   // QString sajdapatterns = QString("(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدٗا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعٗا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدٗا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)");
-  QString sajdapatterns = "(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)";  // sajdapatterns.replace("\u0657", "\u08F0").replace("\u065E", "\u08F1").replace("\u0656", "\u08F2");
-  auto sajdaRe = QRegularExpression(sajdapatterns, QRegularExpression::MultilineOption);
-  i = sajdaRe.globalMatch(quran);
-
-  while (i.hasNext()) {
-    QRegularExpressionMatch match = i.next();
-    int startOffset = match.capturedStart(match.lastCapturedIndex());  // startOffset == 6
-    int endOffset = match.capturedEnd(match.lastCapturedIndex()) - 1;  // endOffset == 9
-    QString c0 = match.captured(0);
-    QString captured = match.captured(match.lastCapturedIndex());
+  constexpr digitalkhatt::TextView sajdapatterns = u"(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)";
+  digitalkhatt::Regex16 sajdaRe(sajdapatterns);
+  for (int offset = 0; offset <= static_cast<int>(quran.size());) {
+    auto match = sajdaRe.match(quran, offset);
+    if (!match.hasMatch()) break;
+    const int captureIndex = match.lastCapturedIndex();
+    int startOffset = match.start(captureIndex);
+    int endOffset = match.end(captureIndex) - 1;
 
     // int tt = match.lastCapturedIndex();
 
     beginsajdas.insert(startOffset);
 
-    while (quran[endOffset].isMark())
-      endOffset--;
+    while (endOffset >= 0) {
+      const auto category = hb_unicode_general_category(hb_unicode_funcs_get_default(), quran[endOffset]);
+      if (category != HB_UNICODE_GENERAL_CATEGORY_SPACING_MARK &&
+          category != HB_UNICODE_GENERAL_CATEGORY_ENCLOSING_MARK &&
+          category != HB_UNICODE_GENERAL_CATEGORY_NON_SPACING_MARK) break;
+      --endOffset;
+    }
 
     endsajdas.insert(endOffset);
+    offset = match.end() > offset ? match.end() : offset + 1;
   }
 
-  hb_buffer_add_utf16(buffer, quran.utf16(), -1, 0, -1);
+  hb_buffer_add_utf16(buffer, reinterpret_cast<const std::uint16_t*>(quran.data()),
+                      static_cast<int>(quran.size()), 0, static_cast<int>(quran.size()));
 
   hb_shape(font, buffer, NULL, 0);
 
@@ -2605,7 +2468,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
 
     totalSpaces++;
 
-    QHash<int, int> potcandidates;
+    std::unordered_map<int, int> potcandidates;
 
     auto activeit = actives.begin();
     while (activeit != actives.end()) {
@@ -2709,7 +2572,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
       actives.clear();
     }
 
-    for (auto cand : potcandidates) {
+    for (const auto& [key, cand] : potcandidates) {
       actives.push_back(cand);
     }
 
@@ -2759,9 +2622,9 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
 
   int currentyPos = lastLinePos;
 
-  int suraIndex = suraNames.length();
-  QString currentSuraName;
-  QString firstSuraInCurrentage;
+  int suraIndex = static_cast<int>(suraNames.size());
+  digitalkhatt::TextString currentSuraName;
+  digitalkhatt::TextString firstSuraInCurrentage;
 
   while (cand->prev != -1) {
     auto prev = &candidates.at(cand->prev);
@@ -2789,20 +2652,20 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
     int currentxPos = 0;
 
     if (cand->pageNumber != currentpageNumber) {
-      if (!firstSuraInCurrentage.isEmpty()) {
-        suraNamebyPage.insert(suraNamebyPage.begin(), firstSuraInCurrentage.toStdU16String());
+      if (!firstSuraInCurrentage.empty()) {
+        suraNamebyPage.insert(suraNamebyPage.begin(), firstSuraInCurrentage);
 
         if (suraIndex - 1 >= 0) {
           currentSuraName = suraNames[suraIndex - 1];
         } else {
-          currentSuraName = "سُورَةُ البَقَرَةِ";
+          currentSuraName = u"سُورَةُ البَقَرَةِ";
         }
 
       } else {
-        suraNamebyPage.insert(suraNamebyPage.begin(), currentSuraName.toStdU16String());
+        suraNamebyPage.insert(suraNamebyPage.begin(), currentSuraName);
       }
 
-      firstSuraInCurrentage = "";
+      firstSuraInCurrentage.clear();
     }
 
     if (suraLines.contains(glyph_info[beginIndex].cluster)) {
@@ -2820,7 +2683,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
     spaceaverage = spaceaverage;
     currentxPos = currentxPos;
 
-    QString originalLine;
+    digitalkhatt::TextString originalLine;
 
     int currentcluster = glyph_info[beginIndex].cluster;
     int currentnewcluster = 0;
@@ -2832,7 +2695,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
 
       if (glyph_info[i].cluster != currentcluster) {
         int clusternb = glyph_info[i].cluster - currentcluster;
-        originalLine.append(quran.mid(currentcluster, clusternb));
+        originalLine.append(quran.substr(currentcluster, clusternb));
         currentcluster = glyph_info[i].cluster;
         currentnewcluster += clusternb;
       }
@@ -2854,12 +2717,12 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
       if (beginsajdas.contains(glyph_info[i].cluster)) {
         glyphLayout.beginsajda = true;
         nbbeginsajda++;
-        beginsajdas.remove(glyph_info[i].cluster);
+        beginsajdas.erase(glyph_info[i].cluster);
 
       } else if (endsajdas.contains(glyph_info[i].cluster)) {
         glyphLayout.endsajda = true;
         nbendsajda++;
-        endsajdas.remove(glyph_info[i].cluster);
+        endsajdas.erase(glyph_info[i].cluster);
       }
 
       if (glyphLayout.codepoint == 32 || glyphLayout.codepoint == 10) {
@@ -2870,14 +2733,14 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
       lineLayout.glyphs.push_back(glyphLayout);
     }
 
-    originalLine.append(quran.mid(currentcluster, glyph_info[endIndex - 1].cluster - currentcluster));
+    originalLine.append(quran.substr(currentcluster, glyph_info[endIndex - 1].cluster - currentcluster));
 
     lineLayout.xstartposition = currentxPos;
 
     if (cand->pageNumber == currentpageNumber) {
       lineLayout.ystartposition = currentyPos;
       currentPage.insert(currentPage.begin(), lineLayout);
-      originalPage.insert(originalPage.begin(), originalLine.toStdU16String());
+      originalPage.insert(originalPage.begin(), originalLine);
     } else {
       currentyPos = lastLinePos;
       lineLayout.ystartposition = currentyPos;
@@ -2887,7 +2750,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
       originalPages.insert(originalPages.begin(), originalPage);
       currentPage = LayoutPage();
       originalPage.clear();
-      originalPage.push_back(originalLine.toStdU16String());
+      originalPage.push_back(originalLine);
       currentPage.push_back(lineLayout);
     }
 
@@ -2896,22 +2759,21 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
   }
 
   if (nbbeginsajda != 15) {
-    qDebug() << "nbbeginsajda problems?";
+    std::cerr << "nbbeginsajda problems?\n";
   }
   if (nbendsajda != 15) {
-    qDebug() << "nbendsajda problems?";
+    std::cerr << "nbendsajda problems?\n";
   }
 
   pages.insert(pages.begin(), currentPage);
   originalPages.insert(originalPages.begin(), originalPage);
-  suraNamebyPage.insert(suraNamebyPage.begin(), currentSuraName.toStdU16String());
+  suraNamebyPage.insert(suraNamebyPage.begin(), currentSuraName);
 
   // First & second pages : Al fatiha &  Al Bakara
 
   for (int pageNumber = 1; pageNumber >= 0; pageNumber--) {
-    QString textt = QString::fromUtf8(qurantext[pageNumber] + 1);
-
-    auto lines = textt.split(char(10), Qt::SkipEmptyParts);
+    const auto text = utf8ToUtf16(qurantext[pageNumber] + 1);
+    const auto lines = splitLines(text);
 
     int beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
 
@@ -2920,7 +2782,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
 
     LayoutPage page;
 
-    for (int lineIndex = 0; lineIndex < lines.length(); lineIndex++) {
+    for (int lineIndex = 0; lineIndex < static_cast<int>(lines.size()); lineIndex++) {
       if (lineIndex > 0) {
         double diameter = pageWidth * 1;  // 0.9;
         if (pageNumber == 0) {
@@ -2937,7 +2799,10 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
         newLineWidth = 0;
       }
 
-      auto lineResult = this->justifyPage(emScale, newLineWidth, pageWidth, QStringList{lines[lineIndex]}, LineJustification::Center, false, true, "")[0];
+      std::vector<LineToJustify> lineToJustify{{lines[lineIndex], newLineWidth,
+                                                LineJustification::Center, LineType::Line}};
+      auto lineResult = this->justifyPage(emScale, pageWidth, lineToJustify,
+                                          false, true, cluster_level, {}, {})[0];
 
       if (lineIndex == 0) {
         lineResult.type = LineType::Sura;
@@ -2952,37 +2817,42 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
     pages.insert(pages.begin(), page);
     OriginalPage originalLines;
     originalLines.reserve(lines.size());
-    for (const auto& line : lines) originalLines.push_back(line.toStdU16String());
+    for (const auto& line : lines) originalLines.push_back(line);
     originalPages.insert(originalPages.begin(), std::move(originalLines));
 
     if (pageNumber == 1) {
-      suraNamebyPage.insert(suraNamebyPage.begin(), currentSuraName.toStdU16String());
+      suraNamebyPage.insert(suraNamebyPage.begin(), currentSuraName);
     } else {
-      suraNamebyPage.insert(suraNamebyPage.begin(), QString("سُورَةُ الفَاتِحَةِ").toStdU16String());
+      suraNamebyPage.insert(suraNamebyPage.begin(), u"سُورَةُ الفَاتِحَةِ");
     }
   }
 
   // Last pages
 
-  currentSuraName = QString::fromStdU16String(suraNamebyPage.back());
+  currentSuraName = suraNamebyPage.back();
 
   for (int pageNumber = lastPage; pageNumber < 604; pageNumber++) {
-    QString textt = QString::fromUtf8(qurantext[pageNumber] + 1);
-
-    auto lines = textt.split(char(10), Qt::SkipEmptyParts);
-
-    auto page = this->justifyPage(emScale, lineWidth, lineWidth, lines, LineJustification::Center, false, true, "");
+    const auto text = utf8ToUtf16(qurantext[pageNumber] + 1);
+    const auto lines = splitLines(text);
+    std::vector<LineToJustify> linesToJustify;
+    linesToJustify.reserve(lines.size());
+    for (const auto& line : lines) {
+      linesToJustify.push_back({line, lineWidth, LineJustification::Center, LineType::Line});
+    }
+    auto page = this->justifyPage(emScale, lineWidth, linesToJustify, false, true,
+                                  cluster_level, {}, {});
 
     bool containsBeginSura = false;
 
     for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
       auto match = suraRe.match(lines[lineIndex]);
       if (match.hasMatch()) {
-        if (match.captured(0).startsWith("سُ")) {
+        const auto captured = lines[lineIndex].substr(match.start(), match.end() - match.start());
+        if (captured.starts_with(u"سُ")) {
           page[lineIndex].type = LineType::Sura;
           if (!containsBeginSura) {
             containsBeginSura = true;
-            currentSuraName = match.captured(0);
+            currentSuraName = captured;
           }
         } else {
           page[lineIndex].type = LineType::Bism;
@@ -2990,45 +2860,16 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
       }
     }
 
-    suraNamebyPage.push_back(currentSuraName.toStdU16String());
+    suraNamebyPage.push_back(currentSuraName);
     pages.emplace_back(page.begin(), page.end());
     OriginalPage originalLines;
     originalLines.reserve(lines.size());
-    for (const auto& line : lines) originalLines.push_back(line.toStdU16String());
+    for (const auto& line : lines) originalLines.push_back(line);
     originalPages.push_back(std::move(originalLines));
   }
 
   delete font;
   hb_buffer_destroy(buffer);
-
-  // Compare text
-
-  /*
-      QFile file("qurantinputtext.txt");
-      file.open(QIODevice::WriteOnly | QIODevice::Text);
-      QTextStream out(&file);   // we will serialize the data into the file
-      out.setCodec("UTF-8");
-
-
-      QString newquran;
-
-      for (auto page : originalPages) {
-          for (auto line : page) {
-              if (newquran.isEmpty()) {
-                  newquran = line;
-              }
-              else {
-                  newquran = newquran + " " + line;
-              }
-              //out << line.replace("\u06E5","").replace("\u06E6", "") << "\n";   // serialize a string
-              out << line << "\n";   // serialize a string
-
-          }
-      }
-      newquran = newquran + " ";
-
-      int index = newquran.compare(quran);
-      file.close();*/
 
   return {pages, originalPages, suraNamebyPage};
 }
@@ -3111,12 +2952,12 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
 
   auto addedGlyphFind = automedina->addedGlyphs.find(glyph->name);
   if (addedGlyphFind != automedina->addedGlyphs.end()) {
-    font->generateAlternate(QString::fromStdString(glyph->name), parameters, QString::fromStdString(addedGlyphFind->second));
-  } else if (!font->glyphperName.contains(QString::fromStdString(glyph->name))) {
+    font->generateAlternate(glyph->name, parameters, addedGlyphFind->second);
+  } else if (!font->hasGlyph(glyph->name)) {
     // std::cout << glyph->name.toStdString() << " is auto generated. It dows not exist in the original font" <<  std::endl;
     return glyph;
   } else {
-    font->generateAlternate(QString::fromStdString(glyph->name), parameters);
+    font->generateAlternate(glyph->name, parameters);
   }
 
   mp_edge_object* edge = font->getEdge(AlternatelastCode);
@@ -3132,16 +2973,16 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
     newglyph->expanded = true;
   } else {
     // Add glyph to font
-    quint16 charcode = glyphNamePerCode.empty() ? 0 : glyphNamePerCode.rbegin()->first + 1;
+    std::uint16_t charcode = glyphNamePerCode.empty() ? 0 : glyphNamePerCode.rbegin()->first + 1;
 
-    QString name = QString("%1.added_%2").arg(QString::fromStdString(glyph->name)).arg(charcode);
+    const std::string name = std::format("{}.added_{}", glyph->name, charcode);
 
-    GlyphVis& temp = glyphs.insert_or_assign(name.toStdString(), GlyphVis(this, edge)).first->second;
+    GlyphVis& temp = glyphs.insert_or_assign(name, GlyphVis(this, edge)).first->second;
 
     newglyph = &temp;
 
     newglyph->charcode = charcode;
-    newglyph->name = name.toStdString();
+    newglyph->name = name;
     newglyph->expanded = true;
     newglyph->isAlternate = true;
     newglyph->originalglyph = glyph->name;
@@ -3162,13 +3003,10 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
       }*/
     }
 
-    QMap<GlyphVis::AnchorKey, GlyphVisAnchor>::iterator i;
-    for (i = newglyph->anchors.begin(); i != newglyph->anchors.end(); ++i) {
-      auto anchor = i.value();
-      auto anchorKey = i.key();
+    for (const auto& [anchorKey, anchor] : newglyph->anchors) {
       auto anchorName = anchorKey.name;
 
-      switch (i.value().type) {
+      switch (anchor.type) {
         case 1:
           automedina->markAnchors[anchorName][newglyph->charcode] = anchor.anchor;
           break;
@@ -3206,7 +3044,7 @@ digitalkhatt::ByteBuffer OtLayout::getCmap() {
     int16_t idDelta;
   };
 
-  QVector<Segemnt> segements;
+  std::vector<Segemnt> segements;
 
   Segemnt currentSegment{};
 
@@ -3218,7 +3056,7 @@ digitalkhatt::ByteBuffer OtLayout::getCmap() {
         currentSegment.endCode = unicode;
       } else {
         if (currentSegment.startCode != 0) {
-          segements.append(currentSegment);
+          segements.push_back(currentSegment);
         }
         currentSegment = {unicode, unicode, (int16_t)(glyphId - unicode)};
       }
@@ -3228,10 +3066,10 @@ digitalkhatt::ByteBuffer OtLayout::getCmap() {
   }
 
   if (currentSegment.startCode != 0) {
-    segements.append(currentSegment);
+    segements.push_back(currentSegment);
   }
 
-  segements.append({0xFFFF, 0xFFFF, 1});
+  segements.push_back({0xFFFF, 0xFFFF, 1});
 
   uint16_t segCount = segements.size();
 
@@ -3324,37 +3162,15 @@ digitalkhatt::ByteBuffer Just::getOpenTypeTable() {
   return data;
 }
 
-void OtLayout::saveFontInfo() {
-  auto path = font->filePath();
-  QFileInfo fileInfo = QFileInfo(path);
-  QString fileName = fileInfo.path() + "/output/" + fileInfo.baseName() + "_info.json";
+const digitalkhatt::layout::ClassMap& OtLayout::glyphClasses() const {
+  return automedina->classes;
+}
 
-  QFile file(fileName);
-  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
+std::unordered_set<std::uint16_t> OtLayout::classToUnicode(const std::string& className) {
+  return automedina->classtoUnicode(className);
+}
 
-  QJsonObject glyphsObject;
-
-  for (const auto& [code, glyphName] : glyphNamePerCode) {
-    auto& glyph = glyphs[glyphName];
-    QJsonObject glyphJson;
-
-    glyphJson["code"] = code;
-    glyphsObject[QString::fromStdString(glyphName)] = glyphJson;
-  }
-
-  QJsonObject classesObject;
-
-  for (auto& [className, glyphNames] : automedina->classes) {
-    QJsonArray array;
-    for (auto& glyphName : glyphNames) {
-      array.append(glyphCodePerName[glyphName]);
-    }
-    classesObject[QString::fromStdString(className)] = array;
-  }
-
-  QJsonObject info;
-  info["glyphs"] = glyphsObject;
-  info["classes"] = classesObject;
-
-  file.write(QJsonDocument(info).toJson(QJsonDocument::JsonFormat::Compact));
+std::map<std::uint16_t, std::vector<ExtendedGlyph>>& OtLayout::resetCvxxFeatures() {
+  automedina->cvxxfeatures.clear();
+  return automedina->cvxxfeatures.emplace_back();
 }

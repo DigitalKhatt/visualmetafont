@@ -314,7 +314,7 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
         // bool isFina = glyphName.find(".fina") != std::string::npos;
 
         bool isMark =
-            digitalkhatt::layout::classesOrEmpty(m_otlayout->automedina->classes, "marks").contains(glyphName);
+            digitalkhatt::layout::classesOrEmpty(m_otlayout->glyphClasses(), "marks").contains(glyphName);
 
         // bool isWaqfMark =
         // m_otlayout->automedina->classes["waqfmarks"].contains(glyphName);
@@ -330,7 +330,7 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
             auto& prev_glyphLayout = prev_line.glyphs[prev_g];
             const auto& prev_glyphName = m_otlayout->glyphNamePerCode[prev_glyphLayout.codepoint];
 
-            bool isPrevMark = digitalkhatt::layout::classesOrEmpty(m_otlayout->automedina->classes, "marks").contains(
+            bool isPrevMark = digitalkhatt::layout::classesOrEmpty(m_otlayout->glyphClasses(), "marks").contains(
                 prev_glyphName);
             bool isPrevrSpace = prev_glyphName.find("space") != std::string::npos ||
                                 prev_glyphName.find("linefeed") != std::string::npos;

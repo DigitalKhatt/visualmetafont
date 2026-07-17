@@ -22,9 +22,11 @@
 
 
 #include "statement.h"
+#include <QMap>
+#include <QSet>
 #include <set>
 #include <unordered_set>
-#include<memory>
+#include <memory>
 
 #include <vector>
 #include <map>
