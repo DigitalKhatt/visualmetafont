@@ -91,6 +91,8 @@ class Font : public QObject {
 
   QString familyName();
   QString copyright();
+  std::string familyNameStd();
+  std::string copyrightStd();
 
   QVector<VarAxis> axes;
 

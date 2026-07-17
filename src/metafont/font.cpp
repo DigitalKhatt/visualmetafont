@@ -232,28 +232,24 @@ double Font::getInternalNumericVariable(QString name) {
 }
 
 QString Font::familyName() {
+  return QString::fromStdString(familyNameStd());
+}
+
+std::string Font::familyNameStd() {
   char* name = nullptr;
-  QString ret;
-
-  auto found = getMPStringVariable(mp, "nametable familyName", &name);
-
-  if (found) {
-    ret = QString::fromUtf8(name);
-  }
-
-  return ret;
+  return getMPStringVariable(mp, "nametable familyName", &name) && name
+             ? std::string{name}
+             : std::string{};
 }
 QString Font::copyright() {
+  return QString::fromStdString(copyrightStd());
+}
+
+std::string Font::copyrightStd() {
   char* name = nullptr;
-  QString ret;
-
-  auto found = getMPStringVariable(mp, "nametable copyright", &name);
-
-  if (found) {
-    ret = QString::fromUtf8(name);
-  }
-
-  return ret;
+  return getMPStringVariable(mp, "nametable copyright", &name) && name
+             ? std::string{name}
+             : std::string{};
 }
 bool Font::getPairVariable(QString name, QPointF& point) {
   QPointF value;

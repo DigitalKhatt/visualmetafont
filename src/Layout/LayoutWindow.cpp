@@ -881,7 +881,7 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended,
 
   layout.toOpenType->isCff2 = true;
 
-  auto ret = layout.toOpenType->GenerateFile(otfFileName);
+  auto ret = layout.toOpenType->GenerateFile(otfFileName.toStdString());
 
   QString fileName = fileInfo.absolutePath() + "/output/" +
                      fileInfo.completeBaseName() + "_glyphnames.lua";
@@ -1055,7 +1055,7 @@ bool LayoutWindow::generateOpenType() {
 
   layout.loadLookupFile("features.fea");
 
-  return layout.toOpenType->GenerateFile(otfFileName);
+  return layout.toOpenType->GenerateFile(otfFileName.toStdString());
 }
 
 struct BaseMarkPair {
@@ -2500,7 +2500,8 @@ bool LayoutWindow::generateMadinaVARHTML() {
   layout.toOpenType->isCff2 = true;
 
   auto ret =
-      layout.toOpenType->GenerateFile(otfFileName, "automedina-html.fea");
+      layout.toOpenType->GenerateFile(otfFileName.toStdString(),
+                                      "automedina-html.fea");
 
   delete hbfont;
 

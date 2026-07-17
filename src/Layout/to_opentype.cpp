@@ -20,6 +20,9 @@
 #include "to_opentype.h"
 
 #include <cmath>
+#include <chrono>
+#include <charconv>
+#include <fstream>
 #include <map>
 #include <span>
 #include <stdexcept>
@@ -32,16 +35,62 @@
 #include "automedina/automedina.h"
 #include "hb.h"
 #include "metafont.h"
-#include "qdatetime.h"
-#include "qfile.h"
-
 namespace {
-template <typename QtByteContainer>
-void appendQtBytes(digitalkhatt::ByteBuffer& destination,
-                   const QtByteContainer& source) {
+void appendBytes(digitalkhatt::ByteBuffer& destination,
+                 std::string_view source) {
   destination.append(std::span(
-      reinterpret_cast<const std::uint8_t*>(source.constData()),
-      static_cast<std::size_t>(source.size())));
+      reinterpret_cast<const std::uint8_t*>(source.data()), source.size()));
+}
+
+std::u16string utf8ToUtf16(std::string_view utf8) {
+  std::u16string result;
+  result.reserve(utf8.size());
+  for (std::size_t i = 0; i < utf8.size();) {
+    std::uint32_t cp = static_cast<unsigned char>(utf8[i++]);
+    if ((cp & 0x80) == 0) {
+    } else if ((cp & 0xE0) == 0xC0 && i < utf8.size()) {
+      cp = ((cp & 0x1F) << 6) |
+           (static_cast<unsigned char>(utf8[i++]) & 0x3F);
+    } else if ((cp & 0xF0) == 0xE0 && i + 1 < utf8.size()) {
+      const auto b1 = static_cast<unsigned char>(utf8[i++]);
+      const auto b2 = static_cast<unsigned char>(utf8[i++]);
+      cp = ((cp & 0x0F) << 12) | ((b1 & 0x3F) << 6) | (b2 & 0x3F);
+    } else if ((cp & 0xF8) == 0xF0 && i + 2 < utf8.size()) {
+      const auto b1 = static_cast<unsigned char>(utf8[i++]);
+      const auto b2 = static_cast<unsigned char>(utf8[i++]);
+      const auto b3 = static_cast<unsigned char>(utf8[i++]);
+      cp = ((cp & 0x07) << 18) | ((b1 & 0x3F) << 12) |
+           ((b2 & 0x3F) << 6) | (b3 & 0x3F);
+    } else {
+      cp = 0xFFFD;
+    }
+    if (cp <= 0xFFFF) {
+      result.push_back(static_cast<char16_t>(cp));
+    } else {
+      cp -= 0x10000;
+      result.push_back(static_cast<char16_t>(0xD800 + (cp >> 10)));
+      result.push_back(static_cast<char16_t>(0xDC00 + (cp & 0x3FF)));
+    }
+  }
+  return result;
+}
+
+std::string componentName(const char* postScript) {
+  std::string name = postScript ? postScript : "";
+  if (const auto comma = name.find(','); comma != std::string::npos) {
+    name.resize(comma);
+  }
+  return name;
+}
+
+std::string compactNumber(double value) {
+  char buffer[64];
+  const auto [end, error] =
+      std::to_chars(std::begin(buffer), std::end(buffer), value);
+  if (error != std::errc{}) {
+    throw std::runtime_error("Could not format glyph-name parameter");
+  }
+  return {buffer, end};
 }
 }  // namespace
 
@@ -223,7 +272,7 @@ void ToOpenType::setAxes() {
       }
     }
     auto regionIndexesIndex = getRegionIndexesIndex(regionIndexes);
-    regionIndexesIndexByGlyph.insert({QString::fromStdString(glyphName), regionIndexesIndex});
+    regionIndexesIndexByGlyph.insert({glyphName, regionIndexesIndex});
   }
 
   GDEFDeltaSets.resize(regionIndexesArray.size());
@@ -231,11 +280,11 @@ void ToOpenType::setAxes() {
 
 void ToOpenType::populateGlyphs() {
   for (auto& [name, glyph] : ot_layout->glyphs) {
-    glyphs.insert(glyph.charcode, &glyph);
+    glyphs.insert({glyph.charcode, &glyph});
   }
 }
 void ToOpenType::initiliazeGlobals() {
-  for (auto pglyph : glyphs) {
+  for (const auto& [code, pglyph] : glyphs) {
     auto& glyph = *pglyph;
     if (glyph.bbox.llx < globalValues.xMin) {
       globalValues.xMin = toInt(glyph.bbox.llx);
@@ -281,14 +330,14 @@ void ToOpenType::initiliazeGlobals() {
 
   globalValues.major = 0;
   globalValues.minor = 1;
-  globalValues.familyName = ot_layout->font->familyName();
+  globalValues.familyName = ot_layout->font->familyNameStd();
   globalValues.subFamilyName = "Regular";
-  globalValues.Copyright = ot_layout->font->copyright();
+  globalValues.Copyright = ot_layout->font->copyrightStd();
   globalValues.License = R"license(This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL)license";
 }
 
 void ToOpenType::setGIds() {
-  QMap<quint16, quint16> newCodes;
+  std::map<std::uint16_t, std::uint16_t> newCodes;
 
   std::unordered_map<std::string, std::uint16_t> glyphCodePerName;
   std::map<std::uint16_t, std::string> glyphNamePerCode;
@@ -302,7 +351,7 @@ void ToOpenType::setGIds() {
     throw new std::runtime_error("notdef glyph not found");
   } else {
     auto glyph = &ot_layout->glyphs["notdef"];
-    newCodes.insert(ot_layout->glyphCodePerName.at("notdef"), 0);
+    newCodes.insert({ot_layout->glyphCodePerName.at("notdef"), 0});
     glyph->charcode = 0;
   }
 
@@ -311,7 +360,7 @@ void ToOpenType::setGIds() {
   } else {
     auto glyph = &ot_layout->glyphs["null"];
     glyph->charcode = 1;
-    newCodes.insert(ot_layout->glyphCodePerName.at("null"), 1);
+    newCodes.insert({ot_layout->glyphCodePerName.at("null"), 1});
   }
 
   uint16_t newCode = 2;
@@ -322,33 +371,30 @@ void ToOpenType::setGIds() {
       if (!ot_layout->glyphs.contains(name)) {
         throw new std::runtime_error("Glyph name " + name + " not found");
       }
-      newCodes.insert(code, newCode);
+      newCodes.insert({code, newCode});
       auto glyph = &ot_layout->glyphs[name];
       glyph->charcode = newCode;
       newCode++;
     }
   }
 
-  QMap<quint16, quint16>::const_iterator iter = newCodes.constBegin();
-  while (iter != newCodes.constEnd()) {
-    if (!ot_layout->glyphNamePerCode.contains(iter.key())) {
-      throw new std::runtime_error(QString("Code %1 not found").arg(iter.key()).toStdString());
+  for (const auto& [oldCode, mappedCode] : newCodes) {
+    if (!ot_layout->glyphNamePerCode.contains(oldCode)) {
+      throw new std::runtime_error("Code " + std::to_string(oldCode) + " not found");
     }
-    auto name = ot_layout->glyphNamePerCode.at(iter.key());
-    glyphCodePerName.insert({name, iter.value()});
-    glyphNamePerCode.insert({iter.value(), name});
-
-    iter++;
+    auto name = ot_layout->glyphNamePerCode.at(oldCode);
+    glyphCodePerName.insert({name, mappedCode});
+    glyphNamePerCode.insert({mappedCode, name});
   }
 
   auto unicodeToGlyphCodeIter = ot_layout->unicodeToGlyphCode.cbegin();
   while (unicodeToGlyphCodeIter != ot_layout->unicodeToGlyphCode.cend()) {
     if (!newCodes.contains(unicodeToGlyphCodeIter->second)) {
-      throw new std::runtime_error(QString("Code %1 not found").arg(unicodeToGlyphCodeIter->second).toStdString());
+      throw new std::runtime_error("Code " + std::to_string(unicodeToGlyphCodeIter->second) + " not found");
     }
     auto unicode = unicodeToGlyphCodeIter->first;
     // if (unicode < 0xE000 && unicode != 0 && unicode != 1) {
-    unicodeToGlyphCode.insert({unicode, newCodes.value(unicodeToGlyphCodeIter->second)});
+    unicodeToGlyphCode.insert({unicode, newCodes.at(unicodeToGlyphCodeIter->second)});
     //}
 
     unicodeToGlyphCodeIter++;
@@ -356,51 +402,51 @@ void ToOpenType::setGIds() {
 
   for (const auto& [oldCode, glyphClass] : ot_layout->glyphGlobalClasses) {
     if (!newCodes.contains(oldCode)) {
-      throw new std::runtime_error(QString("Code %1 not found").arg(oldCode).toStdString());
+      throw new std::runtime_error("Code " + std::to_string(oldCode) + " not found");
     }
 
-    glyphGlobalClasses.emplace(newCodes.value(oldCode), glyphClass);
+    glyphGlobalClasses.emplace(newCodes.at(oldCode), glyphClass);
   }
 
   for (std::pair<int, std::unordered_map<GlyphParameters, GlyphVis*>> element : ot_layout->tempGlyphs) {
     if (!newCodes.contains(element.first)) {
-      throw new std::runtime_error(QString("Code %1 not found").arg(element.first).toStdString());
+      throw new std::runtime_error("Code " + std::to_string(element.first) + " not found");
     }
 
-    tempGlyphs.insert({newCodes.value(element.first), element.second});
+    tempGlyphs.insert({newCodes.at(element.first), element.second});
   }
 
   for (std::pair<int, std::unordered_map<GlyphParameters, GlyphVis*>> element : ot_layout->addedGlyphs) {
     if (!newCodes.contains(element.first)) {
-      throw new std::runtime_error(QString("Code %1 not found").arg(element.first).toStdString());
+      throw new std::runtime_error("Code " + std::to_string(element.first) + " not found");
     }
 
-    addedGlyphs.insert({newCodes.value(element.first), element.second});
+    addedGlyphs.insert({newCodes.at(element.first), element.second});
   }
 
   for (std::pair<int, std::unordered_map<GlyphParameters, GlyphVis*>> element : ot_layout->substEquivGlyphs) {
     if (!newCodes.contains(element.first)) {
-      throw new std::runtime_error(QString("Code %1 not found").arg(element.first).toStdString());
+      throw new std::runtime_error("Code " + std::to_string(element.first) + " not found");
     }
 
-    substEquivGlyphs.insert({newCodes.value(element.first), element.second});
+    substEquivGlyphs.insert({newCodes.at(element.first), element.second});
   }
 
   for (int i = 0; i <= 4; i++) {
     auto automedina = ot_layout->automedina;
-    std::map<std::string, std::map<uint16_t, QPoint>>& currentAnchors = i == 0 ? automedina->markAnchors : i == 1 ? automedina->entryAnchors
+    auto& currentAnchors = i == 0 ? automedina->markAnchors : i == 1 ? automedina->entryAnchors
                                                                                           : i == 2   ? automedina->exitAnchors
                                                                                           : i == 3   ? automedina->entryAnchorsRTL
                                                                                                      : automedina->exitAnchorsRTL;
     if (!currentAnchors.empty()) {
-      std::map<std::string, std::map<uint16_t, QPoint>> anchors;
+      std::remove_reference_t<decltype(currentAnchors)> anchors;
       for (auto& [anchorName, codeMap] : currentAnchors) {
-        std::map<uint16_t, QPoint> map;
+        std::remove_reference_t<decltype(codeMap)> map;
         for (auto& [code, point] : codeMap) {
           if (!newCodes.contains(code)) {
-            throw new std::runtime_error(QString("Code %1 not found").arg(code).toStdString());
+            throw new std::runtime_error("Code " + std::to_string(code) + " not found");
           }
-          map.insert({newCodes.value(code), point});
+          map.insert({newCodes.at(code), point});
         }
         anchors.insert({anchorName, map});
       }
@@ -430,7 +476,8 @@ void ToOpenType::setGIds() {
   }
 }
 
-bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
+bool ToOpenType::GenerateFile(const std::filesystem::path& fileName,
+                              std::string lokkupsFileName) {
   struct Table {
     digitalkhatt::ByteBuffer data;
     hb_tag_t tag;
@@ -439,9 +486,8 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
     uint32_t length = 0;
   };
 
-  QFile file(fileName);
-  if (!file.open(QIODevice::WriteOnly))
-    return false;
+  std::ofstream file(fileName, std::ios::binary);
+  if (!file) return false;
 
   ot_layout->loadLookupFile(lokkupsFileName);
 
@@ -457,12 +503,12 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
 
   glyphs.clear();
   for (const auto& [name, code] : ot_layout->glyphCodePerName) {
-    glyphs.insert(code, &ot_layout->glyphs[name]);
+    glyphs.insert({code, &ot_layout->glyphs[name]});
   }
 
   initiliazeGlobals();
 
-  QVector<Table> tables;
+  std::vector<Table> tables;
   digitalkhatt::ByteBuffer cffArray;
 
   // TODO blend component to support OpenType variations
@@ -477,51 +523,51 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
     cffArray = cff();
   }
 
-  tables.append({head(), HB_TAG('h', 'e', 'a', 'd')});
-  tables.append({hhea(), HB_TAG('h', 'h', 'e', 'a')});
-  tables.append({maxp(), HB_TAG('m', 'a', 'x', 'p')});
-  tables.append({os2(), HB_TAG('O', 'S', '/', '2')});
-  tables.append({name(), HB_TAG('n', 'a', 'm', 'e')});
-  tables.append({cmap(), HB_TAG('c', 'm', 'a', 'p')});
-  tables.append({post(), HB_TAG('p', 'o', 's', 't')});
+  tables.push_back({head(), HB_TAG('h', 'e', 'a', 'd')});
+  tables.push_back({hhea(), HB_TAG('h', 'h', 'e', 'a')});
+  tables.push_back({maxp(), HB_TAG('m', 'a', 'x', 'p')});
+  tables.push_back({os2(), HB_TAG('O', 'S', '/', '2')});
+  tables.push_back({name(), HB_TAG('n', 'a', 'm', 'e')});
+  tables.push_back({cmap(), HB_TAG('c', 'm', 'a', 'p')});
+  tables.push_back({post(), HB_TAG('p', 'o', 's', 't')});
   if (isCff2) {
-    tables.append({cffArray, HB_TAG('C', 'F', 'F', '2')});
+    tables.push_back({cffArray, HB_TAG('C', 'F', 'F', '2')});
   } else {
-    tables.append({cffArray, HB_TAG('C', 'F', 'F', ' ')});
+    tables.push_back({cffArray, HB_TAG('C', 'F', 'F', ' ')});
   }
-  tables.append({hmtx(), HB_TAG('h', 'm', 't', 'x')});
+  tables.push_back({hmtx(), HB_TAG('h', 'm', 't', 'x')});
   auto gposData = gpos();
-  tables.append({gdef(), HB_TAG('G', 'D', 'E', 'F')});
+  tables.push_back({gdef(), HB_TAG('G', 'D', 'E', 'F')});
 
-  tables.append({gsub(), HB_TAG('G', 'S', 'U', 'B')});
-  tables.append({gposData, HB_TAG('G', 'P', 'O', 'S')});
-  tables.append({dsig(), HB_TAG('D', 'S', 'I', 'G')});
+  tables.push_back({gsub(), HB_TAG('G', 'S', 'U', 'B')});
+  tables.push_back({gposData, HB_TAG('G', 'P', 'O', 'S')});
+  tables.push_back({dsig(), HB_TAG('D', 'S', 'I', 'G')});
   if (isCff2) {
     auto data = fvar();
     if (data.size() > 0) {
-      tables.append({data, HB_TAG('f', 'v', 'a', 'r')});
+      tables.push_back({data, HB_TAG('f', 'v', 'a', 'r')});
     }
     data = HVAR();
     if (data.size() > 0) {
-      tables.append({data, HB_TAG('H', 'V', 'A', 'R')});
+      tables.push_back({data, HB_TAG('H', 'V', 'A', 'R')});
     }
 
     // tables.append({ MVAR(),HB_TAG('M','V','A','R') });
     data = STAT();
     if (data.size() > 0) {
-      tables.append({data, HB_TAG('S', 'T', 'A', 'T')});
+      tables.push_back({data, HB_TAG('S', 'T', 'A', 'T')});
     }
     if (ot_layout->extended) {
-      tables.append({JTST(), HB_TAG('J', 'T', 'S', 'T')});
+      tables.push_back({JTST(), HB_TAG('J', 'T', 'S', 'T')});
     }
   }
 
-  if (!layers.isEmpty()) {
+  if (!layers.empty()) {
     digitalkhatt::ByteBuffer cpal;
     digitalkhatt::ByteBuffer colr;
     if (colrcpal(colr, cpal)) {
-      tables.append({colr, HB_TAG('C', 'O', 'L', 'R')});
-      tables.append({cpal, HB_TAG('C', 'P', 'A', 'L')});
+      tables.push_back({colr, HB_TAG('C', 'O', 'L', 'R')});
+      tables.push_back({cpal, HB_TAG('C', 'P', 'A', 'L')});
     }
   }
 
@@ -608,23 +654,21 @@ uint32_t ToOpenType::calcTableChecksum(uint32_t* table, uint32_t length) {
 }
 
 bool ToOpenType::colrcpal(digitalkhatt::ByteBuffer& colr, digitalkhatt::ByteBuffer& cpal) {
-  if (layers.isEmpty()) return false;
+  if (layers.empty()) return false;
 
-  QMap<Color, uint16_t> colormap;
-  QVector<Color> colors;
+  std::map<Color, std::uint16_t> colormap;
+  std::vector<Color> colors;
 
   digitalkhatt::ByteBuffer layerRecords;
   digitalkhatt::ByteBuffer baseGlyphRecords;
   uint16_t layerIndex = 0;
 
-  QMapIterator<uint16_t, QVector<Layer>> layIter(this->layers);
-  while (layIter.hasNext()) {
-    layIter.next();
-    auto& layers = layIter.value();
+  for (auto& [glyphId, glyphLayers] : layers) {
+    auto& layers = glyphLayers;
     if (layers.size() == 0) {
       throw new std::runtime_error("The number of layers cannot be 0");
     }
-    baseGlyphRecords << (uint16_t)layIter.key();
+    baseGlyphRecords << glyphId;
     baseGlyphRecords << (uint16_t)layerIndex;
     baseGlyphRecords << (uint16_t)layers.size();
     for (auto& layer : layers) {
@@ -632,11 +676,11 @@ bool ToOpenType::colrcpal(digitalkhatt::ByteBuffer& colr, digitalkhatt::ByteBuff
       if (layer.color.foreground) {
         layerRecords << (uint16_t)0xFFFF;
       } else if (colormap.contains(layer.color)) {
-        layerRecords << (uint16_t)colormap.value(layer.color);
+        layerRecords << colormap.at(layer.color);
       } else {
         layerRecords << (uint16_t)colors.size();
-        colormap.insert(layer.color, colors.size());
-        colors.append(layer.color);
+        colormap.insert({layer.color, static_cast<std::uint16_t>(colors.size())});
+        colors.push_back(layer.color);
       }
       layerIndex++;
     }
@@ -686,8 +730,10 @@ digitalkhatt::ByteBuffer ToOpenType::gsub() {
 digitalkhatt::ByteBuffer ToOpenType::head() {
   digitalkhatt::ByteBuffer data;
 
-  QDateTime now = QDateTime::currentDateTimeUtc();
-  qint64 secs = QDate(1904, 1, 1).startOfDay(Qt::UTC).secsTo(now);
+  constexpr std::int64_t secondsFrom1904To1970 = 2'082'844'800;
+  const auto unixSeconds = std::chrono::duration_cast<std::chrono::seconds>(
+      std::chrono::system_clock::now().time_since_epoch()).count();
+  const std::int64_t secs = unixSeconds + secondsFrom1904To1970;
 
   data << (uint16_t)1;                                                  // majorVersion
   data << (uint16_t)0;                                                  // minorVersion
@@ -696,8 +742,8 @@ digitalkhatt::ByteBuffer ToOpenType::head() {
   data << (uint32_t)0x5F0F3CF5;                                         // magicNumber
   data << (uint16_t)0b0000000000000001;                                 // flags
   data << (uint16_t)1000;                                               // unitsPerEm
-  data << (qint64)secs;                                                 // created
-  data << (qint64)secs;                                                 // modified
+  data << secs;                                                         // created
+  data << secs;                                                         // modified
   data << (int16_t)globalValues.xMin;                                   // xMin
   data << (int16_t)globalValues.yMin;                                   // yMin
   data << (int16_t)globalValues.xMax;                                   // xMax
@@ -730,7 +776,7 @@ digitalkhatt::ByteBuffer ToOpenType::hhea() {
   data << (int16_t)0;                                 // reserved
   data << (int16_t)0;                                 // reserved
   data << (int16_t)0;                                 // metricDataFormat
-  data << (uint16_t)(glyphs.lastKey() + 1);           // numberOfHMetrics
+  data << static_cast<std::uint16_t>(glyphs.rbegin()->first + 1);  // numberOfHMetrics
 
   return data;
 }
@@ -739,9 +785,9 @@ digitalkhatt::ByteBuffer ToOpenType::hmtx() {
 
   auto& marks = digitalkhatt::layout::classesOrEmpty(ot_layout->automedina->classes, "marks");
 
-  for (int i = 0; i < glyphs.lastKey() + 1; i++) {
+  for (int i = 0; i < glyphs.rbegin()->first + 1; i++) {
     if (glyphs.contains(i)) {
-      auto glyph = glyphs.value(i);
+      auto glyph = glyphs.at(i);
 
       bool ismark = false;
       if (!glyph->originalglyph.empty()) {
@@ -769,64 +815,62 @@ digitalkhatt::ByteBuffer ToOpenType::maxp() {
   digitalkhatt::ByteBuffer data;
 
   data << (uint32_t)0x00005000;
-  data << (uint16_t)(glyphs.lastKey() + 1);
+  data << static_cast<std::uint16_t>(glyphs.rbegin()->first + 1);
 
   return data;
 }
 digitalkhatt::ByteBuffer ToOpenType::name() {
   struct Name {
     uint16_t nameID;
-    QString str;
+    std::u16string str;
     uint16_t offset = 0;
     uint16_t length = 0;
+
+    Name(std::uint16_t id, std::string_view utf8)
+        : nameID{id}, str{utf8ToUtf16(utf8)} {}
   };
 
-  auto streamString = [](digitalkhatt::ByteBuffer& data, QString str) {
-    int l = str.length();
-    const QChar* ub = str.unicode();
+  std::vector<Name> names;
 
-    while (l--) {
-      data << (uint8_t)ub->row();
-      data << (uint8_t)ub->cell();
-      ub++;
-    }
-  };
-
-  QVector<Name> names;
-
-  names.append(Name{0, globalValues.Copyright});
-  names.append(Name{1, globalValues.familyName});
-  names.append(Name{2, globalValues.subFamilyName});
-  names.append(Name{3, globalValues.fullName() + "V01"});
-  names.append(Name{4, globalValues.fullName()});
-  names.append(Name{5, "Version " + QString::number(globalValues.major) + "." + QString::number(globalValues.minor)});
-  names.append(Name{6, globalValues.fullName().replace(" ", "").mid(0, 63)});
+  names.push_back(Name{0, globalValues.Copyright});
+  names.push_back(Name{1, globalValues.familyName});
+  names.push_back(Name{2, globalValues.subFamilyName});
+  names.push_back(Name{3, globalValues.fullName() + "V01"});
+  names.push_back(Name{4, globalValues.fullName()});
+  names.push_back(Name{5, "Version " + std::to_string(globalValues.major) + "." + std::to_string(globalValues.minor)});
+  auto postScriptName = globalValues.fullName();
+  std::erase(postScriptName, ' ');
+  postScriptName.resize(std::min<std::size_t>(postScriptName.size(), 63));
+  names.push_back(Name{6, std::move(postScriptName)});
   // names.append(Name{ 7,"DigitalKhatt" });
-  names.append(Name{8, "DigitalKhatt"});
+  names.push_back(Name{8, "DigitalKhatt"});
   // names.append(Name{ 9,"DigitalKhatt" }); // Designer
   // names.append(Name{ 10,"This font is the OpenType version of the MetaFont-designed parametric font used in the DigitalKhatt Arabic typesetter which justifies text dynamically using curvilinear expansion of letters" });
-  names.append(Name{11, "https://github.com/DigitalKhatt"});
-  names.append(Name{12, "https://github.com/DigitalKhatt"});
-  names.append(Name{13, globalValues.License});
-  names.append(Name{14, "http://scripts.sil.org/OFL"});
+  names.push_back(Name{11, "https://github.com/DigitalKhatt"});
+  names.push_back(Name{12, "https://github.com/DigitalKhatt"});
+  names.push_back(Name{13, globalValues.License});
+  names.push_back(Name{14, "http://scripts.sil.org/OFL"});
 
-  names.append(Name{16, globalValues.familyName});
-  names.append(Name{17, globalValues.subFamilyName});
-  names.append(Name{19, "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"});
+  names.push_back(Name{16, globalValues.familyName});
+  names.push_back(Name{17, globalValues.subFamilyName});
+  names.push_back(Name{19, "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"});
 
-  names.append(Name{21, globalValues.familyName});
-  names.append(Name{22, globalValues.subFamilyName});
+  names.push_back(Name{21, globalValues.familyName});
+  names.push_back(Name{22, globalValues.subFamilyName});
 
   for (int i = 0; i < axisCount; i++) {
-    names.append(Name{(ushort)axisNameIds[i], QString::fromStdString(ot_layout->font->axes[i].name)});
+    names.push_back(Name{static_cast<std::uint16_t>(axisNameIds[i]),
+                         ot_layout->font->axes[i].name});
   }
 
   digitalkhatt::ByteBuffer stringStorage;
   uint16_t offset = 0;
   for (auto& name : names) {
     name.offset = offset;
-    name.length = name.str.length() * 2;
-    streamString(stringStorage, name.str);
+    name.length = name.str.size() * sizeof(char16_t);
+    for (const char16_t codeUnit : name.str) {
+      stringStorage << static_cast<std::uint16_t>(codeUnit);
+    }
     offset += name.length;
   }
 
@@ -950,7 +994,7 @@ digitalkhatt::ByteBuffer ToOpenType::post() {
   data << (uint32_t)0;                           // maxMemType1
 
   if (useGlyphName) {
-    int glyphCount = glyphs.lastKey() + 1;
+    int glyphCount = glyphs.rbegin()->first + 1;
 
     data << (int16_t)glyphCount;
 
@@ -966,13 +1010,14 @@ digitalkhatt::ByteBuffer ToOpenType::post() {
       if (glyphs.contains(i)) {
         data << (uint16_t)(index + 258);
         index++;
-        auto glyph = glyphs.value(i);
-        auto newName = QString::fromStdString(glyph->name);
-        newName.replace("added", QString("%1_%2").arg(glyph->charlt * 10).arg(glyph->charrt * 10));
-
-        auto name = newName.toLatin1();
-        stringData << (uint8_t)name.size();
-        appendQtBytes(stringData, name);
+        auto glyph = glyphs.at(i);
+        auto newName = glyph->name;
+        if (const auto pos = newName.find("added"); pos != std::string::npos) {
+          newName.replace(pos, 5, compactNumber(glyph->charlt * 10) + "_" +
+                                      compactNumber(glyph->charrt * 10));
+        }
+        stringData << static_cast<std::uint8_t>(newName.size());
+        appendBytes(stringData, newName);
       } else {
         data << (uint16_t)(258);  //  .notdef;
       }
@@ -986,14 +1031,13 @@ void ToOpenType::dumpPath(GlyphVis& glyph, digitalkhatt::ByteBuffer& data, mp_gr
   mp_fill_object* fill = (mp_fill_object*)*body;
   if (isComponentsEnabled) {
     if (fill->pre_script && strcmp(fill->pre_script, "begincomponent") == 0) {
-      auto comp = QString(fill->post_script).split(",");
-      QString name = comp[0];
-      GlyphVis& compGlyph = ot_layout->glyphs[name.toStdString()];
+      const auto name = componentName(fill->post_script);
+      GlyphVis& compGlyph = ot_layout->glyphs[name];
 
       if (subrByGlyph.contains(compGlyph.charcode)) {
-        auto subrByGlyphInfo = subrByGlyph.value(compGlyph.charcode);
+        auto subrByGlyphInfo = subrByGlyph.at(compGlyph.charcode);
 
-        const auto& ff = regionIndexesIndexByGlyph.find(QString::fromStdString(glyph.name));
+        const auto& ff = regionIndexesIndexByGlyph.find(glyph.name);
 
         int mainGlyphregionIndexesArrayIndex = -1;
 
@@ -1155,7 +1199,10 @@ void ToOpenType::dumpPath(GlyphVis& glyph, digitalkhatt::ByteBuffer& data, mp_gr
     data << (uint8_t)8;  // rrcurveto;
   }
 }
-digitalkhatt::ByteBuffer ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ToOpenType::ContourLimits contourLimits, PathLimits& pathlimits) {
+digitalkhatt::ByteBuffer ToOpenType::charString(
+    GlyphVis& glyph, bool colored, bool iscff2, std::vector<Layer>& layers,
+    double& currentx, double& currenty, ToOpenType::ContourLimits contourLimits,
+    PathLimits& pathlimits) {
   auto body = glyph.copiedPath;
   digitalkhatt::ByteBuffer data;
 
@@ -1205,7 +1252,7 @@ digitalkhatt::ByteBuffer ToOpenType::charString(GlyphVis& glyph, bool colored, b
             } else if (fillobject->color_model == mp_no_model) {
               layer.color.foreground = true;
             }
-            layers.append(layer);
+            layers.push_back(std::move(layer));
           }
 
           break;
@@ -1224,22 +1271,22 @@ digitalkhatt::ByteBuffer ToOpenType::charString(GlyphVis& glyph, bool colored, b
 digitalkhatt::ByteBuffer ToOpenType::charStrings(bool iscff2) {
   digitalkhatt::ByteBuffer objectData;
 
-  QVector<uint> offsets;
+  std::vector<unsigned int> offsets;
 
-  uint offset = 1;
+  unsigned int offset = 1;
 
-  int glyphCount = glyphs.lastKey() + 1;
+  int glyphCount = glyphs.rbegin()->first + 1;
 
-  std::map<int, QString> coloredglyphs;
+  std::map<int, std::string> coloredglyphs;
 
   for (int i = 0; i < glyphCount; i++) {
     digitalkhatt::ByteBuffer glyphArray;
 
     if (glyphs.contains(i)) {
-      auto& glyph = *glyphs.value(i);
+      auto& glyph = *glyphs.at(i);
 
       if (!glyph.coloredglyph.empty()) {
-        coloredglyphs.insert({glyph.charcode, QString::fromStdString(glyph.coloredglyph)});
+        coloredglyphs.insert({glyph.charcode, glyph.coloredglyph});
       }
 
       digitalkhatt::ByteBuffer glyphData;
@@ -1250,13 +1297,13 @@ digitalkhatt::ByteBuffer ToOpenType::charStrings(bool iscff2) {
       int regionIndexesArrayIndex = 0;
 
       if (subrByGlyph.contains(glyph.charcode)) {
-        int_to_cff2(glyphData, subrByGlyph.value(glyph.charcode).offset - subIndexBias);
+        int_to_cff2(glyphData, subrByGlyph.at(glyph.charcode).offset - subIndexBias);
         glyphData << (uint8_t)10;  // callsubr;
       } else {
         ContourLimits contourLimits;
 
         if (ot_layout->isOTVar) {
-          const auto& ff = regionIndexesIndexByGlyph.find(QString::fromStdString(glyph.name));
+          const auto& ff = regionIndexesIndexByGlyph.find(glyph.name);
 
           if (ff != regionIndexesIndexByGlyph.end()) {
             regionIndexesArrayIndex = ff->second;
@@ -1270,7 +1317,7 @@ digitalkhatt::ByteBuffer ToOpenType::charStrings(bool iscff2) {
             }
           }
         }
-        QVector<Layer> layers;
+        std::vector<Layer> layers;
         PathLimits pathlimits;
         glyphData = charString(glyph, false, iscff2, layers, currentx, currenty, contourLimits, pathlimits);
       }
@@ -1299,14 +1346,14 @@ digitalkhatt::ByteBuffer ToOpenType::charStrings(bool iscff2) {
       glyphArray << (uint8_t)14;   //  endchar
     }
 
-    offsets.append(offset);
+    offsets.push_back(offset);
     offset += glyphArray.size();
     objectData.append(glyphArray);
   }
 
   for (auto coloredGlyp : coloredglyphs) {
-    GlyphVis& glyph = ot_layout->glyphs[coloredGlyp.second.toStdString()];
-    QVector<Layer> layers;
+    GlyphVis& glyph = ot_layout->glyphs[coloredGlyp.second];
+    std::vector<Layer> layers;
 
     digitalkhatt::ByteBuffer glyphData;
 
@@ -1314,7 +1361,7 @@ digitalkhatt::ByteBuffer ToOpenType::charStrings(bool iscff2) {
     double currenty = 0.0;
 
     if (subrByGlyph.contains(glyph.charcode)) {
-      int_to_cff2(glyphData, subrByGlyph.value(glyph.charcode).offset - subIndexBias);
+      int_to_cff2(glyphData, subrByGlyph.at(glyph.charcode).offset - subIndexBias);
       glyphData << (uint8_t)10;  // callsubr;
     } else {
       ContourLimits contourLimits;
@@ -1323,19 +1370,19 @@ digitalkhatt::ByteBuffer ToOpenType::charStrings(bool iscff2) {
     }
 
     if (layers.size() > 0) {
-      this->layers.insert(coloredGlyp.first, layers);
+      this->layers.insert({coloredGlyp.first, std::move(layers)});
     }
   }
 
-  QMap<uint16_t, QVector<Layer>>::iterator layIter = this->layers.begin();
+  auto layIter = this->layers.begin();
   while (layIter != this->layers.end()) {
-    auto glyph = glyphs.value(layIter.key());
-    for (auto& layer : layIter.value()) {
+    auto glyph = glyphs.at(layIter->first);
+    for (auto& layer : layIter->second) {
       auto prevlayIter = layIter;
-      while (prevlayIter != this->layers.constBegin()) {
+      while (prevlayIter != this->layers.cbegin()) {
         prevlayIter--;
         bool foudEqual = false;
-        for (auto& prevlayer : prevlayIter.value()) {
+        for (auto& prevlayer : prevlayIter->second) {
           if (prevlayer.charString == layer.charString) {
             layer.gid = prevlayer.gid;
             foudEqual = true;
@@ -1346,8 +1393,8 @@ digitalkhatt::ByteBuffer ToOpenType::charStrings(bool iscff2) {
       }
       if (layer.gid == 0) {
         digitalkhatt::ByteBuffer glyphArray;
-        layer.gid = glyphs.lastKey() + 1;
-        glyphs.insert(layer.gid, glyph);
+        layer.gid = glyphs.rbegin()->first + 1;
+        glyphs.insert({layer.gid, glyph});
 
         if (iscff2) {
           glyphArray = layer.charString;
@@ -1357,7 +1404,7 @@ digitalkhatt::ByteBuffer ToOpenType::charStrings(bool iscff2) {
           glyphArray << (uint8_t)14;  //  endchar
         }
 
-        offsets.append(offset);
+        offsets.push_back(offset);
         offset += glyphArray.size();
         objectData.append(glyphArray);
       }
@@ -1365,9 +1412,9 @@ digitalkhatt::ByteBuffer ToOpenType::charStrings(bool iscff2) {
     layIter++;
   }
 
-  offsets.append(offset);
+  offsets.push_back(offset);
 
-  uint maxOffset = offset;
+  unsigned int maxOffset = offset;
 
   int offSize;
 
@@ -1383,9 +1430,9 @@ digitalkhatt::ByteBuffer ToOpenType::charStrings(bool iscff2) {
 
   digitalkhatt::ByteBuffer data;
   if (iscff2) {
-    data << (uint32_t)(glyphs.lastKey() + 1);
+    data << static_cast<std::uint32_t>(glyphs.rbegin()->first + 1);
   } else {
-    data << (uint16_t)(glyphs.lastKey() + 1);
+    data << static_cast<std::uint16_t>(glyphs.rbegin()->first + 1);
   }
 
   data << (uint8_t)offSize;
@@ -1433,7 +1480,7 @@ digitalkhatt::ByteBuffer ToOpenType::cff() {
 
   // String Index
   digitalkhatt::ByteBuffer stringIndex;
-  stringIndex << (uint16_t)(6 + glyphs.lastKey());  // count
+  stringIndex << static_cast<std::uint16_t>(6 + glyphs.rbegin()->first);  // count
   stringIndex << (uint8_t)4;                        // offSize
   stringIndex << (uint32_t)1;                       // offset
 
@@ -1441,34 +1488,35 @@ digitalkhatt::ByteBuffer ToOpenType::cff() {
 
   int lastSid = 391;
 
-  QString version = QString::number(globalValues.major) + "." + QString::number(globalValues.minor);
+  const std::string version = std::to_string(globalValues.major) + "." +
+                              std::to_string(globalValues.minor);
 
-  appendQtBytes(stringIndexData, version.toLatin1());
+  appendBytes(stringIndexData, version);
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  appendQtBytes(stringIndexData, globalValues.fullName().toLatin1());
+  appendBytes(stringIndexData, globalValues.fullName());
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  appendQtBytes(stringIndexData, globalValues.familyName.toLatin1());
+  appendBytes(stringIndexData, globalValues.familyName);
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  appendQtBytes(stringIndexData, globalValues.subFamilyName.toLatin1());
+  appendBytes(stringIndexData, globalValues.subFamilyName);
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  appendQtBytes(stringIndexData, globalValues.Copyright.toLatin1());
+  appendBytes(stringIndexData, globalValues.Copyright);
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  appendQtBytes(stringIndexData, globalValues.License.toLatin1());
+  appendBytes(stringIndexData, globalValues.License);
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  for (int i = 1; i <= glyphs.lastKey(); i++) {
-    appendQtBytes(stringIndexData, QString("Glyph%1").arg(i).toLatin1());
+  for (int i = 1; i <= glyphs.rbegin()->first; i++) {
+    appendBytes(stringIndexData, "Glyph" + std::to_string(i));
     stringIndex << (uint32_t)(1 + stringIndexData.size());
     charset << (uint16_t)lastSid;
     lastSid++;
@@ -1489,7 +1537,7 @@ digitalkhatt::ByteBuffer ToOpenType::cff() {
   nameIndex << (uint8_t)1;   // offset
 
   digitalkhatt::ByteBuffer nameIndexData;
-  appendQtBytes(nameIndexData, QString("DigitalKhattQuranic").toLatin1());
+  appendBytes(nameIndexData, "DigitalKhattQuranic");
 
   nameIndex << (uint8_t)(1 + nameIndexData.size());  // last offset
 
@@ -1741,7 +1789,7 @@ digitalkhatt::ByteBuffer ToOpenType::getSubrs() {
     return data;
   }
 
-  uint maxOffset = subrs.size() + 1;
+  unsigned int maxOffset = subrs.size() + 1;
   int count = subrOffsets.size();
 
   if (count < 1240) {
@@ -1752,7 +1800,7 @@ digitalkhatt::ByteBuffer ToOpenType::getSubrs() {
     throw new std::runtime_error("Invalid bias");
   }
 
-  subrOffsets.append(maxOffset);
+  subrOffsets.push_back(maxOffset);
 
   int offSize;
 
@@ -1793,9 +1841,9 @@ digitalkhatt::ByteBuffer ToOpenType::getSubrs() {
 }
 
 void ToOpenType::generateComponents() {
-  std::set<QString> components;
+  std::set<std::string> components;
 
-  for (auto& glyph : glyphs) {
+  for (const auto& [code, glyph] : glyphs) {
     auto body = glyph->copiedPath;
 
     if (!body) continue;
@@ -1805,7 +1853,7 @@ void ToOpenType::generateComponents() {
         case mp_fill_code: {
           mp_fill_object* fillobject = (mp_fill_object*)body;
           if (fillobject->pre_script && strcmp(fillobject->pre_script, "begincomponent") == 0) {
-            components.insert(QString(fillobject->post_script).split(",")[0]);
+            components.insert(componentName(fillobject->post_script));
           }
         }
       }
@@ -1814,7 +1862,7 @@ void ToOpenType::generateComponents() {
   }
 
   for (auto& componentName : components) {
-    GlyphVis& glyph = ot_layout->glyphs[componentName.toStdString()];
+    GlyphVis& glyph = ot_layout->glyphs[componentName];
     double currentx = 0.0;
     double currenty = 0.0;
 
@@ -1825,7 +1873,7 @@ void ToOpenType::generateComponents() {
     int regionIndexesArrayIndex = -1;
 
     if (ot_layout->isOTVar) {
-      const auto& ff = regionIndexesIndexByGlyph.find(QString::fromStdString(glyph.name));
+      const auto& ff = regionIndexesIndexByGlyph.find(glyph.name);
 
       if (ff != regionIndexesIndexByGlyph.end()) {
         regionIndexesArrayIndex = ff->second;
@@ -1840,14 +1888,14 @@ void ToOpenType::generateComponents() {
       }
     }
 
-    QVector<Layer> layers;
+    std::vector<Layer> layers;
     PathLimits pathlimits;
     digitalkhatt::ByteBuffer charStringArray = charString(glyph, false, this->isCff2, layers, currentx, currenty, contourLimits, pathlimits);
     if (!isCff2) {
       charStringArray << (uint8_t)11;  // return
     }
-    subrByGlyph.insert(glyph.charcode, {subrOffsets.size(), currentx, currenty, regionIndexesArrayIndex, pathlimits});
-    subrOffsets.append(subrs.size() + 1);
+    subrByGlyph.insert({glyph.charcode, {static_cast<int>(subrOffsets.size()), currentx, currenty, regionIndexesArrayIndex, pathlimits}});
+    subrOffsets.push_back(subrs.size() + 1);
     subrs.append(charStringArray);
   }
 }
@@ -2039,7 +2087,7 @@ digitalkhatt::ByteBuffer ToOpenType::HVAR() {
     return data;
   }
 
-  int glyphCount = glyphs.lastKey() + 1;
+  int glyphCount = glyphs.rbegin()->first + 1;
 
   std::vector<std::map<std::vector<int>, int>> deltaSets;
   std::map<int, std::pair<int, int>> advaceLookup;
@@ -2056,9 +2104,9 @@ digitalkhatt::ByteBuffer ToOpenType::HVAR() {
 
   for (int i = 0; i < glyphCount; i++) {
     if (glyphs.contains(i)) {
-      auto& glyph = *glyphs.value(i);
+      auto& glyph = *glyphs.at(i);
 
-      auto find = regionIndexesIndexByGlyph.find(QString::fromStdString(glyph.name));
+      auto find = regionIndexesIndexByGlyph.find(glyph.name);
       if (find != regionIndexesIndexByGlyph.end()) {
         DefaultDelta advanceDelta;
         DefaultDelta lsbDelta;

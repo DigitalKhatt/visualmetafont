@@ -727,7 +727,7 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
     if (isOTVar) {
       auto glyphName = m_layout->glyphNamePerCode[originalCode];
 
-      auto regionIndexes = m_layout->toOpenType->getGlyphParameters(QString::fromStdString(glyphName));
+      auto regionIndexes = m_layout->toOpenType->getGlyphParameters(glyphName);
       int regionIndexesArrayIndex = regionIndexes.second;
       auto glyphParamertersArray = regionIndexes.first;
 
@@ -1602,7 +1602,7 @@ void CursiveSubtable::setAnchorTable(std::uint16_t glyphCode,
   if (m_layout->isOTVar) {
     auto glyphName = m_layout->glyphNamePerCode[glyphCode];
 
-    auto regionIndexes = m_layout->toOpenType->getGlyphParameters(QString::fromStdString(glyphName));
+    auto regionIndexes = m_layout->toOpenType->getGlyphParameters(glyphName);
     int regionIndexesArrayIndex = regionIndexes.second;
     auto glyphParamertersArray = regionIndexes.first;
 
@@ -1876,7 +1876,7 @@ void MarkBaseSubtable::setAnchorTable(std::string className,
   if (m_layout->isOTVar) {
     auto glyphName = m_layout->glyphNamePerCode[glyphCode];
 
-    auto regionIndexes = m_layout->toOpenType->getGlyphParameters(QString::fromStdString(glyphName));
+    auto regionIndexes = m_layout->toOpenType->getGlyphParameters(glyphName);
     int regionIndexesArrayIndex = regionIndexes.second;
     auto glyphParamertersArray = regionIndexes.first;
 

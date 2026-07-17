@@ -20,12 +20,15 @@
 #ifndef TOOPENTYPE_H
 #define TOOPENTYPE_H
 
-#include "qstring.h"
 #include "digitalkhatt/core/ByteBuffer.h"
-#include "qmap.h"
-#include "qstring.h"
 #include "commontypes.h"
+#include <cassert>
+#include <cstdint>
+#include <filesystem>
+#include <map>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 class OtLayout;
 class GlyphVis;
@@ -46,7 +49,8 @@ class ToOpenType
 {
 public:
   ToOpenType(OtLayout* layout);
-  bool GenerateFile(QString fileName, std::string  lokkupsFileName = "features.fea");  
+  bool GenerateFile(const std::filesystem::path& fileName,
+                    std::string lokkupsFileName = "features.fea");
 
   struct GlobalValues {
     int16_t ascender;
@@ -66,19 +70,20 @@ public:
     int16_t yStrikeoutSize;
     int major;
     int minor;
-    QString familyName;
-    QString subFamilyName;
-    QString Copyright;
-    QString License;
-    QString fullName() {
+    std::string familyName;
+    std::string subFamilyName;
+    std::string Copyright;
+    std::string License;
+    std::string fullName() const {
       return familyName + " " + subFamilyName;
     }
   };
 
-  std::pair<std::vector<GlyphParameters>, int> getGlyphParameters(QString glypheName) {
+  std::pair<std::vector<GlyphParameters>, int> getGlyphParameters(
+      const std::string& glyphName) {
     std::vector<GlyphParameters> ret;
     int regionIndexesArrayIndex = -1;    
-    auto find = regionIndexesIndexByGlyph.find(glypheName);
+    auto find = regionIndexesIndexByGlyph.find(glyphName);
     if (find != regionIndexesIndexByGlyph.end()) {
       regionIndexesArrayIndex = find->second;
       auto& regionIndexes = regionIndexesArray[regionIndexesArrayIndex];
@@ -231,7 +236,7 @@ public:
     uint16_t gid = 0;
   };
 
-  QMap<uint16_t, QVector<Layer>> layers;
+  std::map<std::uint16_t, std::vector<Layer>> layers;
 
   digitalkhatt::ByteBuffer cmap();
   digitalkhatt::ByteBuffer gdef();
@@ -287,23 +292,25 @@ private:
   OtLayout* ot_layout;
   uint32_t calcTableChecksum(uint32_t* Table, uint32_t Length);
 
-  QMap<quint16, GlyphVis*> glyphs;
+  std::map<std::uint16_t, GlyphVis*> glyphs;
   GlobalValues globalValues;
 
   void int_to_cff2(digitalkhatt::ByteBuffer& cff, int val);
   void fixed_to_cff2(digitalkhatt::ByteBuffer& cff, double val);
   digitalkhatt::ByteBuffer charStrings(bool iscff2);
-  digitalkhatt::ByteBuffer charString(GlyphVis& glyph, bool colored, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ContourLimits contourLimits, PathLimits& pathlimits);
+  digitalkhatt::ByteBuffer charString(GlyphVis& glyph, bool colored,
+      bool iscff2, std::vector<Layer>& layers, double& currentx,
+      double& currenty, ContourLimits contourLimits, PathLimits& pathlimits);
   void initiliazeGlobals();
 
   int nbSubrs = 0;
   digitalkhatt::ByteBuffer subrs;
-  QVector<int> subrOffsets;
+  std::vector<int> subrOffsets;
   int subIndexBias = 107;
   void setGIds();
   void generateComponents();
-  QMap<uint16_t, SubrGlyphInfo> subrByGlyph;
-  QMap<uint16_t, digitalkhatt::ByteBuffer> replacedGlyphs;
+  std::map<std::uint16_t, SubrGlyphInfo> subrByGlyph;
+  std::map<std::uint16_t, digitalkhatt::ByteBuffer> replacedGlyphs;
 
   void dumpPath(GlyphVis& glyph, digitalkhatt::ByteBuffer& data, mp_graphic_object** body, double& currentx, double& currenty, PathLimits& pathLimits, ContourLimits& contourLimits);
 
@@ -315,7 +322,7 @@ private:
   std::vector<GlyphParameters> glyphParametersByRegion;
 
   std::vector<std::vector<int>> regionIndexesArray;
-  std::unordered_map<QString, int> regionIndexesIndexByGlyph;
+  std::unordered_map<std::string, int> regionIndexesIndexByGlyph;
 
   std::vector<std::map<std::vector<int>, int>> GDEFDeltaSets;
 
