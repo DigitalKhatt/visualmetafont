@@ -20,13 +20,15 @@
 #ifndef H_LOOKUP
 #define H_LOOKUP
 
-#include "qstring.h"
-#include "qvector.h"
+#include <cstdint>
+#include <limits>
+#include <string>
+#include <vector>
 #include "digitalkhatt/core/ByteBuffer.h"
+#include "ParameterJson.h"
 
 class OtLayout;
 struct Subtable;
-class QJsonObject;
 
 
 
@@ -92,7 +94,7 @@ public:
       return type == Table::GPOS;
     }
 
-    explicit operator quint16() const {
+    explicit operator std::uint16_t() const {
       switch (type) {
       case Table::NONE:
         return 0;
@@ -167,26 +169,28 @@ public:
   virtual digitalkhatt::ByteBuffer getOpenTypeTable(bool extended);
   virtual digitalkhatt::ByteBuffer getOpenTypeExtenionTable(bool extended);
   virtual digitalkhatt::ByteBuffer getSubtableDatas(bool extended);
-  void readJson(const QJsonObject& json);
+  void readJson(const ParameterJsonObject& json);
   bool isGsubLookup() {
     //return type < 9;
     return type.isGsub();
   }
-  void saveParameters(QJsonObject& json) const;
-  void readParameters(const QJsonObject& json);
+  void saveParameters(ParameterJsonObject& json) const;
+  void readParameters(const ParameterJsonObject& json);
 
-  QString name;
-  QString feature;
+  std::string name;
+  std::string feature;
   OtLayout* layout;
-  quint16 flags;
-  QVector<Subtable*> subtables;
-  QVector<QString> markGlyphSet;
-  quint16 markGlyphSetIndex;
-  void setGlyphSet(QVector<QString>);
+  std::uint16_t flags;
+  std::vector<Subtable*> subtables;
+  std::vector<std::string> markGlyphSet;
+  static constexpr std::uint16_t NoMarkGlyphSet =
+      std::numeric_limits<std::uint16_t>::max();
+  std::uint16_t markGlyphSetIndex = NoMarkGlyphSet;
+  void setGlyphSet(std::vector<std::string>);
 
   Type type;
 
-  QVector<Subtable*> getSubtables(bool extended);
+  std::vector<Subtable*> getSubtables(bool extended);
 
 };
 

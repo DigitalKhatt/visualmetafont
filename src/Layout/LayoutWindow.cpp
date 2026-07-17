@@ -60,6 +60,7 @@
 #include <iostream>
 #include <set>
 #include <unordered_set>
+#include "GlazeJson.h"
 
 #include "Export/ExportToHTML.h"
 #include "Export/GenerateLayout.h"
@@ -778,7 +779,7 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended,
 
   for (int i = 0; i < layout.gsublookups.size(); i++) {
     auto name = layout.gsublookups.at(i)->name;
-    out2 << "  [" << i << "] = \"" << name << "\", \n";
+    out2 << "  [" << i << "] = \"" << QString::fromStdString(name) << "\", \n";
   }
 
   out2 << "}";
@@ -1120,13 +1121,19 @@ bool LayoutWindow::save() {
       QDir(m_font->currentDir()).filePath("parameters.json");
 
   QFile file(parametersFileName);
-  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return false;
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    QApplication::restoreOverrideCursor();
+    return false;
+  }
 
-  QJsonObject parametersObject;
+  ParameterJsonObject parametersObject;
   m_otlayout->saveParameters(parametersObject);
-  QJsonDocument saveDoc(parametersObject);
-
-  file.write(saveDoc.toJson());
+  std::string buffer;
+  if (glz::write_json(parametersObject, buffer)) {
+    QApplication::restoreOverrideCursor();
+    return false;
+  }
+  file.write(buffer.data(), static_cast<qint64>(buffer.size()));
 
   QApplication::restoreOverrideCursor();
   setWindowModified(false);
@@ -2553,20 +2560,21 @@ void LayoutWindow::loadLookupFile(QString fileName) {
   lokkupTreeWidget->setColumnCount(1);
   lokkupTreeWidget->blockSignals(true);
   QList<QTreeWidgetItem*> topItems;
-  for (auto& feature : m_otlayout->allFeatures.keys()) {
+  for (const auto& [feature, lookups] : m_otlayout->allFeatures) {
+    const auto qFeature = QString::fromStdString(feature);
     auto featureItem =
-        new QTreeWidgetItem(lokkupTreeWidget, QStringList(feature));
+        new QTreeWidgetItem(lokkupTreeWidget, QStringList(qFeature));
 
-    featureItem->setData(0, Qt::UserRole, feature);
+    featureItem->setData(0, Qt::UserRole, qFeature);
     topItems.append(featureItem);
-    auto lookups = m_otlayout->allFeatures[feature];
     bool alldisabled = true;
     bool onedisabled = false;
     for (auto lookup : lookups) {
-      auto lookupItem = new QTreeWidgetItem(QStringList(lookup->name));
-      lookupItem->setData(0, Qt::UserRole, lookup->name);
+      const auto lookupName = QString::fromStdString(lookup->name);
+      auto lookupItem = new QTreeWidgetItem(QStringList(lookupName));
+      lookupItem->setData(0, Qt::UserRole, lookupName);
       bool disabled =
-          settings.value("DisabledLookups/" + lookup->name).toBool();
+          settings.value("DisabledLookups/" + lookupName).toBool();
       lookupItem->setCheckState(0, disabled ? Qt::Checked : Qt::Unchecked);
       featureItem->addChild(lookupItem);
       if (disabled) {
@@ -2784,14 +2792,14 @@ void LayoutWindow::createDockWindows() {
             auto value = item->data(0, Qt::UserRole).toString();
             QSettings settings;
             if (item->childCount() != 0 &&
-                this->m_otlayout->allFeatures.contains(item->text(0))) {
+                this->m_otlayout->allFeatures.contains(item->text(0).toStdString())) {
               for (int i = 0; i < item->childCount(); i++) {
                 auto child = item->child(i);
                 settings.setValue("DisabledLookups/" + child->text(0),
                                   item->checkState(0) == Qt::Checked);
                 child->setCheckState(0, item->checkState(0));
                 auto lookupIndex =
-                    this->m_otlayout->lookupsIndexByName[child->text(0)];
+                    this->m_otlayout->lookupsIndexByName[child->text(0).toStdString()];
                 Lookup* lookup = this->m_otlayout->lookups[lookupIndex];
                 if (item->checkState(0) == Qt::Checked) {
                   this->m_otlayout->disabledLookups.insert(lookup);
@@ -2800,11 +2808,11 @@ void LayoutWindow::createDockWindows() {
                 }
               }
             } else if (this->m_otlayout->lookupsIndexByName.contains(
-                           item->text(0))) {
+                           item->text(0).toStdString())) {
               settings.setValue("DisabledLookups/" + item->text(0),
                                 item->checkState(0) == Qt::Checked);
               auto lookupIndex =
-                  this->m_otlayout->lookupsIndexByName[item->text(0)];
+                  this->m_otlayout->lookupsIndexByName[item->text(0).toStdString()];
               Lookup* lookup = this->m_otlayout->lookups[lookupIndex];
               if (item->checkState(0) == Qt::Checked) {
                 this->m_otlayout->disabledLookups.insert(lookup);
@@ -2821,7 +2829,7 @@ void LayoutWindow::createDockWindows() {
           [&, this](QTreeWidgetItem* item, int column) {
             auto lookupName = item->text(0);
             if (item->childCount() == 0 &&
-                this->m_otlayout->lookupsIndexByName.contains(item->text(0))) {
+                this->m_otlayout->lookupsIndexByName.contains(item->text(0).toStdString())) {
               editLookup(item->text(0));
             }
           });
@@ -3618,13 +3626,13 @@ static hb_bool_t setMessage(hb_buffer_t* buffer, hb_font_t* font,
   }
 
   if (lookup < layout->gsublookups.size()) {
-    qDebug() << message << " " << layout->gsublookups.at(lookup)->name;
+    qDebug() << message << " " << QString::fromStdString(layout->gsublookups.at(lookup)->name);
     // printf("%s %s\n", message,
     // layout->gsublookups.at(lookup)->name.toLatin1().data());
   }
 
   if (lookup < layout->gposlookups.size()) {
-    qDebug() << message << " " << layout->gposlookups.at(lookup)->name;
+    qDebug() << message << " " << QString::fromStdString(layout->gposlookups.at(lookup)->name);
     // printf("%s %s\n", message,
     // layout->gposlookups.at(lookup)->name.toLatin1().data());
   }
@@ -4131,7 +4139,7 @@ void LayoutWindow::convertCursiveToKern() {
             }
           }
         } else {
-          std::cerr << "Problem in lookup=" << lookup->name.toStdString() << "Subtable=" << curSub->name << "\n";
+          std::cerr << "Problem in lookup=" << lookup->name << "Subtable=" << curSub->name << "\n";
         }
       }
       if (!localbaseBaseMarkPos.isEmpty()) {

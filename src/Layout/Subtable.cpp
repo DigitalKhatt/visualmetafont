@@ -20,8 +20,8 @@
 #include "Subtable.h"
 
 #include <QDebug>
-#include <QJsonArray>
-#include <QJsonObject>
+#include "GlazeJson.h"
+#include <array>
 #include <algorithm>
 #include <hb-ot-layout-common.hh>
 #include <iostream>
@@ -84,16 +84,14 @@ bool SingleSubtable::isExtended() {
   return false;
 }
 
-void SingleSubtable::readJson(const QJsonObject& json) {
+void SingleSubtable::readJson(const ParameterJsonObject& json) {
   subst.clear();
-  for (int index = 0; index < json.size(); ++index) {
-    QString glyphname = json.keys()[index];
-    quint16 unicode = getCodeFromName(glyphname.toStdString());
+  for (const auto& [glyphName, valueJson] : json) {
+    quint16 unicode = getCodeFromName(glyphName);
     if (!unicode) continue;
-
-    QString name = json[glyphname].toString();
-
-    quint16 value = getCodeFromName(name.toStdString());
+    const auto name = jsonValueAs<std::string>(valueJson);
+    if (!name) continue;
+    quint16 value = getCodeFromName(*name);
     if (!value) continue;
     subst[unicode] = value;
   }
@@ -375,7 +373,7 @@ digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
 
     for (auto action : backTrackInfo.actions) {
       if (action.type == DFAActionType::LOOKUP) {
-        QString fullname = QString::fromStdString(action.name);
+        const auto& fullname = action.name;
         if (m_lookup->isGsubLookup()) {
           if (m_layout->gsublookupsIndexByName.contains(fullname)) {
             lookupListIndex = m_layout->gsublookupsIndexByName[fullname];
@@ -673,14 +671,15 @@ bool SingleAdjustmentSubtable::isExtended() {
   }
 }
 
-void SingleAdjustmentSubtable::readJson(const QJsonObject& json) {
+void SingleAdjustmentSubtable::readJson(const ParameterJsonObject& json) {
   singlePos.clear();
-  for (int index = 0; index < json.size(); ++index) {
-    QString className = json.keys()[index];
-    auto unicodes = m_layout->classtoUnicode(className.toStdString());
-    QJsonArray record = json[className].toArray();
+  for (const auto& [className, recordJson] : json) {
+    auto unicodes = m_layout->classtoUnicode(className);
+    const auto record = jsonValueAs<std::array<std::int16_t, 4>>(recordJson);
+    if (!record) continue;
     for (auto unicode : unicodes) {
-      ValueRecord valueRecord{(qint16)record[0].toInt(), (qint16)record[1].toInt(), (qint16)record[2].toInt(), (qint16)record[3].toInt()};
+      ValueRecord valueRecord{(*record)[0], (*record)[1], (*record)[2],
+                              (*record)[3]};
 
       singlePos[unicode] = valueRecord;
     }
@@ -811,7 +810,7 @@ for(auto& varIndex : posToVar){
   quint32 coverageOffset = 8 + valueRecords.size();
 
   if (coverageOffset > 0xFFFF) {
-    std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name << " Overflows : " << coverageOffset << std::endl;
+    std::cout << "Lookup " << m_lookup->name << " Subtable " << name << " Overflows : " << coverageOffset << std::endl;
   }
 
   root << format;
@@ -823,31 +822,27 @@ for(auto& varIndex : posToVar){
 
   return root;
 }
-void SingleAdjustmentSubtable::readParameters(const QJsonObject& json) {
-  if (json["parameters"].isObject()) {
-    QJsonObject parametersObject = json["parameters"].toObject();
-    for (int ia = 0; ia < parametersObject.size(); ++ia) {
-      QString glyphName = parametersObject.keys()[ia];
-      QJsonArray pointArray = parametersObject[glyphName].toArray();
-      parameters[m_layout->glyphCodePerName[glyphName.toStdString()]] = {(qint16)pointArray[0].toInt(), (qint16)pointArray[1].toInt(), (qint16)pointArray[2].toInt(), (qint16)pointArray[3].toInt()};
-    }
-  }
+void SingleAdjustmentSubtable::readParameters(const ParameterJsonObject& json) {
+  const auto found = json.find("parameters");
+  if (found == json.end()) return;
+  std::map<std::string, std::array<std::int16_t, 4>> values;
+  if (glz::read_json(values, found->second)) return;
+  for (const auto& [glyphName, value] : values)
+    parameters[m_layout->glyphCodePerName[glyphName]] = {
+        value[0], value[1], value[2], value[3]};
 }
-void SingleAdjustmentSubtable::saveParameters(QJsonObject& json) const {
+void SingleAdjustmentSubtable::saveParameters(ParameterJsonObject& json) const {
   if (parameters.size() != 0) {
-    QJsonObject parametersObject;
+    std::map<std::string, std::array<std::int16_t, 4>> parametersObject;
     for (const auto& [glyphCode, parameter] : parameters) {
       if (!parameter.isEmpty()) {
-        QJsonArray pointArray;
-        pointArray.append(parameter.xPlacement);
-        pointArray.append(parameter.yPlacement);
-        pointArray.append(parameter.xAdvance);
-        pointArray.append(parameter.yAdvance);
-        parametersObject[QString::fromStdString(m_layout->glyphNamePerCode[glyphCode])] = pointArray;
+        parametersObject[m_layout->glyphNamePerCode[glyphCode]] = {
+            parameter.xPlacement, parameter.yPlacement, parameter.xAdvance,
+            parameter.yAdvance};
       }
     }
 
-    json["parameters"] = parametersObject;
+    if (!parametersObject.empty()) json["parameters"] = parametersObject;
   }
 }
 
@@ -1018,7 +1013,7 @@ digitalkhatt::ByteBuffer PairAdjustmentSubtable::getOpenTypeTable(bool extended)
   quint32 coverageOffset = headerSize + pairSetOffsets.size() + pairSetTables.size();
 
   if (coverageOffset > 0xFFFF) {
-    std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name << " Overflows : " << coverageOffset << std::endl;
+    std::cout << "Lookup " << m_lookup->name << " Subtable " << name << " Overflows : " << coverageOffset << std::endl;
   }
 
   root << format;
@@ -1073,19 +1068,15 @@ digitalkhatt::ByteBuffer MultipleSubtable::getOpenTypeTable(bool extended) {
   return root;
 };
 
-void MultipleSubtable::readJson(const QJsonObject& json) {
+void MultipleSubtable::readJson(const ParameterJsonObject& json) {
   subst.clear();
-  for (int index = 0; index < json.size(); ++index) {
-    QString glyphname = json.keys()[index];
-    uint uniode = getCodeFromName(glyphname.toStdString());
+  for (const auto& [glyphName, destinationJson] : json) {
+    uint uniode = getCodeFromName(glyphName);
     if (!uniode) continue;
-
-    QJsonArray dest = json[glyphname].toArray();
-
-    for (int id = 0; id < dest.size(); ++id) {
-      QString name = dest[id].toString();
-
-      uint value = getCodeFromName(name.toStdString());
+    const auto destination = jsonValueAs<std::vector<std::string>>(destinationJson);
+    if (!destination) continue;
+    for (const auto& name : *destination) {
+      uint value = getCodeFromName(name);
 
       if (!value) continue;
 
@@ -1351,21 +1342,16 @@ digitalkhatt::ByteBuffer LigatureSubtable::getOpenTypeTable(bool extended) {
   return root;
 };
 
-void LigatureSubtable::readJson(const QJsonObject& json) {
+void LigatureSubtable::readJson(const ParameterJsonObject& json) {
   ligatures.clear();
-  for (int index = 0; index < json.size(); ++index) {
-    QString ligatureName = json.keys()[index];
-    quint16 uniode = getCodeFromName(ligatureName.toStdString());
+  for (const auto& [ligatureName, destinationJson] : json) {
+    quint16 uniode = getCodeFromName(ligatureName);
     if (!uniode) continue;
-
-    QJsonArray dest = json[ligatureName].toArray();
-
+    const auto destination = jsonValueAs<std::vector<std::string>>(destinationJson);
+    if (!destination) continue;
     QVector<quint16> componentGlyphIDs;
-
-    for (int id = 0; id < dest.size(); ++id) {
-      QString name = dest[id].toString();
-
-      uint value = getCodeFromName(name.toStdString());
+    for (const auto& name : *destination) {
+      uint value = getCodeFromName(name);
 
       if (!value) continue;
 
@@ -1378,74 +1364,52 @@ void LigatureSubtable::readJson(const QJsonObject& json) {
 
 MarkBaseSubtable::MarkBaseSubtable(Lookup* lookup) : Subtable(lookup) {}
 
-void MarkBaseSubtable::readJson(const QJsonObject& json) {
-  if (json["base"].isString()) {
-    base = {json["base"].toString().toStdString()};
-  } else {
-    QJsonArray basearray = json["base"].toArray();
-    base = {};
-    for (int baseIndex = 0; baseIndex < basearray.size(); ++baseIndex) {
-      base.push_back(basearray[baseIndex].toString().toStdString());
+void MarkBaseSubtable::readJson(const ParameterJsonObject& json) {
+  base.clear();
+  if (const auto* baseValue = findJsonValue(json, "base")) {
+    if (const auto singleBase = jsonValueAs<std::string>(*baseValue)) {
+      base = {*singleBase};
+    } else if (const auto baseArray =
+                   jsonValueAs<std::vector<std::string>>(*baseValue)) {
+      base.assign(baseArray->begin(), baseArray->end());
     }
   }
 
-  QJsonObject classesobject = json["classes"].toObject();
-  for (int index = 0; index < classesobject.size(); ++index) {
-    QString className = classesobject.keys()[index];
-    QJsonObject classobject = classesobject[className].toObject();
+  const auto* classesValue = findJsonValue(json, "classes");
+  if (!classesValue || !classesValue->is_object()) return;
+  for (const auto& [className, classJson] : classesValue->get_object()) {
+    if (!classJson.is_object()) continue;
+    const auto& classObject = classJson.get_object();
 
     MarkClass newclass;
 
-    if (classobject["mark"].isString()) {
-      newclass.mark = {classobject["mark"].toString().toStdString()};
-    } else {
-      QJsonArray array = classobject["mark"].toArray();
-      newclass.mark = {};
-      for (int ia = 0; ia < array.size(); ++ia) {
-        newclass.mark.insert(array[ia].toString().toStdString());
+    if (const auto* markValue = findJsonValue(classObject, "mark")) {
+      if (const auto singleMark = jsonValueAs<std::string>(*markValue)) {
+        newclass.mark = {*singleMark};
+      } else if (const auto markArray =
+                     jsonValueAs<std::vector<std::string>>(*markValue)) {
+        newclass.mark.insert(markArray->begin(), markArray->end());
       }
     }
 
-    newclass.basefunction = m_layout->getanchorCalcFunctions(classobject["basefunction"].toString().toStdString(), this);
-    newclass.markfunction = m_layout->getanchorCalcFunctions(classobject["markfunction"].toString().toStdString(), this);
+    newclass.basefunction = m_layout->getanchorCalcFunctions(
+        jsonValueAs<std::string>(classObject, "basefunction").value_or(""), this);
+    newclass.markfunction = m_layout->getanchorCalcFunctions(
+        jsonValueAs<std::string>(classObject, "markfunction").value_or(""), this);
 
-    if (classobject["baseparameters"].isObject()) {
-      QJsonObject baseparametersObject = classobject["baseparameters"].toObject();
-      for (int ia = 0; ia < baseparametersObject.size(); ++ia) {
-        QString glyphName = baseparametersObject.keys()[ia];
-        QJsonArray pointArray = baseparametersObject[glyphName].toArray();
-        newclass.baseparameters[glyphName.toStdString()] = Point(pointArray[0].toInt(), pointArray[1].toInt());
-      }
-    }
+    auto readPoints = [&](std::string_view key, auto& destination) {
+      const auto points =
+          jsonValueAs<std::map<std::string, std::array<int, 2>>>(classObject, key);
+      if (!points) return;
+      for (const auto& [glyphName, point] : *points)
+        destination[glyphName] = Point{point[0], point[1]};
+    };
+    readPoints("baseparameters", newclass.baseparameters);
+    readPoints("markparameters", newclass.markparameters);
+    readPoints("baseanchors", newclass.baseanchors);
+    readPoints("markanchors", newclass.markanchors);
 
-    if (classobject["markparameters"].isObject()) {
-      QJsonObject markparametersObject = classobject["markparameters"].toObject();
-      for (int ia = 0; ia < markparametersObject.size(); ++ia) {
-        QString glyphName = markparametersObject.keys()[ia];
-        QJsonArray pointArray = markparametersObject[glyphName].toArray();
-        newclass.markparameters[glyphName.toStdString()] = Point(pointArray[0].toInt(), pointArray[1].toInt());
-      }
-    }
-
-    if (classobject["baseanchors"].isObject()) {
-      QJsonObject baseanchorsObject = classobject["baseanchors"].toObject();
-      for (int ia = 0; ia < baseanchorsObject.size(); ++ia) {
-        QString glyphName = baseanchorsObject.keys()[ia];
-        QJsonArray pointArray = baseanchorsObject[glyphName].toArray();
-        newclass.baseanchors[glyphName.toStdString()] = Point(pointArray[0].toInt(), pointArray[1].toInt());
-      }
-    }
-
-    if (classobject["markanchors"].isObject()) {
-      QJsonObject markanchorsObject = classobject["markanchors"].toObject();
-      for (int ia = 0; ia < markanchorsObject.size(); ++ia) {
-        QString glyphName = markanchorsObject.keys()[ia];
-        QJsonArray pointArray = markanchorsObject[glyphName].toArray();
-        newclass.markanchors[glyphName.toStdString()] = Point(pointArray[0].toInt(), pointArray[1].toInt());
-      }
-    }
-
-    classes[className.toStdString()] = newclass;
+    classes[className] = std::move(newclass);
   }
 }
 optional<Point> CursiveSubtable::getExit(quint16 glyph_id, GlyphParameters parameters) {
@@ -1534,28 +1498,23 @@ Point CursiveSubtable::calculateEntry(GlyphVis* originalglyph, GlyphVis* extende
 
   return entry;
 }
-void CursiveSubtable::readJson(const QJsonObject& json) {
-  if (json["anchors"].isObject()) {
-    auto anchorsObject = json["anchors"].toObject();
-    for (int index = 0; index < anchorsObject.size(); ++index) {
-      QString className = anchorsObject.keys()[index];
+void CursiveSubtable::readJson(const ParameterJsonObject& json) {
+  const auto* anchorsValue = findJsonValue(json, "anchors");
+  if (anchorsValue && anchorsValue->is_object()) {
+    for (const auto& [className, entryExitJson] : anchorsValue->get_object()) {
+      if (!entryExitJson.is_object()) continue;
 
       EntryExit value;
-
-      auto entryexitObject = anchorsObject[className].toObject();
-
-      if (entryexitObject["exit"].isArray()) {
-        QJsonArray pointArray = entryexitObject["exit"].toArray();
-        value.exit = Point(pointArray[0].toInt(), pointArray[1].toInt());
-      }
-
-      if (entryexitObject["entry"].isArray()) {
-        QJsonArray pointArray = entryexitObject["entry"].toArray();
-        value.entry = Point(pointArray[0].toInt(), pointArray[1].toInt());
-      }
+      const auto& entryExitObject = entryExitJson.get_object();
+      if (const auto point =
+              jsonValueAs<std::array<int, 2>>(entryExitObject, "exit"))
+        value.exit = Point{(*point)[0], (*point)[1]};
+      if (const auto point =
+              jsonValueAs<std::array<int, 2>>(entryExitObject, "entry"))
+        value.entry = Point{(*point)[0], (*point)[1]};
 
       if (value.entry || value.exit) {
-        auto glyphs = m_layout->classtoUnicode(className.toStdString());
+        auto glyphs = m_layout->classtoUnicode(className);
 
         for (auto glyph : glyphs) {
           anchors[glyph] = value;
@@ -1564,59 +1523,49 @@ void CursiveSubtable::readJson(const QJsonObject& json) {
     }
   }
 }
-void CursiveSubtable::readParameters(const QJsonObject& json) {
-  if (json["exitParameters"].isObject()) {
-    QJsonObject exitParametersObject = json["exitParameters"].toObject();
-    for (int ia = 0; ia < exitParametersObject.size(); ++ia) {
-      QString glyphName = exitParametersObject.keys()[ia];
-      QJsonArray pointArray = exitParametersObject[glyphName].toArray();
-      exitParameters[m_layout->glyphCodePerName[glyphName.toStdString()]] = Point(pointArray[0].toInt(), pointArray[1].toInt());
-    }
-  }
-
-  if (json["entryParameters"].isObject()) {
-    QJsonObject entryParametersObject = json["entryParameters"].toObject();
-    for (int ia = 0; ia < entryParametersObject.size(); ++ia) {
-      QString glyphName = entryParametersObject.keys()[ia];
-      QJsonArray pointArray = entryParametersObject[glyphName].toArray();
-      entryParameters[m_layout->glyphCodePerName[glyphName.toStdString()]] = Point(pointArray[0].toInt(), pointArray[1].toInt());
-    }
-  }
+void CursiveSubtable::readParameters(const ParameterJsonObject& json) {
+  using PointValues = std::map<std::string, std::array<int, 2>>;
+  auto readPoints = [&](std::string_view key, auto& destination) {
+    const auto found = json.find(std::string{key});
+    if (found == json.end()) return;
+    PointValues values;
+    if (glz::read_json(values, found->second)) return;
+    for (const auto& [glyphName, point] : values)
+      destination[m_layout->glyphCodePerName[glyphName]] = Point{point[0], point[1]};
+  };
+  readPoints("exitParameters", exitParameters);
+  readPoints("entryParameters", entryParameters);
 }
-void CursiveSubtable::saveParameters(QJsonObject& json) const {
+void CursiveSubtable::saveParameters(ParameterJsonObject& json) const {
   if (exitParameters.size() != 0) {
-    QJsonObject exitParametersObject;
+    std::map<std::string, std::array<int, 2>> exitParametersObject;
     for (const auto& [glyphCode, exitParameter] : exitParameters) {
       if (!exitParameter.isNull()) {
-        QJsonArray pointArray;
-        pointArray.append(exitParameter.x());
-        pointArray.append(exitParameter.y());
-        exitParametersObject[QString::fromStdString(m_layout->glyphNamePerCode[glyphCode])] = pointArray;
+        exitParametersObject[m_layout->glyphNamePerCode[glyphCode]] = {
+            exitParameter.x(), exitParameter.y()};
       }
     }
 
-    json["exitParameters"] = exitParametersObject;
+    if (!exitParametersObject.empty()) json["exitParameters"] = exitParametersObject;
   }
 
   if (entryParameters.size() != 0) {
-    QJsonObject entryParametersObject;
+    std::map<std::string, std::array<int, 2>> entryParametersObject;
     for (const auto& [glyphCode, entryParameter] : entryParameters) {
       if (!entryParameter.isNull()) {
-        QJsonArray pointArray;
-        pointArray.append(entryParameter.x());
-        pointArray.append(entryParameter.y());
-        entryParametersObject[QString::fromStdString(m_layout->glyphNamePerCode[glyphCode])] = pointArray;
+        entryParametersObject[m_layout->glyphNamePerCode[glyphCode]] = {
+            entryParameter.x(), entryParameter.y()};
       }
     }
 
-    json["entryParameters"] = entryParametersObject;
+    if (!entryParametersObject.empty()) json["entryParameters"] = entryParametersObject;
   }
 }
 
-void CursiveSubtable::setAnchorTable(quint16 glyphCode,
+void CursiveSubtable::setAnchorTable(std::uint16_t glyphCode,
                                      digitalkhatt::ByteBuffer& entryExitRecords,
                                      digitalkhatt::ByteBuffer& anchorTables,
-                                     quint32& anchorOffset,
+                                     std::uint32_t& anchorOffset,
                                      std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
                                      bool extended,
                                      bool isEntry) {
@@ -1746,7 +1695,7 @@ digitalkhatt::ByteBuffer CursiveSubtable::getOpenTypeTable(bool extended) {
   quint32 coverageOffset = 6 + entryExitRecords.size() + anchorTables.size();
 
   if (coverageOffset > 0xFFFF) {
-    std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name
+    std::cout << "Lookup " << m_lookup->name << " Subtable " << name
               << " Overflows. coverageOffset=" << coverageOffset
               << std::endl;
   }
@@ -1761,67 +1710,53 @@ digitalkhatt::ByteBuffer CursiveSubtable::getOpenTypeTable(bool extended) {
 
   return root;
 }
-void MarkBaseSubtable::saveParameters(QJsonObject& json) const {
+void MarkBaseSubtable::saveParameters(ParameterJsonObject& json) const {
   for (auto it = classes.cbegin(); it != classes.cend(); ++it) {
-    QJsonObject classObject;
-    QJsonObject baseparametersObject;
+    ParameterJsonObject classObject;
+    std::map<std::string, std::array<int, 2>> baseparametersObject;
     auto parameters = it->second.baseparameters;
     for (const auto& [glyphName, point] : parameters) {
       if (!point.isNull()) {
-        QJsonArray pointArray;
-        pointArray.append(point.x());
-        pointArray.append(point.y());
-        baseparametersObject[QString::fromStdString(glyphName)] = pointArray;
+        baseparametersObject[glyphName] = {point.x(), point.y()};
       }
     }
     parameters = it->second.markparameters;
-    QJsonObject markparametersObject;
+    std::map<std::string, std::array<int, 2>> markparametersObject;
     for (const auto& [glyphName, point] : parameters) {
       if (!point.isNull()) {
-        QJsonArray pointArray;
-        pointArray.append(point.x());
-        pointArray.append(point.y());
-        markparametersObject[QString::fromStdString(glyphName)] = pointArray;
+        markparametersObject[glyphName] = {point.x(), point.y()};
       }
     }
 
-    if (!baseparametersObject.isEmpty()) {
+    if (!baseparametersObject.empty()) {
       classObject["baseparameters"] = baseparametersObject;
     }
 
-    if (!markparametersObject.isEmpty()) {
+    if (!markparametersObject.empty()) {
       classObject["markparameters"] = markparametersObject;
     }
 
-    if (!classObject.isEmpty()) {
-      json[QString::fromStdString(it->first)] = classObject;
+    if (!classObject.empty()) {
+      json[it->first] = std::move(classObject);
     }
   }
 }
-void MarkBaseSubtable::readParameters(const QJsonObject& json) {
-  for (int index = 0; index < json.size(); ++index) {
-    QString className = json.keys()[index];
-    QJsonObject classobject = json[className].toObject();
-
-    MarkClass& newclass = classes[className.toStdString()];
-
-    if (classobject["baseparameters"].isObject()) {
-      QJsonObject baseparametersObject = classobject["baseparameters"].toObject();
-      for (int ia = 0; ia < baseparametersObject.size(); ++ia) {
-        QString glyphName = baseparametersObject.keys()[ia];
-        QJsonArray pointArray = baseparametersObject[glyphName].toArray();
-        newclass.baseparameters[glyphName.toStdString()] = Point(pointArray[0].toInt(), pointArray[1].toInt());
-      }
-    }
-
-    if (classobject["markparameters"].isObject()) {
-      QJsonObject markparametersObject = classobject["markparameters"].toObject();
-      for (int ia = 0; ia < markparametersObject.size(); ++ia) {
-        QString glyphName = markparametersObject.keys()[ia];
-        QJsonArray pointArray = markparametersObject[glyphName].toArray();
-        newclass.markparameters[glyphName.toStdString()] = Point(pointArray[0].toInt(), pointArray[1].toInt());
-      }
-    }
+void MarkBaseSubtable::readParameters(const ParameterJsonObject& json) {
+  using PointValues = std::map<std::string, std::array<int, 2>>;
+  for (const auto& [className, classValue] : json) {
+    if (!classValue.is_object()) continue;
+    const auto& classObject = classValue.get_object();
+    MarkClass& newclass = classes[className];
+    auto readPoints = [&](std::string_view key, auto& destination) {
+      const auto found = classObject.find(std::string{key});
+      if (found == classObject.end()) return;
+      PointValues values;
+      if (glz::read_json(values, found->second)) return;
+      for (const auto& [glyphName, point] : values)
+        destination[glyphName] = Point{point[0], point[1]};
+    };
+    readPoints("baseparameters", newclass.baseparameters);
+    readPoints("markparameters", newclass.markparameters);
   }
 }
 Point MarkBaseSubtable::getBaseAnchor(std::string baseGlyphName, std::string className, GlyphParameters parameters) {
@@ -1841,11 +1776,11 @@ Point MarkBaseSubtable::getBaseAnchor(std::string baseGlyphName, std::string cla
   if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
     coordinate += curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor);
   } else {
-    QString anchorName = m_lookup->name + "_" + QString::fromStdString(className);
+    QString anchorName = QString::fromStdString(m_lookup->name + "_" + className);
     if (curr->conatinsAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
       coordinate += curr->getAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor);
     } else {
-      QString anchorName = m_lookup->name;
+      QString anchorName = QString::fromStdString(m_lookup->name);
       if (curr->conatinsAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
         coordinate += curr->getAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor);
       } else if (markClass.basefunction) {
@@ -1885,11 +1820,11 @@ Point MarkBaseSubtable::getMarkAnchor(std::string markGlyphName, std::string cla
   if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
     coordinate += curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor);
   } else {
-    QString anchorName = m_lookup->name + "_" + QString::fromStdString(className);
+    QString anchorName = QString::fromStdString(m_lookup->name + "_" + className);
     if (curr->conatinsAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
       coordinate += curr->getAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor);
     } else {
-      QString anchorName = m_lookup->name;
+      QString anchorName = QString::fromStdString(m_lookup->name);
       if (curr->conatinsAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
         coordinate += curr->getAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor);
       } else if (markClass.markfunction != nullptr) {
@@ -1913,9 +1848,9 @@ optional<Point> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_id
 }
 
 void MarkBaseSubtable::setAnchorTable(std::string className,
-                                      quint16 glyphCode,
+                                      std::uint16_t glyphCode,
                                       digitalkhatt::ByteBuffer& anchorTables,
-                                      quint32& anchorOffset,
+                                      std::uint32_t& anchorOffset,
                                       std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
                                       bool extended,
                                       bool isBase) {
@@ -2007,10 +1942,10 @@ void MarkBaseSubtable::setAnchorTable(std::string className,
 
 void Subtable::setVariationIndexOffset(
     digitalkhatt::ByteBuffer& anchorTables,
-    quint32 anchorOffset,
+    std::uint32_t anchorOffset,
     std::map<int, std::pair<int, std::pair<int, int>>>& posToVar) {
   if (anchorOffset > 0xFFFF) {
-    std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name
+    std::cout << "Lookup " << m_lookup->name << " Subtable " << name
               << " Overflows. anchorOffset=" << anchorOffset
               << std::endl;
   }
@@ -2041,7 +1976,7 @@ void Subtable::setVariationIndexOffset(
 
     quint32 offsetFromAnchorTable = offset - start;
     if (offsetFromAnchorTable > 0xFFFF) {
-      std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name
+      std::cout << "Lookup " << m_lookup->name << " Subtable " << name
                 << " Overflows. offsetFromAnchorTable=" << offsetFromAnchorTable
                 << std::endl;
     }
@@ -2050,7 +1985,7 @@ void Subtable::setVariationIndexOffset(
     anchorTables.replace(pos, offsetData.size(), offsetData);
   }
   /*
-  std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name
+  std::cout << "Lookup " << m_lookup->name << " Subtable " << name
         << " total=" << total
         << " found=" << found
         << std::endl;*/
@@ -2154,7 +2089,7 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
   quint32 baseArrayOffset = markArrayOffset + markArray.size();
 
   if (baseArrayOffset > 0xFFFF) {
-    std::cout << "Lookup " << m_lookup->name.toStdString() << " Subtable " << name
+    std::cout << "Lookup " << m_lookup->name << " Subtable " << name
               << " Overflows. baseCoverageOffset=" << baseCoverageOffset
               << " markArrayOffset=" << markArrayOffset
               << " baseArrayOffset=" << baseArrayOffset
@@ -2175,73 +2110,51 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
 ChainingSubtable::ChainingSubtable(Lookup* lookup) : Subtable(lookup) {}
 
-void ChainingSubtable::readJson(const QJsonObject& ruleObject) {
+void ChainingSubtable::readJson(const ParameterJsonObject& ruleObject) {
   rule = Rule();
   compiledRule = CompiledRule();
 
-  // context
-  QJsonArray inputArray = ruleObject["input"].toArray();
-  for (int j = 0; j < inputArray.size(); j++) {
-    std::unordered_set<std::string> classSet;
-    std::unordered_set<std::uint16_t> glyphSet;
-    QJsonArray PosArray = inputArray[j].toArray();
-    for (int k = 0; k < PosArray.size(); k++) {
-      QString className = PosArray[k].toString();
-      classSet.insert(className.toStdString());
-      auto glyphs = m_layout->classtoUnicode(className.toStdString());
-      glyphSet.insert(glyphs.begin(), glyphs.end());
+  auto readContext = [&](std::string_view key, auto& ruleDestination,
+                         auto& compiledDestination) {
+    const auto positions =
+        jsonValueAs<std::vector<std::vector<std::string>>>(ruleObject, key);
+    if (!positions) return;
+    for (const auto& position : *positions) {
+      std::unordered_set<std::string> classSet;
+      std::unordered_set<std::uint16_t> glyphSet;
+      for (const auto& className : position) {
+        classSet.insert(className);
+        auto glyphs = m_layout->classtoUnicode(className);
+        glyphSet.insert(glyphs.begin(), glyphs.end());
+      }
+      ruleDestination.emplace_back(classSet.begin(), classSet.end());
+      compiledDestination.emplace_back(glyphSet.begin(), glyphSet.end());
     }
-    rule.input.emplace_back(classSet.begin(), classSet.end());
-    compiledRule.input.emplace_back(glyphSet.begin(), glyphSet.end());
-  }
+  };
+  readContext("input", rule.input, compiledRule.input);
+  readContext("lookahead", rule.lookahead, compiledRule.lookahead);
+  readContext("backtrack", rule.backtrack, compiledRule.backtrack);
 
-  QJsonArray lookaheadArray = ruleObject["lookahead"].toArray();
-  for (int j = 0; j < lookaheadArray.size(); j++) {
-    std::unordered_set<std::string> classSet;
-    std::unordered_set<std::uint16_t> glyphSet;
-    QJsonArray PosArray = lookaheadArray[j].toArray();
-    for (int k = 0; k < PosArray.size(); k++) {
-      QString className = PosArray[k].toString();
-      classSet.insert(className.toStdString());
-      auto glyphs = m_layout->classtoUnicode(className.toStdString());
-      glyphSet.insert(glyphs.begin(), glyphs.end());
-    }
-    rule.lookahead.emplace_back(classSet.begin(), classSet.end());
-    compiledRule.lookahead.emplace_back(glyphSet.begin(), glyphSet.end());
-  }
-  QJsonArray backtrackArray = ruleObject["backtrack"].toArray();
-  for (int j = 0; j < backtrackArray.size(); j++) {
-    std::unordered_set<std::string> classSet;
-    std::unordered_set<std::uint16_t> glyphSet;
-    QJsonArray PosArray = backtrackArray[j].toArray();
-    for (int k = 0; k < PosArray.size(); k++) {
-      QString className = PosArray[k].toString();
-      classSet.insert(className.toStdString());
-      auto glyphs = m_layout->classtoUnicode(className.toStdString());
-      glyphSet.insert(glyphs.begin(), glyphs.end());
-    }
-    rule.backtrack.emplace_back(classSet.begin(), classSet.end());
-    compiledRule.backtrack.emplace_back(glyphSet.begin(), glyphSet.end());
-  }
-
-  QJsonArray lookuprecordsArray = ruleObject["lookuprecords"].toArray();
-  for (int j = 0; j < lookuprecordsArray.size(); j++) {
+  const auto* lookupRecordsValue = findJsonValue(ruleObject, "lookuprecords");
+  if (!lookupRecordsValue || !lookupRecordsValue->is_array()) return;
+  const auto& lookupRecords = lookupRecordsValue->get_array();
+  for (std::size_t j = 0; j < lookupRecords.size(); ++j) {
     LookupRecord lookupRecord;
-    QJsonObject lookupRecordObject = lookuprecordsArray[j].toObject();
-    if (!lookupRecordObject.isEmpty()) {
-      lookupRecord.lookupName = lookupRecordObject["lookup"].toString().toStdString();
-      lookupRecord.position = lookupRecordObject["position"].toInt();
-    } else {
-      auto lookupName = lookuprecordsArray[j].toString();
-      if (!lookupName.isEmpty()) {
-        lookupRecord.lookupName = lookupName.toStdString();
-        lookupRecord.position = j;
-      } else {
-        QJsonArray lookupRecordArray = lookuprecordsArray[j].toArray();
-        if (lookupRecordArray.size() == 2) {
-          lookupRecord.position = lookupRecordArray[0].toInt();
-          lookupRecord.lookupName = lookupRecordArray[1].toString().toStdString();
-        }
+    const auto& record = lookupRecords[j];
+    if (record.is_object()) {
+      const auto& object = record.get_object();
+      lookupRecord.lookupName =
+          jsonValueAs<std::string>(object, "lookup").value_or("");
+      lookupRecord.position = jsonValueAs<int>(object, "position").value_or(0);
+    } else if (const auto lookupName = jsonValueAs<std::string>(record)) {
+      lookupRecord.lookupName = *lookupName;
+      lookupRecord.position = static_cast<int>(j);
+    } else if (record.is_array()) {
+      const auto& pair = record.get_array();
+      if (pair.size() == 2) {
+        lookupRecord.position = jsonValueAs<int>(pair[0]).value_or(0);
+        lookupRecord.lookupName =
+            jsonValueAs<std::string>(pair[1]).value_or("");
       }
     }
 
@@ -2317,19 +2230,19 @@ digitalkhatt::ByteBuffer ChainingSubtable::getOpenTypeTable(bool extended) {
     root << lookeprecord.position;
     quint16 lookupListIndex;
 
-    QString fullname = m_lookup->name + "." + QString::fromStdString(lookeprecord.lookupName);
+    std::string fullname = m_lookup->name + "." + lookeprecord.lookupName;
 
     if (m_lookup->isGsubLookup()) {
       if (m_layout->gsublookupsIndexByName.contains(fullname)) {
         lookupListIndex = m_layout->gsublookupsIndexByName[fullname];
       } else {
-        lookupListIndex = m_layout->gsublookupsIndexByName[QString::fromStdString(lookeprecord.lookupName)];
+        lookupListIndex = m_layout->gsublookupsIndexByName[lookeprecord.lookupName];
       }
     } else {
       if (m_layout->gposlookupsIndexByName.contains(fullname)) {
         lookupListIndex = m_layout->gposlookupsIndexByName[fullname];
       } else {
-        lookupListIndex = m_layout->gposlookupsIndexByName[QString::fromStdString(lookeprecord.lookupName)];
+        lookupListIndex = m_layout->gposlookupsIndexByName[lookeprecord.lookupName];
       }
     }
 

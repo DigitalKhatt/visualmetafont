@@ -141,7 +141,7 @@ public:
 
 void LayoutWindow::editLookup(QString lookupName) {
 
-  auto lookupIndex = this->m_otlayout->lookupsIndexByName[lookupName];
+  auto lookupIndex = this->m_otlayout->lookupsIndexByName[lookupName.toStdString()];
 
 
   Lookup* lookup = this->m_otlayout->lookups[lookupIndex];

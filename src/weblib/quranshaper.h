@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "GlazeJson.h"
 
 #include <string>
 #include "OtLayout.h"
@@ -795,27 +796,17 @@ private:
     std::ifstream parametersStream("parameters.json", std::ios::binary);
 
     if (parametersStream) {
-      // get length of file:
-      parametersStream.seekg(0, parametersStream.end);
-      int length = parametersStream.tellg();
-      parametersStream.seekg(0, parametersStream.beg);
-
-      char* buffer = new char[length];
-
-      parametersStream.read(buffer, length);
-
-      if (!parametersStream) {
+      std::string buffer{std::istreambuf_iterator<char>{parametersStream}, {}};
+      ParameterJsonObject parameters;
+      if (glz::read_json(parameters, buffer)) {
         std::cout << "Problem reading file." << "parameters.json";
       }
       else {
-        QJsonDocument mDocument = QJsonDocument::fromJson(QByteArray::fromRawData(buffer, length));
-        layout->readParameters(mDocument.object());
+        layout->readParameters(parameters);
 
       }
 
       parametersStream.close();
-      delete[] buffer;
-
     }
 
 

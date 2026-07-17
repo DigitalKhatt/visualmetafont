@@ -163,7 +163,8 @@ public:
 
     /*
     if (!adjust.isNull()) {
-      std::cout << _subtable.getLookup()->name.toStdString() << "::" << _subtable.name.toStdString() << "::" << className << "::" << glyphName << std::endl;
+      std::cout << _subtable.getLookup()->name << "::" << _subtable.name << "::"
+                << className << "::" << glyphName << std::endl;
     }*/
 
     width = width + adjust.x();

@@ -13,6 +13,14 @@ find_package(BISON REQUIRED)
 find_package(Clipper2 CONFIG REQUIRED)
 
 include(FetchContent)
+FetchContent_Declare(
+  glaze
+  GIT_REPOSITORY https://github.com/stephenberry/glaze.git
+  GIT_TAG v7.5.0
+  GIT_SHALLOW TRUE
+  FIND_PACKAGE_ARGS 7.5.0
+)
+FetchContent_MakeAvailable(glaze)
 #FetchContent_Declare(
 #gjk_epa
 #GIT_REPOSITORY https://github.com/andreacasalino/Flexible-GJK-and-EPA
@@ -156,6 +164,8 @@ set(Layout
   Layout/Lookup.h
   Layout/OtLayout.cpp
   Layout/OtLayout.h
+  Layout/GlazeJson.h
+  Layout/ParameterJson.h
   Layout/Subtable.cpp
   Layout/Subtable.h
   Layout/to_opentype.cpp
@@ -341,11 +351,11 @@ target_include_directories(${VMF_SL} PRIVATE ${FLEX_INCLUDE_DIRS} ${CMAKE_CURREN
 add_dependencies(${VMF_SL} harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout)
 target_compile_options(${VMF_SL} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_compile_definitions(${VMF_SL} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR)
-target_link_libraries(${VMF_SL} PUBLIC harfbuzz mplib Qt5::Core Qt5::Gui Qt5::Widgets PRIVATE digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout)
+target_link_libraries(${VMF_SL} PUBLIC harfbuzz mplib Qt5::Core Qt5::Gui Qt5::Widgets PRIVATE digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout glaze::glaze)
 #add_dependencies(${PROJECT_NAME} ${VMF_SL})
 set_target_properties(${VMF_SL}  PROPERTIES ENABLE_EXPORTS 1 WINDOWS_EXPORT_ALL_SYMBOLS 1)
 set_target_properties(${PROJECT_NAME}  PROPERTIES ENABLE_EXPORTS 1 WINDOWS_EXPORT_ALL_SYMBOLS 1)
-export(TARGETS ${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout FILE ${CMAKE_CURRENT_BINARY_DIR}/visualmetafontConfig.cmake)
+export(TARGETS ${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout glaze_glaze FILE ${CMAKE_CURRENT_BINARY_DIR}/visualmetafontConfig.cmake)
 #export(TARGETS ${VMF_SL} harfbuzz mplib QtPropertyBrowser FILE ${CMAKE_CURRENT_BINARY_DIR}/vmfsl.cmake)
 
 
@@ -462,9 +472,11 @@ else()
     )
 endif()
 
-target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout Qt5::Core)
+target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout Qt5::Core PRIVATE glaze::glaze)
 
-target_link_libraries(${LUATEX_NAME} PUBLIC harfbuzz mplib Qt5::Core)
+target_link_libraries(${LUATEX_NAME} PUBLIC harfbuzz mplib Qt5::Core PRIVATE glaze::glaze)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC glaze::glaze)
 
 target_link_libraries(${LUATEX_NAME} PRIVATE lualib)
 

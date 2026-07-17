@@ -383,7 +383,8 @@ void LayoutWindow::generateOverlapLookups(
     for (auto i = m_otlayout->lookupsIndexByName.cbegin(),
               end = m_otlayout->lookupsIndexByName.cend();
          i != end; ++i) {
-      auto lookupName = i.key();
+      const auto& lookupNameStd = i->first;
+      auto lookupName = QString::fromStdString(lookupNameStd);
 
       if (lookupName != "adjustoverlap" &&
           !lookupName.startsWith("adjustoverlap.main"))
@@ -394,7 +395,7 @@ void LayoutWindow::generateOverlapLookups(
       MainLookup& mainLookup = mainLookups.back();
       mainLookup.name = lookupName;
 
-      auto adjustoverlapLookup = m_otlayout->lookups[i.value()];
+      auto adjustoverlapLookup = m_otlayout->lookups[i->second];
       for (auto subtable : adjustoverlapLookup->subtables) {
         // SingleAdjustmentSubtable* kernTable =
         // dynamic_cast<SingleAdjustmentSubtable*>(subtable);
@@ -426,7 +427,7 @@ void LayoutWindow::generateOverlapLookups(
                 SingleAdjustmentSubtable*>(
                 m_otlayout
                     ->lookups[m_otlayout
-                                  ->lookupsIndexByName[lookupName]]
+                                  ->lookupsIndexByName[lookupName.toStdString()]]
                     ->subtables[0]);
             if (subLookupKerns.find(lookupName) ==
                 subLookupKerns.end()) {

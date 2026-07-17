@@ -153,19 +153,19 @@ void LookupDefinitionVisitor::accept(LookupDefinition& lookupDefinition) {
   this->refLookups = &localrefLookups;
   this->lookup = new Lookup(otlayout);
 
-  lookup->name = QString::fromStdString(lookupDefinition.getName());
+  lookup->name = lookupDefinition.getName();
 
   for (auto stmt : lookupDefinition.getStmts()) {
     stmt->accept(*this);
   }
 
-  if (lookup->subtables.count() != 0) {
+  if (!lookup->subtables.empty()) {
     otlayout->addLookup(lookup);
   }
 
   for (auto refLookupName : localrefLookups) {
-    const auto qRefLookupName = QString::fromStdString(refLookupName);
-    auto lookupsIndex = otlayout->lookupsIndexByName.value(qRefLookupName, -1);
+    auto found = otlayout->lookupsIndexByName.find(refLookupName);
+    auto lookupsIndex = found == otlayout->lookupsIndexByName.end() ? -1 : found->second;
     if (lookupsIndex == -1) {
       auto liter = context.lookups.find(refLookupName);
 
@@ -176,12 +176,13 @@ void LookupDefinitionVisitor::accept(LookupDefinition& lookupDefinition) {
 
       lookupDefinition->accept(*this);
 
-      lookupsIndex = otlayout->lookupsIndexByName.value(qRefLookupName, -1);
+      found = otlayout->lookupsIndexByName.find(refLookupName);
+      lookupsIndex = found == otlayout->lookupsIndexByName.end() ? -1 : found->second;
     }
     if (!currentFeature.empty() && lookupsIndex != -1) {
       Lookup* ll = otlayout->lookups[lookupsIndex];
       if (ll->feature == "inherited") {
-        otlayout->allFeatures[QString::fromStdString(currentFeature)].insert(ll);
+        otlayout->allFeatures[currentFeature].insert(ll);
       }
     }
   }
@@ -192,7 +193,7 @@ void LookupDefinitionVisitor::accept(LookupDefinition& lookupDefinition) {
 }
 
 void LookupDefinitionVisitor::accept(FeatureReference& featureReference) {
-  lookup->feature = QString::fromStdString(featureReference.featureName);
+  lookup->feature = featureReference.featureName;
 }
 
 void LookupDefinitionVisitor::accept(SingleAdjustmentRule& singleRule) {
@@ -208,16 +209,16 @@ void LookupDefinitionVisitor::accept(SingleAdjustmentRule& singleRule) {
     format = 3;
   }
 
-  int subtableName = lookup->subtables.length() + 1;
+  int subtableName = lookup->subtables.size() + 1;
   SingleAdjustmentSubtable* newsubtable = nullptr;
-  if (lookup->subtables.length() > 0) {
-    newsubtable = dynamic_cast<SingleAdjustmentSubtable*>(lookup->subtables.last());
+  if (!lookup->subtables.empty()) {
+    newsubtable = dynamic_cast<SingleAdjustmentSubtable*>(lookup->subtables.back());
   }
 
   if (newsubtable == nullptr || newsubtable->format != format) {
     newsubtable = new SingleAdjustmentSubtable(lookup, format);
     newsubtable->name = QString("subtable%1").arg(subtableName).toStdString();
-    lookup->subtables.append(newsubtable);
+    lookup->subtables.push_back(newsubtable);
   }
 
   auto unicodes = singleRule.glyphset->getCodes(otlayout);
@@ -236,16 +237,16 @@ void LookupDefinitionVisitor::accept(PairAdjustmentRule& pairRule) {
 
   int format = 1;
 
-  int subtableName = lookup->subtables.length() + 1;
+  int subtableName = lookup->subtables.size() + 1;
   PairAdjustmentSubtable* newsubtable = nullptr;
-  if (lookup->subtables.length() > 0) {
-    newsubtable = dynamic_cast<PairAdjustmentSubtable*>(lookup->subtables.last());
+  if (!lookup->subtables.empty()) {
+    newsubtable = dynamic_cast<PairAdjustmentSubtable*>(lookup->subtables.back());
   }
 
   if (newsubtable == nullptr || newsubtable->format != format) {
     newsubtable = new PairAdjustmentSubtable(lookup, format);
     newsubtable->name = QString("subtable%1").arg(subtableName).toStdString();
-    lookup->subtables.append(newsubtable);
+    lookup->subtables.push_back(newsubtable);
   }
 
   auto codes1 = pairRule.glyphSet1->getCodes(otlayout);
@@ -267,7 +268,7 @@ void LookupDefinitionVisitor::accept(PairAdjustmentRule& pairRule) {
       if (func) {
         valueRecord2 = func;
       } else {
-        std::cerr << "Pair adjustment function " << funcName << " does not exist for lookup " << lookup->name.toStdString() << std::endl;
+        std::cerr << "Pair adjustment function " << funcName << " does not exist for lookup " << lookup->name << std::endl;
         valueRecord2 = ValueRecord{};
       }
     }
@@ -285,16 +286,16 @@ void LookupDefinitionVisitor::accept(CursiveRule& cursiveRule) {
     throw "Lookup with different subtable type";
   }
 
-  int subtableName = lookup->subtables.length() + 1;
+  int subtableName = lookup->subtables.size() + 1;
   CursiveSubtable* newsubtable = nullptr;
-  if (lookup->subtables.length() > 0) {
-    newsubtable = dynamic_cast<CursiveSubtable*>(lookup->subtables.last());
+  if (!lookup->subtables.empty()) {
+    newsubtable = dynamic_cast<CursiveSubtable*>(lookup->subtables.back());
   }
 
   if (newsubtable == nullptr) {
     newsubtable = new CursiveSubtable(lookup);
     newsubtable->name = QString("subtable%1").arg(subtableName).toStdString();
-    lookup->subtables.append(newsubtable);
+    lookup->subtables.push_back(newsubtable);
   }
 
   CursiveSubtable::EntryExit value;
@@ -335,10 +336,10 @@ void LookupDefinitionVisitor::accept(Mark2BaseRule& mark2BaseRule) {
     throw "Lookup with different subtable type";
   }
 
-  int subtableName = lookup->subtables.length() + 1;
+  int subtableName = lookup->subtables.size() + 1;
   MarkBaseSubtable* newsubtable = new MarkBaseSubtable(lookup);
   newsubtable->name = QString("subtable%1").arg(subtableName).toStdString();
-  lookup->subtables.append(newsubtable);
+  lookup->subtables.push_back(newsubtable);
 
   const auto sortedBaseCodes = mark2BaseRule.baseGlyphSet->getSortedCodes(otlayout);
   newsubtable->sortedBaseCodes.assign(sortedBaseCodes.begin(), sortedBaseCodes.end());
@@ -387,7 +388,7 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
   if (lookup->type == Lookup::none) {
     lookup->type = Lookup::single;
   } else if (lookup->type == Lookup::multiple && singleRule.format != 10 && singleRule.format != 11 && singleRule.firstType != SingleSubstituionRule::FirstType::GLYPHSET) {
-    auto newsubtable = static_cast<MultipleSubtable*>(lookup->subtables.last());
+    auto newsubtable = static_cast<MultipleSubtable*>(lookup->subtables.back());
 
     /*auto firstunicodes = singleRule.firstglyph->getCodes(otlayout);
 
@@ -416,10 +417,10 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
     throw "Lookup with different subtable type";
   }
 
-  int subtableIndex = lookup->subtables.length() + 1;
+  int subtableIndex = lookup->subtables.size() + 1;
   SingleSubtable* newsubtable = nullptr;
-  if (lookup->subtables.length() > 0) {
-    newsubtable = static_cast<SingleSubtable*>(lookup->subtables.last());
+  if (!lookup->subtables.empty()) {
+    newsubtable = static_cast<SingleSubtable*>(lookup->subtables.back());
   }
 
   if (newsubtable == nullptr || newsubtable->format != singleRule.format) {
@@ -432,7 +433,7 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
     }
 
     newsubtable->name = QString("subtable%1").arg(subtableIndex).toStdString();
-    lookup->subtables.append(newsubtable);
+    lookup->subtables.push_back(newsubtable);
   }
 
   if (singleRule.format != 11) {
@@ -583,7 +584,7 @@ void LookupDefinitionVisitor::accept(ChainingContextualRule& contextualRule) {
         auto stmts = new vector<Statement*>();
         stmts->push_back(value->stmt);
 
-        QString name = QString("%1_auto%2").arg(lookup->name).arg(nextautolookup++);
+        QString name = QString("%1_auto%2").arg(QString::fromStdString(lookup->name)).arg(nextautolookup++);
 
         std::string named = name.toStdString();
 
@@ -621,7 +622,7 @@ void LookupDefinitionVisitor::accept(ChainingContextualRule& contextualRule) {
     for (auto lookahead : compiledlookahead) {
       for (auto input : compiledinputs) {
         ChainingSubtable* newsubtable = new ChainingSubtable(lookup);
-        lookup->subtables.append(newsubtable);
+        lookup->subtables.push_back(newsubtable);
 
         for (const auto& set : backtrack) {
           newsubtable->compiledRule.backtrack.emplace_back(set.begin(), set.end());
@@ -651,12 +652,12 @@ void LookupDefinitionVisitor::accept(ChainingContextualRule& contextualRule) {
 }
 
 void LookupDefinitionVisitor::accept(ClassDefinition& classDef) {
-  QSet<QString> set;
+  std::unordered_set<std::string> set;
 
   for (auto glyph : classDef.components->getCodes(otlayout)) {
-    set.insert(QString::fromStdString(otlayout->glyphNamePerCode[glyph]));
+    set.insert(otlayout->glyphNamePerCode[glyph]);
   }
-  otlayout->addClass(QString::fromStdString(classDef.name), set);
+  otlayout->addClass(classDef.name, std::move(set));
 }
 
 void LookupDefinitionVisitor::accept(MarkedGlyphSetRegExp& markedGlyphSetRegExp) {
@@ -664,7 +665,7 @@ void LookupDefinitionVisitor::accept(MarkedGlyphSetRegExp& markedGlyphSetRegExp)
     auto stmts = new vector<Statement*>();
     stmts->push_back(markedGlyphSetRegExp.stmt);
 
-    QString name = QString("%1_auto%2").arg(lookup->name).arg(nextautolookup++);
+    QString name = QString("%1_auto%2").arg(QString::fromStdString(lookup->name)).arg(nextautolookup++);
 
     auto lookupName = name.toStdString();
 
@@ -679,7 +680,8 @@ void LookupDefinitionVisitor::accept(LookupStatement&) {
 
 void LookupDefinitionVisitor::accept(LookupReference& lookupReference) {
   const auto qLookupName = QString::fromStdString(lookupReference.lookupName);
-  auto lookupsIndex = otlayout->lookupsIndexByName.value(qLookupName, -1);
+  auto found = otlayout->lookupsIndexByName.find(lookupReference.lookupName);
+  auto lookupsIndex = found == otlayout->lookupsIndexByName.end() ? -1 : found->second;
 
   if (lookupsIndex == -1) {
     auto liter = context.lookups.find(lookupReference.lookupName);
@@ -696,12 +698,13 @@ void LookupDefinitionVisitor::accept(LookupReference& lookupReference) {
 
     lookupDefinition->accept(*this);
 
-    lookupsIndex = otlayout->lookupsIndexByName.value(qLookupName, -1);
+    found = otlayout->lookupsIndexByName.find(lookupReference.lookupName);
+    lookupsIndex = found == otlayout->lookupsIndexByName.end() ? -1 : found->second;
   }
   if (!currentFeature.empty() && lookupsIndex != -1) {
     Lookup* ll = otlayout->lookups[lookupsIndex];
     if (ll->feature == "inherited") {
-      otlayout->allFeatures[QString::fromStdString(currentFeature)].insert(ll);
+      otlayout->allFeatures[currentFeature].insert(ll);
     }
   }
 }
@@ -720,31 +723,31 @@ void LookupDefinitionVisitor::accept(MultipleSubstitutionRule& multipleSubstitut
 
   if (lookup->type == Lookup::none) {
     lookup->type = Lookup::multiple;
-  } else if (lookup->type == Lookup::single && lookup->subtables.length() == 1) {
+  } else if (lookup->type == Lookup::single && lookup->subtables.size() == 1) {
     lookup->type = Lookup::multiple;
     newsubtable = new MultipleSubtable(lookup);
-    auto oldsubtable = static_cast<SingleSubtable*>(lookup->subtables.last());
+    auto oldsubtable = static_cast<SingleSubtable*>(lookup->subtables.back());
     for (auto it = oldsubtable->subst.begin(); it != oldsubtable->subst.end(); it++) {
       newsubtable->subst.emplace(it->first, std::vector<quint16>{it->second});
     }
     delete oldsubtable;
     lookup->subtables.clear();
-    lookup->subtables.append(newsubtable);
+    lookup->subtables.push_back(newsubtable);
   } else if (lookup->type != Lookup::multiple) {
     throw "Lookup with different subtable type";
   }
 
-  int subtableName = lookup->subtables.length() + 1;
+  int subtableName = lookup->subtables.size() + 1;
 
-  if (lookup->subtables.length() > 0) {
-    newsubtable = static_cast<MultipleSubtable*>(lookup->subtables.last());
+  if (!lookup->subtables.empty()) {
+    newsubtable = static_cast<MultipleSubtable*>(lookup->subtables.back());
   }
 
   if (newsubtable == nullptr || newsubtable->format != multipleSubstitutionRule.format) {
     newsubtable = new MultipleSubtable(lookup);
 
     newsubtable->name = QString("subtable%1").arg(subtableName).toStdString();
-    lookup->subtables.append(newsubtable);
+    lookup->subtables.push_back(newsubtable);
   }
 
   /*auto firstunicodes = multipleSubstitutionRule.glyph->getCodes(otlayout);
@@ -781,17 +784,17 @@ void LookupDefinitionVisitor::accept(LigatureSubstitutionRule& ligatureSubstitut
     throw "Lookup with different subtable type";
   }
 
-  int subtableName = lookup->subtables.length() + 1;
+  int subtableName = lookup->subtables.size() + 1;
   LigatureSubtable* newsubtable = nullptr;
-  if (lookup->subtables.length() > 0) {
-    newsubtable = static_cast<LigatureSubtable*>(lookup->subtables.last());
+  if (!lookup->subtables.empty()) {
+    newsubtable = static_cast<LigatureSubtable*>(lookup->subtables.back());
   }
 
   if (newsubtable == nullptr || newsubtable->format != ligatureSubstitutionRule.format) {
     newsubtable = new LigatureSubtable(lookup);
 
     newsubtable->name = QString("subtable%1").arg(subtableName).toStdString();
-    lookup->subtables.append(newsubtable);
+    lookup->subtables.push_back(newsubtable);
   }
 
   LigatureSubtable::Ligature ligStruct;
@@ -810,8 +813,8 @@ void LookupDefinitionVisitor::accept(JustTable& jusTable) {
   Just ot_justTable{otlayout};
 
   for (auto& lname : jusTable.aftergsub) {
-    QString name = QString::fromStdString(lname);
-    auto lookupsIndex = otlayout->lookupsIndexByName.value(name, -1);
+    auto found = otlayout->lookupsIndexByName.find(lname);
+    auto lookupsIndex = found == otlayout->lookupsIndexByName.end() ? -1 : found->second;
     if (lookupsIndex == -1) {
       auto liter = context.lookups.find(lname);
 
@@ -823,7 +826,8 @@ void LookupDefinitionVisitor::accept(JustTable& jusTable) {
 
       lookupDefinition->accept(*this);
 
-      lookupsIndex = otlayout->lookupsIndexByName.value(name, -1);
+      found = otlayout->lookupsIndexByName.find(lname);
+      lookupsIndex = found == otlayout->lookupsIndexByName.end() ? -1 : found->second;
     }
     auto* lookup = otlayout->lookups[lookupsIndex];
     if (!lookup->isGsubLookup()) {
@@ -840,8 +844,8 @@ void LookupDefinitionVisitor::accept(JustTable& jusTable) {
     for (auto& step : rules) {
       Just::JustStep ot_Step;
       for (auto& lname : step.lookupNames) {
-        QString name = QString::fromStdString(lname);
-        auto lookupsIndex = otlayout->lookupsIndexByName.value(name, -1);
+        auto found = otlayout->lookupsIndexByName.find(lname);
+        auto lookupsIndex = found == otlayout->lookupsIndexByName.end() ? -1 : found->second;
         if (lookupsIndex == -1) {
           auto liter = context.lookups.find(lname);
 
@@ -853,7 +857,8 @@ void LookupDefinitionVisitor::accept(JustTable& jusTable) {
 
           lookupDefinition->accept(*this);
 
-          lookupsIndex = otlayout->lookupsIndexByName.value(name, -1);
+          found = otlayout->lookupsIndexByName.find(lname);
+          lookupsIndex = found == otlayout->lookupsIndexByName.end() ? -1 : found->second;
         }
         auto* lookup = otlayout->lookups[lookupsIndex];
         if (ot_Step.lookups.size() != 0 && ot_Step.gsub != lookup->isGsubLookup()) {

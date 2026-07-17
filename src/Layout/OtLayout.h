@@ -39,6 +39,7 @@
 
 #include "FSMDriver.h"
 #include "JustificationContext.h"
+#include "ParameterJson.h"
 #include "commontypes.h"
 #include "global.h"
 #include "hb.h"
@@ -266,10 +267,10 @@ class OtLayout : public QObject {
   std::unordered_set<std::uint16_t> classtoUnicode(const std::string& className);
   std::unordered_set<std::uint16_t> regexptoUnicode(const std::string& regexp);
 
-  void saveParameters(QJsonObject& json) const;
-  void readParameters(const QJsonObject& json);
+  void saveParameters(ParameterJsonObject& json) const;
+  void readParameters(const ParameterJsonObject& json);
 
-  void addClass(QString name, QSet<QString> set);
+  void addClass(std::string name, std::unordered_set<std::string> set);
 
   digitalkhatt::ByteBuffer getGSUB();
   digitalkhatt::ByteBuffer getGPOS();
@@ -284,14 +285,14 @@ class OtLayout : public QObject {
 
   QString import;
 
-  QVector<Lookup*> gsublookups;
-  QVector<Lookup*> gposlookups;
-  QVector<Lookup*> lookups;
-  QMap<QString, QSet<Lookup*>> allFeatures;
+  std::vector<Lookup*> gsublookups;
+  std::vector<Lookup*> gposlookups;
+  std::vector<Lookup*> lookups;
+  std::map<std::string, std::set<Lookup*>> allFeatures;
 
-  QMap<QString, int> gsublookupsIndexByName;
-  QMap<QString, int> gposlookupsIndexByName;
-  QMap<QString, int> lookupsIndexByName;
+  std::map<std::string, int> gsublookupsIndexByName;
+  std::map<std::string, int> gposlookupsIndexByName;
+  std::map<std::string, int> lookupsIndexByName;
 
   digitalkhatt::ByteBuffer scriptList;
 
@@ -460,7 +461,7 @@ class OtLayout : public QObject {
   QMap<QString, QSet<quint16>> allGposFeatures;
   QMap<QString, QSet<quint16>> allGsubFeatures;
 
-  digitalkhatt::ByteBuffer getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures, QMap<QString, int>& lookupsIndexByName);
+  digitalkhatt::ByteBuffer getGSUBorGPOS(bool isgsub, std::vector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures, std::map<std::string, int>& lookupsIndexByName);
   digitalkhatt::ByteBuffer getFeatureList(QMap<QString, QSet<quint16>> allFeatures);
   digitalkhatt::ByteBuffer getScriptList(int featureCount);
 

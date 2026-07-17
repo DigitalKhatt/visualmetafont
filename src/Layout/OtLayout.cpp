@@ -32,6 +32,7 @@
 #include "qjsonarray.h"
 #include "qjsondocument.h"
 #include "qjsonobject.h"
+#include "GlazeJson.h"
 // #include <QFile>
 // #include <QTextStream>
 // #include "QJSValueIterator"
@@ -439,7 +440,7 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
 
     auto& curr_glyph = *layout->getGlyph(curr_info.codepoint);
 
-  } else if (lookupTable->name.startsWith("expa.")) {
+  } else if (lookupTable->name.starts_with("expa.")) {
     auto buffer = context->buffer;
 
     auto& curr_info = buffer->cur();
@@ -703,7 +704,8 @@ digitalkhatt::ByteBuffer OtLayout::getGPOS() {
 
   gpos_array = getGSUBorGPOS(false, gposlookups, allGposFeatures, gposlookupsIndexByName);
 
-  tajweedcolorindex = gposlookupsIndexByName.value("green", 0xFFFF);
+  const auto green = gposlookupsIndexByName.find("green");
+  tajweedcolorindex = green == gposlookupsIndexByName.end() ? 0xFFFF : green->second;
 
   return gpos_array;
 }
@@ -742,8 +744,8 @@ digitalkhatt::ByteBuffer OtLayout::getScriptList(int featureCount) {
   return scriptList;
 }
 
-digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures,
-                                   QMap<QString, int>& lookupsIndexByName) {
+digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures,
+                                   std::map<std::string, int>& lookupsIndexByName) {
   allFeatures.clear();
   lookupsIndexByName.clear();
   lookups.clear();
@@ -754,16 +756,17 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& 
         quint16 lookupIndex = lookups.size();
 
         lookupsIndexByName[lookup->name] = lookupIndex;
-        lookups.append(lookup);
+        lookups.push_back(lookup);
       }
     }
   }
 
-  for (auto featureName : this->allFeatures.keys()) {
-    for (auto lookup : this->allFeatures.value(featureName)) {
-      int lookupIndex = lookupsIndexByName.value(lookup->name, -1);
+  for (const auto& [featureName, featureLookups] : this->allFeatures) {
+    for (auto lookup : featureLookups) {
+      const auto found = lookupsIndexByName.find(lookup->name);
+      int lookupIndex = found == lookupsIndexByName.end() ? -1 : found->second;
       if (lookupIndex != -1) {
-        allFeatures[featureName].insert(lookupIndex);
+        allFeatures[QString::fromStdString(featureName)].insert(lookupIndex);
       }
     }
   }
@@ -780,7 +783,7 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& 
   for (auto* lookup : lookups) {
     const auto subtableCount = lookup->getSubtables(extended).size();
     lookupListtotalSize += 6 + 2 * subtableCount;
-    if (lookup->markGlyphSetIndex != -1) lookupListtotalSize += 2;
+    if (lookup->markGlyphSetIndex != Lookup::NoMarkGlyphSet) lookupListtotalSize += 2;
     lookupListtotalSize += 8 * subtableCount;
   }
   const quint16 extensiontype =
@@ -809,7 +812,7 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& 
     lookupTable.writeU16(lookup->flags);          // lookupFlag
     lookupTable.writeU16(lookupSubtables.size()); // subTableCount
     uint16_t extensionOffset = 6 + 2 * lookupSubtables.size();
-    if (lookup->markGlyphSetIndex != -1) extensionOffset += 2;
+    if (lookup->markGlyphSetIndex != Lookup::NoMarkGlyphSet) extensionOffset += 2;
     for (auto* subtable : lookupSubtables) {
       lookupTable.writeU16(extensionOffset);
       extensions.writeU16(1);  // extension format
@@ -823,7 +826,7 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& 
       subtablesDataOffset += subtableBytes.size();
       extensionOffset += 8;
     }
-    if (lookup->markGlyphSetIndex != -1)
+    if (lookup->markGlyphSetIndex != Lookup::NoMarkGlyphSet)
       lookupTable.writeU16(lookup->markGlyphSetIndex);
     lookupTable.append(extensions);
     lookupList.writeU16(lookupOffset);
@@ -1027,18 +1030,18 @@ void OtLayout::addLookup(Lookup* lookup) {
     throw "Lookup Type not defined";
   }
 
-  if (lookup->name.isEmpty()) {
+  if (lookup->name.empty()) {
     throw "Lookup name not defined";
   }
 
-  if (!lookup->feature.isEmpty() && lookup->feature != "inherited") {
+  if (!lookup->feature.empty() && lookup->feature != "inherited") {
     allFeatures[lookup->feature].insert(lookup);
   }
 
   quint16 lookupIndex = lookups.size();
 
   lookupsIndexByName[lookup->name] = lookupIndex;
-  lookups.append(lookup);
+  lookups.push_back(lookup);
 }
 
 void OtLayout::loadLookupFile(std::string fileName) {
@@ -1061,29 +1064,22 @@ void OtLayout::loadLookupFile(std::string fileName) {
   std::ifstream parametersStream(parametersFileName.toStdString(), std::ios::binary);
 
   if (parametersStream) {
-    // get length of file:
-    parametersStream.seekg(0, parametersStream.end);
-    int length = parametersStream.tellg();
-    parametersStream.seekg(0, parametersStream.beg);
-
-    char* buffer = new char[length];
-
-    parametersStream.read(buffer, length);
-
-    if (!parametersStream) {
+    std::string buffer{std::istreambuf_iterator<char>{parametersStream}, {}};
+    ParameterJsonObject parameters;
+    if (glz::read_json(parameters, buffer)) {
       std::cout << "Problem reading file." << absoluteFileName;
     } else {
-      QJsonDocument mDocument = QJsonDocument::fromJson(QByteArray::fromRawData(buffer, length));
-      this->readParameters(mDocument.object());
+      readParameters(parameters);
     }
 
     parametersStream.close();
-    delete[] buffer;
     QSettings settings;
-    for (auto& feature : allFeatures.keys()) {
-      auto& lookups = allFeatures[feature];
-      for (auto lookup : lookups) {
-        bool disabled = settings.value("DisabledLookups/" + lookup->name).toBool();
+    for (auto& [feature, featureLookups] : allFeatures) {
+      for (auto lookup : featureLookups) {
+        bool disabled = settings
+                            .value("DisabledLookups/" +
+                                   QString::fromStdString(lookup->name))
+                            .toBool();
         if (disabled) {
           disabledLookups.insert(lookup);
         }
@@ -1136,40 +1132,34 @@ bool OtLayout::parseCppLookup(QString lookupName) {
   }
   return false;
 }
-void OtLayout::saveParameters(QJsonObject& json) const {
+void OtLayout::saveParameters(ParameterJsonObject& json) const {
   for (auto lookup : lookups) {
     if (!lookup->isGsubLookup()) {
-      QJsonObject lookupObject;
+      ParameterJsonObject lookupObject;
       lookup->saveParameters(lookupObject);
-      if (!lookupObject.isEmpty()) {
-        json[lookup->name] = lookupObject;
+      if (!lookupObject.empty()) {
+        json[lookup->name] = std::move(lookupObject);
       }
     }
   }
 }
-void OtLayout::readParameters(const QJsonObject& json) {
+void OtLayout::readParameters(const ParameterJsonObject& json) {
   for (auto lookup : lookups) {
     if (!lookup->isGsubLookup()) {
-      if (!json[lookup->name].toObject().isEmpty()) {
-        lookup->readParameters(json[lookup->name].toObject());
-      }
+      const auto found = json.find(lookup->name);
+      if (found == json.end() || !found->second.is_object()) continue;
+      lookup->readParameters(found->second.get_object());
     }
   }
 }
-void OtLayout::addClass(QString name, QSet<QString> set) {
-  auto nameStd = name.toStdString();
-  if (automedina->classes.contains(nameStd)) {
+void OtLayout::addClass(std::string name, std::unordered_set<std::string> set) {
+  if (automedina->classes.contains(name)) {
     if (name == "haslefttatweel" && automedina->extended == false) {
       return;
     }
     // throw "Class " + name + " Already exists";
   }
-  digitalkhatt::layout::ClassSet setStd;
-  setStd.reserve(set.size());
-  for (const auto& glyphName : set) {
-    setStd.insert(glyphName.toStdString());
-  }
-  automedina->classes[nameStd] = std::move(setStd);
+  automedina->classes[name] = std::move(set);
 }
 hb_font_t* OtLayout::createFont(double emScale, bool newFace) {
   int upem = 1000;
@@ -1288,7 +1278,7 @@ void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableI
 
     subtableTable->parameters[markCode] = newvalue;
 
-    qDebug() << QString("Changing single adjust anchor %1.%2.%3 :").arg(lookupTable->name, QString::fromStdString(subtable->name), QString::fromStdString(glyphName)) << newvalue.xPlacement << newvalue.yPlacement << newvalue.xAdvance;
+    qDebug() << QString("Changing single adjust anchor %1.%2.%3 :").arg(QString::fromStdString(lookupTable->name), QString::fromStdString(subtable->name), QString::fromStdString(glyphName)) << newvalue.xPlacement << newvalue.yPlacement << newvalue.xAdvance;
 
     subtableTable->isDirty = true;
 
@@ -1315,7 +1305,7 @@ void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableI
 
       subtableTable->classes[className].baseparameters[baseGlyphName] = newvalue;
 
-      qDebug() << QString("Changing base anchor %1::%2::%3::%4 : (%5,%6)").arg(lookupTable->name, QString::fromStdString(subtable->name), QString::fromStdString(className), QString::fromStdString(baseGlyphName), QString::number(newvalue.x()), QString::number(newvalue.y()));
+      qDebug() << QString("Changing base anchor %1::%2::%3::%4 : (%5,%6)").arg(QString::fromStdString(lookupTable->name), QString::fromStdString(subtable->name), QString::fromStdString(className), QString::fromStdString(baseGlyphName), QString::number(newvalue.x()), QString::number(newvalue.y()));
 
     } else {
       const auto& markGlyphName = glyphNamePerCode[markCode];
@@ -1325,7 +1315,7 @@ void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableI
 
       subtableTable->classes[className].markparameters[markGlyphName] = prev - displacement;
 
-      qDebug() << QString("Changing mark anchor %1::%2::%3::%4 : (%5,%6)").arg(lookupTable->name, QString::fromStdString(subtable->name), QString::fromStdString(className), QString::fromStdString(markGlyphName), QString::number(newvalue.x()), QString::number(newvalue.y()));
+      qDebug() << QString("Changing mark anchor %1::%2::%3::%4 : (%5,%6)").arg(QString::fromStdString(lookupTable->name), QString::fromStdString(subtable->name), QString::fromStdString(className), QString::fromStdString(markGlyphName), QString::number(newvalue.x()), QString::number(newvalue.y()));
     }
     subtableTable->isDirty = true;
 
@@ -1355,12 +1345,12 @@ void OtLayout::setParameter(quint16 glyphCode, quint32 lookup, quint32 subtableI
       Point newvalue = subtableTable->entryParameters[glyphCode] - Point(displacement);
       subtableTable->entryParameters[glyphCode] = newvalue;
 
-      qDebug() << QString("Changing cursive entry anchor %1::%2::%3 :").arg(lookupTable->name, QString::fromStdString(subtable->name), QString::fromStdString(glyphName)) << QPoint(newvalue);
+      qDebug() << QString("Changing cursive entry anchor %1::%2::%3 :").arg(QString::fromStdString(lookupTable->name), QString::fromStdString(subtable->name), QString::fromStdString(glyphName)) << QPoint(newvalue);
     } else {
       Point newvalue = subtableTable->exitParameters[baseCode] + Point(displacement);
       subtableTable->exitParameters[baseCode] = newvalue;
 
-      qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :").arg(lookupTable->name, QString::fromStdString(subtable->name), QString::fromStdString(baseGlyphName)) << QPoint(newvalue);
+      qDebug() << QString("Changing cursive exit anchor %1::%2::%3 :").arg(QString::fromStdString(lookupTable->name), QString::fromStdString(subtable->name), QString::fromStdString(baseGlyphName)) << QPoint(newvalue);
     }
     //}
 
@@ -3287,8 +3277,9 @@ digitalkhatt::ByteBuffer Just::getOpenTypeTable() {
   digitalkhatt::ByteBuffer afterGsub;
   afterGsub.writeU16(lastGsubLookups.size());  // lookupCount
   for (auto* lookup : lastGsubLookups) {
-    if (layout->gsublookupsIndexByName.contains(lookup->name)) {
-      const auto index = layout->gsublookupsIndexByName.value(lookup->name, -1);
+    const auto found = layout->gsublookupsIndexByName.find(lookup->name);
+    if (found != layout->gsublookupsIndexByName.end()) {
+      const auto index = found->second;
       if (index != -1) afterGsub.writeU16(index);
     }
   }
@@ -3301,8 +3292,9 @@ digitalkhatt::ByteBuffer Just::getOpenTypeTable() {
       for (auto* lookup : step.lookups) {
         const auto& indexes = step.gsub ? layout->gsublookupsIndexByName
                                         : layout->gposlookupsIndexByName;
-        if (indexes.contains(lookup->name)) {
-          const auto index = indexes.value(lookup->name, -1);
+        const auto found = indexes.find(lookup->name);
+        if (found != indexes.end()) {
+          const auto index = found->second;
           if (index != -1) lookupIndexes.push_back(index);
         }
       }

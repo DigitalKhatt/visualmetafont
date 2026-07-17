@@ -134,7 +134,7 @@ namespace feayy {
     else {
       lookup = new Lookup(otlayout);
       lookup->type = Lookup::fsmgsub;
-      lookup->name = QString::fromStdString(tableDefinition.name);
+      lookup->name = tableDefinition.name;
       otlayout->setDisabled(lookup);
     }
 
@@ -146,10 +146,10 @@ namespace feayy {
       FSMSubtable* fsm = new FSMSubtable(lookup);
       fsm->name = tableDefinition.name + std::to_string(pass.number());
       fsm->dfa = pass.computeDFA(*otlayout);
-      lookup->subtables.append(fsm);
+      lookup->subtables.push_back(fsm);
     }
 
-    if (!insideLookup && lookup->subtables.count() != 0) {
+    if (!insideLookup && !lookup->subtables.empty()) {
       otlayout->addTable(lookup);
     }
   }
