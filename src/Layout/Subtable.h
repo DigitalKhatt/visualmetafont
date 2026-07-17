@@ -31,6 +31,7 @@
 
 #include "JustificationContext.h"
 #include "OtLayout.h"
+#include "digitalkhatt/core/ByteBuffer.h"
 // #include "hb-font.hh"
 
 template <typename Map>
@@ -74,22 +75,22 @@ struct Subtable {
   virtual ~Subtable() {};
 
   virtual void readJson(const QJsonObject& json) {};
-  virtual QByteArray getOptOpenTypeTable(bool extended) {
+  virtual digitalkhatt::ByteBuffer getOptOpenTypeTable(bool extended) {
     if (isDirty) {
       return getOpenTypeTable(extended);
     } else {
       return openTypeSubTable;
     }
   };
-  virtual QByteArray getConvertedOpenTypeTable() {
+  virtual digitalkhatt::ByteBuffer getConvertedOpenTypeTable() {
     return getOpenTypeTable(false);
   }
 
   virtual void generateSubstEquivGlyphs() {
   }
 
-  virtual QByteArray getOpenTypeTable(bool extended) {
-    return QByteArray();
+  virtual digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) {
+    return {};
   };
   virtual std::uint16_t getCodeFromName(std::string name);
   virtual std::string getNameFromCode(std::uint16_t code);
@@ -112,16 +113,16 @@ struct Subtable {
   Font* metafont;
   OtLayout* m_layout;
   bool isDirty = true;
-  QByteArray openTypeSubTable;
+  digitalkhatt::ByteBuffer openTypeSubTable;
   void setVariationIndexOffset(
-      QByteArray& anchorTables,
+      digitalkhatt::ByteBuffer& anchorTables,
       quint32 anchorOffset,
       std::map<int, std::pair<int, std::pair<int, int>>>& posToVar);
 };
 
 struct SingleSubtable : Subtable {
   SingleSubtable(Lookup* lookup, std::uint16_t format = 2);
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
   void readJson(const QJsonObject& json) override;
 
   std::map<std::uint16_t, std::uint16_t> subst;
@@ -133,7 +134,7 @@ struct SingleSubtable : Subtable {
 
 struct SingleSubtableWithExpansion : SingleSubtable {
   SingleSubtableWithExpansion(Lookup* lookup);
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
   // void readJson(const QJsonObject &json) override;
 
   std::map<std::uint16_t, GlyphExpansion> expansion;
@@ -143,23 +144,23 @@ struct SingleSubtableWithExpansion : SingleSubtable {
 
 struct SingleSubtableWithTatweel : SingleSubtable {
   SingleSubtableWithTatweel(Lookup* lookup);
-  // QByteArray getOpenTypeTable() override;
+  // digitalkhatt::ByteBuffer getOpenTypeTable() override;
   // void readJson(const QJsonObject &json) override;
 
   std::map<std::uint16_t, GlyphExpansion> expansion;
 
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
 
   bool isConvertible() override { return true; }
 
-  QByteArray getConvertedOpenTypeTable() override;
+  digitalkhatt::ByteBuffer getConvertedOpenTypeTable() override;
 
   virtual void generateSubstEquivGlyphs() override;
 };
 
 struct MultipleSubtable : Subtable {
   MultipleSubtable(Lookup* lookup);
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
   void readJson(const QJsonObject& json) override;
 
   std::map<std::uint16_t, std::vector<std::uint16_t>> subst;
@@ -169,7 +170,7 @@ struct MultipleSubtable : Subtable {
 
 struct AlternateSubtable : Subtable {
   AlternateSubtable(Lookup* lookup, std::uint16_t format = 1);
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
 
   std::map<std::uint16_t, std::vector<ExtendedGlyph>> alternates;
 
@@ -181,18 +182,18 @@ struct AlternateSubtable : Subtable {
 struct AlternateSubtableWithTatweel : AlternateSubtable {
   AlternateSubtableWithTatweel(Lookup* lookup);
 
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
 
   bool isConvertible() override { return true; }
 
-  QByteArray getConvertedOpenTypeTable() override;
+  digitalkhatt::ByteBuffer getConvertedOpenTypeTable() override;
 
   virtual void generateSubstEquivGlyphs() override;
 };
 
 struct LigatureSubtable : Subtable {
   LigatureSubtable(Lookup* lookup);
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
   void readJson(const QJsonObject& json) override;
 
   struct Ligature {
@@ -207,7 +208,7 @@ struct LigatureSubtable : Subtable {
 
 struct SingleAdjustmentSubtable : Subtable {
   SingleAdjustmentSubtable(Lookup* lookup, std::uint16_t format = 2);
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
   void readJson(const QJsonObject& json) override;
   void saveParameters(QJsonObject& json) const override;
   void readParameters(const QJsonObject& json) override;
@@ -231,7 +232,7 @@ struct PairAdjustmentSubtable : Subtable {
     ValueRecord valueRecord2;
   };
   PairAdjustmentSubtable(Lookup* lookup, std::uint16_t format = 1);
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
   // void saveParameters(QJsonObject& json) const override;
   // void readParameters(const QJsonObject& json) override;
 
@@ -256,7 +257,7 @@ struct CursiveSubtable : Subtable {
     std::string exitName;
   };
   CursiveSubtable(Lookup* lookup) : Subtable{lookup} {}
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
   void readJson(const QJsonObject& json) override;
   void readParameters(const QJsonObject& json) override;
   void saveParameters(QJsonObject& json) const override;
@@ -274,8 +275,8 @@ struct CursiveSubtable : Subtable {
 
  private:
   void setAnchorTable(std::uint16_t glyphCode,
-                      QByteArray& entryExitRecords,
-                      QByteArray& anchorTables,
+                      digitalkhatt::ByteBuffer& entryExitRecords,
+                      digitalkhatt::ByteBuffer& anchorTables,
                       quint32& anchorOffset,
                       std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
                       bool extended,
@@ -295,7 +296,7 @@ struct MarkBaseSubtable : Subtable {
   };
   MarkBaseSubtable(Lookup* lookup);
 
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
   void readJson(const QJsonObject& json) override;
   void saveParameters(QJsonObject& json) const override;
   void readParameters(const QJsonObject& json) override;
@@ -320,7 +321,7 @@ struct MarkBaseSubtable : Subtable {
  private:
   void setAnchorTable(std::string className,
                       std::uint16_t glyphCode,
-                      QByteArray& anchorTables,
+                      digitalkhatt::ByteBuffer& anchorTables,
                       quint32& anchorOffset,
                       std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
                       bool extended,
@@ -347,7 +348,7 @@ struct ChainingSubtable : Subtable {
   };
 
   ChainingSubtable(Lookup* lookup);
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
   void readJson(const QJsonObject& json) override;
 
   Rule rule;
@@ -432,7 +433,7 @@ struct FSMSubtable : Subtable {
  public:
   FSMSubtable(Lookup* lookup) : Subtable{lookup} {}
 
-  QByteArray getOpenTypeTable(bool extended) override;
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
 
   bool isExtended() override { return false; }
 

@@ -21,7 +21,7 @@
 #define TOOPENTYPE_H
 
 #include "qstring.h"
-#include "QByteArrayOperator.h"
+#include "digitalkhatt/core/ByteBuffer.h"
 #include "qmap.h"
 #include "qstring.h"
 #include "commontypes.h"
@@ -34,8 +34,8 @@ struct mp_fill_object;
 typedef struct mp_gr_knot_data* mp_gr_knot;
 
 struct ItemVariationStore {
-  QByteArray getVariationRegionList();
-  QByteArray getOpenTypeTable();
+  digitalkhatt::ByteBuffer getVariationRegionList();
+  digitalkhatt::ByteBuffer getOpenTypeTable();
   std::unordered_map<ValueLimits, int> regionSubtables;
   std::vector<VariationRegion> regions;
   std::vector<std::vector<int>> subRegions;
@@ -149,8 +149,8 @@ public:
       return lhs; // return the result by value (uses move constructor)
     }
   };
-  QByteArray blend(DeltaValues deltas) {
-    QByteArray data;
+  digitalkhatt::ByteBuffer blend(DeltaValues deltas) {
+    digitalkhatt::ByteBuffer data;
     bool isEmpty = true;
     for (int i = 0; i < deltas.deltas.size(); i++) {
       if (deltas.deltas[i] != 0.0) {
@@ -226,41 +226,42 @@ public:
 
 
   struct Layer {
-    QByteArray charString;
+    digitalkhatt::ByteBuffer charString;
     Color color;
     uint16_t gid = 0;
   };
 
   QMap<uint16_t, QVector<Layer>> layers;
 
-  QByteArray cmap();
-  QByteArray gdef();
-  QByteArray gpos();
-  QByteArray gsub();
-  QByteArray head();
-  QByteArray hhea();
-  QByteArray hmtx();
-  QByteArray maxp();
-  QByteArray name();
-  QByteArray os2();
-  QByteArray post();
-  QByteArray cff2();
-  QByteArray cff();
-  QByteArray dsig();
-  QByteArray fvar();
-  QByteArray HVAR();
-  QByteArray STAT();
-  QByteArray MVAR();
-  QByteArray JTST();
+  digitalkhatt::ByteBuffer cmap();
+  digitalkhatt::ByteBuffer gdef();
+  digitalkhatt::ByteBuffer gpos();
+  digitalkhatt::ByteBuffer gsub();
+  digitalkhatt::ByteBuffer head();
+  digitalkhatt::ByteBuffer hhea();
+  digitalkhatt::ByteBuffer hmtx();
+  digitalkhatt::ByteBuffer maxp();
+  digitalkhatt::ByteBuffer name();
+  digitalkhatt::ByteBuffer os2();
+  digitalkhatt::ByteBuffer post();
+  digitalkhatt::ByteBuffer cff2();
+  digitalkhatt::ByteBuffer cff();
+  digitalkhatt::ByteBuffer dsig();
+  digitalkhatt::ByteBuffer fvar();
+  digitalkhatt::ByteBuffer HVAR();
+  digitalkhatt::ByteBuffer STAT();
+  digitalkhatt::ByteBuffer MVAR();
+  digitalkhatt::ByteBuffer JTST();
 
-  bool colrcpal(QByteArray& colr, QByteArray& cpal);
+  bool colrcpal(digitalkhatt::ByteBuffer& colr,
+                digitalkhatt::ByteBuffer& cpal);
   bool isCff2 = true;
-  QByteArray getPrivateDictCff2(int* size);
+  digitalkhatt::ByteBuffer getPrivateDictCff2(int* size);
 
-  QByteArray CFF2VariationStore();
+  digitalkhatt::ByteBuffer CFF2VariationStore();
 
   void populateGlyphs();
-  QByteArray getVariationRegionList();
+  digitalkhatt::ByteBuffer getVariationRegionList();
 
   ValueLimits axisLimits = { 20,-20,20,-20 };
 
@@ -273,10 +274,10 @@ public:
     return getDeltaSetEntry(delta, subregionIndex, GDEFDeltaSets);
   }
 
-  QByteArray getGDEFItemVariationStore() {
+  digitalkhatt::ByteBuffer getGDEFItemVariationStore() {
     return getItemVariationStore(GDEFDeltaSets);
   }
-  QByteArray getItemVariationStore(const std::vector<std::map<std::vector<int>, int>>& delatSets);
+  digitalkhatt::ByteBuffer getItemVariationStore(const std::vector<std::map<std::vector<int>, int>>& delatSets);
 
   bool isUniformAxis() {
     return uniformAxis;
@@ -289,24 +290,24 @@ private:
   QMap<quint16, GlyphVis*> glyphs;
   GlobalValues globalValues;
 
-  void int_to_cff2(QByteArray& cff, int val);
-  void fixed_to_cff2(QByteArray& cff, double val);
-  QByteArray charStrings(bool iscff2);
-  QByteArray charString(GlyphVis& glyph, bool colored, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ContourLimits contourLimits, PathLimits& pathlimits);
+  void int_to_cff2(digitalkhatt::ByteBuffer& cff, int val);
+  void fixed_to_cff2(digitalkhatt::ByteBuffer& cff, double val);
+  digitalkhatt::ByteBuffer charStrings(bool iscff2);
+  digitalkhatt::ByteBuffer charString(GlyphVis& glyph, bool colored, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ContourLimits contourLimits, PathLimits& pathlimits);
   void initiliazeGlobals();
 
   int nbSubrs = 0;
-  QByteArray subrs;
+  digitalkhatt::ByteBuffer subrs;
   QVector<int> subrOffsets;
   int subIndexBias = 107;
   void setGIds();
   void generateComponents();
   QMap<uint16_t, SubrGlyphInfo> subrByGlyph;
-  QMap<uint16_t, QByteArray> replacedGlyphs;
+  QMap<uint16_t, digitalkhatt::ByteBuffer> replacedGlyphs;
 
-  void dumpPath(GlyphVis& glyph, QByteArray& data, mp_graphic_object** body, double& currentx, double& currenty, PathLimits& pathLimits, ContourLimits& contourLimits);
+  void dumpPath(GlyphVis& glyph, digitalkhatt::ByteBuffer& data, mp_graphic_object** body, double& currentx, double& currenty, PathLimits& pathLimits, ContourLimits& contourLimits);
 
-  QByteArray getSubrs();
+  digitalkhatt::ByteBuffer getSubrs();
 
 
   bool uniformAxis;

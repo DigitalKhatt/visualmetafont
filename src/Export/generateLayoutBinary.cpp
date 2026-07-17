@@ -1,6 +1,7 @@
 #include "GenerateLayout.h"
 #include <qhash.h>
 #include "Layout/GlyphVis.h"
+#include "Layout/QByteArrayOperator.h"
 #include "qfile.h"
 #include "qtextstream.h"
 #include "automedina/automedina.h"

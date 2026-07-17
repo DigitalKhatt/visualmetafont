@@ -794,23 +794,13 @@ void LookupDefinitionVisitor::accept(LigatureSubstitutionRule& ligatureSubstitut
     lookup->subtables.append(newsubtable);
   }
 
-  auto firstunicodes = ligatureSubstitutionRule.ligature->getCodes(otlayout);
-
-  if (firstunicodes.size() != 1) {
-    throw "ligature subtitution : ligature glyph different to 1 matching";
-  }
-
   LigatureSubtable::Ligature ligStruct;
 
-  ligStruct.ligatureGlyph = *firstunicodes.begin();
+  ligStruct.ligatureGlyph = ligatureSubstitutionRule.ligature->getCode(otlayout);
 
   for (auto glyph : *ligatureSubstitutionRule.sequence) {
-    auto unicodes = glyph->getCodes(otlayout);
-    if (unicodes.size() != 1) {
-      throw "ligature subtitution : glyph different to 1 matching";
-    }
-
-    ligStruct.componentGlyphIDs.push_back(*unicodes.begin());
+    auto unicode = glyph->getCode(otlayout);
+    ligStruct.componentGlyphIDs.push_back(unicode);
   }
 
   newsubtable->ligatures.push_back(std::move(ligStruct));

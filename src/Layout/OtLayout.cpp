@@ -42,7 +42,7 @@
 #include "FeaParser/driver.h"
 #include "FeaParser/feaast.h"
 #include "GlyphVis.h"
-#include "QByteArrayOperator.h"
+#include "digitalkhatt/core/ByteBuffer.h"
 #include "automedina/automedina.h"
 #include "qiodevice.h"
 // #include "hb-ot-layout-gsubgpos.hh"
@@ -53,6 +53,10 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <ranges>
+#include <span>
+#include <stdexcept>
+#include <string_view>
 
 #include "metafont.h"
 #include "qregularexpression.h"
@@ -95,8 +99,7 @@ QDataStream& operator>>(QDataStream& stream, SuraLocation& location) {
 static hb_blob_t* harfbuzzGetTables(hb_face_t* face, hb_tag_t tag, void* userData) {
   OtLayout* layout = reinterpret_cast<OtLayout*>(userData);
 
-  QByteArray data;
-  hb_memory_mode_t mode = HB_MEMORY_MODE_READONLY;
+  digitalkhatt::ByteBuffer data;
 
   switch (tag) {
     case HB_OT_TAG_GSUB:
@@ -110,39 +113,32 @@ static hb_blob_t* harfbuzzGetTables(hb_face_t* face, hb_tag_t tag, void* userDat
       break;
     case HB_TAG('c', 'm', 'a', 'p'):
       data = layout->getCmap();
-      mode = HB_MEMORY_MODE_DUPLICATE;
       break;
     case HB_TAG('n', 'a', 'm', 'e'):
       data = layout->toOpenType->name();
-      mode = HB_MEMORY_MODE_DUPLICATE;
       break;
     case HB_TAG('f', 'v', 'a', 'r'):
       data = layout->toOpenType->fvar();
-      mode = HB_MEMORY_MODE_DUPLICATE;
       break;
     case HB_TAG('H', 'V', 'A', 'R'):
       data = layout->toOpenType->HVAR();
-      mode = HB_MEMORY_MODE_DUPLICATE;
       break;
     case HB_TAG('J', 'T', 'S', 'T'):
       data = layout->JTST();
-      mode = HB_MEMORY_MODE_DUPLICATE;
       break;
     case HB_TAG('h', 'm', 't', 'x'):
       data = layout->toOpenType->hmtx();
-      mode = HB_MEMORY_MODE_DUPLICATE;
       break;
     case HB_TAG('h', 'h', 'e', 'a'):
       data = layout->toOpenType->hhea();
-      mode = HB_MEMORY_MODE_DUPLICATE;
       break;
     case HB_TAG('p', 'o', 's', 't'):
       data = layout->toOpenType->post();
-      mode = HB_MEMORY_MODE_DUPLICATE;
       break;
   }
 
-  return hb_blob_create(data.constData(), data.size(), mode, NULL, NULL);
+  return hb_blob_create(reinterpret_cast<const char*>(data.data()), data.size(),
+                        HB_MEMORY_MODE_DUPLICATE, nullptr, nullptr);
 }
 
 static unsigned int
@@ -633,8 +629,8 @@ GlyphVis* OtLayout::getGlyph(int code) {
   return curr;
 }
 
-QByteArray OtLayout::getGDEF() {
-  if (!gdef_array.isEmpty() && !dirty) {
+digitalkhatt::ByteBuffer OtLayout::getGDEF() {
+  if (!gdef_array.empty() && !dirty) {
     return gdef_array;
   }
 
@@ -652,49 +648,47 @@ QByteArray OtLayout::getGDEF() {
 
   uint32_t itemVarStoreOffset = 0;
 
-  QByteArray MarkGlyphSetsTable;
-  QByteArray coverageTables;
-
-  MarkGlyphSetsTable << (quint16)1 << markGlyphSetCount;
-
-  quint32 CoverageOffsets = 2 + 2 + 4 * markGlyphSetCount;
-
-  for (auto MarkGlyphSet : markGlyphSets) {
-    MarkGlyphSetsTable << CoverageOffsets;
-    std::sort(MarkGlyphSet.begin(), MarkGlyphSet.end());
-    quint16 MarkGlyphSetCount = MarkGlyphSet.size();
-    coverageTables << (quint16)1 << MarkGlyphSetCount << MarkGlyphSet;
-    CoverageOffsets += 2 + 2 + 2 * MarkGlyphSetCount;
+  digitalkhatt::ByteBuffer markGlyphSetsTable;
+  digitalkhatt::ByteBuffer coverageTables;
+  markGlyphSetsTable.writeU16(1);                  // format
+  markGlyphSetsTable.writeU16(markGlyphSetCount);  // markGlyphSetCount
+  uint32_t coverageOffset = 4 + 4 * markGlyphSetCount;
+  for (auto markGlyphSet : markGlyphSets) {
+    std::sort(markGlyphSet.begin(), markGlyphSet.end());
+    markGlyphSetsTable.writeU32(coverageOffset);       // coverageOffset
+    coverageTables.writeU16(1);                        // Coverage format
+    coverageTables.writeU16(markGlyphSet.size());      // glyphCount
+    for (auto glyphCode : markGlyphSet) coverageTables.writeU16(glyphCode);
+    coverageOffset += 4 + 2 * markGlyphSet.size();
   }
-
-  MarkGlyphSetsTable.append(coverageTables);
-
-  QByteArray itemVariationStore = toOpenType->getGDEFItemVariationStore();
-  if (itemVariationStore.size() != 0) {
-    itemVarStoreOffset = markGlyphSetsDefOffset + MarkGlyphSetsTable.size();
+  markGlyphSetsTable.append(coverageTables);
+  auto itemVariationStore = toOpenType->getGDEFItemVariationStore();
+  if (!itemVariationStore.empty())
+    itemVarStoreOffset = markGlyphSetsDefOffset + markGlyphSetsTable.size();
+  digitalkhatt::ByteBuffer gdef;
+  gdef.writeU16(1);                       // majorVersion
+  gdef.writeU16(3);                       // minorVersion
+  gdef.writeU16(glyphClassDefOffset);     // glyphClassDefOffset
+  gdef.writeU16(0);                       // attachListOffset
+  gdef.writeU16(0);                       // ligCaretListOffset
+  gdef.writeU16(0);                       // markAttachClassDefOffset
+  gdef.writeU16(markGlyphSetsDefOffset);  // markGlyphSetsDefOffset
+  gdef.writeU32(itemVarStoreOffset);      // itemVarStoreOffset
+  gdef.writeU16(2);                       // ClassDef format
+  gdef.writeU16(glyphCount);              // classRangeCount
+  for (auto it = glyphGlobalClasses.constBegin();
+       it != glyphGlobalClasses.constEnd(); ++it) {
+    gdef.writeU16(it.key());
+    gdef.writeU16(it.key());
+    gdef.writeU16(it.value());
   }
-
-  gdef_array << (quint16)1 << (quint16)3 << glyphClassDefOffset << (quint16)0 << (quint16)0 << (quint16)0 << markGlyphSetsDefOffset << itemVarStoreOffset;
-
-  gdef_array << (quint16)2;
-
-  gdef_array << glyphCount;
-
-  for (auto i = glyphGlobalClasses.constBegin(); i != glyphGlobalClasses.constEnd(); ++i) {
-    quint16 code = i.key();
-    quint16 classValue = i.value();
-    gdef_array << code;
-    gdef_array << code;
-    gdef_array << classValue;
-  }
-
-  gdef_array.append(MarkGlyphSetsTable);
-  gdef_array.append(itemVariationStore);
-
+  gdef.append(markGlyphSetsTable);
+  gdef.append(itemVariationStore);
+  gdef_array = std::move(gdef);
   return gdef_array;
 }
-QByteArray OtLayout::getGSUB() {
-  if (!gsub_array.isEmpty() && !dirty) {
+digitalkhatt::ByteBuffer OtLayout::getGSUB() {
+  if (!gsub_array.empty() && !dirty) {
     return gsub_array;
   }
 
@@ -702,8 +696,8 @@ QByteArray OtLayout::getGSUB() {
 
   return gsub_array;
 }
-QByteArray OtLayout::getGPOS() {
-  if (!gpos_array.isEmpty() && !dirty) {
+digitalkhatt::ByteBuffer OtLayout::getGPOS() {
+  if (!gpos_array.empty() && !dirty) {
     return gpos_array;
   }
 
@@ -713,74 +707,42 @@ QByteArray OtLayout::getGPOS() {
 
   return gpos_array;
 }
-QByteArray OtLayout::getFeatureList(QMap<QString, QSet<quint16>> allFeatures) {
-  QByteArray featureList_array;
-  QByteArray features_array;
-  QDataStream featureList_stream(&featureList_array, QIODevice::WriteOnly);
-  QDataStream features_stream(&features_array, QIODevice::WriteOnly);
-
+digitalkhatt::ByteBuffer OtLayout::getFeatureList(QMap<QString, QSet<quint16>> allFeatures) {
   quint16 featureCount = allFeatures.size();
-  quint16 beginoffset = 2 + 6 * featureCount;
-
-  featureList_stream << featureCount;
-
-  QMapIterator<QString, QSet<quint16>> it(allFeatures);
-  while (it.hasNext()) {
-    it.next();
-    featureList_stream.writeRawData(it.key().toLatin1(), 4);  // scriptTag
-    featureList_stream << beginoffset;
-
-    quint16 lookupIndexCount = it.value().count();
-
-    features_stream << (quint16)0;  // featureParams
-    features_stream << lookupIndexCount;
-
-    features_stream << it.value();
-
-    /*
-          QSetIterator<quint16> i(it.value());
-          while (i.hasNext()) {
-          features_stream << i.next();
-          }*/
-
-    beginoffset += 2 + 2 + 2 * lookupIndexCount;
+  digitalkhatt::ByteBuffer featureList;
+  digitalkhatt::ByteBuffer features;
+  featureList.writeU16(featureCount);  // featureCount
+  uint16_t featureOffset = 2 + 6 * featureCount;
+  for (auto it = allFeatures.cbegin(); it != allFeatures.cend(); ++it) {
+    for (int tagIndex = 0; tagIndex < 4; ++tagIndex)
+      featureList.writeU8(it.key().at(tagIndex).toLatin1());  // featureTag
+    featureList.writeU16(featureOffset);                      // featureOffset
+    features.writeU16(0);                                    // featureParams
+    features.writeU16(it.value().size());                     // lookupIndexCount
+    for (auto lookupIndex : it.value()) features.writeU16(lookupIndex);
+    featureOffset += 4 + 2 * it.value().size();
   }
-
-  featureList_array.append(features_array);
-
-  return featureList_array;
+  featureList.append(features);
+  return featureList;
 }
-QByteArray OtLayout::getScriptList(int featureCount) {
-  // script list
-
-  QByteArray scriptList_array;
-  QDataStream scriptList_stream(&scriptList_array, QIODevice::WriteOnly);
-
-  // ScriptList table
-  scriptList_stream << (quint16)1;            // scriptCount
-  scriptList_stream.writeRawData("arab", 4);  // scriptTag
-  scriptList_stream << (quint16)8;            // scriptOffset
-
-  // arab script table
-  scriptList_stream << (quint16)10;           // defaultLangSys
-  scriptList_stream << (quint16)1;            // langSysCount
-  scriptList_stream.writeRawData("ARA ", 4);  // langSysTag
-  scriptList_stream << (quint16)10;           // langSysOffset (2 + 2 + 4 + 2)
-
-  // LangSys table
-
-  scriptList_stream << (quint16)0;             // lookupOrder
-  scriptList_stream << (quint16)0xFFFF;        // lookupOrder
-  scriptList_stream << (quint16)featureCount;  // featureIndexCount
-
-  for (int i = 0; i < featureCount; i++) {
-    scriptList_stream << (quint16)i;
-  }
-
-  return scriptList_array;
+digitalkhatt::ByteBuffer OtLayout::getScriptList(int featureCount) {
+  digitalkhatt::ByteBuffer scriptList;
+  scriptList.writeU16(1);  // scriptCount
+  for (char byte : std::string_view("arab", 4)) scriptList.writeU8(byte);  // scriptTag
+  scriptList.writeU16(8);   // scriptOffset
+  scriptList.writeU16(10);  // defaultLangSys
+  scriptList.writeU16(1);   // langSysCount
+  for (char byte : std::string_view("ARA ", 4)) scriptList.writeU8(byte);  // langSysTag
+  scriptList.writeU16(10);       // langSysOffset (2 + 2 + 4 + 2)
+  scriptList.writeU16(0);        // lookupOrder
+  scriptList.writeU16(0xFFFF);   // requiredFeatureIndex
+  scriptList.writeU16(featureCount);  // featureIndexCount
+  for (uint16_t index = 0; index < featureCount; ++index)
+    scriptList.writeU16(index);
+  return scriptList;
 }
 
-QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures,
+digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures,
                                    QMap<QString, int>& lookupsIndexByName) {
   allFeatures.clear();
   lookupsIndexByName.clear();
@@ -806,182 +768,73 @@ QByteArray OtLayout::getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<
     }
   }
 
-  QByteArray scriptList = getScriptList(allFeatures.count());
-  QByteArray featureList = getFeatureList(allFeatures);
+  auto scriptList = getScriptList(allFeatures.count());
+  auto featureList = getFeatureList(allFeatures);
 
-  QByteArray root;
 
-  quint16 scriptListOffset = 10;
-  quint16 featureListOffset = scriptListOffset + scriptList.size();
-  quint16 lookupListOffset = featureListOffset + featureList.size();
+  const quint16 scriptListOffset = 10;
+  const quint16 featureListOffset = scriptListOffset + scriptList.size();
+  const quint16 lookupListOffset = featureListOffset + featureList.size();
+  const quint16 lookupCount = lookups.size();
+  quint32 lookupListtotalSize = 2 + 2 * lookupCount;
+  for (auto* lookup : lookups) {
+    const auto subtableCount = lookup->getSubtables(extended).size();
+    lookupListtotalSize += 6 + 2 * subtableCount;
+    if (lookup->markGlyphSetIndex != -1) lookupListtotalSize += 2;
+    lookupListtotalSize += 8 * subtableCount;
+  }
+  const quint16 extensiontype =
+      isgsub ? Lookup::extensiongsub : Lookup::extensiongpos;
 
-  root << (quint16)1 << (quint16)0 << scriptListOffset << featureListOffset << lookupListOffset;
-
+  digitalkhatt::ByteBuffer root;
+  root.writeU16(1);                  // majorVersion
+  root.writeU16(0);                  // minorVersion
+  root.writeU16(scriptListOffset);   // scriptListOffset
+  root.writeU16(featureListOffset);  // featureListOffset
+  root.writeU16(lookupListOffset);   // lookupListOffset
   root.append(scriptList);
   root.append(featureList);
 
-  quint16 lookupCount = lookups.size();
-
-  quint32 lookupListtotalSize = 2 + 2 * lookupCount;
-
-  for (int i = 0; i < lookups.size(); ++i) {
-    Lookup* lookup = lookups.at(i);
-
-    auto subtables = lookup->getSubtables(extended);
-
-    quint32 nb_subtables = subtables.size();
-
-    // lookup header
-    lookupListtotalSize += 2 + 2 + 2 + 2 * nb_subtables;
-
-    if (lookup->markGlyphSetIndex != -1) {
-      lookupListtotalSize += 2;
+  digitalkhatt::ByteBuffer lookupList;
+  digitalkhatt::ByteBuffer lookupsData;
+  digitalkhatt::ByteBuffer subtablesData;
+  lookupList.writeU16(lookupCount);  // lookupCount
+  uint16_t lookupOffset = 2 + 2 * lookupCount;
+  uint32_t subtablesDataOffset = lookupListtotalSize;
+  for (auto* lookup : lookups) {
+    const auto lookupSubtables = lookup->getSubtables(extended);
+    digitalkhatt::ByteBuffer lookupTable;
+    digitalkhatt::ByteBuffer extensions;
+    lookupTable.writeU16(extensiontype);          // lookupType
+    lookupTable.writeU16(lookup->flags);          // lookupFlag
+    lookupTable.writeU16(lookupSubtables.size()); // subTableCount
+    uint16_t extensionOffset = 6 + 2 * lookupSubtables.size();
+    if (lookup->markGlyphSetIndex != -1) extensionOffset += 2;
+    for (auto* subtable : lookupSubtables) {
+      lookupTable.writeU16(extensionOffset);
+      extensions.writeU16(1);  // extension format
+      extensions.writeU16(static_cast<quint16>(lookup->type));  // extensionLookupType
+      extensions.writeU32(subtablesDataOffset -
+                             (lookupOffset + extensionOffset));
+      const auto subtableBytes = !extended && subtable->isConvertible()
+                                     ? subtable->getConvertedOpenTypeTable()
+                                     : subtable->getOptOpenTypeTable(extended);
+      subtablesData.append(subtableBytes);
+      subtablesDataOffset += subtableBytes.size();
+      extensionOffset += 8;
     }
-
-    // extension subtables
-    lookupListtotalSize += 8 * nb_subtables;
+    if (lookup->markGlyphSetIndex != -1)
+      lookupTable.writeU16(lookup->markGlyphSetIndex);
+    lookupTable.append(extensions);
+    lookupList.writeU16(lookupOffset);
+    lookupOffset += lookupTable.size();
+    lookupsData.append(lookupTable);
   }
-
-  QByteArray lookupList;
-  QByteArray lookups_array;
-  lookupList << lookupCount;
-
-  quint16 beginoffset = 2 + 2 * lookupCount;
-  quint16 extensiontype = isgsub ? Lookup::extensiongsub : Lookup::extensiongpos;
-  QByteArray subtablesArray;
-
-  quint32 subtablesOffset = lookupListtotalSize;
-
-  for (int i = 0; i < lookups.size(); ++i) {
-    Lookup* lookup = lookups.at(i);
-
-    auto subtables = lookup->getSubtables(extended);
-
-    quint32 nb_subtables = subtables.size();
-
-    QByteArray lookupArray;
-
-    lookupArray << extensiontype;
-    lookupArray << lookup->flags;
-    lookupArray << (quint16)nb_subtables;
-
-    quint16 debutsequence = 2 + 2 + 2 + 2 * nb_subtables;
-
-    if (lookup->markGlyphSetIndex != -1) {
-      debutsequence += 2;
-    }
-
-    QByteArray exttables_array;
-
-    for (int i = 0; i < nb_subtables; ++i) {
-      lookupArray << debutsequence;
-
-      quint16 lookuptype = (quint16)lookup->type;
-
-      exttables_array << (quint16)1 << lookuptype << (quint32)(subtablesOffset - (beginoffset + debutsequence));
-
-      QByteArray subtableArray;
-
-      auto& subtable = subtables.at(i);
-
-      if (!extended && subtable->isConvertible()) {
-        subtableArray = subtable->getConvertedOpenTypeTable();
-      } else {
-        subtableArray = subtable->getOptOpenTypeTable(extended);
-      }
-
-      if (lookup->type != Lookup::fsmgsub && subtableArray.size() > 0xFFFF) {
-        std::cout << lookup->name.toStdString() << " : Subtable " << subtable->name
-                  << " exceeds the limit of 64K : " << subtableArray.size()
-                  << std::endl;
-        // throw std::runtime_error{ "Subtable exeeded the limit of 64K" };
-      }
-
-      subtablesArray.append(subtableArray);
-
-      subtablesOffset += subtableArray.size();
-
-      debutsequence += 8;
-    }
-
-    if (lookup->markGlyphSetIndex != -1) {
-      lookupArray << lookup->markGlyphSetIndex;
-    }
-
-    lookupArray.append(exttables_array);
-    lookups_array.append(lookupArray);
-
-    lookupList << beginoffset;
-
-    beginoffset += lookupArray.size();
-  }
-
-  lookupList.append(lookups_array);
-  lookupList.append(subtablesArray);
-
+  lookupList.append(lookupsData);
+  lookupList.append(subtablesData);
   root.append(lookupList);
-
   return root;
 }
-/*
-QByteArray OtLayout::getGSUBorGPOS(bool isgsub) {
-
-  QByteArray scriptList = getScriptList(isgsub);
-  QByteArray featureList = getFeatureList(isgsub);
-
-
-  QByteArray root;
-
-  quint16 scriptListOffset = 10;
-  quint16 featureListOffset = scriptListOffset + scriptList.size();
-  quint16 lookupListOffset = featureListOffset + featureList.size();
-
-  root << (quint16)1 << (quint16)0 << scriptListOffset << featureListOffset << lookupListOffset;
-
-  root.append(scriptList);
-  root.append(featureList);
-
-  //lookupList
-
-
-  QVector<Lookup*> lookups;
-
-  if (isgsub) {
-    lookups = gsublookups;
-  }
-  else {
-    lookups = gposlookups;
-  }
-
-  quint16 lookupCount = lookups.size();
-
-  QByteArray lookupList;
-  QByteArray lookups_array;
-
-
-  quint16 beginoffset = 2 + 2 * lookupCount;
-
-  lookupList << lookupCount;
-
-  for (int i = 0; i < lookups.size(); ++i) {
-
-    QByteArray temp = lookups.at(i)->getOpenTypeTable();
-
-    lookupList << beginoffset;
-    lookups_array.append(temp);
-
-    beginoffset += temp.size();
-  }
-
-  lookupList.append(lookups_array);
-
-
-  root.append(lookupList);
-
-  return root;
-
-}*/
-
 #if DIGITALKHATT_WEBLIB
 OtLayout::OtLayout(Font* font, bool extended) : fsmDriver{*this}, justTable{this}, font{font} {
 #else
@@ -3218,6 +3071,10 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
 
   auto glyph = this->getGlyph(glyphCode);
 
+  if (glyph == nullptr) {
+    throw std::runtime_error{"Glyph  not found."};
+  }
+
   if (glyph->isAlternate) {
     auto originalGlyph = glyph->originalglyph;
     parameters.lefttatweel += glyph->charlt;
@@ -3352,7 +3209,7 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
 
   return newglyph;
 }
-QByteArray OtLayout::getCmap() {
+digitalkhatt::ByteBuffer OtLayout::getCmap() {
   struct Segemnt {
     uint16_t startCode;
     uint16_t endCode;
@@ -3388,139 +3245,89 @@ QByteArray OtLayout::getCmap() {
 
   uint16_t segCount = segements.size();
 
-  QByteArray data;
-
-  int nbEncoding = 2;
-
-  data << (uint16_t)0;           // version
-  data << (uint16_t)nbEncoding;  // numTables
+  constexpr int nbEncoding = 2;
+  digitalkhatt::ByteBuffer data;
+  data.writeU16(0);           // version
+  data.writeU16(nbEncoding);  // numTables
   // encodingRecords[0]
-  data << (uint16_t)0;                                   // platformID
-  data << (uint16_t)3;                                   // encodingID
-  data << (uint32_t)(2 + 2 + (2 + 2 + 4) * nbEncoding);  // offset
+  data.writeU16(0);                       // platformID
+  data.writeU16(3);                       // encodingID
+  data.writeU32(4 + 8 * nbEncoding);      // subtable offset
   // encodingRecords[1]
-  data << (uint16_t)3;                                   // platformID
-  data << (uint16_t)1;                                   // encodingID
-  data << (uint32_t)(2 + 2 + (2 + 2 + 4) * nbEncoding);  // offset
-
-  QByteArray subtable;
-
-  subtable << (uint16_t)4;  // format
-
-  int lengthPos = subtable.size();
-
-  subtable << (uint16_t)0;               // length
-  subtable << (uint16_t)0;               // language
-  subtable << (uint16_t)(segCount * 2);  // 2 × segCount
-
-  auto range = exp2(floor(log2(segCount)));
-  subtable << (uint16_t)(2 * range);               // searchRange
-  subtable << (uint16_t)log2(range);               // entrySelector
-  subtable << (uint16_t)(2 * (segCount - range));  // rangeShift
-
-  for (auto& seg : segements) {
-    subtable << seg.endCode;
-  }
-
-  subtable << (uint16_t)0;  // reservedPad
-
-  for (auto& seg : segements) {
-    subtable << seg.startCode;
-  }
-  for (auto& seg : segements) {
-    subtable << seg.idDelta;
-  }
+  data.writeU16(3);                       // platformID
+  data.writeU16(1);                       // encodingID
+  data.writeU32(4 + 8 * nbEncoding);      // subtable offset
+  digitalkhatt::ByteBuffer subtable;
+  subtable.writeU16(4);  // format
+  const auto lengthPosition = subtable.size();
+  subtable.writeU16(0);             // length, patched below
+  subtable.writeU16(0);             // language
+  subtable.writeU16(segCount * 2);  // segCountX2
+  const auto searchRange = exp2(floor(log2(segCount)));
+  subtable.writeU16(2 * searchRange);               // searchRange
+  subtable.writeU16(log2(searchRange));             // entrySelector
+  subtable.writeU16(2 * (segCount - searchRange));  // rangeShift
+  for (const auto& segment : segements) subtable.writeU16(segment.endCode);
+  subtable.writeU16(0);  // reservedPad
+  for (const auto& segment : segements) subtable.writeU16(segment.startCode);
+  for (const auto& segment : segements) subtable.writeI16(segment.idDelta);
   // idRangeOffset[segCount]
-  for (auto& seg : segements) {
-    subtable << (uint16_t)0;  // idRangeOffset
-  }
-
-  QByteArray length;
-
-  length << (uint16_t)subtable.size();
-  subtable.replace(lengthPos, 2, length);
-
+  for ([[maybe_unused]] const auto& segment : segements)
+    subtable.writeU16(0);  // idRangeOffset
+  subtable.patchU16(lengthPosition, subtable.size());
   data.append(subtable);
 
   return data;
 }
-QByteArray OtLayout::JTST() {
+digitalkhatt::ByteBuffer OtLayout::JTST() {
   return justTable.getOpenTypeTable();
 }
 
-QByteArray Just::getOpenTypeTable() {
-  QByteArray stretchStepsData;
-  QByteArray shrinkStepsData;
-
-  QByteArray stretchStepOffsets;
-  QByteArray shrinkStepOffsets;
-  QByteArray afterGsubArray;
-
-  afterGsubArray << (uint16_t)this->lastGsubLookups.size();
-
-  for (auto lookup : this->lastGsubLookups) {
-    int index = -1;
+digitalkhatt::ByteBuffer Just::getOpenTypeTable() {
+  digitalkhatt::ByteBuffer afterGsub;
+  afterGsub.writeU16(lastGsubLookups.size());  // lookupCount
+  for (auto* lookup : lastGsubLookups) {
     if (layout->gsublookupsIndexByName.contains(lookup->name)) {
-      index = layout->gsublookupsIndexByName.value(lookup->name, -1);
-    }
-    if (index != -1) {
-      afterGsubArray << (uint16_t)index;
+      const auto index = layout->gsublookupsIndexByName.value(lookup->name, -1);
+      if (index != -1) afterGsub.writeU16(index);
     }
   }
-
-  int stretchStepsCount = 0;
-  int shrinkStepsCount = 0;
-
-  for (int i = 0; i < 2; i++) {
-    auto& StepsData = i == 0 ? stretchStepsData : shrinkStepsData;
-    auto& Steps = i == 0 ? stretchSteps : shrinkSteps;
-    auto& stepsCount = i == 0 ? stretchStepsCount : shrinkStepsCount;
-    auto& stepOffsets = i == 0 ? stretchStepOffsets : shrinkStepOffsets;
-    uint16_t currentOffset = 2 + 2 * Steps.size();
-
-    for (auto& step : Steps) {
-      std::vector<int> lookups;
-      for (auto lookup : step.lookups) {
-        int index = -1;
-        if (step.gsub && layout->gsublookupsIndexByName.contains(lookup->name)) {
-          index = layout->gsublookupsIndexByName.value(lookup->name, -1);
-        }
-        if (!step.gsub && layout->gposlookupsIndexByName.contains(lookup->name)) {
-          index = layout->gposlookupsIndexByName.value(lookup->name, -1);
-        }
-        if (index != -1) {
-          lookups.push_back(index);
+  auto buildSteps = [&](const auto& steps) {
+    digitalkhatt::ByteBuffer offsets;
+    digitalkhatt::ByteBuffer stepData;
+    uint16_t currentOffset = 2 + 2 * steps.size();
+    for (const auto& step : steps) {
+      std::vector<int> lookupIndexes;
+      for (auto* lookup : step.lookups) {
+        const auto& indexes = step.gsub ? layout->gsublookupsIndexByName
+                                        : layout->gposlookupsIndexByName;
+        if (indexes.contains(lookup->name)) {
+          const auto index = indexes.value(lookup->name, -1);
+          if (index != -1) lookupIndexes.push_back(index);
         }
       }
-      QByteArray StepData;
-      // if (lookups.size() != 0) {
-      stepsCount++;
-      StepData << (uint32_t)(step.gsub);
-      StepData << (uint16_t)lookups.size();
-      for (auto i : lookups) {
-        StepData << (uint16_t)i;
-      }
-      stepOffsets << (uint16_t)currentOffset;
-      currentOffset += StepData.size();
-      StepsData.append(StepData);
-      //}
+      offsets.writeU16(currentOffset);             // stepOffset
+      stepData.writeU32(step.gsub);                // isGsub
+      stepData.writeU16(lookupIndexes.size());     // lookupCount
+      for (auto index : lookupIndexes) stepData.writeU16(index);
+      currentOffset += 6 + 2 * lookupIndexes.size();
     }
-  }
-
-  QByteArray data;
-
-  data << (uint16_t)1;   // majorVersion
-  data << (uint16_t)0;   // minorVersion
-  data << (uint16_t)10;  // stretchSteps Offset
-  data << (uint16_t)(10 + 2 + stretchStepOffsets.size() + stretchStepsData.size());
-  data << (uint16_t)(10 + 2 + stretchStepOffsets.size() + stretchStepsData.size() + 2 + shrinkStepOffsets.size() + shrinkStepsData.size());
-  data << (uint16_t)stretchStepsCount;
-  data.append(stretchStepOffsets);
-  data.append(stretchStepsData);
-  data << (uint16_t)shrinkStepsCount;
-  data.append(shrinkStepOffsets);
-  data.append(shrinkStepsData);
-  data.append(afterGsubArray);
+    offsets.append(stepData);
+    return offsets;
+  };
+  auto stretchStepsTable = buildSteps(stretchSteps);
+  auto shrinkStepsTable = buildSteps(shrinkSteps);
+  digitalkhatt::ByteBuffer data;
+  data.writeU16(1);   // majorVersion
+  data.writeU16(0);   // minorVersion
+  data.writeU16(10);  // stretchStepsOffset
+  data.writeU16(12 + stretchStepsTable.size());  // shrinkStepsOffset
+  data.writeU16(14 + stretchStepsTable.size() + shrinkStepsTable.size());  // afterGsubOffset
+  data.writeU16(stretchSteps.size());  // stretchStepsCount
+  data.append(stretchStepsTable);
+  data.writeU16(shrinkSteps.size());  // shrinkStepsCount
+  data.append(shrinkStepsTable);
+  data.append(afterGsub);
 
   return data;
 }

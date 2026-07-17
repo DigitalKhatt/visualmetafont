@@ -22,6 +22,7 @@
 
 #include "qstring.h"
 #include "qvector.h"
+#include "digitalkhatt/core/ByteBuffer.h"
 
 class OtLayout;
 struct Subtable;
@@ -163,9 +164,9 @@ public:
   Lookup(OtLayout* layout);
   ~Lookup();
 
-  virtual QByteArray getOpenTypeTable(bool extended);
-  virtual QByteArray getOpenTypeExtenionTable(bool extended);
-  virtual QByteArray getSubtableDatas(bool extended);
+  virtual digitalkhatt::ByteBuffer getOpenTypeTable(bool extended);
+  virtual digitalkhatt::ByteBuffer getOpenTypeExtenionTable(bool extended);
+  virtual digitalkhatt::ByteBuffer getSubtableDatas(bool extended);
   void readJson(const QJsonObject& json);
   bool isGsubLookup() {
     //return type < 9;

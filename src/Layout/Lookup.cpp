@@ -19,11 +19,10 @@
 
 #include "Lookup.h"
 #include "Subtable.h"
-#include <QDataStream>
 #include <QVector>
 #include <QJsonObject>
 #include <QJsonArray>
-#include "QByteArrayOperator.h"
+#include "digitalkhatt/core/ByteBuffer.h"
 #include "qiodevice.h"
 
 Lookup::Lookup(OtLayout* layout) {
@@ -206,16 +205,11 @@ void Lookup::readParameters(const QJsonObject& json) {
   }
 
 }
-QByteArray Lookup::getSubtableDatas(bool extended) {
-  QByteArray subtablesArray;
-
-  for (auto subtable : subtables) {
-    QByteArray temp = subtable->getOptOpenTypeTable(extended);
-    subtablesArray.append(temp);
-  }
-
-  return subtablesArray;
-
+digitalkhatt::ByteBuffer Lookup::getSubtableDatas(bool extended) {
+  digitalkhatt::ByteBuffer result;
+  for (auto* subtable : subtables)
+    result.append(subtable->getOptOpenTypeTable(extended));
+  return result;
 }
 QVector<Subtable*> Lookup::getSubtables(bool extended) {
 
@@ -232,82 +226,41 @@ QVector<Subtable*> Lookup::getSubtables(bool extended) {
   return subs;
 
 }
-QByteArray Lookup::getOpenTypeTable(bool extended) {
-
-  QByteArray root;
-  QByteArray subtables_array;
-
-
-  quint16 nb_subtables = subtables.size();
-
-  root << (quint16)type;
-  root << flags;
-  root << (quint16)nb_subtables;
-
-  quint16 debutsequence = 2 + 2 + 2 + 2 * nb_subtables;
-
-  //if (markGlyphSetIndex != -1) {
-  debutsequence += 2;
-  //}
-
-  for (int i = 0; i < nb_subtables; ++i) {
-    QByteArray temp = subtables.at(i)->getOptOpenTypeTable(extended);
-
-    root << debutsequence;
-    subtables_array.append(temp);
-
-    debutsequence += temp.size();
+digitalkhatt::ByteBuffer Lookup::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer subtableData;
+  const uint16_t subtableCount = subtables.size();
+  root.writeU16(static_cast<quint16>(type));
+  root.writeU16(flags);
+  root.writeU16(subtableCount);
+  uint16_t subtableOffset = 8 + 2 * subtableCount;
+  for (auto* subtable : subtables) {
+    const auto bytes = subtable->getOptOpenTypeTable(extended);
+    root.writeU16(subtableOffset);
+    subtableData.append(bytes);
+    subtableOffset += bytes.size();
   }
-
-  //if (markGlyphSetIndex != -1) {
-  root << markGlyphSetIndex;
-  //}
-
-  root.append(subtables_array);
-
+  root.writeU16(markGlyphSetIndex);
+  root.append(subtableData);
   return root;
 };
-QByteArray Lookup::getOpenTypeExtenionTable(bool extended) {
-
-  QByteArray root;
-  QByteArray subtables_array;
-  QDataStream root_stream(&root, QIODevice::WriteOnly);
-
-
-  quint16 nb_subtables = subtables.size();
-
-  if (isGsubLookup()) {
-    root_stream << (quint16)extensiongsub;
+digitalkhatt::ByteBuffer Lookup::getOpenTypeExtenionTable(bool extended) {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer subtableData;
+  const uint16_t subtableCount = subtables.size();
+  root.writeU16(isGsubLookup() ? static_cast<quint16>(extensiongsub)
+                                  : static_cast<quint16>(extensiongpos));
+  root.writeU16(flags);
+  root.writeU16(subtableCount);
+  uint16_t subtableOffset = 6 + 2 * subtableCount;
+  if (markGlyphSetIndex != -1) subtableOffset += 2;
+  for (auto* subtable : subtables) {
+    const auto bytes = subtable->getOptOpenTypeTable(extended);
+    root.writeU16(subtableOffset);
+    subtableData.append(bytes);
+    subtableOffset += bytes.size();
   }
-  else {
-    root_stream << (quint16)extensiongpos;
-  }
-
-  root_stream << flags;
-  root_stream << (quint16)nb_subtables;
-
-  quint16 debutsequence = 2 + 2 + 2 + 2 * nb_subtables;
-
-  if (markGlyphSetIndex != -1) {
-    debutsequence += 2;
-  }
-
-
-
-  for (int i = 0; i < nb_subtables; ++i) {
-    QByteArray temp = subtables.at(i)->getOptOpenTypeTable(extended);
-
-    root_stream << debutsequence;
-    subtables_array.append(temp);
-
-    debutsequence += temp.size();
-  }
-
-  if (markGlyphSetIndex != -1) {
-    root_stream << markGlyphSetIndex;
-  }
-
-  root.append(subtables_array);
-
+  if (markGlyphSetIndex != -1) root.writeU16(markGlyphSetIndex);
+  root.append(subtableData);
   return root;
 };

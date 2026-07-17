@@ -30,7 +30,7 @@
 #include "GlyphVis.h"
 #include "Lookup.h"
 #include "OtLayout.h"
-#include "QByteArrayOperator.h"
+#include "digitalkhatt/core/ByteBuffer.h"
 #include "font.hpp"
 
 using namespace std;
@@ -139,7 +139,7 @@ void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
     }
   }
 }
-QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
+digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
   std::map<quint16, GlyphExpansion> newexpansion;
   std::map<quint16, quint16> newsubst;
 
@@ -191,8 +191,8 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
     }
   }
 
-  QByteArray root;
-  QByteArray coverage;
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer coverage;
 
   quint16 glyphCount = newexpansion.size();
   quint16 coverage_offset = 2 + 2 + 2 + 2 * glyphCount;
@@ -213,10 +213,10 @@ QByteArray SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
 
   return root;
 }
-QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
-  QByteArray root;
-  QByteArray coverage;
-  QByteArray substituteGlyphIDs;
+digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer coverage;
+  digitalkhatt::ByteBuffer substituteGlyphIDs;
 
   quint16 glyphCount = expansion.size();
   quint16 coverage_offset = 2 + 2 + 2 + 10 * glyphCount;
@@ -310,16 +310,16 @@ QByteArray SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
   return root;
 };
 
-QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
-  QByteArray coverage;
+digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer coverage;
 
-  QByteArray classDef;
+  digitalkhatt::ByteBuffer classDef;
 
-  QByteArray root;
+  digitalkhatt::ByteBuffer root;
 
-  QByteArray header;
+  digitalkhatt::ByteBuffer header;
 
-  QByteArray chainNodes;
+  digitalkhatt::ByteBuffer chainNodes;
   std::vector<uint32_t> chainNodesSizes;
 
   int numNodes = dfa.states.size();
@@ -367,7 +367,7 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
   }
   header << (quint16)numNodes;  // Number of ChainNodes
 
-  auto addBackLink = [&m_layout = m_layout, &m_lookup = m_lookup](QByteArray& array, const DFABackTrackInfo& backTrackInfo) {
+  auto addBackLink = [&m_layout = m_layout, &m_lookup = m_lookup](digitalkhatt::ByteBuffer& array, const DFABackTrackInfo& backTrackInfo) {
     array << (uint16_t)backTrackInfo.prevTransIndex;
     array << (uint16_t)backTrackInfo.actions.size();
 
@@ -411,13 +411,13 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
                                    + 2 /* numTransitions */
                                    + numTransitions * 6 /* ClassNode size*/;
 
-    QByteArray chainNode;
+    digitalkhatt::ByteBuffer chainNode;
 
-    QByteArray offsets;
+    digitalkhatt::ByteBuffer offsets;
 
     chainNode << (uint8_t)state.final;  // actionid : Action identifier for a final node
     if (state.final != 0) {
-      QByteArray backlinkArray;
+      digitalkhatt::ByteBuffer backlinkArray;
       addBackLink(backlinkArray, state.backtrackfinal);
       chainNode << (uint16_t)nextChainNodeOffset;  // OffsetTo<BackLink> backLink
       nextChainNodeOffset += backlinkArray.size();
@@ -427,7 +427,7 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
     }
     chainNode << (uint16_t)numTransitions;  // numTransitions	: Number of transitions
 
-    QByteArray classNodes;
+    digitalkhatt::ByteBuffer classNodes;
 
     for (auto itTransi = it->transtitions.cbegin(); itTransi != it->transtitions.cend(); itTransi++) {
       numTransitions++;
@@ -438,14 +438,14 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
       auto& backtracks = itTransi->second.backtracks;
       if (backtracks.size() > 0) {
         uint16_t numbacklinks = backtracks.size();
-        QByteArray backLinksArray;
-        QByteArray offsetbackLinksArray;
+        digitalkhatt::ByteBuffer backLinksArray;
+        digitalkhatt::ByteBuffer offsetbackLinksArray;
         backLinksArray << numbacklinks;
 
         uint16_t nextbackLinksOffset = 2 + 2 * numbacklinks;
 
         for (auto& backtrack : itTransi->second.backtracks) {
-          QByteArray backlinkArray;
+          digitalkhatt::ByteBuffer backlinkArray;
           addBackLink(backlinkArray, backtrack);
           backLinksArray << nextbackLinksOffset;
           nextbackLinksOffset += backlinkArray.size();
@@ -480,9 +480,9 @@ QByteArray FSMSubtable::getOpenTypeTable(bool extended) {
   return root;
 }
 
-QByteArray SingleSubtable::getOpenTypeTable(bool extended) {
-  QByteArray root;
-  QByteArray coverage;
+digitalkhatt::ByteBuffer SingleSubtable::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer coverage;
 
   std::map<quint16, quint16> newSubst;
 
@@ -527,10 +527,10 @@ QByteArray SingleSubtable::getOpenTypeTable(bool extended) {
 };
 
 SingleSubtableWithExpansion::SingleSubtableWithExpansion(Lookup* lookup) : SingleSubtable(lookup, 10) {};
-QByteArray SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
-  QByteArray root;
-  QByteArray coverage;
-  QByteArray substituteGlyphIDs;
+digitalkhatt::ByteBuffer SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer coverage;
+  digitalkhatt::ByteBuffer substituteGlyphIDs;
 
   quint16 glyphCount = expansion.size();
   quint16 coverage_offset = 2 + 2 + 2 + 24 * glyphCount;
@@ -686,10 +686,10 @@ void SingleAdjustmentSubtable::readJson(const QJsonObject& json) {
     }
   }
 }
-QByteArray SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
-  QByteArray root;
-  QByteArray coverage;
-  QByteArray valueRecords;
+digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer coverage;
+  digitalkhatt::ByteBuffer valueRecords;
   std::map<int, std::pair<int, std::pair<int, int>>> posToVar;
 
   quint16 glyphCount = singlePos.size();
@@ -799,7 +799,7 @@ for(auto& varIndex : posToVar){
   auto isX = varIndex.second.first;
   auto index = varIndex.second.second;
 
-  QByteArray offsetData;
+  digitalkhatt::ByteBuffer offsetData;
   offsetData << (quint16)(8+valueRecords.size());
   valueRecords.replace(pos,offsetData.size(),offsetData);
 
@@ -924,11 +924,11 @@ void PairAdjustmentSubtable::getPairValue(hb_cursive_anchor_context_t* context) 
   }
 }
 
-QByteArray PairAdjustmentSubtable::getOpenTypeTable(bool extended) {
-  QByteArray root;
-  QByteArray coverage;
-  QByteArray pairSetOffsets;
-  QByteArray pairSetTables;
+digitalkhatt::ByteBuffer PairAdjustmentSubtable::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer coverage;
+  digitalkhatt::ByteBuffer pairSetOffsets;
+  digitalkhatt::ByteBuffer pairSetTables;
   std::map<int, std::pair<int, std::pair<int, int>>> posToVar;
 
   quint16 glyphCount = pairPos.size();
@@ -977,7 +977,7 @@ QByteArray PairAdjustmentSubtable::getOpenTypeTable(bool extended) {
 
     coverage << (quint16)i->first;
 
-    QByteArray currentPairSetTable;
+    digitalkhatt::ByteBuffer currentPairSetTable;
 
     currentPairSetTable << (u_int16_t)pairValues.size();
     for (auto j = pairValues.cbegin(), end = pairValues.cend(); j != end; ++j) {
@@ -1040,32 +1040,29 @@ QByteArray PairAdjustmentSubtable::getOpenTypeTable(bool extended) {
 MultipleSubtable::MultipleSubtable(Lookup* lookup) : Subtable(lookup) {
 }
 
-QByteArray MultipleSubtable::getOpenTypeTable(bool extended) {
-  QByteArray root;
-  QByteArray coverage;
-  QByteArray sequencetables;
-  QDataStream root_stream(&root, QIODevice::WriteOnly);
-  QDataStream coverage_stream(&coverage, QIODevice::WriteOnly);
-  QDataStream seqtable_stream(&sequencetables, QIODevice::WriteOnly);
+digitalkhatt::ByteBuffer MultipleSubtable::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer coverage;
+  digitalkhatt::ByteBuffer sequencetables;
 
   quint16 total = subst.size();
   uint coverage_size = 2 + 2 + 2 * total;
   quint16 coverage_offset = 2 + 2 + 2 + 2 * total;
   quint16 debutsequence = coverage_offset + coverage_size;
 
-  root_stream << (quint16)1;
-  root_stream << coverage_offset;
-  root_stream << total;
+  root << (quint16)1;
+  root << coverage_offset;
+  root << total;
 
-  coverage_stream << (quint16)1;
-  coverage_stream << (quint16)total;
+  coverage << (quint16)1;
+  coverage << (quint16)total;
 
   for (const auto& [glyphCode, seqtable] : subst) {
 
-    root_stream << debutsequence;
-    coverage_stream << glyphCode;
-    seqtable_stream << (quint16)seqtable.size();
-    for (quint16 glyph : seqtable) seqtable_stream << glyph;
+    root << debutsequence;
+    coverage << glyphCode;
+    sequencetables << (quint16)seqtable.size();
+    for (quint16 glyph : seqtable) sequencetables << glyph;
 
     debutsequence += 2 + 2 * seqtable.size();
   }
@@ -1114,30 +1111,27 @@ void AlternateSubtable::generateSubstEquivGlyphs() {
   }
 }
 
-QByteArray AlternateSubtable::getOpenTypeTable(bool extended) {
-  QByteArray root;
-  QByteArray coverage;
-  QByteArray sequencetables;
-  QDataStream root_stream(&root, QIODevice::WriteOnly);
-  QDataStream coverage_stream(&coverage, QIODevice::WriteOnly);
-  QDataStream seqtable_stream(&sequencetables, QIODevice::WriteOnly);
+digitalkhatt::ByteBuffer AlternateSubtable::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer coverage;
+  digitalkhatt::ByteBuffer sequencetables;
 
   quint16 total = alternates.size();
   uint coverage_size = 2 + 2 + 2 * total;
   quint16 coverage_offset = 2 + 2 + 2 + 2 * total;
   quint16 debutsequence = coverage_offset + coverage_size;
 
-  root_stream << (quint16)1;
-  root_stream << coverage_offset;
-  root_stream << total;
+  root << (quint16)1;
+  root << coverage_offset;
+  root << total;
 
-  coverage_stream << (quint16)1;
-  coverage_stream << (quint16)total;
+  coverage << (quint16)1;
+  coverage << (quint16)total;
 
   for (const auto& [glyphCode, seqtable] : alternates) {
-    root_stream << debutsequence;
-    coverage_stream << glyphCode;
-    seqtable_stream << (quint16)seqtable.size();
+    root << debutsequence;
+    coverage << glyphCode;
+    sequencetables << (quint16)seqtable.size();
 
     for (auto& alternateGlyph : seqtable) {
       if (alternateGlyph.lefttatweel != 0.0 || alternateGlyph.righttatweel != 0.0) {
@@ -1148,12 +1142,12 @@ QByteArray AlternateSubtable::getOpenTypeTable(bool extended) {
 
         auto newGlyph = m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
 
-        seqtable_stream << (quint16)newGlyph->charcode;
+        sequencetables << (quint16)newGlyph->charcode;
       } else {
-        seqtable_stream << (quint16)alternateGlyph.code;
+        sequencetables << (quint16)alternateGlyph.code;
       }
     }
-    // seqtable_stream << seqtable;
+    // sequencetables << seqtable;
 
     debutsequence += 2 + 2 * seqtable.size();
   }
@@ -1181,41 +1175,36 @@ void AlternateSubtableWithTatweel::generateSubstEquivGlyphs() {
   }
 }
 
-QByteArray AlternateSubtableWithTatweel::getOpenTypeTable(bool extended) {
-  QByteArray root;
-  QByteArray coverage;
-  QByteArray sequencetables;
-  QDataStream root_stream(&root, QIODevice::WriteOnly);
-  QDataStream coverage_stream(&coverage, QIODevice::WriteOnly);
-  QDataStream seqtable_stream(&sequencetables, QIODevice::WriteOnly);
+digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer coverage;
+  digitalkhatt::ByteBuffer sequencetables;
 
   quint16 total = alternates.size();
   uint coverage_size = 2 + 2 + 2 * total;
   quint16 coverage_offset = 2 + 2 + 2 + 2 * total;
   quint16 debutsequence = coverage_offset + coverage_size;
 
-  root_stream << (quint16)format;
-  root_stream << coverage_offset;
-  root_stream << total;
+  root << (quint16)format;
+  root << coverage_offset;
+  root << total;
 
-  coverage_stream << (quint16)1;
-  coverage_stream << (quint16)total;
+  coverage << (quint16)1;
+  coverage << (quint16)total;
 
   for (const auto& [glyphCode, seqtable] : alternates) {
-    root_stream << debutsequence;
-    coverage_stream << glyphCode;
+    root << debutsequence;
+    coverage << glyphCode;
 
-    QByteArray alternatesArray;
-    QByteArray tatweelsArray;
+    digitalkhatt::ByteBuffer alternatesArray;
+    digitalkhatt::ByteBuffer tatweelsArray;
 
-    QDataStream alternatesArrayStream(&alternatesArray, QIODevice::WriteOnly);
-    QDataStream tatweelsArrayStream(&tatweelsArray, QIODevice::WriteOnly);
 
-    alternatesArrayStream << (quint16)seqtable.size();
-    tatweelsArrayStream << (quint16)seqtable.size();
+    alternatesArray << (quint16)seqtable.size();
+    tatweelsArray << (quint16)seqtable.size();
 
     for (auto& alternateGlyph : seqtable) {
-      alternatesArrayStream << (quint16)alternateGlyph.code;
+      alternatesArray << (quint16)alternateGlyph.code;
       if (!m_layout->useNormAxisValues) {
         OT::F16DOT16 lefttatweel;
         lefttatweel.set_float(alternateGlyph.lefttatweel);
@@ -1223,14 +1212,14 @@ QByteArray AlternateSubtableWithTatweel::getOpenTypeTable(bool extended) {
         OT::F16DOT16 righttatweel;
         righttatweel.set_float(alternateGlyph.righttatweel);
 
-        tatweelsArrayStream << (int32_t)lefttatweel.to_int() << (int32_t)righttatweel.to_int();
+        tatweelsArray << (int32_t)lefttatweel.to_int() << (int32_t)righttatweel.to_int();
       } else {
         throw std::runtime_error("Not implemented");
       }
     }
 
-    // seqtable_stream << alternatesArrayStream;
-    // seqtable_stream << tatweelsArrayStream;
+    // sequencetables << alternatesArray;
+    // sequencetables << tatweelsArray;
 
     sequencetables.append(alternatesArray);
     sequencetables.append(tatweelsArray);
@@ -1244,30 +1233,27 @@ QByteArray AlternateSubtableWithTatweel::getOpenTypeTable(bool extended) {
   return root;
 };
 
-QByteArray AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
-  QByteArray root;
-  QByteArray coverage;
-  QByteArray sequencetables;
-  QDataStream root_stream(&root, QIODevice::WriteOnly);
-  QDataStream coverage_stream(&coverage, QIODevice::WriteOnly);
-  QDataStream seqtable_stream(&sequencetables, QIODevice::WriteOnly);
+digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer coverage;
+  digitalkhatt::ByteBuffer sequencetables;
 
   quint16 total = alternates.size();
   uint coverage_size = 2 + 2 + 2 * total;
   quint16 coverage_offset = 2 + 2 + 2 + 2 * total;
   quint16 debutsequence = coverage_offset + coverage_size;
 
-  root_stream << (quint16)1;
-  root_stream << coverage_offset;
-  root_stream << total;
+  root << (quint16)1;
+  root << coverage_offset;
+  root << total;
 
-  coverage_stream << (quint16)1;
-  coverage_stream << (quint16)total;
+  coverage << (quint16)1;
+  coverage << (quint16)total;
 
   for (const auto& [glyphCode, seqtable] : alternates) {
-    root_stream << debutsequence;
-    coverage_stream << glyphCode;
-    seqtable_stream << (quint16)seqtable.size();
+    root << debutsequence;
+    coverage << glyphCode;
+    sequencetables << (quint16)seqtable.size();
 
     for (auto& alternateGlyph : seqtable) {
       if (alternateGlyph.lefttatweel != 0.0 || alternateGlyph.righttatweel != 0.0) {
@@ -1278,12 +1264,12 @@ QByteArray AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
 
         auto newGlyph = m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
 
-        seqtable_stream << (quint16)newGlyph->charcode;
+        sequencetables << (quint16)newGlyph->charcode;
       } else {
-        seqtable_stream << (quint16)alternateGlyph.code;
+        sequencetables << (quint16)alternateGlyph.code;
       }
     }
-    // seqtable_stream << seqtable;
+    // sequencetables << seqtable;
 
     debutsequence += 2 + 2 * seqtable.size();
   }
@@ -1297,7 +1283,7 @@ QByteArray AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
 LigatureSubtable::LigatureSubtable(Lookup* lookup) : Subtable(lookup) {
 }
 
-QByteArray LigatureSubtable::getOpenTypeTable(bool extended) {
+digitalkhatt::ByteBuffer LigatureSubtable::getOpenTypeTable(bool extended) {
   struct Ligaturetable {
     quint16 ligatureGlyph;
     QVector<quint16> componentGlyphIDs;
@@ -1311,9 +1297,9 @@ QByteArray LigatureSubtable::getOpenTypeTable(bool extended) {
     LigatureSets[seq.at(0)].append({ligatureGlyph, QVector<quint16>(seq.begin() + 1, seq.end())});
   }
 
-  QByteArray root;
-  QByteArray coverage;
-  QByteArray LigatureSetTables;
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer coverage;
+  digitalkhatt::ByteBuffer LigatureSetTables;
 
   quint16 ligatureSetCount = LigatureSets.size();
   quint16 coverage_offset = 2 + 2 + 2 + 2 * ligatureSetCount;
@@ -1336,14 +1322,14 @@ QByteArray LigatureSubtable::getOpenTypeTable(bool extended) {
     quint16 ligatureCount = seq.size();
     quint16 ligatureOffsets = 2 + 2 * ligatureCount;
 
-    QByteArray LigatureSetTable;
-    QByteArray LigatureTables;
+    digitalkhatt::ByteBuffer LigatureSetTable;
+    digitalkhatt::ByteBuffer LigatureTables;
     LigatureSetTable << (quint16)ligatureCount;
 
     for (int i = 0; i < ligatureCount; i++) {
       LigatureSetTable << ligatureOffsets;
 
-      QByteArray ligatureTable;
+      digitalkhatt::ByteBuffer ligatureTable;
       ligatureTable << seq.at(i).ligatureGlyph;
       ligatureTable << (quint16)(seq.at(i).componentGlyphIDs.size() + 1);
       ligatureTable << seq.at(i).componentGlyphIDs;
@@ -1628,8 +1614,8 @@ void CursiveSubtable::saveParameters(QJsonObject& json) const {
 }
 
 void CursiveSubtable::setAnchorTable(quint16 glyphCode,
-                                     QByteArray& entryExitRecords,
-                                     QByteArray& anchorTables,
+                                     digitalkhatt::ByteBuffer& entryExitRecords,
+                                     digitalkhatt::ByteBuffer& anchorTables,
                                      quint32& anchorOffset,
                                      std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
                                      bool extended,
@@ -1731,9 +1717,9 @@ void CursiveSubtable::setAnchorTable(quint16 glyphCode,
   }
 }
 
-QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
-  QByteArray anchorTables;
-  QByteArray entryExitRecords;
+digitalkhatt::ByteBuffer CursiveSubtable::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer anchorTables;
+  digitalkhatt::ByteBuffer entryExitRecords;
 
   quint16 entryExitCount = anchors.size();
 
@@ -1742,7 +1728,7 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
 
   quint32 anchorOffset = 2 + 2 + 2 + entryExitCount * 4;
 
-  QByteArray coverage;
+  digitalkhatt::ByteBuffer coverage;
   coverage << (quint16)1 << entryExitCount;
   for (const auto& [glyphCode, anchor] : anchors) coverage << glyphCode;
 
@@ -1765,7 +1751,7 @@ QByteArray CursiveSubtable::getOpenTypeTable(bool extended) {
               << std::endl;
   }
 
-  QByteArray root;
+  digitalkhatt::ByteBuffer root;
   root << (quint16)1;
   root << (quint16)coverageOffset;
   root << entryExitCount;
@@ -1928,7 +1914,7 @@ optional<Point> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_id
 
 void MarkBaseSubtable::setAnchorTable(std::string className,
                                       quint16 glyphCode,
-                                      QByteArray& anchorTables,
+                                      digitalkhatt::ByteBuffer& anchorTables,
                                       quint32& anchorOffset,
                                       std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
                                       bool extended,
@@ -2020,7 +2006,7 @@ void MarkBaseSubtable::setAnchorTable(std::string className,
 }
 
 void Subtable::setVariationIndexOffset(
-    QByteArray& anchorTables,
+    digitalkhatt::ByteBuffer& anchorTables,
     quint32 anchorOffset,
     std::map<int, std::pair<int, std::pair<int, int>>>& posToVar) {
   if (anchorOffset > 0xFFFF) {
@@ -2059,7 +2045,7 @@ void Subtable::setVariationIndexOffset(
                 << " Overflows. offsetFromAnchorTable=" << offsetFromAnchorTable
                 << std::endl;
     }
-    QByteArray offsetData;
+    digitalkhatt::ByteBuffer offsetData;
     offsetData << (quint16)offsetFromAnchorTable;
     anchorTables.replace(pos, offsetData.size(), offsetData);
   }
@@ -2070,14 +2056,14 @@ void Subtable::setVariationIndexOffset(
         << std::endl;*/
 }
 
-QByteArray MarkBaseSubtable::getOpenTypeTable(bool extended) {
-  QByteArray root;
-  QByteArray baseCoverage;
-  QByteArray markCoverage;
-  QByteArray markArray;
-  QByteArray baseArray;
-  QByteArray baseAnchorTables;
-  QByteArray markAnchorTables;
+digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer baseCoverage;
+  digitalkhatt::ByteBuffer markCoverage;
+  digitalkhatt::ByteBuffer markArray;
+  digitalkhatt::ByteBuffer baseArray;
+  digitalkhatt::ByteBuffer baseAnchorTables;
+  digitalkhatt::ByteBuffer markAnchorTables;
 
   int classIndex = 0;
 
@@ -2264,9 +2250,9 @@ void ChainingSubtable::readJson(const QJsonObject& ruleObject) {
   }
 }
 
-QByteArray ChainingSubtable::getOpenTypeTable(bool extended) {
-  QByteArray root;
-  QByteArray coverages;
+digitalkhatt::ByteBuffer ChainingSubtable::getOpenTypeTable(bool extended) {
+  digitalkhatt::ByteBuffer root;
+  digitalkhatt::ByteBuffer coverages;
 
   quint16 backtrackGlyphCount = compiledRule.backtrack.size();
   quint16 inputGlyphCount = compiledRule.input.size();

@@ -23,8 +23,8 @@
 #include <qpoint.h>
 #include <qstring.h>
 
-#include <QByteArray>
 #include <QDataStream>
+#include "digitalkhatt/core/ByteBuffer.h"
 #include <QMap>
 #include <QSet>
 #include <QVector>
@@ -105,6 +105,12 @@ inline digitalkhatt::TextString makeSuraLocationName(digitalkhatt::TextView name
 
 QDataStream& operator<<(QDataStream& stream, const SuraLocation& location);
 QDataStream& operator>>(QDataStream& stream, SuraLocation& location);
+inline QDataStream& operator<<(QDataStream& stream,
+                               const digitalkhatt::ByteBuffer& buffer) {
+  stream.writeRawData(reinterpret_cast<const char*>(buffer.data()),
+                      static_cast<int>(buffer.size()));
+  return stream;
+}
 
 struct ValueRecord {
   std::int16_t xPlacement;
@@ -207,7 +213,7 @@ struct Just {
   std::vector<JustStep> stretchSteps;
   std::vector<JustStep> shrinkSteps;
   std::vector<Lookup*> lastGsubLookups;
-  QByteArray getOpenTypeTable();
+  digitalkhatt::ByteBuffer getOpenTypeTable();
 
  private:
   OtLayout* layout;
@@ -265,9 +271,9 @@ class OtLayout : public QObject {
 
   void addClass(QString name, QSet<QString> set);
 
-  QByteArray getGSUB();
-  QByteArray getGPOS();
-  QByteArray getGDEF();
+  digitalkhatt::ByteBuffer getGSUB();
+  digitalkhatt::ByteBuffer getGPOS();
+  digitalkhatt::ByteBuffer getGDEF();
 
  public:
   static int SCALEBY;  // = 8;
@@ -287,15 +293,15 @@ class OtLayout : public QObject {
   QMap<QString, int> gposlookupsIndexByName;
   QMap<QString, int> lookupsIndexByName;
 
-  QByteArray scriptList;
+  digitalkhatt::ByteBuffer scriptList;
 
   hb_face_t* face;
 
   bool dirty;
 
-  QByteArray gsub_array;
-  QByteArray gpos_array;
-  QByteArray gdef_array;
+  digitalkhatt::ByteBuffer gsub_array;
+  digitalkhatt::ByteBuffer gpos_array;
+  digitalkhatt::ByteBuffer gdef_array;
 
   std::unordered_map<std::string, std::uint16_t> glyphCodePerName;
   std::map<std::uint16_t, std::string> glyphNamePerCode;
@@ -357,7 +363,7 @@ class OtLayout : public QObject {
 
   bool parseCppLookup(QString lookupName);
 
-  QByteArray getCmap();
+  digitalkhatt::ByteBuffer getCmap();
 
   ToOpenType* toOpenType = nullptr;
 
@@ -381,7 +387,7 @@ class OtLayout : public QObject {
     return toOpenType->getDeltaSetEntry(delta, subregionIndex);
   }
 
-  QByteArray JTST();
+  digitalkhatt::ByteBuffer JTST();
 
   Just justTable;
 
@@ -454,9 +460,9 @@ class OtLayout : public QObject {
   QMap<QString, QSet<quint16>> allGposFeatures;
   QMap<QString, QSet<quint16>> allGsubFeatures;
 
-  QByteArray getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures, QMap<QString, int>& lookupsIndexByName);
-  QByteArray getFeatureList(QMap<QString, QSet<quint16>> allFeatures);
-  QByteArray getScriptList(int featureCount);
+  digitalkhatt::ByteBuffer getGSUBorGPOS(bool isgsub, QVector<Lookup*>& lookups, QMap<QString, QSet<quint16>>& allFeatures, QMap<QString, int>& lookupsIndexByName);
+  digitalkhatt::ByteBuffer getFeatureList(QMap<QString, QSet<quint16>> allFeatures);
+  digitalkhatt::ByteBuffer getScriptList(int featureCount);
 
   double _nuqta = -1;
 

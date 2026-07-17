@@ -21,17 +21,29 @@
 
 #include <cmath>
 #include <map>
+#include <span>
 #include <stdexcept>
 
 #include "GlyphVis.h"
 #include "Lookup.h"
 #include "OtLayout.h"
 #include "Subtable.h"
+#include "digitalkhatt/core/ByteBuffer.h"
 #include "automedina/automedina.h"
 #include "hb.h"
 #include "metafont.h"
 #include "qdatetime.h"
 #include "qfile.h"
+
+namespace {
+template <typename QtByteContainer>
+void appendQtBytes(digitalkhatt::ByteBuffer& destination,
+                   const QtByteContainer& source) {
+  destination.append(std::span(
+      reinterpret_cast<const std::uint8_t*>(source.constData()),
+      static_cast<std::size_t>(source.size())));
+}
+}  // namespace
 
 ToOpenType::ToOpenType(OtLayout* layout) : ot_layout{layout} {
   isComponentsEnabled = false;
@@ -288,14 +300,20 @@ void ToOpenType::setGIds() {
 
   if (!ot_layout->glyphs.contains("notdef")) {
     throw new std::runtime_error("notdef glyph not found");
+  } else {
+    auto glyph = &ot_layout->glyphs["notdef"];
+    newCodes.insert(ot_layout->glyphCodePerName.at("notdef"), 0);
+    glyph->charcode = 0;
   }
 
   if (!ot_layout->glyphs.contains("null")) {
     throw new std::runtime_error("null glyph not found");
+  } else {
+    auto glyph = &ot_layout->glyphs["null"];
+    glyph->charcode = 1;
+    newCodes.insert(ot_layout->glyphCodePerName.at("null"), 1);
   }
 
-  newCodes.insert(ot_layout->glyphCodePerName.at("notdef"), 0);
-  newCodes.insert(ot_layout->glyphCodePerName.at("null"), 1);
   uint16_t newCode = 2;
 
   for (const auto& [code, name] : ot_layout->glyphNamePerCode) {
@@ -417,7 +435,7 @@ void ToOpenType::setGIds() {
 
 bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
   struct Table {
-    QByteArray data;
+    digitalkhatt::ByteBuffer data;
     hb_tag_t tag;
     uint32_t checkSum = 0;
     uint32_t offset = 0;
@@ -448,7 +466,7 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
   initiliazeGlobals();
 
   QVector<Table> tables;
-  QByteArray cffArray;
+  digitalkhatt::ByteBuffer cffArray;
 
   // TODO blend component to support OpenType variations
   if (isComponentsEnabled) {
@@ -502,8 +520,8 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
   }
 
   if (!layers.isEmpty()) {
-    QByteArray cpal;
-    QByteArray colr;
+    digitalkhatt::ByteBuffer cpal;
+    digitalkhatt::ByteBuffer colr;
     if (colrcpal(colr, cpal)) {
       tables.append({colr, HB_TAG('C', 'O', 'L', 'R')});
       tables.append({cpal, HB_TAG('C', 'P', 'A', 'L')});
@@ -520,12 +538,12 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
     for (uint32_t pad = 0; pad < paddingLength - tables[i].length; pad++) {
       tables[i].data << (uint8_t)0;
     }
-    tables[i].checkSum = calcTableChecksum((uint32_t*)tables[i].data.constData(), paddingLength);
+    tables[i].checkSum = calcTableChecksum((uint32_t*)tables[i].data.data(), paddingLength);
     tables[i].offset = offset;
     offset += paddingLength;
   }
 
-  QByteArray data;
+  digitalkhatt::ByteBuffer data;
 
   uint16_t entrySelector = floor(log2(numTables));
   uint16_t searchRange = exp2(entrySelector) * 16;
@@ -559,15 +577,15 @@ bool ToOpenType::GenerateFile(QString fileName, std::string lokkupsFileName) {
   }
 
   // checkSumAdjustment
-  int32_t totalChecksum = calcTableChecksum((uint32_t*)data.constData(), data.size());
+  int32_t totalChecksum = calcTableChecksum((uint32_t*)data.data(), data.size());
   totalChecksum = 0xB1B0AFBA - totalChecksum;
 
-  QByteArray checksumArray;
+  digitalkhatt::ByteBuffer checksumArray;
 
   checksumArray << (uint32_t)totalChecksum;
   data.replace(headPos + 8, 4, checksumArray);
 
-  file.write(data);
+  file.write(reinterpret_cast<const char*>(data.data()), data.size());
 
   return true;
 }
@@ -592,14 +610,14 @@ uint32_t ToOpenType::calcTableChecksum(uint32_t* table, uint32_t length) {
   return sum;
 }
 
-bool ToOpenType::colrcpal(QByteArray& colr, QByteArray& cpal) {
+bool ToOpenType::colrcpal(digitalkhatt::ByteBuffer& colr, digitalkhatt::ByteBuffer& cpal) {
   if (layers.isEmpty()) return false;
 
   QMap<Color, uint16_t> colormap;
   QVector<Color> colors;
 
-  QByteArray layerRecords;
-  QByteArray baseGlyphRecords;
+  digitalkhatt::ByteBuffer layerRecords;
+  digitalkhatt::ByteBuffer baseGlyphRecords;
   uint16_t layerIndex = 0;
 
   QMapIterator<uint16_t, QVector<Layer>> layIter(this->layers);
@@ -656,20 +674,20 @@ bool ToOpenType::colrcpal(QByteArray& colr, QByteArray& cpal) {
   return true;
 }
 
-QByteArray ToOpenType::cmap() {
+digitalkhatt::ByteBuffer ToOpenType::cmap() {
   return ot_layout->getCmap();
 }
-QByteArray ToOpenType::gdef() {
+digitalkhatt::ByteBuffer ToOpenType::gdef() {
   return ot_layout->getGDEF();
 }
-QByteArray ToOpenType::gpos() {
+digitalkhatt::ByteBuffer ToOpenType::gpos() {
   return ot_layout->getGPOS();
 }
-QByteArray ToOpenType::gsub() {
+digitalkhatt::ByteBuffer ToOpenType::gsub() {
   return ot_layout->getGSUB();
 }
-QByteArray ToOpenType::head() {
-  QByteArray data;
+digitalkhatt::ByteBuffer ToOpenType::head() {
+  digitalkhatt::ByteBuffer data;
 
   QDateTime now = QDateTime::currentDateTimeUtc();
   qint64 secs = QDate(1904, 1, 1).startOfDay(Qt::UTC).secsTo(now);
@@ -695,8 +713,8 @@ QByteArray ToOpenType::head() {
 
   return data;
 }
-QByteArray ToOpenType::hhea() {
-  QByteArray data;
+digitalkhatt::ByteBuffer ToOpenType::hhea() {
+  digitalkhatt::ByteBuffer data;
 
   data << (uint16_t)1;                                // majorVersion
   data << (uint16_t)0;                                // minorVersion
@@ -719,8 +737,8 @@ QByteArray ToOpenType::hhea() {
 
   return data;
 }
-QByteArray ToOpenType::hmtx() {
-  QByteArray data;
+digitalkhatt::ByteBuffer ToOpenType::hmtx() {
+  digitalkhatt::ByteBuffer data;
 
   auto& marks = digitalkhatt::layout::classesOrEmpty(ot_layout->automedina->classes, "marks");
 
@@ -750,15 +768,15 @@ QByteArray ToOpenType::hmtx() {
   return data;
 }
 
-QByteArray ToOpenType::maxp() {
-  QByteArray data;
+digitalkhatt::ByteBuffer ToOpenType::maxp() {
+  digitalkhatt::ByteBuffer data;
 
   data << (uint32_t)0x00005000;
   data << (uint16_t)(glyphs.lastKey() + 1);
 
   return data;
 }
-QByteArray ToOpenType::name() {
+digitalkhatt::ByteBuffer ToOpenType::name() {
   struct Name {
     uint16_t nameID;
     QString str;
@@ -766,7 +784,7 @@ QByteArray ToOpenType::name() {
     uint16_t length = 0;
   };
 
-  auto streamString = [](QByteArray& data, QString str) {
+  auto streamString = [](digitalkhatt::ByteBuffer& data, QString str) {
     int l = str.length();
     const QChar* ub = str.unicode();
 
@@ -806,7 +824,7 @@ QByteArray ToOpenType::name() {
     names.append(Name{(ushort)axisNameIds[i], ot_layout->font->axes[i].name});
   }
 
-  QByteArray stringStorage;
+  digitalkhatt::ByteBuffer stringStorage;
   uint16_t offset = 0;
   for (auto& name : names) {
     name.offset = offset;
@@ -815,8 +833,8 @@ QByteArray ToOpenType::name() {
     offset += name.length;
   }
 
-  QByteArray data;
-  QByteArray nameRecords;
+  digitalkhatt::ByteBuffer data;
+  digitalkhatt::ByteBuffer nameRecords;
 
   int recordCount = 0;
 
@@ -851,8 +869,8 @@ QByteArray ToOpenType::name() {
 
   return data;
 }
-QByteArray ToOpenType::os2() {
-  QByteArray data;
+digitalkhatt::ByteBuffer ToOpenType::os2() {
+  digitalkhatt::ByteBuffer data;
 
   data << (uint16_t)0x0005;                      // version
   data << (int16_t)500;                          // xAvgCharWidth
@@ -914,8 +932,8 @@ QByteArray ToOpenType::os2() {
 
   return data;
 }
-QByteArray ToOpenType::post() {
-  QByteArray data;
+digitalkhatt::ByteBuffer ToOpenType::post() {
+  digitalkhatt::ByteBuffer data;
 
   bool useGlyphName = true;  // isCff2 && ot_layout->extended;
 
@@ -941,12 +959,12 @@ QByteArray ToOpenType::post() {
 
     int index = 0;
 
-    QByteArray stringData;
+    digitalkhatt::ByteBuffer stringData;
 
     glyphs[0]->name = ".notdef";
 
     for (int i = 0; i < glyphCount; i++) {
-      QByteArray glyphArray;
+      digitalkhatt::ByteBuffer glyphArray;
 
       if (glyphs.contains(i)) {
         data << (uint16_t)(index + 258);
@@ -957,7 +975,7 @@ QByteArray ToOpenType::post() {
 
         auto name = newName.toLatin1();
         stringData << (uint8_t)name.size();
-        stringData.append(name);
+        appendQtBytes(stringData, name);
       } else {
         data << (uint16_t)(258);  //  .notdef;
       }
@@ -967,7 +985,7 @@ QByteArray ToOpenType::post() {
 
   return data;
 }
-void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_graphic_object** body, double& currentx, double& currenty, PathLimits& pathLimits, ContourLimits& contourLimits) {
+void ToOpenType::dumpPath(GlyphVis& glyph, digitalkhatt::ByteBuffer& data, mp_graphic_object** body, double& currentx, double& currenty, PathLimits& pathLimits, ContourLimits& contourLimits) {
   mp_fill_object* fill = (mp_fill_object*)*body;
   if (isComponentsEnabled) {
     if (fill->pre_script && strcmp(fill->pre_script, "begincomponent") == 0) {
@@ -1005,8 +1023,8 @@ void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_graphic_object**
           auto dx = initPosX - currentx;
           auto dy = initPosY - currenty;
 
-          QByteArray deltaXArray;
-          QByteArray deltaYArray;
+          digitalkhatt::ByteBuffer deltaXArray;
+          digitalkhatt::ByteBuffer deltaYArray;
           if (contourLimits.contours.size() > 0) {
             PathLimits compPathLimits;
             for (auto contour : contourLimits.contours) {
@@ -1140,9 +1158,9 @@ void ToOpenType::dumpPath(GlyphVis& glyph, QByteArray& data, mp_graphic_object**
     data << (uint8_t)8;  // rrcurveto;
   }
 }
-QByteArray ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ToOpenType::ContourLimits contourLimits, PathLimits& pathlimits) {
+digitalkhatt::ByteBuffer ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QVector<Layer>& layers, double& currentx, double& currenty, ToOpenType::ContourLimits contourLimits, PathLimits& pathlimits) {
   auto body = glyph.copiedPath;
-  QByteArray data;
+  digitalkhatt::ByteBuffer data;
 
   Color ayablue = Color{255, 240, 220, 255};
 
@@ -1155,7 +1173,7 @@ QByteArray ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QV
     do {
       switch (body->type) {
         case mp_fill_code: {
-          QByteArray layerArray;
+          digitalkhatt::ByteBuffer layerArray;
           mp_fill_object* fillobject = (mp_fill_object*)body;
 
           if (!colored) {
@@ -1176,7 +1194,7 @@ QByteArray ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QV
 
           } else {
             Layer layer;
-            QByteArray newGlyphArray;
+            digitalkhatt::ByteBuffer newGlyphArray;
             double tempx = 0;
             double tempy = 0;
             PathLimits tempPathLimits;
@@ -1206,8 +1224,8 @@ QByteArray ToOpenType::charString(GlyphVis& glyph, bool colored, bool iscff2, QV
 
   return data;
 }
-QByteArray ToOpenType::charStrings(bool iscff2) {
-  QByteArray objectData;
+digitalkhatt::ByteBuffer ToOpenType::charStrings(bool iscff2) {
+  digitalkhatt::ByteBuffer objectData;
 
   QVector<uint> offsets;
 
@@ -1218,7 +1236,7 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
   std::map<int, QString> coloredglyphs;
 
   for (int i = 0; i < glyphCount; i++) {
-    QByteArray glyphArray;
+    digitalkhatt::ByteBuffer glyphArray;
 
     if (glyphs.contains(i)) {
       auto& glyph = *glyphs.value(i);
@@ -1227,7 +1245,7 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
         coloredglyphs.insert({glyph.charcode, QString::fromStdString(glyph.coloredglyph)});
       }
 
-      QByteArray glyphData;
+      digitalkhatt::ByteBuffer glyphData;
 
       double currentx = 0.0;
       double currenty = 0.0;
@@ -1293,7 +1311,7 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
     GlyphVis& glyph = ot_layout->glyphs[coloredGlyp.second.toStdString()];
     QVector<Layer> layers;
 
-    QByteArray glyphData;
+    digitalkhatt::ByteBuffer glyphData;
 
     double currentx = 0.0;
     double currenty = 0.0;
@@ -1330,7 +1348,7 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
         if (foudEqual) break;
       }
       if (layer.gid == 0) {
-        QByteArray glyphArray;
+        digitalkhatt::ByteBuffer glyphArray;
         layer.gid = glyphs.lastKey() + 1;
         glyphs.insert(layer.gid, glyph);
 
@@ -1366,7 +1384,7 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
     offSize = 4;
   }
 
-  QByteArray data;
+  digitalkhatt::ByteBuffer data;
   if (iscff2) {
     data << (uint32_t)(glyphs.lastKey() + 1);
   } else {
@@ -1392,16 +1410,16 @@ QByteArray ToOpenType::charStrings(bool iscff2) {
   return data;
 }
 
-QByteArray ToOpenType::cff() {
-  QByteArray charStringsIndex = charStrings(false);
+digitalkhatt::ByteBuffer ToOpenType::cff() {
+  digitalkhatt::ByteBuffer charStringsIndex = charStrings(false);
 
   // Private DICT Data
-  QByteArray privateDict;
+  digitalkhatt::ByteBuffer privateDict;
 
   int_to_cff2(privateDict, 200);
   privateDict << (uint8_t)20;  // defaultWidthX
 
-  QByteArray subrsOffset;
+  digitalkhatt::ByteBuffer subrsOffset;
   int_to_cff2(subrsOffset, privateDict.size() + 2);
 
   if (subrsOffset.size() != 1) {
@@ -1413,47 +1431,47 @@ QByteArray ToOpenType::cff() {
 
   // privateDict.append(subrs);
 
-  QByteArray charset;
+  digitalkhatt::ByteBuffer charset;
   charset << (uint8_t)0;  // format
 
   // String Index
-  QByteArray stringIndex;
+  digitalkhatt::ByteBuffer stringIndex;
   stringIndex << (uint16_t)(6 + glyphs.lastKey());  // count
   stringIndex << (uint8_t)4;                        // offSize
   stringIndex << (uint32_t)1;                       // offset
 
-  QByteArray stringIndexData;
+  digitalkhatt::ByteBuffer stringIndexData;
 
   int lastSid = 391;
 
   QString version = QString::number(globalValues.major) + "." + QString::number(globalValues.minor);
 
-  stringIndexData.append(version.toLatin1());
+  appendQtBytes(stringIndexData, version.toLatin1());
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  stringIndexData.append(globalValues.fullName().toLatin1());
+  appendQtBytes(stringIndexData, globalValues.fullName().toLatin1());
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  stringIndexData.append(globalValues.familyName.toLatin1());
+  appendQtBytes(stringIndexData, globalValues.familyName.toLatin1());
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  stringIndexData.append(globalValues.subFamilyName.toLatin1());
+  appendQtBytes(stringIndexData, globalValues.subFamilyName.toLatin1());
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  stringIndexData.append(globalValues.Copyright.toLatin1());
+  appendQtBytes(stringIndexData, globalValues.Copyright.toLatin1());
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
-  stringIndexData.append(globalValues.License.toLatin1());
+  appendQtBytes(stringIndexData, globalValues.License.toLatin1());
   stringIndex << (uint32_t)(1 + stringIndexData.size());
   lastSid++;
 
   for (int i = 1; i <= glyphs.lastKey(); i++) {
-    stringIndexData.append(QString("Glyph%1").arg(i).toLatin1());
+    appendQtBytes(stringIndexData, QString("Glyph%1").arg(i).toLatin1());
     stringIndex << (uint32_t)(1 + stringIndexData.size());
     charset << (uint16_t)lastSid;
     lastSid++;
@@ -1467,13 +1485,14 @@ QByteArray ToOpenType::cff() {
   stringIndex.append(stringIndexData);
 
   // Name index
-  QByteArray nameIndex;
+  digitalkhatt::ByteBuffer nameIndex;
 
   nameIndex << (uint16_t)1;  // count
   nameIndex << (uint8_t)1;   // offSize
   nameIndex << (uint8_t)1;   // offset
 
-  QByteArray nameIndexData = QString("DigitalKhattQuranic").toLatin1();
+  digitalkhatt::ByteBuffer nameIndexData;
+  appendQtBytes(nameIndexData, QString("DigitalKhattQuranic").toLatin1());
 
   nameIndex << (uint8_t)(1 + nameIndexData.size());  // last offset
 
@@ -1482,12 +1501,12 @@ QByteArray ToOpenType::cff() {
   int offSize = 1;
 
   // Top DICT INDEX
-  QByteArray topDictIndex;
+  digitalkhatt::ByteBuffer topDictIndex;
   topDictIndex << (uint16_t)1;       // count
   topDictIndex << (uint8_t)offSize;  // offSize
   topDictIndex << (uint8_t)1;        // offset
 
-  QByteArray topDicData;
+  digitalkhatt::ByteBuffer topDicData;
 
   // Version
   int_to_cff2(topDicData, 391);
@@ -1533,10 +1552,10 @@ QByteArray ToOpenType::cff() {
   topDictIndex << (uint8_t)lastOffset;  // offset
   topDictIndex.append(topDicData);
 
-  QByteArray globalSubrsIndex;
+  digitalkhatt::ByteBuffer globalSubrsIndex;
   globalSubrsIndex << (uint16_t)0;
 
-  QByteArray data;
+  digitalkhatt::ByteBuffer data;
 
   // Header
   data << (uint8_t)1;  // majorVersion
@@ -1548,7 +1567,7 @@ QByteArray ToOpenType::cff() {
   if (charSetOffset > std::numeric_limits<int32_t>::max()) {
     throw new std::runtime_error("Increase offset size");
   }
-  QByteArray charSetOffsetArray;
+  digitalkhatt::ByteBuffer charSetOffsetArray;
   charSetOffsetArray << (int32_t)charSetOffset;
   topDictIndex.replace(offsetCharSetPos, charSetOffsetArray.size(), charSetOffsetArray);
 
@@ -1556,7 +1575,7 @@ QByteArray ToOpenType::cff() {
   if (offsetCharStrings > std::numeric_limits<int32_t>::max()) {
     throw new std::runtime_error("Increase offset size");
   }
-  QByteArray offsetCharString;
+  digitalkhatt::ByteBuffer offsetCharString;
   offsetCharString << (int32_t)offsetCharStrings;
   topDictIndex.replace(offsetCharStringPos, offsetCharString.size(), offsetCharString);
 
@@ -1565,7 +1584,7 @@ QByteArray ToOpenType::cff() {
     throw new std::runtime_error("Increase offset size");
   }
 
-  QByteArray offsetPrivateByte;
+  digitalkhatt::ByteBuffer offsetPrivateByte;
   offsetPrivateByte << (int32_t)privateDict.size() << (int8_t)29 << (int32_t)offsetPrivate;
   topDictIndex.replace(offsetPrivatePos, offsetPrivateByte.size(), offsetPrivateByte);
 
@@ -1580,15 +1599,15 @@ QByteArray ToOpenType::cff() {
 
   return data;
 }
-QByteArray ToOpenType::getPrivateDictCff2(int* size) {
-  QByteArray privateDict;
+digitalkhatt::ByteBuffer ToOpenType::getPrivateDictCff2(int* size) {
+  digitalkhatt::ByteBuffer privateDict;
 
   if (subrs.size() == 0) {
     *size = 0;
     return privateDict;
   }
 
-  QByteArray subrsOffset;
+  digitalkhatt::ByteBuffer subrsOffset;
   int_to_cff2(subrsOffset, privateDict.size() + 2);
 
   if (subrsOffset.size() != 1) {
@@ -1604,13 +1623,13 @@ QByteArray ToOpenType::getPrivateDictCff2(int* size) {
 
   return privateDict;
 }
-QByteArray ToOpenType::cff2() {
-  QByteArray charStr = charStrings(true);
+digitalkhatt::ByteBuffer ToOpenType::cff2() {
+  digitalkhatt::ByteBuffer charStr = charStrings(true);
 
-  QByteArray varStore = CFF2VariationStore();
+  digitalkhatt::ByteBuffer varStore = CFF2VariationStore();
 
   // Font DICT index
-  QByteArray fontDic;
+  digitalkhatt::ByteBuffer fontDic;
 
   fontDic << (uint32_t)1;                                                          // count
   fontDic << (uint8_t)1;                                                           // offSize
@@ -1618,17 +1637,17 @@ QByteArray ToOpenType::cff2() {
   fontDic << (uint8_t)12;                                                          // offset
   fontDic << (int8_t)29 << (int32_t)0 << (int8_t)29 << (int32_t)0 << (uint8_t)18;  // Private DICT size and offset
 
-  QByteArray topDict;
+  digitalkhatt::ByteBuffer topDict;
   topDict << (int8_t)29 << (int32_t)0 << (uint8_t)12 << (uint8_t)36;  // FDArray operator
   topDict << (int8_t)29 << (int32_t)0 << (uint8_t)17;                 // CharStrings operator
   if (varStore.size() > 0) {
     topDict << (int8_t)29 << (int32_t)0 << (uint8_t)24;  // vstore
   }
 
-  QByteArray globalSubrIndex;
+  digitalkhatt::ByteBuffer globalSubrIndex;
   globalSubrIndex << (int32_t)0;  // majorVersion
 
-  QByteArray ret;
+  digitalkhatt::ByteBuffer ret;
 
   ret << (uint8_t)2;                // majorVersion
   ret << (uint8_t)0;                // minorVersion
@@ -1646,7 +1665,7 @@ QByteArray ToOpenType::cff2() {
   int privateDictSize;
   ret.append(getPrivateDictCff2(&privateDictSize));
 
-  QByteArray offsetData;
+  digitalkhatt::ByteBuffer offsetData;
   offsetData << (int32_t)fontDicOffset;
   ret.replace(topDictOffset + 1, offsetData.size(), offsetData);
 
@@ -1668,7 +1687,7 @@ QByteArray ToOpenType::cff2() {
 }
 // https://learn.microsoft.com/en-us/typography/opentype/otspec190/cff2charstr
 // Table 3 Operand Encoding
-void ToOpenType::int_to_cff2(QByteArray& cff, int val) {
+void ToOpenType::int_to_cff2(digitalkhatt::ByteBuffer& cff, int val) {
   if (val >= -107 && val <= 107)
     cff << (int8_t)(val + 139);
   else if (val >= 108 && val <= 1131) {
@@ -1688,7 +1707,7 @@ void ToOpenType::int_to_cff2(QByteArray& cff, int val) {
     cff << (int32_t)val;
   }
 }
-void ToOpenType::fixed_to_cff2(QByteArray& cff, double val) {
+void ToOpenType::fixed_to_cff2(digitalkhatt::ByteBuffer& cff, double val) {
   /*
   int v = roundf(val * 65536.f);
   cff << (uint8_t)255;
@@ -1704,8 +1723,8 @@ void ToOpenType::fixed_to_cff2(QByteArray& cff, double val) {
   }
 }
 
-QByteArray ToOpenType::dsig() {
-  QByteArray data;
+digitalkhatt::ByteBuffer ToOpenType::dsig() {
+  digitalkhatt::ByteBuffer data;
 
   data << (uint32_t)1;  // version
   data << (uint16_t)0;  // numSignatures
@@ -1714,9 +1733,9 @@ QByteArray ToOpenType::dsig() {
   return data;
 }
 
-QByteArray ToOpenType::getSubrs() {
+digitalkhatt::ByteBuffer ToOpenType::getSubrs() {
   if (subrs.size() == 0) {
-    QByteArray data;
+    digitalkhatt::ByteBuffer data;
     if (isCff2) {
       data << (uint32_t)0;
     } else {
@@ -1750,7 +1769,7 @@ QByteArray ToOpenType::getSubrs() {
     offSize = 4;
   }
 
-  QByteArray data;
+  digitalkhatt::ByteBuffer data;
   if (isCff2) {
     data << (uint32_t)count;
   } else {
@@ -1826,7 +1845,7 @@ void ToOpenType::generateComponents() {
 
     QVector<Layer> layers;
     PathLimits pathlimits;
-    QByteArray charStringArray = charString(glyph, false, this->isCff2, layers, currentx, currenty, contourLimits, pathlimits);
+    digitalkhatt::ByteBuffer charStringArray = charString(glyph, false, this->isCff2, layers, currentx, currenty, contourLimits, pathlimits);
     if (!isCff2) {
       charStringArray << (uint8_t)11;  // return
     }
@@ -1835,8 +1854,8 @@ void ToOpenType::generateComponents() {
     subrs.append(charStringArray);
   }
 }
-QByteArray ToOpenType::fvar() {
-  QByteArray data;
+digitalkhatt::ByteBuffer ToOpenType::fvar() {
+  digitalkhatt::ByteBuffer data;
 
   if (axisCount == 0) return data;
 
@@ -1863,12 +1882,12 @@ QByteArray ToOpenType::fvar() {
 
   return data;
 }
-QByteArray ToOpenType::JTST() {
+digitalkhatt::ByteBuffer ToOpenType::JTST() {
   return ot_layout->JTST();
 }
 
-QByteArray ToOpenType::STAT() {
-  QByteArray data;
+digitalkhatt::ByteBuffer ToOpenType::STAT() {
+  digitalkhatt::ByteBuffer data;
 
   if (axisCount == 0) return data;
 
@@ -1893,13 +1912,13 @@ QByteArray ToOpenType::STAT() {
   return data;
 }
 
-QByteArray ToOpenType::CFF2VariationStore() {
+digitalkhatt::ByteBuffer ToOpenType::CFF2VariationStore() {
   if (regionIndexesArray.size() == 0) {
     return {};
   }
 
-  QByteArray itemVariationStore;
-  QByteArray ItemVariationDatas;
+  digitalkhatt::ByteBuffer itemVariationStore;
+  digitalkhatt::ByteBuffer ItemVariationDatas;
 
   int variationRegionListOffset = 2 /* format*/ + 4 /*variationRegionListOffset*/ + 2 /*itemVariationDataCount*/ + 4 * regionIndexesArray.size() /* itemVariationDataOffsets[itemVariationDataCount]*/;
 
@@ -1907,14 +1926,14 @@ QByteArray ToOpenType::CFF2VariationStore() {
   itemVariationStore << (uint32_t)variationRegionListOffset;    // variationRegionListOffset
   itemVariationStore << (uint16_t)(regionIndexesArray.size());  // itemVariationDataCount
 
-  QByteArray variationRegionList = getVariationRegionList();
+  digitalkhatt::ByteBuffer variationRegionList = getVariationRegionList();
 
   int itemVariationDataOffsets = variationRegionListOffset + variationRegionList.size();
 
   for (auto& regionIndexes : regionIndexesArray) {
     itemVariationStore << (uint32_t)(itemVariationDataOffsets);  // itemVariationDataOffsets[itemVariationDataCount]
 
-    QByteArray ItemVariationData;
+    digitalkhatt::ByteBuffer ItemVariationData;
     // subtable
     ItemVariationData << (uint16_t)0;                       // itemCount
     ItemVariationData << (uint16_t)0;                       // shortDeltaCount
@@ -1931,7 +1950,7 @@ QByteArray ToOpenType::CFF2VariationStore() {
   itemVariationStore.append(variationRegionList);
   itemVariationStore.append(ItemVariationDatas);
 
-  QByteArray varStore;
+  digitalkhatt::ByteBuffer varStore;
 
   varStore << (uint16_t)itemVariationStore.size();
   varStore.append(itemVariationStore);
@@ -1939,13 +1958,13 @@ QByteArray ToOpenType::CFF2VariationStore() {
   return varStore;
 }
 
-QByteArray ToOpenType::MVAR() {
+digitalkhatt::ByteBuffer ToOpenType::MVAR() {
   int valueRecordCount = 0;
 
-  QByteArray itemVariationStore;
-  QByteArray ValueRecordArray;
-  QByteArray itemVarData;
-  QByteArray deltaSets;
+  digitalkhatt::ByteBuffer itemVariationStore;
+  digitalkhatt::ByteBuffer ValueRecordArray;
+  digitalkhatt::ByteBuffer itemVarData;
+  digitalkhatt::ByteBuffer deltaSets;
 
   ValueRecordArray << (uint32_t)HB_TAG('h', 'a', 's', 'c');  // valueTag
   ValueRecordArray << (uint16_t)0;                           // deltaSetOuterIndex
@@ -1992,7 +2011,7 @@ QByteArray ToOpenType::MVAR() {
 
   auto itemVariationDataCount = 1;
   auto startOffset = 8 + 4 * itemVariationDataCount;
-  QByteArray variationRegionList = getVariationRegionList();
+  digitalkhatt::ByteBuffer variationRegionList = getVariationRegionList();
 
   itemVariationStore << (uint16_t)1;                                           // format
   itemVariationStore << (uint32_t)startOffset;                                 // variationRegionListOffset
@@ -2002,7 +2021,7 @@ QByteArray ToOpenType::MVAR() {
   itemVariationStore.append(itemVarData);
 
   // MVAR
-  QByteArray data;
+  digitalkhatt::ByteBuffer data;
 
   data << (uint16_t)1;                               // majorVersion
   data << (uint16_t)0;                               // minorVersion
@@ -2016,8 +2035,8 @@ QByteArray ToOpenType::MVAR() {
   return data;
 }
 
-QByteArray ToOpenType::HVAR() {
-  QByteArray data;
+digitalkhatt::ByteBuffer ToOpenType::HVAR() {
+  digitalkhatt::ByteBuffer data;
 
   if (regionIndexesArray.size() == 0) {
     return data;
@@ -2064,9 +2083,9 @@ QByteArray ToOpenType::HVAR() {
     }
   }
 
-  QByteArray itemVariationStore = getItemVariationStore(deltaSets);
+  digitalkhatt::ByteBuffer itemVariationStore = getItemVariationStore(deltaSets);
 
-  QByteArray advanceMapping;
+  digitalkhatt::ByteBuffer advanceMapping;
   advanceMapping << (uint16_t)0x3F;        // entryFormat : 2 byte for outer, 2 byte for inner
   advanceMapping << (uint16_t)glyphCount;  // entryFormat : 1 byte for outer, 2 byte for inner
   for (int i = 0; i < glyphCount; i++) {
@@ -2080,7 +2099,7 @@ QByteArray ToOpenType::HVAR() {
     }
   }
 
-  QByteArray lsbMapping;
+  digitalkhatt::ByteBuffer lsbMapping;
   lsbMapping << (uint16_t)0x3F;        // entryFormat : 2 byte for outer, 2 byte for inner
   lsbMapping << (uint16_t)glyphCount;  // entryFormat : 1 byte for outer, 2 byte for inner
   for (int i = 0; i < glyphCount; i++) {
@@ -2191,8 +2210,8 @@ inline ToOpenType::DeltaValues ToOpenType::PathLimits::right_y() {
   return nn;
 }
 
-QByteArray ToOpenType::getVariationRegionList() {
-  QByteArray variationRegionList;
+digitalkhatt::ByteBuffer ToOpenType::getVariationRegionList() {
+  digitalkhatt::ByteBuffer variationRegionList;
 
   variationRegionList << (uint16_t)axisCount;       // axisCount
   variationRegionList << (uint16_t)regions.size();  // regionCount
@@ -2220,13 +2239,13 @@ std::pair<int, int> ToOpenType::getDeltaSetEntry(DefaultDelta delta, const int s
     return {subregionIndex, val};
   }
 }
-QByteArray ToOpenType::getItemVariationStore(const std::vector<std::map<std::vector<int>, int>>& delatSets) {
+digitalkhatt::ByteBuffer ToOpenType::getItemVariationStore(const std::vector<std::map<std::vector<int>, int>>& delatSets) {
   if (delatSets.size() == 0) {
     return {};
   }
 
-  QByteArray itemVariationStore;
-  QByteArray ItemVariationDatas;
+  digitalkhatt::ByteBuffer itemVariationStore;
+  digitalkhatt::ByteBuffer ItemVariationDatas;
 
   int variationRegionListOffset = 2 /* format*/ + 4 /*variationRegionListOffset*/ + 2 /*itemVariationDataCount*/ + 4 * regionIndexesArray.size() /* itemVariationDataOffsets[itemVariationDataCount]*/;
 
@@ -2234,7 +2253,7 @@ QByteArray ToOpenType::getItemVariationStore(const std::vector<std::map<std::vec
   itemVariationStore << (uint32_t)variationRegionListOffset;    // variationRegionListOffset
   itemVariationStore << (uint16_t)(regionIndexesArray.size());  // itemVariationDataCount
 
-  QByteArray variationRegionList = getVariationRegionList();
+  digitalkhatt::ByteBuffer variationRegionList = getVariationRegionList();
 
   int itemVariationDataOffsets = variationRegionListOffset + variationRegionList.size();
 
@@ -2251,7 +2270,7 @@ QByteArray ToOpenType::getItemVariationStore(const std::vector<std::map<std::vec
 
     assert(localDelatSets.size() == defaultDeltaSet.size());
 
-    QByteArray ItemVariationData;
+    digitalkhatt::ByteBuffer ItemVariationData;
     // subtable
     ItemVariationData << (uint16_t)localDelatSets.size();  // itemCount
     ItemVariationData << (uint16_t)subRegion.size();       // shortDeltaCount
@@ -2278,8 +2297,8 @@ QByteArray ToOpenType::getItemVariationStore(const std::vector<std::map<std::vec
   return itemVariationStore;
 }
 
-QByteArray ItemVariationStore::getVariationRegionList() {
-  QByteArray variationRegionList;
+digitalkhatt::ByteBuffer ItemVariationStore::getVariationRegionList() {
+  digitalkhatt::ByteBuffer variationRegionList;
 
   variationRegionList << (uint16_t)axisCount;       // axisCount
   variationRegionList << (uint16_t)regions.size();  // regionCount
@@ -2294,9 +2313,9 @@ QByteArray ItemVariationStore::getVariationRegionList() {
 
   return variationRegionList;
 }
-QByteArray ItemVariationStore::getOpenTypeTable() {
-  QByteArray itemVariationStore;
-  QByteArray ItemVariationDatas;
+digitalkhatt::ByteBuffer ItemVariationStore::getOpenTypeTable() {
+  digitalkhatt::ByteBuffer itemVariationStore;
+  digitalkhatt::ByteBuffer ItemVariationDatas;
 
   int variationRegionListOffset = 2 /* format*/ + 4 /*variationRegionListOffset*/ + 2 /*itemVariationDataCount*/ + 4 * subRegions.size() /* itemVariationDataOffsets[itemVariationDataCount]*/;
 
@@ -2304,14 +2323,14 @@ QByteArray ItemVariationStore::getOpenTypeTable() {
   itemVariationStore << (uint32_t)variationRegionListOffset;  // variationRegionListOffset
   itemVariationStore << (uint16_t)(subRegions.size());        // itemVariationDataCount
 
-  QByteArray variationRegionList = getVariationRegionList();
+  digitalkhatt::ByteBuffer variationRegionList = getVariationRegionList();
 
   int itemVariationDataOffsets = variationRegionListOffset + variationRegionList.size();
 
   for (auto& subRegion : subRegions) {
     itemVariationStore << (uint32_t)(itemVariationDataOffsets);  // itemVariationDataOffsets[itemVariationDataCount]
 
-    QByteArray ItemVariationData;
+    digitalkhatt::ByteBuffer ItemVariationData;
     // subtable
     ItemVariationData << (uint16_t)0;                   // itemCount
     ItemVariationData << (uint16_t)0;                   // shortDeltaCount
@@ -2328,7 +2347,7 @@ QByteArray ItemVariationStore::getOpenTypeTable() {
   itemVariationStore.append(variationRegionList);
   itemVariationStore.append(ItemVariationDatas);
 
-  QByteArray varStore;
+  digitalkhatt::ByteBuffer varStore;
 
   varStore << (uint16_t)itemVariationStore.size();
   varStore.append(itemVariationStore);
