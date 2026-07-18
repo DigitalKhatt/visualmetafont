@@ -19,13 +19,13 @@
 
 #include "Subtable.h"
 
-#include <QDebug>
 #include "GlazeJson.h"
 #include <array>
 #include <algorithm>
-#include <QDataStream>
+#include <charconv>
 #include <hb-ot-layout-common.hh>
 #include <iostream>
+#include <set>
 #include <unordered_map>
 
 #include "GlyphVis.h"
@@ -33,21 +33,8 @@
 #include "OtLayout.h"
 #include "to_opentype.h"
 #include "digitalkhatt/core/ByteBuffer.h"
-#include "font.hpp"
 
 using namespace std;
-
-QDataStream& operator<<(QDataStream& s, const QVector<quint16>& v) {
-  for (QVector<quint16>::const_iterator it = v.begin(); it != v.end(); ++it)
-    s << *it;
-  return s;
-}
-
-QDataStream& operator<<(QDataStream& s, const QVector<quint32>& v) {
-  for (QVector<quint32>::const_iterator it = v.begin(); it != v.end(); ++it)
-    s << *it;
-  return s;
-}
 
 Subtable::Subtable(Lookup* lookup) {
   m_lookup = lookup;
@@ -56,27 +43,21 @@ Subtable::Subtable(Lookup* lookup) {
 }
 
 std::uint16_t Subtable::getCodeFromName(std::string name) {
-  const QString qname = QString::fromStdString(name);
-  // return m_layout->glyphCodePerName[name];
-  std::uint16_t uniode;
   if (m_layout->glyphCodePerName.contains(name)) {
-    uniode = m_layout->glyphCodePerName[name];
-  } else {
-    bool ok;
-    uniode = qname.toUInt(&ok, 16);
-    if (!ok) {
-      printf(QString("glyph name <%1> not found\n").arg(qname).toLatin1());
-      uniode = 0;
-    }
+    return m_layout->glyphCodePerName[name];
   }
-
-  return uniode;
+  std::uint16_t code{};
+  const auto [end, error] =
+      std::from_chars(name.data(), name.data() + name.size(), code, 16);
+  if (error == std::errc{} && end == name.data() + name.size()) return code;
+  std::cerr << "glyph name <" << name << "> not found\n";
+  return 0;
 }
 std::string Subtable::getNameFromCode(std::uint16_t code) {
   return m_layout->glyphNamePerCode[code];
 }
 
-SingleSubtable::SingleSubtable(Lookup* lookup, quint16 format) : Subtable(lookup), format{format} {
+SingleSubtable::SingleSubtable(Lookup* lookup, std::uint16_t format) : Subtable(lookup), format{format} {
 }
 
 bool SingleSubtable::isExtended() {
@@ -89,11 +70,11 @@ bool SingleSubtable::isExtended() {
 void SingleSubtable::readJson(const ParameterJsonObject& json) {
   subst.clear();
   for (const auto& [glyphName, valueJson] : json) {
-    quint16 unicode = getCodeFromName(glyphName);
+    std::uint16_t unicode = getCodeFromName(glyphName);
     if (!unicode) continue;
     const auto name = jsonValueAs<std::string>(valueJson);
     if (!name) continue;
-    quint16 value = getCodeFromName(*name);
+    std::uint16_t value = getCodeFromName(*name);
     if (!value) continue;
     subst[unicode] = value;
   }
@@ -140,8 +121,8 @@ void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
   }
 }
 digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
-  std::map<quint16, GlyphExpansion> newexpansion;
-  std::map<quint16, quint16> newsubst;
+  std::map<std::uint16_t, GlyphExpansion> newexpansion;
+  std::map<std::uint16_t, std::uint16_t> newsubst;
 
   for (const auto& [glyphCode, substGlyph] : subst) {
     GlyphExpansion expan = expansion.at(glyphCode);
@@ -194,15 +175,15 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() 
   digitalkhatt::ByteBuffer root;
   digitalkhatt::ByteBuffer coverage;
 
-  quint16 glyphCount = newexpansion.size();
-  quint16 coverage_offset = 2 + 2 + 2 + 2 * glyphCount;
+  std::uint16_t glyphCount = newexpansion.size();
+  std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * glyphCount;
 
-  root << (quint16)2;
+  root << (std::uint16_t)2;
   root << coverage_offset;
   root << glyphCount;
 
-  coverage << (quint16)1;
-  coverage << (quint16)glyphCount;
+  coverage << (std::uint16_t)1;
+  coverage << (std::uint16_t)glyphCount;
 
   for (const auto& [glyphCode, substGlyph] : newsubst) {
     root << substGlyph;
@@ -218,15 +199,15 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getOpenTypeTable(bool extend
   digitalkhatt::ByteBuffer coverage;
   digitalkhatt::ByteBuffer substituteGlyphIDs;
 
-  quint16 glyphCount = expansion.size();
-  quint16 coverage_offset = 2 + 2 + 2 + 10 * glyphCount;
+  std::uint16_t glyphCount = expansion.size();
+  std::uint16_t coverage_offset = 2 + 2 + 2 + 10 * glyphCount;
 
-  root << (quint16)format;
+  root << (std::uint16_t)format;
   root << coverage_offset;
   root << glyphCount;
 
-  coverage << (quint16)1;
-  coverage << (quint16)glyphCount;
+  coverage << (std::uint16_t)1;
+  coverage << (std::uint16_t)glyphCount;
 
   for (const auto& [glyphCode, expan] : expansion) {
     root << (uint16_t)subst[glyphCode];
@@ -325,47 +306,47 @@ digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
   int numNodes = dfa.states.size();
 
   if (numNodes == 0) {
-    root << (quint16)0;
+    root << (std::uint16_t)0;
     return root;
   }
 
-  quint16 glyphCount = dfa.glyphToClass.size();
+  std::uint16_t glyphCount = dfa.glyphToClass.size();
 
-  classDef << (quint16)2;  // Format identifier — format = 2
+  classDef << (std::uint16_t)2;  // Format identifier — format = 2
   classDef << glyphCount;  // Number of ClassRangeRecords
 
-  coverage << (quint16)1;
-  coverage << (quint16)glyphCount;
+  coverage << (std::uint16_t)1;
+  coverage << (std::uint16_t)glyphCount;
 
   for (auto it = dfa.glyphToClass.cbegin(); it != dfa.glyphToClass.cend(); it++) {
-    classDef << (quint16)it->first;
-    classDef << (quint16)it->first;
-    classDef << (quint16)(it->second + 1);  // Class 0 for not used glyphs
+    classDef << (std::uint16_t)it->first;
+    classDef << (std::uint16_t)it->first;
+    classDef << (std::uint16_t)(it->second + 1);  // Class 0 for not used glyphs
 
-    coverage << (quint16)it->first;
+    coverage << (std::uint16_t)it->first;
   }
 
   if (dfa.backupStates.size() != (dfa.maxBackup - dfa.minBackup + 1)) {
     throw new std::runtime_error("invalid backupstates number");
   }
 
-  quint16 startOffsets = 2 + 2 + 2 + 1 + 1 + 1 + 1 + dfa.backupStates.size() * 2 + 2 + numNodes * 4;
+  std::uint16_t startOffsets = 2 + 2 + 2 + 1 + 1 + 1 + 1 + dfa.backupStates.size() * 2 + 2 + numNodes * 4;
 
-  quint16 coverageOffset = startOffsets;
-  quint16 classDefOffset = coverageOffset + coverage.size();
-  quint32 nextOffset = classDefOffset + classDef.size();
+  std::uint16_t coverageOffset = startOffsets;
+  std::uint16_t classDefOffset = coverageOffset + coverage.size();
+  std::uint32_t nextOffset = classDefOffset + classDef.size();
 
-  header << (quint16)1;
-  header << (quint16)coverageOffset;  //  Offset to Coverage;
-  header << (quint16)classDefOffset;  //  Offset to ClassDef;
+  header << (std::uint16_t)1;
+  header << (std::uint16_t)coverageOffset;  //  Offset to Coverage;
+  header << (std::uint16_t)classDefOffset;  //  Offset to ClassDef;
   header << (uint8_t)dfa.maxBackup;
   header << (uint8_t)dfa.minBackup;
   header << (uint8_t)dfa.maxLoop;
   header << (uint8_t)0;  // reserved
   for (auto it = dfa.backupStates.cbegin(); it != dfa.backupStates.cend(); it++) {
-    header << (quint16)*it;
+    header << (std::uint16_t)*it;
   }
-  header << (quint16)numNodes;  // Number of ChainNodes
+  header << (std::uint16_t)numNodes;  // Number of ChainNodes
 
   auto addBackLink = [&m_layout = m_layout, &m_lookup = m_lookup](digitalkhatt::ByteBuffer& array, const DFABackTrackInfo& backTrackInfo) {
     array << (uint16_t)backTrackInfo.prevTransIndex;
@@ -433,7 +414,7 @@ digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
       numTransitions++;
 
       classNodes << (uint16_t)(itTransi->first + 1);    // classIndex	: class index value to match
-      classNodes << (quint16)(itTransi->second.state);  // chainNode	: chainNode index to use on match
+      classNodes << (std::uint16_t)(itTransi->second.state);  // chainNode	: chainNode index to use on match
       // OffsetTo<BackLinkArray> backLinks
       auto& backtracks = itTransi->second.backtracks;
       if (backtracks.size() > 0) {
@@ -484,7 +465,7 @@ digitalkhatt::ByteBuffer SingleSubtable::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer root;
   digitalkhatt::ByteBuffer coverage;
 
-  std::map<quint16, quint16> newSubst;
+  std::map<std::uint16_t, std::uint16_t> newSubst;
 
   if (!extended) {
     for (auto i = subst.cbegin(), end = subst.cend(); i != end; ++i) {
@@ -505,15 +486,15 @@ digitalkhatt::ByteBuffer SingleSubtable::getOpenTypeTable(bool extended) {
     newSubst = subst;
   }
 
-  quint16 glyphCount = newSubst.size();
-  quint16 coverage_offset = 2 + 2 + 2 + 2 * glyphCount;
+  std::uint16_t glyphCount = newSubst.size();
+  std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * glyphCount;
 
-  root << (quint16)format;
+  root << (std::uint16_t)format;
   root << coverage_offset;
   root << glyphCount;
 
-  coverage << (quint16)1;
-  coverage << (quint16)glyphCount;
+  coverage << (std::uint16_t)1;
+  coverage << (std::uint16_t)glyphCount;
 
   for (const auto& [glyphCode, substGlyph] : newSubst) {
 
@@ -532,15 +513,15 @@ digitalkhatt::ByteBuffer SingleSubtableWithExpansion::getOpenTypeTable(bool exte
   digitalkhatt::ByteBuffer coverage;
   digitalkhatt::ByteBuffer substituteGlyphIDs;
 
-  quint16 glyphCount = expansion.size();
-  quint16 coverage_offset = 2 + 2 + 2 + 24 * glyphCount;
+  std::uint16_t glyphCount = expansion.size();
+  std::uint16_t coverage_offset = 2 + 2 + 2 + 24 * glyphCount;
 
-  root << (quint16)format;
+  root << (std::uint16_t)format;
   root << coverage_offset;
   root << glyphCount;
 
-  coverage << (quint16)1;
-  coverage << (quint16)glyphCount;
+  coverage << (std::uint16_t)1;
+  coverage << (std::uint16_t)glyphCount;
 
   for (const auto& [glyphCode, expan] : expansion) {
     root << (uint16_t)subst[glyphCode];
@@ -663,7 +644,7 @@ digitalkhatt::ByteBuffer SingleSubtableWithExpansion::getOpenTypeTable(bool exte
   return root;
 };
 
-SingleAdjustmentSubtable::SingleAdjustmentSubtable(Lookup* lookup, quint16 pformat) : Subtable(lookup), format{pformat} {}
+SingleAdjustmentSubtable::SingleAdjustmentSubtable(Lookup* lookup, std::uint16_t pformat) : Subtable(lookup), format{pformat} {}
 
 bool SingleAdjustmentSubtable::isExtended() {
   if (format == 3) {
@@ -693,8 +674,8 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
   digitalkhatt::ByteBuffer valueRecords;
   std::map<int, std::pair<int, std::pair<int, int>>> posToVar;
 
-  quint16 glyphCount = singlePos.size();
-  quint16 valueFormat;
+  std::uint16_t glyphCount = singlePos.size();
+  std::uint16_t valueFormat;
 
   auto isOTVar = m_layout->isOTVar;
 
@@ -704,8 +685,8 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
     valueFormat = 0x7;
   }
 
-  coverage << (quint16)1;
-  coverage << (quint16)glyphCount;
+  coverage << (std::uint16_t)1;
+  coverage << (std::uint16_t)glyphCount;
 
   for (const auto& [glyphCode, initialRecord] : singlePos) {
     ValueRecord record = initialRecord;
@@ -720,7 +701,7 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
 
     if (parameters.contains(originalCode)) {
       ValueRecord par = parameters.at(originalCode);
-      record = {(qint16)(record.xPlacement + par.xPlacement), (qint16)(record.yPlacement + par.yPlacement), (qint16)(record.xAdvance + par.xAdvance), record.yAdvance};
+      record = {(std::int16_t)(record.xPlacement + par.xPlacement), (std::int16_t)(record.yPlacement + par.yPlacement), (std::int16_t)(record.xAdvance + par.xAdvance), record.yAdvance};
     }
 
     valueRecords << record.xPlacement << record.yPlacement << record.xAdvance;  // << record.yAdvance;
@@ -753,7 +734,7 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
           auto indexesX = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
           posToVar.insert({valueRecords.size(), {-8, indexesX}});
         }
-        valueRecords << (quint16)0;
+        valueRecords << (std::uint16_t)0;
 
         bool ally0 = std::all_of(delatY.begin(), delatY.end(), [](int i) { return i == 0; });
 
@@ -761,7 +742,7 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
           auto indexesY = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
           posToVar.insert({valueRecords.size(), {-8, indexesY}});
         }
-        valueRecords << (quint16)0;
+        valueRecords << (std::uint16_t)0;
 
         bool allxadvance0 = std::all_of(delatXadvance.begin(), delatXadvance.end(), [](int i) { return i == 0; });
 
@@ -769,7 +750,7 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
           auto indexesXadvance = m_layout->getDeltaSetEntry(delatXadvance, regionIndexesArrayIndex);
           posToVar.insert({valueRecords.size(), {-8, indexesXadvance}});
         }
-        valueRecords << (quint16)0;
+        valueRecords << (std::uint16_t)0;
 
         /*
         bool allyadvance0 = std::all_of(delatYadvance.begin(), delatYadvance.end(), [](int i) { return i==0; });
@@ -779,13 +760,13 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
           posToVar.insert({valueRecords.size(),{-8,indexesYadvance}});
 
         }
-        valueRecords << (quint16)0;     */
+        valueRecords << (std::uint16_t)0;     */
 
       } else {
-        valueRecords << (quint16)0;
-        valueRecords << (quint16)0;
-        valueRecords << (quint16)0;
-        // valueRecords << (quint16)0;
+        valueRecords << (std::uint16_t)0;
+        valueRecords << (std::uint16_t)0;
+        valueRecords << (std::uint16_t)0;
+        // valueRecords << (std::uint16_t)0;
       }
     }
 
@@ -801,22 +782,22 @@ for(auto& varIndex : posToVar){
   auto index = varIndex.second.second;
 
   digitalkhatt::ByteBuffer offsetData;
-  offsetData << (quint16)(8+valueRecords.size());
+  offsetData << (std::uint16_t)(8+valueRecords.size());
   valueRecords.replace(pos,offsetData.size(),offsetData);
 
-  valueRecords << (quint16)index.first;
-  valueRecords << (quint16)index.second;
-  valueRecords << (quint16)0x8000;
+  valueRecords << (std::uint16_t)index.first;
+  valueRecords << (std::uint16_t)index.second;
+  valueRecords << (std::uint16_t)0x8000;
 }*/
 
-  quint32 coverageOffset = 8 + valueRecords.size();
+  std::uint32_t coverageOffset = 8 + valueRecords.size();
 
   if (coverageOffset > 0xFFFF) {
     std::cout << "Lookup " << m_lookup->name << " Subtable " << name << " Overflows : " << coverageOffset << std::endl;
   }
 
   root << format;
-  root << (quint16)coverageOffset;
+  root << (std::uint16_t)coverageOffset;
   root << valueFormat;
   root << glyphCount;
   root.append(valueRecords);
@@ -848,7 +829,7 @@ void SingleAdjustmentSubtable::saveParameters(ParameterJsonObject& json) const {
   }
 }
 
-PairAdjustmentSubtable::PairAdjustmentSubtable(Lookup* lookup, quint16 pformat) : Subtable(lookup), format{pformat} {}
+PairAdjustmentSubtable::PairAdjustmentSubtable(Lookup* lookup, std::uint16_t pformat) : Subtable(lookup), format{pformat} {}
 
 void PairAdjustmentSubtable::getPairValue(hb_cursive_anchor_context_t* context) {
   auto pairValue = pairPos.at(context->glyph_id).at(context->base_glyph_id);
@@ -928,17 +909,17 @@ digitalkhatt::ByteBuffer PairAdjustmentSubtable::getOpenTypeTable(bool extended)
   digitalkhatt::ByteBuffer pairSetTables;
   std::map<int, std::pair<int, std::pair<int, int>>> posToVar;
 
-  quint16 glyphCount = pairPos.size();
+  std::uint16_t glyphCount = pairPos.size();
   valueFormat1 = 0;
   valueFormat2 = 0;
-  quint16 pairSetCount = glyphCount;
+  std::uint16_t pairSetCount = glyphCount;
   u_int32_t headerSize = 10;
 
   u_int32_t currentPairSetOffset = headerSize + pairSetCount * 2;
-  coverage << (quint16)1;
-  coverage << (quint16)glyphCount;
+  coverage << (std::uint16_t)1;
+  coverage << (std::uint16_t)glyphCount;
 
-  std::map<quint16, std::map<quint16, PairValueFinal>> pairPosFinal;
+  std::map<std::uint16_t, std::map<std::uint16_t, PairValueFinal>> pairPosFinal;
 
   for (auto i = pairPos.cbegin(), end = pairPos.cend(); i != end; ++i) {
     const auto& pairValues = i->second;
@@ -972,7 +953,7 @@ digitalkhatt::ByteBuffer PairAdjustmentSubtable::getOpenTypeTable(bool extended)
   for (auto i = pairPosFinal.cbegin(), end = pairPosFinal.cend(); i != end; ++i) {
     const auto& pairValues = i->second;
 
-    coverage << (quint16)i->first;
+    coverage << (std::uint16_t)i->first;
 
     digitalkhatt::ByteBuffer currentPairSetTable;
 
@@ -1012,7 +993,7 @@ digitalkhatt::ByteBuffer PairAdjustmentSubtable::getOpenTypeTable(bool extended)
     pairSetTables.append(currentPairSetTable);
     currentPairSetOffset += currentPairSetTable.size();
   }
-  quint32 coverageOffset = headerSize + pairSetOffsets.size() + pairSetTables.size();
+  std::uint32_t coverageOffset = headerSize + pairSetOffsets.size() + pairSetTables.size();
 
   if (coverageOffset > 0xFFFF) {
     std::cout << "Lookup " << m_lookup->name << " Subtable " << name << " Overflows : " << coverageOffset << std::endl;
@@ -1042,24 +1023,24 @@ digitalkhatt::ByteBuffer MultipleSubtable::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer coverage;
   digitalkhatt::ByteBuffer sequencetables;
 
-  quint16 total = subst.size();
+  std::uint16_t total = subst.size();
   uint coverage_size = 2 + 2 + 2 * total;
-  quint16 coverage_offset = 2 + 2 + 2 + 2 * total;
-  quint16 debutsequence = coverage_offset + coverage_size;
+  std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * total;
+  std::uint16_t debutsequence = coverage_offset + coverage_size;
 
-  root << (quint16)1;
+  root << (std::uint16_t)1;
   root << coverage_offset;
   root << total;
 
-  coverage << (quint16)1;
-  coverage << (quint16)total;
+  coverage << (std::uint16_t)1;
+  coverage << (std::uint16_t)total;
 
   for (const auto& [glyphCode, seqtable] : subst) {
 
     root << debutsequence;
     coverage << glyphCode;
-    sequencetables << (quint16)seqtable.size();
-    for (quint16 glyph : seqtable) sequencetables << glyph;
+    sequencetables << (std::uint16_t)seqtable.size();
+    for (std::uint16_t glyph : seqtable) sequencetables << glyph;
 
     debutsequence += 2 + 2 * seqtable.size();
   }
@@ -1087,7 +1068,7 @@ void MultipleSubtable::readJson(const ParameterJsonObject& json) {
   }
 }
 
-AlternateSubtable::AlternateSubtable(Lookup* lookup, quint16 format) : Subtable(lookup), format{format} {}
+AlternateSubtable::AlternateSubtable(Lookup* lookup, std::uint16_t format) : Subtable(lookup), format{format} {}
 
 void AlternateSubtable::generateSubstEquivGlyphs() {
   for (const auto& [glyphCode, seqtable] : alternates) {
@@ -1109,22 +1090,22 @@ digitalkhatt::ByteBuffer AlternateSubtable::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer coverage;
   digitalkhatt::ByteBuffer sequencetables;
 
-  quint16 total = alternates.size();
+  std::uint16_t total = alternates.size();
   uint coverage_size = 2 + 2 + 2 * total;
-  quint16 coverage_offset = 2 + 2 + 2 + 2 * total;
-  quint16 debutsequence = coverage_offset + coverage_size;
+  std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * total;
+  std::uint16_t debutsequence = coverage_offset + coverage_size;
 
-  root << (quint16)1;
+  root << (std::uint16_t)1;
   root << coverage_offset;
   root << total;
 
-  coverage << (quint16)1;
-  coverage << (quint16)total;
+  coverage << (std::uint16_t)1;
+  coverage << (std::uint16_t)total;
 
   for (const auto& [glyphCode, seqtable] : alternates) {
     root << debutsequence;
     coverage << glyphCode;
-    sequencetables << (quint16)seqtable.size();
+    sequencetables << (std::uint16_t)seqtable.size();
 
     for (auto& alternateGlyph : seqtable) {
       if (alternateGlyph.lefttatweel != 0.0 || alternateGlyph.righttatweel != 0.0) {
@@ -1135,9 +1116,9 @@ digitalkhatt::ByteBuffer AlternateSubtable::getOpenTypeTable(bool extended) {
 
         auto newGlyph = m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
 
-        sequencetables << (quint16)newGlyph->charcode;
+        sequencetables << (std::uint16_t)newGlyph->charcode;
       } else {
-        sequencetables << (quint16)alternateGlyph.code;
+        sequencetables << (std::uint16_t)alternateGlyph.code;
       }
     }
     // sequencetables << seqtable;
@@ -1173,17 +1154,17 @@ digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getOpenTypeTable(bool ext
   digitalkhatt::ByteBuffer coverage;
   digitalkhatt::ByteBuffer sequencetables;
 
-  quint16 total = alternates.size();
+  std::uint16_t total = alternates.size();
   uint coverage_size = 2 + 2 + 2 * total;
-  quint16 coverage_offset = 2 + 2 + 2 + 2 * total;
-  quint16 debutsequence = coverage_offset + coverage_size;
+  std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * total;
+  std::uint16_t debutsequence = coverage_offset + coverage_size;
 
-  root << (quint16)format;
+  root << (std::uint16_t)format;
   root << coverage_offset;
   root << total;
 
-  coverage << (quint16)1;
-  coverage << (quint16)total;
+  coverage << (std::uint16_t)1;
+  coverage << (std::uint16_t)total;
 
   for (const auto& [glyphCode, seqtable] : alternates) {
     root << debutsequence;
@@ -1193,11 +1174,11 @@ digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getOpenTypeTable(bool ext
     digitalkhatt::ByteBuffer tatweelsArray;
 
 
-    alternatesArray << (quint16)seqtable.size();
-    tatweelsArray << (quint16)seqtable.size();
+    alternatesArray << (std::uint16_t)seqtable.size();
+    tatweelsArray << (std::uint16_t)seqtable.size();
 
     for (auto& alternateGlyph : seqtable) {
-      alternatesArray << (quint16)alternateGlyph.code;
+      alternatesArray << (std::uint16_t)alternateGlyph.code;
       if (!m_layout->useNormAxisValues) {
         OT::F16DOT16 lefttatweel;
         lefttatweel.set_float(alternateGlyph.lefttatweel);
@@ -1231,22 +1212,22 @@ digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getConvertedOpenTypeTable
   digitalkhatt::ByteBuffer coverage;
   digitalkhatt::ByteBuffer sequencetables;
 
-  quint16 total = alternates.size();
+  std::uint16_t total = alternates.size();
   uint coverage_size = 2 + 2 + 2 * total;
-  quint16 coverage_offset = 2 + 2 + 2 + 2 * total;
-  quint16 debutsequence = coverage_offset + coverage_size;
+  std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * total;
+  std::uint16_t debutsequence = coverage_offset + coverage_size;
 
-  root << (quint16)1;
+  root << (std::uint16_t)1;
   root << coverage_offset;
   root << total;
 
-  coverage << (quint16)1;
-  coverage << (quint16)total;
+  coverage << (std::uint16_t)1;
+  coverage << (std::uint16_t)total;
 
   for (const auto& [glyphCode, seqtable] : alternates) {
     root << debutsequence;
     coverage << glyphCode;
-    sequencetables << (quint16)seqtable.size();
+    sequencetables << (std::uint16_t)seqtable.size();
 
     for (auto& alternateGlyph : seqtable) {
       if (alternateGlyph.lefttatweel != 0.0 || alternateGlyph.righttatweel != 0.0) {
@@ -1257,9 +1238,9 @@ digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getConvertedOpenTypeTable
 
         auto newGlyph = m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
 
-        sequencetables << (quint16)newGlyph->charcode;
+        sequencetables << (std::uint16_t)newGlyph->charcode;
       } else {
-        sequencetables << (quint16)alternateGlyph.code;
+        sequencetables << (std::uint16_t)alternateGlyph.code;
       }
     }
     // sequencetables << seqtable;
@@ -1278,53 +1259,52 @@ LigatureSubtable::LigatureSubtable(Lookup* lookup) : Subtable(lookup) {
 
 digitalkhatt::ByteBuffer LigatureSubtable::getOpenTypeTable(bool extended) {
   struct Ligaturetable {
-    quint16 ligatureGlyph;
-    QVector<quint16> componentGlyphIDs;
+    std::uint16_t ligatureGlyph;
+    std::vector<std::uint16_t> componentGlyphIDs;
   };
 
-  QMap<quint16, QVector<Ligaturetable>> LigatureSets;
+  std::map<std::uint16_t, std::vector<Ligaturetable>> LigatureSets;
 
   for (auto ligature : ligatures) {
-    quint16 ligatureGlyph = ligature.ligatureGlyph;
+    std::uint16_t ligatureGlyph = ligature.ligatureGlyph;
     auto seq = ligature.componentGlyphIDs;
-    LigatureSets[seq.at(0)].append({ligatureGlyph, QVector<quint16>(seq.begin() + 1, seq.end())});
+    LigatureSets[seq.at(0)].push_back(
+        {ligatureGlyph, {seq.begin() + 1, seq.end()}});
   }
 
   digitalkhatt::ByteBuffer root;
   digitalkhatt::ByteBuffer coverage;
   digitalkhatt::ByteBuffer LigatureSetTables;
 
-  quint16 ligatureSetCount = LigatureSets.size();
-  quint16 coverage_offset = 2 + 2 + 2 + 2 * ligatureSetCount;
-  quint16 coverage_size = 2 + 2 + 2 * ligatureSetCount;
-  quint16 ligatureSetOffsets = coverage_offset + coverage_size;
+  std::uint16_t ligatureSetCount = LigatureSets.size();
+  std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * ligatureSetCount;
+  std::uint16_t coverage_size = 2 + 2 + 2 * ligatureSetCount;
+  std::uint16_t ligatureSetOffsets = coverage_offset + coverage_size;
 
-  root << (quint16)format;
+  root << (std::uint16_t)format;
   root << coverage_offset;
   root << ligatureSetCount;
 
-  coverage << (quint16)1;
-  coverage << (quint16)ligatureSetCount;
+  coverage << (std::uint16_t)1;
+  coverage << (std::uint16_t)ligatureSetCount;
 
-  for (auto it = LigatureSets.constBegin(); it != LigatureSets.constEnd(); ++it) {
-    quint16 coverageGlyph = it.key();
-    auto seq = it.value();
+  for (const auto& [coverageGlyph, seq] : LigatureSets) {
     coverage << coverageGlyph;
     root << ligatureSetOffsets;
 
-    quint16 ligatureCount = seq.size();
-    quint16 ligatureOffsets = 2 + 2 * ligatureCount;
+    std::uint16_t ligatureCount = seq.size();
+    std::uint16_t ligatureOffsets = 2 + 2 * ligatureCount;
 
     digitalkhatt::ByteBuffer LigatureSetTable;
     digitalkhatt::ByteBuffer LigatureTables;
-    LigatureSetTable << (quint16)ligatureCount;
+    LigatureSetTable << (std::uint16_t)ligatureCount;
 
     for (int i = 0; i < ligatureCount; i++) {
       LigatureSetTable << ligatureOffsets;
 
       digitalkhatt::ByteBuffer ligatureTable;
       ligatureTable << seq.at(i).ligatureGlyph;
-      ligatureTable << (quint16)(seq.at(i).componentGlyphIDs.size() + 1);
+      ligatureTable << (std::uint16_t)(seq.at(i).componentGlyphIDs.size() + 1);
       ligatureTable << seq.at(i).componentGlyphIDs;
 
       ligatureOffsets += ligatureTable.size();
@@ -1347,20 +1327,21 @@ digitalkhatt::ByteBuffer LigatureSubtable::getOpenTypeTable(bool extended) {
 void LigatureSubtable::readJson(const ParameterJsonObject& json) {
   ligatures.clear();
   for (const auto& [ligatureName, destinationJson] : json) {
-    quint16 uniode = getCodeFromName(ligatureName);
+    std::uint16_t uniode = getCodeFromName(ligatureName);
     if (!uniode) continue;
     const auto destination = jsonValueAs<std::vector<std::string>>(destinationJson);
     if (!destination) continue;
-    QVector<quint16> componentGlyphIDs;
+    std::vector<std::uint16_t> componentGlyphIDs;
     for (const auto& name : *destination) {
       uint value = getCodeFromName(name);
 
       if (!value) continue;
 
       // ligatures[uniode].append(value);
-      componentGlyphIDs.append(value);
+      componentGlyphIDs.push_back(value);
     }
-    ligatures.push_back({static_cast<quint16>(uniode), std::vector<quint16>(componentGlyphIDs.begin(), componentGlyphIDs.end())});
+    ligatures.push_back({static_cast<std::uint16_t>(uniode),
+                         std::move(componentGlyphIDs)});
   }
 }
 
@@ -1414,7 +1395,7 @@ void MarkBaseSubtable::readJson(const ParameterJsonObject& json) {
     classes[className] = std::move(newclass);
   }
 }
-optional<Point> CursiveSubtable::getExit(quint16 glyph_id, GlyphParameters parameters) {
+optional<Point> CursiveSubtable::getExit(std::uint16_t glyph_id, GlyphParameters parameters) {
   optional<Point> exit;
 
   auto anchorType = m_lookup->flags & Lookup::Flags::RightToLeft ? GlyphVis::AnchorType::ExitAnchorRTL : GlyphVis::AnchorType::ExitAnchor;
@@ -1450,7 +1431,7 @@ optional<Point> CursiveSubtable::getExit(quint16 glyph_id, GlyphParameters param
   return exit;
 }
 
-optional<Point> CursiveSubtable::getEntry(quint16 glyph_id, GlyphParameters parameters) {
+optional<Point> CursiveSubtable::getEntry(std::uint16_t glyph_id, GlyphParameters parameters) {
   optional<Point> entry;
 
   auto anchorType = m_lookup->flags & Lookup::Flags::RightToLeft ? GlyphVis::AnchorType::EntryAnchorRTL : GlyphVis::AnchorType::EntryAnchor;
@@ -1591,13 +1572,13 @@ void CursiveSubtable::setAnchorTable(std::uint16_t glyphCode,
   std::optional<Point> calcanchor = isEntry ? getEntry(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt}) : getExit(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt});
 
   if (!calcanchor) {
-    entryExitRecords << (quint16)0;
+    entryExitRecords << (std::uint16_t)0;
     return;
   }
 
   Point anchor{*(calcanchor)};
 
-  entryExitRecords << (quint16)anchorOffset;
+  entryExitRecords << (std::uint16_t)anchorOffset;
 
   bool done = false;
   if (m_layout->isOTVar) {
@@ -1640,19 +1621,19 @@ void CursiveSubtable::setAnchorTable(std::uint16_t glyphCode,
       bool all0 = allx0 && ally0;
 
       if (!all0) {
-        anchorTables << (quint16)3;
-        anchorTables << (quint16)anchor.x();
-        anchorTables << (quint16)anchor.y();
+        anchorTables << (std::uint16_t)3;
+        anchorTables << (std::uint16_t)anchor.x();
+        anchorTables << (std::uint16_t)anchor.y();
         if (!allx0) {
           auto index_x = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
           posToVar.insert({anchorTables.size(), {anchorTables.size() - 6, index_x}});  //(pos -  (isX ? 6 : 8)
         }
-        anchorTables << (quint16)0;  // xDeviceOffset
+        anchorTables << (std::uint16_t)0;  // xDeviceOffset
         if (!ally0) {
           auto index_y = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
           posToVar.insert({anchorTables.size(), {anchorTables.size() - 8, index_y}});
         }
-        anchorTables << (quint16)0;  // yDeviceOffset
+        anchorTables << (std::uint16_t)0;  // yDeviceOffset
         anchorOffset += 10;
 
         done = true;
@@ -1661,9 +1642,9 @@ void CursiveSubtable::setAnchorTable(std::uint16_t glyphCode,
   }
 
   if (!done) {
-    anchorTables << (quint16)1;
-    anchorTables << (quint16)anchor.x();
-    anchorTables << (quint16)anchor.y();
+    anchorTables << (std::uint16_t)1;
+    anchorTables << (std::uint16_t)anchor.x();
+    anchorTables << (std::uint16_t)anchor.y();
     anchorOffset += 6;
   }
 }
@@ -1672,15 +1653,15 @@ digitalkhatt::ByteBuffer CursiveSubtable::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer anchorTables;
   digitalkhatt::ByteBuffer entryExitRecords;
 
-  quint16 entryExitCount = anchors.size();
+  std::uint16_t entryExitCount = anchors.size();
 
-  // quint16 coverageOffset = 2 + 2 + 2 + entryExitCount * 4;
-  // quint32 anchorOffset = coverageOffset + 2 + 2 + 2 * entryExitCount;
+  // std::uint16_t coverageOffset = 2 + 2 + 2 + entryExitCount * 4;
+  // std::uint32_t anchorOffset = coverageOffset + 2 + 2 + 2 * entryExitCount;
 
-  quint32 anchorOffset = 2 + 2 + 2 + entryExitCount * 4;
+  std::uint32_t anchorOffset = 2 + 2 + 2 + entryExitCount * 4;
 
   digitalkhatt::ByteBuffer coverage;
-  coverage << (quint16)1 << entryExitCount;
+  coverage << (std::uint16_t)1 << entryExitCount;
   for (const auto& [glyphCode, anchor] : anchors) coverage << glyphCode;
 
   bool rtl = m_lookup->flags & Lookup::Flags::RightToLeft;
@@ -1694,7 +1675,7 @@ digitalkhatt::ByteBuffer CursiveSubtable::getOpenTypeTable(bool extended) {
 
   setVariationIndexOffset(anchorTables, anchorOffset, posToVar);
 
-  quint32 coverageOffset = 6 + entryExitRecords.size() + anchorTables.size();
+  std::uint32_t coverageOffset = 6 + entryExitRecords.size() + anchorTables.size();
 
   if (coverageOffset > 0xFFFF) {
     std::cout << "Lookup " << m_lookup->name << " Subtable " << name
@@ -1703,8 +1684,8 @@ digitalkhatt::ByteBuffer CursiveSubtable::getOpenTypeTable(bool extended) {
   }
 
   digitalkhatt::ByteBuffer root;
-  root << (quint16)1;
-  root << (quint16)coverageOffset;
+  root << (std::uint16_t)1;
+  root << (std::uint16_t)coverageOffset;
   root << entryExitCount;
   root.append(entryExitRecords);
   root.append(anchorTables);
@@ -1771,20 +1752,19 @@ Point MarkBaseSubtable::getBaseAnchor(std::string baseGlyphName, std::string cla
   }
 
   GlyphVis* curr = &m_layout->glyphs[baseGlyphName];
-  const QString qBaseGlyphName = QString::fromStdString(baseGlyphName);
 
   curr = curr->getAlternate(parameters);
 
   if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
     coordinate += curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor);
   } else {
-    QString anchorName = QString::fromStdString(m_lookup->name + "_" + className);
-    if (curr->conatinsAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
-      coordinate += curr->getAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor);
+    const std::string anchorName = m_lookup->name + "_" + className;
+    if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
+      coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
     } else {
-      QString anchorName = QString::fromStdString(m_lookup->name);
-      if (curr->conatinsAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
-        coordinate += curr->getAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor);
+      const std::string anchorName = m_lookup->name;
+      if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
+        coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
       } else if (markClass.basefunction) {
         coordinate = markClass.basefunction(baseGlyphName, className, coordinate, parameters);
       } else if (markClass.baseanchors.contains(baseGlyphName)) {
@@ -1796,8 +1776,8 @@ Point MarkBaseSubtable::getBaseAnchor(std::string baseGlyphName, std::string cla
   return coordinate;
 }
 
-optional<Point> MarkBaseSubtable::getBaseAnchor(quint16 mark_id, quint16 base_id, GlyphParameters parameters) {
-  quint16 classIndex = markCodes[mark_id];
+optional<Point> MarkBaseSubtable::getBaseAnchor(std::uint16_t mark_id, std::uint16_t base_id, GlyphParameters parameters) {
+  std::uint16_t classIndex = markCodes[mark_id];
 
   const std::string& className = classNamebyIndex[classIndex];
 
@@ -1815,20 +1795,19 @@ Point MarkBaseSubtable::getMarkAnchor(std::string markGlyphName, std::string cla
   }
 
   GlyphVis* curr = &m_layout->glyphs[markGlyphName];
-  const QString qMarkGlyphName = QString::fromStdString(markGlyphName);
 
   curr = curr->getAlternate(parameters);
 
   if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
     coordinate += curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor);
   } else {
-    QString anchorName = QString::fromStdString(m_lookup->name + "_" + className);
-    if (curr->conatinsAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
-      coordinate += curr->getAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor);
+    const std::string anchorName = m_lookup->name + "_" + className;
+    if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
+      coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
     } else {
-      QString anchorName = QString::fromStdString(m_lookup->name);
-      if (curr->conatinsAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor)) {
-        coordinate += curr->getAnchor(anchorName.toStdString(), GlyphVis::AnchorType::MarkAnchor);
+      const std::string anchorName = m_lookup->name;
+      if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
+        coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
       } else if (markClass.markfunction != nullptr) {
         coordinate = markClass.markfunction(markGlyphName, className, coordinate, parameters);
       } else if (markClass.markanchors.contains(markGlyphName)) {
@@ -1839,8 +1818,8 @@ Point MarkBaseSubtable::getMarkAnchor(std::string markGlyphName, std::string cla
 
   return coordinate;
 }
-optional<Point> MarkBaseSubtable::getMarkAnchor(quint16 mark_id, quint16 base_id, GlyphParameters parameters) {
-  quint16 classIndex = markCodes[mark_id];
+optional<Point> MarkBaseSubtable::getMarkAnchor(std::uint16_t mark_id, std::uint16_t base_id, GlyphParameters parameters) {
+  std::uint16_t classIndex = markCodes[mark_id];
 
   const std::string& className = classNamebyIndex[classIndex];
 
@@ -1914,19 +1893,19 @@ void MarkBaseSubtable::setAnchorTable(std::string className,
       bool all0 = allx0 && ally0;
 
       if (!all0) {
-        anchorTables << (quint16)3;
-        anchorTables << (quint16)coordinate.x();
-        anchorTables << (quint16)coordinate.y();
+        anchorTables << (std::uint16_t)3;
+        anchorTables << (std::uint16_t)coordinate.x();
+        anchorTables << (std::uint16_t)coordinate.y();
         if (!allx0) {
           auto index_x = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
           posToVar.insert({anchorTables.size(), {anchorTables.size() - 6, index_x}});
         }
-        anchorTables << (quint16)0;  // xDeviceOffset
+        anchorTables << (std::uint16_t)0;  // xDeviceOffset
         if (!ally0) {
           auto index_y = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
           posToVar.insert({anchorTables.size(), {anchorTables.size() - 8, index_y}});
         }
-        anchorTables << (quint16)0;  // yDeviceOffset
+        anchorTables << (std::uint16_t)0;  // yDeviceOffset
         anchorOffset += 10;
 
         done = true;
@@ -1935,9 +1914,9 @@ void MarkBaseSubtable::setAnchorTable(std::string className,
   }
 
   if (!done) {
-    anchorTables << (quint16)1;
-    anchorTables << (quint16)coordinate.x();
-    anchorTables << (quint16)coordinate.y();
+    anchorTables << (std::uint16_t)1;
+    anchorTables << (std::uint16_t)coordinate.x();
+    anchorTables << (std::uint16_t)coordinate.y();
     anchorOffset += 6;
   }
 }
@@ -1961,7 +1940,7 @@ void Subtable::setVariationIndexOffset(
     auto start = varIndex.second.first;
     auto index = varIndex.second.second;
 
-    quint32 offset;
+    std::uint32_t offset;
 
     auto it = indexes.find(index);
     if (it != indexes.end()) {
@@ -1970,20 +1949,20 @@ void Subtable::setVariationIndexOffset(
     } else {
       offset = anchorTables.size();
       indexes.insert({index, offset});
-      anchorTables << (quint16)index.first;
-      anchorTables << (quint16)index.second;
-      anchorTables << (quint16)0x8000;
+      anchorTables << (std::uint16_t)index.first;
+      anchorTables << (std::uint16_t)index.second;
+      anchorTables << (std::uint16_t)0x8000;
     }
     total++;
 
-    quint32 offsetFromAnchorTable = offset - start;
+    std::uint32_t offsetFromAnchorTable = offset - start;
     if (offsetFromAnchorTable > 0xFFFF) {
       std::cout << "Lookup " << m_lookup->name << " Subtable " << name
                 << " Overflows. offsetFromAnchorTable=" << offsetFromAnchorTable
                 << std::endl;
     }
     digitalkhatt::ByteBuffer offsetData;
-    offsetData << (quint16)offsetFromAnchorTable;
+    offsetData << (std::uint16_t)offsetFromAnchorTable;
     anchorTables.replace(pos, offsetData.size(), offsetData);
   }
   /*
@@ -2008,19 +1987,16 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
   markCodes.clear();
 
   if (sortedBaseCodes.empty()) {
-    QSet<quint16> baseCodesSet;
+    std::set<std::uint16_t> baseCodesSet;
     for (int i = 0; i < base.size(); ++i) {
       const auto codes = m_layout->classtoUnicode(base.at(i));
-      for (const auto code : codes) baseCodesSet.insert(code);
+      baseCodesSet.insert(codes.begin(), codes.end());
     }
-    const auto values = baseCodesSet.values();
-    sortedBaseCodes.assign(values.begin(), values.end());
-
-    std::sort(sortedBaseCodes.begin(), sortedBaseCodes.end());
+    sortedBaseCodes.assign(baseCodesSet.begin(), baseCodesSet.end());
   }
 
-  quint16 baseCount = sortedBaseCodes.size();
-  quint16 markClassCount = classes.size();
+  std::uint16_t baseCount = sortedBaseCodes.size();
+  std::uint16_t markClassCount = classes.size();
 
   for (auto it = classes.cbegin(); it != classes.cend(); ++it) {
     MarkClass markClass = it->second;
@@ -2040,22 +2016,22 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
     classIndex++;
   }
 
-  quint16 markCount = markCodes.size();
+  std::uint16_t markCount = markCodes.size();
 
   // Base coverage && Base Array
-  quint32 baseAnchorOffset = 2 + baseCount * (markClassCount * 2);
+  std::uint32_t baseAnchorOffset = 2 + baseCount * (markClassCount * 2);
 
   std::map<int, std::pair<int, std::pair<int, int>>> basePosToVar;
 
-  baseCoverage << (quint16)1 << baseCount;
+  baseCoverage << (std::uint16_t)1 << baseCount;
   baseArray << baseCount;
 
   for (int i = 0; i < sortedBaseCodes.size(); ++i) {
-    quint16 glyphCode = sortedBaseCodes.at(i);
+    std::uint16_t glyphCode = sortedBaseCodes.at(i);
     const auto& baseglyphName = m_layout->glyphNamePerCode[glyphCode];
     baseCoverage << glyphCode;
     for (auto it = classes.cbegin(); it != classes.cend(); ++it) {
-      baseArray << (quint16)baseAnchorOffset;
+      baseArray << (std::uint16_t)baseAnchorOffset;
       setAnchorTable(it->first, glyphCode, baseAnchorTables, baseAnchorOffset, basePosToVar, extended, true);
     }
   }
@@ -2064,31 +2040,31 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
   // Mark coverage && Mark Array
 
-  quint32 markAnchorOffset = 2 + markCount * 4;
+  std::uint32_t markAnchorOffset = 2 + markCount * 4;
 
   std::map<int, std::pair<int, std::pair<int, int>>> markPosToVar;
 
-  markCoverage << (quint16)1 << markCount;
+  markCoverage << (std::uint16_t)1 << markCount;
   markArray << markCount;
 
   for (auto it = markCodes.cbegin(); it != markCodes.cend(); ++it) {
-    quint16 charcode = it->first;
-    quint16 classIndex = it->second;
+    std::uint16_t charcode = it->first;
+    std::uint16_t classIndex = it->second;
     const std::string& className = classNamebyIndex[classIndex];
 
     markCoverage << charcode;
 
     markArray << classIndex;
-    markArray << (quint16)markAnchorOffset;
+    markArray << (std::uint16_t)markAnchorOffset;
     setAnchorTable(className, charcode, markAnchorTables, markAnchorOffset, markPosToVar, extended, false);
   }
   setVariationIndexOffset(markAnchorTables, markAnchorOffset, markPosToVar);
   markArray.append(markAnchorTables);
 
-  quint32 markCoverageOffset = 12;
-  quint32 baseCoverageOffset = markCoverageOffset + markCoverage.size();
-  quint32 markArrayOffset = baseCoverageOffset + baseCoverage.size();
-  quint32 baseArrayOffset = markArrayOffset + markArray.size();
+  std::uint32_t markCoverageOffset = 12;
+  std::uint32_t baseCoverageOffset = markCoverageOffset + markCoverage.size();
+  std::uint32_t markArrayOffset = baseCoverageOffset + baseCoverage.size();
+  std::uint32_t baseArrayOffset = markArrayOffset + markArray.size();
 
   if (baseArrayOffset > 0xFFFF) {
     std::cout << "Lookup " << m_lookup->name << " Subtable " << name
@@ -2098,7 +2074,7 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
               << std::endl;
   }
 
-  root << (quint16)1 << (quint16)markCoverageOffset << (quint16)baseCoverageOffset << markClassCount << (quint16)markArrayOffset << (quint16)baseArrayOffset;
+  root << (std::uint16_t)1 << (std::uint16_t)markCoverageOffset << (std::uint16_t)baseCoverageOffset << markClassCount << (std::uint16_t)markArrayOffset << (std::uint16_t)baseArrayOffset;
   root.append(markCoverage);
   root.append(baseCoverage);
   root.append(markArray);
@@ -2169,25 +2145,25 @@ digitalkhatt::ByteBuffer ChainingSubtable::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer root;
   digitalkhatt::ByteBuffer coverages;
 
-  quint16 backtrackGlyphCount = compiledRule.backtrack.size();
-  quint16 inputGlyphCount = compiledRule.input.size();
-  quint16 lookaheadGlyphCount = compiledRule.lookahead.size();
-  quint16 substitutionCount = compiledRule.lookupRecords.size();
+  std::uint16_t backtrackGlyphCount = compiledRule.backtrack.size();
+  std::uint16_t inputGlyphCount = compiledRule.input.size();
+  std::uint16_t lookaheadGlyphCount = compiledRule.lookahead.size();
+  std::uint16_t substitutionCount = compiledRule.lookupRecords.size();
 
-  quint16 beginoffsets = 2 + 2 * (3 + backtrackGlyphCount + inputGlyphCount + lookaheadGlyphCount) + 2 + 4 * substitutionCount;
+  std::uint16_t beginoffsets = 2 + 2 * (3 + backtrackGlyphCount + inputGlyphCount + lookaheadGlyphCount) + 2 + 4 * substitutionCount;
 
-  root << quint16(3);
+  root << std::uint16_t(3);
   root << backtrackGlyphCount;
 
   for (int i = backtrackGlyphCount - 1; i >= 0; i--) {
     auto set = compiledRule.backtrack.at(i);
-    std::vector<quint16> coveargeVector(set.begin(), set.end());
+    std::vector<std::uint16_t> coveargeVector(set.begin(), set.end());
     std::sort(coveargeVector.begin(), coveargeVector.end());
 
-    quint16 coverageSize = coveargeVector.size();
+    std::uint16_t coverageSize = coveargeVector.size();
 
-    coverages << quint16(1) << coverageSize;
-    for (quint16 glyph : coveargeVector) coverages << glyph;
+    coverages << std::uint16_t(1) << coverageSize;
+    for (std::uint16_t glyph : coveargeVector) coverages << glyph;
 
     root << beginoffsets;
     beginoffsets += (2 + 2 + 2 * coverageSize);
@@ -2197,13 +2173,13 @@ digitalkhatt::ByteBuffer ChainingSubtable::getOpenTypeTable(bool extended) {
 
   for (int i = 0; i < inputGlyphCount; i++) {
     auto set = compiledRule.input.at(i);
-    std::vector<quint16> coveargeVector(set.begin(), set.end());
+    std::vector<std::uint16_t> coveargeVector(set.begin(), set.end());
     std::sort(coveargeVector.begin(), coveargeVector.end());
 
-    quint16 coverageSize = coveargeVector.size();
+    std::uint16_t coverageSize = coveargeVector.size();
 
-    coverages << quint16(1) << coverageSize;
-    for (quint16 glyph : coveargeVector) coverages << glyph;
+    coverages << std::uint16_t(1) << coverageSize;
+    for (std::uint16_t glyph : coveargeVector) coverages << glyph;
 
     root << beginoffsets;
     beginoffsets += (2 + 2 + 2 * coverageSize);
@@ -2213,13 +2189,13 @@ digitalkhatt::ByteBuffer ChainingSubtable::getOpenTypeTable(bool extended) {
 
   for (int i = 0; i < lookaheadGlyphCount; i++) {
     auto set = compiledRule.lookahead.at(i);
-    std::vector<quint16> coveargeVector(set.begin(), set.end());
+    std::vector<std::uint16_t> coveargeVector(set.begin(), set.end());
     std::sort(coveargeVector.begin(), coveargeVector.end());
 
-    quint16 coverageSize = coveargeVector.size();
+    std::uint16_t coverageSize = coveargeVector.size();
 
-    coverages << quint16(1) << coverageSize;
-    for (quint16 glyph : coveargeVector) coverages << glyph;
+    coverages << std::uint16_t(1) << coverageSize;
+    for (std::uint16_t glyph : coveargeVector) coverages << glyph;
 
     root << beginoffsets;
     beginoffsets += (2 + 2 + 2 * coverageSize);
@@ -2230,7 +2206,7 @@ digitalkhatt::ByteBuffer ChainingSubtable::getOpenTypeTable(bool extended) {
   for (int i = 0; i < substitutionCount; i++) {
     auto lookeprecord = compiledRule.lookupRecords.at(i);
     root << lookeprecord.position;
-    quint16 lookupListIndex;
+    std::uint16_t lookupListIndex;
 
     std::string fullname = m_lookup->name + "." + lookeprecord.lookupName;
 

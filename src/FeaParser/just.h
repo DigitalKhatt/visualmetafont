@@ -22,8 +22,6 @@
 
 
 #include "statement.h"
-#include <QMap>
-#include <QSet>
 #include <set>
 #include <unordered_set>
 #include <memory>
@@ -661,8 +659,8 @@ namespace feayy {
 
     OtLayout* otlayout;
     std::vector<std::unordered_set<std::uint16_t>> eqClasses;
-    QMap<RuleRegExpSymbol*, QSet<int>> eqClassesByGlyphSet;
-    QMap<quint16, quint16> glyphToClass;
+    std::map<RuleRegExpSymbol*, std::set<int>> eqClassesByGlyphSet;
+    std::map<std::uint16_t, std::uint16_t> glyphToClass;
 
   };
 

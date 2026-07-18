@@ -581,9 +581,9 @@ valuerecordextended
 	;
 
 valuerecord
-	: INT_LITERAL													{$$ = {0,0,(qint16)$1,0};}
-	| '<' INT_LITERAL '>'											{$$ = {0,0,(qint16)$2,0};}
-	| '<' INT_LITERAL  INT_LITERAL  INT_LITERAL INT_LITERAL '>'		{$$ = {(qint16)$2,(qint16)$3,(qint16)$4,(qint16)$5};}
+	: INT_LITERAL													{$$ = {0,0,(std::int16_t)$1,0};}
+	| '<' INT_LITERAL '>'											{$$ = {0,0,(std::int16_t)$2,0};}
+	| '<' INT_LITERAL  INT_LITERAL  INT_LITERAL INT_LITERAL '>'		{$$ = {(std::int16_t)$2,(std::int16_t)$3,(std::int16_t)$4,(std::int16_t)$5};}
 	;
 
 lookupreference

@@ -182,7 +182,7 @@ namespace feayy {
   void EqClassesVisitor::accept(RuleRegExpAction&) {};
   void EqClassesVisitor::accept(RuleRegExpGlyphSet& regExp) {
 
-    eqClassesByGlyphSet.insert(&regExp, {});
+    eqClassesByGlyphSet.emplace(&regExp, std::set<int>{});
 
     auto glyphSet = regExp.getGlyphSet();
 
@@ -220,11 +220,10 @@ namespace feayy {
     for (int i = 0; i < eqClasses.size(); i++) {
       auto eqClass = eqClasses[i];
       for (auto glyphId : eqClass) {
-        glyphToClass.insert(glyphId, i);
-        for (auto iter = eqClassesByGlyphSet.begin(); iter != eqClassesByGlyphSet.end(); iter++) {
-          auto glyphSet = iter.key()->getGlyphSet()->getCachedCodes(otlayout);
+        glyphToClass.emplace(glyphId, i);
+        for (auto& [symbol, classes] : eqClassesByGlyphSet) {
+          auto glyphSet = symbol->getGlyphSet()->getCachedCodes(otlayout);
           if (glyphSet.contains(glyphId)) {
-            auto& classes = iter.value();
             classes.insert(i);
           }
         }

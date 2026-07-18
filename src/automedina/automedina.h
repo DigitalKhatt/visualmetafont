@@ -28,7 +28,7 @@
 
 #include "OtLayout.h"
 #include "digitalkhatt/layout/ClassMap.h"
-#include "qpoint.h"
+#include "commontypes.h"
 #include "MPFont.h"
 
 class LayoutWindow;
@@ -90,11 +90,11 @@ class Automedina {
 
   MPFont* font;
 
-  std::map<std::string, std::map<uint16_t, QPoint>> markAnchors;
-  std::map<std::string, std::map<uint16_t, QPoint>> entryAnchors;
-  std::map<std::string, std::map<uint16_t, QPoint>> exitAnchors;
-  std::map<std::string, std::map<uint16_t, QPoint>> entryAnchorsRTL;
-  std::map<std::string, std::map<uint16_t, QPoint>> exitAnchorsRTL;
+  std::map<std::string, std::map<uint16_t, Point>> markAnchors;
+  std::map<std::string, std::map<uint16_t, Point>> entryAnchors;
+  std::map<std::string, std::map<uint16_t, Point>> exitAnchors;
+  std::map<std::string, std::map<uint16_t, Point>> entryAnchorsRTL;
+  std::map<std::string, std::map<uint16_t, Point>> exitAnchorsRTL;
 
   bool extended;
 

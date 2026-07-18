@@ -22,7 +22,6 @@
 #include <set>
 #include "GlazeJson.h"
 #include "digitalkhatt/core/ByteBuffer.h"
-#include "qiodevice.h"
 
 Lookup::Lookup(OtLayout* layout) {
   this->layout = layout;

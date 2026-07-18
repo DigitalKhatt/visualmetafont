@@ -520,9 +520,8 @@ namespace feayy {
       dfa.eqClasses.emplace_back(eqClass.begin(), eqClass.end());
     }
     dfa.glyphToClass.clear();
-    for (auto it = eqClassesVisitor.glyphToClass.cbegin(); it != eqClassesVisitor.glyphToClass.cend(); ++it) {
-      dfa.glyphToClass.emplace(it.key(), it.value());
-    }
+    dfa.glyphToClass.insert(eqClassesVisitor.glyphToClass.begin(),
+                            eqClassesVisitor.glyphToClass.end());
 
     int stateNumber = 0;
     std::set<TDFAConstState> dstates;
@@ -674,8 +673,8 @@ namespace feayy {
           auto& classes = eqClassesVisitor.eqClassesByGlyphSet[pos.first];
           //totalClasses.unite(classes);
           totalClasses.insert(classes.begin(), classes.end());
-          for (auto it = classes.constBegin(); it != classes.constEnd(); it++) {
-            posByClass[*it].push_back(pos);
+          for (const auto classIndex : classes) {
+            posByClass[classIndex].push_back(pos);
           }
         }
 

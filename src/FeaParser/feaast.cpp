@@ -18,9 +18,10 @@
 */
 
 #include "feaast.h"
-#include "font.hpp"
+#include "MPFont.h"
 
-#include <QDebug>
+#include <format>
+#include <iostream>
 
 #include "Subtable.h"
 
@@ -100,11 +101,11 @@ void FeaContext::populateFeatures() {
     auto conditionalStatement = dynamic_cast<ConditionalStatement*>(stmt);
     if (conditionalStatement != nullptr) {
       bool conditionIsTrue = false;
-      auto condition = QString::fromStdString(conditionalStatement->getCondition());
-      if (condition == "") {
+      const auto& condition = conditionalStatement->getCondition();
+      if (condition.empty()) {
         conditionIsTrue = true;
       } else {
-        conditionIsTrue = otlayout->font->boolVariable(condition.toStdString());
+        conditionIsTrue = otlayout->font->boolVariable(condition);
       }
       if (!conditionIsTrue) {
         for (auto stmt : conditionalStatement->getIfStmts()) {
@@ -219,7 +220,7 @@ void LookupDefinitionVisitor::accept(SingleAdjustmentRule& singleRule) {
 
   if (newsubtable == nullptr || newsubtable->format != format) {
     newsubtable = new SingleAdjustmentSubtable(lookup, format);
-    newsubtable->name = QString("subtable%1").arg(subtableName).toStdString();
+    newsubtable->name = "subtable" + std::to_string(subtableName);
     lookup->subtables.push_back(newsubtable);
   }
 
@@ -247,7 +248,7 @@ void LookupDefinitionVisitor::accept(PairAdjustmentRule& pairRule) {
 
   if (newsubtable == nullptr || newsubtable->format != format) {
     newsubtable = new PairAdjustmentSubtable(lookup, format);
-    newsubtable->name = QString("subtable%1").arg(subtableName).toStdString();
+    newsubtable->name = "subtable" + std::to_string(subtableName);
     lookup->subtables.push_back(newsubtable);
   }
 
@@ -296,7 +297,7 @@ void LookupDefinitionVisitor::accept(CursiveRule& cursiveRule) {
 
   if (newsubtable == nullptr) {
     newsubtable = new CursiveSubtable(lookup);
-    newsubtable->name = QString("subtable%1").arg(subtableName).toStdString();
+    newsubtable->name = "subtable" + std::to_string(subtableName);
     lookup->subtables.push_back(newsubtable);
   }
 
@@ -340,14 +341,14 @@ void LookupDefinitionVisitor::accept(Mark2BaseRule& mark2BaseRule) {
 
   int subtableName = lookup->subtables.size() + 1;
   MarkBaseSubtable* newsubtable = new MarkBaseSubtable(lookup);
-  newsubtable->name = QString("subtable%1").arg(subtableName).toStdString();
+  newsubtable->name = "subtable" + std::to_string(subtableName);
   lookup->subtables.push_back(newsubtable);
 
   const auto sortedBaseCodes = mark2BaseRule.baseGlyphSet->getSortedCodes(otlayout);
   newsubtable->sortedBaseCodes.assign(sortedBaseCodes.begin(), sortedBaseCodes.end());
 
   for (auto mark2baseclass : *mark2BaseRule.mark2baseclasses) {
-    QString className = QString::fromStdString(mark2baseclass->className);
+    const std::string& className = mark2baseclass->className;
 
     // className = lookup->name + "." + className;
 
@@ -380,7 +381,7 @@ void LookupDefinitionVisitor::accept(Mark2BaseRule& mark2BaseRule) {
       }
     }
 
-    newsubtable->classes[className.toStdString()] = newclass;
+    newsubtable->classes[className] = newclass;
   }
 }
 
@@ -412,7 +413,7 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
 
     auto secondunicode = singleRule.secondglyph->getCode(otlayout);
 
-    newsubtable->subst.emplace(firstunicode, std::vector<quint16>{secondunicode});
+    newsubtable->subst.emplace(firstunicode, std::vector<std::uint16_t>{secondunicode});
 
     return;
   } else if (lookup->type != Lookup::single) {
@@ -434,7 +435,7 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
       newsubtable = new SingleSubtable(lookup, singleRule.format);
     }
 
-    newsubtable->name = QString("subtable%1").arg(subtableIndex).toStdString();
+    newsubtable->name = "subtable" + std::to_string(subtableIndex);
     lookup->subtables.push_back(newsubtable);
   }
 
@@ -586,9 +587,8 @@ void LookupDefinitionVisitor::accept(ChainingContextualRule& contextualRule) {
         auto stmts = new vector<Statement*>();
         stmts->push_back(value->stmt);
 
-        QString name = QString("%1_auto%2").arg(QString::fromStdString(lookup->name)).arg(nextautolookup++);
-
-        std::string named = name.toStdString();
+        std::string named = lookup->name + "_auto" +
+                            std::to_string(nextautolookup++);
 
         value->lookupNames = {named};
         lastautolookup = new LookupDefinition(named, stmts, context.getNbLookup());
@@ -667,9 +667,8 @@ void LookupDefinitionVisitor::accept(MarkedGlyphSetRegExp& markedGlyphSetRegExp)
     auto stmts = new vector<Statement*>();
     stmts->push_back(markedGlyphSetRegExp.stmt);
 
-    QString name = QString("%1_auto%2").arg(QString::fromStdString(lookup->name)).arg(nextautolookup++);
-
-    auto lookupName = name.toStdString();
+    auto lookupName = lookup->name + "_auto" +
+                      std::to_string(nextautolookup++);
 
     markedGlyphSetRegExp.lookupNames = {lookupName};
     auto lookup = new LookupDefinition(lookupName, stmts, context.getNbLookup());
@@ -681,7 +680,6 @@ void LookupDefinitionVisitor::accept(LookupStatement&) {
 }
 
 void LookupDefinitionVisitor::accept(LookupReference& lookupReference) {
-  const auto qLookupName = QString::fromStdString(lookupReference.lookupName);
   auto found = otlayout->lookupsIndexByName.find(lookupReference.lookupName);
   auto lookupsIndex = found == otlayout->lookupsIndexByName.end() ? -1 : found->second;
 
@@ -689,9 +687,9 @@ void LookupDefinitionVisitor::accept(LookupReference& lookupReference) {
     auto liter = context.lookups.find(lookupReference.lookupName);
 
     if (liter == context.lookups.end()) {
-      auto ret = otlayout->parseCppLookup(qLookupName.toStdString());
+      auto ret = otlayout->parseCppLookup(lookupReference.lookupName);
       if (!ret) {
-        qDebug() << "Lookup " << qLookupName << " not found";
+        std::cerr << "Lookup " << lookupReference.lookupName << " not found\n";
       }
       return;
     }
@@ -730,7 +728,7 @@ void LookupDefinitionVisitor::accept(MultipleSubstitutionRule& multipleSubstitut
     newsubtable = new MultipleSubtable(lookup);
     auto oldsubtable = static_cast<SingleSubtable*>(lookup->subtables.back());
     for (auto it = oldsubtable->subst.begin(); it != oldsubtable->subst.end(); it++) {
-      newsubtable->subst.emplace(it->first, std::vector<quint16>{it->second});
+      newsubtable->subst.emplace(it->first, std::vector<std::uint16_t>{it->second});
     }
     delete oldsubtable;
     lookup->subtables.clear();
@@ -748,7 +746,7 @@ void LookupDefinitionVisitor::accept(MultipleSubstitutionRule& multipleSubstitut
   if (newsubtable == nullptr || newsubtable->format != multipleSubstitutionRule.format) {
     newsubtable = new MultipleSubtable(lookup);
 
-    newsubtable->name = QString("subtable%1").arg(subtableName).toStdString();
+    newsubtable->name = "subtable" + std::to_string(subtableName);
     lookup->subtables.push_back(newsubtable);
   }
 
@@ -762,7 +760,7 @@ void LookupDefinitionVisitor::accept(MultipleSubstitutionRule& multipleSubstitut
 
   auto glyphCode = multipleSubstitutionRule.glyph->getCode(otlayout);
 
-  std::vector<quint16> seq;
+  std::vector<std::uint16_t> seq;
 
   for (auto glyph : *multipleSubstitutionRule.sequence) {
     /*auto unicodes = glyph->getCodes(otlayout);
@@ -795,7 +793,7 @@ void LookupDefinitionVisitor::accept(LigatureSubstitutionRule& ligatureSubstitut
   if (newsubtable == nullptr || newsubtable->format != ligatureSubstitutionRule.format) {
     newsubtable = new LigatureSubtable(lookup);
 
-    newsubtable->name = QString("subtable%1").arg(subtableName).toStdString();
+    newsubtable->name = "subtable" + std::to_string(subtableName);
     lookup->subtables.push_back(newsubtable);
   }
 
@@ -881,11 +879,11 @@ void LookupDefinitionVisitor::accept(IncludeStatment& includeStatment) {
 
 void LookupDefinitionVisitor::accept(ConditionalStatement& conditionalStatement) {
   bool conditionIsTrue = false;
-  auto condition = QString::fromStdString(conditionalStatement.getCondition());
-  if (condition == "") {
+  const auto& condition = conditionalStatement.getCondition();
+  if (condition.empty()) {
     conditionIsTrue = true;
   } else {
-    conditionIsTrue = otlayout->font->boolVariable(condition.toStdString());
+    conditionIsTrue = otlayout->font->boolVariable(condition);
   }
   if (conditionIsTrue) {
     for (auto stmt : conditionalStatement.getIfStmts()) {
