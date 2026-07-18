@@ -146,6 +146,7 @@ class QuranPdfWriterPdfHummus : public QObject {
   static std::string pdfHexUtf16BE(const QString& text);
   static std::string num(double v);
   static QByteArray pathToPdf(const QPainterPath& path, bool fill = true);
+  static QByteArray edgeToPdf(const mp_graphic_object* body, bool fill = true);
 
   bool startPdf();
   bool finishPdf();

@@ -31,6 +31,7 @@
 
 #include "Lookup.h"
 #include "GlyphVis.h"
+#include "GlyphRenderingQt.h"
 #include "qpoint.h"
 #include "automedina/automedina.h"
 
@@ -275,7 +276,7 @@ void LayoutWindow::editLookup(QString lookupName) {
           currentxPos -= glyph_pos[i].x_advance;
           QPoint pos(currentxPos + (glyph_pos[i].x_offset), glyph_pos[i].y_offset);
 
-          auto glyphPath = glyph.path;
+          auto glyphPath = digitalkhatt::qt::pathForGlyph(glyph);
 
           if (glyph_info[i].lefttatweel != 0 || glyph_info[i].righttatweel != 0) {
             GlyphParameters parameters{};
@@ -283,7 +284,8 @@ void LayoutWindow::editLookup(QString lookupName) {
             parameters.lefttatweel = glyph_info[i].lefttatweel;
             parameters.righttatweel = glyph_info[i].righttatweel;
 
-            glyphPath = glyph.getAlternate(parameters)->path;
+            glyphPath = digitalkhatt::qt::pathForGlyph(
+                *glyph.getAlternate(parameters));
           }
 
           glyphPath.setFillRule(Qt::WindingFill);

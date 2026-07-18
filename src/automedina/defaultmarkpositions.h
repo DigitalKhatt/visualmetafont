@@ -242,9 +242,8 @@ public:
 
     //if (curr->name == "alternatechar" || curr->name.contains(".added_")) {
     if (curr->expanded) {
-      auto originalGlyphName = QString::fromStdString(curr->originalglyph);
       originalglyph = &_y.glyphs[curr->originalglyph];
-      adjustoriginal = _subtable.classes[className].baseparameters[originalGlyphName.toStdString()];
+      adjustoriginal = _subtable.classes[className].baseparameters[curr->originalglyph];
       if (curr->leftAnchor) {
         double xshift = curr->matrix.xpart - originalglyph->matrix.xpart;
         double yshift = curr->matrix.ypart - originalglyph->matrix.ypart;

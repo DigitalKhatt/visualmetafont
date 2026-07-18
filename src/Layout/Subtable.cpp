@@ -23,6 +23,7 @@
 #include "GlazeJson.h"
 #include <array>
 #include <algorithm>
+#include <QDataStream>
 #include <hb-ot-layout-common.hh>
 #include <iostream>
 #include <unordered_map>

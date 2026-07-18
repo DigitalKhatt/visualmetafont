@@ -480,6 +480,54 @@ QByteArray MyQPdf::generatePath(const QPainterPath& path, const QTransform& matr
   return result;
 }
 
+QByteArray MyQPdf::generatePath(const mp_graphic_object* body,
+                                const QTransform& matrix, PathFlags flags) {
+  QByteArray result;
+  ByteStream s(&result);
+  bool hasPath = false;
+
+  for (; body; body = body->next) {
+    if (body->type != mp_fill_code && body->type != mp_stroked_code) continue;
+
+    const auto* path = reinterpret_cast<const mp_fill_object*>(body)->path_p;
+    if (!path) continue;
+
+    hasPath = true;
+    s << matrix.map(QPointF(path->x_coord, path->y_coord)) << "m\n";
+
+    const auto* point = path;
+    do {
+      const auto* next = point->next;
+      if (!next) break;
+      s << matrix.map(QPointF(point->right_x, point->right_y))
+        << matrix.map(QPointF(next->left_x, next->left_y))
+        << matrix.map(QPointF(next->x_coord, next->y_coord))
+        << "c\n";
+      point = next;
+    } while (point != path);
+
+    if (path->data.types.left_type != mp_endpoint) s << "h\n";
+  }
+
+  if (!hasPath) return {};
+
+  switch (flags) {
+    case ClipPath:
+      s << "W n\n";
+      break;
+    case FillPath:
+      s << "f\n";
+      break;
+    case StrokePath:
+      s << "S\n";
+      break;
+    case FillAndStrokePath:
+      s << "B\n";
+      break;
+  }
+  return result;
+}
+
 QByteArray MyQPdf::generateMatrix(const QTransform& matrix) {
   QByteArray result;
   ByteStream s(&result);
@@ -3570,8 +3618,8 @@ QByteArray MyQPdfEnginePrivate::getImageStream(GlyphVis& glyph) {
   QByteArray steamDataByteArray;
   MyQPdf::ByteStream steamDataByteStream(&steamDataByteArray);
 
-  if (glyph.m_edge) {
-    mp_graphic_object* body = glyph.m_edge->body;
+  {
+    mp_graphic_object* body = glyph.mpPath();
     if (body) {
       steamDataByteStream << "/DeviceRGB cs\n";
       QPainterPath foregroudpath;
@@ -3727,12 +3775,14 @@ QByteArray MyQPdfEnginePrivate::generateGlyph(GlyphVis& glyph) {
       steamDataByteStream << bytearray;
     } else {
       steamDataByteStream << glyph.width << 0 << glyph.bbox.llx << glyph.bbox.lly << glyph.bbox.urx << glyph.bbox.ury << "d1\n";
-      steamDataByteStream << MyQPdf::generatePath(glyph.path, stroker.matrix, MyQPdf::FillPath);
+      steamDataByteStream << MyQPdf::generatePath(
+          glyph.mpPath(), stroker.matrix, MyQPdf::FillPath);
     }
 
   } else {
     steamDataByteStream << glyph.width << 0 << glyph.bbox.llx << glyph.bbox.lly << glyph.bbox.urx << glyph.bbox.ury << "d1\n";
-    steamDataByteStream << MyQPdf::generatePath(glyph.path, stroker.matrix, MyQPdf::FillPath);
+    steamDataByteStream << MyQPdf::generatePath(
+        glyph.mpPath(), stroker.matrix, MyQPdf::FillPath);
   }
 
   return steamDataByteArray;

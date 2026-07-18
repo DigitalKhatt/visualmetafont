@@ -18,6 +18,7 @@
 */
 
 #include "GlyphItem.h"
+#include "GlyphRenderingQt.h"
 #include "GlyphVis.h"
 #include "QPainter"
 #include "LayoutWindow.h"
@@ -38,7 +39,8 @@ GlyphItem::GlyphItem(double xscale, double yscale, GlyphVis* glyph,
   m_parameters = parameters;
   m_baseChar = baseChar;
 
-  auto path = glyph->getAlternate(parameters)->path;
+  auto path = digitalkhatt::qt::pathForGlyph(
+      *glyph->getAlternate(parameters));
 
 
   path.setFillRule(Qt::WindingFill);
@@ -49,6 +51,10 @@ GlyphItem::GlyphItem(double xscale, double yscale, GlyphVis* glyph,
 
 
   setPath(path);
+
+  if (const auto* coloredGlyph = m_glyph->getColoredGlyph()) {
+    m_picture = digitalkhatt::qt::pictureForGlyph(*coloredGlyph);
+  }
 
 
   setBrush(Qt::black);
@@ -101,7 +107,7 @@ GlyphItem::~GlyphItem()
 void GlyphItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) {
   auto coloredGlyph = m_glyph->getColoredGlyph();
   if (coloredGlyph) {
-    painter->drawPicture(0, 0, coloredGlyph->picture);
+    painter->drawPicture(0, 0, m_picture);
   }
   else {
     QGraphicsPathItem::paint(painter, option, widget);

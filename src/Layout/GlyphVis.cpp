@@ -18,29 +18,22 @@
 */
 
 #include "GlyphVis.h"
+#include "OtLayout.h"
 
-#include "font.hpp"
-#include "glyph.hpp"
-#ifndef DIGITALKHATT_WEBLIB
-#include "qcolor.h"
-#include "qpainter.h"
-#include "qpainterpath.h"
-#endif
 
 #include <cmath>
+#include <utility>
 
 #include "automedina/automedina.h"
 #include "metafont.h";
 
 GlyphVis::GlyphVis() {
-  m_edge = nullptr;
   m_otLayout = nullptr;
   copiedPath = nullptr;
-  isCopiedPath = false;
 }
 
 GlyphVis::~GlyphVis() {
-  if (copiedPath && isCopiedPath) {
+  if (copiedPath) {
     mp_graphic_object *p, *q;
 
     p = copiedPath;
@@ -66,22 +59,14 @@ GlyphVis::GlyphVis(const GlyphVis& other) {
   bbox = other.bbox;
   leftAnchor = other.leftAnchor;
   rightAnchor = other.rightAnchor;
-#ifndef DIGITALKHATT_WEBLIB
-  path = other.path;
-  picture = other.picture;
-#endif
   anchors = other.anchors;
   matrix = other.matrix;
 
-  isdirty = other.isdirty;
-  m_edge = other.m_edge;
   m_otLayout = other.m_otLayout;
-
-  copiedPath = other.copiedPath;
-  isCopiedPath = other.isCopiedPath;
-
-  if (other.copiedPath && isCopiedPath) {
-    copiedPath = m_otLayout->font->copyEdgeBody(other.copiedPath);
+  if (other.copiedPath) {
+    copiedPath = m_otLayout->copyEdgeBody(other.copiedPath);
+  } else {
+    copiedPath = nullptr;
   }
 
   expanded = other.expanded;
@@ -106,10 +91,7 @@ GlyphVis* GlyphVis::getColoredGlyph() {
 }
 
 GlyphType GlyphVis::getGlypfType() {
-  if (m_edge != nullptr) {
-    return (GlyphType)m_edge->glyphtype;
-  }
-  return GlyphType::Unknown;
+  return glyphtype;
 }
 
 GlyphVis* GlyphVis::getAlternate(GlyphParameters parameters) {
@@ -120,106 +102,60 @@ GlyphVis* GlyphVis::getAlternate(GlyphParameters parameters) {
   }
 }
 
-GlyphVis::GlyphVis(GlyphVis&& other) {
-  name = other.name;
-  originalglyph = other.originalglyph;
-  coloredglyph = other.coloredglyph;
-  glyphtype = other.glyphtype;
-  charcode = other.charcode;
-  unicode = other.unicode;
-  width = other.width;
-  height = other.height;
-  depth = other.depth;
-  charlt = other.charlt;
-  charrt = other.charrt;
-  bbox = other.bbox;
-  leftAnchor = other.leftAnchor;
-  rightAnchor = other.rightAnchor;
-#ifndef DIGITALKHATT_WEBLIB
-  path = other.path;
-  picture = other.picture;
-#endif
-  anchors = other.anchors;
-  matrix = other.matrix;
-
-  copiedPath = other.copiedPath;
-  isCopiedPath = other.isCopiedPath;
-
-  isdirty = other.isdirty;
-  m_edge = other.m_edge;
-  m_otLayout = other.m_otLayout;
-
-  other.copiedPath = nullptr;
-#ifndef DIGITALKHATT_WEBLIB
-  other.path = {};
-#endif
-  expanded = other.expanded;
-  isAlternate = other.isAlternate;
+GlyphVis::GlyphVis(GlyphVis&& other) noexcept : GlyphVis() {
+  swap(other);
 }
 
-GlyphVis& GlyphVis::operator=(const GlyphVis& other) {
-  if (this == &other) return *this;
-
-  name = other.name;
-  originalglyph = other.originalglyph;
-  coloredglyph = other.coloredglyph;
-  glyphtype = other.glyphtype;
-  charcode = other.charcode;
-  unicode = other.unicode;
-  width = other.width;
-  height = other.height;
-  depth = other.depth;
-  charlt = other.charlt;
-  charrt = other.charrt;
-  bbox = other.bbox;
-  leftAnchor = other.leftAnchor;
-  rightAnchor = other.rightAnchor;
-#ifndef DIGITALKHATT_WEBLIB
-  path = other.path;
-  picture = other.picture;
-#endif
-  anchors = other.anchors;
-  matrix = other.matrix;
-
-  isdirty = other.isdirty;
-  m_edge = other.m_edge;
-  m_otLayout = other.m_otLayout;
-
-  copiedPath = other.copiedPath;
-  isCopiedPath = other.isCopiedPath;
-
-  if (other.copiedPath && isCopiedPath) {
-    copiedPath = m_otLayout->font->copyEdgeBody(other.copiedPath);
-  }
-
-  expanded = other.expanded;
-  isAlternate = other.isAlternate;
-
+GlyphVis& GlyphVis::operator=(GlyphVis other) {
+  swap(other);
   return *this;
+}
+
+void GlyphVis::swap(GlyphVis& other) noexcept {
+  using std::swap;
+  swap(name, other.name);
+  swap(originalglyph, other.originalglyph);
+  swap(coloredglyph, other.coloredglyph);
+  swap(glyphtype, other.glyphtype);
+  swap(charcode, other.charcode);
+  swap(unicode, other.unicode);
+  swap(width, other.width);
+  swap(height, other.height);
+  swap(depth, other.depth);
+  swap(charlt, other.charlt);
+  swap(charrt, other.charrt);
+  swap(bbox, other.bbox);
+  swap(leftAnchor, other.leftAnchor);
+  swap(rightAnchor, other.rightAnchor);
+  swap(copiedPath, other.copiedPath);
+  swap(anchors, other.anchors);
+  swap(matrix, other.matrix);
+  swap(expanded, other.expanded);
+  swap(isAlternate, other.isAlternate);
+  swap(m_otLayout, other.m_otLayout);
 }
 
 bool GlyphVis::isAyaNumber() {
   return (charcode >= Automedina::AyaNumberCode && charcode <= Automedina::AyaNumberCode + 286);
 }
-GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
-  m_edge = edge;
+GlyphVis::GlyphVis(OtLayout* otLayout, const mp_edge_object* edge) {
   m_otLayout = otLayout;
 
-  this->name = m_edge->charname;
-  if (m_edge->originalglyph != "" && this->name != m_edge->originalglyph)
-    originalglyph = m_edge->originalglyph;
+  this->name = edge->charname;
+  if (edge->originalglyph != "" && this->name != edge->originalglyph)
+    originalglyph = edge->originalglyph;
 
-  charcode = m_edge->charcode;
-  unicode = m_edge->unicode;
-  width = m_edge->width;
-  height = m_edge->height;
-  depth = m_edge->depth;
-  charlt = m_edge->charlt;
-  charrt = m_edge->charrt;
-  if (m_edge->coloredglyph) {
-    coloredglyph = m_edge->coloredglyph;
+  charcode = edge->charcode;
+  unicode = edge->unicode;
+  width = edge->width;
+  height = edge->height;
+  depth = edge->depth;
+  charlt = edge->charlt;
+  charrt = edge->charrt;
+  if (edge->coloredglyph) {
+    coloredglyph = edge->coloredglyph;
   }
-  glyphtype = (GlyphType)m_edge->glyphtype;
+  glyphtype = (GlyphType)edge->glyphtype;
 
   if (edge->body == nullptr) {
     bbox.llx = 0;
@@ -227,47 +163,31 @@ GlyphVis::GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath) {
     bbox.urx = 0;
     bbox.ury = 0;
   } else {
-    bbox.llx = m_edge->minx;
-    bbox.lly = m_edge->miny;
-    bbox.urx = m_edge->maxx;
-    bbox.ury = m_edge->maxy;
+    bbox.llx = edge->minx;
+    bbox.lly = edge->miny;
+    bbox.urx = edge->maxx;
+    bbox.ury = edge->maxy;
   }
   double intpart;
-  if (!std::isnan(m_edge->xleftanchor)) {
-    if (std::modf(m_edge->xleftanchor, &intpart) != 0.0 || std::modf(m_edge->yleftanchor, &intpart) != 0.0) {
+  if (!std::isnan(edge->xleftanchor)) {
+    if (std::modf(edge->xleftanchor, &intpart) != 0.0 || std::modf(edge->yleftanchor, &intpart) != 0.0) {
       int stop = 5;
     }
-    leftAnchor = Point(round(m_edge->xleftanchor), round(m_edge->yleftanchor));
+    leftAnchor = Point(round(edge->xleftanchor), round(edge->yleftanchor));
   }
-  if (!std::isnan(m_edge->xrightanchor)) {
-    // if (!isdigit(m_edge->xrightanchor) || !isdigit(m_edge->xrightanchor)) {
-    if (std::modf(m_edge->xrightanchor, &intpart) != 0.0 || std::modf(m_edge->yrightanchor, &intpart) != 0.0) {
+  if (!std::isnan(edge->xrightanchor)) {
+    if (std::modf(edge->xrightanchor, &intpart) != 0.0 || std::modf(edge->yrightanchor, &intpart) != 0.0) {
       int stop = 5;
     }
-    rightAnchor = Point(round(m_edge->xrightanchor), round(m_edge->yrightanchor));
+    rightAnchor = Point(round(edge->xrightanchor), round(edge->yrightanchor));
   }
 
   // matrix = getMatrix(m_otLayout->mp, charcode);
-  matrix = {m_edge->xpart, m_edge->ypart};
-#ifndef DIGITALKHATT_WEBLIB
-  if (!isColored()) {
-    path = Glyph::getPath(m_edge);
-  } else {
-    picture = Glyph::getPicture(m_edge);
-    path = Glyph::getPath(m_edge);
-  }
-#endif
-  auto body = m_edge != nullptr ? m_edge->body : nullptr;
-  if (copyPath) {
-    isCopiedPath = true;
-    copiedPath = m_otLayout->font->copyEdgeBody(body);
-  } else {
-    isCopiedPath = false;
-    this->copiedPath = body;
-  }
+  matrix = {edge->xpart, edge->ypart};
+  copiedPath = m_otLayout->copyEdgeBody(edge->body);
 
-  for (int i = 0; i < m_edge->numAnchors; i++) {
-    AnchorPoint anchor = m_edge->anchors[i];
+  for (int i = 0; i < edge->numAnchors; i++) {
+    AnchorPoint anchor = edge->anchors[i];
     // auto type = anchor.type == (int)AnchorType::EntryAnchorRTL ? AnchorType::EntryAnchor : (anchor.type == (int)AnchorType::ExitAnchorRTL ? AnchorType::ExitAnchor : (AnchorType)anchor.type);
     anchors.insert_or_assign({anchor.anchorName, (AnchorType)anchor.type},
                              GlyphVisAnchor{Point(anchor.x, anchor.y), anchor.type});

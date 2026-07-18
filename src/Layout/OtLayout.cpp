@@ -22,6 +22,7 @@
 #undef max
 #include "Lookup.h"
 #include "OtLayout.h"
+#include "font.hpp"
 #include "Subtable.h"
 #include "to_opentype.h"
 #include "hb-ot-cmap-table.hh"
@@ -944,6 +945,10 @@ OtLayout::~OtLayout() {
   delete face;
   delete automedina;
   delete toOpenType;
+}
+
+mp_graphic_object* OtLayout::copyEdgeBody(mp_graphic_object* source) const {
+  return font->copyEdgeBody(source);
 }
 
 void OtLayout::setDisabled(Lookup* lookup) {

@@ -18,6 +18,7 @@
 */
 
 #include "feaast.h"
+#include "font.hpp"
 
 #include <QDebug>
 

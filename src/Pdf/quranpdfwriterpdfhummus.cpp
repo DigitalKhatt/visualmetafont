@@ -30,6 +30,7 @@
 #include "XObjectContentContext.h"
 #include "automedina.h"
 #include "glyph.hpp"
+#include "font.hpp"
 #include "qcolor.h"
 #include "qdiriterator.h"
 #include "qfont.h"
@@ -197,6 +198,38 @@ QByteArray QuranPdfWriterPdfHummus::pathToPdf(const QPainterPath& path, bool fil
   }
   if (start >= 0 && path.elementAt(start).x == path.elementAt(path.elementCount() - 1).x && path.elementAt(start).y == path.elementAt(path.elementCount() - 1).y)
     ts << "h\n";
+  ts << (fill ? "f\n" : "S\n");
+  ts.flush();
+  return out;
+}
+
+QByteArray QuranPdfWriterPdfHummus::edgeToPdf(const mp_graphic_object* body,
+                                               bool fill) {
+  QByteArray out;
+  QTextStream ts(&out, QIODevice::WriteOnly);
+  ts.setRealNumberPrecision(3);
+  ts.setRealNumberNotation(QTextStream::FixedNotation);
+
+  for (; body; body = body->next) {
+    if (body->type != mp_fill_code && body->type != mp_stroked_code) continue;
+
+    auto* path = reinterpret_cast<const mp_fill_object*>(body)->path_p;
+    if (!path) continue;
+
+    ts << path->x_coord << ' ' << path->y_coord << " m\n";
+    auto* point = path;
+    do {
+      const auto* next = point->next;
+      if (!next) break;
+      ts << point->right_x << ' ' << point->right_y << ' '
+         << next->left_x << ' ' << next->left_y << ' '
+         << next->x_coord << ' ' << next->y_coord << " c\n";
+      point = point->next;
+    } while (point != path);
+
+    if (path->data.types.left_type != mp_endpoint) ts << "h\n";
+  }
+
   ts << (fill ? "f\n" : "S\n");
   ts.flush();
   return out;
@@ -635,8 +668,8 @@ QByteArray QuranPdfWriterPdfHummus::getImageStream(GlyphVis& glyph) {
   QTextStream s(&out, QIODevice::WriteOnly);
   s.setRealNumberPrecision(6);
 
-  if (glyph.m_edge) {
-    mp_graphic_object* body = glyph.m_edge->body;
+  {
+    mp_graphic_object* body = glyph.mpPath();
     if (body) {
       s << "/DeviceRGB cs\n";
       QPainterPath foreground;
@@ -734,12 +767,12 @@ QByteArray QuranPdfWriterPdfHummus::generateGlyphStream(GlyphVis& glyph) {
     } else {
       s << glyph.width << " 0 " << glyph.bbox.llx << ' ' << glyph.bbox.lly << ' ' << glyph.bbox.urx << ' ' << glyph.bbox.ury << " d1\n";
       s.flush();
-      out += pathToPdf(glyph.path, true);
+      out += edgeToPdf(glyph.mpPath(), true);
     }
   } else {
     s << glyph.width << " 0 " << glyph.bbox.llx << ' ' << glyph.bbox.lly << ' ' << glyph.bbox.urx << ' ' << glyph.bbox.ury << " d1\n";
     s.flush();
-    out += pathToPdf(glyph.path, true);
+    out += edgeToPdf(glyph.mpPath(), true);
   }
   s.flush();
   return out;

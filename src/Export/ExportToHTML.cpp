@@ -20,6 +20,7 @@
 #include "ExportToHTML.h"
 #include <qhash.h>
 #include "Layout/GlyphVis.h"
+#include "font.hpp"
 #include "qfile.h"
 #include "qtextstream.h"
 #include "automedina/automedina.h"
@@ -547,8 +548,8 @@ void ExportToHTML::generateGlyph(GlyphVis& glyph, QTextStream& out) {
 }
 void ExportToHTML::getImageStream(GlyphVis& glyph, QTextStream& out) {
 
-  if (glyph.m_edge) {
-    mp_graphic_object* body = glyph.m_edge->body;
+  {
+    mp_graphic_object* body = glyph.mpPath();
     if (body) {
       do {
         switch (body->type)

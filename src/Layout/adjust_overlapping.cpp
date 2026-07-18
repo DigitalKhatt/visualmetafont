@@ -22,6 +22,7 @@
 
 #include "GlyphItem.h"
 #include "GlyphVis.h"
+#include "GlyphRenderingQt.h"
 #include "Lookup.h"
 #include "automedina/automedina.h"
 #include "qpoint.h"
@@ -296,7 +297,8 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
         QPoint pos = linePositions[g];
         QPainterPath path;
         if (!glyphName.find("space") != std::string::npos && !glyphName.find("cgj") != std::string::npos) {
-          auto gg = qt_graphicsItem_shapeFromPath(currentGlyph.path, pen);
+          auto gg = qt_graphicsItem_shapeFromPath(
+              digitalkhatt::qt::pathForGlyph(currentGlyph), pen);
           path = pathtransform.map(gg);
           path.translate(pos);
 
@@ -351,7 +353,8 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
               // auto gg = qt_graphicsItem_shapeFromPath(otherGlyph.path, pen);
               // QPainterPath otherpath = pathtransform.map(gg);
 
-              QPainterPath otherpath = pathtransform.map(otherGlyph.path);
+              QPainterPath otherpath = pathtransform.map(
+                  digitalkhatt::qt::pathForGlyph(otherGlyph));
               otherpath.translate(otherpos);
               if (path.intersects(otherpath)) {
                 glyphLayout.color = 0xFF000000;

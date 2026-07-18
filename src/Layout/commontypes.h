@@ -21,10 +21,55 @@
 #define H_COMMONTYPES
 
 #include <cmath>
+#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
+
+struct Point {
+  constexpr Point() = default;
+  constexpr Point(int x, int y) : x_{x}, y_{y} {}
+
+  template <typename T>
+    requires requires(const T& point) {
+      { point.x() } -> std::convertible_to<int>;
+      { point.y() } -> std::convertible_to<int>;
+    }
+  constexpr Point(const T& point) : x_{point.x()}, y_{point.y()} {}
+
+  template <typename T>
+    requires std::constructible_from<T, int, int>
+  constexpr operator T() const {
+    return T{x_, y_};
+  }
+
+  constexpr int x() const { return x_; }
+  constexpr int y() const { return y_; }
+  constexpr void setX(int x) { x_ = x; }
+  constexpr void setY(int y) { y_ = y; }
+  constexpr bool isNull() const { return x_ == 0 && y_ == 0; }
+
+  constexpr Point& operator+=(Point rhs) {
+    x_ += rhs.x_;
+    y_ += rhs.y_;
+    return *this;
+  }
+
+  constexpr Point& operator-=(Point rhs) {
+    x_ -= rhs.x_;
+    y_ -= rhs.y_;
+    return *this;
+  }
+
+  friend constexpr Point operator+(Point lhs, Point rhs) { return lhs += rhs; }
+  friend constexpr Point operator-(Point lhs, Point rhs) { return lhs -= rhs; }
+  friend constexpr bool operator==(Point, Point) = default;
+
+ private:
+  int x_{};
+  int y_{};
+};
 
 struct GlyphParameters {
   double lefttatweel{0.0};

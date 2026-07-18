@@ -50,6 +50,7 @@
 
 #include "Lookup.h"
 #include "GlyphVis.h"
+#include "GlyphRenderingQt.h"
 #include "qpoint.h"
 #include "automedina/automedina.h"
 
@@ -281,7 +282,10 @@ void LayoutWindow::applyDirectedForceLayout(LayoutPageList& pages, OriginalPageL
 
         linePositions.append(pos);
 
-        GlyphNode* node = new GlyphNode{ pos.x(),pos.y(),0,0,&glyphLayout,currentGlyph, QString::fromStdString(glyphName),currentGlyph->path.toFillPolygon() };
+        GlyphNode* node = new GlyphNode{
+            pos.x(), pos.y(), 0, 0, &glyphLayout, currentGlyph,
+            QString::fromStdString(glyphName),
+            digitalkhatt::qt::pathForGlyph(*currentGlyph).toFillPolygon()};
 
         simulation.nodes.push_back(std::unique_ptr<GlyphNode>{node});
 
@@ -366,7 +370,8 @@ void LayoutWindow::applyDirectedForceLayout(LayoutPageList& pages, OriginalPageL
 
         GlyphVis& currentGlyph = *m_otlayout->getGlyph(glyphName, glyphLayout.lefttatweel, glyphLayout.righttatweel);
         QPoint pos = linePositions[g];
-        QPainterPath path = pathtransform.map(currentGlyph.path);
+        QPainterPath path = pathtransform.map(
+            digitalkhatt::qt::pathForGlyph(currentGlyph));
         path.translate(pos);
 
         // verify with the line above
@@ -390,7 +395,8 @@ void LayoutWindow::applyDirectedForceLayout(LayoutPageList& pages, OriginalPageL
               GlyphVis& otherGlyph = *m_otlayout->getGlyph(prev_glyphName, prev_glyphLayout.lefttatweel, prev_glyphLayout.righttatweel); //m_otlayout->glyphs[prev_glyphName];
               QPoint otherpos = prev_linePositions[prev_g];
 
-              QPainterPath otherpath = pathtransform.map(otherGlyph.path);
+              QPainterPath otherpath = pathtransform.map(
+                  digitalkhatt::qt::pathForGlyph(otherGlyph));
               otherpath.translate(otherpos);
               if (path.intersects(otherpath)) {
 
@@ -424,7 +430,8 @@ void LayoutWindow::applyDirectedForceLayout(LayoutPageList& pages, OriginalPageL
             GlyphVis& otherGlyph = *m_otlayout->getGlyph(otherglyphName, otherglyphLayout.lefttatweel, otherglyphLayout.righttatweel); //glyphs[otherglyphName];
             QPointF otherpos = linePositions[gg];
 
-            QPainterPath otherpath = pathtransform.map(otherGlyph.path);
+            QPainterPath otherpath = pathtransform.map(
+                digitalkhatt::qt::pathForGlyph(otherGlyph));
             otherpath.translate(otherpos);
 
             if (path.intersects(otherpath)) {

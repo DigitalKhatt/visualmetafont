@@ -23,20 +23,14 @@
 #include <map>
 #include <string>
 
-#include "font.hpp"
-#ifndef DIGITALKHATT_WEBLIB
-#include "qpainterpath.h"
-#include "qpicture.h"
-#endif
 #include <unordered_map>
 
-#include "OtLayout.h"
+#include "commontypes.h"
 #include "metafont.h"
 
 class OtLayout;
 // struct mp_edge_object;
 // typedef struct mp_gr_knot_data* mp_gr_knot;
-class QPainterPath;
 // struct mp_graphic_object;
 
 struct GlyphVisAnchor {
@@ -55,10 +49,6 @@ enum class GlyphType {
 };
 
 class GlyphVis {
-  friend class MyQPdfEnginePrivate;
-  friend class ExportToHTML;
-  friend class QuranPdfWriterPdfHummus;
-
  public:
   struct BBox {
     double llx = 0;
@@ -67,20 +57,21 @@ class GlyphVis {
     double ury = 0;
   };
 
-  GlyphVis(OtLayout* otLayout, mp_edge_object* edge, bool copyPath = true);
+  GlyphVis(OtLayout* otLayout, const mp_edge_object* edge);
   GlyphVis();
 
   bool isAyaNumber();
 
   ~GlyphVis();
-  GlyphVis(GlyphVis&& other);
+  GlyphVis(GlyphVis&& other) noexcept;
   GlyphVis(const GlyphVis& other);
-  GlyphVis& operator=(const GlyphVis& other);
+  GlyphVis& operator=(GlyphVis other);
+  void swap(GlyphVis& other) noexcept;
 
   std::string name;
   std::string originalglyph;
   std::string coloredglyph;
-  GlyphType glyphtype;
+  GlyphType glyphtype = GlyphType::Unknown;
   int charcode = 0;
   int unicode = -1;
   double width = 0;
@@ -93,18 +84,9 @@ class GlyphVis {
   std::optional<Point> rightAnchor;
   mp_graphic_object* copiedPath = nullptr;
 
-  mp_graphic_object* mpPath() {
-    if (isCopiedPath) {
-      return copiedPath;
-    } else {
-      return m_edge->body;
-    }
+  mp_graphic_object* mpPath() const {
+    return copiedPath;
   }
-
-#ifndef DIGITALKHATT_WEBLIB
-  QPainterPath path;
-  QPicture picture;
-#endif
 
   enum class AnchorType {
     MarkAnchor = 1,
@@ -124,10 +106,6 @@ class GlyphVis {
   std::map<AnchorKey, GlyphVisAnchor> anchors;
   Transform matrix = {};
 
-  mp_edge_object* edge() {
-    return m_edge;
-  }
-
   GlyphType getGlypfType();
 
   bool isColored();
@@ -143,8 +121,9 @@ class GlyphVis {
   bool isAlternate = false;
 
  private:
-  bool isdirty = true;
-  mp_edge_object* m_edge = nullptr;
   OtLayout* m_otLayout = nullptr;
-  bool isCopiedPath = false;
 };
+
+inline void swap(GlyphVis& lhs, GlyphVis& rhs) noexcept {
+  lhs.swap(rhs);
+}

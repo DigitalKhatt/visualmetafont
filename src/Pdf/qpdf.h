@@ -74,6 +74,7 @@
 struct hb_buffer_t;
 class OtLayout;
 class GlyphVis;
+struct mp_graphic_object;
 
 QT_BEGIN_NAMESPACE
 
@@ -128,6 +129,7 @@ enum PathFlags {
   FillAndStrokePath
 };
 QByteArray generatePath(const QPainterPath& path, const QTransform& matrix, PathFlags flags);
+QByteArray generatePath(const mp_graphic_object* body, const QTransform& matrix, PathFlags flags);
 QByteArray generateMatrix(const QTransform& matrix);
 QByteArray generateDashes(const QPen& pen);
 QByteArray patternForBrush(const QBrush& b);

@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "GlyphVis.h"
+#include "font.hpp"
 #include "LayoutWindow.h"
 #include "automedina/automedina.h"
 #include "digitalkhatt.h"

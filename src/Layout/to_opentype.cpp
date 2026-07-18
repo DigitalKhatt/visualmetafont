@@ -18,6 +18,7 @@
 */
 
 #include "to_opentype.h"
+#include "font.hpp"
 
 #include <cmath>
 #include <chrono>

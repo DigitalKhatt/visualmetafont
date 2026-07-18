@@ -21,6 +21,7 @@
 
 #include <cstdint>
 #include <QGraphicsPathItem>
+#include <QPicture>
 #include "commontypes.h"
 
 class GlyphVis;
@@ -55,5 +56,5 @@ private:
   QPoint lastdiff;
   double m_scale;
   GlyphParameters m_parameters;
-  //QPainterPath path;
+  QPicture m_picture;
 };

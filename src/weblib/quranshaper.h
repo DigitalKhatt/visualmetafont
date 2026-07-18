@@ -652,10 +652,8 @@ private:
   }
 
   void getImageStream(GlyphVis& glyph, emscripten::val ctx) {
-    auto edge = glyph.edge();
-
-    if (edge != nullptr) {
-      mp_graphic_object* body = edge->body;
+    {
+      mp_graphic_object* body = glyph.mpPath();
       if (body) {
         do {
           switch (body->type)

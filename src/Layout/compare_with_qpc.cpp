@@ -23,6 +23,7 @@
 
 #include "GlyphItem.h"
 #include "GlyphVis.h"
+#include "GlyphRenderingQt.h"
 #include "Lookup.h"
 #include "automedina/automedina.h"
 #include "qpoint.h"
@@ -958,7 +959,8 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
 
       GlyphVis& glyph = m_otlayout->glyphs[glyphName];
 
-      auto glyphPath = glyph.getAlternate(parameters)->path;
+      auto glyphPath = digitalkhatt::qt::pathForGlyph(
+          *glyph.getAlternate(parameters));
 
       if (!glyphPath.isEmpty()) {
         painter.save();
@@ -997,7 +999,8 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
 
           GlyphVis& glyph = m_otlayout->glyphs[glyphName];
 
-          auto glyphPath = glyph.getAlternate(parameters)->path;
+          auto glyphPath = digitalkhatt::qt::pathForGlyph(
+              *glyph.getAlternate(parameters));
 
           if (!glyphPath.isEmpty()) {
             painter.save();
