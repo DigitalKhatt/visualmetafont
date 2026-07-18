@@ -107,3 +107,85 @@ target_compile_features(digitalkhatt_layout PUBLIC cxx_std_20)
 target_link_libraries(digitalkhatt_layout PUBLIC digitalkhatt_geometry digitalkhatt_core)
 
 
+# ---------------------------------------------------------------------------
+# digitalkhatt_otlayout — Qt-free OpenType layout and font generation engine
+# ---------------------------------------------------------------------------
+
+find_package(FLEX REQUIRED)
+find_package(BISON REQUIRED)
+
+include(FetchContent)
+FetchContent_Declare(
+  glaze
+  GIT_REPOSITORY https://github.com/stephenberry/glaze.git
+  GIT_TAG v7.5.0
+  GIT_SHALLOW TRUE
+  FIND_PACKAGE_ARGS 7.5.0
+)
+FetchContent_MakeAvailable(glaze)
+
+set(OTLAYOUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/src/otlayout)
+set(OTLAYOUT_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/otlayout/FeaParser)
+file(MAKE_DIRECTORY ${OTLAYOUT_GENERATED_DIR})
+
+BISON_TARGET(OtLayoutFeaParser
+  ${OTLAYOUT_ROOT}/FeaParser/parser.y
+  ${OTLAYOUT_GENERATED_DIR}/parser.cpp
+  VERBOSE
+)
+FLEX_TARGET(OtLayoutFeaScanner
+  ${OTLAYOUT_ROOT}/FeaParser/scanner.l
+  ${OTLAYOUT_GENERATED_DIR}/scanner.cpp
+)
+ADD_FLEX_BISON_DEPENDENCY(OtLayoutFeaScanner OtLayoutFeaParser)
+
+add_library(digitalkhatt_otlayout SHARED
+  src/otlayout/automedina/automedina.cpp
+  src/otlayout/FeaParser/driver.cpp
+  src/otlayout/FeaParser/feaast.cpp
+  src/otlayout/FeaParser/just.cpp
+  src/otlayout/FeaParser/fsm.cpp
+  ${BISON_OtLayoutFeaParser_OUTPUTS}
+  ${FLEX_OtLayoutFeaScanner_OUTPUTS}
+  src/otlayout/qurantext/quran.cpp
+  src/otlayout/qurantext/qurancomplex.cpp
+  src/otlayout/qurantext/surahs.cpp
+  src/otlayout/Layout/JustificationContext.cpp
+  src/otlayout/Layout/GlyphVis.cpp
+  src/otlayout/Layout/Lookup.cpp
+  src/otlayout/Layout/OtLayout.cpp
+  src/otlayout/Layout/Subtable.cpp
+  src/otlayout/Layout/to_opentype.cpp
+  src/otlayout/Layout/FSMDriver.cpp
+  src/otlayout/Layout/just_features.cpp
+  src/otlayout/Layout/gllobal_strings.cpp
+)
+
+target_include_directories(digitalkhatt_otlayout PUBLIC
+  ${OTLAYOUT_ROOT}
+  ${OTLAYOUT_ROOT}/Layout
+  ${OTLAYOUT_ROOT}/FeaParser
+  ${OTLAYOUT_ROOT}/automedina
+  ${OTLAYOUT_GENERATED_DIR}
+)
+target_include_directories(digitalkhatt_otlayout PRIVATE ${FLEX_INCLUDE_DIRS})
+target_compile_features(digitalkhatt_otlayout PUBLIC cxx_std_20)
+target_compile_options(digitalkhatt_otlayout PRIVATE
+  $<$<CXX_COMPILER_ID:MSVC>:/utf-8>
+)
+target_compile_definitions(digitalkhatt_otlayout PRIVATE
+  HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR
+)
+target_link_libraries(digitalkhatt_otlayout PUBLIC
+  harfbuzz
+  mplib
+  digitalkhatt_core
+  digitalkhatt_justify
+  digitalkhatt_geometry
+  digitalkhatt_layout
+  glaze::glaze
+)
+set_target_properties(digitalkhatt_otlayout PROPERTIES
+  POSITION_INDEPENDENT_CODE ON
+  WINDOWS_EXPORT_ALL_SYMBOLS ON
+)

@@ -87,39 +87,7 @@ else()
 
 endif()
 
-set(Automedina
-  automedina/automedina.h
-  automedina/automedina.cpp
-  automedina/defaultmarkpositions.h
-  )
-
-source_group("Automedina" FILES ${Automedina})
-
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser)
-file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/FeaParser)
-
-
-#BISON_TARGET(FeaParser FeaParser/parser.y ${CMAKE_CURRENT_BINARY_DIR}/FeaParser/parser.cpp VERBOSE COMPILE_FLAGS "-Wcounterexamples")
-BISON_TARGET(FeaParser FeaParser/parser.y ${CMAKE_CURRENT_BINARY_DIR}/FeaParser/parser.cpp VERBOSE COMPILE_FLAGS)
-FLEX_TARGET(FeaScanner FeaParser/scanner.l  ${CMAKE_CURRENT_BINARY_DIR}/FeaParser/scanner.cpp)
-ADD_FLEX_BISON_DEPENDENCY(FeaScanner FeaParser)
-
-set(FeaParser
-  FeaParser/parser.y
-  FeaParser/scanner.l
-  FeaParser/driver.cpp
-  FeaParser/driver.h
-  FeaParser/feaast.cpp
-  FeaParser/feaast.h
-  FeaParser/scanner.h
-  FeaParser/just.h
-  FeaParser/just.cpp
-  FeaParser/fsm.cpp
-  ${BISON_FeaParser_OUTPUTS}
-  ${FLEX_FeaScanner_OUTPUTS}
-  )
-
-source_group("FeaParser" FILES ${FeaParser})
 
 BISON_TARGET(GlyphParser GlyphParser/glyphparser.y ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser/glyphparser.cpp VERBOSE)
 FLEX_TARGET(GlyphScanner GlyphParser/glyphscanner.l  ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser/glyphscanner.cpp)
@@ -149,45 +117,18 @@ set(Export
   )
 source_group("Export" FILES ${Export})
 
-set(Layout
-  Layout/JustificationContext.cpp
-  Layout/JustificationContext.h
-  #Layout/GlyphItem.cpp
-  Layout/GlyphVis.cpp
-  Layout/GlyphVis.h
-  #Layout/GraphicsSceneAdjustment.cpp
-  #Layout/GraphicsViewAdjustment.cpp
-  #Layout/LayoutWindow.cpp
+set(LayoutApplication
   Layout/QByteArrayOperator.cpp
   Layout/QByteArrayOperator.h
-  Layout/Lookup.cpp
-  Layout/Lookup.h
-  Layout/OtLayout.cpp
-  Layout/OtLayout.h
-  Layout/GlazeJson.h
-  Layout/ParameterJson.h
-  Layout/Subtable.cpp
-  Layout/Subtable.h
-  Layout/to_opentype.cpp
-  Layout/to_opentype.h
-  Layout/FSMDriver.h
-  Layout/FSMDriver.cpp
-  Layout/commontypes.h
-  Layout/just_features.cpp
-  Layout/gllobal_strings.h
-  Layout/gllobal_strings.cpp
   Layout/generateOverlapLookups.cpp
   Layout/adjust_overlapping.cpp
   Layout/adjust_overlapping2.cpp
-  Layout/contact_flexible.h
-  #Layout/contact_flexible.cpp
   Layout/optimize_layout.cpp
+  Layout/compare_with_qpc.cpp
   Layout/GeometryQt.h
   Layout/GeometryQt.cpp
-  Layout/compare_with_qpc.cpp
   Layout/HbDrawToQtPath.cpp
-  )
-
+)
 
 
 set(LayoutWindow
@@ -217,14 +158,6 @@ set(Pdf
 endif()
 
 source_group("Pdf" FILES ${Pdf})
-
-set(QuranText
-  qurantext/quran.cpp
-  qurantext/quran.h
-  qurantext/qurancomplex.cpp
-  qurantext/surahs.cpp
-  )
-source_group("QuranText" FILES ${QuranText})
 
 set(Resource_Files
   Resources/mpgui.qrc
@@ -295,7 +228,6 @@ set(MetaFont
   metafont/glyph.cpp
   metafont/glyph.hpp
   metafont/exp.hpp
-  metafont/metafont.h
   )
 source_group("MetaFont" FILES ${MetaFont})
 
@@ -308,14 +240,13 @@ source_group("Demos" FILES ${Demos})
 
 
 
-set(ALL_FILES ${Automedina} ${GlyphCommands} ${FeaParser} ${MetaFont} ${GlyphParser} ${QuranText} ${Layout}
+set(ALL_FILES ${GlyphCommands} ${MetaFont} ${GlyphParser} ${LayoutApplication}
   ${GlyphWindow}  ${FontWindow}
   ${Export} ${LayoutWindow} ${Main} ${Pdf}  ${Generated_Files} ${Resource_Files} ${Demos}
 )
 
 
-set(WEBLIB_FILES  ${Automedina} ${FeaParser}
-  ${Layout} ${QuranText} ${Header_Files} ${Resource_Files} weblib/visualmetafontwasm.cpp weblib/quranshaper.h)
+set(WEBLIB_FILES ${Header_Files} ${Resource_Files} weblib/visualmetafontwasm.cpp weblib/quranshaper.h)
 
 set(LUATEX_FILES
 #${Automedina} ${FeaParser} ${Layout} ${QuranText} ${Header_Files} ${Resource_Files}
@@ -335,7 +266,7 @@ else()
   add_executable(${PROJECT_NAME} ${ALL_FILES})
 endif(APPLE)
 
-add_library(${VMF_SL} SHARED  ${Automedina} ${GlyphCommands} ${FeaParser} ${MetaFont} ${GlyphParser} ${QuranText} ${Layout})
+add_library(${VMF_SL} SHARED ${GlyphCommands} ${MetaFont} ${GlyphParser})
 
 target_include_directories(${VMF_SL} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/."
@@ -351,11 +282,17 @@ target_include_directories(${VMF_SL} PRIVATE ${FLEX_INCLUDE_DIRS} ${CMAKE_CURREN
 add_dependencies(${VMF_SL} harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout)
 target_compile_options(${VMF_SL} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_compile_definitions(${VMF_SL} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR)
-target_link_libraries(${VMF_SL} PUBLIC harfbuzz mplib Qt5::Core Qt5::Gui Qt5::Widgets PRIVATE digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout glaze::glaze)
+target_link_libraries(${VMF_SL} PUBLIC digitalkhatt_otlayout Qt5::Widgets)
 #add_dependencies(${PROJECT_NAME} ${VMF_SL})
 set_target_properties(${VMF_SL}  PROPERTIES ENABLE_EXPORTS 1 WINDOWS_EXPORT_ALL_SYMBOLS 1)
 set_target_properties(${PROJECT_NAME}  PROPERTIES ENABLE_EXPORTS 1 WINDOWS_EXPORT_ALL_SYMBOLS 1)
-export(TARGETS ${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout glaze_glaze FILE ${CMAKE_CURRENT_BINARY_DIR}/visualmetafontConfig.cmake)
+export(TARGETS digitalkhatt_otlayout harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout glaze_glaze
+  FILE ${CMAKE_CURRENT_BINARY_DIR}/digitalkhatt_otlayoutTargets.cmake)
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/digitalkhatt_otlayoutConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/digitalkhatt_otlayoutConfig.cmake
+  @ONLY
+)
 #export(TARGETS ${VMF_SL} harfbuzz mplib QtPropertyBrowser FILE ${CMAKE_CURRENT_BINARY_DIR}/vmfsl.cmake)
 
 
@@ -439,8 +376,8 @@ set(QT_STATIC_PLUGINS
 )
 endif()
 
-add_dependencies(${PROJECT_NAME} harfbuzz mplib QtPropertyBrowser digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout)
-add_dependencies(${WEBLIB_NAME} harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout)
+add_dependencies(${PROJECT_NAME} digitalkhatt_otlayout QtPropertyBrowser)
+add_dependencies(${WEBLIB_NAME} digitalkhatt_otlayout)
 add_dependencies(${LUATEX_NAME} harfbuzz mplib)
 
 if (UNIX)
@@ -455,7 +392,7 @@ target_link_libraries(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wl,--excl
 
 if (NOT EMSCRIPTEN)
   # Link with other targets.
-  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout PRIVATE QtPropertyBrowser
+  target_link_libraries(${PROJECT_NAME} PUBLIC digitalkhatt_otlayout PRIVATE QtPropertyBrowser
     Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::Svg Qt5::PrintSupport Qt5::Widgets Qt5::Sql
     ${QT_STATIC_PLUGINS}
     ZLIB::ZLIB
@@ -464,7 +401,7 @@ if (NOT EMSCRIPTEN)
     PDFHummus::PDFWriter
   )
 else()
-  target_link_libraries(${PROJECT_NAME} PUBLIC harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout QtPropertyBrowser
+  target_link_libraries(${PROJECT_NAME} PUBLIC digitalkhatt_otlayout QtPropertyBrowser
     Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::Svg Qt5::PrintSupport Qt5::Widgets
     Qt5::QJpegPlugin
     Qt5::QSvgPlugin
@@ -472,7 +409,7 @@ else()
     )
 endif()
 
-target_link_libraries(${WEBLIB_NAME} PUBLIC harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout Qt5::Core PRIVATE glaze::glaze)
+target_link_libraries(${WEBLIB_NAME} PUBLIC digitalkhatt_otlayout Qt5::Core PRIVATE glaze::glaze)
 
 target_link_libraries(${LUATEX_NAME} PUBLIC harfbuzz mplib Qt5::Core PRIVATE glaze::glaze)
 
