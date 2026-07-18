@@ -293,6 +293,7 @@ configure_file(
   ${CMAKE_CURRENT_BINARY_DIR}/digitalkhatt_otlayoutConfig.cmake
   @ONLY
 )
+export(PACKAGE digitalkhatt_otlayout)
 #export(TARGETS ${VMF_SL} harfbuzz mplib QtPropertyBrowser FILE ${CMAKE_CURRENT_BINARY_DIR}/vmfsl.cmake)
 
 
