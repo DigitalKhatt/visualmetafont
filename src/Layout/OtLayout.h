@@ -40,7 +40,7 @@
 #include <digitalkhatt/layout/ClassMap.h>
 
 struct Lookup;
-class Font;
+class MPFont;
 struct hb_font_t;
 struct hb_face_t;
 class Automedina;
@@ -184,7 +184,7 @@ class OtLayout {
     ComponentGlyph = 4
   };
 
-  OtLayout(Font* font, bool extended,
+  OtLayout(MPFont* font, bool extended,
            bool generateVariableOpenType = false);
   ~OtLayout();
 
@@ -257,7 +257,7 @@ class OtLayout {
     this->tables.push_back(lookup);
   };
 
-  Font* font;
+  MPFont* font;
 
   double nuqta();
 

@@ -29,6 +29,7 @@
 #include "OtLayout.h"
 #include "digitalkhatt/layout/ClassMap.h"
 #include "qpoint.h"
+#include "MPFont.h"
 
 class LayoutWindow;
 
@@ -52,7 +53,7 @@ class Automedina {
   const int minwaqfhigh = 900;
 
  public:
-  Automedina(OtLayout* layout, Font* font, bool extended) : glyphs{layout->glyphs}, m_layout{layout}, font{font}, extended{extended} {}
+  Automedina(OtLayout* layout, MPFont* font, bool extended) : glyphs{layout->glyphs}, m_layout{layout}, font{font}, extended{extended} {}
 
   std::unordered_set<std::uint16_t> classtoUnicode(const std::string& exprName, bool includeExpandables);
   std::unordered_set<std::uint16_t> classtoUnicode(const std::string& exprName) {
@@ -87,7 +88,7 @@ class Automedina {
   std::unordered_set<std::string> initchar;
   std::unordered_set<std::string> medichar;
 
-  Font* font;
+  MPFont* font;
 
   std::map<std::string, std::map<uint16_t, QPoint>> markAnchors;
   std::map<std::string, std::map<uint16_t, QPoint>> entryAnchors;

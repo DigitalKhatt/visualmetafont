@@ -271,7 +271,7 @@ void GenerateLayout::generateLayoutProtoBuf(int lineWidth, int scale) {
   }
 
   
-  auto path = this->m_otlayout->font->filePath();
+  auto path = QString::fromStdString(this->m_otlayout->font->projectFile().string());
   QFileInfo fileInfo = QFileInfo(path);
 
 

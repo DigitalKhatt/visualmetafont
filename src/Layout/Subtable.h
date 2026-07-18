@@ -63,7 +63,7 @@ std::unordered_set<std::string> toStdStringSet(const Range& range) {
 
 struct Lookup;
 class AnchorCalc;
-class Font;
+class MPFont;
 
 using AddedGlyphSet = std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>>;
 
@@ -113,7 +113,7 @@ struct Subtable {
 
  protected:
   Lookup* m_lookup;
-  Font* metafont;
+  MPFont* metafont;
   OtLayout* m_layout;
   bool isDirty = true;
   digitalkhatt::ByteBuffer openTypeSubTable;

@@ -865,7 +865,7 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended,
       fileInfo.path() + "/output/" + fileInfo.completeBaseName() + ".otf";
 
   OtLayout layout =
-      OtLayout(m_font, extended, extended ? true : generateVariableOpenType);
+      OtLayout(&m_font->mpFont(), extended, extended ? true : generateVariableOpenType);
 
   // allFeatures is still empty here: GenerateFile parses the feature file
   // later. Read disabled lookup names directly so this does not depend on
@@ -1049,7 +1049,7 @@ bool LayoutWindow::generateOpenType() {
   QString otfFileName =
       fileInfo.path() + "/output/" + fileInfo.completeBaseName() + "-cff1.otf";
 
-  OtLayout layout = OtLayout(m_font, false, true);
+  OtLayout layout = OtLayout(&m_font->mpFont(), false, true);
   layout.useNormAxisValues = true;
   layout.toOpenType->isCff2 = false;
 
@@ -1990,7 +1990,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
   auto path = m_font->filePath();
   QFileInfo fileInfo = QFileInfo(path);
 
-  OtLayout layout = OtLayout(m_font, true, true);
+  OtLayout layout = OtLayout(&m_font->mpFont(), true, true);
 
   auto& cv01feature = layout.resetCvxxFeatures();
 
@@ -2940,7 +2940,7 @@ void LayoutWindow::createDockWindows() {
   connect(action, &QAction::triggered, [this]() { this->compareWithOldMadinah(false, true); });
   otherMenu->addAction(action);
 
-  m_otlayout = new OtLayout(m_font, true, true);
+  m_otlayout = new OtLayout(&m_font->mpFont(), true, true);
   m_otlayout->useNormAxisValues = false;
   m_otlayout->setExtended(true);
   m_otlayout->applyJustification = applyJustification;

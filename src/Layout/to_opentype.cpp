@@ -112,7 +112,7 @@ void ToOpenType::setAxes() {
     return;
   }
 
-  auto& axes = ot_layout->font->axes;
+  const auto& axes = ot_layout->font->axes();
 
   this->axisCount = axes.size();
 
@@ -331,9 +331,9 @@ void ToOpenType::initiliazeGlobals() {
 
   globalValues.major = 0;
   globalValues.minor = 1;
-  globalValues.familyName = ot_layout->font->familyNameStd();
+  globalValues.familyName = ot_layout->font->familyName();
   globalValues.subFamilyName = "Regular";
-  globalValues.Copyright = ot_layout->font->copyrightStd();
+  globalValues.Copyright = ot_layout->font->copyright();
   globalValues.License = R"license(This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL)license";
 }
 
@@ -861,7 +861,7 @@ digitalkhatt::ByteBuffer ToOpenType::name() {
 
   for (int i = 0; i < axisCount; i++) {
     names.push_back(Name{static_cast<std::uint16_t>(axisNameIds[i]),
-                         ot_layout->font->axes[i].name});
+                         ot_layout->font->axes()[i].name});
   }
 
   digitalkhatt::ByteBuffer stringStorage;
@@ -1914,7 +1914,7 @@ digitalkhatt::ByteBuffer ToOpenType::fvar() {
   data << (uint16_t)0;                    // instanceCount
   data << (uint16_t)(axisCount * 4 + 4);  // instanceSize : axisCount * sizeof(Fixed) + 4
 
-  auto& axes = ot_layout->font->axes;
+  const auto& axes = ot_layout->font->axes();
 
   for (int i = 0; i < axisCount; i++) {
     auto& axis = axes[i];
@@ -1946,7 +1946,7 @@ digitalkhatt::ByteBuffer ToOpenType::STAT() {
   data << (uint32_t)0;          // offsetToAxisValueOffsets
   data << (uint16_t)2;          // elidedFallbackNameID
 
-  auto& axes = ot_layout->font->axes;
+  const auto& axes = ot_layout->font->axes();
 
   for (int i = 0; i < axisCount; i++) {
     auto& axis = axes[i];

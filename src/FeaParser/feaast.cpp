@@ -104,7 +104,7 @@ void FeaContext::populateFeatures() {
       if (condition == "") {
         conditionIsTrue = true;
       } else {
-        conditionIsTrue = otlayout->font->getBoolVariable(condition);
+        conditionIsTrue = otlayout->font->boolVariable(condition.toStdString());
       }
       if (!conditionIsTrue) {
         for (auto stmt : conditionalStatement->getIfStmts()) {
@@ -885,7 +885,7 @@ void LookupDefinitionVisitor::accept(ConditionalStatement& conditionalStatement)
   if (condition == "") {
     conditionIsTrue = true;
   } else {
-    conditionIsTrue = otlayout->font->getBoolVariable(condition);
+    conditionIsTrue = otlayout->font->boolVariable(condition.toStdString());
   }
   if (conditionIsTrue) {
     for (auto stmt : conditionalStatement.getIfStmts()) {

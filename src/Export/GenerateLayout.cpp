@@ -228,7 +228,7 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
 void GenerateLayout::generateLayoutJson(int lineWidth, int scale) {
   bool Json = true;
 
-  auto path = m_otlayout->font->filePath();
+  auto path = QString::fromStdString(m_otlayout->font->projectFile().string());
   QFileInfo fileInfo = QFileInfo(path);
 
   auto fileName = fileInfo.path() + "/output/" + fileInfo.completeBaseName();

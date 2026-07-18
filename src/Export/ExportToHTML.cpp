@@ -68,7 +68,7 @@ struct std::hash<QColor>
 void ExportToHTML::generateQuranPages(LayoutPageList pages, int lineWidth, OriginalPageList originalText, int scale) {
   bool newHtml = true;
 
-  auto path = m_otlayout->font->filePath();
+  auto path = QString::fromStdString(m_otlayout->font->projectFile().string());
   QFileInfo fileInfo = QFileInfo(path);
   QFile file(fileInfo.path() + "/output/pages.component.ts.html");
   file.open(QIODevice::WriteOnly | QIODevice::Text);

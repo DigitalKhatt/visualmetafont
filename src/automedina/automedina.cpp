@@ -26,7 +26,6 @@
 #include "Lookup.h"
 #include "Subtable.h"
 #include "digitalkhatt/core/Regex16.h"
-#include "font.hpp"
 #include "metafont.h"
 
 using namespace std;
@@ -109,7 +108,7 @@ void Automedina::generateAyas(std::string_view ayaName, bool colored) {
     std::string data = "beginchar(" + glyphName + ",-1,-1,2,-1);\n"
                        "%%beginbody\n"
                        "genAyaNumber(" + ayaNameString + ", " + number + ",3000);" + setColored + ";endchar;";
-    m_layout->font->executeMetaPost(data);
+    m_layout->font->execute(data);
     addedGlyphs[glyphName] = data;
 
     if (colored) {
@@ -117,7 +116,7 @@ void Automedina::generateAyas(std::string_view ayaName, bool colored) {
       data = "beginchar(" + coloredGlyphName + ",-1,-1,5,-1);\n"
              "%%beginbody\n"
              "genAyaNumber(" + ayaNameString + ".colored, " + number + ",3000);endchar;";
-      m_layout->font->executeMetaPost(data);
+      m_layout->font->execute(data);
       addedGlyphs[coloredGlyphName] = data;
     }
   }

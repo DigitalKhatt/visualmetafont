@@ -19,9 +19,6 @@
 
 #include "font.hpp"
 
-#include <unistd.h>
-
-#include <cstdio>
 #include <filesystem>
 
 #include "glyph.hpp"
@@ -37,79 +34,13 @@
 
 namespace fs = std::filesystem;
 
-void vmf_shipout_backend(MP mp, void* voidh) {
-  Font* font = (Font*)mp->userdata;
-  font->shipout(voidh);
-}
-
-char* vmf_find_file(MP mp, const char* fname, const char* fmode, int ftype) {
-  (void)mp;
-  if (fmode[0] != 'r' || (!access(fname, R_OK)) || ftype) {
-    return mp_strdup(fname);
-  }
-  return NULL;
-}
-
 Font::Font(QObject* parent) : QObject(parent) {
-}
-void Font::shipout(void* voidh) {
-  auto edge = convert_to_edge(this->mp, voidh);
-  if (!edge) return;
-
-  MPGlyphInfo info;
-  info.currentPicture = edge;
-
-  for (auto name : pictureNames) {
-    mp_edge_object* picture = nullptr;
-    if (getMPPictureVariable(mp, name.toStdString().c_str(), &picture)) {
-      info.controlledPictures.insert(name, picture);
-    }
-  }
-
-  auto it = edges.find(edge->charcode);
-  if (it == edges.end()) {
-    edges.insert({edge->charcode, info});
-  } else {
-    mp_gr_toss_objects_extended(it->second.currentPicture);
-    for (auto pic : it->second.controlledPictures) {
-      if (pic != nullptr) {
-        mp_gr_toss_objects_extended(pic);
-      }
-    }
-    it->second = info;
-  }
 }
 bool Font::loadFile(const QString& fileName) {
   QFile file(fileName);
   if (!file.open(QFile::ReadOnly | QFile::Text)) {
     return false;
   }
-
-  if (mp != nullptr) {
-    mp_finish(mp);
-  }
-
-  MP_options* _mp_options = mp_options();
-  // MP_options _mp_options;
-  _mp_options->noninteractive = 1;
-  _mp_options->command_line = NULL;
-  _mp_options->ini_version = true;
-  _mp_options->math_mode = mp_math_double_mode;
-  _mp_options->job_name = (char*)"VisualMetaFont";
-  _mp_options->shipout_backend = vmf_shipout_backend;
-  _mp_options->userdata = this;
-  _mp_options->find_file = vmf_find_file;
-
-  //_mp_options->interaction = mp_nonstop_mode;
-  //_mp_options->mem_name = "plain";
-  //_mp_options->mem_name = "automedina";
-  //_mp_options -> main_memory = 1000000;
-
-  mp = mp_initialize(_mp_options);
-
-  if (!mp) exit(EXIT_FAILURE);
-
-  if (!mp) throw "Could not initialize MetaPost library instance!";
 
   QFile rsmfplain(":/metafont/mfplain.mp");
   QFile rsmpost(":/metafont/mpost.mp");
@@ -142,34 +73,8 @@ bool Font::loadFile(const QString& fileName) {
 
   auto parentPath = p1.parent_path();
   m_currentDir = QString::fromStdString(parentPath.string());
-  auto currentPath = std::filesystem::current_path();
-
-  std::filesystem::current_path(parentPath);  // setting path
-
-  QByteArray command = initMF.toLocal8Bit();
-
-  int status = mp_execute(mp, command.data(), command.size());
-  if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-    mp_run_data* results = mp_rundata(mp);
-    QString ret(results->term_out.data);
-    ret = ret.trimmed();
-    qDebug() << ret;
-    mp_finish(mp);
-    throw "Could not initialize MetaPost library instance!\n" + ret;
-  }
-
-  if (mp->job_name != nullptr) {
-    mp_xfree(mp->job_name);
-  }
-
-  auto path = fileName.toStdString();
-  std::string base_filename = path.substr(path.find_last_of("/\\") + 1);
-  std::string::size_type const p(base_filename.find_last_of('.'));
-  std::string job_name = base_filename.substr(0, p);
-
-  mp->job_name = strdup(job_name.c_str());
-
-  m_fontName = mp->job_name;
+  m_mpFont.initialize(initMF.toLocal8Bit().toStdString(), p1);
+  m_fontName = QString::fromStdString(m_mpFont.fontName());
 
   QString glyphsPath = QString::fromStdString(p1.parent_path().append("glyphs.mp").string());
 
@@ -191,6 +96,10 @@ bool Font::loadFile(const QString& fileName) {
     QString source = match.captured(1);
     Glyph* glyph = new Glyph(source, this);
     glyphs.append(glyph);
+    m_mpFont.registerGlyphSource(glyph->name().toStdString(),
+                                 glyph->source().toStdString(),
+                                 glyph->beginMacroName().toStdString(),
+                                 glyph->unicode());
     // glyphperUnicode[glyph->unicode()] = glyph;
   }
 
@@ -200,10 +109,6 @@ bool Font::loadFile(const QString& fileName) {
 
   file.close();
 
-  std::filesystem::current_path(currentPath);
-
-  readAxes();
-
   return true;
 }
 double Font::lineHeight() {
@@ -212,23 +117,13 @@ double Font::lineHeight() {
   return lineheight;
 }
 double Font::getNumericVariable(QString name) {
-  double x = 0;
-  auto ba = name.toStdString();
-  auto ret = getMPNumVariable(mp, (char*)ba.c_str(), &x);
-
-  return x;
+  return m_mpFont.numericVariable(name.toStdString());
 }
 bool Font::getBoolVariable(QString name) {
-  int x = 0;
-  auto ba = name.toStdString();
-  auto ret = getMPBoolVariable(mp, (char*)ba.c_str(), &x);
-  return (x == 1);
+  return m_mpFont.boolVariable(name.toStdString());
 }
 double Font::getInternalNumericVariable(QString name) {
-  auto ba = name.toStdString();
-  double x = mp_get_numeric_internal(mp, (char*)ba.c_str());
-
-  return x;
+  return m_mpFont.internalNumericVariable(name.toStdString());
 }
 
 QString Font::familyName() {
@@ -236,45 +131,28 @@ QString Font::familyName() {
 }
 
 std::string Font::familyNameStd() {
-  char* name = nullptr;
-  return getMPStringVariable(mp, "nametable familyName", &name) && name
-             ? std::string{name}
-             : std::string{};
+  return m_mpFont.familyName();
 }
 QString Font::copyright() {
   return QString::fromStdString(copyrightStd());
 }
 
 std::string Font::copyrightStd() {
-  char* name = nullptr;
-  return getMPStringVariable(mp, "nametable copyright", &name) && name
-             ? std::string{name}
-             : std::string{};
+  return m_mpFont.copyright();
 }
 bool Font::getPairVariable(QString name, QPointF& point) {
-  QPointF value;
   if (name[0] == 'z' && (name.size() == 1 || name[1].isDigit() || name[1] == '.')) {
     double x, y = 0;
     name[0] = 'x';
-    QByteArray ba = name.toLocal8Bit();
-    char* c_str2 = ba.data();
-    if (!getMPNumVariable(mp, c_str2, &x)) {
-      return false;
-    }
+    x = m_mpFont.numericVariable(name.toStdString());
     name[0] = 'y';
-    ba = name.toLocal8Bit();
-    c_str2 = ba.data();
-    if (!getMPNumVariable(mp, c_str2, &y)) {
-      return false;
-    }
+    y = m_mpFont.numericVariable(name.toStdString());
     point = QPointF(x, y);
     return true;
 
   } else {
-    QByteArray ba = name.toLocal8Bit();
-    char* c_str2 = ba.data();
     double x, y;
-    if (!getMPPairVariable(mp, c_str2, &x, &y)) {
+    if (!m_mpFont.pairVariable(name.toStdString(), x, y)) {
       return false;
     }
     point = QPointF(x, y);
@@ -331,17 +209,6 @@ bool Font::saveFile() {
 }
 
 Font::~Font() {
-  if (mp != nullptr) {
-    for (auto& it : edges) {
-      mp_gr_toss_objects_extended(it.second.currentPicture);
-      for (auto pic : it.second.controlledPictures) {
-        if (pic != nullptr) {
-          mp_gr_toss_objects_extended(pic);
-        }
-      }
-    }
-    mp_finish(mp);
-  }
 }
 
 QString Font::filePath() {
@@ -363,108 +230,55 @@ Glyph* Font::getGlyph(uint charcode) {
 
   return NULL;
 }
-std::string Font::executeMetaPost(std::string command) {
-  mp->history = mp_spotless;
-  int status = mp_execute(mp, command.data(), command.size());
-  mp_run_data* results = mp_rundata(mp);
-  std::string ret = results && results->term_out.data ? results->term_out.data : "";
-  if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-    std::cout << ret << std::endl;
-    throw std::runtime_error(ret);
-  }
 
-  return ret;
+void Font::synchronizeGlyphSources() {
+  m_mpFont.clearGlyphSources();
+  for (auto* glyph : glyphs) {
+    m_mpFont.registerGlyphSource(glyph->name().toStdString(),
+                                 glyph->source().toStdString(),
+                                 glyph->beginMacroName().toStdString(),
+                                 glyph->unicode());
+  }
+}
+
+MPFont& Font::mpFont() {
+  synchronizeGlyphSources();
+  return m_mpFont;
+}
+
+std::string Font::executeMetaPost(std::string command) {
+  std::vector<std::string> names;
+  names.reserve(pictureNames.size());
+  for (const auto& name : pictureNames) names.push_back(name.toStdString());
+  m_mpFont.setControlledPictureNames(std::move(names));
+  return m_mpFont.execute(command);
 }
 std::vector<mp_edge_object*> Font::getEdges() const {
-  std::vector<mp_edge_object*> result;
-  result.reserve(edges.size());
-  for (const auto& [id, edge] : edges) result.push_back(edge.currentPicture);
-  return result;
+  return m_mpFont.edges();
 };
 
 mp_edge_object* Font::getEdge(int charCode) {
-  mp_edge_object* edge = nullptr;
-
-  auto f = edges.find(charCode);
-  if (f != edges.end()) {
-    edge = f->second.currentPicture;
-  }
-
-  return edge;
+  return m_mpFont.edge(charCode);
 }
 
 MPGlyphInfo Font::getMPGlyphInfo(int charCode) {
   MPGlyphInfo info;
 
-  auto f = edges.find(charCode);
-  if (f != edges.end()) {
-    info = f->second;
-  }
+  auto mpInfo = m_mpFont.glyphInfo(charCode);
+  info.currentPicture = mpInfo.currentPicture;
+  for (const auto& [name, picture] : mpInfo.controlledPictures)
+    info.controlledPictures.insert(QString::fromStdString(name), picture);
 
   return info;
 }
 
-void Font::generateAlternate(QString macroname, GlyphParameters params, QString sourceCode) {
-  char metaParamsBuf[256];
-  std::snprintf(metaParamsBuf, sizeof(metaParamsBuf),
-                "save params;params0:=%.9g;params1:=%.9g;params3:=%.9g;params4:=%.9g;params5:=%.9g;"
-                "params100:=%.9g;",
-                params.lefttatweel, params.righttatweel, params.third, params.fourth,
-                params.fifth, params.scalex);
-  std::string metaParams = metaParamsBuf;
-
-  QString qMetaParams = QString::fromStdString(metaParams);
-
-  if (!sourceCode.isEmpty()) {
-    auto source = qMetaParams + sourceCode;
-    executeMetaPost(source.toLatin1().toStdString());
-    return;
-  }
-
-  if (params.lefttatweel != 0 || params.righttatweel != 0) {
-    auto metapostString = QString("%1generateAlternate(%2$,params);").arg(qMetaParams).arg(macroname);
-
-    executeMetaPost(metapostString.toLatin1().toStdString());
-  } else if (params.scalex != 0) {
-    if (glyphperName.contains(macroname)) {
-      auto glyph = glyphperName[macroname];
-      auto source = qMetaParams + glyph->source();
-      /* auto beginChar = QString("%1(%2,%3").arg(glyph->beginMacroName()).arg(glyph->name()).arg(glyph->unicode());
-
-      source.replace(beginChar, QString("%1%2(alternatechar,%3").arg(metaParams).arg(glyph->beginMacroName()).arg(OtLayout::AlternatelastCode));
-      auto index = source.indexOf("\n");
-      source.insert(index, QString("originalglyph := \"%1\";").arg(macroname));*/
-
-      executeMetaPost(source.toLatin1().toStdString());
-
-    } else {
-      throw std::runtime_error("Error");
-    }
-  } else {
-    auto glyph = glyphperName[macroname];
-    auto source = qMetaParams + glyph->source();
-    auto beginChar = QString("%1(%2,%3").arg(glyph->beginMacroName()).arg(glyph->name()).arg(glyph->unicode());
-
-    source.replace(beginChar, QString("%1%2(alternatechar,%3").arg(qMetaParams).arg(glyph->beginMacroName()).arg(OtLayout::AlternatelastCode));
-    // auto index = source.indexOf("\n");
-    // source.insert(index, QString("originalglyph := \"%1\";").arg(macroname));*/
-
-    executeMetaPost(source.toLatin1().toStdString());
-  }
-}
-
-void Font::generateAlternate(std::string_view macroName, GlyphParameters params,
-                             std::string_view sourceCode) {
-  generateAlternate(QString::fromUtf8(macroName.data(), static_cast<int>(macroName.size())),
-                    params,
-                    QString::fromUtf8(sourceCode.data(), static_cast<int>(sourceCode.size())));
-}
-
 bool Font::hasGlyph(std::string_view glyphName) const {
-  return glyphperName.contains(
-      QString::fromUtf8(glyphName.data(), static_cast<int>(glyphName.size())));
+  return m_mpFont.hasGlyph(glyphName);
 }
 mp_graphic_object* Font::copyEdgeBody(mp_graphic_object* body) {
+  return m_mpFont.copyBody(body);
+/* Legacy implementation retained temporarily for reference.
+#if 0
   mp_graphic_object* result = nullptr;
 
   auto copypath = [this](mp_gr_knot knot) {
@@ -587,14 +401,14 @@ mp_graphic_object* Font::copyEdgeBody(mp_graphic_object* body) {
   }
 
   return result;
+#endif */
 }
 
 QString Font::getLog() {
-  mp_run_data* results = mp_rundata(mp);
-  QString ret(results->term_out.data);
-  return ret.trimmed();
+  return QString::fromStdString(m_mpFont.log()).trimmed();
 }
 
+/* Axes are owned and parsed by MPFont.
 void Font::readAxes() {
   axes.clear();
 
@@ -641,4 +455,4 @@ void Font::readAxes() {
 
     axes.append(axis);
   }
-}
+} */

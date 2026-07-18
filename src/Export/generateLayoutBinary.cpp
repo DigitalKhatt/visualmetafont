@@ -272,7 +272,7 @@ static void generateBinaryPages(LayoutPages& layoutPages, QByteArray& data, int 
 }
 
 void GenerateLayout::generateLayoutBinary(int lineWidth, int scale) {
-  auto path = m_otlayout->font->filePath();
+  auto path = QString::fromStdString(m_otlayout->font->projectFile().string());
   QFileInfo fileInfo = QFileInfo(path);
   auto fileName = fileInfo.path() + "/output/" + fileInfo.completeBaseName() + "Layout.bin";
   QFile file(fileName);

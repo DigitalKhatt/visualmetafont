@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.8.0 FATAL_ERROR)
 
-project(mplib C)
+project(mplib C CXX)
 
 set(AddedFiles
     AddedFiles/newmp.c
@@ -10,6 +10,7 @@ set(AddedFiles
 source_group("AddedFiles" FILES ${AddedFiles})
 
 set(Header_Files
+    MPFont.h
     avl.h
     decContext.h
     decNumber.h
@@ -35,6 +36,7 @@ set(Header_Files
 source_group("Header Files" FILES ${Header_Files})
 
 set(Source_Files
+    MPFont.cpp
     avl.c
     decContext.c
     decNumber.c

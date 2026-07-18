@@ -22,7 +22,7 @@
 #undef max
 #include "Lookup.h"
 #include "OtLayout.h"
-#include "font.hpp"
+#include "MPFont.h"
 #include "Subtable.h"
 #include "to_opentype.h"
 #include "hb-ot-cmap-table.hh"
@@ -897,7 +897,7 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
   root.append(lookupList);
   return root;
 }
-OtLayout::OtLayout(Font* font, bool extended, bool generateVariableOpenType)
+OtLayout::OtLayout(MPFont* font, bool extended, bool generateVariableOpenType)
     : fsmDriver{*this}, justTable{this}, font{font},
       isOTVar{generateVariableOpenType} {
 
@@ -906,7 +906,7 @@ OtLayout::OtLayout(Font* font, bool extended, bool generateVariableOpenType)
 
   dirty = true;
 
-  const std::filesystem::path fontPath = font->filePathStd();
+  const std::filesystem::path fontPath = font->projectFile();
 #ifdef NDEBUG
   constexpr std::string_view debugPostfix = "";
 #else
@@ -922,7 +922,7 @@ OtLayout::OtLayout(Font* font, bool extended, bool generateVariableOpenType)
     std::cout << "could not load the dynamic library " << ff << std::endl;
     throw std::runtime_error("could not load the dynamic library");
   } else {
-    typedef Automedina* (*f_funci)(OtLayout* layout, Font* font, bool extended);
+    typedef Automedina* (*f_funci)(OtLayout* layout, MPFont* font, bool extended);
     f_funci funci = (f_funci)dlsym(slhandle, "font_create");
     if (!funci) {
       std::cout << "could not locate the function" << std::endl;
@@ -948,7 +948,7 @@ OtLayout::~OtLayout() {
 }
 
 mp_graphic_object* OtLayout::copyEdgeBody(mp_graphic_object* source) const {
-  return font->copyEdgeBody(source);
+  return font->copyBody(source);
 }
 
 void OtLayout::setDisabled(Lookup* lookup) {
@@ -1035,7 +1035,7 @@ void OtLayout::loadLookupFile(std::string fileName) {
   std::filesystem::path p1 = fileName;
 
   if (p1.is_relative()) {
-    std::filesystem::path p2 = font->currentDir().toStdString();
+    std::filesystem::path p2 = font->projectDirectory();
     p2 /= p1;
     absoluteFileName = p2.string();
   } else {
@@ -1045,7 +1045,7 @@ void OtLayout::loadLookupFile(std::string fileName) {
   parseFeatureFile(absoluteFileName);
 
   const auto parametersFileName =
-      std::filesystem::path{font->currentDir().toStdString()} /
+      font->projectDirectory() /
       "parameters.json";
 
   std::ifstream parametersStream(parametersFileName, std::ios::binary);
@@ -1211,7 +1211,7 @@ std::unordered_set<std::uint16_t> OtLayout::regexptoUnicode(const std::string& r
 
 double OtLayout::nuqta() {
   if (_nuqta == -1) {
-    _nuqta = font->getNumericVariable("nuqta");
+    _nuqta = font->numericVariable("nuqta");
   }
 
   return _nuqta;
@@ -2975,15 +2975,22 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
 
   auto addedGlyphFind = automedina->addedGlyphs.find(glyph->name);
   if (addedGlyphFind != automedina->addedGlyphs.end()) {
-    font->generateAlternate(glyph->name, parameters, addedGlyphFind->second);
+    font->generateAlternate(glyph->name, parameters.lefttatweel,
+                            parameters.righttatweel, parameters.third,
+                            parameters.fourth, parameters.fifth,
+                            parameters.scalex, addedGlyphFind->second,
+                            AlternatelastCode);
   } else if (!font->hasGlyph(glyph->name)) {
     // std::cout << glyph->name.toStdString() << " is auto generated. It dows not exist in the original font" <<  std::endl;
     return glyph;
   } else {
-    font->generateAlternate(glyph->name, parameters);
+    font->generateAlternate(glyph->name, parameters.lefttatweel,
+                            parameters.righttatweel, parameters.third,
+                            parameters.fourth, parameters.fifth,
+                            parameters.scalex, {}, AlternatelastCode);
   }
 
-  mp_edge_object* edge = font->getEdge(AlternatelastCode);
+  mp_edge_object* edge = font->edge(AlternatelastCode);
 
   if (edge == nullptr) {
     throw "Error";

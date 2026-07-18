@@ -813,7 +813,7 @@ unsigned long QuranPdfWriterPdfHummus::writeFormXObjectFromGlyph(const QString& 
 }
 
 unsigned long QuranPdfWriterPdfHummus::createSurahFrameFormXObject() {
-  auto path = m_otlayout->font->filePath();
+  auto path = QString::fromStdString(m_otlayout->font->projectFile().string());
   QFileInfo fileInfo = QFileInfo(path);
   QString outputFileName = fileInfo.path() + "/output/surahframe.pdf";
   QPdfWriter writer(outputFileName);

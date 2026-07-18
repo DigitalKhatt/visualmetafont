@@ -29,20 +29,13 @@
 #include <string>
 #include <string_view>
 
-#include "OtLayout.h"
-#include "metafont.h"
-
-extern "C" {
-void vmf_shipout_backend(MP mp, void* voidh);
-char* vmf_find_file(MP mp, const char* fname, const char* fmode, int ftype);
-}
+#include "MPFont.h"
 
 struct MPGlyphInfo {
   mp_edge_object* currentPicture = nullptr;
   QMap<QString, mp_edge_object*> controlledPictures;
 };
 
-class OtLayout;
 class GlyphVis;
 class Glyph;
 typedef struct MP_instance* MP;
@@ -52,7 +45,6 @@ class Font : public QObject {
   Q_OBJECT
 
  public:
-  friend OtLayout;
   friend GlyphVis;
   Font(QObject* parent = Q_NULLPTR);
   ~Font();
@@ -80,31 +72,23 @@ class Font : public QObject {
   std::vector<mp_edge_object*> getEdges() const;
   mp_edge_object* getEdge(int charCode);
   MPGlyphInfo getMPGlyphInfo(int charCode);
-  void generateAlternate(QString macroname, GlyphParameters params, QString sourceCode = "");
-  void generateAlternate(std::string_view macroName, GlyphParameters params,
-                         std::string_view sourceCode = {});
   bool hasGlyph(std::string_view glyphName) const;
   mp_graphic_object* copyEdgeBody(mp_graphic_object* source);
   QString getLog();
-  // TODO protected:
-  MP mp = nullptr;
-
+  MPFont& mpFont();
   QString familyName();
   QString copyright();
   std::string familyNameStd();
   std::string copyrightStd();
 
-  QVector<VarAxis> axes;
-
-  void shipout(void* voidh);
   QVector<QString> pictureNames;
 
  private:
-  void readAxes();
+  void synchronizeGlyphSources();
   QString m_path;
   QString m_fontName;
   QString m_currentDir;
 
-  std::unordered_map<int, MPGlyphInfo> edges;
+  MPFont m_mpFont;
 };
 #endif  // FONT_H
