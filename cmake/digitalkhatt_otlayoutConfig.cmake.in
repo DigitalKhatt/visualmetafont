@@ -7,5 +7,8 @@ get_filename_component(_digitalkhatt_otlayout_config
 get_filename_component(_digitalkhatt_otlayout_config_dir
   "${_digitalkhatt_otlayout_config}" DIRECTORY)
 include("${_digitalkhatt_otlayout_config_dir}/digitalkhatt_otlayoutTargets.cmake")
+if(TARGET digitalkhatt_otlayout AND NOT TARGET digitalkhatt::otlayout)
+  add_library(digitalkhatt::otlayout ALIAS digitalkhatt_otlayout)
+endif()
 unset(_digitalkhatt_otlayout_config)
 unset(_digitalkhatt_otlayout_config_dir)

@@ -16,6 +16,8 @@ set(PCRE2_BUILD_PCRE2_16  ON  CACHE BOOL "" FORCE)
 set(PCRE2_BUILD_PCRE2_32  OFF CACHE BOOL "" FORCE)
 set(PCRE2_BUILD_TESTS     OFF CACHE BOOL "" FORCE)
 set(PCRE2_BUILD_PCRE2GREP OFF CACHE BOOL "" FORCE)
+set(PCRE2_SUPPORT_LIBEDIT OFF CACHE BOOL "" FORCE)
+set(PCRE2_SUPPORT_LIBREADLINE OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(pcre2)
 
@@ -160,6 +162,7 @@ add_library(digitalkhatt_otlayout SHARED
   src/otlayout/Layout/just_features.cpp
   src/otlayout/Layout/gllobal_strings.cpp
 )
+add_library(digitalkhatt::otlayout ALIAS digitalkhatt_otlayout)
 
 target_include_directories(digitalkhatt_otlayout PUBLIC
   ${OTLAYOUT_ROOT}

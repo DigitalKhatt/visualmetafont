@@ -256,9 +256,9 @@ set(LUATEX_FILES
   luatex/luadigitalkhatt/luadigitalkhatt.h luatex/luadigitalkhatt/ot.c luatex/luadigitalkhatt/script.c luatex/luadigitalkhatt/tag.c
   luatex/luadigitalkhatt/unicode.c luatex/luadigitalkhatt/variation.c)
 
-add_executable(${WEBLIB_NAME} ${WEBLIB_FILES})
+add_executable(${WEBLIB_NAME} EXCLUDE_FROM_ALL ${WEBLIB_FILES})
 
-add_library(${LUATEX_NAME} SHARED  ${LUATEX_FILES})
+add_library(${LUATEX_NAME} SHARED EXCLUDE_FROM_ALL ${LUATEX_FILES})
 
 if (APPLE)
   add_executable(${PROJECT_NAME} MACOSX_BUNDLE ${ALL_FILES} ${app_icon_macos})
@@ -266,7 +266,7 @@ else()
   add_executable(${PROJECT_NAME} ${ALL_FILES})
 endif(APPLE)
 
-add_library(${VMF_SL} SHARED ${GlyphCommands} ${MetaFont} ${GlyphParser})
+add_library(${VMF_SL} SHARED EXCLUDE_FROM_ALL ${GlyphCommands} ${MetaFont} ${GlyphParser})
 
 target_include_directories(${VMF_SL} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/."
