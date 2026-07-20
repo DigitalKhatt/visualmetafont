@@ -25,7 +25,8 @@
 #include <utility>
 
 #include "automedina/automedina.h"
-#include "metafont.h";
+#include "metafont.h"
+
 
 GlyphVis::GlyphVis() {
   m_otLayout = nullptr;

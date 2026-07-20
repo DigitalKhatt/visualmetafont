@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.24)
 
 project(mplib C CXX)
 
@@ -28,7 +28,7 @@ set(Header_Files
     mppsout.h
     mpstrings.h
     mpsvgout.h
-    mpxout.h    
+    mpxout.h
     w2c/c-auto.h
     w2c/config.h
 )
@@ -44,7 +44,7 @@ set(Source_Files
     #mpmathbinary.c
     mpmathdecimal.c
     mpmathdouble.c
-    mpstrings.c    
+    mpstrings.c
     #mpxout.c
     #pngout.c
     psout.c

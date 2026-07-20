@@ -22,11 +22,9 @@
 #include <optional>
 #include <map>
 #include <string>
-
-#include <unordered_map>
-
 #include "commontypes.h"
 #include "metafont.h"
+
 
 class OtLayout;
 // struct mp_edge_object;

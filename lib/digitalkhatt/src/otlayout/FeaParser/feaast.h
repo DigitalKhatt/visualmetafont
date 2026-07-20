@@ -22,16 +22,12 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <cmath>
 #include <map>
-#include <ostream>
 #include <set>
 #include <stack>
 #include <unordered_set>
-#include <stdexcept>
 #include <variant>
 #include <vector>
-
 #include "GlyphVis.h"
 #include "Lookup.h"
 #include "OtLayout.h"
@@ -105,6 +101,8 @@ class Anchor {
 
  public:
   explicit Anchor(AnchorType type) : _anchortype{type} {};
+
+  virtual ~Anchor() = default;
 
   AnchorType anchortype() {
     return _anchortype;
@@ -648,7 +646,7 @@ class MarkedGlyphSetRegExp {
   explicit MarkedGlyphSetRegExp(GlyphSetRegExp* regexp, std::vector<std::string> lookupNames)
       : regexp{regexp}, lookupNames{lookupNames} {}
 
-  ~MarkedGlyphSetRegExp() {
+  virtual ~MarkedGlyphSetRegExp() {
     delete regexp;
     // delete lookupName;
     // delete stmt;
@@ -839,6 +837,35 @@ class LookupFlag : public LookupStatement {
   explicit LookupFlag(GlyphSet* set) : markFilteringSet(set), flag(UseMarkFilteringSet) {
   }
 
+  LookupFlag(const LookupFlag& other)
+      : markFilteringSet{other.markFilteringSet ? other.markFilteringSet->clone() : nullptr}, flag{other.flag} {
+  }
+
+  LookupFlag(LookupFlag&& other) noexcept
+      : markFilteringSet{other.markFilteringSet}, flag{other.flag} {
+    other.markFilteringSet = nullptr;
+  }
+
+  LookupFlag& operator=(const LookupFlag& other) {
+    if (this != &other) {
+      GlyphSet* newMarkFilteringSet = other.markFilteringSet ? other.markFilteringSet->clone() : nullptr;
+      delete markFilteringSet;
+      markFilteringSet = newMarkFilteringSet;
+      flag = other.flag;
+    }
+    return *this;
+  }
+
+  LookupFlag& operator=(LookupFlag&& other) noexcept {
+    if (this != &other) {
+      delete markFilteringSet;
+      markFilteringSet = other.markFilteringSet;
+      flag = other.flag;
+      other.markFilteringSet = nullptr;
+    }
+    return *this;
+  }
+
   void set_Flag(Flags pflag) {
     flag |= pflag;
   }
@@ -853,13 +880,12 @@ class LookupFlag : public LookupStatement {
     markFilteringSet = pmarkFilteringSet;
   }
 
-  LookupFlag operator|(const LookupFlag& b) {
-    LookupFlag obj{flag};
-    obj.markFilteringSet = this->markFilteringSet;
-    obj.flag = obj.flag | b.flag;
+  LookupFlag operator|(const LookupFlag& b) const {
+    LookupFlag obj{*this};
+    obj.flag |= b.flag;
 
     if (obj.markFilteringSet == nullptr) {
-      obj.markFilteringSet = b.markFilteringSet;
+      obj.markFilteringSet = b.markFilteringSet ? b.markFilteringSet->clone() : nullptr;
     }
 
     // std::cout << "|=" << obj.flag << ";markFilteringSet=" << obj.markFilteringSet << std::endl;

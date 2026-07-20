@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.24)
 
 project(harfbuzz CXX)
 
@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Source Files
 set(SRC_FILES
-    harfbuzz/src/hb-unicode.cc    
+    harfbuzz/src/hb-unicode.cc
     harfbuzz/src/hb-aat-layout.cc
     harfbuzz/src/hb-aat-map.cc
     harfbuzz/src/hb-blob.cc
@@ -45,8 +45,8 @@ set(SRC_FILES
     harfbuzz/src/hb-set.cc
     harfbuzz/src/hb-shape-plan.cc
     harfbuzz/src/hb-shape.cc
-    harfbuzz/src/hb-shaper.cc        
-    harfbuzz/src/hb-unicode.cc    
+    harfbuzz/src/hb-shaper.cc
+    harfbuzz/src/hb-unicode.cc
     harfbuzz/src/hb-static.cc
     harfbuzz/src/hb-ucd.cc
     harfbuzz/src/hb-ot-metrics.cc
@@ -73,7 +73,7 @@ endif (UNIX)
 
 target_include_directories(${PROJECT_NAME} PUBLIC "harfbuzz/src")
 
-if (NOT EMSCRIPTEN)   
+if (NOT EMSCRIPTEN)
   target_compile_definitions(${PROJECT_NAME} PUBLIC HB_MINI)
   #target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_JUSTIFICATION)
   if (UNIX)
@@ -81,5 +81,5 @@ if (NOT EMSCRIPTEN)
   endif (UNIX)
 else()
   target_compile_options(${PROJECT_NAME} PUBLIC -w)
-  target_compile_definitions(${PROJECT_NAME} PUBLIC HB_NO_MT)  
+  target_compile_definitions(${PROJECT_NAME} PUBLIC HB_NO_MT)
 endif()
