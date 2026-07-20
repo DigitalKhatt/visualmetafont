@@ -25,8 +25,7 @@
 #include <utility>
 
 #include "automedina/automedina.h"
-#include "metafont.h"
-
+#include "metafont.h";
 
 GlyphVis::GlyphVis() {
   m_otLayout = nullptr;
@@ -143,7 +142,7 @@ GlyphVis::GlyphVis(OtLayout* otLayout, const mp_edge_object* edge) {
   m_otLayout = otLayout;
 
   this->name = edge->charname;
-  if (edge->originalglyph != "" && this->name != edge->originalglyph)
+  if (edge->originalglyph != nullptr && edge->originalglyph[0] != '\0' && this->name != edge->originalglyph)
     originalglyph = edge->originalglyph;
 
   charcode = edge->charcode;
