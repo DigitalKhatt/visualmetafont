@@ -271,7 +271,6 @@ class Glyph : public QObject {
 
   double axis(QString name);
   QVector<QString> pictureNames;
-#ifndef DIGITALKHATT_WEBLIB
   QPainterPath getPath();
   QPicture getPicture();
 
@@ -280,7 +279,6 @@ class Glyph : public QObject {
   static QPainterPath mp_dump_solved_path(mp_gr_knot h);
 
   static QPainterPath getPath(mp_edge_object* h);
-#endif
  signals:
   void valueChanged(QString name, bool structureChanged = false);
 

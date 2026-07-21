@@ -649,7 +649,6 @@ bool Glyph::setProperty(const char* name, const QVariant& value, bool updatePara
   }
   return QObject::setProperty(name, value);
 }
-#ifndef DIGITALKHATT_WEBLIB
 QPainterPath Glyph::getPath() {
   return getPath(getEdge());
 }
@@ -808,4 +807,3 @@ QPainterPath Glyph::mp_dump_solved_path(mp_gr_knot h) {
 
   return path;
 }
-#endif

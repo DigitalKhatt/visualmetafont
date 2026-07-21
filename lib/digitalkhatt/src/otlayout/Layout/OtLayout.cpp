@@ -231,7 +231,7 @@ getNominalGlyph(hb_font_t* font,
 
       auto test = table.get_name(0);
 
-      uint text_size = 1000;
+      unsigned int text_size = 1000;
       char text[1000];
 
       hb_ot_name_get_utf8(layoutg->face,9, 0, &text_size, text);*/
@@ -1224,7 +1224,7 @@ void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& dif
   const unsigned int table_index = 0u;
   buffer->reverse();
 
-  uint glyph_count;
+  unsigned int glyph_count;
 
   hb_buffer_t* copy_buffer = nullptr;
   copy_buffer = hb_buffer_create();
@@ -1453,7 +1453,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
   const unsigned int table_index = 0u;
   buffer->reverse();
 
-  uint glyph_count;
+  unsigned int glyph_count;
 
   hb_buffer_t* copy_buffer = nullptr;
   copy_buffer = hb_buffer_create();
@@ -1680,25 +1680,25 @@ void OtLayout::jutifyLine_old(hb_font_t* shapefont, hb_buffer_t* text_buffer, in
     hb_buffer_append(des_buffer, source_buffer, 0, -1);
   };
 
-  hb_feature_t color_fea{HB_TAG('t', 'j', 'w', 'd'), 0, 0, (uint)-1};
+  hb_feature_t color_fea{HB_TAG('t', 'j', 'w', 'd'), 0, 0, (unsigned int)-1};
   if (tajweedColor) {
     color_fea.value = 1;
   }
 
   hb_feature_t gpos_features[] = {
-      {HB_TAG('i', 'n', 'i', 't'), 0, 0, (uint)-1},
-      {HB_TAG('m', 'e', 'd', 'i'), 0, 0, (uint)-1},
-      {HB_TAG('f', 'i', 'n', 'a'), 0, 0, (uint)-1},
-      {HB_TAG('r', 'l', 'i', 'g'), 0, 0, (uint)-1},
-      {HB_TAG('l', 'i', 'g', 'a'), 0, 0, (uint)-1},
-      {HB_TAG('c', 'a', 'l', 't'), 0, 0, (uint)-1},
-      {HB_TAG('s', 'c', 'h', 'm'), 1, 0, (uint)-1},
-      {HB_TAG('s', 'h', 'r', '1'), 0, 0, (uint)-1},
+      {HB_TAG('i', 'n', 'i', 't'), 0, 0, (unsigned int)-1},
+      {HB_TAG('m', 'e', 'd', 'i'), 0, 0, (unsigned int)-1},
+      {HB_TAG('f', 'i', 'n', 'a'), 0, 0, (unsigned int)-1},
+      {HB_TAG('r', 'l', 'i', 'g'), 0, 0, (unsigned int)-1},
+      {HB_TAG('l', 'i', 'g', 'a'), 0, 0, (unsigned int)-1},
+      {HB_TAG('c', 'a', 'l', 't'), 0, 0, (unsigned int)-1},
+      {HB_TAG('s', 'c', 'h', 'm'), 1, 0, (unsigned int)-1},
+      {HB_TAG('s', 'h', 'r', '1'), 0, 0, (unsigned int)-1},
       color_fea};
 
   int num_gpos_features = sizeof(gpos_features) / sizeof(*gpos_features);
 
-  uint glyph_count;
+  unsigned int glyph_count;
 
   hb_segment_properties_t savedprops;
 
@@ -1810,7 +1810,7 @@ void OtLayout::jutifyLine(hb_font_t* shapefont, hb_buffer_t* text_buffer, int li
   hb_shape(shapefont, text_buffer, features, 2);
   /*
   if (tajweedColor) {
-    hb_feature_t color_fea{ HB_TAG('t', 'j', 'w', 'd'),0,0,(uint)-1 };
+    hb_feature_t color_fea{ HB_TAG('t', 'j', 'w', 'd'),0,0,(unsigned int)-1 };
     color_fea.value = 1;
 
     hb_shape(shapefont, text_buffer, &color_fea, 1);
@@ -1864,7 +1864,7 @@ std::vector<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth,
     auto lineWidth = line.width;
     auto justification = line.lineJustification;
 
-    uint glyph_count;
+    unsigned int glyph_count;
 
     while (first || overfull) {
       first = false;
@@ -2071,7 +2071,7 @@ OriginalPageList OtLayout::pageBreak(
 
   hb_shape(font, buffer, NULL, 0);
 
-  uint glyph_count;
+  unsigned int glyph_count;
 
   const int spaceWidth = 100 * emScale;
   const int maxStretch = 100 * emScale;
@@ -2191,9 +2191,14 @@ OriginalPageList OtLayout::pageBreak(
         demerits = (1 + std::pow(badness, 2) - std::pow(penalty, 2));
       }
 
+#if defined(FE_OVERFLOW) && defined(FE_UNDERFLOW)
+      // Not all libc's implement these fenv.h exceptions (e.g. Emscripten's,
+      // since wasm has no hardware FP exception-flag support); skip the
+      // check where they're unavailable rather than fail to compile.
       if ((bool)std::fetestexcept(FE_OVERFLOW) || (bool)std::fetestexcept(FE_UNDERFLOW)) {
         throw "Error";
       }
+#endif
 
       double totalDemerits = active->totalDemerits + demerits;
 
@@ -2208,9 +2213,14 @@ OriginalPageList OtLayout::pageBreak(
                     << ",totalDemerits : " << totalDemerits
                     << ",currentIndex : " << i;*/
 
+#if defined(FE_OVERFLOW) && defined(FE_UNDERFLOW)
+      // Not all libc's implement these fenv.h exceptions (e.g. Emscripten's,
+      // since wasm has no hardware FP exception-flag support); skip the
+      // check where they're unavailable rather than fail to compile.
       if ((bool)std::fetestexcept(FE_OVERFLOW) || (bool)std::fetestexcept(FE_UNDERFLOW)) {
         throw "Error";
       }
+#endif
 
       int lineNumber = active->lineNumber + 1;
       int pageNumber = active->pageNumber;
@@ -2459,7 +2469,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
 
   hb_shape(font, buffer, NULL, 0);
 
-  uint glyph_count;
+  unsigned int glyph_count;
 
   const int spaceWidth = 100 * emScale;
   const int maxStretch = 100 * emScale;

@@ -913,9 +913,9 @@ digitalkhatt::ByteBuffer PairAdjustmentSubtable::getOpenTypeTable(bool extended)
   valueFormat1 = 0;
   valueFormat2 = 0;
   std::uint16_t pairSetCount = glyphCount;
-  u_int32_t headerSize = 10;
+  std::uint32_t headerSize = 10;
 
-  u_int32_t currentPairSetOffset = headerSize + pairSetCount * 2;
+  std::uint32_t currentPairSetOffset = headerSize + pairSetCount * 2;
   coverage << (std::uint16_t)1;
   coverage << (std::uint16_t)glyphCount;
 
@@ -957,9 +957,9 @@ digitalkhatt::ByteBuffer PairAdjustmentSubtable::getOpenTypeTable(bool extended)
 
     digitalkhatt::ByteBuffer currentPairSetTable;
 
-    currentPairSetTable << (u_int16_t)pairValues.size();
+    currentPairSetTable << (std::uint16_t)pairValues.size();
     for (auto j = pairValues.cbegin(), end = pairValues.cend(); j != end; ++j) {
-      currentPairSetTable << (u_int16_t)j->first;
+      currentPairSetTable << (std::uint16_t)j->first;
       auto& pairValue = j->second;
       auto& valueRecord1 = pairValue.valueRecord1;
       auto& valueRecord2 = pairValue.valueRecord2;
@@ -989,7 +989,7 @@ digitalkhatt::ByteBuffer PairAdjustmentSubtable::getOpenTypeTable(bool extended)
       }
     }
 
-    pairSetOffsets << (u_int16_t)currentPairSetOffset;
+    pairSetOffsets << (std::uint16_t)currentPairSetOffset;
     pairSetTables.append(currentPairSetTable);
     currentPairSetOffset += currentPairSetTable.size();
   }
@@ -1000,10 +1000,10 @@ digitalkhatt::ByteBuffer PairAdjustmentSubtable::getOpenTypeTable(bool extended)
   }
 
   root << format;
-  root << (u_int16_t)coverageOffset;
-  root << (u_int16_t)valueFormat1;
-  root << (u_int16_t)valueFormat2;
-  root << (u_int16_t)pairSetCount;
+  root << (std::uint16_t)coverageOffset;
+  root << (std::uint16_t)valueFormat1;
+  root << (std::uint16_t)valueFormat2;
+  root << (std::uint16_t)pairSetCount;
   root.append(pairSetOffsets);
   root.append(pairSetTables);
   root.append(coverage);
@@ -1024,7 +1024,7 @@ digitalkhatt::ByteBuffer MultipleSubtable::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer sequencetables;
 
   std::uint16_t total = subst.size();
-  uint coverage_size = 2 + 2 + 2 * total;
+  unsigned int coverage_size = 2 + 2 + 2 * total;
   std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * total;
   std::uint16_t debutsequence = coverage_offset + coverage_size;
 
@@ -1054,12 +1054,12 @@ digitalkhatt::ByteBuffer MultipleSubtable::getOpenTypeTable(bool extended) {
 void MultipleSubtable::readJson(const ParameterJsonObject& json) {
   subst.clear();
   for (const auto& [glyphName, destinationJson] : json) {
-    uint uniode = getCodeFromName(glyphName);
+    unsigned int uniode = getCodeFromName(glyphName);
     if (!uniode) continue;
     const auto destination = jsonValueAs<std::vector<std::string>>(destinationJson);
     if (!destination) continue;
     for (const auto& name : *destination) {
-      uint value = getCodeFromName(name);
+      unsigned int value = getCodeFromName(name);
 
       if (!value) continue;
 
@@ -1091,7 +1091,7 @@ digitalkhatt::ByteBuffer AlternateSubtable::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer sequencetables;
 
   std::uint16_t total = alternates.size();
-  uint coverage_size = 2 + 2 + 2 * total;
+  unsigned int coverage_size = 2 + 2 + 2 * total;
   std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * total;
   std::uint16_t debutsequence = coverage_offset + coverage_size;
 
@@ -1155,7 +1155,7 @@ digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getOpenTypeTable(bool ext
   digitalkhatt::ByteBuffer sequencetables;
 
   std::uint16_t total = alternates.size();
-  uint coverage_size = 2 + 2 + 2 * total;
+  unsigned int coverage_size = 2 + 2 + 2 * total;
   std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * total;
   std::uint16_t debutsequence = coverage_offset + coverage_size;
 
@@ -1213,7 +1213,7 @@ digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getConvertedOpenTypeTable
   digitalkhatt::ByteBuffer sequencetables;
 
   std::uint16_t total = alternates.size();
-  uint coverage_size = 2 + 2 + 2 * total;
+  unsigned int coverage_size = 2 + 2 + 2 * total;
   std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * total;
   std::uint16_t debutsequence = coverage_offset + coverage_size;
 
@@ -1333,7 +1333,7 @@ void LigatureSubtable::readJson(const ParameterJsonObject& json) {
     if (!destination) continue;
     std::vector<std::uint16_t> componentGlyphIDs;
     for (const auto& name : *destination) {
-      uint value = getCodeFromName(name);
+      unsigned int value = getCodeFromName(name);
 
       if (!value) continue;
 

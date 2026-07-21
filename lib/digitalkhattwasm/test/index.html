@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>digitalkhattwasm smoke test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    canvas { border: 1px solid #ccc; background: white; display: block; margin-bottom: 1rem; }
+    pre { background: #f4f4f4; padding: 1rem; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>VisualMetaFontWasm smoke test</h1>
+  <p>Not part of the build — a manual dev harness for exercising the wasm module directly in a browser, without the full digitalkhatt.org Angular app.</p>
+  <canvas id="c" width="1200" height="300"></canvas>
+  <pre id="log"></pre>
+
+  <script type="module">
+    // Served straight out of the build tree (see the accompanying serve.sh):
+    // .js and .wasm are already co-located there by CMake.
+    import createModule from '/build/emscripten/visualmetafont/lib/digitalkhattwasm/Debug/VisualMetaFontWasm.js';
+
+    const logEl = document.getElementById('log');
+    function log(...args) {
+      console.log(...args);
+      logEl.textContent += args.map(a => (a instanceof Error ? a.stack : String(a))).join(' ') + '\n';
+    }
+
+    // Same set of files QuranShaper::loadFontFile / loadLookupFile read at
+    // runtime (see quranshaper.h) -- fetched from their real source
+    // locations rather than the digitalkhatt.org copies, so this harness
+    // stays correct even before a build has run.
+    const FILES = {
+      'mfplain.mp':      '/visualmetafont/src/Resources/metafont/mfplain.mp',
+      'mpost.mp':        '/visualmetafont/src/Resources/metafont/mpost.mp',
+      'vmf.mp':          '/visualmetafont/src/Resources/metafont/vmf.mp',
+      'madina.mp':       '/madinafont/madina.mp',
+      'glyphs.mp':       '/madinafont/glyphs.mp',
+      'features.fea':    '/madinafont/features.fea',
+      'parameters.json': '/madinafont/parameters.json',
+    };
+
+    let Module; // kept at module scope so the catch handler below can reuse
+                // the same instance to decode an exception pointer -- a
+                // fresh instance would have a different memory space.
+
+    async function main() {
+      log('Loading VisualMetaFontWasm.js / .wasm (+ libmadinad.wasm side module) ...');
+      // madina_font is dlopen()'d at runtime by OtLayout.cpp's constructor
+      // (see global.h's SLPREFIX/SLEXT). A synchronous dlopen() can only
+      // succeed if the side module is already registered beforehand --
+      // dynamicLibraries makes Emscripten's dylink.js runtime fetch/compile/
+      // register it asynchronously before this promise resolves, so the
+      // later C++ dlopen() call degenerates into an "already loaded" lookup.
+      // The registered name must match the path dlopen() actually builds:
+      // font->projectFile()'s parent dir (MEMFS root, since madina.mp is
+      // written at "/") + SLPREFIX/SLEXT -> "/libmadinad.wasm".
+      Module = await createModule({ dynamicLibraries: ['/libmadinad.wasm'] });
+      window.__lastModule = Module; // for ad hoc console/devtools poking
+      log('Module loaded. Preloading font files into the virtual FS ...');
+
+      for (const [name, url] of Object.entries(FILES)) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`fetch ${url} -> ${response.status}`);
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        Module.FS.writeFile(name, bytes);
+        log(`  wrote ${name} (${bytes.length} bytes)`);
+      }
+
+      log('Constructing QuranShaper (this alone loads madina.mp + glyphs.mp via');
+      log('MPFont, then features.fea + parameters.json -- see the QuranShaper()');
+      log('constructor in quranshaper.h) ...');
+      const shaper = new Module.QuranShaper();
+      log('QuranShaper constructed.');
+
+      // Cheap, non-visual smoke tests first. Glyph names are contextual-form
+      // names (e.g. "alef.isol"), not bare letter names, and getGlyphName()
+      // takes a glyph *code* (assigned during generation), not a Unicode
+      // codepoint -- so round-trip through getGlyphCode() first.
+      const alefCode = shaper.getGlyphCode('alef.isol');
+      log('getGlyphCode("alef.isol") =', alefCode);
+      log('getGlyphName(alefCode) =', shaper.getGlyphName(alefCode));
+
+      // Visual smoke test: shape a line of Arabic text onto the canvas.
+      // Exercises the full pipeline: MetaPost glyph generation -> OtLayout
+      // shaping -> QuranShaper::displayGlyph -> Canvas2D drawing.
+      const ctx = document.getElementById('c').getContext('2d');
+      ctx.fillStyle = 'black';
+      ctx.save();
+      ctx.translate(1150, 150);
+      // Display-only zoom: OtLayout's internal glyph scale (72/4800 design
+      // units per CSS px, calibrated for large-format page rendering, e.g.
+      // PDF export) is independent of fontScalePerc below -- it produces
+      // ~15px-tall glyphs regardless of that value. Scale up here, purely
+      // in this test harness, so the shaped text is visible without zooming.
+      ctx.scale(4, 4);
+      const width = shaper.shapeText(
+        'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ',
+        1000,   // lineWidth
+        0.6,    // fontScalePerc
+        true,   // applyJustification
+        true,   // tajweedColor
+        false,  // fontExpansion
+        ctx
+      );
+      ctx.restore();
+      log('shapeText() returned width =', width);
+
+      shaper.clearAlternates();
+      log('Done -- if you see shaped Arabic text above, the pipeline works end to end.');
+    }
+
+    main().catch(e => {
+      // embind marshals C++ exceptions as an opaque pointer by default;
+      // decode it to the real std::exception::what() text if we can, using
+      // the SAME module instance the exception came from (a different
+      // instance has a different memory space, so its pointer wouldn't be
+      // meaningful there).
+      const raw = typeof e === 'number' ? e : (e && e.message);
+      const digits = String(raw).match(/(\d+)$/);
+      const ptr = digits ? Number(digits[1]) : null;
+      if (ptr !== null && Module && Module.getExceptionMessage) {
+        log('ERROR (decoded):', Module.getExceptionMessage(ptr));
+        return;
+      }
+      log('ERROR:', e);
+    });
+  </script>
+</body>
+</html>

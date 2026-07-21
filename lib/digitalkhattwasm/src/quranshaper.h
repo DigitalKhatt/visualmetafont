@@ -23,39 +23,69 @@
 
 #include <string>
 #include "OtLayout.h"
-#include "QtLayoutSerialization.h"
-#include "qregularexpression.h"
 #include "GlyphVis.h"
 #include "automedina/automedina.h"
-//#include "qfile.h"
-#include "qjsondocument.h"
-#include "qjsonobject.h"
+#include "MPFont.h"
+#include "digitalkhatt/core/Regex16.h"
+#include "qdatastream_reader.h"
 #include <unordered_map>
 #include <fstream>
+#include <filesystem>
+#include <map>
 #include <math.h>
 
 
 
-#if defined DIGITALKHATT_WEBLIB && defined  EMSCRIPTEN
 #include <emscripten.h>
 #include <emscripten/bind.h>
-#endif
-#include <QtCore/qmath.h>
 
 struct PageResult {
-  QList<LineLayoutInfo> page;
-  QStringList originalPage;
+  std::vector<LineLayoutInfo> page;
+  std::vector<digitalkhatt::TextString> originalPage;
 };
 
-/*
-struct MyClass {
-  QStringList originalPage;
-  QStringList originalPage;
+namespace {
 
-  //std::string getExceptionMessage(intptr_t exceptionPtr) {
-  //  return std::string(reinterpret_cast<std::exception*>(exceptionPtr)->what());
-  //}
-};*/
+// Mirrors the sura/bism and sajda-verse patterns already used by
+// OtLayout::pageBreak (OtLayout.cpp) so the same PCRE2-16 engine and
+// mark-skipping convention are used here.
+constexpr digitalkhatt::TextView surapattern =
+    u"(?m)^(سُورَةُ .*|بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ|بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ)$";
+constexpr digitalkhatt::TextView sajdapatterns =
+    u"(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)";
+
+std::string utf16ToUtf8(digitalkhatt::TextView input) {
+  std::string result;
+  result.reserve(input.size());
+  for (std::size_t i = 0; i < input.size(); ++i) {
+    char32_t codepoint = input[i];
+    if (codepoint >= 0xd800 && codepoint <= 0xdbff && i + 1 < input.size()) {
+      char16_t low = input[i + 1];
+      if (low >= 0xdc00 && low <= 0xdfff) {
+        codepoint = 0x10000 + ((codepoint - 0xd800) << 10) + (low - 0xdc00);
+        ++i;
+      }
+    }
+    if (codepoint < 0x80) {
+      result.push_back(static_cast<char>(codepoint));
+    } else if (codepoint < 0x800) {
+      result.push_back(static_cast<char>(0xc0 | (codepoint >> 6)));
+      result.push_back(static_cast<char>(0x80 | (codepoint & 0x3f)));
+    } else if (codepoint < 0x10000) {
+      result.push_back(static_cast<char>(0xe0 | (codepoint >> 12)));
+      result.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+      result.push_back(static_cast<char>(0x80 | (codepoint & 0x3f)));
+    } else {
+      result.push_back(static_cast<char>(0xf0 | (codepoint >> 18)));
+      result.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3f)));
+      result.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
+      result.push_back(static_cast<char>(0x80 | (codepoint & 0x3f)));
+    }
+  }
+  return result;
+}
+
+}  // namespace
 
 class QuranShaper {
 public:
@@ -65,9 +95,7 @@ public:
     int status = initilizeMetapost();
 
     if (status == 0) {
-      status = executeMetapost("input digitalkhatt.mp;");
-
-      layout = new OtLayout(mp, true);
+      layout = new OtLayout(&mpFont, true);
 
       layout->useNormAxisValues = false;
 
@@ -78,59 +106,144 @@ public:
   }
 
   int initilizeMetapost() {
-    MP_options* _mp_options = mp_options();
-    //MP_options _mp_options;
-    _mp_options->noninteractive = 1;
-    _mp_options->command_line = NULL;
-    _mp_options->ini_version = true;
-    _mp_options->math_mode = mp_math_double_mode;
-    //_mp_options->interaction = mp_nonstop_mode;
-    //_mp_options->mem_name = "plain";
-    //_mp_options->mem_name = "automedina";
-    //_mp_options -> main_memory = 1000000;
+    try {
+      if (!loadFontFile("madina.mp")) {
+        std::cout << "Could not load font file\n";
+        return 1;
+      }
+      std::cout << "Metapost initilized with status 0\n";
+      return 0;
+    } catch (const std::exception& e) {
+      std::cout << "Could not initialize MetaPost library instance!\n" << e.what() << '\n';
+      return 1;
+    } catch (...) {
+      std::cout << "Could not initialize MetaPost library instance! (unknown exception)\n";
+      return 1;
+    }
+  }
 
+  // Mirrors Font::loadFile (visualmetafont/src/metafont/font.cpp): prepend
+  // the shared MetaPost infrastructure (mfplain.mp, mpost.mp, vmf.mp) to the
+  // font's own source, initialize MPFont with the combined script, then
+  // parse the sibling glyphs.mp file to register each glyph's source so
+  // OtLayout::getAlternate()/MPFont::generateAlternate() can regenerate it
+  // with different tatweel/scale parameters.
+  bool loadFontFile(const std::string& fileName) {
+    std::ifstream file(fileName, std::ios::binary);
+    if (!file) return false;
 
+    std::ifstream rsmfplain("mfplain.mp", std::ios::binary);
+    std::ifstream rsmpost("mpost.mp", std::ios::binary);
+    std::ifstream rsvmf("vmf.mp", std::ios::binary);
 
-    mp = mp_initialize(_mp_options);
+    std::string initMF = "MPGUI:=1;";
 
+    if (!rsmfplain) {
+      std::cout << "mfplain.mp file not opened\n";
+      return false;
+    }
+    initMF += std::string{std::istreambuf_iterator<char>{rsmfplain}, {}};
 
+    if (!rsmpost) {
+      std::cout << "mpost.mp file not opened\n";
+      return false;
+    }
+    initMF += std::string{std::istreambuf_iterator<char>{rsmpost}, {}};
 
-    if (!mp) return 5;
+    if (!rsvmf) {
+      std::cout << "vmf.mp file not opened\n";
+      return false;
+    }
+    initMF += std::string{std::istreambuf_iterator<char>{rsvmf}, {}};
 
-    //std::string commandBytes = "MPGUI:=1;input mpguifont.mp;input medinafont.mp;";
+    initMF += std::string{std::istreambuf_iterator<char>{file}, {}};
 
-    std::string commandBytes = "MPGUI:=1;input mpguifont.mp;";
+    mpFont.initialize(initMF, fileName);
 
-    int status = executeMetapost(commandBytes);
+    std::filesystem::path fontPath{fileName};
+    std::string glyphsPath = (fontPath.parent_path() / "glyphs.mp").string();
 
-    delete _mp_options;
+    std::ifstream glyphsFile(glyphsPath, std::ios::binary);
+    if (!glyphsFile) return false;
 
-    std::cout << "Metapost initilized with status " << status << '\n';
+    std::string code{std::istreambuf_iterator<char>{glyphsFile}, {}};
+    registerGlyphSources(code);
 
-    return status;
+    return true;
+  }
+
+  // Splits glyphs.mp into its "beginchar(...)...endchar;" /
+  // "defchar(...)...enddefchar;" blocks -- same pattern Font::loadFile
+  // matches with a QRegularExpression -- and registers each block verbatim
+  // as that glyph's source. glyphs.mp is machine-written by Font::saveFile
+  // (font.cpp) in exactly this "macro(name,unicode,width,height,depth);"
+  // header form, so a plain substring scan is enough; no MetaPost/glyph
+  // grammar parsing needed here.
+  void registerGlyphSources(const std::string& code) {
+    std::size_t pos = 0;
+    while (pos < code.size()) {
+      std::size_t beginPos = code.find("beginchar", pos);
+      std::size_t defPos = code.find("defchar", pos);
+      bool isDef = defPos != std::string::npos && (beginPos == std::string::npos || defPos < beginPos);
+      std::size_t blockStart = isDef ? defPos : beginPos;
+      if (blockStart == std::string::npos) break;
+
+      const std::string endMarker = isDef ? "enddefchar;" : "endchar;";
+      std::size_t endPos = code.find(endMarker, blockStart);
+      if (endPos == std::string::npos) break;
+      std::size_t blockEnd = endPos + endMarker.size();
+
+      std::string block = code.substr(blockStart, blockEnd - blockStart);
+
+      std::size_t parenOpen = block.find('(');
+      std::size_t parenClose = block.find(')', parenOpen);
+      std::string args = block.substr(parenOpen + 1, parenClose - parenOpen - 1);
+      std::size_t comma1 = args.find(',');
+      std::size_t comma2 = args.find(',', comma1 + 1);
+      std::string glyphName = args.substr(0, comma1);
+      int unicode = std::stoi(args.substr(comma1 + 1, comma2 - comma1 - 1));
+
+      mpFont.registerGlyphSource(glyphName, block, isDef ? "defchar" : "beginchar", unicode);
+
+      // registerGlyphSource() above only stores the source text for later
+      // on-demand regeneration (MPFont::generateAlternate()) -- it doesn't
+      // draw anything. Plugin construction (e.g. Madina::addchars()'s
+      // genAyaNumber) needs glyph pictures (e.g. "oneindic.pic") to already
+      // exist as MetaPost picture variables, so each block must actually be
+      // executed here too, not just parsed. One glyph at a time, mirroring
+      // Glyph::getEdge() (font.cpp) -- executing the whole file as a single
+      // MetaPost command instead of one glyph at a time is not how native
+      // code does it, and a single failing glyph shouldn't abort the rest.
+      //
+      // vmf.mp only auto-initializes params[0..2]:=0 in its "else" branch
+      // (`if known MPGUI: ... else: params[0]:=0;...; fi`), but loadFontFile()
+      // sets MPGUI:=1 (mirroring native Font::loadFile), which skips that
+      // branch. Glyph::getEdge() (font.cpp) compensates for this by
+      // prefixing each glyph's source with explicit params0:=...; params1:=...;
+      // assignments before executing it, one per entry in Glyph::axisNames
+      // ({"lefttatweel", "righttatweel", "third", "fourth", "fifth"} --
+      // glyph.hpp) -- 5 axes, params0..params4, not just 0..2. Do the same
+      // here, using 0 (no variation) for all of them since this harness
+      // doesn't track variable-font axis values per glyph.
+      executeMetapost("params[0]:=0;params[1]:=0;params[2]:=0;params[3]:=0;params[4]:=0;" + block);
+
+      pos = blockEnd;
+    }
   }
 
   int executeMetapost(std::string code) {
-
-    int status = mp_execute(mp, (char*)code.c_str(), code.size());
-
-    if (status == mp_error_message_issued || status == mp_fatal_error_stop) {
-      mp_run_data* results = mp_rundata(mp);
-      std::string ret(results->term_out.data);
-      //ret.trimmed();
-      std::cout << "Could not initialize MetaPost library instance!\n" + ret << '\n';
-      mp_finish(mp);
-      //throw "Could not initialize MetaPost library instance!\n" + ret;
-
+    try {
+      mpFont.execute(code);
+      return 0;
+    } catch (const std::exception& e) {
+      std::cout << "Could not execute MetaPost glyph source!\n" << e.what() << '\n';
+      return 1;
     }
-
-    return status;
-
   }
 
 
   void initLayout() {
-    layout = new OtLayout(mp, true);
+    layout = new OtLayout(&mpFont, true);
   }
 
   void initLookup(std::string fileName) {
@@ -153,23 +266,23 @@ public:
   }
 
   int getTexNbPages() {
-    if (texPages.isEmpty()) {
+    if (texPages.empty()) {
       readTexPages();
     }
 
-    return texPages.size();
+    return static_cast<int>(texPages.size());
   }
 
-  QList<SuraLocation> getSuraLocations(bool tex) {
+  std::vector<SuraLocation> getSuraLocations(bool tex) {
     if (tex) {
-      if (texSuraLocations.isEmpty()) {
+      if (texSuraLocations.empty()) {
         readTexPages();
       }
 
       return texSuraLocations;
     }
     else {
-      if (medinaSuraLocations.isEmpty()) {
+      if (medinaSuraLocations.empty()) {
         readMedinaPages();
       }
 
@@ -179,17 +292,14 @@ public:
 
 
   }
-#if defined DIGITALKHATT_WEBLIB && defined  EMSCRIPTEN
+
   void drawPath(std::string glyphName, emscripten::val ctx) {
 
-    if (!mp) {
+    if (!mpFont.instance()) {
       std::cout << "cannot initilize mp";
     }
-    mp_run_data* run = mp_rundata(mp);
 
-    mp_edge_object* p = run->edges;
-
-    while (p != NULL) {
+    for (mp_edge_object* p : mpFont.edges()) {
       if (p->charname == glyphName) {
         mp_graphic_object* body = p->body;
 
@@ -198,9 +308,6 @@ public:
         }
 
         return;
-      }
-      else {
-        p = p->next;
       }
 
     }
@@ -214,12 +321,15 @@ public:
 
     layout->applyJustification = applyJustification;
 
-    QString input = QString::fromStdString(text);
-
-    auto lines = input.split(10, QString::SkipEmptyParts);
     std::vector<std::string> stdLines;
-    stdLines.reserve(lines.size());
-    for (const auto& line : lines) stdLines.push_back(line.toStdString());
+    std::size_t start = 0;
+    while (start <= text.size()) {
+      std::size_t nl = text.find('\n', start);
+      std::size_t end = (nl == std::string::npos) ? text.size() : nl;
+      if (end > start) stdLines.push_back(text.substr(start, end - start));
+      if (nl == std::string::npos) break;
+      start = nl + 1;
+    }
 
     auto justification = LineJustification::Distribute;
 
@@ -227,7 +337,7 @@ public:
       justification = LineJustification::Center;
     }
 
-    int fontScale = (1 << OtLayout::SCALEBY) * fontScalePerc;
+    double fontScale = (1 << OtLayout::SCALEBY) * fontScalePerc;
 
     double scale = 72. / ((4800 << OtLayout::SCALEBY) * fontScalePerc);
 
@@ -249,7 +359,7 @@ public:
 
       int currentxPos = 0; // lineWidth + margin - line.xstartposition;
 
-      QPoint lastPos{ currentxPos ,currentyPos };
+      Point lastPos{ currentxPos ,currentyPos };
 
       ctx.call<void>("save");
 
@@ -267,12 +377,12 @@ public:
           ctx.set("fillStyle", emscripten::val("rgb(" + std::to_string(((color >> 24) & 0xff)) + "," + std::to_string(((color >> 16) & 0xff)) + "," + std::to_string(((color >> 8) & 0xff)) + ")"));
         }
 
-        QPoint pos;
+        Point pos;
         currentxPos -= glyph.x_advance;
         pos.setX(currentxPos + (glyph.x_offset));
         pos.setY(currentyPos - (glyph.y_offset));
 
-        QPoint diff = pos - lastPos;
+        Point diff = pos - lastPos;
         lastPos = pos;
 
         ctx.call<void>("translate", diff.x(), -diff.y());
@@ -303,7 +413,6 @@ public:
 
   }
 
-#endif
   PageResult  shapePage(int pageIndex, float fontScalePerc, bool applyJustification, int lineIndex, bool texFormat, bool tajweedColor, bool changeSize) {
 
     //if (cachedPages.find(pageNumber) != cachedPages.end()) {
@@ -315,14 +424,14 @@ public:
 
     layout->applyJustification = applyJustification;
 
-    QStringList lines;
+    std::vector<digitalkhatt::TextString> lines;
 
     if (texFormat) {
-      if (texPages.isEmpty()) {
+      if (texPages.empty()) {
         readTexPages();
       }
 
-      if (texPages.size() <= pageIndex) {
+      if (static_cast<int>(texPages.size()) <= pageIndex) {
         std::cout << "Out of range Tex pageNumber " << pageIndex << '\n';
         return PageResult{};
       }
@@ -330,11 +439,11 @@ public:
       lines = texPages[pageIndex];
     }
     else {
-      if (medinaPages.isEmpty()) {
+      if (medinaPages.empty()) {
         readMedinaPages();
       }
 
-      if (medinaPages.size() <= pageIndex) {
+      if (static_cast<int>(medinaPages.size()) <= pageIndex) {
         std::cout << "Out of range Medina pageNumber " << pageIndex << '\n';
         return PageResult{};
       }
@@ -343,10 +452,10 @@ public:
 
     }
 
-    int fontScale = (1 << OtLayout::SCALEBY) * fontScalePerc;
+    double fontScale = (1 << OtLayout::SCALEBY) * fontScalePerc;
 
     if (lineIndex >= 0) {
-      lines = QStringList{ lines[lineIndex] };
+      lines = { lines[lineIndex] };
     }
 
     auto justification = LineJustification::Distribute;
@@ -386,7 +495,7 @@ public:
 
     std::vector<std::string> stdLines;
     stdLines.reserve(lines.size());
-    for (const auto& line : lines) stdLines.push_back(line.toStdString());
+    for (const auto& line : lines) stdLines.push_back(utf16ToUtf8(line));
     auto page = layout->justifyPage(fontScale, lineWidth, pageWidth,
                                     std::move(stdLines), justification, false,
                                     tajweedColor);
@@ -412,10 +521,14 @@ public:
 
           auto temp = layout->justifyPage(
               fontScale, 0, pageWidth,
-              std::vector<std::string>{lines[i].toStdString()},
+              std::vector<std::string>{utf16ToUtf8(lines[i])},
               LineJustification::Center, false, tajweedColor);
 
-          if (match.captured(0).startsWith("سُ")) {
+          digitalkhatt::TextString captured = lines[i].substr(
+              static_cast<std::size_t>(match.start()),
+              static_cast<std::size_t>(match.end() - match.start()));
+
+          if (captured.starts_with(u"سُ")) {
             temp[0].type = LineType::Sura;
           }
           else {
@@ -431,13 +544,18 @@ public:
 
             //sajdamatched++;
 
+            int captureIndex = match.lastCapturedIndex();
 
+            int startOffset = match.start(captureIndex); // startOffset == 6
+            int endOffset = match.end(captureIndex) - 1; // endOffset == 9
 
-            int startOffset = match.capturedStart(match.lastCapturedIndex()); // startOffset == 6
-            int endOffset = match.capturedEnd(match.lastCapturedIndex()) - 1; // endOffset == 9            
-
-            while (lines[i][endOffset].isMark())
-              endOffset--;
+            while (endOffset >= 0) {
+              auto category = hb_unicode_general_category(hb_unicode_funcs_get_default(), lines[i][endOffset]);
+              if (category != HB_UNICODE_GENERAL_CATEGORY_SPACING_MARK &&
+                  category != HB_UNICODE_GENERAL_CATEGORY_ENCLOSING_MARK &&
+                  category != HB_UNICODE_GENERAL_CATEGORY_NON_SPACING_MARK) break;
+              --endOffset;
+            }
 
             bool beginDone = false;
 
@@ -484,149 +602,110 @@ public:
     return { page, lines };
 
   }
-#if defined DIGITALKHATT_WEBLIB && defined  EMSCRIPTEN
+
   void displayGlyph(int glyphIndex, double leftTatweel, double righttatweel, emscripten::val ctx) {
 
-    GlyphVis* glyph = layout->getGlyph(glyphIndex, leftTatweel, righttatweel);
+    GlyphParameters parameters;
+    parameters.lefttatweel = leftTatweel;
+    parameters.righttatweel = righttatweel;
+
+    GlyphVis* glyph = layout->getGlyph(glyphIndex, parameters);
 
     if (glyph) {
       generateGlyph(*glyph, ctx);
     }
 
   }
-#endif
+
   void clearAlternates() {
     layout->clearAlternates();
   }
 
-  MP mp;
+  MPFont mpFont;
   OtLayout* layout;
 
 private:
 
-  QList<QStringList> texPages;
-  QList<QStringList> medinaPages;
+  std::vector<std::vector<digitalkhatt::TextString>> texPages;
+  std::vector<std::vector<digitalkhatt::TextString>> medinaPages;
 
-  QList<SuraLocation> texSuraLocations;
-  QList<SuraLocation> medinaSuraLocations;
+  std::vector<SuraLocation> texSuraLocations;
+  std::vector<SuraLocation> medinaSuraLocations;
 
-  QString suraWord = "سُورَةُ";
-  QString bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
-
-  QString surapattern = "^("
-    + suraWord + " .*|"
-    + bism
-    + "|" + "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
-    + ")$";
-
-  QRegularExpression surabism = QRegularExpression(surapattern, QRegularExpression::MultilineOption);
-
-  bool newface = true;
-
-
-  QString sajdapatterns = "(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)"; // sajdapatterns.replace("\u0657", "\u08F0").replace("\u065E", "\u08F1").replace("\u0656", "\u08F2");
-  QRegularExpression sajdaRe = QRegularExpression(sajdapatterns, QRegularExpression::MultilineOption);
+  digitalkhatt::Regex16 surabism{surapattern};
+  digitalkhatt::Regex16 sajdaRe{sajdapatterns};
 
   int pageWidth = (17000 - (2 * 400)) << OtLayout::SCALEBY;
 
-  std::unordered_map<int, QList<LineLayoutInfo>> cachedPages;
+  std::unordered_map<int, std::vector<LineLayoutInfo>> cachedPages;
 
   void readTexPages() {
-    double size;
-    QList<QString> suraNamebyPage;
+    QDataStreamReader in(readBinaryFile("texpages.dat"));
 
-    QByteArray array = readFile("texpages.dat");
+    in.readDouble();  // EMSCALE, unused here
 
-    QDataStream in(array);
+    texPages = in.readList<std::vector<digitalkhatt::TextString>>(
+        [](QDataStreamReader& reader) {
+          return reader.readList<digitalkhatt::TextString>(
+              [](QDataStreamReader& r) { return r.readString(); });
+        });
 
-    /*
-  QFile file("texpages.dat");
-  file.open(QIODevice::ReadOnly);
-  QDataStream in(&file);   // we will serialize the data into the file*/
+    in.readList<digitalkhatt::TextString>(
+        [](QDataStreamReader& r) { return r.readString(); });  // suraNamebyPage, unused
 
-    in >> size >> texPages >> suraNamebyPage >> texSuraLocations;
-
-    delete[] array.data();
+    texSuraLocations = in.readList<SuraLocation>([](QDataStreamReader& r) {
+      SuraLocation location;
+      location.name = r.readString();
+      location.pageNumber = r.readInt32();
+      location.x = r.readInt32();
+      location.y = r.readInt32();
+      return location;
+    });
   }
 
   void readMedinaPages() {
-    double size;
-    QList<QString> suraNamebyPage;
+    QDataStreamReader in(readBinaryFile("medinapages.dat"));
 
-    /*
-    QFile file("medinapages.dat");
-    file.open(QIODevice::ReadOnly);
-    QDataStream in(&file);   // we will serialize the data into the file*/
+    in.readDouble();  // EMSCALE, unused here
 
-    QByteArray array = readFile("medinapages.dat");
-    QDataStream in(array);
+    medinaPages = in.readList<std::vector<digitalkhatt::TextString>>(
+        [](QDataStreamReader& reader) {
+          return reader.readList<digitalkhatt::TextString>(
+              [](QDataStreamReader& r) { return r.readString(); });
+        });
 
-    in >> size >> medinaPages >> suraNamebyPage >> medinaSuraLocations;
+    in.readList<digitalkhatt::TextString>(
+        [](QDataStreamReader& r) { return r.readString(); });  // suraNamebyPage, unused
 
-    delete[] array.data();
+    medinaSuraLocations = in.readList<SuraLocation>([](QDataStreamReader& r) {
+      SuraLocation location;
+      location.name = r.readString();
+      location.pageNumber = r.readInt32();
+      location.x = r.readInt32();
+      location.y = r.readInt32();
+      return location;
+    });
   }
 
-#if defined DIGITALKHATT_WEBLIB && defined  EMSCRIPTEN
+  void loadLookupFile(std::string fileName) {
 
-  std::string getPath(std::string glyphName) {
-    if (!mp) {
-      std::cout << "cannot initilize mp";
-      return "error";
-    }
-    mp_run_data* run = mp_rundata(mp);
+    layout->parseFeatureFile(fileName);
 
-    mp_edge_object* p = run->edges;
+    std::ifstream parametersStream("parameters.json", std::ios::binary);
 
-    while (p != NULL) {
-      if (p->charname == glyphName) {
-        std::stringstream ret;
-        ret << "function(ctx) {\n";
-        mp_graphic_object* body = p->body;
+    if (parametersStream) {
+      std::string buffer{std::istreambuf_iterator<char>{parametersStream}, {}};
+      ParameterJsonObject parameters;
+      if (glz::read_json(parameters, buffer)) {
+        std::cout << "Problem reading file." << "parameters.json";
+      }
+      else {
+        layout->readParameters(parameters);
 
-        if (body) {
-
-          ret << "\tctx.beginPath();\n";
-          do {
-            switch (body->type)
-            {
-            case mp_fill_code: {
-              filltoHTML5Path(((mp_fill_object*)body)->path_p, ret);
-
-              break;
-            }
-            default:
-              break;
-            }
-
-          } while (body = body->next);
-
-          ret << "\tctx.fill();\n";
-        }
-        ret << "}";
-        return ret.str();
       }
 
-      p = p->next;
+      parametersStream.close();
     }
-
-    std::cout << "no char";
-    return "error";
-  }
-
-  void filltoHTML5Path(mp_gr_knot h, std::stringstream& out)
-  {
-    mp_gr_knot p, q;
-
-    out << "\tctx.moveTo(" << h->x_coord << "," << h->y_coord << ");\n";
-    p = h;
-    do {
-      q = p->next;
-      out << "\tctx.bezierCurveTo(" << p->right_x << "," << p->right_y << "," << q->left_x << "," << q->left_y << "," << q->x_coord << "," << q->y_coord << ");\n";
-
-      p = q;
-    } while (p != h);
-    if (h->data.types.left_type != mp_endpoint)
-      out << "\tctx.closePath()\n";
 
 
   }
@@ -800,64 +879,9 @@ private:
     }
 
   }
-#endif
-  void loadLookupFile(std::string fileName) {
-
-    layout->parseFeatureFile(fileName);
-
-    std::ifstream parametersStream("parameters.json", std::ios::binary);
-
-    if (parametersStream) {
-      std::string buffer{std::istreambuf_iterator<char>{parametersStream}, {}};
-      ParameterJsonObject parameters;
-      if (glz::read_json(parameters, buffer)) {
-        std::cout << "Problem reading file." << "parameters.json";
-      }
-      else {
-        layout->readParameters(parameters);
-
-      }
-
-      parametersStream.close();
-    }
-
-
-  }
-
-
-  QByteArray readFile(std::string fileName) {
-
-    QByteArray ret;
-
-    std::ifstream stream(fileName, std::ios::binary);
-
-    if (stream) {
-      // get length of file:
-      stream.seekg(0, stream.end);
-      int length = stream.tellg();
-      stream.seekg(0, stream.beg);
-
-      char* buffer = new char[length];
-
-      stream.read(buffer, length);
-
-      if (!stream) {
-        std::cout << "Problem reading file." << fileName;
-      }
-      else {
-        ret = QByteArray::fromRawData(buffer, length);
-      }
-
-      stream.close();
-
-    }
-
-    return ret;
-
-  }
 
 private:
-  QMap<int, double> lineWidths =
+  std::map<int, double> lineWidths =
   {
     { 601 * 3, 1 },
     { 601 * 4, 1 },
@@ -885,7 +909,7 @@ private:
     { 604 * 15, 0.5 },
   };
 
-  QMap<int, double> madinaLineWidths =
+  std::map<int, double> madinaLineWidths =
   {
     { 586 * 1, 0.81},
     { 593 * 2, 0.81},
@@ -897,7 +921,7 @@ private:
   {
 
     if (texFormat) {
-      int pageDiff = texPages.size() - 604;
+      int pageDiff = static_cast<int>(texPages.size()) - 604;
       pageIndex = pageIndex - pageDiff;
     }
 
@@ -906,13 +930,13 @@ private:
     double ratio = 1;
     if (lineWidths.contains(key))
     {
-      ratio = lineWidths.value(key);
+      ratio = lineWidths.at(key);
     }
     else
     {
       if (!texFormat && madinaLineWidths.contains(key))
       {
-        ratio = madinaLineWidths.value(key);
+        ratio = madinaLineWidths.at(key);
       }
     }
 

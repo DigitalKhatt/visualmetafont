@@ -23,8 +23,16 @@ add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 
 add_subdirectory(lib/harfbuzz)
 add_subdirectory(lib/mplib)
-add_subdirectory(lib/QtPropertyBrowser)
+if (NOT EMSCRIPTEN)
+  add_subdirectory(lib/QtPropertyBrowser)
+endif()
 add_subdirectory(lib/digitalkhatt)
-add_subdirectory(src)
+if (NOT EMSCRIPTEN)
+  add_subdirectory(src)
+endif()
+
+if (EMSCRIPTEN)
+  add_subdirectory(lib/digitalkhattwasm)
+endif()
 
 

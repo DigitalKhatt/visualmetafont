@@ -1,9 +1,38 @@
 cmake_minimum_required(VERSION 3.20)
 project(digitalkhatt_core LANGUAGES CXX)
 
-find_package(Clipper2 CONFIG REQUIRED)
+# digitalkhatt_otlayout links these (and the fetched Clipper2/pcre2) into a
+# SHARED library, so every static lib built here -- including third-party
+# ones pulled in via FetchContent below -- needs PIC objects too.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(FetchContent)
+
+# Prefer an installed Clipper2 (fast, common on native builds); fall back to
+# building from source when none is found or none is compatible with the
+# active toolchain -- e.g. cross-compiling to wasm32 under Emscripten, where
+# a native-arch system install can never satisfy the link.
+FetchContent_Declare(
+    Clipper2
+    GIT_REPOSITORY https://github.com/AngusJohnson/Clipper2.git
+    GIT_TAG        Clipper2_1.5.4
+    SOURCE_SUBDIR  CPP
+    FIND_PACKAGE_ARGS 1.5.4
+)
+
+set(CLIPPER2_UTILS    OFF CACHE BOOL   "" FORCE)
+set(CLIPPER2_EXAMPLES OFF CACHE BOOL   "" FORCE)
+set(CLIPPER2_TESTS    OFF CACHE BOOL   "" FORCE)
+set(CLIPPER2_USINGZ   OFF CACHE STRING "" FORCE)
+
+FetchContent_MakeAvailable(Clipper2)
+
+# The installed Config package exports the Clipper2::Clipper2 namespaced
+# target; a source build (add_subdirectory via FetchContent) only defines
+# the plain Clipper2 target, so alias it to match either path uniformly.
+if (NOT TARGET Clipper2::Clipper2)
+  add_library(Clipper2::Clipper2 ALIAS Clipper2)
+endif()
 
 FetchContent_Declare(
     pcre2
@@ -141,7 +170,19 @@ FLEX_TARGET(OtLayoutFeaScanner
 )
 ADD_FLEX_BISON_DEPENDENCY(OtLayoutFeaScanner OtLayoutFeaParser)
 
-add_library(digitalkhatt_otlayout SHARED
+# SHARED on native platforms, where khattfont/madinaotfont/etc. consume it as
+# an installed shared library via find_package(digitalkhatt_otlayout CONFIG).
+# Under Emscripten a SHARED lib becomes a runtime-loaded "side module" (a
+# separate .so the wasm executable fetches over the network at startup) --
+# VisualMetaFontWasm is the only wasm consumer and nothing deploys that .so
+# alongside it, so build it as a plain statically-linked-in library there
+# instead.
+set(DIGITALKHATT_OTLAYOUT_LIB_TYPE SHARED)
+if (EMSCRIPTEN)
+  set(DIGITALKHATT_OTLAYOUT_LIB_TYPE STATIC)
+endif()
+
+add_library(digitalkhatt_otlayout ${DIGITALKHATT_OTLAYOUT_LIB_TYPE}
   src/otlayout/automedina/automedina.cpp
   src/otlayout/FeaParser/driver.cpp
   src/otlayout/FeaParser/feaast.cpp

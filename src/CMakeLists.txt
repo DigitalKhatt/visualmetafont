@@ -45,8 +45,6 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-set(WEBLIB_NAME VisualMetaFontWasm)
-
 set(LUATEX_NAME luadigitalkhatt)
 set(VMF_SL vmfsl)
 
@@ -246,8 +244,6 @@ set(ALL_FILES ${GlyphCommands} ${MetaFont} ${GlyphParser} ${LayoutApplication}
 )
 
 
-set(WEBLIB_FILES ${Header_Files} ${Resource_Files} weblib/visualmetafontwasm.cpp weblib/quranshaper.h)
-
 set(LUATEX_FILES
 #${Automedina} ${FeaParser} ${Layout} ${QuranText} ${Header_Files} ${Resource_Files}
   luatex/luadigitalkhatt/blob.c luatex/luadigitalkhatt/buffer.c luatex/luadigitalkhatt/class_utils.c luatex/luadigitalkhatt/class_utils.c
@@ -255,8 +251,6 @@ set(LUATEX_FILES
   luatex/luadigitalkhatt/font.c luatex/luadigitalkhatt/language.c luatex/luadigitalkhatt/luadigitalkhatt.c
   luatex/luadigitalkhatt/luadigitalkhatt.h luatex/luadigitalkhatt/ot.c luatex/luadigitalkhatt/script.c luatex/luadigitalkhatt/tag.c
   luatex/luadigitalkhatt/unicode.c luatex/luadigitalkhatt/variation.c)
-
-add_executable(${WEBLIB_NAME} EXCLUDE_FROM_ALL ${WEBLIB_FILES})
 
 add_library(${LUATEX_NAME} SHARED EXCLUDE_FROM_ALL ${LUATEX_FILES})
 
@@ -311,17 +305,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/demos"
 )
 
-target_include_directories(${WEBLIB_NAME} PUBLIC
-  "${CMAKE_CURRENT_SOURCE_DIR}/."
-  "${CMAKE_CURRENT_SOURCE_DIR}/Layout"
-  "${CMAKE_CURRENT_SOURCE_DIR}/FeaParser"
-  "${CMAKE_CURRENT_SOURCE_DIR}/GlyphParser"
-  "${CMAKE_CURRENT_SOURCE_DIR}/metafont"
-  "${CMAKE_CURRENT_SOURCE_DIR}/fontwindow"
-  "${CMAKE_CURRENT_SOURCE_DIR}/glyphwindow"
-  "${CMAKE_CURRENT_SOURCE_DIR}/Automedina"
-  )
-
 add_library(lualib SHARED IMPORTED)
 
 if (WIN32)
@@ -347,11 +330,9 @@ target_include_directories(${LUATEX_NAME} PUBLIC
   )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${FLEX_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/FeaParser ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser)
-target_include_directories(${WEBLIB_NAME} PRIVATE ${FLEX_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/FeaParser ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser)
 target_include_directories(${LUATEX_NAME} PRIVATE ${FLEX_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/FeaParser ${CMAKE_CURRENT_BINARY_DIR}/GlyphParser)
 
 target_compile_options(${PROJECT_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
-target_compile_options(${WEBLIB_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_compile_options(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_compile_options(${PROJECT_NAME} PUBLIC $<$<CXX_COMPILER_ID:Clang>: -fvisibility=default>)
 # undefined symbol "absl::lts_20240722::log_internal::LogMessage& absl::lts_20240722::log_internal::LogMessage::operator<<<int, 0>(int const&)"
@@ -359,7 +340,6 @@ target_compile_options(${PROJECT_NAME} PUBLIC $<$<CXX_COMPILER_ID:Clang>: -fvisi
 #target_compile_options(${PROJECT_NAME} PUBLIC $<$<CXX_COMPILER_ID:Clang>: -fclang-abi-compat=17>)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR COMPILING_DLL)
-target_compile_definitions(${WEBLIB_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR DIGITALKHATT_WEBLIB COMPILING_DLL)
 target_compile_definitions(${LUATEX_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR COMPILING_DLL)
 
 
@@ -378,7 +358,6 @@ set(QT_STATIC_PLUGINS
 endif()
 
 add_dependencies(${PROJECT_NAME} digitalkhatt_otlayout QtPropertyBrowser)
-add_dependencies(${WEBLIB_NAME} digitalkhatt_otlayout)
 add_dependencies(${LUATEX_NAME} harfbuzz mplib)
 
 if (UNIX)
@@ -410,8 +389,6 @@ else()
     )
 endif()
 
-target_link_libraries(${WEBLIB_NAME} PUBLIC digitalkhatt_otlayout Qt5::Core PRIVATE glaze::glaze)
-
 target_link_libraries(${LUATEX_NAME} PUBLIC harfbuzz mplib Qt5::Core PRIVATE glaze::glaze)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC glaze::glaze)
@@ -425,26 +402,15 @@ if (NOT EMSCRIPTEN)
     if (NOT QT_SHARED_BUILD)
       target_link_libraries(${PROJECT_NAME} PUBLIC Qt5::QWindowsIntegrationPlugin)
     endif()
-    target_link_libraries(${WEBLIB_NAME} PUBLIC imm32 version Dwmapi Mincore winmm Wtsapi32 Qt5::QWindowsIntegrationPlugin)
   endif (WIN32)
 
   target_link_libraries(${PROJECT_NAME} PRIVATE protobuf::libprotobuf)
 
 else()
 
-  target_compile_options(${WEBLIB_NAME} PUBLIC -w)
-
   target_link_libraries(${PROJECT_NAME} PUBLIC Qt5::QWasmIntegrationPlugin Qt5::EventDispatcherSupport Qt5::FontDatabaseSupport)
 
   target_compile_options(${PROJECT_NAME} PRIVATE
-    "SHELL:-s USE_ZLIB=1"
-    "SHELL:-s ALLOW_MEMORY_GROWTH=1"
-    # "SHELL:-s USE_FREETYPE=1"
-    # "SHELL:-s USE_LIBPNG=1"
-    )
-
-  target_compile_options(${WEBLIB_NAME} PRIVATE
-    # -fsanitize=leak
     "SHELL:-s USE_ZLIB=1"
     "SHELL:-s ALLOW_MEMORY_GROWTH=1"
     # "SHELL:-s USE_FREETYPE=1"
@@ -468,31 +434,6 @@ else()
     #--post-js "${CMAKE_CURRENT_SOURCE_DIR}/post-js.js"
     )
 
-  target_link_options(${WEBLIB_NAME} PRIVATE --bind --use-preload-plugins  # -fsanitize=leak
-    "SHELL:-s ERROR_ON_UNDEFINED_SYMBOLS=1"
-    #"SHELL:-s WASM=1"
-    #"SHELL:-s WASM=0 --separate-asm -s \"SEPARATE_ASM_MODULE_NAME='VMetaFont'\""
-    #"SHELL:-s ASSERTIONS=1"
-    #"SHELL:-s FULL_ES2=1"
-    #"SHELL:-s USE_WEBGL2=1"
-    "SHELL:-s USE_ES6_IMPORT_META=0"
-    "SHELL:-s DISABLE_EXCEPTION_CATCHING=0"
-    "SHELL:-s NO_EXIT_RUNTIME=0"
-    # "SHELL:-s \"BINARYEN_TRAP_MODE='clamp'\""
-    "SHELL:-s ALLOW_MEMORY_GROWTH=1" #-O3
-    "SHELL:-s USE_ZLIB=1"
-    #"SHELL:-s USE_SDL=2"
-    #"SHELL:-s EXPORT_ES6=1"
-    "SHELL:-s \"EXPORTED_RUNTIME_METHODS=['FS','print','printErr']\""
-    #"SHELL:-s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=[\\\"$Browser\\\"]"
-    "SHELL:-s MODULARIZE=1"
-    "SHELL:-s IMPORTED_MEMORY"
-    #"SHELL:-s TOTAL_MEMORY=1048576000"
-    "SHELL:-s ENVIRONMENT=web"
-    #"SHELL:-s \"EXPORTED_FUNCTIONS=['_main']\""
-    #--post-js "${CMAKE_CURRENT_SOURCE_DIR}/post-js.js"
-    )
-
   if(WASMTYPE STREQUAL "WASM")
 
     target_link_options(${PROJECT_NAME} PRIVATE
@@ -500,52 +441,12 @@ else()
       "SHELL:-s EXPORT_ES6=1"
       )
 
-    target_link_options(${WEBLIB_NAME} PRIVATE
-      "SHELL:-s WASM=1"
-      "SHELL:-s EXPORT_ES6=1"
-      "SHELL:-s DEMANGLE_SUPPORT=1"
-      )
-
-    add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/${WEBLIB_NAME}.js" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/app/services/quranservice"
-      COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/${WEBLIB_NAME}.wasm" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
-      COMMENT "Copying to output directory")
-
     #add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     #	COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.js" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/app/visualmetafont"
     #	COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.wasm" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
     #	COMMENT "Copying to output directory")
 
-  else()
-    target_link_options(${WEBLIB_NAME} PRIVATE
-      "SHELL:-s WASM=0"
-      "SHELL:-s EXPORT_NAME='VMASM'"
-      "SHELL:-s TOTAL_MEMORY=26214400"
-      )
-
-    add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/${WEBLIB_NAME}.js"		"${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/vmasm"
-      COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/${WEBLIB_NAME}.js.mem"	"${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/vmasm"
-      COMMENT "Copying to output directory")
-
-    #add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    #	COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/${WEBLIB_NAME}.js"		"${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/vmasm"
-    #	COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/${WEBLIB_NAME}.js.mem"	"${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/vmasm"
-    #	COMMENT "Copying to output directory")
-
-
   endif()
-
-
-  add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/features.fea" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/ayah.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/mfplain.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/digitalkhatt.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/mpguifont.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/myfontbase.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/../files/parameters.json" "${CMAKE_CURRENT_SOURCE_DIR}/../../digitalkhatt.org/ClientApp/src/assets"
-    COMMENT "Copying to output directory")
 
 
 endif()

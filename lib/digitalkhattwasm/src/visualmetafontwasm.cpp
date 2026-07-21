@@ -21,7 +21,6 @@
 
 
 #include <iostream>
-#include <sstream>
 
 
 
@@ -29,54 +28,10 @@
 
 
 #include "quranshaper.h"
-//#include <QtWidgets/QApplication>
-//#include "qplugin.h"
 
-#if  defined  EMSCRIPTEN
 using namespace emscripten;
-#else
-//For debugging
-int main(int argc, char** argv) {
-
-
-	//Q_IMPORT_PLUGIN(QWasmIntegrationPlugin)
-	//	QApplication app(argc, argv);
-
-	//return app.exec();
-
-	QuranShaper shaper;
-
-	std::cout << "begin" << "\n";
-
-	auto alternate = shaper.layout->getGlyph(57506, 0.25, 0.52);
-	shaper.clearAlternates();
-
-	alternate = shaper.layout->getGlyph(57506, 0.253, 0.523);
-	shaper.clearAlternates();
-
-	for (int i = 0; i < 100; i++) {
-		auto result = shaper.shapePage(i, 0.8, true,0,true,true,true);
-		shaper.clearAlternates();
-	}
-
-	std::cout << "fin" << "\n";
-
-}
-#endif
-
-#if defined  EMSCRIPTEN
-/*
-extern "C" {
-  float lerp(float a, float b, float t) {
-    return (1 - t) * a + t * b;
-  }
-}
-*/
-
 
 EMSCRIPTEN_BINDINGS(my_module) {
-
-  //function("lerp", &lerp);
 
 	enum_<LineType>("LineType")
 		.value("Line", LineType::Line)
@@ -102,7 +57,9 @@ EMSCRIPTEN_BINDINGS(my_module) {
 		;
 
 	register_vector<GlyphLayoutInfo>("VectorGlyphLayoutInfo");
-	//register_vector<int>("VectorInt");
+	register_vector<LineLayoutInfo>("VectorLineLayoutInfo");
+	register_vector<SuraLocation>("VectorSuraLocation");
+	register_vector<digitalkhatt::TextString>("VectorString");
 
 
 	value_object<LineLayoutInfo>("LineLayoutInfo")
@@ -111,7 +68,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
 		.field("ystartposition", &LineLayoutInfo::ystartposition)
 		.field("type", &LineLayoutInfo::type)
 		.field("overfull", &LineLayoutInfo::overfull)
-    .field("fontSize", &LineLayoutInfo::fontSize)  
+    .field("fontSize", &LineLayoutInfo::fontSize)
 		;
 
 	value_object<SuraLocation>("SuraLocation")
@@ -121,83 +78,25 @@ EMSCRIPTEN_BINDINGS(my_module) {
 		.field("y", &SuraLocation::y)
 		;
 
-	class_<QList<SuraLocation>>("QListSuraLocation")
-		.constructor<>()
-		//.function("size", &QList<LineLayoutInfo>::size)
-		.function("size", optional_override([](QList<SuraLocation>& list) {
-		return list.size();
-	}))
-		.function("value", optional_override([](QList<SuraLocation>& list, int pos) {
-		return list[pos];
-	}))
-		;
-
-	class_<QList<LineLayoutInfo>>("QListLineLayoutInfo")
-		.constructor<>()
-		//.function("size", &QList<LineLayoutInfo>::size)
-		.function("size", optional_override([](QList<LineLayoutInfo>& list) {
-		return list.size();
-	}))
-		.function("value", optional_override([](QList<LineLayoutInfo>& list, int pos) {
-		return list[pos];
-	}))
-		;
-	/*
-	class_<QList<QString>>("QListQString")
-		.constructor<>()
-		//.function("size", &QList<LineLayoutInfo>::size)
-		.function("size", optional_override([](QList<QString>& list) {
-		return list.size();
-	}))
-		.function("value", optional_override([](QList<QString>& list, int pos) {
-		return list[pos];
-	}))
-		;*/
-
-	class_<QChar>("QChar")
-		.function("unicode", select_overload<ushort & ()>(&QChar::unicode))
-		;
-
-	class_<QString>("QString")
-		.function("at", &QString::at)
-		.function("unicode", optional_override([](QString& string, int pos) {
-			return string[pos].unicode();
-		}))
-		.function("size", &QString::size)
-		.function("toStdString", &QString::toStdString)
-		;
-
-	class_<QStringList>("QStringList")
-		.constructor<>()
-		//.function("size", &QList<LineLayoutInfo>::size)
-		.function("size", optional_override([](QStringList& list) {
-		return list.size();
-	}))
-		.function("get", optional_override([](QStringList& list, int pos) {
-		return list[pos];
-	}))
-		;
-
   class_<PageResult>("PageResult")
     .property("page", &PageResult::page)
     .property("originalPage", &PageResult::originalPage);
 
 	class_<QuranShaper>("QuranShaper")
 		.constructor<>()
-		.function("initilizeMetapost", &QuranShaper::initilizeMetapost)		
-		.function("executeMetapost", &QuranShaper::executeMetapost)		
+		.function("initilizeMetapost", &QuranShaper::initilizeMetapost)
+		.function("executeMetapost", &QuranShaper::executeMetapost)
 		.function("initLayout", &QuranShaper::initLayout)
 		.function("initLookup", &QuranShaper::initLookup)
 		.function("shapePage", &QuranShaper::shapePage)
 		.function("displayGlyph", &QuranShaper::displayGlyph)
 		.function("clearAlternates", &QuranShaper::clearAlternates)
 		.function("getGlyphName", &QuranShaper::getGlyphName)
-		.function("getGlyphCode", &QuranShaper::getGlyphCode)		
+		.function("getGlyphCode", &QuranShaper::getGlyphCode)
 		.function("drawPathByName", &QuranShaper::drawPath)
 		.function("getSuraLocations", &QuranShaper::getSuraLocations)
-    .function("getTexNbPages", &QuranShaper::getTexNbPages)    
-		.function("shapeText", &QuranShaper::shapeText)		
+    .function("getTexNbPages", &QuranShaper::getTexNbPages)
+		.function("shapeText", &QuranShaper::shapeText)
 		;
-  
+
 }
-#endif
