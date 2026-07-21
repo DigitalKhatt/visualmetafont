@@ -25,6 +25,7 @@
 #include <QtWidgets>
 
 #include "JustificationContext.h"
+#include "digitalkhatt/core/digitalkahtt_types.h"
 #include "hb-ot-layout-gsub-table.hh"
 
 // #include "hb-font.hh"
@@ -225,8 +226,6 @@ LayoutWindow::LayoutWindow(Font* font, QWidget* parent, Qt::WindowFlags flags)
 
   createActions();
   createDockWindows();
-
-  setQuranText(1);
 
   layoutDatabase();
 
@@ -1620,344 +1619,6 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth,
 
   return result;
 }
-
-LayoutPages LayoutWindow::shapeMedina(double scale, int pageWidth,
-                                      OtLayout* layout,
-                                      hb_buffer_cluster_level_t cluster_level) {
-  loadLookupFile("features.fea");
-
-  LayoutPages result;
-  QStringList originalPage;
-
-  QString suraWord = "سُورَةُ";
-  QString bism = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
-
-  QString surapattern =
-      "^(" + suraWord + " .*|" + bism + "|" + "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" + ")$";
-
-  QRegularExpression surabism(surapattern, QRegularExpression::MultilineOption);
-
-  bool newface = true;
-
-  QString sajdapatterns =
-      "(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ "
-      "لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ "
-      "سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)";  // sajdapatterns.replace("\u0657",
-                                                 // "\u08F0").replace("\u065E",
-                                                 // "\u08F1").replace("\u0656",
-                                                 // "\u08F2");
-
-  sajdapatterns = sajdapatterns.replace("\u0626", "\u0626\u034F");
-
-  QRegularExpression sajdaRe =
-      QRegularExpression(sajdapatterns, QRegularExpression::MultilineOption);
-
-  int beginsajda = 0;
-  int endsajda = 0;
-  int sajdamatched = 0;
-
-  QString page584 = QString::fromUtf8(qurantext[583] + 1);
-  bool oldMadinah = page584.contains("سُورَةُ عَبَسَ");
-
-  for (int pagenum = 0; pagenum < 604; pagenum++) {
-    // for (int pagenum = 48; pagenum < 49; pagenum++) {
-
-    QString textt = QString::fromUtf8(qurantext[pagenum] + 1);
-
-    /*
-    textt = textt.replace("\u0623", "\u0627\u0654");
-    textt = textt.replace("\u0624", "\u0648\u0654");
-    textt = textt.replace("\u0625", "\u0627\u0655");
-    textt = textt.replace("\u0626", "\u064A\u0654");*/
-
-    textt = textt.replace("\u0626", "\u0626\u034F");
-
-    QStringList lines;
-
-    if (!oldMadinah) {
-      if (pagenum == 583) {
-        textt.append(QString("سُورَةُ عَبَسَ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          // return {};
-          throw new std::runtime_error("ERROR");
-        }
-
-      } else if (pagenum == 584) {
-        textt = textt.replace(QString("سُورَةُ عَبَسَ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 75) {
-        textt.append(QString("سُورَةُ النِّسَاءِ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          throw new std::runtime_error("ERROR");
-        }
-      } else if (pagenum == 76) {
-        textt = textt.replace(QString("سُورَةُ النِّسَاءِ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 348) {
-        textt.append(QString("سُورَةُ النُّورِ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          throw new std::runtime_error("ERROR");
-        }
-      } else if (pagenum == 349) {
-        textt = textt.replace(QString("سُورَةُ النُّورِ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 365) {
-        textt.append(QString("سُورَةُ الشُّعَرَاءِ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          throw new std::runtime_error("ERROR");
-        }
-      } else if (pagenum == 366) {
-        textt = textt.replace(QString("سُورَةُ الشُّعَرَاءِ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 375) {
-        textt.append(QString("سُورَةُ النَّمْلِ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          throw new std::runtime_error("ERROR");
-        }
-      } else if (pagenum == 376) {
-        textt = textt.replace(QString("سُورَةُ النَّمْلِ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 444) {
-        textt.append(QString("سُورَةُ الصَّافَّاتِ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          throw new std::runtime_error("ERROR");
-        }
-      } else if (pagenum == 445) {
-        textt = textt.replace(QString("سُورَةُ الصَّافَّاتِ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 451) {
-        textt.append(QString("سُورَةُ صٓ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          throw new std::runtime_error("ERROR");
-        }
-      } else if (pagenum == 452) {
-        textt = textt.replace(QString("سُورَةُ صٓ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 497) {
-        textt.append(QString("سُورَةُ الجَاثِيَةِ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          throw new std::runtime_error("ERROR");
-        }
-      } else if (pagenum == 498) {
-        textt = textt.replace(QString("سُورَةُ الجَاثِيَةِ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 505) {
-        textt.append(QString("سُورَةُ مُحَمَّدٍ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          throw new std::runtime_error("ERROR");
-        }
-      } else if (pagenum == 506) {
-        textt = textt.replace(QString("سُورَةُ مُحَمَّدٍ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 524) {
-        textt.append(QString("سُورَةُ النَّجْمِ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          throw new std::runtime_error("ERROR");
-        }
-      } else if (pagenum == 525) {
-        textt = textt.replace(QString("سُورَةُ النَّجْمِ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 527) {
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 547) {
-        textt.append(QString("سُورَةُ المُمْتَحنَةِ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          throw new std::runtime_error("ERROR");
-        }
-      } else if (pagenum == 548) {
-        textt = textt.replace(QString("سُورَةُ المُمْتَحنَةِ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 554) {
-        textt.append(QString("سُورَةُ التَّغَابُنِ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          throw new std::runtime_error("ERROR");
-        }
-      } else if (pagenum == 555) {
-        textt = textt.replace(QString("سُورَةُ التَّغَابُنِ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else if (pagenum == 556) {
-        textt.append(QString("سُورَةُ الطَّلَاقِ") + "\n");
-        auto page = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-        if (page.size() == 1) {
-          lines = page[0];
-        } else {
-          throw new std::runtime_error("ERROR");
-        }
-      } else if (pagenum == 557) {
-        textt = textt.replace(QString("سُورَةُ الطَّلَاقِ") + "\n", "");
-        lines = pageBreakQt(layout, scale, pageWidth, false, textt, 1)[0];
-      } else {
-        lines = textt.split(char(10), Qt::SkipEmptyParts);
-      }
-    } else {
-      lines = textt.split(char(10), Qt::SkipEmptyParts);
-    }
-
-    if (applyTeXAlgo && pagenum <= 599 && pagenum > 1 && pagenum != 378) {
-      auto result = pageBreakQt(layout, scale, pageWidth, false, textt, 1);
-      if (result.size() == 1) {
-        lines = result[0];
-      } else {
-        throw new std::runtime_error("ERROR");
-      }
-    }
-
-    auto justification = LineJustification::Distribute;
-    int beginsura = OtLayout::TopSpace << OtLayout::SCALEBY;
-
-    if (pagenum == 0 || pagenum == 1) {
-      double diameter = pageWidth * 0.9;
-      auto ratio = 0.9;
-      madinaLineWidths[(pagenum + 1) * 15 + 2] = ratio * 0.5;
-      madinaLineWidths[(pagenum + 1) * 15 + 3] = ratio * 0.7;
-      madinaLineWidths[(pagenum + 1) * 15 + 4] = ratio * 0.9;
-      madinaLineWidths[(pagenum + 1) * 15 + 5] = ratio;
-      madinaLineWidths[(pagenum + 1) * 15 + 6] = ratio * 0.9;
-      madinaLineWidths[(pagenum + 1) * 15 + 7] = ratio * 0.7;
-      madinaLineWidths[(pagenum + 1) * 15 + 8] = ratio * 0.4;
-
-      beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3))
-                  << OtLayout::SCALEBY;
-    }
-
-    std::vector<LineToJustify> newLines;
-
-    for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
-      auto newJustification = justification;
-      auto line = QStringList{lines[lineIndex]};
-      int key = (pagenum + 1) * 15 + (lineIndex + 1);
-      int lineWidth = pageWidth;
-      auto match = surabism.match(lines[lineIndex]);
-
-      LineType lineType = LineType::Line;
-
-      if (match.hasMatch()) {
-        if (match.captured(0).startsWith("سُ")) {
-          lineType = LineType::Sura;
-        } else {
-          lineType = LineType::Bism;
-        }
-
-        if (!((pagenum == 0 || pagenum == 1) && lineIndex == 1)) {
-          lineWidth = 0;
-          newJustification = LineJustification::Center;
-        }
-      }
-
-      if (madinaLineWidths.contains(key)) {
-        double ratio = madinaLineWidths.value(key);
-
-        if (ratio < 1) {
-          lineWidth = pageWidth * ratio;
-          newJustification = LineJustification::Center;
-        }
-      }
-
-      newLines.push_back({lines[lineIndex].toStdU16String(), lineWidth, newJustification, lineType});
-    }
-
-    auto shapedPage = layout->justifyPage(
-        scale, pageWidth, newLines, newface, tajweedEnabled,
-        cluster_level,
-        getJustOption(),
-        mushafLayouts->currentText().toStdString());
-
-    for (int lineIndex = 0; lineIndex < shapedPage.size(); lineIndex++) {
-      auto& lineLayoutInfo = shapedPage[lineIndex];
-
-      auto match = surabism.match(lines[lineIndex]);
-
-      newface = false;
-
-      if (lineLayoutInfo.type == LineType::Line) {
-        // check if sajda
-        match = sajdaRe.match(lines[lineIndex]);
-        if (match.hasMatch()) {
-          sajdamatched++;
-
-          int startOffset = match.capturedStart(
-              match.lastCapturedIndex());  // startOffset == 6
-          int endOffset = match.capturedEnd(match.lastCapturedIndex()) -
-                          1;  // endOffset == 9
-
-          while (lines[lineIndex][endOffset].isMark()) endOffset--;
-
-          bool beginDone = false;
-
-          auto& glyphs = lineLayoutInfo.glyphs;
-
-          for (auto& glyphLayout : glyphs) {
-            if (glyphLayout.cluster == startOffset && !beginDone) {
-              glyphLayout.beginsajda = true;
-              beginDone = true;
-              ;
-              beginsajda++;
-
-            } else if (glyphLayout.cluster == endOffset) {
-              glyphLayout.endsajda = true;
-              endsajda++;
-              break;
-            }
-          }
-        }
-      }
-
-      if (lineIndex == 0 && (pagenum == 0 || pagenum == 1)) {
-        lineLayoutInfo.ystartposition =
-            (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1))
-            << OtLayout::SCALEBY;
-      } else {
-        lineLayoutInfo.ystartposition = beginsura;
-        beginsura += OtLayout::InterLineSpacing << OtLayout::SCALEBY;
-      }
-    }
-
-    result.pages.emplace_back(shapedPage.begin(), shapedPage.end());
-    result.originalPages.push_back(toOriginalPage(lines));
-  }
-
-  if (beginsajda != 15 || endsajda != 15 || sajdamatched != 15) {
-    qDebug() << "sajdas problems?";
-  }
-
-  return result;
-}
 bool LayoutWindow::generateLayoutInfo() {
   // OtLayout layout = OtLayout(m_font, true, true);
   // layout.useNormAxisValues = false;
@@ -2004,7 +1665,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
   int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
   ;
 
-  auto result = shapeMedina(scale, lineWidth, &layout,
+  auto result = shapeMushaf(scale, lineWidth, &layout,
                             HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
 
   auto htmlFileName = fileInfo.path() + "/output/" +
@@ -2633,17 +2294,8 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
 
   QString quran;
 
-  for (int i = 581; i < 600; i++) {
-    // const char * text = qurantext[i];
-    const char* tt;
-
-    tt = qurantext[i] + 1;
-
-    // unsigned int text_len = strlen(tt);
-
-    quran.append(quran.fromUtf8(tt));
-
-    // hb_buffer_add_utf8(buffer, tt, text_len, 0, text_len);
+  for(auto& line : currentQuranText){
+    quran.append(line + "\n");
   }
 
   LayoutPages pages;
@@ -3005,7 +2657,13 @@ void LayoutWindow::serializeTexPages() {
   int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
   int topSpace = OtLayout::TextWidth << OtLayout::SCALEBY;
 
-  auto result = m_otlayout->pageBreak(scale, lineWidth, false, 600);
+  std::vector<digitalkhatt::TextString> textPages;
+
+    for(auto& line : currentQuranText){
+      textPages.emplace_back(line.toStdU16String());
+    }
+
+  auto result = m_otlayout->pageBreak(textPages, scale, lineWidth, false, 600);
 
   if (result.pages.empty()) {
     QMessageBox msgBox;
@@ -3414,7 +3072,7 @@ void LayoutWindow::serializeMedinaPages() {
   int scale = (1 << OtLayout::SCALEBY) * 0.85;
   int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
-  auto result = shapeMedina(scale, lineWidth, m_otlayout);
+  auto result = shapeMushaf(scale, lineWidth, m_otlayout);
 
   QList<SuraLocation> locations;
 
@@ -3748,16 +3406,21 @@ void LayoutWindow::setQuranText(int type) {
   suraNameByPage.clear();
 
   if (type == 1) {
-    for (int i = 0; i < 604; i++) {
-      currentQuranText.append(qurantext[i] + 1);
-      suraNameByPage.append("");
-    }
+    auto currentLayout = mushafLayouts->currentText();
+    loadMushafLayout(currentLayout);
   } else {
     loadLookupFile("features.fea");
 
     int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
     int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
-    auto result = m_otlayout->pageBreak(scale, lineWidth, false, 604);
+
+    std::vector<digitalkhatt::TextString> textPages;
+
+    for(auto& line : currentQuranText){
+      textPages.emplace_back(line.toStdU16String());
+    }
+
+    auto result = m_otlayout->pageBreak(textPages, scale, lineWidth, false, 604);
 
     for (auto& page : result.originalPages) {
       QString newPage;
@@ -3799,63 +3462,6 @@ static hb_bool_t setMessage(hb_buffer_t* buffer, hb_font_t* font,
   }
 
   return true;
-}
-void LayoutWindow::testQuarn() {
-  hb_buffer_t* buffer = buffer = hb_buffer_create();
-  hb_buffer_set_direction(buffer, HB_DIRECTION_RTL);
-  hb_buffer_set_script(buffer, HB_SCRIPT_ARABIC);
-  hb_buffer_set_language(buffer, hb_language_from_string("ar", strlen("ar")));
-
-  hb_font_t* font = m_otlayout->createFont(1000);
-
-  for (int i = 0; i < 604; i++) {
-    // hb_buffer_clear_contents(buffer);
-    // hb_buffer_set_direction(buffer, HB_DIRECTION_RTL);
-    // hb_buffer_set_script(buffer, HB_SCRIPT_ARABIC);
-    // hb_buffer_set_language(buffer, hb_language_from_string("ar",
-    // strlen("ar")));
-    const char* text = qurantext[i];
-    unsigned int text_len = strlen(text);
-
-    hb_buffer_add_utf8(buffer, text, text_len, 0, text_len);
-
-    // hb_shape(font, buffer, NULL, 0);
-  }
-
-  hb_shape(font, buffer, NULL, 0);
-
-  uint glyph_count;
-  hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-  // hb_glyph_position_t *glyph_pos = hb_buffer_get_glyph_positions(buffer,
-  // &glyph_count);
-
-  // auto automedina = m_otlayout->automedina;
-  auto waqgmark = m_otlayout->classToUnicode("waqfmarks");
-  auto marks = m_otlayout->classToUnicode("marks");
-  int totlaWaqfMark = 0;
-
-  QMultiMap<QString, QString> beforewagf;
-
-  for (uint i = glyph_count - 1; i >= 0; i--) {
-    if (waqgmark.contains(glyph_info[i].codepoint)) {
-      auto waqfName = m_otlayout->glyphNamePerCode[glyph_info[i].codepoint];
-      for (uint j = i + 1; j < glyph_count; j++) {
-        if (marks.contains(glyph_info[j].codepoint)) continue;
-        auto baseName = m_otlayout->glyphNamePerCode[glyph_info[j].codepoint];
-        beforewagf.insertMulti(QString::fromStdString(baseName), QString::fromStdString(waqfName));
-        break;
-      }
-
-      totlaWaqfMark++;
-    }
-  }
-
-  auto keys = beforewagf.uniqueKeys();
-
-  qDebug() << "Total waqf count : " << totlaWaqfMark << '\n'
-           << "Total bases : " << beforewagf.uniqueKeys().size();
-
-  delete font;
 }
 QColor adaptColorForDarkTheme(const QColor& c) {
   if (!c.isValid())

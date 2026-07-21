@@ -276,7 +276,7 @@ class OtLayout {
 
   std::vector<LineLayoutInfo> justifyPageUsingFeatures(double emScale, int pageWidth, const std::vector<LineToJustify>& lines, bool newFace, bool tajweedColor,
                                                        hb_buffer_cluster_level_t cluster_level, JustOption justOption, std::string mushafLayout);
-  LayoutPages pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
+  LayoutPages pageBreak(std::vector<digitalkhatt::TextString> pages, double emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t cluster_level = HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
   OriginalPageList pageBreak(double emScale, int lineWidth,
                              bool pageFinishbyaVerse,
                              digitalkhatt::TextString text,

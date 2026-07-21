@@ -190,8 +190,6 @@ add_library(digitalkhatt_otlayout ${DIGITALKHATT_OTLAYOUT_LIB_TYPE}
   src/otlayout/FeaParser/fsm.cpp
   ${BISON_OtLayoutFeaParser_OUTPUTS}
   ${FLEX_OtLayoutFeaScanner_OUTPUTS}
-  src/otlayout/qurantext/quran.cpp
-  src/otlayout/qurantext/qurancomplex.cpp
   src/otlayout/qurantext/surahs.cpp
   src/otlayout/Layout/JustificationContext.cpp
   src/otlayout/Layout/GlyphVis.cpp

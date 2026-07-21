@@ -132,13 +132,9 @@ class LayoutWindow : public QMainWindow {
   void compareWithQPC();
   void compareQPCWithAnalyzer();
   void compareWithOldMadinah(bool isQPC = false, bool isImage = false);
-  LayoutPages shapeMedina(double scale, int lineWidth, OtLayout* layout,
-                          hb_buffer_cluster_level_t cluster_level =
-                              HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
   LayoutPages shapeMushaf(double scale, int lineWidth, OtLayout* layout,
                           hb_buffer_cluster_level_t cluster_level =
                               HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES);
-  void testQuarn();
   void simpleAdjustPage(hb_buffer_t* buffer);
   void adjustPage(QString text, hb_font_t* shapeFont, hb_buffer_t* buffer);
   void adjustOverlapping(LayoutPageList& pages, int lineWidth,

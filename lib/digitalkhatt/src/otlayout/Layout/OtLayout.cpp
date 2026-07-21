@@ -47,7 +47,7 @@
 #include <string_view>
 
 #include "metafont.h"
-#include "qurantext/quran.h"
+
 
 namespace {
 digitalkhatt::TextString utf8ToUtf16(std::string_view input) {
@@ -2349,7 +2349,7 @@ OriginalPageList OtLayout::pageBreak(
   return originalPages;
 }
 
-LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t cluster_level) {
+LayoutPages OtLayout::pageBreak(std::vector<digitalkhatt::TextString> textPages, double emScale, int lineWidth, bool pageFinishbyaVerse, int lastPage, hb_buffer_cluster_level_t cluster_level) {
   bool use20_604_Format = true;
 
   bool isQurancomplex = false;
@@ -2379,22 +2379,9 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
 
   digitalkhatt::TextString quran;
 
-  // for (int i = 2; i < lastPage; i++) {
-  for (int i = 581; i < 600; i++) {
-    // const char * text = qurantext[i];
-    const char* tt;
+  for (int i = 2; i < lastPage; i++) {
 
-    if (isQurancomplex) {
-      tt = quranComplex[i] + 1;
-    } else {
-      tt = qurantext[i] + 1;
-    }
-
-    // unsigned int text_len = strlen(tt);
-
-    quran.append(utf8ToUtf16(tt));
-
-    // hb_buffer_add_utf8(buffer, tt, text_len, 0, text_len);
+    quran.append(textPages[i] + u"\n");
   }
 
   // quran = quran.replace(QRegularExpression("\\s*" + QString("۞") + "\\s*"), QString("۞") + " ");
@@ -2805,7 +2792,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
   // First & second pages : Al fatiha &  Al Bakara
 
   for (int pageNumber = 1; pageNumber >= 0; pageNumber--) {
-    const auto text = utf8ToUtf16(qurantext[pageNumber] + 1);
+    const auto text = textPages[pageNumber];
     const auto lines = splitLines(text);
 
     int beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
@@ -2865,7 +2852,7 @@ LayoutPages OtLayout::pageBreak(double emScale, int lineWidth, bool pageFinishby
   currentSuraName = suraNamebyPage.back();
 
   for (int pageNumber = lastPage; pageNumber < 604; pageNumber++) {
-    const auto text = utf8ToUtf16(qurantext[pageNumber] + 1);
+    const auto text = textPages[pageNumber];
     const auto lines = splitLines(text);
     std::vector<LineToJustify> linesToJustify;
     linesToJustify.reserve(lines.size());
