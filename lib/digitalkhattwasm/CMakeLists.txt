@@ -74,15 +74,55 @@ target_compile_options(${WEBLIB_NAME} PRIVATE
   # "SHELL:-s USE_LIBPNG=1"
   )
 
+# madina_font (madinafont/) is dlopen()'d at runtime as a wasm side module
+# (mirroring the native dlopen()-based plugin architecture), so it needs to
+# resolve symbols -- including digitalkhatt_otlayout's statically-linked-in
+# code -- against this module. MAIN_MODULE=1 does that by exporting this
+# module's *entire* global symbol surface (thousands of harfbuzz/pcre2/mplib
+# symbols madina never touches), which is where most of
+# VisualMetaFontWasm.wasm's EXPORT section size came from. MAIN_MODULE=2
+# exports only an explicit EXPORTED_FUNCTIONS list instead -- the root
+# CMakeLists.txt's `if(EMSCRIPTEN AND TARGET VisualMetaFontWasm AND TARGET
+# madina_font)` block derives that list automatically from madina_font's own
+# compiled import table (gen_side_module_exports.py) every time it rebuilds,
+# so this doesn't need hand enumeration and stays correct as madina.cpp
+# evolves. Only available when madina_font is actually in the build (i.e.
+# not DIGITALKHATTWASM_STANDALONE) -- falls back to the blanket MAIN_MODULE=1
+# export otherwise, since there's no side module's needs to derive a list
+# from.
+if(DIGITALKHATTWASM_STANDALONE)
+  target_link_options(${WEBLIB_NAME} PRIVATE "SHELL:-s MAIN_MODULE=1")
+else()
+  target_link_options(${WEBLIB_NAME} PRIVATE
+    "SHELL:-s MAIN_MODULE=2"
+    "SHELL:-s \"EXPORTED_FUNCTIONS=@${CMAKE_BINARY_DIR}/madina_exports_$<CONFIG>.json\"")
+endif()
+
+# Emscripten dynamic linking offers two ways to bring a side module in:
+#   - run-time: an explicit dlopen() call (OtLayout.cpp does this today) --
+#     madina_font.wasm is fetched lazily, only once shaping actually needs it.
+#   - load-time: the side module is listed directly on the main module's own
+#     link line. wasm-ld then records it as a "needed" dependency in this
+#     module's dylink.0 section, and Emscripten's JS glue fetches and links
+#     it automatically before the module becomes ready -- eagerly, on every
+#     load, whether or not that session ends up needing it. OtLayout.cpp's
+#     dlopen() call is unchanged either way: it asks for the same file name
+#     (SLPREFIX+stem+SLEXT, e.g. "libmadina.wasm") regardless, and Emscripten
+#     resolves that against its own registry of already-loaded libraries --
+#     when load-time linking already put it there, dlopen() finds it
+#     immediately and does no work (no fetch, no re-link).
+# Off by default: the eager-vs-lazy fetch tradeoff depends on whether a given
+# deployment's typical session needs madina_font right away (load-time linking
+# lets the browser start fetching it in parallel with the rest of startup) or
+# only sometimes (run-time dlopen() avoids paying for it when unused).
+option(DIGITALKHATTWASM_LOAD_TIME_LINK_MADINA
+  "Link madina_font at VisualMetaFontWasm's load time instead of via OtLayout.cpp's run-time dlopen() call"
+  ON)
+if(DIGITALKHATTWASM_LOAD_TIME_LINK_MADINA AND NOT DIGITALKHATTWASM_STANDALONE)
+  target_link_libraries(${WEBLIB_NAME} PRIVATE "$<TARGET_FILE:madina_font>")
+endif()
+
 target_link_options(${WEBLIB_NAME} PRIVATE --bind --use-preload-plugins  # -fsanitize=leak
-  # madina_font (madinafont/) is dlopen()'d at runtime as a wasm side
-  # module (mirroring the native dlopen()-based plugin architecture) --
-  # MAIN_MODULE=1 exports this module's full symbol surface, including
-  # digitalkhatt_otlayout's statically-linked-in code, so the side module
-  # can resolve against it. =1 (not =2) because Madina calls back into the
-  # main module throughout its lifetime, not just at construction, making
-  # manual EXPORTED_FUNCTIONS enumeration impractical.
-  "SHELL:-s MAIN_MODULE=1"
   "SHELL:-s ERROR_ON_UNDEFINED_SYMBOLS=1"
   #"SHELL:-s WASM=1"
   #"SHELL:-s WASM=0 --separate-asm -s \"SEPARATE_ASM_MODULE_NAME='VMetaFont'\""
