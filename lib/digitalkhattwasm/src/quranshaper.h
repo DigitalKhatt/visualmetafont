@@ -22,12 +22,16 @@
 #include "GlazeJson.h"
 
 #include <string>
+#include <stdexcept>
+#include <charconv>
 #include "OtLayout.h"
 #include "GlyphVis.h"
 #include "automedina/automedina.h"
 #include "MPFont.h"
 #include "digitalkhatt/core/Regex16.h"
 #include "qdatastream_reader.h"
+#include <digitalkhatt/geometry/geometry.h>
+#include <digitalkhatt/layout/OptimizeLayout.h>
 #include <unordered_map>
 #include <fstream>
 #include <filesystem>
@@ -45,6 +49,23 @@ struct PageResult {
 };
 
 namespace {
+
+std::string initializationStage = "not started";
+
+std::string getInitializationStage() { return initializationStage; }
+
+std::string parentDirectory(std::string_view path) {
+  const auto separator = path.find_last_of("/\\");
+  return separator == std::string_view::npos
+             ? std::string{}
+             : std::string{path.substr(0, separator)};
+}
+
+std::string siblingPath(std::string_view path, std::string_view sibling) {
+  const auto directory = parentDirectory(path);
+  return directory.empty() ? std::string{sibling}
+                           : directory + "/" + std::string{sibling};
+}
 
 // Mirrors the sura/bism and sajda-verse patterns already used by
 // OtLayout::pageBreak (OtLayout.cpp) so the same PCRE2-16 engine and
@@ -90,24 +111,39 @@ std::string utf16ToUtf8(digitalkhatt::TextView input) {
 class QuranShaper {
 public:
 
-  QuranShaper() {
+  QuranShaper() : QuranShaper("madina.mp") {}
 
-    int status = initilizeMetapost();
+  explicit QuranShaper(const std::string& fontFile) {
+
+    initializationStage = "MetaPost initialization";
+    int status = initilizeMetapost(fontFile);
 
     if (status == 0) {
-      layout = new OtLayout(&mpFont, true);
+      initializationStage = "OtLayout construction";
+      try {
+        layout = new OtLayout(&mpFont, true);
+      } catch (const std::exception& e) {
+        throw std::runtime_error(std::string{"OtLayout construction: "} +
+                                 e.what());
+      }
 
       layout->useNormAxisValues = false;
 
-      loadLookupFile("features.fea");
+      initializationStage = "feature loading";
+      try {
+        loadLookupFile(siblingPath(fontFile, "features.fea"));
+      } catch (const std::exception& e) {
+        throw std::runtime_error(std::string{"feature loading: "} + e.what());
+      }
     }
+    initializationStage = "complete";
 
 
   }
 
-  int initilizeMetapost() {
+  int initilizeMetapost(const std::string& fontFile = "madina.mp") {
     try {
-      if (!loadFontFile("madina.mp")) {
+      if (!loadFontFile(fontFile)) {
         std::cout << "Could not load font file\n";
         return 1;
       }
@@ -115,10 +151,11 @@ public:
       return 0;
     } catch (const std::exception& e) {
       std::cout << "Could not initialize MetaPost library instance!\n" << e.what() << '\n';
-      return 1;
+      throw std::runtime_error(std::string{"MetaPost initialization: "} +
+                               e.what());
     } catch (...) {
       std::cout << "Could not initialize MetaPost library instance! (unknown exception)\n";
-      return 1;
+      throw std::runtime_error("MetaPost initialization: unknown exception");
     }
   }
 
@@ -129,6 +166,7 @@ public:
   // OtLayout::getAlternate()/MPFont::generateAlternate() can regenerate it
   // with different tatweel/scale parameters.
   bool loadFontFile(const std::string& fileName) {
+    initializationStage = "reading font assets";
     std::ifstream file(fileName, std::ios::binary);
     if (!file) return false;
 
@@ -158,15 +196,16 @@ public:
 
     initMF += std::string{std::istreambuf_iterator<char>{file}, {}};
 
+    initializationStage = "MPFont initialize";
     mpFont.initialize(initMF, fileName);
 
-    std::filesystem::path fontPath{fileName};
-    std::string glyphsPath = (fontPath.parent_path() / "glyphs.mp").string();
+    const std::string glyphsPath = siblingPath(fileName, "glyphs.mp");
 
     std::ifstream glyphsFile(glyphsPath, std::ios::binary);
     if (!glyphsFile) return false;
 
     std::string code{std::istreambuf_iterator<char>{glyphsFile}, {}};
+    initializationStage = "registering glyph sources";
     registerGlyphSources(code);
 
     return true;
@@ -180,6 +219,8 @@ public:
   // header form, so a plain substring scan is enough; no MetaPost/glyph
   // grammar parsing needed here.
   void registerGlyphSources(const std::string& code) {
+    const std::string parameterReset =
+        "params[0]:=0;params[1]:=0;params[2]:=0;params[3]:=0;params[4]:=0;";
     std::size_t pos = 0;
     while (pos < code.size()) {
       std::size_t beginPos = code.find("beginchar", pos);
@@ -201,34 +242,19 @@ public:
       std::size_t comma1 = args.find(',');
       std::size_t comma2 = args.find(',', comma1 + 1);
       std::string glyphName = args.substr(0, comma1);
+
+
       int unicode = std::stoi(args.substr(comma1 + 1, comma2 - comma1 - 1));
 
+      initializationStage = "registering glyph source " + glyphName;
       mpFont.registerGlyphSource(glyphName, block, isDef ? "defchar" : "beginchar", unicode);
 
-      // registerGlyphSource() above only stores the source text for later
-      // on-demand regeneration (MPFont::generateAlternate()) -- it doesn't
-      // draw anything. Plugin construction (e.g. Madina::addchars()'s
-      // genAyaNumber) needs glyph pictures (e.g. "oneindic.pic") to already
-      // exist as MetaPost picture variables, so each block must actually be
-      // executed here too, not just parsed. One glyph at a time, mirroring
-      // Glyph::getEdge() (font.cpp) -- executing the whole file as a single
-      // MetaPost command instead of one glyph at a time is not how native
-      // code does it, and a single failing glyph shouldn't abort the rest.
-      //
-      // vmf.mp only auto-initializes params[0..2]:=0 in its "else" branch
-      // (`if known MPGUI: ... else: params[0]:=0;...; fi`), but loadFontFile()
-      // sets MPGUI:=1 (mirroring native Font::loadFile), which skips that
-      // branch. Glyph::getEdge() (font.cpp) compensates for this by
-      // prefixing each glyph's source with explicit params0:=...; params1:=...;
-      // assignments before executing it, one per entry in Glyph::axisNames
-      // ({"lefttatweel", "righttatweel", "third", "fourth", "fifth"} --
-      // glyph.hpp) -- 5 axes, params0..params4, not just 0..2. Do the same
-      // here, using 0 (no variation) for all of them since this harness
-      // doesn't track variable-font axis values per glyph.
-      executeMetapost("params[0]:=0;params[1]:=0;params[2]:=0;params[3]:=0;params[4]:=0;" + block);
+      initializationStage = "executing glyph source " + glyphName;
+      executeMetapost(parameterReset + block);
 
       pos = blockEnd;
     }
+
   }
 
   int executeMetapost(std::string code) {
@@ -624,7 +650,7 @@ public:
   MPFont mpFont;
   OtLayout* layout;
 
-private:
+protected:
 
   std::vector<std::vector<digitalkhatt::TextString>> texPages;
   std::vector<std::vector<digitalkhatt::TextString>> medinaPages;
@@ -691,7 +717,9 @@ private:
 
     layout->parseFeatureFile(fileName);
 
-    std::ifstream parametersStream("parameters.json", std::ios::binary);
+    const auto parametersPath = siblingPath(fileName, "parameters.json");
+    std::ifstream parametersStream(parametersPath, std::ios::binary);
+    //std::ifstream parametersStream("parameters.json", std::ios::binary);
 
     if (parametersStream) {
       std::string buffer{std::istreambuf_iterator<char>{parametersStream}, {}};
@@ -880,7 +908,7 @@ private:
 
   }
 
-private:
+protected:
   std::map<int, double> lineWidths =
   {
     { 601 * 3, 1 },
@@ -944,4 +972,182 @@ private:
   }
 
 
+};
+
+// Browser-facing Mushaf API backed directly by OtLayout's full-page
+// LineToJustify overload. This deliberately stays separate from QuranShaper's
+// legacy, line-at-a-time browser contract: it mirrors the shaping portion of
+// LayoutWindow::shapeMushaf/generateMushaf and returns native line/glyph data
+// for a web renderer.
+class OtLayoutMushaf : public QuranShaper {
+public:
+  OtLayoutMushaf() = default;
+  explicit OtLayoutMushaf(const std::string& fontFile)
+      try : QuranShaper(fontFile) {}
+      catch (const std::exception& e) {
+        throw std::runtime_error(std::string{"QuranShaper construction: "} +
+                                 e.what());
+      }
+
+  PageResult shapeMushafPage(int pageIndex, float fontScalePerc,
+                             bool tajweedColor, bool applyForce,
+                             const std::vector<digitalkhatt::TextString>& lines,
+                             const std::vector<double>& widthRatios,
+                             const std::vector<int>& lineTypes) {
+    if (pageIndex < 0 || lines.empty() ||
+        widthRatios.size() != lines.size() ||
+        lineTypes.size() != lines.size()) {
+      return {};
+    }
+
+    std::vector<LineToJustify> linesToJustify;
+    linesToJustify.reserve(lines.size());
+
+    for (int lineIndex = 0; lineIndex < static_cast<int>(lines.size());
+         ++lineIndex) {
+      int width = pageWidth;
+      auto justification = LineJustification::Distribute;
+      auto lineType = static_cast<LineType>(lineTypes[lineIndex]);
+      bool basmalaOnFirstPages = false;
+
+      if (lineType == LineType::Sura || lineType == LineType::Bism) {
+        basmalaOnFirstPages =
+            lineType == LineType::Bism &&
+            (pageIndex == 0 || pageIndex == 1) && lineIndex == 1;
+        if (!basmalaOnFirstPages) {
+          width = 0;
+          justification = LineJustification::Center;
+        }
+      }
+
+      const double widthRatio = widthRatios[lineIndex];
+      if (widthRatio < 1.0) {
+        width = static_cast<int>(pageWidth * widthRatio);
+        justification = LineJustification::Center;
+      }
+
+      linesToJustify.push_back(
+          {lines[lineIndex], width, justification, lineType,
+           basmalaOnFirstPages});
+    }
+
+    const double emScale = (1 << OtLayout::SCALEBY) * fontScalePerc;
+    auto page = layout->justifyPage(
+        emScale, pageWidth, linesToJustify, pageIndex == 0, tajweedColor,
+        HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES,
+        {JustType::Experimental2, JustStyle::XScale, ShrinkType::Standard},
+        "qpc_v2_layout");
+
+    if (pageIndex == 0 || pageIndex == 1) {
+      for (std::size_t i = 1; i < page.size(); ++i) {
+        page[i].ystartposition += 3000 << OtLayout::SCALEBY;
+      }
+    }
+
+    PageResult result{std::move(page), lines};
+    if (applyForce) {
+      optimizePage(result.page, emScale);
+    }
+    return result;
+  }
+
+  int mushafPageWidth() const { return pageWidth; }
+  int scaleBy() const { return OtLayout::SCALEBY; }
+
+private:
+  void optimizePage(std::vector<LineLayoutInfo>& page, double emScale) {
+    using namespace geometry;
+
+    std::unordered_map<GlyphVis*, GeometrySet> glyphToPolys;
+    const auto& classes = layout->glyphClasses();
+    const auto& marks = digitalkhatt::layout::classesOrEmpty(classes, "marks");
+    const auto& topmarks = digitalkhatt::layout::classesOrEmpty(classes, "topmarks");
+    const auto& lowmarks = digitalkhatt::layout::classesOrEmpty(classes, "lowmarks");
+    const auto& waqfmarks = digitalkhatt::layout::classesOrEmpty(classes, "waqfmarks");
+    const auto& topdotmarks = digitalkhatt::layout::classesOrEmpty(classes, "topdotmarks");
+    const auto& downdotmarks = digitalkhatt::layout::classesOrEmpty(classes, "downdotmarks");
+
+    auto isTopMark = [&](const std::string& name) {
+      return topmarks.contains(name) || waqfmarks.contains(name) ||
+             topdotmarks.contains(name);
+    };
+
+    std::vector<std::vector<digitalkhatt::layout::GlyphInstance>> pageGlyphs;
+    pageGlyphs.reserve(page.size());
+    for (int lineIndex = 0; lineIndex < static_cast<int>(page.size()); ++lineIndex) {
+      auto& line = page[lineIndex];
+      auto& lineGlyphs = pageGlyphs.emplace_back();
+      lineGlyphs.reserve(line.glyphs.size());
+
+      const auto xScale = line.fontSize * line.xscale;
+      const auto yScale = line.fontSize;
+      int currentX = -line.xstartposition;
+      int currentY = -(line.ystartposition -
+                       (OtLayout::TopSpace << OtLayout::SCALEBY));
+      digitalkhatt::layout::GlyphInstance* currentBase = nullptr;
+      digitalkhatt::layout::GlyphInstance* previousBase = nullptr;
+
+      for (int glyphIndex = 0;
+           glyphIndex < static_cast<int>(line.glyphs.size()); ++glyphIndex) {
+        auto& glyphLayout = line.glyphs[glyphIndex];
+        const auto& glyphName = layout->glyphNamePerCode[glyphLayout.codepoint];
+        auto* glyphVis = layout->getGlyph(
+            glyphName, {.lefttatweel = glyphLayout.lefttatweel,
+                        .righttatweel = glyphLayout.righttatweel,
+                        .scalex = line.xscaleparameter});
+
+        auto glyphToPoly = glyphToPolys.find(glyphVis);
+        if (glyphToPoly == glyphToPolys.end()) {
+          auto cubics = getGlyphCubic(glyphVis->copiedPath);
+          auto geometry = marks.contains(glyphName)
+              ? buildPolyFromCubics(cubics, CUBIC_FLATNESS_TOLERANCE)
+              : buildConvexPartsFromCubics(cubics, CUBIC_FLATNESS_TOLERANCE);
+          glyphToPoly = glyphToPolys.emplace(
+              glyphVis, geometry.scaled(emScale, emScale)).first;
+        }
+
+        currentX -= glyphLayout.x_advance * line.xscale;
+        auto& glyph = lineGlyphs.emplace_back();
+        glyph.isMark = marks.contains(glyphName);
+        glyph.isTopMark = isTopMark(glyphName);
+        glyph.lineY = currentY;
+        glyph.baseX = currentX + glyphLayout.x_offset * line.xscale;
+        glyph.baseY = currentY + glyphLayout.y_offset;
+        glyph.glyphLayout = &glyphLayout;
+        glyph.metrics = {glyphVis->width, glyphVis->height,
+                         glyphVis->bbox.llx, glyphVis->bbox.urx};
+        glyph.glyphName = glyphName;
+        glyph.lineIndex = lineIndex;
+        glyph.glyphIndex = glyphIndex;
+        if (xScale == 1 && yScale == 1) {
+          glyph.geom = &glyphToPoly->second;
+        } else {
+          glyph.geomScaled = glyphToPoly->second.scaled(xScale, yScale);
+        }
+        glyph.prevBase = currentBase;
+        if (!glyph.isMark) {
+          previousBase = currentBase;
+          currentBase = &glyph;
+          if (previousBase) previousBase->nextBase = currentBase;
+        }
+      }
+    }
+
+    auto solverClasses = classes;
+    if (!solverClasses.contains("bowlbases")) {
+      solverClasses["bowlbases"] = {"hah.isol", "hah.fina", "ain.fina"};
+    }
+    digitalkhatt::layout::OptParams solverParams;
+    digitalkhatt::layout::optimizePage(pageGlyphs, solverClasses, solverParams);
+
+    for (int lineIndex = 0; lineIndex < static_cast<int>(page.size()); ++lineIndex) {
+      for (int glyphIndex = 0;
+           glyphIndex < static_cast<int>(page[lineIndex].glyphs.size()); ++glyphIndex) {
+        auto& glyphLayout = page[lineIndex].glyphs[glyphIndex];
+        const auto& glyph = pageGlyphs[lineIndex][glyphIndex];
+        glyphLayout.x_offset += glyph.dx;
+        glyphLayout.y_offset += glyph.dy;
+      }
+    }
+  }
 };

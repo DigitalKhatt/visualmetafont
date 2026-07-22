@@ -912,11 +912,18 @@ OtLayout::OtLayout(MPFont* font, bool extended, bool generateVariableOpenType)
 #else
   constexpr std::string_view debugPostfix = "d";
 #endif
-  const auto ff =
+  auto ff =
       (fontPath.parent_path() /
        (std::string{SLPREFIX} + fontPath.stem().string() +
         std::string{debugPostfix} + SLEXT))
           .string();
+#ifdef __EMSCRIPTEN__
+  // Load-time linked side modules are registered by the name stored in the
+  // main module's dylink.0 section (e.g. "libmadina.wasm"). MEMFS may turn
+  // projectFile() into an absolute path, but passing that absolute path to
+  // dlopen would miss the already-loaded entry and fetch the module again.
+  ff = std::filesystem::path{ff}.filename().string();
+#endif
   dlhandle slhandle = dlopen(ff.c_str(), 0);
   if (!slhandle) {
     std::cout << "could not load the dynamic library " << ff << std::endl;

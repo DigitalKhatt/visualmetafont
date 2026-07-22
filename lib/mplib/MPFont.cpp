@@ -3,8 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <format>
-#include <iostream>
+
 #include <stdexcept>
 #include <unistd.h>
 
@@ -260,7 +259,7 @@ void MPFont::readAxes() {
   const int count = static_cast<int>(internalNumericVariable("number_of_axes"));
   for (int i = 0; i < count; ++i) {
     MPAxis axis;
-    const auto base = std::format("axes {} ", i);
+    const auto base = "axes " + std::to_string(i) + " ";
     axis.name = stringVariable(base + "name");
     axis.axisTag = tagFromString(stringVariable(base + "tag"));
     axis.equivExpr = stringVariable(base + "equivExpr");

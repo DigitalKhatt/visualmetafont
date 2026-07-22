@@ -32,6 +32,7 @@
 using namespace emscripten;
 
 EMSCRIPTEN_BINDINGS(my_module) {
+  function("getInitializationStage", &getInitializationStage);
 
 	enum_<LineType>("LineType")
 		.value("Line", LineType::Line)
@@ -60,6 +61,8 @@ EMSCRIPTEN_BINDINGS(my_module) {
 	register_vector<LineLayoutInfo>("VectorLineLayoutInfo");
 	register_vector<SuraLocation>("VectorSuraLocation");
 	register_vector<digitalkhatt::TextString>("VectorString");
+	register_vector<double>("VectorDouble");
+	register_vector<int>("VectorInt");
 
 
 	value_object<LineLayoutInfo>("LineLayoutInfo")
@@ -98,5 +101,12 @@ EMSCRIPTEN_BINDINGS(my_module) {
     .function("getTexNbPages", &QuranShaper::getTexNbPages)
 		.function("shapeText", &QuranShaper::shapeText)
 		;
+
+  class_<OtLayoutMushaf, base<QuranShaper>>("OtLayoutMushaf")
+    .constructor<>()
+    .constructor<std::string>()
+    .function("shapeMushafPage", &OtLayoutMushaf::shapeMushafPage)
+    .function("mushafPageWidth", &OtLayoutMushaf::mushafPageWidth)
+    .function("scaleBy", &OtLayoutMushaf::scaleBy);
 
 }
