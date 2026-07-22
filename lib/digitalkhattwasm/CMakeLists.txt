@@ -74,28 +74,29 @@ target_compile_options(${WEBLIB_NAME} PRIVATE
   # "SHELL:-s USE_LIBPNG=1"
   )
 
-# madina_font (madinafont/) is dlopen()'d at runtime as a wasm side module
-# (mirroring the native dlopen()-based plugin architecture), so it needs to
-# resolve symbols -- including digitalkhatt_otlayout's statically-linked-in
-# code -- against this module. MAIN_MODULE=1 does that by exporting this
-# module's *entire* global symbol surface (thousands of harfbuzz/pcre2/mplib
-# symbols madina never touches), which is where most of
-# VisualMetaFontWasm.wasm's EXPORT section size came from. MAIN_MODULE=2
-# exports only an explicit EXPORTED_FUNCTIONS list instead -- the root
-# CMakeLists.txt's `if(EMSCRIPTEN AND TARGET VisualMetaFontWasm AND TARGET
-# madina_font)` block derives that list automatically from madina_font's own
-# compiled import table (gen_side_module_exports.py) every time it rebuilds,
-# so this doesn't need hand enumeration and stays correct as madina.cpp
-# evolves. Only available when madina_font is actually in the build (i.e.
-# not DIGITALKHATTWASM_STANDALONE) -- falls back to the blanket MAIN_MODULE=1
-# export otherwise, since there's no side module's needs to derive a list
-# from.
+# madina_font, oldmadina_font, and indopak_font (madinafont/, oldmadinafont/,
+# indopakfont/) are dlopen()'d at runtime as wasm side modules (mirroring the
+# native dlopen()-based plugin architecture), so they need to resolve symbols
+# -- including digitalkhatt_otlayout's statically-linked-in code -- against
+# this module. MAIN_MODULE=1 does that by exporting this module's *entire*
+# global symbol surface (thousands of harfbuzz/pcre2/mplib symbols the font
+# plugins never touch), which is where most of VisualMetaFontWasm.wasm's
+# EXPORT section size came from. MAIN_MODULE=2 exports only an explicit
+# EXPORTED_FUNCTIONS list instead -- the root CMakeLists.txt's `if(EMSCRIPTEN
+# AND TARGET VisualMetaFontWasm AND EMSCRIPTEN_FONT_TARGETS)` block derives
+# that list automatically from each present font target's own compiled
+# import table (gen_side_module_exports.py) every time any of them rebuilds,
+# so this doesn't need hand enumeration and stays correct as the font
+# sources evolve. Only available when at least one font target is actually
+# in the build (i.e. not DIGITALKHATTWASM_STANDALONE) -- falls back to the
+# blanket MAIN_MODULE=1 export otherwise, since there's no side module's
+# needs to derive a list from.
 if(DIGITALKHATTWASM_STANDALONE)
   target_link_options(${WEBLIB_NAME} PRIVATE "SHELL:-s MAIN_MODULE=1")
 else()
   target_link_options(${WEBLIB_NAME} PRIVATE
     "SHELL:-s MAIN_MODULE=2"
-    "SHELL:-s \"EXPORTED_FUNCTIONS=@${CMAKE_BINARY_DIR}/madina_exports_$<CONFIG>.json\"")
+    "SHELL:-s \"EXPORTED_FUNCTIONS=@${CMAKE_BINARY_DIR}/font_exports_$<CONFIG>.json\"")
 endif()
 
 # Emscripten dynamic linking offers two ways to bring a side module in:
@@ -172,28 +173,39 @@ if(WASMTYPE STREQUAL "WASM")
     COMMENT "Copying to output directory")
 
   if(NOT DIGITALKHATTWASM_STANDALONE)
-    # dynamicLibraries: ['libmadinad.wasm'] (see test/index.html) resolves
-    # relative to ${WEBLIB_NAME}.js's own directory by default, so the side
-    # module needs to be co-located with it there too, not just in
-    # madinafont/. madina_font is a forward reference here -- it's only
-    # added later by the root CMakeLists.txt (after add_subdirectory(visualmetafont)
-    # returns), which is exactly the case this file wasn't configured
-    # standalone for.
+    # dynamicLibraries: ['libmadinad.wasm', ...] (see test/index.html)
+    # resolves relative to ${WEBLIB_NAME}.js's own directory by default, so
+    # each side module needs to be co-located with it there too, not just in
+    # its own font project directory. madina_font/oldmadina_font/indopak_font
+    # are forward references here -- they're only added later by the root
+    # CMakeLists.txt (after add_subdirectory(visualmetafont) returns), which
+    # is exactly the case this file wasn't configured standalone for --
+    # $<TARGET_FILE:...> is a generator expression, resolved once the full
+    # target graph is known, so this works despite none of the three targets
+    # existing yet at THIS point in the configure pass. An `if(TARGET ...)`
+    # guard here would NOT work for the same reason (it evaluates
+    # immediately, at configure time, before those targets are added) --
+    # NOT DIGITALKHATTWASM_STANDALONE is the correct guard: the root
+    # CMakeLists.txt unconditionally adds all three under `if(EMSCRIPTEN)`
+    # whenever this file isn't configured standalone, so all three are
+    # guaranteed to exist by generate time here.
     #
     # NOTE: this is a TARGET POST_BUILD command, so it only re-runs when
-    # ${WEBLIB_NAME} itself rebuilds -- if you change ONLY madinafont
+    # ${WEBLIB_NAME} itself rebuilds -- if you change ONLY a font project's
     # sources, this copy can go stale. An OUTPUT-based add_custom_command
-    # (which tracks madina_font's own freshness) was tried here but hits a
-    # CMake generator-expression limitation with add_custom_target(... ALL
-    # ...) referencing another target's TARGET_FILE_DIR under this
-    # multi-config generator ("No target ${WEBLIB_NAME}" at generate time,
-    # even in this same directory). If this staleness bites during
-    # madinafont-only iteration, manually re-copy
-    # madinafont/libmadina(d).wasm next to ${WEBLIB_NAME}.js, or touch a
-    # ${WEBLIB_NAME} source file to force its POST_BUILD to re-run.
-    add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:madina_font>" "$<TARGET_FILE_DIR:${WEBLIB_NAME}>"
-      COMMENT "Copying madina wasm side module next to ${WEBLIB_NAME}")
+    # (which tracks each font target's own freshness) was tried here but
+    # hits a CMake generator-expression limitation with
+    # add_custom_target(... ALL ...) referencing another target's
+    # TARGET_FILE_DIR under this multi-config generator ("No target
+    # ${WEBLIB_NAME}" at generate time, even in this same directory). If
+    # this staleness bites during single-font-project iteration, manually
+    # re-copy that project's lib<name>(d).wasm next to ${WEBLIB_NAME}.js, or
+    # touch a ${WEBLIB_NAME} source file to force its POST_BUILD to re-run.
+    foreach(font_target madina_font oldmadina_font indopak_font)
+      add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:${font_target}>" "$<TARGET_FILE_DIR:${WEBLIB_NAME}>"
+        COMMENT "Copying ${font_target} wasm side module next to ${WEBLIB_NAME}")
+    endforeach()
   endif()
 
 else()
@@ -215,6 +227,18 @@ endif()
 # infrastructure files it prepends to any font's source, plus everything that
 # makes up the madina font itself (font source, glyph bodies, OT feature
 # rules, justification parameters).
+#
+# NOTE: only madina's sources are copied here, even though oldmadina_font and
+# indopak_font are now also built as wasm side modules (see EMSCRIPTEN branch
+# above). QuranShaper::loadFontFile (quranshaper.h) still hard-codes
+# "madina.mp" and reads "glyphs.mp"/"features.fea"/"parameters.json" from a
+# single flat directory -- oldmadinafont/indopakfont's own files of the same
+# name would silently clobber madina's right here if copied to this same
+# ClientApp/src/assets directory. Actually loading oldmadina/indopak in the
+# web app needs QuranShaper's font selection to become runtime-configurable
+# and each font's assets to live in its own subdirectory (with loadFontFile's
+# relative paths updated to match) -- that's a QuranShaper/embind API change,
+# not a build-system one, and is intentionally left undone here.
 set(MADINAFONT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../madinafont")
 set(METAFONT_RESOURCES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/metafont")
 
