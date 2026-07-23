@@ -21,24 +21,22 @@
 
 #include "GlazeJson.h"
 
-#include <string>
-#include <stdexcept>
-#include <charconv>
-#include "OtLayout.h"
 #include "GlyphVis.h"
-#include "automedina/automedina.h"
 #include "MPFont.h"
+#include "OtLayout.h"
+#include "automedina/automedina.h"
 #include "digitalkhatt/core/Regex16.h"
 #include "qdatastream_reader.h"
+#include <charconv>
 #include <digitalkhatt/geometry/geometry.h>
 #include <digitalkhatt/layout/OptimizeLayout.h>
-#include <unordered_map>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include <map>
 #include <math.h>
-
-
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
 
 #include <emscripten.h>
 #include <emscripten/bind.h>
@@ -73,7 +71,9 @@ std::string siblingPath(std::string_view path, std::string_view sibling) {
 constexpr digitalkhatt::TextView surapattern =
     u"(?m)^(سُورَةُ .*|بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ|بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ)$";
 constexpr digitalkhatt::TextView sajdapatterns =
-    u"(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)";
+    u"(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ "
+    u"لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ "
+    u"سُجَّدࣰا)|(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)";
 
 std::string utf16ToUtf8(digitalkhatt::TextView input) {
   std::string result;
@@ -106,14 +106,13 @@ std::string utf16ToUtf8(digitalkhatt::TextView input) {
   return result;
 }
 
-}  // namespace
+} // namespace
 
 class QuranShaper {
 public:
-
   QuranShaper() : QuranShaper("madina.mp") {}
 
-  explicit QuranShaper(const std::string& fontFile) {
+  explicit QuranShaper(const std::string &fontFile) {
 
     initializationStage = "MetaPost initialization";
     int status = initilizeMetapost(fontFile);
@@ -122,7 +121,7 @@ public:
       initializationStage = "OtLayout construction";
       try {
         layout = new OtLayout(&mpFont, true);
-      } catch (const std::exception& e) {
+      } catch (const std::exception &e) {
         throw std::runtime_error(std::string{"OtLayout construction: "} +
                                  e.what());
       }
@@ -132,16 +131,14 @@ public:
       initializationStage = "feature loading";
       try {
         loadLookupFile(siblingPath(fontFile, "features.fea"));
-      } catch (const std::exception& e) {
+      } catch (const std::exception &e) {
         throw std::runtime_error(std::string{"feature loading: "} + e.what());
       }
     }
     initializationStage = "complete";
-
-
   }
 
-  int initilizeMetapost(const std::string& fontFile = "madina.mp") {
+  int initilizeMetapost(const std::string &fontFile = "madina.mp") {
     try {
       if (!loadFontFile(fontFile)) {
         std::cout << "Could not load font file\n";
@@ -149,12 +146,14 @@ public:
       }
       std::cout << "Metapost initilized with status 0\n";
       return 0;
-    } catch (const std::exception& e) {
-      std::cout << "Could not initialize MetaPost library instance!\n" << e.what() << '\n';
+    } catch (const std::exception &e) {
+      std::cout << "Could not initialize MetaPost library instance!\n"
+                << e.what() << '\n';
       throw std::runtime_error(std::string{"MetaPost initialization: "} +
                                e.what());
     } catch (...) {
-      std::cout << "Could not initialize MetaPost library instance! (unknown exception)\n";
+      std::cout << "Could not initialize MetaPost library instance! (unknown "
+                   "exception)\n";
       throw std::runtime_error("MetaPost initialization: unknown exception");
     }
   }
@@ -165,10 +164,11 @@ public:
   // parse the sibling glyphs.mp file to register each glyph's source so
   // OtLayout::getAlternate()/MPFont::generateAlternate() can regenerate it
   // with different tatweel/scale parameters.
-  bool loadFontFile(const std::string& fileName) {
+  bool loadFontFile(const std::string &fileName) {
     initializationStage = "reading font assets";
     std::ifstream file(fileName, std::ios::binary);
-    if (!file) return false;
+    if (!file)
+      return false;
 
     std::ifstream rsmfplain("mfplain.mp", std::ios::binary);
     std::ifstream rsmpost("mpost.mp", std::ios::binary);
@@ -202,7 +202,8 @@ public:
     const std::string glyphsPath = siblingPath(fileName, "glyphs.mp");
 
     std::ifstream glyphsFile(glyphsPath, std::ios::binary);
-    if (!glyphsFile) return false;
+    if (!glyphsFile)
+      return false;
 
     std::string code{std::istreambuf_iterator<char>{glyphsFile}, {}};
     initializationStage = "registering glyph sources";
@@ -218,77 +219,72 @@ public:
   // (font.cpp) in exactly this "macro(name,unicode,width,height,depth);"
   // header form, so a plain substring scan is enough; no MetaPost/glyph
   // grammar parsing needed here.
-  void registerGlyphSources(const std::string& code) {
+  void registerGlyphSources(const std::string &code) {
     const std::string parameterReset =
         "params[0]:=0;params[1]:=0;params[2]:=0;params[3]:=0;params[4]:=0;";
     std::size_t pos = 0;
     while (pos < code.size()) {
       std::size_t beginPos = code.find("beginchar", pos);
       std::size_t defPos = code.find("defchar", pos);
-      bool isDef = defPos != std::string::npos && (beginPos == std::string::npos || defPos < beginPos);
+      bool isDef = defPos != std::string::npos &&
+                   (beginPos == std::string::npos || defPos < beginPos);
       std::size_t blockStart = isDef ? defPos : beginPos;
-      if (blockStart == std::string::npos) break;
+      if (blockStart == std::string::npos)
+        break;
 
       const std::string endMarker = isDef ? "enddefchar;" : "endchar;";
       std::size_t endPos = code.find(endMarker, blockStart);
-      if (endPos == std::string::npos) break;
+      if (endPos == std::string::npos)
+        break;
       std::size_t blockEnd = endPos + endMarker.size();
 
       std::string block = code.substr(blockStart, blockEnd - blockStart);
 
       std::size_t parenOpen = block.find('(');
       std::size_t parenClose = block.find(')', parenOpen);
-      std::string args = block.substr(parenOpen + 1, parenClose - parenOpen - 1);
+      std::string args =
+          block.substr(parenOpen + 1, parenClose - parenOpen - 1);
       std::size_t comma1 = args.find(',');
       std::size_t comma2 = args.find(',', comma1 + 1);
       std::string glyphName = args.substr(0, comma1);
 
-
       int unicode = std::stoi(args.substr(comma1 + 1, comma2 - comma1 - 1));
 
       initializationStage = "registering glyph source " + glyphName;
-      mpFont.registerGlyphSource(glyphName, block, isDef ? "defchar" : "beginchar", unicode);
+      mpFont.registerGlyphSource(glyphName, block,
+                                 isDef ? "defchar" : "beginchar", unicode);
 
       initializationStage = "executing glyph source " + glyphName;
       executeMetapost(parameterReset + block);
 
       pos = blockEnd;
     }
-
   }
 
   int executeMetapost(std::string code) {
     try {
       mpFont.execute(code);
       return 0;
-    } catch (const std::exception& e) {
-      std::cout << "Could not execute MetaPost glyph source!\n" << e.what() << '\n';
+    } catch (const std::exception &e) {
+      std::cout << "Could not execute MetaPost glyph source!\n"
+                << e.what() << '\n';
       return 1;
     }
   }
 
+  void initLayout() { layout = new OtLayout(&mpFont, true); }
 
-  void initLayout() {
-    layout = new OtLayout(&mpFont, true);
-  }
+  void initLookup(std::string fileName) { loadLookupFile(fileName); }
 
-  void initLookup(std::string fileName) {
-    loadLookupFile(fileName);
-  }
-
-  ~QuranShaper() {
-    delete layout;
-  }
+  ~QuranShaper() { delete layout; }
 
   std::string getGlyphName(int codechar) {
 
     return layout->glyphNamePerCode.at(codechar);
-
   }
 
-  int getGlyphCode(const std::string& name) {
+  int getGlyphCode(const std::string &name) {
     return layout->glyphCodePerName.at(name);
-
   }
 
   int getTexNbPages() {
@@ -306,17 +302,13 @@ public:
       }
 
       return texSuraLocations;
-    }
-    else {
+    } else {
       if (medinaSuraLocations.empty()) {
         readMedinaPages();
       }
 
       return medinaSuraLocations;
     }
-
-
-
   }
 
   void drawPath(std::string glyphName, emscripten::val ctx) {
@@ -325,9 +317,9 @@ public:
       std::cout << "cannot initilize mp";
     }
 
-    for (mp_edge_object* p : mpFont.edges()) {
+    for (mp_edge_object *p : mpFont.edges()) {
       if (p->charname == glyphName) {
-        mp_graphic_object* body = p->body;
+        mp_graphic_object *body = p->body;
 
         if (body) {
           edgetoHTML5Path(body, ctx);
@@ -335,15 +327,14 @@ public:
 
         return;
       }
-
     }
 
     std::cout << "no char";
-
-
   }
 
-  double  shapeText(std::string text, int lineWidth, float fontScalePerc, bool applyJustification, bool tajweedColor, bool fontExpansion, emscripten::val ctx) {
+  double shapeText(std::string text, int lineWidth, float fontScalePerc,
+                   bool applyJustification, bool tajweedColor,
+                   bool fontExpansion, emscripten::val ctx) {
 
     layout->applyJustification = applyJustification;
 
@@ -352,8 +343,10 @@ public:
     while (start <= text.size()) {
       std::size_t nl = text.find('\n', start);
       std::size_t end = (nl == std::string::npos) ? text.size() : nl;
-      if (end > start) stdLines.push_back(text.substr(start, end - start));
-      if (nl == std::string::npos) break;
+      if (end > start)
+        stdLines.push_back(text.substr(start, end - start));
+      if (nl == std::string::npos)
+        break;
       start = nl + 1;
     }
 
@@ -381,11 +374,11 @@ public:
 
     for (int lineIndex = 0; lineIndex < page.size(); ++lineIndex) {
 
-      auto& line = page[lineIndex];
+      auto &line = page[lineIndex];
 
       int currentxPos = 0; // lineWidth + margin - line.xstartposition;
 
-      Point lastPos{ currentxPos ,currentyPos };
+      Point lastPos{currentxPos, currentyPos};
 
       ctx.call<void>("save");
 
@@ -395,12 +388,16 @@ public:
 
       for (int glyphIndex = 0; glyphIndex < line.glyphs.size(); glyphIndex++) {
 
-        auto& glyph = line.glyphs[glyphIndex];
+        auto &glyph = line.glyphs[glyphIndex];
 
         if (glyph.color) {
           auto color = glyph.color;
 
-          ctx.set("fillStyle", emscripten::val("rgb(" + std::to_string(((color >> 24) & 0xff)) + "," + std::to_string(((color >> 16) & 0xff)) + "," + std::to_string(((color >> 8) & 0xff)) + ")"));
+          ctx.set("fillStyle",
+                  emscripten::val("rgb(" +
+                                  std::to_string(((color >> 24) & 0xff)) + "," +
+                                  std::to_string(((color >> 16) & 0xff)) + "," +
+                                  std::to_string(((color >> 8) & 0xff)) + ")"));
         }
 
         Point pos;
@@ -416,7 +413,8 @@ public:
         ctx.call<void>("save");
         ctx.call<void>("scale", fontScale, fontScale);
 
-        displayGlyph(glyph.codepoint, glyph.lefttatweel, glyph.righttatweel, ctx);
+        displayGlyph(glyph.codepoint, glyph.lefttatweel, glyph.righttatweel,
+                     ctx);
         ctx.call<void>("restore");
 
         if (glyph.color) {
@@ -430,21 +428,21 @@ public:
       currentyPos += InterLineSpacing;
 
       ctx.call<void>("restore");
-
     }
 
     clearAlternates();
 
     return -maxWidth * scale;
-
   }
 
-  PageResult  shapePage(int pageIndex, float fontScalePerc, bool applyJustification, int lineIndex, bool texFormat, bool tajweedColor, bool changeSize) {
+  PageResult shapePage(int pageIndex, float fontScalePerc,
+                       bool applyJustification, int lineIndex, bool texFormat,
+                       bool tajweedColor, bool changeSize) {
 
-    //if (cachedPages.find(pageNumber) != cachedPages.end()) {
+    // if (cachedPages.find(pageNumber) != cachedPages.end()) {
     //	std::cout << "Cached page number " << pageNumber << "\n";
     //	return cachedPages.at(pageNumber);
-    //}
+    // }
 
     int lineWidth = pageWidth;
 
@@ -463,8 +461,7 @@ public:
       }
 
       lines = texPages[pageIndex];
-    }
-    else {
+    } else {
       if (medinaPages.empty()) {
         readMedinaPages();
       }
@@ -475,13 +472,12 @@ public:
       }
 
       lines = medinaPages[pageIndex];
-
     }
 
     double fontScale = (1 << OtLayout::SCALEBY) * fontScalePerc;
 
     if (lineIndex >= 0) {
-      lines = { lines[lineIndex] };
+      lines = {lines[lineIndex]};
     }
 
     auto justification = LineJustification::Distribute;
@@ -489,7 +485,8 @@ public:
 
     if (pageIndex == 0 || pageIndex == 1) {
       justification = LineJustification::Center;
-      beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
+      beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3))
+                  << OtLayout::SCALEBY;
       if (lineIndex > 0) {
         double ratio = pageIndex == 0 ? 0.9 : 0.9;
         double diameter = pageWidth * ratio; // 0.9;
@@ -500,46 +497,41 @@ public:
         double startangle = pageIndex == 0 ? 30 : 30;
         double endangle = 22.5;
 
-
-        double degree = (startangle + (lineIndex - 1) * (180 - (startangle + endangle)) / 6) * M_PI / 180;
+        double degree = (startangle + (lineIndex - 1) *
+                                          (180 - (startangle + endangle)) / 6) *
+                        M_PI / 180;
         lineWidth = diameter * std::sin(degree);
 
-      }
-      else {
+      } else {
         lineWidth = 0;
       }
 
-    }
-    else if (pageIndex > 580) {
+    } else if (pageIndex > 580) {
       auto ratio = getWidthRatio(pageIndex, lineIndex, texFormat);
       if (ratio < 1) {
         lineWidth = pageWidth * ratio;
         justification = LineJustification::Center;
       }
-
     }
 
     std::vector<std::string> stdLines;
     stdLines.reserve(lines.size());
-    for (const auto& line : lines) stdLines.push_back(utf16ToUtf8(line));
+    for (const auto &line : lines)
+      stdLines.push_back(utf16ToUtf8(line));
     auto page = layout->justifyPage(fontScale, lineWidth, pageWidth,
                                     std::move(stdLines), justification, false,
                                     tajweedColor);
 
-
     if (pageIndex == 0 && lineIndex == 0) {
       page[0].type = LineType::Sura;
-    }
-    else if (pageIndex == 1 && lineIndex == 0) {
+    } else if (pageIndex == 1 && lineIndex == 0) {
       page[0].type = LineType::Sura;
-    }
-    else if (pageIndex == 1 && lineIndex == 1) {
+    } else if (pageIndex == 1 && lineIndex == 1) {
       page[0].type = LineType::Bism;
-    }
-    else {
+    } else {
       for (int i = 0; i < page.size(); ++i) {
 
-        auto& currentLine = page[i];
+        auto &currentLine = page[i];
 
         // check if suran name or bism
         auto match = surabism.match(lines[i]);
@@ -556,19 +548,17 @@ public:
 
           if (captured.starts_with(u"سُ")) {
             temp[0].type = LineType::Sura;
-          }
-          else {
+          } else {
             temp[0].type = LineType::Bism;
           }
 
           page[i] = temp[0];
-        }
-        else {
+        } else {
           // check if sajda
           match = sajdaRe.match(lines[i]);
           if (match.hasMatch()) {
 
-            //sajdamatched++;
+            // sajdamatched++;
 
             int captureIndex = match.lastCapturedIndex();
 
@@ -576,82 +566,76 @@ public:
             int endOffset = match.end(captureIndex) - 1; // endOffset == 9
 
             while (endOffset >= 0) {
-              auto category = hb_unicode_general_category(hb_unicode_funcs_get_default(), lines[i][endOffset]);
+              auto category = hb_unicode_general_category(
+                  hb_unicode_funcs_get_default(), lines[i][endOffset]);
               if (category != HB_UNICODE_GENERAL_CATEGORY_SPACING_MARK &&
                   category != HB_UNICODE_GENERAL_CATEGORY_ENCLOSING_MARK &&
-                  category != HB_UNICODE_GENERAL_CATEGORY_NON_SPACING_MARK) break;
+                  category != HB_UNICODE_GENERAL_CATEGORY_NON_SPACING_MARK)
+                break;
               --endOffset;
             }
 
             bool beginDone = false;
 
-            auto& glyphs = currentLine.glyphs;
+            auto &glyphs = currentLine.glyphs;
 
-            for (auto& glyphLayout : glyphs) {
+            for (auto &glyphLayout : glyphs) {
 
               if (glyphLayout.cluster == startOffset && !beginDone) {
                 glyphLayout.beginsajda = true;
-                beginDone = true;;
-                //beginsajda++;
+                beginDone = true;
+                ;
+                // beginsajda++;
 
-              }
-              else if (glyphLayout.cluster == endOffset) {
+              } else if (glyphLayout.cluster == endOffset) {
                 glyphLayout.endsajda = true;
-                //endsajda++;
+                // endsajda++;
                 break;
               }
-
             }
-
           }
         }
         if (/*i == 0 &&*/ (pageIndex == 0 || pageIndex == 1)) {
-          //page[i].type = LineType::Sura;
-          page[i].ystartposition = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1)) << OtLayout::SCALEBY;
+          // page[i].type = LineType::Sura;
+          page[i].ystartposition =
+              (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1))
+              << OtLayout::SCALEBY;
         }
         /*else {
           page[i].ystartposition = beginsura;
           beginsura += OtLayout::InterLineSpacing << OtLayout::SCALEBY;
 
         }*/
-
-
       }
     }
 
+    // cachedPages.insert({ pageNumber, page });
+    // PageResult resutl;
+    // resutl.page = page;
 
-
-    //cachedPages.insert({ pageNumber, page });
-    //PageResult resutl;
-    //resutl.page = page;
-
-    return { page, lines };
-
+    return {page, lines};
   }
 
-  void displayGlyph(int glyphIndex, double leftTatweel, double righttatweel, emscripten::val ctx) {
+  void displayGlyph(int glyphIndex, double leftTatweel, double righttatweel,
+                    emscripten::val ctx) {
 
     GlyphParameters parameters;
     parameters.lefttatweel = leftTatweel;
     parameters.righttatweel = righttatweel;
 
-    GlyphVis* glyph = layout->getGlyph(glyphIndex, parameters);
+    GlyphVis *glyph = layout->getGlyph(glyphIndex, parameters);
 
     if (glyph) {
       generateGlyph(*glyph, ctx);
     }
-
   }
 
-  void clearAlternates() {
-    layout->clearAlternates();
-  }
+  void clearAlternates() { layout->clearAlternates(); }
 
   MPFont mpFont;
-  OtLayout* layout;
+  OtLayout *layout;
 
 protected:
-
   std::vector<std::vector<digitalkhatt::TextString>> texPages;
   std::vector<std::vector<digitalkhatt::TextString>> medinaPages;
 
@@ -668,18 +652,19 @@ protected:
   void readTexPages() {
     QDataStreamReader in(readBinaryFile("texpages.dat"));
 
-    in.readDouble();  // EMSCALE, unused here
+    in.readDouble(); // EMSCALE, unused here
 
     texPages = in.readList<std::vector<digitalkhatt::TextString>>(
-        [](QDataStreamReader& reader) {
+        [](QDataStreamReader &reader) {
           return reader.readList<digitalkhatt::TextString>(
-              [](QDataStreamReader& r) { return r.readString(); });
+              [](QDataStreamReader &r) { return r.readString(); });
         });
 
-    in.readList<digitalkhatt::TextString>(
-        [](QDataStreamReader& r) { return r.readString(); });  // suraNamebyPage, unused
+    in.readList<digitalkhatt::TextString>([](QDataStreamReader &r) {
+      return r.readString();
+    }); // suraNamebyPage, unused
 
-    texSuraLocations = in.readList<SuraLocation>([](QDataStreamReader& r) {
+    texSuraLocations = in.readList<SuraLocation>([](QDataStreamReader &r) {
       SuraLocation location;
       location.name = r.readString();
       location.pageNumber = r.readInt32();
@@ -692,18 +677,19 @@ protected:
   void readMedinaPages() {
     QDataStreamReader in(readBinaryFile("medinapages.dat"));
 
-    in.readDouble();  // EMSCALE, unused here
+    in.readDouble(); // EMSCALE, unused here
 
     medinaPages = in.readList<std::vector<digitalkhatt::TextString>>(
-        [](QDataStreamReader& reader) {
+        [](QDataStreamReader &reader) {
           return reader.readList<digitalkhatt::TextString>(
-              [](QDataStreamReader& r) { return r.readString(); });
+              [](QDataStreamReader &r) { return r.readString(); });
         });
 
-    in.readList<digitalkhatt::TextString>(
-        [](QDataStreamReader& r) { return r.readString(); });  // suraNamebyPage, unused
+    in.readList<digitalkhatt::TextString>([](QDataStreamReader &r) {
+      return r.readString();
+    }); // suraNamebyPage, unused
 
-    medinaSuraLocations = in.readList<SuraLocation>([](QDataStreamReader& r) {
+    medinaSuraLocations = in.readList<SuraLocation>([](QDataStreamReader &r) {
       SuraLocation location;
       location.name = r.readString();
       location.pageNumber = r.readInt32();
@@ -719,27 +705,22 @@ protected:
 
     const auto parametersPath = siblingPath(fileName, "parameters.json");
     std::ifstream parametersStream(parametersPath, std::ios::binary);
-    //std::ifstream parametersStream("parameters.json", std::ios::binary);
+    // std::ifstream parametersStream("parameters.json", std::ios::binary);
 
     if (parametersStream) {
       std::string buffer{std::istreambuf_iterator<char>{parametersStream}, {}};
       ParameterJsonObject parameters;
       if (glz::read_json(parameters, buffer)) {
         std::cout << "Problem reading file." << "parameters.json";
-      }
-      else {
+      } else {
         layout->readParameters(parameters);
-
       }
 
       parametersStream.close();
     }
-
-
   }
 
-  void filltoHTML5Path(mp_gr_knot h, emscripten::val ctx)
-  {
+  void filltoHTML5Path(mp_gr_knot h, emscripten::val ctx) {
     mp_gr_knot p, q;
 
     ctx.call<void>("moveTo", h->x_coord, h->y_coord);
@@ -748,37 +729,42 @@ protected:
     do {
       q = p->next;
 
-      ctx.call<void>("bezierCurveTo", p->right_x, p->right_y, q->left_x, q->left_y, q->x_coord, q->y_coord);
+      ctx.call<void>("bezierCurveTo", p->right_x, p->right_y, q->left_x,
+                     q->left_y, q->x_coord, q->y_coord);
 
       p = q;
     } while (p != h);
     if (h->data.types.left_type != mp_endpoint) {
       ctx.call<void>("closePath");
     }
-
   }
 
-  void getImageStream(GlyphVis& glyph, emscripten::val ctx) {
+  void getImageStream(GlyphVis &glyph, emscripten::val ctx) {
     {
-      mp_graphic_object* body = glyph.mpPath();
+      mp_graphic_object *body = glyph.mpPath();
       if (body) {
         do {
-          switch (body->type)
-          {
+          switch (body->type) {
           case mp_fill_code: {
-            auto fillobject = (mp_fill_object*)body;
+            auto fillobject = (mp_fill_object *)body;
             ctx.call<void>("beginPath");
 
             filltoHTML5Path(fillobject->path_p, ctx);
             if (fillobject->color_model == mp_rgb_model) {
-              ctx.set("fillStyle", emscripten::val("rgb(" + std::to_string(fillobject->color.a_val * 255) + "," + std::to_string(fillobject->color.b_val * 255) + "," + std::to_string(fillobject->color.c_val * 255) + ")"));
-              //out << "\tctx.fillStyle = 'rgb(" << fillobject->color.a_val * 255 << "," << fillobject->color.b_val * 255 << "," << fillobject->color.c_val * 255 << ")';\n";
-
+              ctx.set("fillStyle",
+                      emscripten::val(
+                          "rgb(" +
+                          std::to_string(fillobject->color.a_val * 255) + "," +
+                          std::to_string(fillobject->color.b_val * 255) + "," +
+                          std::to_string(fillobject->color.c_val * 255) + ")"));
+              // out << "\tctx.fillStyle = 'rgb(" << fillobject->color.a_val *
+              // 255 << "," << fillobject->color.b_val * 255 << "," <<
+              // fillobject->color.c_val * 255 << ")';\n";
             }
-            //out << "\tctx.fill();\n";
+            // out << "\tctx.fill();\n";
             ctx.call<void>("fill");
             ctx.set("fillStyle", emscripten::val("rgb(0,0,0)"));
-            //out << "\tctx.fillStyle = 'rgb(0,0,0)';\n";
+            // out << "\tctx.fillStyle = 'rgb(0,0,0)';\n";
 
             break;
           }
@@ -789,21 +775,17 @@ protected:
         } while (body = body->next);
       }
     }
-
   }
 
-  void edgetoHTML5Path(mp_graphic_object* body, emscripten::val ctx)
-  {
+  void edgetoHTML5Path(mp_graphic_object *body, emscripten::val ctx) {
 
     if (body) {
 
       ctx.call<void>("beginPath");
       do {
-        switch (body->type)
-        {
+        switch (body->type) {
         case mp_fill_code: {
-          filltoHTML5Path(((mp_fill_object*)body)->path_p, ctx);
-
+          filltoHTML5Path(((mp_fill_object *)body)->path_p, ctx);
 
           break;
         }
@@ -815,163 +797,149 @@ protected:
 
       ctx.call<void>("fill");
     }
-
   }
 
-  void generateGlyph(GlyphVis& glyph, emscripten::val ctx) {
+  void generateGlyph(GlyphVis &glyph, emscripten::val ctx) {
 
-
-    if (glyph.name == "endofaya") { //||  glyph->name == "rubelhizb" glyph->name == "placeofsajdah" ||
+    if (glyph.name == "endofaya") { //||  glyph->name == "rubelhizb" glyph->name
+                                    //== "placeofsajdah" ||
       getImageStream(glyph, ctx);
-    }
-    else if (glyph.charcode >= Automedina::AyaNumberCode && glyph.charcode <= Automedina::AyaNumberCode + 286) {
+    } else if (glyph.charcode >= Automedina::AyaNumberCode &&
+               glyph.charcode <= Automedina::AyaNumberCode + 286) {
       int ayaNumber = (glyph.charcode - Automedina::AyaNumberCode) + 1;
 
       int digitheight = 120;
 
-      //out << "\tglyphs['endofaya'](ctx);\n";
-      auto ayaGlyph = &layout->glyphs["endofaya"]; generateGlyph(*ayaGlyph, ctx);
+      // out << "\tglyphs['endofaya'](ctx);\n";
+      auto ayaGlyph = &layout->glyphs["endofaya"];
+      generateGlyph(*ayaGlyph, ctx);
 
-
-      //out << "\tctx.save();\n";
+      // out << "\tctx.save();\n";
       ctx.call<void>("save");
 
       if (ayaNumber < 10) {
-        auto& onesglyph = layout->glyphs[layout->glyphNamePerCode[1632 + ayaNumber]];
+        auto &onesglyph =
+            layout->glyphs[layout->glyphNamePerCode[1632 + ayaNumber]];
 
-        auto position = layout->glyphs["endofaya"].width / 2 - (onesglyph.width) / 2;
+        auto position =
+            layout->glyphs["endofaya"].width / 2 - (onesglyph.width) / 2;
 
-        //out << "\tctx.translate(" << position << "," << digitheight << ");\n";
+        // out << "\tctx.translate(" << position << "," << digitheight <<
+        // ");\n";
         ctx.call<void>("translate", position, digitheight);
 
-        //out << "\tglyphs['" << onesglyph.name << "'](ctx);\n";
-        auto tempGlyph = &layout->glyphs[onesglyph.name]; generateGlyph(*tempGlyph, ctx);
+        // out << "\tglyphs['" << onesglyph.name << "'](ctx);\n";
+        auto tempGlyph = &layout->glyphs[onesglyph.name];
+        generateGlyph(*tempGlyph, ctx);
 
-      }
-      else if (ayaNumber < 100) {
+      } else if (ayaNumber < 100) {
         int onesdigit = ayaNumber % 10;
         int tensdigit = ayaNumber / 10;
 
-        auto& onesglyph = layout->glyphs[layout->glyphNamePerCode[1632 + onesdigit]];
-        auto& tensglyph = layout->glyphs[layout->glyphNamePerCode[1632 + tensdigit]];
+        auto &onesglyph =
+            layout->glyphs[layout->glyphNamePerCode[1632 + onesdigit]];
+        auto &tensglyph =
+            layout->glyphs[layout->glyphNamePerCode[1632 + tensdigit]];
 
+        auto position = layout->glyphs["endofaya"].width / 2 -
+                        (onesglyph.width + tensglyph.width + 40) / 2;
 
-
-        auto position = layout->glyphs["endofaya"].width / 2 - (onesglyph.width + tensglyph.width + 40) / 2;
-
-        //out << "\tctx.translate(" << position << "," << digitheight << ");\n";
+        // out << "\tctx.translate(" << position << "," << digitheight <<
+        // ");\n";
         ctx.call<void>("translate", position, digitheight);
 
-        //out << "\tglyphs['" << tensglyph.name << "'](ctx);\n";
-        auto tempGlyph = &layout->glyphs[tensglyph.name]; generateGlyph(*tempGlyph, ctx);
+        // out << "\tglyphs['" << tensglyph.name << "'](ctx);\n";
+        auto tempGlyph = &layout->glyphs[tensglyph.name];
+        generateGlyph(*tempGlyph, ctx);
 
-        //out << "\tctx.translate(" << tensglyph.width + 40 << "," << 0 << ");\n";
+        // out << "\tctx.translate(" << tensglyph.width + 40 << "," << 0 <<
+        // ");\n";
         ctx.call<void>("translate", tensglyph.width + 40, 0);
-        //out << "\tglyphs['" << onesglyph.name << "'](ctx);\n";
-        tempGlyph = &layout->glyphs[onesglyph.name]; generateGlyph(*tempGlyph, ctx);
+        // out << "\tglyphs['" << onesglyph.name << "'](ctx);\n";
+        tempGlyph = &layout->glyphs[onesglyph.name];
+        generateGlyph(*tempGlyph, ctx);
 
-      }
-      else {
+      } else {
         int onesdigit = ayaNumber % 10;
         int tensdigit = (ayaNumber / 10) % 10;
         int hundredsdigit = ayaNumber / 100;
 
-        auto& onesglyph = layout->glyphs[layout->glyphNamePerCode[1632 + onesdigit]];
-        auto& tensglyph = layout->glyphs[layout->glyphNamePerCode[1632 + tensdigit]];
-        auto& hundredsglyph = layout->glyphs[layout->glyphNamePerCode[1632 + hundredsdigit]];
+        auto &onesglyph =
+            layout->glyphs[layout->glyphNamePerCode[1632 + onesdigit]];
+        auto &tensglyph =
+            layout->glyphs[layout->glyphNamePerCode[1632 + tensdigit]];
+        auto &hundredsglyph =
+            layout->glyphs[layout->glyphNamePerCode[1632 + hundredsdigit]];
 
-        auto position = layout->glyphs["endofaya"].width / 2 - (onesglyph.width + tensglyph.width + hundredsglyph.width + 80) / 2;
+        auto position =
+            layout->glyphs["endofaya"].width / 2 -
+            (onesglyph.width + tensglyph.width + hundredsglyph.width + 80) / 2;
 
-        //out << "\tctx.translate(" << position << "," << digitheight << ");\n";
+        // out << "\tctx.translate(" << position << "," << digitheight <<
+        // ");\n";
         ctx.call<void>("translate", position, digitheight);
 
-        //out << "\tglyphs['" << hundredsglyph.name << "'](ctx);\n";
-        auto tempGlyph = &layout->glyphs[hundredsglyph.name]; generateGlyph(*tempGlyph, ctx);
+        // out << "\tglyphs['" << hundredsglyph.name << "'](ctx);\n";
+        auto tempGlyph = &layout->glyphs[hundredsglyph.name];
+        generateGlyph(*tempGlyph, ctx);
 
-        //out << "\tctx.translate(" << hundredsglyph.width + 40 << "," << 0 << ");\n";
+        // out << "\tctx.translate(" << hundredsglyph.width + 40 << "," << 0 <<
+        // ");\n";
         ctx.call<void>("translate", hundredsglyph.width + 40, 0);
-        //out << "\tglyphs['" << tensglyph.name << "'](ctx);\n";
-        tempGlyph = &layout->glyphs[tensglyph.name]; generateGlyph(*tempGlyph, ctx);
+        // out << "\tglyphs['" << tensglyph.name << "'](ctx);\n";
+        tempGlyph = &layout->glyphs[tensglyph.name];
+        generateGlyph(*tempGlyph, ctx);
 
-        //out << "\tctx.translate(" << tensglyph.width + 40 << "," << 0 << ");\n";
+        // out << "\tctx.translate(" << tensglyph.width + 40 << "," << 0 <<
+        // ");\n";
         ctx.call<void>("translate", tensglyph.width + 40, 0);
-        //out << "\tglyphs['" << onesglyph.name << "'](ctx);\n";
-        tempGlyph = &layout->glyphs[onesglyph.name]; generateGlyph(*tempGlyph, ctx);
-
+        // out << "\tglyphs['" << onesglyph.name << "'](ctx);\n";
+        tempGlyph = &layout->glyphs[onesglyph.name];
+        generateGlyph(*tempGlyph, ctx);
       }
 
       ctx.call<void>("restore");
-    }
-    else {
+    } else {
       edgetoHTML5Path(glyph.copiedPath, ctx);
     }
-
   }
 
 protected:
-  std::map<int, double> lineWidths =
-  {
-    { 601 * 3, 1 },
-    { 601 * 4, 1 },
-    { 601 * 7, 1 },
-    { 601 * 8, 1 },
-    { 601 * 9, 1 },
-    { 601 * 10, 1 },
-    { 601 * 13, 1 },
-    { 601 * 14, 1 },
-    { 601 * 15, 1 },
-    { 602 * 5, 0.63 },
-    { 602 * 11, 0.9 },
-    { 602 * 15, 0.53 },
-    { 603 * 10, 0.66 },
-    { 603 * 13, 1 },
-    { 603 * 15, 0.60 },
-    { 604 * 3, 1 },
-    { 604 * 4, 0.55 },
-    { 604 * 7, 1 },
-    { 604 * 8, 1 },
-    { 604 * 9, 0.55 },
-    { 604 * 12, 1 },
-    { 604 * 13, 1 },
-    { 604 * 14, 0.675 },
-    { 604 * 15, 0.5 },
+  std::map<int, double> lineWidths = {
+      {601 * 3, 1},     {601 * 4, 1},    {601 * 7, 1},      {601 * 8, 1},
+      {601 * 9, 1},     {601 * 10, 1},   {601 * 13, 1},     {601 * 14, 1},
+      {601 * 15, 1},    {602 * 5, 0.63}, {602 * 11, 0.9},   {602 * 15, 0.53},
+      {603 * 10, 0.66}, {603 * 13, 1},   {603 * 15, 0.60},  {604 * 3, 1},
+      {604 * 4, 0.55},  {604 * 7, 1},    {604 * 8, 1},      {604 * 9, 0.55},
+      {604 * 12, 1},    {604 * 13, 1},   {604 * 14, 0.675}, {604 * 15, 0.5},
   };
 
-  std::map<int, double> madinaLineWidths =
-  {
-    { 586 * 1, 0.81},
-    { 593 * 2, 0.81},
-    { 594 * 5, 0.63},
-    { 600 * 10,0.63 },
+  std::map<int, double> madinaLineWidths = {
+      {586 * 1, 0.81},
+      {593 * 2, 0.81},
+      {594 * 5, 0.63},
+      {600 * 10, 0.63},
   };
 
-  double getWidthRatio(int pageIndex, int lineIndex, bool texFormat)
-  {
+  double getWidthRatio(int pageIndex, int lineIndex, bool texFormat) {
 
     if (texFormat) {
       int pageDiff = static_cast<int>(texPages.size()) - 604;
       pageIndex = pageIndex - pageDiff;
     }
 
-
     int key = (pageIndex + 1) * (lineIndex + 1);
     double ratio = 1;
-    if (lineWidths.contains(key))
-    {
+    if (lineWidths.contains(key)) {
       ratio = lineWidths.at(key);
-    }
-    else
-    {
-      if (!texFormat && madinaLineWidths.contains(key))
-      {
+    } else {
+      if (!texFormat && madinaLineWidths.contains(key)) {
         ratio = madinaLineWidths.at(key);
       }
     }
 
     return ratio;
   }
-
-
 };
 
 // Browser-facing Mushaf API backed directly by OtLayout's full-page
@@ -982,20 +950,19 @@ protected:
 class OtLayoutMushaf : public QuranShaper {
 public:
   OtLayoutMushaf() = default;
-  explicit OtLayoutMushaf(const std::string& fontFile)
-      try : QuranShaper(fontFile) {}
-      catch (const std::exception& e) {
-        throw std::runtime_error(std::string{"QuranShaper construction: "} +
-                                 e.what());
-      }
+  explicit OtLayoutMushaf(const std::string &fontFile) try
+      : QuranShaper(fontFile) {
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string{"QuranShaper construction: "} +
+                             e.what());
+  }
 
   PageResult shapeMushafPage(int pageIndex, float fontScalePerc,
                              bool tajweedColor, bool applyForce,
-                             const std::vector<digitalkhatt::TextString>& lines,
-                             const std::vector<double>& widthRatios,
-                             const std::vector<int>& lineTypes) {
-    if (pageIndex < 0 || lines.empty() ||
-        widthRatios.size() != lines.size() ||
+                             const std::vector<digitalkhatt::TextString> &lines,
+                             const std::vector<double> &widthRatios,
+                             const std::vector<int> &lineTypes) {
+    if (pageIndex < 0 || lines.empty() || widthRatios.size() != lines.size() ||
         lineTypes.size() != lines.size()) {
       return {};
     }
@@ -1008,17 +975,17 @@ public:
       int width = pageWidth;
       auto justification = LineJustification::Distribute;
       auto lineType = static_cast<LineType>(lineTypes[lineIndex]);
-      bool basmalaOnFirstPages = false;
 
-      if (lineType == LineType::Sura || lineType == LineType::Bism) {
-        basmalaOnFirstPages =
-            lineType == LineType::Bism &&
-            (pageIndex == 0 || pageIndex == 1) && lineIndex == 1;
-        if (!basmalaOnFirstPages) {
-          width = 0;
-          justification = LineJustification::Center;
-        }
+      bool basmalaOnFirstPages =
+          (pageIndex == 0 || pageIndex == 1) && lineIndex == 1;
+
+      if (basmalaOnFirstPages) {
+        lineType = LineType::Bism;
+      } else if (lineType == LineType::Sura || lineType == LineType::Bism) {
+        width = 0;
+        justification = LineJustification::Center;
       }
+
 
       const double widthRatio = widthRatios[lineIndex];
       if (widthRatio < 1.0) {
@@ -1026,9 +993,8 @@ public:
         justification = LineJustification::Center;
       }
 
-      linesToJustify.push_back(
-          {lines[lineIndex], width, justification, lineType,
-           basmalaOnFirstPages});
+      linesToJustify.push_back({lines[lineIndex], width, justification,
+                                lineType, basmalaOnFirstPages});
     }
 
     const double emScale = (1 << OtLayout::SCALEBY) * fontScalePerc;
@@ -1055,43 +1021,49 @@ public:
   int scaleBy() const { return OtLayout::SCALEBY; }
 
 private:
-  void optimizePage(std::vector<LineLayoutInfo>& page, double emScale) {
+  void optimizePage(std::vector<LineLayoutInfo> &page, double emScale) {
     using namespace geometry;
 
-    std::unordered_map<GlyphVis*, GeometrySet> glyphToPolys;
-    const auto& classes = layout->glyphClasses();
-    const auto& marks = digitalkhatt::layout::classesOrEmpty(classes, "marks");
-    const auto& topmarks = digitalkhatt::layout::classesOrEmpty(classes, "topmarks");
-    const auto& lowmarks = digitalkhatt::layout::classesOrEmpty(classes, "lowmarks");
-    const auto& waqfmarks = digitalkhatt::layout::classesOrEmpty(classes, "waqfmarks");
-    const auto& topdotmarks = digitalkhatt::layout::classesOrEmpty(classes, "topdotmarks");
-    const auto& downdotmarks = digitalkhatt::layout::classesOrEmpty(classes, "downdotmarks");
+    std::unordered_map<GlyphVis *, GeometrySet> glyphToPolys;
+    const auto &classes = layout->glyphClasses();
+    const auto &marks = digitalkhatt::layout::classesOrEmpty(classes, "marks");
+    const auto &topmarks =
+        digitalkhatt::layout::classesOrEmpty(classes, "topmarks");
+    const auto &lowmarks =
+        digitalkhatt::layout::classesOrEmpty(classes, "lowmarks");
+    const auto &waqfmarks =
+        digitalkhatt::layout::classesOrEmpty(classes, "waqfmarks");
+    const auto &topdotmarks =
+        digitalkhatt::layout::classesOrEmpty(classes, "topdotmarks");
+    const auto &downdotmarks =
+        digitalkhatt::layout::classesOrEmpty(classes, "downdotmarks");
 
-    auto isTopMark = [&](const std::string& name) {
+    auto isTopMark = [&](const std::string &name) {
       return topmarks.contains(name) || waqfmarks.contains(name) ||
              topdotmarks.contains(name);
     };
 
     std::vector<std::vector<digitalkhatt::layout::GlyphInstance>> pageGlyphs;
     pageGlyphs.reserve(page.size());
-    for (int lineIndex = 0; lineIndex < static_cast<int>(page.size()); ++lineIndex) {
-      auto& line = page[lineIndex];
-      auto& lineGlyphs = pageGlyphs.emplace_back();
+    for (int lineIndex = 0; lineIndex < static_cast<int>(page.size());
+         ++lineIndex) {
+      auto &line = page[lineIndex];
+      auto &lineGlyphs = pageGlyphs.emplace_back();
       lineGlyphs.reserve(line.glyphs.size());
 
       const auto xScale = line.fontSize * line.xscale;
       const auto yScale = line.fontSize;
       int currentX = -line.xstartposition;
-      int currentY = -(line.ystartposition -
-                       (OtLayout::TopSpace << OtLayout::SCALEBY));
-      digitalkhatt::layout::GlyphInstance* currentBase = nullptr;
-      digitalkhatt::layout::GlyphInstance* previousBase = nullptr;
+      int currentY =
+          -(line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY));
+      digitalkhatt::layout::GlyphInstance *currentBase = nullptr;
+      digitalkhatt::layout::GlyphInstance *previousBase = nullptr;
 
       for (int glyphIndex = 0;
            glyphIndex < static_cast<int>(line.glyphs.size()); ++glyphIndex) {
-        auto& glyphLayout = line.glyphs[glyphIndex];
-        const auto& glyphName = layout->glyphNamePerCode[glyphLayout.codepoint];
-        auto* glyphVis = layout->getGlyph(
+        auto &glyphLayout = line.glyphs[glyphIndex];
+        const auto &glyphName = layout->glyphNamePerCode[glyphLayout.codepoint];
+        auto *glyphVis = layout->getGlyph(
             glyphName, {.lefttatweel = glyphLayout.lefttatweel,
                         .righttatweel = glyphLayout.righttatweel,
                         .scalex = line.xscaleparameter});
@@ -1099,23 +1071,26 @@ private:
         auto glyphToPoly = glyphToPolys.find(glyphVis);
         if (glyphToPoly == glyphToPolys.end()) {
           auto cubics = getGlyphCubic(glyphVis->copiedPath);
-          auto geometry = marks.contains(glyphName)
-              ? buildPolyFromCubics(cubics, CUBIC_FLATNESS_TOLERANCE)
-              : buildConvexPartsFromCubics(cubics, CUBIC_FLATNESS_TOLERANCE);
-          glyphToPoly = glyphToPolys.emplace(
-              glyphVis, geometry.scaled(emScale, emScale)).first;
+          auto geometry =
+              marks.contains(glyphName)
+                  ? buildPolyFromCubics(cubics, CUBIC_FLATNESS_TOLERANCE)
+                  : buildConvexPartsFromCubics(cubics,
+                                               CUBIC_FLATNESS_TOLERANCE);
+          glyphToPoly =
+              glyphToPolys.emplace(glyphVis, geometry.scaled(emScale, emScale))
+                  .first;
         }
 
         currentX -= glyphLayout.x_advance * line.xscale;
-        auto& glyph = lineGlyphs.emplace_back();
+        auto &glyph = lineGlyphs.emplace_back();
         glyph.isMark = marks.contains(glyphName);
         glyph.isTopMark = isTopMark(glyphName);
         glyph.lineY = currentY;
         glyph.baseX = currentX + glyphLayout.x_offset * line.xscale;
         glyph.baseY = currentY + glyphLayout.y_offset;
         glyph.glyphLayout = &glyphLayout;
-        glyph.metrics = {glyphVis->width, glyphVis->height,
-                         glyphVis->bbox.llx, glyphVis->bbox.urx};
+        glyph.metrics = {glyphVis->width, glyphVis->height, glyphVis->bbox.llx,
+                         glyphVis->bbox.urx};
         glyph.glyphName = glyphName;
         glyph.lineIndex = lineIndex;
         glyph.glyphIndex = glyphIndex;
@@ -1128,7 +1103,8 @@ private:
         if (!glyph.isMark) {
           previousBase = currentBase;
           currentBase = &glyph;
-          if (previousBase) previousBase->nextBase = currentBase;
+          if (previousBase)
+            previousBase->nextBase = currentBase;
         }
       }
     }
@@ -1140,11 +1116,13 @@ private:
     digitalkhatt::layout::OptParams solverParams;
     digitalkhatt::layout::optimizePage(pageGlyphs, solverClasses, solverParams);
 
-    for (int lineIndex = 0; lineIndex < static_cast<int>(page.size()); ++lineIndex) {
+    for (int lineIndex = 0; lineIndex < static_cast<int>(page.size());
+         ++lineIndex) {
       for (int glyphIndex = 0;
-           glyphIndex < static_cast<int>(page[lineIndex].glyphs.size()); ++glyphIndex) {
-        auto& glyphLayout = page[lineIndex].glyphs[glyphIndex];
-        const auto& glyph = pageGlyphs[lineIndex][glyphIndex];
+           glyphIndex < static_cast<int>(page[lineIndex].glyphs.size());
+           ++glyphIndex) {
+        auto &glyphLayout = page[lineIndex].glyphs[glyphIndex];
+        const auto &glyph = pageGlyphs[lineIndex][glyphIndex];
         glyphLayout.x_offset += glyph.dx;
         glyphLayout.y_offset += glyph.dy;
       }
