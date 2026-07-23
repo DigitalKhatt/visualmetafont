@@ -72,6 +72,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
 		.field("type", &LineLayoutInfo::type)
 		.field("overfull", &LineLayoutInfo::overfull)
     .field("fontSize", &LineLayoutInfo::fontSize)
+    .field("xscale", &LineLayoutInfo::xscale)
 		;
 
 	value_object<SuraLocation>("SuraLocation")
