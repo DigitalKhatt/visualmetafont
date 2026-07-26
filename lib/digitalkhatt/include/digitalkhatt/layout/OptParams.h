@@ -9,14 +9,14 @@ namespace digitalkhatt::layout {
 struct ConstraintToggles {
   bool ylane = true;
   bool waqfPlacement = true;
-  bool hardStayAboveBelow = true;  // both stay-above/stay-below rails
-  bool returnToAnchor = true;      // bowl exception
-  bool squeezeCenter = true;
+  bool hardStayAboveBelow = false;  // both stay-above/stay-below rails
+  bool returnToAnchor = false;      // bowl exception
+  bool squeezeCenter = false;
   bool stackOrder = true;
   bool baseVicinity = true;
   bool horizontalOrder = true;
   bool matchMarkPosition = true;     // kasra + smalllowmeem cohesion
-  bool bowlCluster = true;           // center marks trapped inside a bowl base
+  bool bowlCluster = false;           // center marks trapped inside a bowl base
   bool genericGapConstraint = true;  // broadphase never-overlap pass
   bool reportViolations = false;     // post-solve diagnostic PDF + log
 
@@ -51,10 +51,10 @@ struct ConstraintCompliance {
   double baseVicinityLeft = 0.1;
   double baseVicinityRight = 0.1;
 
-  double stackOrderGap = 0.1;
+  double stackOrderGap = 0.001;
   double stackOrderXAlign = 0.2;
 
-  double horizontalOrder = 0.02;
+  double horizontalOrder = 0.0;
 
   double matchMarkPosition = 0.2;
   double bowlCluster = 0.3;
@@ -92,7 +92,7 @@ struct OptParams {
   // ideal exactly.
   double complianceResidualMargin = 1.25;
 
-  double smoothStrength = 0.1;  // 0..1 small
+  double smoothStrength = 0.120;  // 0..1 small
   double attachStrength = 0.3;  // 0..1 for mark attachment
   double sepOvershoot = 1.05;   // push a bit extra to converge faster
 
@@ -100,8 +100,8 @@ struct OptParams {
   // HorizontalOrderConstraint.h): fraction of a mark's own ink that must
   // stay exposed (selfKeep), and the fraction of the NEIGHBOR's ink the
   // exposed protrusion must exceed (crossKeep).
-  double horizontalOrderSelfKeep = 0.6;
-  double horizontalOrderCrossKeep = 0.3;
+  double horizontalOrderSelfKeep = 0.8;
+  double horizontalOrderCrossKeep = 0.0;
 
   ConstraintToggles toggles;
   ConstraintCompliance compliance;
