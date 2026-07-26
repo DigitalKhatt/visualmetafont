@@ -689,7 +689,7 @@ void LookupDefinitionVisitor::accept(LookupReference& lookupReference) {
     if (liter == context.lookups.end()) {
       auto ret = otlayout->parseCppLookup(lookupReference.lookupName);
       if (!ret) {
-        std::cerr << "Lookup " << lookupReference.lookupName << " not found\n";
+        //std::cerr << "Lookup " << lookupReference.lookupName << " not found\n";
       }
       return;
     }

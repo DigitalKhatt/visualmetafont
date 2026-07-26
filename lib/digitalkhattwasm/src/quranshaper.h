@@ -626,7 +626,8 @@ public:
     GlyphVis *glyph = layout->getGlyph(glyphIndex, parameters);
 
     if (glyph) {
-      generateGlyph(*glyph, ctx);
+      //generateGlyph(*glyph, ctx);
+      edgetoHTML5Path(glyph->copiedPath, ctx);
     }
   }
 
