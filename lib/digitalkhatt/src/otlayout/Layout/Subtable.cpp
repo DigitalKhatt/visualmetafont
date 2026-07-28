@@ -23,6 +23,7 @@
 #include <array>
 #include <algorithm>
 #include <charconv>
+#include <deque>
 #include <hb-ot-layout-common.hh>
 #include <iostream>
 #include <set>
@@ -35,6 +36,73 @@
 #include "digitalkhatt/core/ByteBuffer.h"
 
 using namespace std;
+
+namespace {
+
+digitalkhatt::ByteBuffer makeCoverage(
+    const std::vector<std::uint16_t>& sortedGlyphs) {
+  digitalkhatt::ByteBuffer format1;
+  format1 << (std::uint16_t)1
+          << static_cast<std::uint16_t>(sortedGlyphs.size());
+  for (auto glyph : sortedGlyphs) format1 << glyph;
+
+  struct Range {
+    std::uint16_t first;
+    std::uint16_t last;
+    std::uint16_t coverageIndex;
+  };
+  std::vector<Range> ranges;
+  for (std::size_t index = 0; index < sortedGlyphs.size(); ++index) {
+    const auto glyph = sortedGlyphs[index];
+    if (ranges.empty() ||
+        glyph != static_cast<std::uint16_t>(ranges.back().last + 1)) {
+      ranges.push_back(
+          {glyph, glyph, static_cast<std::uint16_t>(index)});
+    } else {
+      ranges.back().last = glyph;
+    }
+  }
+
+  digitalkhatt::ByteBuffer format2;
+  format2 << (std::uint16_t)2
+          << static_cast<std::uint16_t>(ranges.size());
+  for (const auto& range : ranges)
+    format2 << range.first << range.last << range.coverageIndex;
+
+  return format2.size() < format1.size() ? format2 : format1;
+}
+
+template <typename Map, typename Serializer>
+std::vector<digitalkhatt::ByteBuffer> splitMapBySerializedSize(
+    Map values, Serializer&& serialize, const std::string& description) {
+  std::deque<Map> pending;
+  pending.push_back(std::move(values));
+  std::vector<digitalkhatt::ByteBuffer> result;
+  while (!pending.empty()) {
+    auto current = std::move(pending.front());
+    pending.pop_front();
+    auto bytes = serialize(current);
+    if (bytes.size() <= 0xFFFF) {
+      result.push_back(std::move(bytes));
+      continue;
+    }
+    if (current.size() < 2)
+      throw std::runtime_error("Unsplittable " + description +
+                               " exceeds Offset16");
+
+    Map first;
+    Map second;
+    const auto splitAt = current.size() / 2;
+    std::size_t index = 0;
+    for (auto& item : current)
+      (index++ < splitAt ? first : second).insert(item);
+    pending.push_front(std::move(second));
+    pending.push_front(std::move(first));
+  }
+  return result;
+}
+
+}  // namespace
 
 Subtable::Subtable(Lookup* lookup) {
   m_lookup = lookup;
@@ -128,10 +196,26 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() 
     GlyphExpansion expan = expansion.at(glyphCode);
 
     if (expan.MinLeftTatweel != 0 || expan.MinRightTatweel != 0) {
+      auto clampParameters = [this, substGlyph](GlyphParameters parameters) {
+        auto* glyph = m_layout->getGlyph(substGlyph);
+        if (glyph != nullptr && glyph->isAlternate)
+          glyph = &m_layout->glyphs[glyph->originalglyph];
+        if (glyph == nullptr) return parameters;
+        const auto limits = m_layout->expandableGlyphs.find(glyph->name);
+        if (limits == m_layout->expandableGlyphs.end()) return parameters;
+        parameters.lefttatweel =
+            std::clamp(parameters.lefttatweel, limits->second.minLeft,
+                       limits->second.maxLeft);
+        parameters.righttatweel =
+            std::clamp(parameters.righttatweel, limits->second.minRight,
+                       limits->second.maxRight);
+        return parameters;
+      };
       GlyphParameters parameters;
 
       parameters.lefttatweel = (double)expan.MinLeftTatweel;
       parameters.righttatweel = (double)expan.MinRightTatweel;
+      parameters = clampParameters(parameters);
 
       auto& addedSubstGlyphs = m_layout->getSubstEquivGlyphs(substGlyph);
 
@@ -158,6 +242,7 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() 
 
         parameters.lefttatweel = addedGlyph.second->charlt + (double)expan.MinLeftTatweel;
         parameters.righttatweel = addedGlyph.second->charrt + (double)expan.MinRightTatweel;
+        parameters = clampParameters(parameters);
 
         auto found = addedSubstGlyphs.find(parameters);
 
@@ -193,6 +278,21 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() 
   root.append(coverage);
 
   return root;
+}
+
+std::vector<digitalkhatt::ByteBuffer>
+SingleSubtableWithTatweel::getConvertedOpenTypeTables() {
+  return splitMapBySerializedSize(
+      subst,
+      [&](const auto& values) {
+        SingleSubtableWithTatweel chunk(m_lookup);
+        chunk.name = name;
+        chunk.subst = values;
+        for (const auto& [glyphCode, substGlyph] : values)
+          chunk.expansion.emplace(glyphCode, expansion.at(glyphCode));
+        return chunk.getConvertedOpenTypeTable();
+      },
+      "converted SingleSubst " + m_lookup->name + "/" + name);
 }
 digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer root;
@@ -461,6 +561,21 @@ digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
   return root;
 }
 
+std::vector<digitalkhatt::ByteBuffer>
+SingleSubtableWithTatweel::getOpenTypeTables(bool extended) {
+  return splitMapBySerializedSize(
+      subst,
+      [&](const auto& values) {
+        SingleSubtableWithTatweel chunk(m_lookup);
+        chunk.name = name;
+        chunk.subst = values;
+        for (const auto& [glyphCode, substGlyph] : values)
+          chunk.expansion.emplace(glyphCode, expansion.at(glyphCode));
+        return chunk.getOpenTypeTable(extended);
+      },
+      "SingleSubstWithTatweel " + m_lookup->name + "/" + name);
+}
+
 digitalkhatt::ByteBuffer SingleSubtable::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer root;
   digitalkhatt::ByteBuffer coverage;
@@ -476,7 +591,30 @@ digitalkhatt::ByteBuffer SingleSubtable::getOpenTypeTable(bool extended) {
       auto& afterGlyphs = m_layout->getSubstEquivGlyphs(after);
 
       for (auto& addedGlyph : beforeGlyphs) {
-        auto ret = afterGlyphs.find(addedGlyph.first);
+        GlyphParameters targetParameters{};
+        targetParameters.lefttatweel = addedGlyph.second->charlt;
+        targetParameters.righttatweel = addedGlyph.second->charrt;
+        auto* target = m_layout->getGlyph(after);
+        if (target != nullptr && target->isAlternate)
+          target = &m_layout->glyphs[target->originalglyph];
+        if (target == nullptr ||
+            !m_layout->expandableGlyphs.contains(target->name)) {
+          newSubst.emplace(addedGlyph.second->charcode, after);
+          continue;
+        }
+        const auto& limits = m_layout->expandableGlyphs.at(target->name);
+        targetParameters.lefttatweel =
+            std::clamp(targetParameters.lefttatweel, limits.minLeft,
+                       limits.maxLeft);
+        targetParameters.righttatweel =
+            std::clamp(targetParameters.righttatweel, limits.minRight,
+                       limits.maxRight);
+        if (targetParameters.lefttatweel == 0 &&
+            targetParameters.righttatweel == 0) {
+          newSubst.emplace(addedGlyph.second->charcode, after);
+          continue;
+        }
+        auto ret = afterGlyphs.find(targetParameters);
         if (ret != afterGlyphs.end()) {
           newSubst.emplace(addedGlyph.second->charcode, ret->second->charcode);
         }
@@ -506,6 +644,19 @@ digitalkhatt::ByteBuffer SingleSubtable::getOpenTypeTable(bool extended) {
 
   return root;
 };
+
+std::vector<digitalkhatt::ByteBuffer>
+SingleSubtable::getOpenTypeTables(bool extended) {
+  return splitMapBySerializedSize(
+      subst,
+      [&](const auto& values) {
+        SingleSubtable chunk(m_lookup, format);
+        chunk.name = name;
+        chunk.subst = values;
+        return chunk.getOpenTypeTable(extended);
+      },
+      "SingleSubst " + m_lookup->name + "/" + name);
+}
 
 SingleSubtableWithExpansion::SingleSubtableWithExpansion(Lookup* lookup) : SingleSubtable(lookup, 10) {};
 digitalkhatt::ByteBuffer SingleSubtableWithExpansion::getOpenTypeTable(bool extended) {
@@ -643,6 +794,21 @@ digitalkhatt::ByteBuffer SingleSubtableWithExpansion::getOpenTypeTable(bool exte
 
   return root;
 };
+
+std::vector<digitalkhatt::ByteBuffer>
+SingleSubtableWithExpansion::getOpenTypeTables(bool extended) {
+  return splitMapBySerializedSize(
+      expansion,
+      [&](const auto& values) {
+        SingleSubtableWithExpansion chunk(m_lookup);
+        chunk.name = name;
+        chunk.expansion = values;
+        for (const auto& [glyphCode, glyphExpansion] : values)
+          chunk.subst.emplace(glyphCode, subst.at(glyphCode));
+        return chunk.getOpenTypeTable(extended);
+      },
+      "SingleSubstWithExpansion " + m_lookup->name + "/" + name);
+}
 
 SingleAdjustmentSubtable::SingleAdjustmentSubtable(Lookup* lookup, std::uint16_t pformat) : Subtable(lookup), format{pformat} {}
 
@@ -792,10 +958,6 @@ for(auto& varIndex : posToVar){
 
   std::uint32_t coverageOffset = 8 + valueRecords.size();
 
-  if (coverageOffset > 0xFFFF) {
-    std::cout << "Lookup " << m_lookup->name << " Subtable " << name << " Overflows : " << coverageOffset << std::endl;
-  }
-
   root << format;
   root << (std::uint16_t)coverageOffset;
   root << valueFormat;
@@ -804,6 +966,20 @@ for(auto& varIndex : posToVar){
   root.append(coverage);
 
   return root;
+}
+
+std::vector<digitalkhatt::ByteBuffer>
+SingleAdjustmentSubtable::getOpenTypeTables(bool extended) {
+  return splitMapBySerializedSize(
+      singlePos,
+      [&](const auto& values) {
+        SingleAdjustmentSubtable chunk(m_lookup, format);
+        chunk.name = name;
+        chunk.singlePos = values;
+        chunk.parameters = parameters;
+        return chunk.getOpenTypeTable(extended);
+      },
+      "SinglePos " + m_lookup->name + "/" + name);
 }
 void SingleAdjustmentSubtable::readParameters(const ParameterJsonObject& json) {
   const auto found = json.find("parameters");
@@ -995,10 +1171,6 @@ digitalkhatt::ByteBuffer PairAdjustmentSubtable::getOpenTypeTable(bool extended)
   }
   std::uint32_t coverageOffset = headerSize + pairSetOffsets.size() + pairSetTables.size();
 
-  if (coverageOffset > 0xFFFF) {
-    std::cout << "Lookup " << m_lookup->name << " Subtable " << name << " Overflows : " << coverageOffset << std::endl;
-  }
-
   root << format;
   root << (std::uint16_t)coverageOffset;
   root << (std::uint16_t)valueFormat1;
@@ -1050,6 +1222,19 @@ digitalkhatt::ByteBuffer MultipleSubtable::getOpenTypeTable(bool extended) {
 
   return root;
 };
+
+std::vector<digitalkhatt::ByteBuffer>
+MultipleSubtable::getOpenTypeTables(bool extended) {
+  return splitMapBySerializedSize(
+      subst,
+      [&](const auto& values) {
+        MultipleSubtable chunk(m_lookup);
+        chunk.name = name;
+        chunk.subst = values;
+        return chunk.getOpenTypeTable(extended);
+      },
+      "MultipleSubst " + m_lookup->name + "/" + name);
+}
 
 void MultipleSubtable::readJson(const ParameterJsonObject& json) {
   subst.clear();
@@ -1132,6 +1317,19 @@ digitalkhatt::ByteBuffer AlternateSubtable::getOpenTypeTable(bool extended) {
   return root;
 };
 
+std::vector<digitalkhatt::ByteBuffer>
+AlternateSubtable::getOpenTypeTables(bool extended) {
+  return splitMapBySerializedSize(
+      alternates,
+      [&](const auto& values) {
+        AlternateSubtable chunk(m_lookup, format);
+        chunk.name = name;
+        chunk.alternates = values;
+        return chunk.getOpenTypeTable(extended);
+      },
+      "AlternateSubst " + m_lookup->name + "/" + name);
+}
+
 AlternateSubtableWithTatweel::AlternateSubtableWithTatweel(Lookup* lookup) : AlternateSubtable(lookup, 10) {};
 
 void AlternateSubtableWithTatweel::generateSubstEquivGlyphs() {
@@ -1207,52 +1405,99 @@ digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getOpenTypeTable(bool ext
   return root;
 };
 
-digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
-  digitalkhatt::ByteBuffer root;
-  digitalkhatt::ByteBuffer coverage;
-  digitalkhatt::ByteBuffer sequencetables;
+std::vector<digitalkhatt::ByteBuffer>
+AlternateSubtableWithTatweel::getOpenTypeTables(bool extended) {
+  return splitMapBySerializedSize(
+      alternates,
+      [&](const auto& values) {
+        AlternateSubtableWithTatweel chunk(m_lookup);
+        chunk.name = name;
+        chunk.alternates = values;
+        return chunk.getOpenTypeTable(extended);
+      },
+      "AlternateSubstWithTatweel " + m_lookup->name + "/" + name);
+}
 
-  std::uint16_t total = alternates.size();
-  unsigned int coverage_size = 2 + 2 + 2 * total;
-  std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * total;
-  std::uint16_t debutsequence = coverage_offset + coverage_size;
+std::map<std::uint16_t, std::vector<std::uint16_t>>
+AlternateSubtableWithTatweel::getConvertedAlternates() {
+  std::map<std::uint16_t, std::vector<std::uint16_t>> convertedAlternates;
+  auto resolveTarget = [this](const ExtendedGlyph& alternateGlyph,
+                              double inputLeft, double inputRight) {
+    GlyphParameters parameters{};
+    parameters.lefttatweel = inputLeft + alternateGlyph.lefttatweel;
+    parameters.righttatweel = inputRight + alternateGlyph.righttatweel;
 
-  root << (std::uint16_t)1;
-  root << coverage_offset;
-  root << total;
-
-  coverage << (std::uint16_t)1;
-  coverage << (std::uint16_t)total;
-
-  for (const auto& [glyphCode, seqtable] : alternates) {
-    root << debutsequence;
-    coverage << glyphCode;
-    sequencetables << (std::uint16_t)seqtable.size();
-
-    for (auto& alternateGlyph : seqtable) {
-      if (alternateGlyph.lefttatweel != 0.0 || alternateGlyph.righttatweel != 0.0) {
-        GlyphParameters parameters{};
-
-        parameters.lefttatweel = alternateGlyph.lefttatweel;
-        parameters.righttatweel = alternateGlyph.righttatweel;
-
-        auto newGlyph = m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
-
-        sequencetables << (std::uint16_t)newGlyph->charcode;
-      } else {
-        sequencetables << (std::uint16_t)alternateGlyph.code;
+    auto* target = m_layout->getGlyph(alternateGlyph.code);
+    if (target != nullptr && target->isAlternate)
+      target = &m_layout->glyphs[target->originalglyph];
+    if (target != nullptr) {
+      const auto limits = m_layout->expandableGlyphs.find(target->name);
+      if (limits != m_layout->expandableGlyphs.end()) {
+        parameters.lefttatweel =
+            std::clamp(parameters.lefttatweel, limits->second.minLeft,
+                       limits->second.maxLeft);
+        parameters.righttatweel =
+            std::clamp(parameters.righttatweel, limits->second.minRight,
+                       limits->second.maxRight);
       }
     }
-    // sequencetables << seqtable;
 
-    debutsequence += 2 + 2 * seqtable.size();
+    if (parameters.lefttatweel == 0 && parameters.righttatweel == 0)
+      return static_cast<std::uint16_t>(alternateGlyph.code);
+    const auto& targets =
+        m_layout->getSubstEquivGlyphs(alternateGlyph.code);
+    const auto found = targets.find(parameters);
+    return found == targets.end()
+               ? static_cast<std::uint16_t>(alternateGlyph.code)
+               : static_cast<std::uint16_t>(found->second->charcode);
+  };
+
+  for (const auto& [glyphCode, seqtable] : alternates) {
+    auto& baseSequence = convertedAlternates[glyphCode];
+    for (const auto& alternateGlyph : seqtable)
+      baseSequence.push_back(resolveTarget(alternateGlyph, 0, 0));
+
+    for (const auto& [inputParameters, inputGlyph] :
+         m_layout->getSubstEquivGlyphs(glyphCode)) {
+      auto& sequence = convertedAlternates[inputGlyph->charcode];
+      for (const auto& alternateGlyph : seqtable)
+        sequence.push_back(resolveTarget(alternateGlyph, inputGlyph->charlt,
+                                         inputGlyph->charrt));
+    }
   }
 
-  root.append(coverage);
-  root.append(sequencetables);
+  return convertedAlternates;
+}
 
-  return root;
-};
+digitalkhatt::ByteBuffer
+AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
+  AlternateSubtable chunk(m_lookup, 1);
+  chunk.name = name;
+  for (const auto& [glyphCode, sequence] : getConvertedAlternates()) {
+    auto& output = chunk.alternates[glyphCode];
+    for (const auto target : sequence)
+      output.push_back({target, 0, 0});
+  }
+  return chunk.getOpenTypeTable(false);
+}
+
+std::vector<digitalkhatt::ByteBuffer>
+AlternateSubtableWithTatweel::getConvertedOpenTypeTables() {
+  const auto converted = getConvertedAlternates();
+  return splitMapBySerializedSize(
+      converted,
+      [&](const auto& values) {
+        AlternateSubtable chunk(m_lookup, 1);
+        chunk.name = name;
+        for (const auto& [glyphCode, sequence] : values) {
+          auto& output = chunk.alternates[glyphCode];
+          for (const auto target : sequence)
+            output.push_back({target, 0, 0});
+        }
+        return chunk.getOpenTypeTable(false);
+      },
+      "converted AlternateSubst " + m_lookup->name + "/" + name);
+}
 
 LigatureSubtable::LigatureSubtable(Lookup* lookup) : Subtable(lookup) {
 }
@@ -1323,6 +1568,27 @@ digitalkhatt::ByteBuffer LigatureSubtable::getOpenTypeTable(bool extended) {
 
   return root;
 };
+
+std::vector<digitalkhatt::ByteBuffer>
+LigatureSubtable::getOpenTypeTables(bool extended) {
+  std::map<std::uint16_t, std::vector<Ligature>> byFirstGlyph;
+  for (const auto& ligature : ligatures) {
+    if (ligature.componentGlyphIDs.empty()) continue;
+    byFirstGlyph[ligature.componentGlyphIDs.front()].push_back(ligature);
+  }
+  return splitMapBySerializedSize(
+      std::move(byFirstGlyph),
+      [&](const auto& values) {
+        LigatureSubtable chunk(m_lookup);
+        chunk.name = name;
+        for (const auto& [firstGlyph, groupedLigatures] : values)
+          chunk.ligatures.insert(chunk.ligatures.end(),
+                                 groupedLigatures.begin(),
+                                 groupedLigatures.end());
+        return chunk.getOpenTypeTable(extended);
+      },
+      "LigatureSubst " + m_lookup->name + "/" + name);
+}
 
 void LigatureSubtable::readJson(const ParameterJsonObject& json) {
   ligatures.clear();
@@ -1550,8 +1816,15 @@ void CursiveSubtable::setAnchorTable(std::uint16_t glyphCode,
                                      digitalkhatt::ByteBuffer& anchorTables,
                                      std::uint32_t& anchorOffset,
                                      std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
+                                     std::map<std::pair<int, int>,
+                                              std::uint16_t>& sharedAnchors,
                                      bool extended,
-                                     bool isEntry) {
+                                     bool isEntry,
+                                     bool enabled) {
+  if (!enabled) {
+    entryExitRecords << (std::uint16_t)0;
+    return;
+  }
   const auto& glyphName = m_layout->glyphNamePerCode[glyphCode];
 
   std::string originalGlyphName = glyphName;
@@ -1577,6 +1850,16 @@ void CursiveSubtable::setAnchorTable(std::uint16_t glyphCode,
   }
 
   Point anchor{*(calcanchor)};
+
+  if (!m_layout->isOTVar) {
+    const auto key = std::pair{anchor.x(), anchor.y()};
+    const auto found = sharedAnchors.find(key);
+    if (found != sharedAnchors.end()) {
+      entryExitRecords << found->second;
+      return;
+    }
+    sharedAnchors.emplace(key, static_cast<std::uint16_t>(anchorOffset));
+  }
 
   entryExitRecords << (std::uint16_t)anchorOffset;
 
@@ -1650,38 +1933,49 @@ void CursiveSubtable::setAnchorTable(std::uint16_t glyphCode,
 }
 
 digitalkhatt::ByteBuffer CursiveSubtable::getOpenTypeTable(bool extended) {
+  return buildOpenTypeTable(extended, nullptr, nullptr);
+}
+
+digitalkhatt::ByteBuffer CursiveSubtable::buildOpenTypeTable(
+    bool extended,
+    const std::unordered_set<std::uint16_t>* entryGlyphs,
+    const std::unordered_set<std::uint16_t>* exitGlyphs) {
   digitalkhatt::ByteBuffer anchorTables;
   digitalkhatt::ByteBuffer entryExitRecords;
 
-  std::uint16_t entryExitCount = anchors.size();
+  std::vector<std::uint16_t> coveredGlyphs;
+  coveredGlyphs.reserve(anchors.size());
+  for (const auto& [glyphCode, anchor] : anchors) {
+    if ((!entryGlyphs || entryGlyphs->contains(glyphCode)) ||
+        (!exitGlyphs || exitGlyphs->contains(glyphCode))) {
+      coveredGlyphs.push_back(glyphCode);
+    }
+  }
+
+  std::uint16_t entryExitCount = coveredGlyphs.size();
 
   // std::uint16_t coverageOffset = 2 + 2 + 2 + entryExitCount * 4;
   // std::uint32_t anchorOffset = coverageOffset + 2 + 2 + 2 * entryExitCount;
 
   std::uint32_t anchorOffset = 2 + 2 + 2 + entryExitCount * 4;
 
-  digitalkhatt::ByteBuffer coverage;
-  coverage << (std::uint16_t)1 << entryExitCount;
-  for (const auto& [glyphCode, anchor] : anchors) coverage << glyphCode;
-
-  bool rtl = m_lookup->flags & Lookup::Flags::RightToLeft;
+  auto coverage = makeCoverage(coveredGlyphs);
 
   std::map<int, std::pair<int, std::pair<int, int>>> posToVar;
+  std::map<std::pair<int, int>, std::uint16_t> sharedAnchors;
 
-  for (const auto& [glyphCode, anchor] : anchors) {
-    setAnchorTable(glyphCode, entryExitRecords, anchorTables, anchorOffset, posToVar, extended, true);
-    setAnchorTable(glyphCode, entryExitRecords, anchorTables, anchorOffset, posToVar, extended, false);
+  for (auto glyphCode : coveredGlyphs) {
+    setAnchorTable(glyphCode, entryExitRecords, anchorTables, anchorOffset,
+                   posToVar, sharedAnchors, extended, true,
+                   !entryGlyphs || entryGlyphs->contains(glyphCode));
+    setAnchorTable(glyphCode, entryExitRecords, anchorTables, anchorOffset,
+                   posToVar, sharedAnchors, extended, false,
+                   !exitGlyphs || exitGlyphs->contains(glyphCode));
   }
 
   setVariationIndexOffset(anchorTables, anchorOffset, posToVar);
 
   std::uint32_t coverageOffset = 6 + entryExitRecords.size() + anchorTables.size();
-
-  if (coverageOffset > 0xFFFF) {
-    std::cout << "Lookup " << m_lookup->name << " Subtable " << name
-              << " Overflows. coverageOffset=" << coverageOffset
-              << std::endl;
-  }
 
   digitalkhatt::ByteBuffer root;
   root << (std::uint16_t)1;
@@ -1692,6 +1986,73 @@ digitalkhatt::ByteBuffer CursiveSubtable::getOpenTypeTable(bool extended) {
   root.append(coverage);
 
   return root;
+}
+
+std::vector<digitalkhatt::ByteBuffer>
+PairAdjustmentSubtable::getOpenTypeTables(bool extended) {
+  auto unsplit = getOpenTypeTable(extended);
+  if (unsplit.size() <= std::numeric_limits<std::uint16_t>::max())
+    return {std::move(unsplit)};
+
+  return splitMapBySerializedSize(
+      pairPos,
+      [&](const auto& values) {
+        PairAdjustmentSubtable chunk(m_lookup, format);
+        chunk.name = name;
+        chunk.pairPos = values;
+        chunk.parameters = parameters;
+        return chunk.getOpenTypeTable(extended);
+      },
+      "PairPos " + m_lookup->name + "/" + name);
+}
+
+std::vector<digitalkhatt::ByteBuffer>
+CursiveSubtable::getOpenTypeTables(bool extended) {
+  auto unsplit = buildOpenTypeTable(extended, nullptr, nullptr);
+  if (unsplit.size() <= 0xFFFF) {
+    openTypeSubTable = unsplit;
+    isDirty = false;
+    return {std::move(unsplit)};
+  }
+
+  /*
+   * Cursive attachment reads the current entry and the preceding exit from
+   * the same physical subtable.  Partitioning both dimensions and emitting
+   * their Cartesian product preserves every possible attachment.
+   *
+   * Format-3 variable anchors can require 10 bytes plus two six-byte
+   * VariationIndex tables, so variable output uses a 2000-glyph bound.
+   * Format-1 non-variable anchors are substantially
+   * smaller and identical anchors share one serialized Anchor table.  A
+   * 4000-glyph group keeps an entry/exit union below Offset16 while reducing
+   * the Cartesian subtable count substantially.
+   */
+  const std::size_t glyphsPerGroup = m_layout->isOTVar ? 2000 : 4000;
+  std::vector<std::vector<std::uint16_t>> groups;
+  for (const auto& [glyphCode, anchor] : anchors) {
+    if (groups.empty() || groups.back().size() == glyphsPerGroup)
+      groups.emplace_back();
+    groups.back().push_back(glyphCode);
+  }
+
+  std::vector<digitalkhatt::ByteBuffer> result;
+  result.reserve(groups.size() * groups.size());
+  for (const auto& entryGroup : groups) {
+    std::unordered_set<std::uint16_t> entryGlyphs(entryGroup.begin(),
+                                                  entryGroup.end());
+    for (const auto& exitGroup : groups) {
+      std::unordered_set<std::uint16_t> exitGlyphs(exitGroup.begin(),
+                                                   exitGroup.end());
+      auto part = buildOpenTypeTable(extended, &entryGlyphs, &exitGlyphs);
+      if (part.size() > 0xFFFF) {
+        throw std::runtime_error(
+            "CursivePos chunk still exceeds Offset16 in lookup " +
+            m_lookup->name + ", subtable " + name);
+      }
+      result.push_back(std::move(part));
+    }
+  }
+  return result;
 }
 void MarkBaseSubtable::saveParameters(ParameterJsonObject& json) const {
   for (auto it = classes.cbegin(); it != classes.cend(); ++it) {
@@ -1925,14 +2286,6 @@ void Subtable::setVariationIndexOffset(
     digitalkhatt::ByteBuffer& anchorTables,
     std::uint32_t anchorOffset,
     std::map<int, std::pair<int, std::pair<int, int>>>& posToVar) {
-  if (anchorOffset > 0xFFFF) {
-    std::cout << "Lookup " << m_lookup->name << " Subtable " << name
-              << " Overflows. anchorOffset=" << anchorOffset
-              << std::endl;
-  }
-
-  int total = 0;
-  int found = 0;
   std::map<std::pair<int, int>, int> indexes;
 
   for (auto& varIndex : posToVar) {
@@ -1944,7 +2297,6 @@ void Subtable::setVariationIndexOffset(
 
     auto it = indexes.find(index);
     if (it != indexes.end()) {
-      found++;
       offset = it->second;
     } else {
       offset = anchorTables.size();
@@ -1953,14 +2305,7 @@ void Subtable::setVariationIndexOffset(
       anchorTables << (std::uint16_t)index.second;
       anchorTables << (std::uint16_t)0x8000;
     }
-    total++;
-
     std::uint32_t offsetFromAnchorTable = offset - start;
-    if (offsetFromAnchorTable > 0xFFFF) {
-      std::cout << "Lookup " << m_lookup->name << " Subtable " << name
-                << " Overflows. offsetFromAnchorTable=" << offsetFromAnchorTable
-                << std::endl;
-    }
     digitalkhatt::ByteBuffer offsetData;
     offsetData << (std::uint16_t)offsetFromAnchorTable;
     anchorTables.replace(pos, offsetData.size(), offsetData);
@@ -2023,18 +2368,20 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
   std::map<int, std::pair<int, std::pair<int, int>>> basePosToVar;
 
-  baseCoverage << (std::uint16_t)1 << baseCount;
+  std::vector<std::uint16_t> serializedBaseCodes;
+  serializedBaseCodes.reserve(sortedBaseCodes.size());
   baseArray << baseCount;
 
   for (int i = 0; i < sortedBaseCodes.size(); ++i) {
     std::uint16_t glyphCode = sortedBaseCodes.at(i);
     const auto& baseglyphName = m_layout->glyphNamePerCode[glyphCode];
-    baseCoverage << glyphCode;
+    serializedBaseCodes.push_back(glyphCode);
     for (auto it = classes.cbegin(); it != classes.cend(); ++it) {
       baseArray << (std::uint16_t)baseAnchorOffset;
       setAnchorTable(it->first, glyphCode, baseAnchorTables, baseAnchorOffset, basePosToVar, extended, true);
     }
   }
+  baseCoverage = makeCoverage(serializedBaseCodes);
   setVariationIndexOffset(baseAnchorTables, baseAnchorOffset, basePosToVar);
   baseArray.append(baseAnchorTables);
 
@@ -2044,7 +2391,8 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
   std::map<int, std::pair<int, std::pair<int, int>>> markPosToVar;
 
-  markCoverage << (std::uint16_t)1 << markCount;
+  std::vector<std::uint16_t> serializedMarkCodes;
+  serializedMarkCodes.reserve(markCodes.size());
   markArray << markCount;
 
   for (auto it = markCodes.cbegin(); it != markCodes.cend(); ++it) {
@@ -2052,12 +2400,13 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
     std::uint16_t classIndex = it->second;
     const std::string& className = classNamebyIndex[classIndex];
 
-    markCoverage << charcode;
+    serializedMarkCodes.push_back(charcode);
 
     markArray << classIndex;
     markArray << (std::uint16_t)markAnchorOffset;
     setAnchorTable(className, charcode, markAnchorTables, markAnchorOffset, markPosToVar, extended, false);
   }
+  markCoverage = makeCoverage(serializedMarkCodes);
   setVariationIndexOffset(markAnchorTables, markAnchorOffset, markPosToVar);
   markArray.append(markAnchorTables);
 
@@ -2065,14 +2414,6 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
   std::uint32_t baseCoverageOffset = markCoverageOffset + markCoverage.size();
   std::uint32_t markArrayOffset = baseCoverageOffset + baseCoverage.size();
   std::uint32_t baseArrayOffset = markArrayOffset + markArray.size();
-
-  if (baseArrayOffset > 0xFFFF) {
-    std::cout << "Lookup " << m_lookup->name << " Subtable " << name
-              << " Overflows. baseCoverageOffset=" << baseCoverageOffset
-              << " markArrayOffset=" << markArrayOffset
-              << " baseArrayOffset=" << baseArrayOffset
-              << std::endl;
-  }
 
   root << (std::uint16_t)1 << (std::uint16_t)markCoverageOffset << (std::uint16_t)baseCoverageOffset << markClassCount << (std::uint16_t)markArrayOffset << (std::uint16_t)baseArrayOffset;
   root.append(markCoverage);
@@ -2085,6 +2426,109 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
   return openTypeSubTable;
 };
+
+std::vector<digitalkhatt::ByteBuffer>
+MarkBaseSubtable::getOpenTypeTables(bool extended) {
+  auto unsplit = getOpenTypeTable(extended);
+  if (unsplit.size() <= 0xFFFF) return {std::move(unsplit)};
+  openTypeSubTable.clear();
+  isDirty = true;
+
+  struct Chunk {
+    std::map<std::string, MarkClass> classes;
+    std::vector<std::uint16_t> bases;
+  };
+
+  Chunk initial{classes, sortedBaseCodes};
+  if (initial.bases.empty()) {
+    std::set<std::uint16_t> baseCodes;
+    for (const auto& baseClass : base) {
+      const auto codes = m_layout->classtoUnicode(baseClass);
+      baseCodes.insert(codes.begin(), codes.end());
+    }
+    initial.bases.assign(baseCodes.begin(), baseCodes.end());
+  }
+
+  // Materialize mark glyph IDs so a single oversized class can be divided.
+  for (auto& [className, markClass] : initial.classes) {
+    if (!markClass.markCodes.empty()) continue;
+    for (const auto& markName : markClass.mark) {
+      const auto codes = m_layout->classtoUnicode(markName);
+      markClass.markCodes.insert(codes.begin(), codes.end());
+    }
+  }
+
+  std::deque<Chunk> pending;
+  pending.push_back(std::move(initial));
+  std::vector<digitalkhatt::ByteBuffer> result;
+
+  while (!pending.empty()) {
+    auto chunkData = std::move(pending.front());
+    pending.pop_front();
+
+    MarkBaseSubtable chunk(m_lookup);
+    chunk.name = name;
+    chunk.classes = chunkData.classes;
+    chunk.sortedBaseCodes = chunkData.bases;
+    auto bytes = chunk.getOpenTypeTable(extended);
+    if (bytes.size() <= 0xFFFF) {
+      result.push_back(std::move(bytes));
+      continue;
+    }
+
+    if (chunkData.classes.size() > 1) {
+      Chunk first{{}, chunkData.bases};
+      Chunk second{{}, chunkData.bases};
+      const auto splitAt = chunkData.classes.size() / 2;
+      std::size_t index = 0;
+      for (auto& item : chunkData.classes) {
+        (index++ < splitAt ? first.classes : second.classes).insert(item);
+      }
+      pending.push_front(std::move(second));
+      pending.push_front(std::move(first));
+      continue;
+    }
+
+    if (chunkData.bases.size() > 1) {
+      const auto splitAt = chunkData.bases.size() / 2;
+      Chunk first{chunkData.classes,
+                  {chunkData.bases.begin(),
+                   chunkData.bases.begin() + splitAt}};
+      Chunk second{chunkData.classes,
+                   {chunkData.bases.begin() + splitAt,
+                    chunkData.bases.end()}};
+      pending.push_front(std::move(second));
+      pending.push_front(std::move(first));
+      continue;
+    }
+
+    auto& onlyClass = chunkData.classes.begin()->second;
+    if (onlyClass.markCodes.size() > 1) {
+      std::vector<std::uint16_t> marks(onlyClass.markCodes.begin(),
+                                       onlyClass.markCodes.end());
+      const auto splitAt = marks.size() / 2;
+      Chunk first = chunkData;
+      Chunk second = chunkData;
+      first.classes.begin()->second.mark.clear();
+      second.classes.begin()->second.mark.clear();
+      first.classes.begin()->second.markCodes =
+          std::unordered_set<std::uint16_t>(marks.begin(),
+                                            marks.begin() + splitAt);
+      second.classes.begin()->second.markCodes =
+          std::unordered_set<std::uint16_t>(marks.begin() + splitAt,
+                                            marks.end());
+      pending.push_front(std::move(second));
+      pending.push_front(std::move(first));
+      continue;
+    }
+
+    throw std::runtime_error(
+        "A single MarkBasePos record exceeds Offset16 in lookup " +
+        m_lookup->name + ", subtable " + name);
+  }
+
+  return result;
+}
 
 ChainingSubtable::ChainingSubtable(Lookup* lookup) : Subtable(lookup) {}
 
@@ -2230,4 +2674,84 @@ digitalkhatt::ByteBuffer ChainingSubtable::getOpenTypeTable(bool extended) {
   root.append(coverages);
 
   return root;
+}
+
+std::vector<digitalkhatt::ByteBuffer>
+ChainingSubtable::getOpenTypeTables(bool extended) {
+  std::vector<digitalkhatt::ByteBuffer> result;
+  CompiledRule convertedRule = compiledRule;
+  if (!extended) {
+    auto includeEquivalentGlyphs = [this](auto& coverages) {
+      for (auto& coverage : coverages) {
+        const auto original = coverage;
+        for (const auto glyphCode : original) {
+          for (const auto& [parameters, glyph] :
+               m_layout->getSubstEquivGlyphs(glyphCode))
+            coverage.insert(glyph->charcode);
+        }
+      }
+    };
+    includeEquivalentGlyphs(convertedRule.backtrack);
+    includeEquivalentGlyphs(convertedRule.input);
+    includeEquivalentGlyphs(convertedRule.lookahead);
+  }
+  std::vector<CompiledRule> pending{std::move(convertedRule)};
+
+  while (!pending.empty()) {
+    CompiledRule rule = std::move(pending.back());
+    pending.pop_back();
+
+    ChainingSubtable chunk(m_lookup);
+    chunk.name = name;
+    chunk.compiledRule = rule;
+    auto bytes = chunk.getOpenTypeTable(extended);
+    if (bytes.size() <= std::numeric_limits<std::uint16_t>::max()) {
+      result.push_back(std::move(bytes));
+      continue;
+    }
+
+    std::unordered_set<std::uint16_t>* largest = nullptr;
+    auto consider = [&largest](auto& coverages) {
+      for (auto& coverage : coverages) {
+        if (largest == nullptr || coverage.size() > largest->size())
+          largest = &coverage;
+      }
+    };
+    consider(rule.backtrack);
+    consider(rule.input);
+    consider(rule.lookahead);
+    if (largest == nullptr || largest->size() < 2) {
+      throw std::runtime_error(
+          "Chaining contextual subtable cannot be split below Offset16: " +
+          m_lookup->name + "/" + name);
+    }
+
+    std::vector<std::uint16_t> values(largest->begin(), largest->end());
+    const auto split = values.begin() + values.size() / 2;
+    std::unordered_set<std::uint16_t> first(values.begin(), split);
+    std::unordered_set<std::uint16_t> second(split, values.end());
+
+    CompiledRule other = rule;
+    auto replaceCoverage = [largest, &rule](auto& original,
+                                            auto& duplicate,
+                                            const auto& firstValues,
+                                            const auto& secondValues) {
+      for (std::size_t index = 0; index < original.size(); ++index) {
+        if (&original[index] == largest) {
+          original[index] = firstValues;
+          duplicate[index] = secondValues;
+          return true;
+        }
+      }
+      return false;
+    };
+    if (!replaceCoverage(rule.backtrack, other.backtrack, first, second) &&
+        !replaceCoverage(rule.input, other.input, first, second))
+      replaceCoverage(rule.lookahead, other.lookahead, first, second);
+
+    pending.push_back(std::move(other));
+    pending.push_back(std::move(rule));
+  }
+
+  return result;
 }

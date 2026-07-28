@@ -23,6 +23,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
 #include "OtLayout.h"
@@ -78,6 +79,13 @@ class Automedina {
   std::map<std::string, std::string> addedGlyphs;
 
  protected:
+  using SubstEquivGlyphMap =
+      std::unordered_map<int,
+                         std::unordered_map<GlyphParameters, GlyphVis*>>;
+
+  bool isLookupDisabled(const std::string& lookupName) const;
+  SubstEquivGlyphMap& substEquivGlyphMap();
+
   OtLayout* m_layout;
 
   digitalkhatt::layout::ClassMap classes;

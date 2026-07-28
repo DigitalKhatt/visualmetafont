@@ -21,6 +21,7 @@
 #define OTLAYOUT_H
 
 #include "digitalkhatt/core/ByteBuffer.h"
+#include <filesystem>
 #include <iostream>
 #include <concepts>
 #include <cstdint>
@@ -250,6 +251,7 @@ class OtLayout {
   std::uint16_t addMarkSet(const std::vector<std::string>& list);
 
   void generateSubstEquivGlyphs();
+  void generateSubstEquivGlyphsLegacy();
 
   void addLookup(Lookup* lookup);
   void addTable(Lookup* lookup) {
@@ -313,6 +315,9 @@ class OtLayout {
   bool isOTVar = false;
 
   bool useNormAxisValues = true;
+  // Make the live MetaPost font use the integer advances written to hmtx.
+  // This is useful when comparing live shaping with a generated OpenType font.
+  bool quantizeGlyphAdvances = false;
 
   std::unordered_map<std::string, ValueLimits> expandableGlyphs;
 

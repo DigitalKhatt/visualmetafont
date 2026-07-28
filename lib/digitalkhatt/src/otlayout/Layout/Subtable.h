@@ -81,8 +81,16 @@ struct Subtable {
       return openTypeSubTable;
     }
   };
+  virtual std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) {
+    return {getOptOpenTypeTable(extended)};
+  }
   virtual digitalkhatt::ByteBuffer getConvertedOpenTypeTable() {
     return getOpenTypeTable(false);
+  }
+  virtual std::vector<digitalkhatt::ByteBuffer>
+  getConvertedOpenTypeTables() {
+    return {getConvertedOpenTypeTable()};
   }
 
   virtual void generateSubstEquivGlyphs() {
@@ -126,6 +134,8 @@ struct Subtable {
 struct SingleSubtable : Subtable {
   SingleSubtable(Lookup* lookup, std::uint16_t format = 2);
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) override;
   void readJson(const ParameterJsonObject& json) override;
 
   std::map<std::uint16_t, std::uint16_t> subst;
@@ -138,6 +148,8 @@ struct SingleSubtable : Subtable {
 struct SingleSubtableWithExpansion : SingleSubtable {
   SingleSubtableWithExpansion(Lookup* lookup);
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) override;
 
   std::map<std::uint16_t, GlyphExpansion> expansion;
 
@@ -151,10 +163,14 @@ struct SingleSubtableWithTatweel : SingleSubtable {
   std::map<std::uint16_t, GlyphExpansion> expansion;
 
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) override;
 
   bool isConvertible() override { return true; }
 
   digitalkhatt::ByteBuffer getConvertedOpenTypeTable() override;
+  std::vector<digitalkhatt::ByteBuffer>
+  getConvertedOpenTypeTables() override;
 
   virtual void generateSubstEquivGlyphs() override;
 };
@@ -162,6 +178,8 @@ struct SingleSubtableWithTatweel : SingleSubtable {
 struct MultipleSubtable : Subtable {
   MultipleSubtable(Lookup* lookup);
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) override;
   void readJson(const ParameterJsonObject& json) override;
 
   std::map<std::uint16_t, std::vector<std::uint16_t>> subst;
@@ -172,6 +190,8 @@ struct MultipleSubtable : Subtable {
 struct AlternateSubtable : Subtable {
   AlternateSubtable(Lookup* lookup, std::uint16_t format = 1);
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) override;
 
   std::map<std::uint16_t, std::vector<ExtendedGlyph>> alternates;
 
@@ -184,10 +204,16 @@ struct AlternateSubtableWithTatweel : AlternateSubtable {
   AlternateSubtableWithTatweel(Lookup* lookup);
 
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) override;
 
   bool isConvertible() override { return true; }
 
   digitalkhatt::ByteBuffer getConvertedOpenTypeTable() override;
+  std::vector<digitalkhatt::ByteBuffer>
+  getConvertedOpenTypeTables() override;
+  std::map<std::uint16_t, std::vector<std::uint16_t>>
+  getConvertedAlternates();
 
   virtual void generateSubstEquivGlyphs() override;
 };
@@ -195,6 +221,8 @@ struct AlternateSubtableWithTatweel : AlternateSubtable {
 struct LigatureSubtable : Subtable {
   LigatureSubtable(Lookup* lookup);
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) override;
   void readJson(const ParameterJsonObject& json) override;
 
   struct Ligature {
@@ -210,6 +238,8 @@ struct LigatureSubtable : Subtable {
 struct SingleAdjustmentSubtable : Subtable {
   SingleAdjustmentSubtable(Lookup* lookup, std::uint16_t format = 2);
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) override;
   void readJson(const ParameterJsonObject& json) override;
   void saveParameters(ParameterJsonObject& json) const override;
   void readParameters(const ParameterJsonObject& json) override;
@@ -234,6 +264,8 @@ struct PairAdjustmentSubtable : Subtable {
   };
   PairAdjustmentSubtable(Lookup* lookup, std::uint16_t format = 1);
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) override;
   std::map<std::uint16_t, std::map<std::uint16_t, PairValue>> pairPos;
   std::map<std::uint16_t, std::map<std::uint16_t, PairValue>> parameters;
 
@@ -256,6 +288,8 @@ struct CursiveSubtable : Subtable {
   };
   CursiveSubtable(Lookup* lookup) : Subtable{lookup} {}
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) override;
   void readJson(const ParameterJsonObject& json) override;
   void readParameters(const ParameterJsonObject& json) override;
   void saveParameters(ParameterJsonObject& json) const override;
@@ -272,13 +306,20 @@ struct CursiveSubtable : Subtable {
   virtual std::optional<Point> getExit(std::uint16_t glyph_id, GlyphParameters parameters);
 
  private:
+  digitalkhatt::ByteBuffer buildOpenTypeTable(
+      bool extended,
+      const std::unordered_set<std::uint16_t>* entryGlyphs,
+      const std::unordered_set<std::uint16_t>* exitGlyphs);
   void setAnchorTable(std::uint16_t glyphCode,
                       digitalkhatt::ByteBuffer& entryExitRecords,
                       digitalkhatt::ByteBuffer& anchorTables,
                       std::uint32_t& anchorOffset,
                       std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
+                      std::map<std::pair<int, int>, std::uint16_t>&
+                          sharedAnchors,
                       bool extended,
-                      bool isEntry);
+                      bool isEntry,
+                      bool enabled = true);
 };
 
 struct MarkBaseSubtable : Subtable {
@@ -295,6 +336,8 @@ struct MarkBaseSubtable : Subtable {
   MarkBaseSubtable(Lookup* lookup);
 
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) override;
   void readJson(const ParameterJsonObject& json) override;
   void saveParameters(ParameterJsonObject& json) const override;
   void readParameters(const ParameterJsonObject& json) override;
@@ -347,6 +390,8 @@ struct ChainingSubtable : Subtable {
 
   ChainingSubtable(Lookup* lookup);
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
+      bool extended) override;
   void readJson(const ParameterJsonObject& json) override;
 
   Rule rule;

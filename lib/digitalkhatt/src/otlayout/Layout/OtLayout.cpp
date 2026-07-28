@@ -23,6 +23,7 @@
 #include "Lookup.h"
 #include "OtLayout.h"
 #include "MPFont.h"
+
 #include "Subtable.h"
 #include "to_opentype.h"
 #include "hb-ot-cmap-table.hh"
@@ -271,9 +272,11 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
       pglyph = layout->getAlternate(pglyph->charcode, parameters);
     }
 
-    auto xadvance = hbFont->em_scale_x(pglyph->width);
+    const double metricWidth =
+        layout->quantizeGlyphAdvances ? toInt(pglyph->width) : pglyph->width;
+    auto xadvance = hbFont->em_scale_x(metricWidth);
 
-    double advance = pglyph->width;
+    double advance = metricWidth;
     // return advance; // floatToHarfBuzzPosition(advance);
     int upem = 1000;
     int xscale, yscale;
@@ -696,35 +699,89 @@ digitalkhatt::ByteBuffer OtLayout::getGDEF() {
 
   gdef_array.clear();
 
-  std::uint16_t markGlyphSetsDefOffset = 0;
-  std::uint16_t glyphClassDefOffset = 18;
+  constexpr std::uint16_t gdefHeaderSize = 18;
+  const auto markGlyphSetCount = markGlyphSets.size();
 
-  std::uint16_t glyphCount = glyphGlobalClasses.size();
-  std::uint16_t markGlyphSetCount = markGlyphSets.size();
+  struct ClassRange {
+    std::uint16_t first;
+    std::uint16_t last;
+    std::uint16_t glyphClass;
+  };
+  std::vector<ClassRange> classRanges;
+  for (const auto& [glyphCode, glyphClass] : glyphGlobalClasses) {
+    if (!classRanges.empty() &&
+        glyphCode == static_cast<std::uint16_t>(classRanges.back().last + 1) &&
+        glyphClass == classRanges.back().glyphClass) {
+      classRanges.back().last = glyphCode;
+    } else {
+      classRanges.push_back({glyphCode, glyphCode, glyphClass});
+    }
+  }
+  if (classRanges.size() > std::numeric_limits<std::uint16_t>::max()) {
+    throw std::runtime_error("GDEF ClassDef has too many ranges");
+  }
 
-  // if (markGlyphSetCount > 0) {
-  markGlyphSetsDefOffset = glyphClassDefOffset + 2 + 2 + glyphCount * 6;
-  //}
+  digitalkhatt::ByteBuffer glyphClassDef;
+  glyphClassDef.writeU16(2);  // ClassDef format 2
+  glyphClassDef.writeU16(static_cast<std::uint16_t>(classRanges.size()));
+  for (const auto& range : classRanges) {
+    glyphClassDef.writeU16(range.first);
+    glyphClassDef.writeU16(range.last);
+    glyphClassDef.writeU16(range.glyphClass);
+  }
+
+  /*
+   * Put the small MarkGlyphSetsDef header before the potentially large
+   * ClassDef and coverage payloads. Its coverage offsets are Offset32, while
+   * the GDEF header offsets to MarkGlyphSetsDef and ClassDef are Offset16.
+   */
+  digitalkhatt::ByteBuffer markGlyphSetsHeader;
+  digitalkhatt::ByteBuffer coverageTables;
+  if (markGlyphSetCount >
+      std::numeric_limits<std::uint16_t>::max()) {
+    throw std::runtime_error("GDEF has too many mark glyph sets");
+  }
+  if (markGlyphSetCount != 0) {
+    markGlyphSetsHeader.writeU16(1);
+    markGlyphSetsHeader.writeU16(
+        static_cast<std::uint16_t>(markGlyphSetCount));
+    std::uint32_t coverageOffset =
+        4 + 4 * markGlyphSetCount + glyphClassDef.size();
+    for (auto markGlyphSet : markGlyphSets) {
+      std::sort(markGlyphSet.begin(), markGlyphSet.end());
+      markGlyphSet.erase(
+          std::unique(markGlyphSet.begin(), markGlyphSet.end()),
+          markGlyphSet.end());
+      if (markGlyphSet.size() >
+          std::numeric_limits<std::uint16_t>::max()) {
+        throw std::runtime_error("GDEF mark glyph set is too large");
+      }
+      markGlyphSetsHeader.writeU32(coverageOffset);
+      coverageTables.writeU16(1);
+      coverageTables.writeU16(
+          static_cast<std::uint16_t>(markGlyphSet.size()));
+      for (auto glyphCode : markGlyphSet)
+        coverageTables.writeU16(glyphCode);
+      coverageOffset += 4 + 2 * markGlyphSet.size();
+    }
+  }
+
+  const std::uint16_t markGlyphSetsDefOffset =
+      markGlyphSetCount == 0 ? 0 : gdefHeaderSize;
+  const std::uint32_t glyphClassDefOffset32 =
+      gdefHeaderSize + markGlyphSetsHeader.size();
+  if (glyphClassDefOffset32 >
+      std::numeric_limits<std::uint16_t>::max()) {
+    throw std::runtime_error("GDEF glyphClassDefOffset exceeds Offset16");
+  }
+  const auto glyphClassDefOffset =
+      static_cast<std::uint16_t>(glyphClassDefOffset32);
 
   uint32_t itemVarStoreOffset = 0;
-
-  digitalkhatt::ByteBuffer markGlyphSetsTable;
-  digitalkhatt::ByteBuffer coverageTables;
-  markGlyphSetsTable.writeU16(1);                  // format
-  markGlyphSetsTable.writeU16(markGlyphSetCount);  // markGlyphSetCount
-  uint32_t coverageOffset = 4 + 4 * markGlyphSetCount;
-  for (auto markGlyphSet : markGlyphSets) {
-    std::sort(markGlyphSet.begin(), markGlyphSet.end());
-    markGlyphSetsTable.writeU32(coverageOffset);       // coverageOffset
-    coverageTables.writeU16(1);                        // Coverage format
-    coverageTables.writeU16(markGlyphSet.size());      // glyphCount
-    for (auto glyphCode : markGlyphSet) coverageTables.writeU16(glyphCode);
-    coverageOffset += 4 + 2 * markGlyphSet.size();
-  }
-  markGlyphSetsTable.append(coverageTables);
   auto itemVariationStore = toOpenType->getGDEFItemVariationStore();
   if (!itemVariationStore.empty())
-    itemVarStoreOffset = markGlyphSetsDefOffset + markGlyphSetsTable.size();
+    itemVarStoreOffset = gdefHeaderSize + markGlyphSetsHeader.size() +
+                         glyphClassDef.size() + coverageTables.size();
   digitalkhatt::ByteBuffer gdef;
   gdef.writeU16(1);                       // majorVersion
   gdef.writeU16(3);                       // minorVersion
@@ -734,14 +791,9 @@ digitalkhatt::ByteBuffer OtLayout::getGDEF() {
   gdef.writeU16(0);                       // markAttachClassDefOffset
   gdef.writeU16(markGlyphSetsDefOffset);  // markGlyphSetsDefOffset
   gdef.writeU32(itemVarStoreOffset);      // itemVarStoreOffset
-  gdef.writeU16(2);                       // ClassDef format
-  gdef.writeU16(glyphCount);              // classRangeCount
-  for (const auto& [glyphCode, glyphClass] : glyphGlobalClasses) {
-    gdef.writeU16(glyphCode);
-    gdef.writeU16(glyphCode);
-    gdef.writeU16(glyphClass);
-  }
-  gdef.append(markGlyphSetsTable);
+  gdef.append(markGlyphSetsHeader);
+  gdef.append(glyphClassDef);
+  gdef.append(coverageTables);
   gdef.append(itemVariationStore);
   gdef_array = std::move(gdef);
   return gdef_array;
@@ -838,12 +890,44 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
   const std::uint16_t featureListOffset = scriptListOffset + scriptList.size();
   const std::uint16_t lookupListOffset = featureListOffset + featureList.size();
   const std::uint16_t lookupCount = lookups.size();
+  std::vector<std::vector<digitalkhatt::ByteBuffer>> serializedLookups;
+  serializedLookups.reserve(lookups.size());
   std::uint32_t lookupListtotalSize = 2 + 2 * lookupCount;
   for (auto* lookup : lookups) {
-    const auto subtableCount = lookup->getSubtables(extended).size();
+    std::vector<digitalkhatt::ByteBuffer> serializedSubtables;
+    for (auto* subtable : lookup->getSubtables(extended)) {
+      auto parts = !extended && subtable->isConvertible()
+                       ? subtable->getConvertedOpenTypeTables()
+                       : subtable->getOpenTypeTables(extended);
+      for (const auto& part : parts) {
+        if (part.size() > std::numeric_limits<std::uint16_t>::max()) {
+          throw std::runtime_error(
+              "OpenType subtable exceeds Offset16 after serialization: " +
+              lookup->name + "/" + subtable->name);
+        }
+      }
+      serializedSubtables.insert(
+          serializedSubtables.end(),
+          std::make_move_iterator(parts.begin()),
+          std::make_move_iterator(parts.end()));
+    }
+    const auto subtableCount = serializedSubtables.size();
+    if (subtableCount > std::numeric_limits<std::uint16_t>::max()) {
+      throw std::runtime_error("Too many physical subtables in lookup " +
+                               lookup->name);
+    }
     lookupListtotalSize += 6 + 2 * subtableCount;
     if (lookup->markGlyphSetIndex != Lookup::NoMarkGlyphSet) lookupListtotalSize += 2;
     lookupListtotalSize += 8 * subtableCount;
+    const std::uint64_t compactLookupSize =
+        6 + 2 * subtableCount +
+        (lookup->markGlyphSetIndex != Lookup::NoMarkGlyphSet ? 2 : 0) +
+        8 * subtableCount;
+    if (compactLookupSize > std::numeric_limits<std::uint16_t>::max()) {
+      throw std::runtime_error(
+          "Extension wrappers exceed Offset16 in lookup " + lookup->name);
+    }
+    serializedLookups.push_back(std::move(serializedSubtables));
   }
   const std::uint16_t extensiontype =
       isgsub ? Lookup::extensiongsub : Lookup::extensiongpos;
@@ -861,10 +945,12 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
   digitalkhatt::ByteBuffer lookupsData;
   digitalkhatt::ByteBuffer subtablesData;
   lookupList.writeU16(lookupCount);  // lookupCount
-  uint16_t lookupOffset = 2 + 2 * lookupCount;
+  std::uint32_t lookupOffset = 2 + 2 * lookupCount;
   uint32_t subtablesDataOffset = lookupListtotalSize;
-  for (auto* lookup : lookups) {
-    const auto lookupSubtables = lookup->getSubtables(extended);
+  for (std::size_t lookupIndex = 0; lookupIndex < lookups.size();
+       ++lookupIndex) {
+    auto* lookup = lookups[lookupIndex];
+    const auto& lookupSubtables = serializedLookups[lookupIndex];
     digitalkhatt::ByteBuffer lookupTable;
     digitalkhatt::ByteBuffer extensions;
     lookupTable.writeU16(extensiontype);          // lookupType
@@ -872,15 +958,12 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
     lookupTable.writeU16(lookupSubtables.size()); // subTableCount
     uint16_t extensionOffset = 6 + 2 * lookupSubtables.size();
     if (lookup->markGlyphSetIndex != Lookup::NoMarkGlyphSet) extensionOffset += 2;
-    for (auto* subtable : lookupSubtables) {
+    for (const auto& subtableBytes : lookupSubtables) {
       lookupTable.writeU16(extensionOffset);
       extensions.writeU16(1);  // extension format
       extensions.writeU16(static_cast<std::uint16_t>(lookup->type));  // extensionLookupType
       extensions.writeU32(subtablesDataOffset -
                              (lookupOffset + extensionOffset));
-      const auto subtableBytes = !extended && subtable->isConvertible()
-                                     ? subtable->getConvertedOpenTypeTable()
-                                     : subtable->getOptOpenTypeTable(extended);
       subtablesData.append(subtableBytes);
       subtablesDataOffset += subtableBytes.size();
       extensionOffset += 8;
@@ -888,7 +971,11 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
     if (lookup->markGlyphSetIndex != Lookup::NoMarkGlyphSet)
       lookupTable.writeU16(lookup->markGlyphSetIndex);
     lookupTable.append(extensions);
-    lookupList.writeU16(lookupOffset);
+    if (lookupOffset > std::numeric_limits<std::uint16_t>::max()) {
+      throw std::runtime_error(
+          "LookupList Offset16 overflow before lookup " + lookup->name);
+    }
+    lookupList.writeU16(static_cast<std::uint16_t>(lookupOffset));
     lookupOffset += lookupTable.size();
     lookupsData.append(lookupTable);
   }
@@ -936,6 +1023,9 @@ OtLayout::OtLayout(MPFont* font, bool extended, bool generateVariableOpenType)
       throw std::runtime_error("could not locate the function");
     }
     automedina = funci(this, font, extended);
+    if (!automedina) {
+      throw std::runtime_error("font_create failed for " + ff);
+    }
   }
   nuqta();
 
@@ -977,16 +1067,16 @@ void OtLayout::setLookupDisabled(std::string lookupName, bool disabled) {
 void OtLayout::generateSubstEquivGlyphs() {
   if (!extended && substEquivGlyphs.size() == 0) {
     automedina->generateSubstEquivGlyphs();
-    for (auto lookup : lookups) {
-      if (!disabledLookups.contains(lookup->name)) {
-        if (lookup->isGsubLookup() && lookup->type != Lookup::SubType::fsmgsub) {
-          auto subtables = lookup->getSubtables(extended);
-          for (auto subtable : subtables) {
-            subtable->generateSubstEquivGlyphs();
-          }
-        }
-      }
-    }
+  }
+}
+
+void OtLayout::generateSubstEquivGlyphsLegacy() {
+  for (auto* lookup : lookups) {
+    if (disabledLookups.contains(lookup->name) || !lookup->isGsubLookup() ||
+        lookup->type == Lookup::SubType::fsmgsub)
+      continue;
+    for (auto* subtable : lookup->getSubtables(extended))
+      subtable->generateSubstEquivGlyphs();
   }
 }
 

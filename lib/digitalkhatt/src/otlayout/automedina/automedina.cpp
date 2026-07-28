@@ -46,6 +46,15 @@ std::optional<std::uint16_t> parseHexUInt16(std::string_view text) {
 }  // namespace
 
 Automedina::~Automedina() {}  // not inline
+
+bool Automedina::isLookupDisabled(const std::string& lookupName) const {
+  return m_layout->disabledLookups.contains(lookupName);
+}
+
+Automedina::SubstEquivGlyphMap& Automedina::substEquivGlyphMap() {
+  return m_layout->substEquivGlyphs;
+}
+
 std::unordered_set<std::uint16_t> Automedina::regexptoUnicode(const std::string& regexp) {
   std::unordered_set<std::uint16_t> unicodes;
 

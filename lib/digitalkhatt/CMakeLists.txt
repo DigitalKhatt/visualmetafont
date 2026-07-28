@@ -231,3 +231,30 @@ set_target_properties(digitalkhatt_otlayout PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
+
+if(NOT EMSCRIPTEN)
+  find_library(DIGITALKHATT_SQLITE3_LIBRARY NAMES sqlite3 REQUIRED)
+
+  add_executable(digitalkhatt_generate_opentype
+    src/otlayout/tools/generate_opentype.cpp
+  )
+  target_compile_features(digitalkhatt_generate_opentype PRIVATE cxx_std_20)
+  target_link_libraries(digitalkhatt_generate_opentype
+    PRIVATE digitalkhatt::otlayout
+  )
+  target_compile_definitions(digitalkhatt_generate_opentype PRIVATE
+    DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/metafont"
+  )
+
+  add_executable(digitalkhatt_compare_mushaf_shaping
+    src/otlayout/tools/compare_mushaf_shaping.cpp
+  )
+  target_compile_features(digitalkhatt_compare_mushaf_shaping PRIVATE cxx_std_20)
+  target_link_libraries(digitalkhatt_compare_mushaf_shaping
+    PRIVATE digitalkhatt::otlayout ${DIGITALKHATT_SQLITE3_LIBRARY}
+  )
+  target_compile_definitions(digitalkhatt_compare_mushaf_shaping PRIVATE
+    DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/metafont"
+    DIGITALKHATT_QURAN_DATABASE="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/quran-data.sqlite"
+  )
+endif()
