@@ -147,10 +147,12 @@ void SingleSubtable::readJson(const ParameterJsonObject& json) {
     subst[unicode] = value;
   }
 }
-SingleSubtableWithTatweel::SingleSubtableWithTatweel(Lookup* lookup) : SingleSubtable(lookup, 11) {};
+SingleSubtableWithTatweel::SingleSubtableWithTatweel(Lookup* lookup)
+    : Subtable(lookup) {}
 
 void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
-  for (const auto& [glyphCode, expan] : expansion) {
+  for (const auto& [glyphCode, substitution] : subst) {
+    const auto& expan = substitution.expansion;
 
     if (expan.MinLeftTatweel != 0 || expan.MinRightTatweel != 0) {
       if (expan.MinLeftTatweel > 0 && expan.MinRightTatweel > 0) {
@@ -162,7 +164,7 @@ void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
       parameters.lefttatweel = expan.MinLeftTatweel;
       parameters.righttatweel = expan.MinRightTatweel;
 
-      auto substGlyph = (uint16_t)subst[glyphCode];
+      auto substGlyph = substitution.glyphCode;
       auto substEquivGlyphs = m_layout->getSubstEquivGlyphs(substGlyph);
       while (true) {
         auto oldSize = substEquivGlyphs.size();
@@ -189,11 +191,11 @@ void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
   }
 }
 digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
-  std::map<std::uint16_t, GlyphExpansion> newexpansion;
   std::map<std::uint16_t, std::uint16_t> newsubst;
 
-  for (const auto& [glyphCode, substGlyph] : subst) {
-    GlyphExpansion expan = expansion.at(glyphCode);
+  for (const auto& [glyphCode, substitution] : subst) {
+    const auto substGlyph = substitution.glyphCode;
+    const auto& expan = substitution.expansion;
 
     if (expan.MinLeftTatweel != 0 || expan.MinRightTatweel != 0) {
       auto clampParameters = [this, substGlyph](GlyphParameters parameters) {
@@ -231,7 +233,6 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() 
           cout << "meem.fina.basmala=" << tt.width << ";" << name << "=" << tt2.width << std::endl;
         }*/
 
-        newexpansion.emplace(glyphCode, expan);
         newsubst.emplace(glyphCode, found->second->charcode);
       }
 
@@ -247,12 +248,10 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() 
         auto found = addedSubstGlyphs.find(parameters);
 
         if (found != addedSubstGlyphs.end()) {
-          newexpansion.emplace(addedGlyph.second->charcode, expan);
           newsubst.emplace(addedGlyph.second->charcode, found->second->charcode);
         }
       }
     } else {
-      newexpansion.emplace(glyphCode, expan);
       newsubst.emplace(glyphCode, substGlyph);
     }
   }
@@ -260,7 +259,7 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() 
   digitalkhatt::ByteBuffer root;
   digitalkhatt::ByteBuffer coverage;
 
-  std::uint16_t glyphCount = newexpansion.size();
+  std::uint16_t glyphCount = newsubst.size();
   std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * glyphCount;
 
   root << (std::uint16_t)2;
@@ -288,8 +287,6 @@ SingleSubtableWithTatweel::getConvertedOpenTypeTables() {
         SingleSubtableWithTatweel chunk(m_lookup);
         chunk.name = name;
         chunk.subst = values;
-        for (const auto& [glyphCode, substGlyph] : values)
-          chunk.expansion.emplace(glyphCode, expansion.at(glyphCode));
         return chunk.getConvertedOpenTypeTable();
       },
       "converted SingleSubst " + m_lookup->name + "/" + name);
@@ -299,7 +296,7 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getOpenTypeTable(bool extend
   digitalkhatt::ByteBuffer coverage;
   digitalkhatt::ByteBuffer substituteGlyphIDs;
 
-  std::uint16_t glyphCount = expansion.size();
+  std::uint16_t glyphCount = subst.size();
   std::uint16_t coverage_offset = 2 + 2 + 2 + 10 * glyphCount;
 
   root << (std::uint16_t)format;
@@ -309,8 +306,10 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getOpenTypeTable(bool extend
   coverage << (std::uint16_t)1;
   coverage << (std::uint16_t)glyphCount;
 
-  for (const auto& [glyphCode, expan] : expansion) {
-    root << (uint16_t)subst[glyphCode];
+  for (const auto& [glyphCode, substitution] : subst) {
+    const auto substGlyph = substitution.glyphCode;
+    const auto& expan = substitution.expansion;
+    root << substGlyph;
 
     if (!m_layout->useNormAxisValues) {
       OT::F16DOT16 lefttatweel;
@@ -325,7 +324,7 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getOpenTypeTable(bool extend
 
       ValueLimits limits;
 
-      auto& name = m_layout->glyphNamePerCode[subst[glyphCode]];
+      auto& name = m_layout->glyphNamePerCode[substGlyph];
 
       const auto& find = m_layout->expandableGlyphs.find(name);
 
@@ -594,8 +593,6 @@ SingleSubtableWithTatweel::getOpenTypeTables(bool extended) {
         SingleSubtableWithTatweel chunk(m_lookup);
         chunk.name = name;
         chunk.subst = values;
-        for (const auto& [glyphCode, substGlyph] : values)
-          chunk.expansion.emplace(glyphCode, expansion.at(glyphCode));
         return chunk.getOpenTypeTable(extended);
       },
       "SingleSubstWithTatweel " + m_lookup->name + "/" + name);

@@ -515,9 +515,8 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
     auto subtable = lookupTable->subtables.at(context->subtable_index);
 
     if (lookupTable->type == Lookup::single) {
-      SingleSubtable* subtableTable = static_cast<SingleSubtable*>(subtable);
-      if (subtableTable->format == 10) {
-        SingleSubtableWithExpansion* tatweelSubtable = static_cast<SingleSubtableWithExpansion*>(subtableTable);
+      if (auto* tatweelSubtable =
+              dynamic_cast<SingleSubtableWithExpansion*>(subtable)) {
         auto& expa = tatweelSubtable->expansion[curr_info.codepoint];
         layout->justificationContext.Expansions.insert({buffer->idx, expa});
         layout->justificationContext.totalWeight += expa.weight;
@@ -553,9 +552,8 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
     auto subtable = lookupTable->subtables.at(context->subtable_index);
 
     if (lookupTable->type == Lookup::single) {
-      SingleSubtable* subtableTable = static_cast<SingleSubtable*>(subtable);
-      if (subtableTable->format == 10) {
-        SingleSubtableWithExpansion* tatweelSubtable = static_cast<SingleSubtableWithExpansion*>(subtableTable);
+      if (auto* tatweelSubtable =
+              dynamic_cast<SingleSubtableWithExpansion*>(subtable)) {
         auto expa = tatweelSubtable->expansion.at(curr_info.codepoint);
         // layout->justificationContext.Expansions.insert({ buffer->idx, tatweelSubtable->expansion.value(curr_info.codepoint) });
         curr_info.lefttatweel += expa.MaxLeftTatweel;

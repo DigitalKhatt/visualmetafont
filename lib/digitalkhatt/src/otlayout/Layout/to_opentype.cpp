@@ -489,6 +489,10 @@ bool ToOpenType::GenerateFile(const std::filesystem::path& fileName,
   setAxes();
 
   ot_layout->loadLookupFile(lokkupsFileName);
+  // Lookup construction can add substitution-equivalent glyphs after a
+  // glyph class was first resolved by an earlier feature rule. Re-resolve
+  // classes when serializing so GPOS coverage sees those new equivalents.
+  ot_layout->automedina->cachedClasstoUnicode.clear();
 
   glyphs.clear();
   for (const auto& [name, code] : ot_layout->glyphCodePerName) {

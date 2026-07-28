@@ -421,12 +421,20 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
   }
 
   int subtableIndex = lookup->subtables.size() + 1;
-  SingleSubtable* newsubtable = nullptr;
+  Subtable* newsubtable = nullptr;
   if (!lookup->subtables.empty()) {
-    newsubtable = static_cast<SingleSubtable*>(lookup->subtables.back());
+    newsubtable = lookup->subtables.back();
   }
 
-  if (newsubtable == nullptr || newsubtable->format != singleRule.format) {
+  const auto hasMatchingFormat = [&] {
+    if (newsubtable == nullptr) return false;
+    if (singleRule.format == 11)
+      return dynamic_cast<SingleSubtableWithTatweel*>(newsubtable) != nullptr;
+    const auto* single = dynamic_cast<SingleSubtable*>(newsubtable);
+    return single != nullptr && single->format == singleRule.format;
+  };
+
+  if (!hasMatchingFormat()) {
     if (singleRule.format == 10) {
       newsubtable = new SingleSubtableWithExpansion(lookup);
     } else if (singleRule.format == 11) {
@@ -440,15 +448,16 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
   }
 
   if (singleRule.format != 11) {
+    auto* singleSubtable = static_cast<SingleSubtable*>(newsubtable);
     if (singleRule.firstType == SingleSubstituionRule::FirstType::GLYPHSET) {
       auto firstunicodes = singleRule.firstGlyphSet->getCodes(otlayout);
 
       for (auto code : firstunicodes) {
-        newsubtable->subst[code] = code;
+        singleSubtable->subst[code] = code;
 
         if (singleRule.format == 10) {
-          ((SingleSubtableWithExpansion*)newsubtable)->expansion[code] = singleRule.expansion;
-          ((SingleSubtableWithExpansion*)newsubtable)->expansion[code].startEndLig = singleRule.startEndLig;
+          ((SingleSubtableWithExpansion*)singleSubtable)->expansion[code] = singleRule.expansion;
+          ((SingleSubtableWithExpansion*)singleSubtable)->expansion[code].startEndLig = singleRule.startEndLig;
         }
       }
     } else {
@@ -472,11 +481,11 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
 
       auto secondunicode = singleRule.secondglyph->getCode(otlayout);
 
-      newsubtable->subst[firstunicode] = secondunicode;
+      singleSubtable->subst[firstunicode] = secondunicode;
 
       if (singleRule.format == 10) {
-        ((SingleSubtableWithExpansion*)newsubtable)->expansion[firstunicode] = singleRule.expansion;
-        ((SingleSubtableWithExpansion*)newsubtable)->expansion[firstunicode].startEndLig = singleRule.startEndLig;
+        ((SingleSubtableWithExpansion*)singleSubtable)->expansion[firstunicode] = singleRule.expansion;
+        ((SingleSubtableWithExpansion*)singleSubtable)->expansion[firstunicode].startEndLig = singleRule.startEndLig;
       }
     }
 
@@ -487,8 +496,7 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
       SingleSubtableWithTatweel* subtable = (SingleSubtableWithTatweel*)newsubtable;
 
       for (auto code : firstunicodes) {
-        subtable->expansion[code] = singleRule.expansion;
-        subtable->subst[code] = code;
+        subtable->subst[code] = {code, singleRule.expansion};
       }
     } else {
       /*auto firstunicodes = singleRule.firstglyph->getCodes(otlayout);
@@ -512,8 +520,7 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
 
       SingleSubtableWithTatweel* subtable = (SingleSubtableWithTatweel*)newsubtable;
 
-      subtable->subst[firstunicode] = secondunicode;
-      subtable->expansion[firstunicode] = singleRule.expansion;
+      subtable->subst[firstunicode] = {secondunicode, singleRule.expansion};
     }
   }
 }

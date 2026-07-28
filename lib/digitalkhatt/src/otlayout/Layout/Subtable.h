@@ -156,17 +156,23 @@ struct SingleSubtableWithExpansion : SingleSubtable {
   bool isConvertible() override { return false; }
 };
 
-struct SingleSubtableWithTatweel : SingleSubtable {
-  SingleSubtableWithTatweel(Lookup* lookup);
-  // digitalkhatt::ByteBuffer getOpenTypeTable() override;
+struct SingleSubtableWithTatweel : Subtable {
+  struct Substitution {
+    std::uint16_t glyphCode;
+    GlyphExpansion expansion;
+  };
 
-  std::map<std::uint16_t, GlyphExpansion> expansion;
+  SingleSubtableWithTatweel(Lookup* lookup);
+
+  std::map<std::uint16_t, Substitution> subst;
+  static constexpr std::uint16_t format = 11;
 
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
   std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
       bool extended) override;
 
   bool isConvertible() override { return true; }
+  bool isExtended() override { return true; }
 
   digitalkhatt::ByteBuffer getConvertedOpenTypeTable() override;
   std::vector<digitalkhatt::ByteBuffer>
