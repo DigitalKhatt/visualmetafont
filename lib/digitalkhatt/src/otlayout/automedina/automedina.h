@@ -105,7 +105,5 @@ class Automedina {
 
   bool extended;
 
-  std::vector<std::map<uint16_t, std::vector<ExtendedGlyph>>> cvxxfeatures;
-
   void generateAyas(std::string_view ayaName, bool colored);
 };

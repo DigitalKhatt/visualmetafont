@@ -392,6 +392,15 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getOpenTypeTable(bool extend
 };
 
 digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
+  const auto checkedOffset16 = [](std::size_t value,
+                                  const char* description) {
+    if (value > std::numeric_limits<std::uint16_t>::max()) {
+      throw std::runtime_error(std::string("FSM ") + description +
+                               " exceeds Offset16");
+    }
+    return static_cast<std::uint16_t>(value);
+  };
+
   digitalkhatt::ByteBuffer coverage;
 
   digitalkhatt::ByteBuffer classDef;
@@ -403,14 +412,18 @@ digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer chainNodes;
   std::vector<uint32_t> chainNodesSizes;
 
-  int numNodes = dfa.states.size();
+  const auto numNodes = dfa.states.size();
 
   if (numNodes == 0) {
     root << (std::uint16_t)0;
     return root;
   }
+  if (numNodes > std::numeric_limits<std::uint16_t>::max()) {
+    throw std::runtime_error("FSM has too many chain nodes");
+  }
 
-  std::uint16_t glyphCount = dfa.glyphToClass.size();
+  const auto glyphCount =
+      checkedOffset16(dfa.glyphToClass.size(), "glyph count");
 
   classDef << (std::uint16_t)2;  // Format identifier — format = 2
   classDef << glyphCount;  // Number of ClassRangeRecords
@@ -430,10 +443,14 @@ digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
     throw new std::runtime_error("invalid backupstates number");
   }
 
-  std::uint16_t startOffsets = 2 + 2 + 2 + 1 + 1 + 1 + 1 + dfa.backupStates.size() * 2 + 2 + numNodes * 4;
+  const std::size_t startOffsets =
+      2 + 2 + 2 + 1 + 1 + 1 + 1 + dfa.backupStates.size() * 2 + 2 +
+      numNodes * 4;
 
-  std::uint16_t coverageOffset = startOffsets;
-  std::uint16_t classDefOffset = coverageOffset + coverage.size();
+  const auto coverageOffset =
+      checkedOffset16(startOffsets, "coverage offset");
+  const auto classDefOffset = checkedOffset16(
+      startOffsets + coverage.size(), "class definition offset");
   std::uint32_t nextOffset = classDefOffset + classDef.size();
 
   header << (std::uint16_t)1;
@@ -446,7 +463,7 @@ digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
   for (auto it = dfa.backupStates.cbegin(); it != dfa.backupStates.cend(); it++) {
     header << (std::uint16_t)*it;
   }
-  header << (std::uint16_t)numNodes;  // Number of ChainNodes
+  header << static_cast<std::uint16_t>(numNodes);  // Number of ChainNodes
 
   auto addBackLink = [&m_layout = m_layout, &m_lookup = m_lookup](digitalkhatt::ByteBuffer& array, const DFABackTrackInfo& backTrackInfo) {
     array << (uint16_t)backTrackInfo.prevTransIndex;
@@ -485,12 +502,15 @@ digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
   for (auto it = dfa.states.cbegin(); it != dfa.states.cend(); it++) {
     auto& state = *it;
 
-    int numTransitions = it->transtitions.size();
+    const auto numTransitions = it->transtitions.size();
+    if (numTransitions > std::numeric_limits<std::uint16_t>::max()) {
+      throw std::runtime_error("FSM chain node has too many transitions");
+    }
 
-    uint16_t nextChainNodeOffset = 1   /*actionid*/
-                                   + 2 /* OffsetTo<BackLink> */
-                                   + 2 /* numTransitions */
-                                   + numTransitions * 6 /* ClassNode size*/;
+    std::size_t nextChainNodeOffset = 1   /*actionid*/
+                                      + 2 /* OffsetTo<BackLink> */
+                                      + 2 /* numTransitions */
+                                      + numTransitions * 6 /* ClassNode size*/;
 
     digitalkhatt::ByteBuffer chainNode;
 
@@ -500,42 +520,47 @@ digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
     if (state.final != 0) {
       digitalkhatt::ByteBuffer backlinkArray;
       addBackLink(backlinkArray, state.backtrackfinal);
-      chainNode << (uint16_t)nextChainNodeOffset;  // OffsetTo<BackLink> backLink
+      chainNode << checkedOffset16(
+          nextChainNodeOffset,
+          "final backlink offset");  // OffsetTo<BackLink> backLink
       nextChainNodeOffset += backlinkArray.size();
       offsets.append(backlinkArray);
     } else {
       chainNode << (uint16_t)0;  // OffsetTo<BackLink> backLink
     }
-    chainNode << (uint16_t)numTransitions;  // numTransitions	: Number of transitions
+    chainNode << static_cast<std::uint16_t>(
+        numTransitions);  // numTransitions: Number of transitions
 
     digitalkhatt::ByteBuffer classNodes;
 
     for (auto itTransi = it->transtitions.cbegin(); itTransi != it->transtitions.cend(); itTransi++) {
-      numTransitions++;
-
       classNodes << (uint16_t)(itTransi->first + 1);    // classIndex	: class index value to match
       classNodes << (std::uint16_t)(itTransi->second.state);  // chainNode	: chainNode index to use on match
       // OffsetTo<BackLinkArray> backLinks
       auto& backtracks = itTransi->second.backtracks;
       if (backtracks.size() > 0) {
-        uint16_t numbacklinks = backtracks.size();
+        const auto numbacklinks =
+            checkedOffset16(backtracks.size(), "backlink count");
         digitalkhatt::ByteBuffer backLinksArray;
         digitalkhatt::ByteBuffer offsetbackLinksArray;
         backLinksArray << numbacklinks;
 
-        uint16_t nextbackLinksOffset = 2 + 2 * numbacklinks;
+        std::size_t nextbackLinksOffset = 2 + 2 * numbacklinks;
 
         for (auto& backtrack : itTransi->second.backtracks) {
           digitalkhatt::ByteBuffer backlinkArray;
           addBackLink(backlinkArray, backtrack);
-          backLinksArray << nextbackLinksOffset;
+          backLinksArray << checkedOffset16(
+              nextbackLinksOffset, "backlink-array entry offset");
           nextbackLinksOffset += backlinkArray.size();
           offsetbackLinksArray.append(backlinkArray);
         }
 
         backLinksArray.append(offsetbackLinksArray);
 
-        classNodes << (uint16_t)nextChainNodeOffset;  // OffsetTo<BackLink> backLink
+        classNodes << checkedOffset16(
+            nextChainNodeOffset,
+            "transition backlink offset");  // OffsetTo<BackLink> backLink
         nextChainNodeOffset += backLinksArray.size();
         offsets.append(backLinksArray);
 
@@ -1255,21 +1280,6 @@ void MultipleSubtable::readJson(const ParameterJsonObject& json) {
 
 AlternateSubtable::AlternateSubtable(Lookup* lookup, std::uint16_t format) : Subtable(lookup), format{format} {}
 
-void AlternateSubtable::generateSubstEquivGlyphs() {
-  for (const auto& [glyphCode, seqtable] : alternates) {
-    for (auto& alternateGlyph : seqtable) {
-      if (alternateGlyph.lefttatweel != 0.0 || alternateGlyph.righttatweel != 0.0) {
-        GlyphParameters parameters{};
-
-        parameters.lefttatweel = alternateGlyph.lefttatweel;
-        parameters.righttatweel = alternateGlyph.righttatweel;
-
-        m_layout->getAlternate(alternateGlyph.code, parameters, true, true);
-      }
-    }
-  }
-}
-
 digitalkhatt::ByteBuffer AlternateSubtable::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer root;
   digitalkhatt::ByteBuffer coverage;
@@ -1292,20 +1302,8 @@ digitalkhatt::ByteBuffer AlternateSubtable::getOpenTypeTable(bool extended) {
     coverage << glyphCode;
     sequencetables << (std::uint16_t)seqtable.size();
 
-    for (auto& alternateGlyph : seqtable) {
-      if (alternateGlyph.lefttatweel != 0.0 || alternateGlyph.righttatweel != 0.0) {
-        GlyphParameters parameters{};
-
-        parameters.lefttatweel = alternateGlyph.lefttatweel;
-        parameters.righttatweel = alternateGlyph.righttatweel;
-
-        auto newGlyph = m_layout->getAlternate(alternateGlyph.code, parameters, true, false);
-
-        sequencetables << (std::uint16_t)newGlyph->charcode;
-      } else {
-        sequencetables << (std::uint16_t)alternateGlyph.code;
-      }
-    }
+    for (auto alternateGlyph : seqtable)
+      sequencetables << alternateGlyph;
     // sequencetables << seqtable;
 
     debutsequence += 2 + 2 * seqtable.size();
@@ -1476,7 +1474,7 @@ AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
   for (const auto& [glyphCode, sequence] : getConvertedAlternates()) {
     auto& output = chunk.alternates[glyphCode];
     for (const auto target : sequence)
-      output.push_back({target, 0, 0});
+      output.push_back(target);
   }
   return chunk.getOpenTypeTable(false);
 }
@@ -1492,7 +1490,7 @@ AlternateSubtableWithTatweel::getConvertedOpenTypeTables() {
         for (const auto& [glyphCode, sequence] : values) {
           auto& output = chunk.alternates[glyphCode];
           for (const auto target : sequence)
-            output.push_back({target, 0, 0});
+            output.push_back(target);
         }
         return chunk.getOpenTypeTable(false);
       },

@@ -193,15 +193,15 @@ struct AlternateSubtable : Subtable {
   std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(
       bool extended) override;
 
-  std::map<std::uint16_t, std::vector<ExtendedGlyph>> alternates;
-
-  virtual void generateSubstEquivGlyphs() override;
+  std::map<std::uint16_t, std::vector<std::uint16_t>> alternates;
 
   std::uint16_t format = 1;
 };
 
 struct AlternateSubtableWithTatweel : AlternateSubtable {
   AlternateSubtableWithTatweel(Lookup* lookup);
+
+  std::map<std::uint16_t, std::vector<ExtendedGlyph>> alternates;
 
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
   std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(

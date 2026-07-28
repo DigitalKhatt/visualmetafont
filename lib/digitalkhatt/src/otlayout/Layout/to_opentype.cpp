@@ -463,17 +463,6 @@ void ToOpenType::setGIds() {
 
   ot_layout->glyphGlobalClasses = glyphGlobalClasses;
 
-  for (auto& cvlo : ot_layout->automedina->cvxxfeatures) {
-    std::map<uint16_t, std::vector<ExtendedGlyph>> newalternates;
-    for (auto& [oldid, glyphList] : cvlo) {
-      auto newid = newCodes[oldid];
-      for (auto& glyph : glyphList) {
-        ExtendedGlyph extendedGlyph = {newCodes[glyph.code], glyph.lefttatweel, glyph.righttatweel};
-        newalternates[newid].push_back(extendedGlyph);
-      }
-    }
-    cvlo = newalternates;
-  }
 }
 
 bool ToOpenType::GenerateFile(const std::filesystem::path& fileName,

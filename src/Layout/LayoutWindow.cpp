@@ -1653,7 +1653,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
   OtLayout layout = OtLayout(&m_font->mpFont(), true, true);
 
-  auto& cv01feature = layout.resetCvxxFeatures();
+  std::map<std::uint16_t, std::vector<std::uint16_t>> cv01feature;
 
   QMap<quint16, quint16> unicodeMappings;
 
@@ -1884,7 +1884,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
           int alternateIndex = -1;
           for (int aIndex = 0; aIndex < alternates.size(); aIndex++) {
-            if (alternates[aIndex].code == value.glyphs[0]->codepoint) {
+            if (alternates[aIndex] == value.glyphs[0]->codepoint) {
               alternateIndex = aIndex + 1;
               break;
             }
@@ -1892,7 +1892,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
 
           if (alternateIndex == -1) {
             // if (value.glyphs[0]->codepoint != unicode) {
-            alternates.push_back({value.glyphs[0]->codepoint, 0.0, 0.0});
+            alternates.push_back(value.glyphs[0]->codepoint);
             alternateIndex = alternates.size();
             //}
           }

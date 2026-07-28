@@ -892,20 +892,13 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
   const std::uint16_t lookupCount = lookups.size();
   std::vector<std::vector<digitalkhatt::ByteBuffer>> serializedLookups;
   serializedLookups.reserve(lookups.size());
-  std::uint32_t lookupListtotalSize = 2 + 2 * lookupCount;
+  std::uint64_t lookupListtotalSize = 2 + 2 * lookupCount;
   for (auto* lookup : lookups) {
     std::vector<digitalkhatt::ByteBuffer> serializedSubtables;
     for (auto* subtable : lookup->getSubtables(extended)) {
       auto parts = !extended && subtable->isConvertible()
                        ? subtable->getConvertedOpenTypeTables()
                        : subtable->getOpenTypeTables(extended);
-      for (const auto& part : parts) {
-        if (part.size() > std::numeric_limits<std::uint16_t>::max()) {
-          throw std::runtime_error(
-              "OpenType subtable exceeds Offset16 after serialization: " +
-              lookup->name + "/" + subtable->name);
-        }
-      }
       serializedSubtables.insert(
           serializedSubtables.end(),
           std::make_move_iterator(parts.begin()),
@@ -946,7 +939,7 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
   digitalkhatt::ByteBuffer subtablesData;
   lookupList.writeU16(lookupCount);  // lookupCount
   std::uint32_t lookupOffset = 2 + 2 * lookupCount;
-  uint32_t subtablesDataOffset = lookupListtotalSize;
+  std::uint64_t subtablesDataOffset = lookupListtotalSize;
   for (std::size_t lookupIndex = 0; lookupIndex < lookups.size();
        ++lookupIndex) {
     auto* lookup = lookups[lookupIndex];
@@ -962,8 +955,16 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
       lookupTable.writeU16(extensionOffset);
       extensions.writeU16(1);  // extension format
       extensions.writeU16(static_cast<std::uint16_t>(lookup->type));  // extensionLookupType
-      extensions.writeU32(subtablesDataOffset -
-                             (lookupOffset + extensionOffset));
+      const std::uint64_t extensionSubtableOffset =
+          lookupOffset + extensionOffset;
+      if (subtablesDataOffset < extensionSubtableOffset ||
+          subtablesDataOffset - extensionSubtableOffset >
+              std::numeric_limits<std::uint32_t>::max()) {
+        throw std::runtime_error(
+            "ExtensionOffset overflow in lookup " + lookup->name);
+      }
+      extensions.writeU32(static_cast<std::uint32_t>(
+          subtablesDataOffset - extensionSubtableOffset));
       subtablesData.append(subtableBytes);
       subtablesDataOffset += subtableBytes.size();
       extensionOffset += 8;
@@ -1176,7 +1177,6 @@ void OtLayout::parseFeatureFile(std::string fileName) {
   gsublookupsIndexByName.clear();
   gposlookupsIndexByName.clear();
   automedina->cachedClasstoUnicode.clear();
-  // automedina->cvxxfeatures.clear();
   allFeatures.clear();
   // Do not clear disabledLookups here. GenerateFile reparses the feature file
   // twice, recreating every Lookup object; the name-based disabled state must
@@ -3292,9 +3292,4 @@ const digitalkhatt::layout::ClassMap& OtLayout::glyphClasses() const {
 
 std::unordered_set<std::uint16_t> OtLayout::classToUnicode(const std::string& className) {
   return automedina->classtoUnicode(className);
-}
-
-std::map<std::uint16_t, std::vector<ExtendedGlyph>>& OtLayout::resetCvxxFeatures() {
-  automedina->cvxxfeatures.clear();
-  return automedina->cvxxfeatures.emplace_back();
 }

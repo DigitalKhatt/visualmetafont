@@ -336,8 +336,6 @@ class OtLayout {
 
   const digitalkhatt::layout::ClassMap& glyphClasses() const;
   std::unordered_set<std::uint16_t> classToUnicode(const std::string& className);
-  std::map<std::uint16_t, std::vector<ExtendedGlyph>>& resetCvxxFeatures();
-
  private:
   // void evaluateImport();
   // void prepareJSENgine();
