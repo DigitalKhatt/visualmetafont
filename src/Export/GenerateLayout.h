@@ -33,7 +33,6 @@ public:
   ~GenerateLayout();
   void generateLayoutJson(int lineWidth, int scale);
   void generateLayoutBinary(int lineWidth, int scale);
-  void generateLayoutProtoBuf(int lineWidth, int scale);
   void generatePages(QJsonArray& pagesArray, int lineWidth, int scale);
 
   void generateGlyphs(QJsonObject& glyphsObject);

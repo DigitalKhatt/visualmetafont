@@ -50,8 +50,6 @@ set(VMF_SL vmfsl)
 
 if (NOT EMSCRIPTEN)
 
-  find_package(Protobuf CONFIG REQUIRED)
-
   find_package(Qt5 COMPONENTS Core OpenGL Svg PrintSupport Widgets Sql REQUIRED)
 
 else()
@@ -108,9 +106,6 @@ set(Export
   Export/ExportToHTML.h
   Export/GenerateLayout.h
   Export/GenerateLayout.cpp
-  Export/protobuf/quran.pb.cc
-  Export/protobuf/quran.pb.h
-  Export/generateLayoutProtoBuf.cpp
   Export/generateLayoutBinary.cpp
   )
 source_group("Export" FILES ${Export})
@@ -335,10 +330,6 @@ target_include_directories(${LUATEX_NAME} PRIVATE ${FLEX_INCLUDE_DIRS} ${CMAKE_C
 target_compile_options(${PROJECT_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_compile_options(${LUATEX_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_compile_options(${PROJECT_NAME} PUBLIC $<$<CXX_COMPILER_ID:Clang>: -fvisibility=default>)
-# undefined symbol "absl::lts_20240722::log_internal::LogMessage& absl::lts_20240722::log_internal::LogMessage::operator<<<int, 0>(int const&)"
-# due to protobuf
-#target_compile_options(${PROJECT_NAME} PUBLIC $<$<CXX_COMPILER_ID:Clang>: -fclang-abi-compat=17>)
-
 target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR COMPILING_DLL)
 target_compile_definitions(${LUATEX_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR COMPILING_DLL)
 
@@ -403,8 +394,6 @@ if (NOT EMSCRIPTEN)
       target_link_libraries(${PROJECT_NAME} PUBLIC Qt5::QWindowsIntegrationPlugin)
     endif()
   endif (WIN32)
-
-  target_link_libraries(${PROJECT_NAME} PRIVATE protobuf::libprotobuf)
 
 else()
 

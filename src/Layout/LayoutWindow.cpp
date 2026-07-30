@@ -1640,8 +1640,6 @@ bool LayoutWindow::generateLayoutInfo() {
 
   generateLayout.generateLayoutJson(lineWidth, scale);
 
-  generateLayout.generateLayoutProtoBuf(lineWidth, scale);
-
   generateLayout.generateLayoutBinary(lineWidth, scale);
 
   return true;

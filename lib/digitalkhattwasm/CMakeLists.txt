@@ -143,35 +143,13 @@ target_link_options(${WEBLIB_NAME} PRIVATE --bind --use-preload-plugins  # -fsan
 # wasm-ld strips DWARF unless -g is also passed at link time.
 target_link_options(${WEBLIB_NAME} PRIVATE $<$<CONFIG:Debug>:-g>)
 
-if(WASMTYPE STREQUAL "WASM")
 
-  target_link_options(${WEBLIB_NAME} PRIVATE
-    "SHELL:-s WASM=1"
-    "SHELL:-s EXPORT_ES6=1"
-    # DEMANGLE_SUPPORT=1 dropped: no longer a valid setting on newer
-    # Emscripten (demangling is handled unconditionally now).
-    )
-
-  add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE_DIR:${WEBLIB_NAME}>/${WEBLIB_NAME}.js" "${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt.org/ClientApp/src/app/services/quranservice"
-    COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE_DIR:${WEBLIB_NAME}>/${WEBLIB_NAME}.wasm" "${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt.org/ClientApp/src/assets"
-    COMMENT "Copying to output directory")
-
-
-
-else()
-  target_link_options(${WEBLIB_NAME} PRIVATE
-    "SHELL:-s WASM=0"
-    "SHELL:-s EXPORT_NAME='VMASM'"
-    "SHELL:-s TOTAL_MEMORY=26214400"
-    )
-
-  add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE_DIR:${WEBLIB_NAME}>/${WEBLIB_NAME}.js"		"${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt.org/ClientApp/src/vmasm"
-    COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE_DIR:${WEBLIB_NAME}>/${WEBLIB_NAME}.js.mem"	"${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt.org/ClientApp/src/vmasm"
-    COMMENT "Copying to output directory")
-
-endif()
+target_link_options(${WEBLIB_NAME} PRIVATE
+  "SHELL:-s WASM=1"
+  "SHELL:-s EXPORT_ES6=1"
+  # DEMANGLE_SUPPORT=1 dropped: no longer a valid setting on newer
+  # Emscripten (demangling is handled unconditionally now).
+  )
 
 set(MADINAFONT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../madinafont")
 set(OLDMADINAFONT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../oldmadinafont")
@@ -222,13 +200,3 @@ else()
     COMMAND "${CMAKE_COMMAND}" -E copy "${INDOPAKFONT_DIR}/libindopak.wasm" "${ANGULAR_WASM_ASSETS_DIR}/fonts/indopak"
     COMMENT "Copying prebuilt WASM font side modules to Angular")
 endif()
-
-add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
-  COMMAND "${CMAKE_COMMAND}" -E copy "${METAFONT_RESOURCES_DIR}/mfplain.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt.org/ClientApp/src/assets"
-  COMMAND "${CMAKE_COMMAND}" -E copy "${METAFONT_RESOURCES_DIR}/mpost.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt.org/ClientApp/src/assets"
-  COMMAND "${CMAKE_COMMAND}" -E copy "${METAFONT_RESOURCES_DIR}/vmf.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt.org/ClientApp/src/assets"
-  COMMAND "${CMAKE_COMMAND}" -E copy "${MADINAFONT_DIR}/madina.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt.org/ClientApp/src/assets"
-  COMMAND "${CMAKE_COMMAND}" -E copy "${MADINAFONT_DIR}/glyphs.mp" "${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt.org/ClientApp/src/assets"
-  COMMAND "${CMAKE_COMMAND}" -E copy "${MADINAFONT_DIR}/features.fea" "${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt.org/ClientApp/src/assets"
-  COMMAND "${CMAKE_COMMAND}" -E copy "${MADINAFONT_DIR}/parameters.json" "${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt.org/ClientApp/src/assets"
-  COMMENT "Copying to output directory")
