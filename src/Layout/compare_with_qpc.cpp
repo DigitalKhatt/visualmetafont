@@ -784,9 +784,9 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
 
   QList<LineLayoutInfo> page;
 
-  {
-    int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
 
+  {
     double emScale = OtLayout::EMSCALE;
     QString textt = currentQuranText[pageNumber - 1];
 
@@ -893,13 +893,15 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
     originialPage.append(shapeRun);
   }
 
-  // double qpcScale = isQPC ? 1.0 / 1.667 : 1;
-  double qpcScale = isQPC ? 1.0 / 1.703 : 1;
-
   for (int lineIndex = 0; lineIndex < originialPage.size(); lineIndex++) {
     const auto& shapeRun = originialPage[lineIndex];
     const auto& lineData = lines[lineIndex];
     const auto& line = page[lineIndex];
+
+    const double qpcScale =
+        shapeRun.totalAdvance != 0
+            ? static_cast<double>(lineWidth) / shapeRun.totalAdvance
+            : (isQPC ? 1.0 / 1.667 : 1.0);
 
     auto totalWidth = shapeRun.totalAdvance;
 

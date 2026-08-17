@@ -91,8 +91,8 @@ static std::vector<std::string> toStdStrings(const QStringList& lines) {
 }
 
 static QList<QStringList> pageBreakQt(OtLayout* layout, double emScale,
-                                     int lineWidth, bool pageFinishByVerse,
-                                     const QString& text, int pageCount) {
+                                      int lineWidth, bool pageFinishByVerse,
+                                      const QString& text, int pageCount) {
   const auto stdPages =
       layout->pageBreak(emScale, lineWidth, pageFinishByVerse,
                         text.toStdU16String(), pageCount);
@@ -2292,7 +2292,7 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
 
   QString quran;
 
-  for(auto& line : currentQuranText){
+  for (auto& line : currentQuranText) {
     quran.append(line + "\n");
   }
 
@@ -2587,7 +2587,7 @@ void LayoutWindow::createDockWindows() {
   otherMenu->addAction(action);
 
   action = new QAction(tr("Compare With Old Madinah"), this);
-  connect(action, &QAction::triggered, [this]() { this->compareWithOldMadinah(false, true); });
+  connect(action, &QAction::triggered, [this]() { this->compareWithOldMadinah(true, true); });
   otherMenu->addAction(action);
 
   m_otlayout = new OtLayout(&m_font->mpFont(), true, true);
@@ -2657,9 +2657,9 @@ void LayoutWindow::serializeTexPages() {
 
   std::vector<digitalkhatt::TextString> textPages;
 
-    for(auto& line : currentQuranText){
-      textPages.emplace_back(line.toStdU16String());
-    }
+  for (auto& line : currentQuranText) {
+    textPages.emplace_back(line.toStdU16String());
+  }
 
   auto result = m_otlayout->pageBreak(textPages, scale, lineWidth, false, 600);
 
@@ -3414,7 +3414,7 @@ void LayoutWindow::setQuranText(int type) {
 
     std::vector<digitalkhatt::TextString> textPages;
 
-    for(auto& line : currentQuranText){
+    for (auto& line : currentQuranText) {
       textPages.emplace_back(line.toStdU16String());
     }
 
