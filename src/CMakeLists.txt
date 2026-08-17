@@ -371,6 +371,26 @@ if (NOT EMSCRIPTEN)
     #GJK-EPA
     PDFHummus::PDFWriter
   )
+
+  add_executable(digitalkhatt_compare_extreme_lines
+    tools/compare_extreme_lines.cpp
+    Layout/HbDrawToQtPath.cpp
+  )
+  target_compile_features(digitalkhatt_compare_extreme_lines PRIVATE cxx_std_20)
+  target_include_directories(digitalkhatt_compare_extreme_lines PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/."
+    "${CMAKE_CURRENT_SOURCE_DIR}/Layout"
+    "${CMAKE_CURRENT_SOURCE_DIR}/metafont"
+  )
+  target_link_libraries(digitalkhatt_compare_extreme_lines PRIVATE
+    digitalkhatt_otlayout Qt5::Core Qt5::Gui Qt5::PrintSupport Qt5::Widgets
+    Qt5::Sql ${DIGITALKHATT_SQLITE3_LIBRARY}
+  )
+  target_compile_definitions(digitalkhatt_compare_extreme_lines PRIVATE
+    HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR
+    DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/Resources/metafont"
+    DIGITALKHATT_QURAN_DATABASE="${CMAKE_CURRENT_SOURCE_DIR}/Resources/quran-data.sqlite"
+  )
 else()
   target_link_libraries(${PROJECT_NAME} PUBLIC digitalkhatt_otlayout QtPropertyBrowser
     Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::Svg Qt5::PrintSupport Qt5::Widgets
