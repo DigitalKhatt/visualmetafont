@@ -13,6 +13,17 @@ if (STATICMSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
+if (NOT EMSCRIPTEN)
+  include(FetchContent)
+  FetchContent_Declare(
+    PDFHummus
+    GIT_REPOSITORY https://github.com/galkahana/PDF-Writer.git
+    GIT_TAG v4.9.0
+    FIND_PACKAGE_ARGS
+  )
+  FetchContent_MakeAvailable(PDFHummus)
+endif()
+
 #file(GLOB_RECURSE OTHERS ../madinafont/*.* ../oldmadinafont/*.* ../indopakfont/*.* )
 
 #add_custom_target(files SOURCES ${OTHERS})
@@ -28,11 +39,11 @@ if (NOT EMSCRIPTEN)
 endif()
 add_subdirectory(lib/digitalkhatt)
 if (NOT EMSCRIPTEN)
+  add_subdirectory(tools)
   add_subdirectory(src)
 endif()
 
 if (EMSCRIPTEN)
   add_subdirectory(lib/digitalkhattwasm)
 endif()
-
 
