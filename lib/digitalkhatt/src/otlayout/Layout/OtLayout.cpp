@@ -1010,10 +1010,16 @@ OtLayout::OtLayout(MPFont* font, bool extended, bool generateVariableOpenType)
   // dlopen would miss the already-loaded entry and fetch the module again.
   ff = std::filesystem::path{ff}.filename().string();
 #endif
-  dlhandle slhandle = dlopen(ff.c_str(), 0);
+  dlhandle slhandle = dlopen(ff.c_str(), DIGITALKHATT_DLOPEN_MODE);
   if (!slhandle) {
-    std::cout << "could not load the dynamic library " << ff << std::endl;
-    throw std::runtime_error("could not load the dynamic library");
+#ifdef WIN32
+    const std::string error = std::to_string(dlerror());
+#else
+    const auto* message = dlerror();
+    const std::string error = message ? message : "unknown loader error";
+#endif
+    throw std::runtime_error("could not load the dynamic library " + ff +
+                             ": " + error);
   } else {
     typedef Automedina* (*f_funci)(OtLayout* layout, MPFont* font, bool extended);
     f_funci funci = (f_funci)dlsym(slhandle, "font_create");
