@@ -23,6 +23,7 @@
 #include <array>
 #include <algorithm>
 #include <charconv>
+#include <cmath>
 #include <deque>
 #include <hb-ot-layout-common.hh>
 #include <iostream>
@@ -70,6 +71,81 @@ digitalkhatt::ByteBuffer makeCoverage(
     format2 << range.first << range.last << range.coverageIndex;
 
   return format2.size() < format1.size() ? format2 : format1;
+}
+
+GlyphVis* baseTatweelGlyph(OtLayout* layout, std::uint16_t glyphCode) {
+  auto* glyph = layout->getGlyph(glyphCode);
+  while (glyph != nullptr && glyph->isAlternate &&
+         !glyph->originalglyph.empty()) {
+    const auto original = layout->glyphs.find(glyph->originalglyph);
+    if (original == layout->glyphs.end()) {
+      throw std::runtime_error("Missing original glyph " +
+                               glyph->originalglyph);
+    }
+    glyph = &original->second;
+  }
+  if (glyph == nullptr) {
+    throw std::runtime_error("Missing glyph " + std::to_string(glyphCode));
+  }
+  return glyph;
+}
+
+double normalizedTatweel(OtLayout* layout, std::uint16_t targetCode,
+                         std::uint16_t sourceCode, double requested,
+                         bool left) {
+  if (requested == 0.0) return 0.0;
+  if (!std::isfinite(requested) || layout->toOpenType == nullptr) {
+    throw std::runtime_error("Invalid tatweel value");
+  }
+
+  ValueLimits limits;
+  std::string limitName;
+  if (layout->toOpenType->isUniformAxis()) {
+    // Runtime fonts carry tatweel state on global LTAT/RTAT coordinates. A
+    // substituted or static glyph may intentionally have no local expansion
+    // range, so validating against per-glyph limits would reject valid state.
+    limits = layout->toOpenType->axisLimits;
+    limitName = left ? "LTAT" : "RTAT";
+  } else {
+    const auto* target = baseTatweelGlyph(layout, targetCode);
+    auto limitsIt = layout->expandableGlyphs.find(target->name);
+    const GlyphVis* limitsGlyph = target;
+    if (limitsIt == layout->expandableGlyphs.end() &&
+        sourceCode != targetCode) {
+      const auto* source = baseTatweelGlyph(layout, sourceCode);
+      limitsIt = layout->expandableGlyphs.find(source->name);
+      limitsGlyph = source;
+    }
+    if (limitsIt == layout->expandableGlyphs.end()) {
+      throw std::runtime_error("Missing tatweel limits for glyph " +
+                               target->name);
+    }
+    limits = limitsIt->second;
+    limitName = limitsGlyph->name;
+  }
+
+  const double minimum = left ? limits.minLeft : limits.minRight;
+  const double maximum = left ? limits.maxLeft : limits.maxRight;
+  if (!std::isfinite(minimum) || !std::isfinite(maximum) ||
+      minimum >= 0.0 || maximum <= 0.0) {
+    throw std::runtime_error("Invalid tatweel range for " + limitName);
+  }
+  if (requested < minimum || requested > maximum) {
+    throw std::runtime_error("Tatweel value outside " + limitName +
+                             " range");
+  }
+
+  const double scale = requested < 0.0 ? -minimum : maximum;
+  return std::clamp(requested / scale, -1.0, 1.0);
+}
+
+void writeTatweel(digitalkhatt::ByteBuffer& output, OtLayout* layout,
+                  std::uint16_t targetCode, std::uint16_t sourceCode,
+                  double requested, bool left) {
+  OT::F16DOT16 value;
+  value.set_float(
+      normalizedTatweel(layout, targetCode, sourceCode, requested, left));
+  output << static_cast<std::int32_t>(value.to_int());
 }
 
 template <typename Map, typename Serializer>
@@ -314,72 +390,15 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getOpenTypeTable(bool extend
     if (!m_layout->useNormAxisValues) {
       OT::F16DOT16 lefttatweel;
       lefttatweel.set_float(expan.MinLeftTatweel);
-
       OT::F16DOT16 righttatweel;
       righttatweel.set_float(expan.MinRightTatweel);
-
-      root << (int32_t)lefttatweel.to_int() << (int32_t)righttatweel.to_int();
+      root << static_cast<std::int32_t>(lefttatweel.to_int())
+           << static_cast<std::int32_t>(righttatweel.to_int());
     } else {
-      OT::F16DOT16 value;
-
-      ValueLimits limits;
-
-      auto& name = m_layout->glyphNamePerCode[substGlyph];
-
-      const auto& find = m_layout->expandableGlyphs.find(name);
-
-      if (find != m_layout->expandableGlyphs.end()) {
-        limits = find->second;
-      }
-
-      if ((expan.MinLeftTatweel < 0 && expan.MinLeftTatweel < limits.minLeft) || (expan.MinLeftTatweel > 0 && expan.MinLeftTatweel > limits.maxLeft)) {
-        std::cout << "MinLeftTatweel error for glyph " << name << std::endl;
-        // throw new runtime_error("MinLeftTatweel error for glyph " + name);
-      } else if (expan.MinLeftTatweel < 0.0) {
-        if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(-expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.minLeft);
-        } else {
-          value.set_float(-expan.MinLeftTatweel / limits.minLeft);
-        }
-
-        root << (int32_t)value.to_int();
-      } else if (expan.MinLeftTatweel > 0.0) {
-        if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.maxLeft);
-        } else {
-          value.set_float(expan.MinLeftTatweel / limits.maxLeft);
-        }
-
-        root << (int32_t)value.to_int();
-      } else {
-        value.set_float(0.0);
-        root << (int32_t)value.to_int();
-      }
-
-      if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
-        std::cout << "MinRightTatweel error for glyph " << name << std::endl;
-        // throw new runtime_error("MinRightTatweel error for glyph " + name);
-      } else if (expan.MinRightTatweel < 0.0) {
-        if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(-expan.MinRightTatweel / m_layout->toOpenType->axisLimits.minRight);
-        } else {
-          value.set_float(-expan.MinRightTatweel / limits.minRight);
-        }
-        root << (int32_t)value.to_int();
-        ;
-      } else if (expan.MinRightTatweel > 0.0) {
-        if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(expan.MinRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
-        } else {
-          value.set_float(expan.MinRightTatweel / limits.maxRight);
-        }
-        root << (int32_t)value.to_int();
-        ;
-      } else {
-        value.set_float(0.0);
-        root << (int32_t)value.to_int();
-        ;
-      }
+      writeTatweel(root, m_layout, substGlyph, glyphCode,
+                   expan.MinLeftTatweel, true);
+      writeTatweel(root, m_layout, substGlyph, glyphCode,
+                   expan.MinRightTatweel, false);
     }
 
     coverage << glyphCode;
@@ -700,104 +719,28 @@ digitalkhatt::ByteBuffer SingleSubtableWithExpansion::getOpenTypeTable(bool exte
     root << (uint16_t)subst[glyphCode];
 
     if (!m_layout->useNormAxisValues) {
-      OT::F16DOT16 minLeftTatweel;
-      minLeftTatweel.set_float(expan.MinLeftTatweel);
-      root << (int32_t)minLeftTatweel.to_int();
-
-      OT::F16DOT16 maxLeftTatweel;
-      maxLeftTatweel.set_float(expan.MaxLeftTatweel);
-      root << (int32_t)maxLeftTatweel.to_int();
-
-      OT::F16DOT16 minRightTatweel;
-      minRightTatweel.set_float(expan.MinRightTatweel);
-      root << (int32_t)minRightTatweel.to_int();
-
-      OT::F16DOT16 maxRightTatweel;
-      maxRightTatweel.set_float(expan.MaxRightTatweel);
-      root << (int32_t)maxRightTatweel.to_int();
+      OT::F16DOT16 minLeft;
+      minLeft.set_float(expan.MinLeftTatweel);
+      OT::F16DOT16 maxLeft;
+      maxLeft.set_float(expan.MaxLeftTatweel);
+      OT::F16DOT16 minRight;
+      minRight.set_float(expan.MinRightTatweel);
+      OT::F16DOT16 maxRight;
+      maxRight.set_float(expan.MaxRightTatweel);
+      root << static_cast<std::int32_t>(minLeft.to_int())
+           << static_cast<std::int32_t>(maxLeft.to_int())
+           << static_cast<std::int32_t>(minRight.to_int())
+           << static_cast<std::int32_t>(maxRight.to_int());
     } else {
-      OT::F16DOT16 value;
-      ValueLimits limits;
-
-      auto& name = m_layout->glyphNamePerCode.at(subst[glyphCode]);
-
-      const auto& find = m_layout->expandableGlyphs.find(name);
-
-      if (find != m_layout->expandableGlyphs.end()) {
-        limits = find->second;
-      }
-
-      if ((expan.MinLeftTatweel < 0 && expan.MinLeftTatweel < limits.minLeft) || (expan.MinLeftTatweel > 0 && expan.MinLeftTatweel > limits.maxLeft)) {
-        // throw new runtime_error("MinLeftTatweel error for glyph " + name);
-        value.set_float(0.0);
-        root << (int32_t)value.to_int();
-      } else if (expan.MinLeftTatweel != 0.0) {
-        if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.maxLeft);
-        } else {
-          value.set_float(expan.MinLeftTatweel / limits.maxLeft);
-        }
-        root << (int32_t)value.to_int();
-        ;
-      } else {
-        value.set_float(0.0);
-        root << (int32_t)value.to_int();
-        ;
-      }
-
-      if ((expan.MaxLeftTatweel < 0 && expan.MaxLeftTatweel < limits.minLeft) || (expan.MaxLeftTatweel > 0 && expan.MaxLeftTatweel > limits.maxLeft)) {
-        // throw new runtime_error("MinLeftTatweel error for glyph " + name);
-        value.set_float(0.0);
-        root << (int32_t)value.to_int();
-        ;
-      } else if (expan.MaxLeftTatweel != 0.0) {
-        if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(expan.MaxLeftTatweel / m_layout->toOpenType->axisLimits.maxLeft);
-        } else {
-          value.set_float(expan.MaxLeftTatweel / limits.maxLeft);
-        }
-        root << (int32_t)value.to_int();
-        ;
-      } else {
-        value.set_float(0.0);
-        root << (int32_t)value.to_int();
-        ;
-      }
-
-      if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
-        throw new runtime_error("MinLeftTatweel error for glyph " + name);
-      } else if (expan.MinRightTatweel != 0.0) {
-        if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(expan.MinRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
-        } else {
-          value.set_float(expan.MinRightTatweel / limits.maxRight);
-        }
-        root << (int32_t)value.to_int();
-        ;
-      } else {
-        value.set_float(0.0);
-        root << (int32_t)value.to_int();
-        ;
-      }
-
-      if ((expan.MaxRightTatweel < 0 && expan.MaxRightTatweel < limits.minRight) || (expan.MaxRightTatweel > 0 && expan.MaxRightTatweel > limits.maxRight)) {
-        // throw new runtime_error("MinLeftTatweel error for glyph " + name);
-        value.set_float(0.0);
-        root << (int32_t)value.to_int();
-        ;
-      } else if (expan.MaxRightTatweel != 0.0) {
-        if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(expan.MaxRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
-        } else {
-          value.set_float(expan.MaxRightTatweel / limits.maxRight);
-        }
-        root << (int32_t)value.to_int();
-        ;
-      } else {
-        value.set_float(0.0);
-        root << (int32_t)value.to_int();
-        ;
-      }
+      const auto target = static_cast<std::uint16_t>(subst.at(glyphCode));
+      writeTatweel(root, m_layout, target, glyphCode,
+                   expan.MinLeftTatweel, true);
+      writeTatweel(root, m_layout, target, glyphCode,
+                   expan.MaxLeftTatweel, true);
+      writeTatweel(root, m_layout, target, glyphCode,
+                   expan.MinRightTatweel, false);
+      writeTatweel(root, m_layout, target, glyphCode,
+                   expan.MaxRightTatweel, false);
     }
 
     root << (uint16_t)expan.weight;
@@ -906,36 +849,51 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
         DefaultDelta delatY;
         DefaultDelta delatXadvance;
         // DefaultDelta delatYadvance;
+        const bool runtimeFont =
+            m_layout->toOpenType->isRuntimeFontProfile();
 
-        for (auto& parameters : glyphParamertersArray) {
+        for (const auto& parameters : glyphParamertersArray) {
           if (parameters.scalex != 0) {
-            delatX.push_back(record.xPlacement * (parameters.scalex / 100) - record.xPlacement);
+            delatX.push_back(record.xPlacement * (parameters.scalex / 100) -
+                             record.xPlacement);
             delatY.push_back(0);
-            delatXadvance.push_back(record.xAdvance * (parameters.scalex / 100) - record.xAdvance);
-            // delatYadvance.push_back(0);
+            delatXadvance.push_back(
+                record.xAdvance * (parameters.scalex / 100) -
+                record.xAdvance);
+          } else if (runtimeFont) {
+            delatX.push_back(0);
+            delatY.push_back(0);
+            delatXadvance.push_back(0);
           }
         }
 
-        bool allx0 = std::all_of(delatX.begin(), delatX.end(), [](int i) { return i == 0; });
+        // Keep ordinary SCLX output byte-compatible; runtime-font records
+        // require complete region vectors and omit all-zero deltas.
+        const auto emitVariation = [runtimeFont](const DefaultDelta& values) {
+          const bool allZero = std::all_of(
+              values.begin(), values.end(),
+              [](int value) { return value == 0; });
+          return runtimeFont ? !allZero : allZero;
+        };
 
-        if (allx0 != 0) {
-          auto indexesX = m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
+        if (emitVariation(delatX)) {
+          auto indexesX =
+              m_layout->getDeltaSetEntry(delatX, regionIndexesArrayIndex);
           posToVar.insert({valueRecords.size(), {-8, indexesX}});
         }
         valueRecords << (std::uint16_t)0;
 
-        bool ally0 = std::all_of(delatY.begin(), delatY.end(), [](int i) { return i == 0; });
-
-        if (ally0 != 0) {
-          auto indexesY = m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
+        if (emitVariation(delatY)) {
+          auto indexesY =
+              m_layout->getDeltaSetEntry(delatY, regionIndexesArrayIndex);
           posToVar.insert({valueRecords.size(), {-8, indexesY}});
         }
         valueRecords << (std::uint16_t)0;
 
-        bool allxadvance0 = std::all_of(delatXadvance.begin(), delatXadvance.end(), [](int i) { return i == 0; });
-
-        if (allxadvance0 != 0) {
-          auto indexesXadvance = m_layout->getDeltaSetEntry(delatXadvance, regionIndexesArrayIndex);
+        if (emitVariation(delatXadvance)) {
+          auto indexesXadvance =
+              m_layout->getDeltaSetEntry(delatXadvance,
+                                         regionIndexesArrayIndex);
           posToVar.insert({valueRecords.size(), {-8, indexesXadvance}});
         }
         valueRecords << (std::uint16_t)0;
@@ -1375,13 +1333,17 @@ digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getOpenTypeTable(bool ext
       if (!m_layout->useNormAxisValues) {
         OT::F16DOT16 lefttatweel;
         lefttatweel.set_float(alternateGlyph.lefttatweel);
-
         OT::F16DOT16 righttatweel;
         righttatweel.set_float(alternateGlyph.righttatweel);
-
-        tatweelsArray << (int32_t)lefttatweel.to_int() << (int32_t)righttatweel.to_int();
+        tatweelsArray
+            << static_cast<std::int32_t>(lefttatweel.to_int())
+            << static_cast<std::int32_t>(righttatweel.to_int());
       } else {
-        throw std::runtime_error("Not implemented");
+        const auto target = static_cast<std::uint16_t>(alternateGlyph.code);
+        writeTatweel(tatweelsArray, m_layout, target, glyphCode,
+                     alternateGlyph.lefttatweel, true);
+        writeTatweel(tatweelsArray, m_layout, target, glyphCode,
+                     alternateGlyph.righttatweel, false);
       }
     }
 

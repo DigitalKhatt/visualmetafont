@@ -89,6 +89,8 @@ void usage(const char* program) {
          "mpost.mp, vmf.mp\n"
          "  --glyphs PATH           Glyph source file (default: glyphs.mp)\n"
          "  --extended              Generate the extended online-shaper font\n"
+         "  --runtime-font          Generate the LTAT/RTAT native-runtime profile\n"
+         "                          (implies --extended)\n"
          "  --no-variable           Disable OpenType variable axes\n"
          "  --disable-lookup NAME   Disable a lookup; may be repeated\n"
          "  -h, --help              Show this help\n";
@@ -105,6 +107,7 @@ int main(int argc, char** argv) {
     std::string featuresFile{"features.fea"};
     std::vector<std::string> disabledLookups;
     bool extended = false;
+    bool runtimeFont = false;
     bool variable = true;
 
     for (int i = 1; i < argc; ++i) {
@@ -130,6 +133,8 @@ int main(int argc, char** argv) {
         disabledLookups.push_back(value(argument));
       } else if (argument == "--extended") {
         extended = true;
+      } else if (argument == "--runtime-font") {
+        runtimeFont = true;
       } else if (argument == "--no-variable") {
         variable = false;
       } else if (!argument.empty() && argument.front() == '-') {
@@ -145,6 +150,11 @@ int main(int argc, char** argv) {
       usage(argv[0]);
       return 2;
     }
+    if (runtimeFont && !variable) {
+      throw std::runtime_error(
+          "--runtime-font cannot be combined with --no-variable");
+    }
+    if (runtimeFont) extended = true;
     projectFile = fs::absolute(projectFile);
     const auto projectDirectory = projectFile.parent_path();
     if (outputFile.empty())
@@ -169,6 +179,7 @@ int main(int argc, char** argv) {
     registerGlyphSources(font, glyphsFile);
 
     OtLayout layout(&font, extended, extended ? true : variable);
+    if (runtimeFont) layout.toOpenType->useRuntimeFontProfile();
     for (const auto& lookup : disabledLookups)
       layout.setLookupDisabled(lookup, true);
     layout.toOpenType->isCff2 = true;

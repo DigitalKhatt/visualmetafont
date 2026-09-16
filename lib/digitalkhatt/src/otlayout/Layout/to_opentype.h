@@ -268,13 +268,15 @@ public:
   void populateGlyphs();
   digitalkhatt::ByteBuffer getVariationRegionList();
 
-  ValueLimits axisLimits = { 20,-20,20,-20 };
+  ValueLimits axisLimits = {20, -20, 20, -20};
 
   const uint16_t AxisNameId = 256;
 
+  void useRuntimeFontProfile();
+  bool isRuntimeFontProfile() const { return runtimeFontProfile; }
   void setAxes();
 
-  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const int subregionIndex, std::vector<std::map<std::vector<int>, int>>& delatSets);
+  std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const int subregionIndex, std::vector<std::map<std::vector<int>, int>>& deltaSets);
   std::pair<int, int> getDeltaSetEntry(DefaultDelta delta, const int subregionIndex) {
     return getDeltaSetEntry(delta, subregionIndex, GDEFDeltaSets);
   }
@@ -282,7 +284,7 @@ public:
   digitalkhatt::ByteBuffer getGDEFItemVariationStore() {
     return getItemVariationStore(GDEFDeltaSets);
   }
-  digitalkhatt::ByteBuffer getItemVariationStore(const std::vector<std::map<std::vector<int>, int>>& delatSets);
+  digitalkhatt::ByteBuffer getItemVariationStore(const std::vector<std::map<std::vector<int>, int>>& deltaSets);
 
   bool isUniformAxis() {
     return uniformAxis;
@@ -293,7 +295,7 @@ private:
   uint32_t calcTableChecksum(uint32_t* Table, uint32_t Length);
 
   std::map<std::uint16_t, GlyphVis*> glyphs;
-  GlobalValues globalValues;
+  GlobalValues globalValues{};
 
   void int_to_cff2(digitalkhatt::ByteBuffer& cff, int val);
   void fixed_to_cff2(digitalkhatt::ByteBuffer& cff, double val);
@@ -327,7 +329,8 @@ private:
   std::vector<std::map<std::vector<int>, int>> GDEFDeltaSets;
 
   int axisCount = 0;
-
+  bool runtimeFontProfile = false;
+  std::vector<VarAxis> effectiveAxes;
   std::vector<int> axisNameIds;
   bool isComponentsEnabled;
 };
