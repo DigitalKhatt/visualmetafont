@@ -1,31 +1,41 @@
 # DigitalKhatt native runtime
 
 This directory provides a small C ABI over DigitalKhatt's HarfBuzz fork. It
-loads a compiled CFF2/JTST font, shapes one independent Arabic line, returns
-glyph placement and tatweel coordinates, and streams the selected CFF2
-outlines to renderer-owned callbacks.
+loads a compiled CFF2/JTST font, shapes Arabic text, returns glyph placement and
+tatweel coordinates, and streams selected CFF2 outlines to renderer-owned
+callbacks.
 
-It deliberately excludes Qt, MetaPost, page policy, page composition, corpus
-loading, and platform UI code. Those belong outside the low-level typography
-kernel.
+It deliberately excludes Qt, MetaPost, page composition, corpus loading, and
+platform UI code. Those belong outside the typography runtime.
 
 ## ABI v1
 
-The public header supports:
+The ABI major remains 1. The `0.2` symbol set adds page typography without
+changing any `0.1` symbol or structure.
 
-- loading a font from a file or copied memory;
-- shaping one RTL Arabic UTF-16 line, with an optional JTST target width;
-- reading versioned line metrics and glyph records;
-- emitting a glyph outline at normalized LTAT/RTAT coordinates;
-- cancellation or failure from any path callback.
+The low-level line operation:
 
-All request and output records carry `struct_size`; later fields are append-only.
-Opaque line results own their storage, so no borrowed fixed-stride glyph array
-crosses the ABI. The engine and immutable results support concurrent reads and
-independent calls as documented in `engine.h`.
+- shapes one independent RTL Arabic UTF-16 line;
+- optionally runs the font's JTST target-width pass;
+- does **not** apply a Mushaf page profile or FeatureJustifier page policy.
 
-The line operation is intentionally low-level. It does not implement a Mushaf
-page profile or the page-wide planning policy used by `FeatureJustifier`.
+The additive page operation:
+
+- accepts ordered UTF-16 lines, target widths, semantic roles, and alignment;
+- applies a profile-versioned page-wide feature-planning policy;
+- returns immutable line and glyph results with fractional final spacing;
+- expresses widths and glyph positions in font design units, leaving device
+  scaling to the host;
+- leaves page breaking, vertical baselines, decorations, interaction, and
+  rendering to the host.
+
+`DK_PAGE_PROFILE_MADINAH_1441_V1` maps to the canonical New Madinah
+FeatureJustifier policy. Revision 1 does not expose feature records, tajweed
+colors, screen coordinates, selection data, or platform paths.
+
+Page input and output records are append-only and size-versioned. Set their
+`struct_size` fields to the matching `*_V1_SIZE` constant. The path sink follows
+the same convention.
 
 ## Font contract
 
@@ -48,8 +58,12 @@ ctest --test-dir build/digitalkhatt-runtime --output-on-failure
 cmake --install build/digitalkhatt-runtime --prefix /your/sdk/prefix
 ```
 
-Set `DIGITALKHATT_ENGINE_TEST_FONT` to exercise another compatible font. Shared
-installs export `digitalkhatt::engine` through
+Set `DIGITALKHATT_ENGINE_TEST_FONT` to exercise another compatible font. Set
+`DIGITALKHATT_ENGINE_PAGE_PARITY_FONT` to a corrected compiler runtime font to
+enable the strict page-43 parity fixture (15 lines, 1,352 glyphs, and 1,230
+visible outlines).
+
+Shared installs export `digitalkhatt::engine` through
 `find_package(DigitalKhattEngine CONFIG REQUIRED)`.
 
 The runtime inherits this repository's AGPL-3.0-or-later license. Review those

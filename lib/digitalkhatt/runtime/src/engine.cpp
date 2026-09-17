@@ -1,5 +1,7 @@
 #include "digitalkhatt/engine.h"
 
+#include "digitalkhatt/justify/FeatureJustifier.h"
+
 #include <hb.h>
 #include <hb-ot.h>
 
@@ -10,6 +12,8 @@
 #include <limits>
 #include <memory>
 #include <new>
+#include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -64,12 +68,25 @@ bool has_table(hb_face_t* face, hb_tag_t tag) {
   return table && hb_blob_get_length(table.get()) != 0;
 }
 
-Font create_font(hb_face_t* face, uint32_t upem) {
+double effective_font_scale(uint32_t upem, double requested_scale) {
+  if (!std::isfinite(requested_scale) || requested_scale <= 0) return 0;
+  const double scaled_upem = upem * requested_scale;
+  if (scaled_upem < 1 || scaled_upem > std::numeric_limits<int>::max()) {
+    return 0;
+  }
+  return static_cast<int>(std::lround(scaled_upem)) /
+         static_cast<double>(upem);
+}
+
+Font create_font(hb_face_t* face, uint32_t upem, double scale = 1.0) {
+  const double effective_scale = effective_font_scale(upem, scale);
+  if (effective_scale == 0) return {};
   Font font{hb_font_create(face)};
   if (!font) return {};
   hb_ot_font_set_funcs(font.get());
-  hb_font_set_scale(font.get(), static_cast<int>(upem),
-                    static_cast<int>(upem));
+  const auto font_scale = static_cast<int>(
+      std::lround(upem * effective_scale));
+  hb_font_set_scale(font.get(), font_scale, font_scale);
   hb_font_set_ppem(font.get(), upem, upem);
   return font;
 }
@@ -167,6 +184,33 @@ struct dk_line {
   int64_t width = 0;
 };
 
+struct dk_page_glyph_result {
+  uint32_t glyph_id = 0;
+  uint32_t cluster = 0;
+  double x_advance = 0;
+  double y_advance = 0;
+  double x_offset = 0;
+  double y_offset = 0;
+  double left_tatweel = 0;
+  double right_tatweel = 0;
+};
+
+struct dk_page_line_result {
+  std::vector<dk_page_glyph_result> glyphs;
+  uint32_t flags = 0;
+  dk_page_line_role_t role = DK_PAGE_LINE_ROLE_ORDINARY;
+  dk_page_alignment_t alignment = DK_PAGE_ALIGNMENT_DISTRIBUTE;
+  double x_origin = 0;
+  double desired_width = 0;
+  double final_width = 0;
+  double font_scale = 1;
+  double x_scale = 1;
+};
+
+struct dk_page {
+  std::vector<dk_page_line_result> lines;
+};
+
 namespace {
 
 template <typename T>
@@ -180,6 +224,124 @@ bool prepare_output(T* output, uint32_t required_size) {
     output->struct_size = supplied_size;
   }
   return supplied_size >= required_size;
+}
+
+namespace dk = digitalkhatt;
+
+class RuntimeFeatureProvider final
+    : public dk::justify::FeatureJustificationLayout {
+ public:
+  explicit RuntimeFeatureProvider(const dk_engine_t& engine)
+      : engine_(engine) {}
+
+  hb_font_t* createFont(double scale, bool) override {
+    return create_font(engine_.face.get(), engine_.upem, scale).release();
+  }
+  double effectiveFontScale(double requested_scale) const override {
+    return effective_font_scale(engine_.upem, requested_scale);
+  }
+  bool useCustomShapingCallbacks() const override { return false; }
+  int scaleBy() const override { return 0; }
+  int topSpace() const override { return 0; }
+  int interLineSpacing() const override { return 0; }
+
+ private:
+  const dk_engine_t& engine_;
+};
+
+bool valid_utf16(const uint16_t* text, size_t length) {
+  for (size_t index = 0; index < length; ++index) {
+    const uint16_t unit = text[index];
+    if (unit >= 0xd800u && unit <= 0xdbffu) {
+      if (++index >= length || text[index] < 0xdc00u ||
+          text[index] > 0xdfffu) {
+        return false;
+      }
+    } else if (unit >= 0xdc00u && unit <= 0xdfffu) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool valid_page_options(const dk_engine_t& engine,
+                        const dk_page_options_v1_t* options,
+                        size_t line_count) {
+  if (!options || options->struct_size < DK_PAGE_OPTIONS_V1_SIZE ||
+      options->profile != DK_PAGE_PROFILE_MADINAH_1441_V1 ||
+      options->flags != 0 || options->page_width <= 0 ||
+      options->line_stride < DK_PAGE_LINE_INPUT_V1_SIZE || line_count == 0 ||
+      line_count > static_cast<size_t>(std::numeric_limits<int>::max()) ||
+      line_count > std::numeric_limits<size_t>::max() / options->line_stride) {
+    return false;
+  }
+  return engine.upem <=
+         static_cast<uint32_t>(std::numeric_limits<int>::max());
+}
+
+void read_page_line(const dk_page_line_input_v1_t* lines, size_t stride,
+                    size_t index, dk_page_line_input_v1_t* output) {
+  std::memset(output, 0, sizeof(*output));
+  const auto* bytes = reinterpret_cast<const unsigned char*>(lines);
+  std::memcpy(output, bytes + index * stride, DK_PAGE_LINE_INPUT_V1_SIZE);
+}
+
+bool valid_page_line(const dk_page_line_input_v1_t& line, size_t stride,
+                     int32_t page_width) {
+  if (line.struct_size < DK_PAGE_LINE_INPUT_V1_SIZE ||
+      line.struct_size > stride ||
+      (line.flags & ~DK_PAGE_LINE_FLAG_ALTERNATE_BASMALA) != 0 ||
+      !line.text || line.text_length == 0 ||
+      line.text_length >
+          static_cast<uint64_t>(std::numeric_limits<int>::max()) ||
+      line.desired_width < 0 || line.desired_width > page_width ||
+      line.role > DK_PAGE_LINE_ROLE_BASMALA ||
+      line.alignment > DK_PAGE_ALIGNMENT_DISTRIBUTE ||
+      !valid_utf16(line.text, static_cast<size_t>(line.text_length))) {
+    return false;
+  }
+  if (line.role == DK_PAGE_LINE_ROLE_ORDINARY && line.desired_width == 0) {
+    return false;
+  }
+  if ((line.flags & DK_PAGE_LINE_FLAG_ALTERNATE_BASMALA) != 0 &&
+      line.role != DK_PAGE_LINE_ROLE_BASMALA) {
+    return false;
+  }
+  return true;
+}
+
+dk::LineType to_line_type(dk_page_line_role_t role) {
+  switch (role) {
+    case DK_PAGE_LINE_ROLE_ORDINARY: return dk::LineType::Line;
+    case DK_PAGE_LINE_ROLE_SURAH_HEADING: return dk::LineType::Sura;
+    case DK_PAGE_LINE_ROLE_BASMALA: return dk::LineType::Bism;
+  }
+  return dk::LineType::Line;
+}
+
+dk::LineJustification to_alignment(dk_page_alignment_t alignment) {
+  return alignment == DK_PAGE_ALIGNMENT_CENTER
+             ? dk::LineJustification::Center
+             : dk::LineJustification::Distribute;
+}
+
+bool valid_page_glyph(const dk_engine_t& engine,
+                      const dk::GlyphLayoutInfo& glyph,
+                      uint64_t text_length) {
+  return glyph.codepoint >= 0 &&
+         static_cast<uint32_t>(glyph.codepoint) < engine.glyph_count &&
+         glyph.cluster >= 0 &&
+         static_cast<uint64_t>(glyph.cluster) < text_length &&
+         std::isfinite(glyph.lefttatweel) &&
+         std::isfinite(glyph.righttatweel) &&
+         std::abs(glyph.lefttatweel) <= 1.0 &&
+         std::abs(glyph.righttatweel) <= 1.0;
+}
+
+bool is_ayah_space(const uint16_t* text, size_t length, size_t cluster) {
+  return (cluster > 0 && text[cluster - 1] >= 0x0660u &&
+          text[cluster - 1] <= 0x0669u) ||
+         (cluster + 1 < length && text[cluster + 1] == 0x06ddu);
 }
 
 dk_status_t finish_engine(Blob blob, dk_engine_t** out_engine) {
@@ -378,6 +540,172 @@ dk_status_t dk_line_get_glyph_v1(const dk_line_t* line, size_t glyph_index,
     return DK_STATUS_INVALID_ARGUMENT;
   }
   const auto& glyph = line->glyphs[glyph_index];
+  out_glyph->glyph_id = glyph.glyph_id;
+  out_glyph->cluster = glyph.cluster;
+  out_glyph->flags = 0;
+  out_glyph->x_advance = glyph.x_advance;
+  out_glyph->y_advance = glyph.y_advance;
+  out_glyph->x_offset = glyph.x_offset;
+  out_glyph->y_offset = glyph.y_offset;
+  out_glyph->left_tatweel = glyph.left_tatweel;
+  out_glyph->right_tatweel = glyph.right_tatweel;
+  return DK_STATUS_OK;
+}
+
+dk_status_t dk_engine_shape_page_utf16_v1(
+    const dk_engine_t* engine, const dk_page_options_v1_t* options,
+    const dk_page_line_input_v1_t* lines, size_t line_count,
+    dk_page_t** out_page) {
+  if (!out_page) return DK_STATUS_INVALID_ARGUMENT;
+  *out_page = nullptr;
+  if (!engine || !lines || !valid_page_options(*engine, options, line_count)) {
+    return DK_STATUS_INVALID_ARGUMENT;
+  }
+
+  try {
+    std::vector<dk::LineToJustify> page_lines;
+    std::vector<dk_page_line_input_v1_t> inputs;
+    page_lines.reserve(line_count);
+    inputs.reserve(line_count);
+    for (size_t index = 0; index < line_count; ++index) {
+      dk_page_line_input_v1_t input{};
+      read_page_line(lines, options->line_stride, index, &input);
+      if (!valid_page_line(input, options->line_stride,
+                           options->page_width)) {
+        return DK_STATUS_INVALID_ARGUMENT;
+      }
+      const auto text_length = static_cast<size_t>(input.text_length);
+      dk::TextString text;
+      text.reserve(text_length);
+      for (size_t unit = 0; unit < text_length; ++unit) {
+        text.push_back(static_cast<char16_t>(input.text[unit]));
+      }
+      page_lines.push_back({
+          std::move(text),
+          input.desired_width,
+          to_alignment(input.alignment),
+          to_line_type(input.role),
+          (input.flags & DK_PAGE_LINE_FLAG_ALTERNATE_BASMALA) != 0,
+      });
+      inputs.push_back(input);
+    }
+
+    RuntimeFeatureProvider provider(*engine);
+    dk::justify::FeatureJustifier justifier(provider);
+    constexpr dk::JustOption profile{dk::JustType::Experimental,
+                                     dk::JustStyle::SameSizeByPage,
+                                     dk::ShrinkType::None};
+    auto layout = justifier.justifyPageUsingFeatures(
+        1.0, options->page_width, page_lines, true, false,
+        HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS, profile, "newmadinah",
+        dk::justify::SpaceStretchPolicy::Madinah1441);
+    if (layout.size() != line_count) return DK_STATUS_SHAPING_FAILED;
+
+    auto page = std::make_unique<dk_page>();
+    page->lines.reserve(line_count);
+    for (size_t line_index = 0; line_index < line_count; ++line_index) {
+      const auto& source = layout[line_index];
+      const auto& input = inputs[line_index];
+      if (source.glyphs.empty() || source.currentLineWidth <= 0 ||
+          source.desiredLineWidth != input.desired_width ||
+          source.type != to_line_type(input.role) ||
+          !std::isfinite(source.fontSize) || source.fontSize <= 0 ||
+          !std::isfinite(source.xscale) || source.xscale <= 0 ||
+          !std::isfinite(source.simpleSpaceAdvance) ||
+          source.simpleSpaceAdvance < 0 ||
+          !std::isfinite(source.ayahSpaceAdvance) ||
+          source.ayahSpaceAdvance < 0) {
+        return DK_STATUS_SHAPING_FAILED;
+      }
+
+      dk_page_line_result result;
+      result.flags = input.flags;
+      result.role = input.role;
+      result.alignment = input.alignment;
+      result.desired_width = source.desiredLineWidth;
+      result.font_scale = source.fontSize;
+      result.x_scale = source.xscale;
+      result.glyphs.reserve(source.glyphs.size());
+      const auto text_length = static_cast<size_t>(input.text_length);
+      for (const auto& glyph : source.glyphs) {
+        if (!valid_page_glyph(*engine, glyph, input.text_length)) {
+          return DK_STATUS_SHAPING_FAILED;
+        }
+        double x_advance = glyph.x_advance;
+        const auto cluster = static_cast<size_t>(glyph.cluster);
+        if (input.text[cluster] == 0x0020u) {
+          x_advance = is_ayah_space(input.text, text_length, cluster)
+                          ? source.ayahSpaceAdvance
+                          : source.simpleSpaceAdvance;
+        }
+        if (!std::isfinite(x_advance)) return DK_STATUS_SHAPING_FAILED;
+        result.final_width += x_advance;
+        result.glyphs.push_back({
+            static_cast<uint32_t>(glyph.codepoint),
+            static_cast<uint32_t>(glyph.cluster),
+            x_advance,
+            static_cast<double>(glyph.y_advance),
+            static_cast<double>(glyph.x_offset),
+            static_cast<double>(glyph.y_offset),
+            glyph.lefttatweel,
+            glyph.righttatweel,
+        });
+      }
+      result.x_origin =
+          input.alignment == DK_PAGE_ALIGNMENT_DISTRIBUTE
+              ? 0
+              : (options->page_width - result.final_width) / 2.0;
+      page->lines.push_back(std::move(result));
+    }
+    *out_page = page.release();
+    return DK_STATUS_OK;
+  } catch (const std::bad_alloc&) {
+    return DK_STATUS_OUT_OF_MEMORY;
+  } catch (const std::overflow_error&) {
+    return DK_STATUS_SHAPING_FAILED;
+  } catch (...) {
+    return DK_STATUS_INTERNAL_ERROR;
+  }
+}
+
+void dk_page_destroy(dk_page_t* page) { delete page; }
+
+size_t dk_page_line_count(const dk_page_t* page) {
+  return page ? page->lines.size() : 0;
+}
+
+dk_status_t dk_page_get_line_v1(const dk_page_t* page, size_t line_index,
+                                dk_page_line_v1_t* out_line) {
+  if (!prepare_output(out_line, DK_PAGE_LINE_V1_SIZE)) {
+    return DK_STATUS_INVALID_ARGUMENT;
+  }
+  if (!page || line_index >= page->lines.size()) {
+    return DK_STATUS_INVALID_ARGUMENT;
+  }
+  const auto& line = page->lines[line_index];
+  out_line->flags = line.flags;
+  out_line->role = line.role;
+  out_line->alignment = line.alignment;
+  out_line->x_origin = line.x_origin;
+  out_line->desired_width = line.desired_width;
+  out_line->final_width = line.final_width;
+  out_line->font_scale = line.font_scale;
+  out_line->x_scale = line.x_scale;
+  out_line->glyph_count = static_cast<uint64_t>(line.glyphs.size());
+  return DK_STATUS_OK;
+}
+
+dk_status_t dk_page_get_glyph_v1(const dk_page_t* page, size_t line_index,
+                                 size_t glyph_index,
+                                 dk_page_glyph_v1_t* out_glyph) {
+  if (!prepare_output(out_glyph, DK_PAGE_GLYPH_V1_SIZE)) {
+    return DK_STATUS_INVALID_ARGUMENT;
+  }
+  if (!page || line_index >= page->lines.size() ||
+      glyph_index >= page->lines[line_index].glyphs.size()) {
+    return DK_STATUS_INVALID_ARGUMENT;
+  }
+  const auto& glyph = page->lines[line_index].glyphs[glyph_index];
   out_glyph->glyph_id = glyph.glyph_id;
   out_glyph->cluster = glyph.cluster;
   out_glyph->flags = 0;

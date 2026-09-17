@@ -24,6 +24,7 @@ extern "C" {
 
 typedef struct dk_engine dk_engine_t;
 typedef struct dk_line dk_line_t;
+typedef struct dk_page dk_page_t;
 
 typedef uint32_t dk_status_t;
 enum {
@@ -85,6 +86,101 @@ typedef struct dk_glyph_v1 {
 #define DK_GLYPH_V1_SIZE                                                  \
   ((uint32_t)(offsetof(dk_glyph_v1_t, right_tatweel) +                    \
               sizeof(((dk_glyph_v1_t*)0)->right_tatweel)))
+
+typedef uint32_t dk_page_profile_t;
+enum {
+  /* Canonical New Madinah page-wide feature planning, revision 1. */
+  DK_PAGE_PROFILE_MADINAH_1441_V1 = 1u
+};
+
+typedef uint32_t dk_page_line_role_t;
+enum {
+  DK_PAGE_LINE_ROLE_ORDINARY = 0u,
+  DK_PAGE_LINE_ROLE_SURAH_HEADING = 1u,
+  DK_PAGE_LINE_ROLE_BASMALA = 2u
+};
+
+typedef uint32_t dk_page_alignment_t;
+enum {
+  DK_PAGE_ALIGNMENT_CENTER = 0u,
+  DK_PAGE_ALIGNMENT_DISTRIBUTE = 1u
+};
+
+enum {
+  DK_PAGE_LINE_FLAG_ALTERNATE_BASMALA = 1u
+};
+
+typedef struct dk_page_options_v1 {
+  /* Set to DK_PAGE_OPTIONS_V1_SIZE. Later fields, if any, are append-only. */
+  uint32_t struct_size;
+  dk_page_profile_t profile;
+  /* Reserved. Must be zero. */
+  uint32_t flags;
+  /* Horizontal extent in the font's design-unit coordinate space. */
+  int32_t page_width;
+  /* Byte distance between consecutive dk_page_line_input_v1_t records. */
+  uint32_t line_stride;
+} dk_page_options_v1_t;
+
+#define DK_PAGE_OPTIONS_V1_SIZE                                           \
+  ((uint32_t)(offsetof(dk_page_options_v1_t, line_stride) +               \
+              sizeof(((dk_page_options_v1_t*)0)->line_stride)))
+
+typedef struct dk_page_line_input_v1 {
+  /* Set to DK_PAGE_LINE_INPUT_V1_SIZE. Later fields, if any, are append-only. */
+  uint32_t struct_size;
+  uint32_t flags;
+  const uint16_t* text;
+  uint64_t text_length;
+  /* Target width in the font's design-unit coordinate space. */
+  int32_t desired_width;
+  dk_page_line_role_t role;
+  dk_page_alignment_t alignment;
+} dk_page_line_input_v1_t;
+
+#define DK_PAGE_LINE_INPUT_V1_SIZE                                       \
+  ((uint32_t)(offsetof(dk_page_line_input_v1_t, alignment) +             \
+              sizeof(((dk_page_line_input_v1_t*)0)->alignment)))
+
+typedef struct dk_page_line_v1 {
+  /* Set to DK_PAGE_LINE_V1_SIZE before calling dk_page_get_line_v1(). */
+  uint32_t struct_size;
+  uint32_t flags;
+  dk_page_line_role_t role;
+  dk_page_alignment_t alignment;
+  double x_origin;
+  /* Horizontal geometry is expressed in font design units. */
+  double desired_width;
+  double final_width;
+  /* Transform emitted outlines by these scales before positioning them. */
+  double font_scale;
+  double x_scale;
+  uint64_t glyph_count;
+} dk_page_line_v1_t;
+
+#define DK_PAGE_LINE_V1_SIZE                                             \
+  ((uint32_t)(offsetof(dk_page_line_v1_t, glyph_count) +                 \
+              sizeof(((dk_page_line_v1_t*)0)->glyph_count)))
+
+typedef struct dk_page_glyph_v1 {
+  /* Set to DK_PAGE_GLYPH_V1_SIZE before calling dk_page_get_glyph_v1(). */
+  uint32_t struct_size;
+  uint32_t glyph_id;
+  uint32_t cluster;
+  /* Reserved. Zero in revision 1. */
+  uint32_t flags;
+  double x_advance;
+  double y_advance;
+  double x_offset;
+  double y_offset;
+  /* Normalized LTAT/RTAT coordinates in the inclusive range [-1, 1]. */
+  double left_tatweel;
+  double right_tatweel;
+} dk_page_glyph_v1_t;
+
+#define DK_PAGE_GLYPH_V1_SIZE                                            \
+  ((uint32_t)(offsetof(dk_page_glyph_v1_t, right_tatweel) +              \
+              sizeof(((dk_page_glyph_v1_t*)0)->right_tatweel)))
 
 typedef struct dk_glyph_variant_v1 {
   /* Set to DK_GLYPH_VARIANT_V1_SIZE. Later fields, if any, are append-only. */
@@ -153,6 +249,34 @@ DK_ENGINE_API dk_status_t dk_line_get_glyph_v1(
     const dk_line_t* line,
     size_t glyph_index,
     dk_glyph_v1_t* out_glyph);
+
+/*
+ * Applies one profile-versioned page-wide typography transaction. The host
+ * owns page breaking, ordered line text, line roles, target widths, vertical
+ * baselines, decorations, interaction, and rendering. The engine owns the
+ * profile's cross-line feature planning and final glyph shaping.
+ *
+ * options->line_stride must be at least DK_PAGE_LINE_INPUT_V1_SIZE and is
+ * used to walk the line array. Input text is copied before return. The
+ * immutable result owns all output and may outlive its engine.
+ */
+DK_ENGINE_API dk_status_t dk_engine_shape_page_utf16_v1(
+    const dk_engine_t* engine,
+    const dk_page_options_v1_t* options,
+    const dk_page_line_input_v1_t* lines,
+    size_t line_count,
+    dk_page_t** out_page);
+DK_ENGINE_API void dk_page_destroy(dk_page_t* page);
+DK_ENGINE_API size_t dk_page_line_count(const dk_page_t* page);
+DK_ENGINE_API dk_status_t dk_page_get_line_v1(
+    const dk_page_t* page,
+    size_t line_index,
+    dk_page_line_v1_t* out_line);
+DK_ENGINE_API dk_status_t dk_page_get_glyph_v1(
+    const dk_page_t* page,
+    size_t line_index,
+    size_t glyph_index,
+    dk_page_glyph_v1_t* out_glyph);
 
 /*
  * Emits the foreground CFF2 outline selected by a glyph ID and normalized

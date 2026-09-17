@@ -9,3 +9,8 @@ _dk_line_destroy
 _dk_line_get_glyph_v1
 _dk_line_get_metrics_v1
 _dk_status_message
+_dk_engine_shape_page_utf16_v1
+_dk_page_destroy
+_dk_page_get_line_v1
+_dk_page_get_glyph_v1
+_dk_page_line_count
