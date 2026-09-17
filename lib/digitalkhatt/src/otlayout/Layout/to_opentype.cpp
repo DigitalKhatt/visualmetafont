@@ -22,7 +22,9 @@
 #include <cmath>
 #include <chrono>
 #include <charconv>
+#include <cstdlib>
 #include <fstream>
+#include <limits>
 #include <map>
 #include <span>
 #include <stdexcept>
@@ -92,18 +94,51 @@ std::string compactNumber(double value) {
   }
   return {buffer, end};
 }
+
+std::int64_t fontTimestamp() {
+  constexpr std::int64_t secondsFrom1904To1970 = 2'082'844'800;
+  if (const char* sourceDateEpoch = std::getenv("SOURCE_DATE_EPOCH")) {
+    std::int64_t epoch = 0;
+    const std::string_view value{sourceDateEpoch};
+    const auto [end, error] =
+        std::from_chars(value.data(), value.data() + value.size(), epoch);
+    if (error != std::errc{} || end != value.data() + value.size() ||
+        epoch < 0 ||
+        epoch > std::numeric_limits<std::int64_t>::max() -
+                    secondsFrom1904To1970) {
+      throw std::runtime_error("Invalid SOURCE_DATE_EPOCH");
+    }
+    return epoch + secondsFrom1904To1970;
+  }
+
+  const auto epoch = std::chrono::duration_cast<std::chrono::seconds>(
+      std::chrono::system_clock::now().time_since_epoch()).count();
+  return epoch + secondsFrom1904To1970;
+}
 }  // namespace
 
 ToOpenType::ToOpenType(OtLayout* layout) : ot_layout{layout} {
   isComponentsEnabled = false;
   setAxes();
 }
+
+void ToOpenType::useRuntimeFontProfile() {
+  if (!ot_layout->isExtended() || !ot_layout->isOTVar) {
+    throw std::runtime_error(
+        "The runtime font profile requires extended variable output");
+  }
+  runtimeFontProfile = true;
+}
+
 void ToOpenType::setAxes() {
   uniformAxis = ot_layout->isOTVar;
   regions.clear();
   glyphParametersByRegion.clear();
   GDEFDeltaSets.clear();
+  regionIndexesArray.clear();
   regionIndexesIndexByGlyph.clear();
+  axisNameIds.clear();
+  axisLimits = {20, -20, 20, -20};
 
   if (!ot_layout->isOTVar) {
     axisCount = 0;
@@ -111,9 +146,26 @@ void ToOpenType::setAxes() {
     return;
   }
 
-  const auto& axes = ot_layout->font->axes();
+  effectiveAxes.clear();
+  if (runtimeFontProfile) {
+    effectiveAxes = {
+        {"leftTatweel", HB_TAG('L', 'T', 'A', 'T'), -20.0f, 0.0f, 20.0f,
+         "params0"},
+        {"rightTatweel", HB_TAG('R', 'T', 'A', 'T'), -20.0f, 0.0f, 20.0f,
+         "params1"},
+    };
+  } else {
+    const auto& projectAxes = ot_layout->font->axes();
+    effectiveAxes.reserve(projectAxes.size());
+    for (const auto& axis : projectAxes) {
+      effectiveAxes.push_back({axis.name, axis.axisTag, axis.minValue,
+                               axis.defaultValue, axis.maxValue,
+                               axis.equivExpr});
+    }
+  }
 
-  this->axisCount = axes.size();
+  const auto& axes = effectiveAxes;
+  axisCount = static_cast<int>(axes.size());
 
   if (axisCount == 0) {
     isComponentsEnabled = false;
@@ -148,13 +200,31 @@ void ToOpenType::setAxes() {
     return -1;
   };
 
-  auto leftTatweelIndex = getAxisIndex("leftTatweel");
-  auto rightTatweelIndex = getAxisIndex("rightTatweel");
-  auto scaleXIndex = getAxisIndex("scaleX");
+  const auto leftTatweelIndex = getAxisIndex("leftTatweel");
+  const auto rightTatweelIndex = getAxisIndex("rightTatweel");
+  const auto scaleXIndex = getAxisIndex("scaleX");
 
-  if (scaleXIndex == -1) {
-    isComponentsEnabled = true;
-  }
+  auto setTatweelAxis = [&](int index, std::uint32_t expectedTag,
+                            bool left) {
+    if (index == -1) return;
+    const auto& axis = axes[index];
+    if (axis.axisTag != expectedTag || !std::isfinite(axis.minValue) ||
+        !std::isfinite(axis.defaultValue) ||
+        !std::isfinite(axis.maxValue) || axis.minValue >= 0.0f ||
+        axis.defaultValue != 0.0f || axis.maxValue <= 0.0f) {
+      throw std::runtime_error("Invalid " + axis.name + " axis");
+    }
+    if (left) {
+      axisLimits.minLeft = axis.minValue;
+      axisLimits.maxLeft = axis.maxValue;
+    } else {
+      axisLimits.minRight = axis.minValue;
+      axisLimits.maxRight = axis.maxValue;
+    }
+  };
+  setTatweelAxis(leftTatweelIndex, HB_TAG('L', 'T', 'A', 'T'), true);
+  setTatweelAxis(rightTatweelIndex, HB_TAG('R', 'T', 'A', 'T'), false);
+  isComponentsEnabled = scaleXIndex == -1;
 
   auto getRegionIndex = [&regions = regions, &glyphParametersByRegion = glyphParametersByRegion](VariationRegion region, GlyphParameters parameters) {
     int size = regions.size();
@@ -188,7 +258,7 @@ void ToOpenType::setAxes() {
           auto& leftAxis = axes[leftTatweelIndex];
           if (limits.maxLeft != 0.0) {
             if (limits.maxLeft > leftAxis.maxValue) {
-              throw new std::runtime_error("maxLeft exceeds axis Limit");
+              throw std::runtime_error("maxLeft exceeds axis limit");
             } else if (limits.maxLeft == leftAxis.maxValue) {
               VariationRegion region = getVariationRegion(leftTatweelIndex, {0, getF2DOT14(1.0), getF2DOT14(1.0)});
               regionIndexes.push_back(getRegionIndex(region, {.lefttatweel = limits.maxLeft}));
@@ -204,7 +274,7 @@ void ToOpenType::setAxes() {
           }
           if (limits.minLeft != 0.0) {
             if (limits.minLeft < leftAxis.minValue) {
-              throw new std::runtime_error("minLeft exceeds axis Limit");
+              throw std::runtime_error("minLeft exceeds axis limit");
             } else if (limits.minLeft == leftAxis.minValue) {
               VariationRegion region = getVariationRegion(leftTatweelIndex, {getF2DOT14(-1.0), getF2DOT14(-1.0), 0});
               regionIndexes.push_back(getRegionIndex(region, {.lefttatweel = limits.minLeft}));
@@ -222,8 +292,8 @@ void ToOpenType::setAxes() {
         if (rightTatweelIndex != -1) {
           auto& rightAxis = axes[rightTatweelIndex];
           if (limits.maxRight != 0.0) {
-            if (limits.maxRight > limits.maxRight) {
-              throw new std::runtime_error("maxRight exceeds axis Limit");
+            if (limits.maxRight > rightAxis.maxValue) {
+              throw std::runtime_error("maxRight exceeds axis limit");
             } else if (limits.maxRight == rightAxis.maxValue) {
               VariationRegion region = getVariationRegion(rightTatweelIndex, {0, getF2DOT14(1.0), getF2DOT14(1.0)});
               regionIndexes.push_back(getRegionIndex(region, {.righttatweel = limits.maxRight}));
@@ -239,7 +309,7 @@ void ToOpenType::setAxes() {
           }
           if (limits.minRight != 0.0) {
             if (limits.minRight < rightAxis.minValue) {
-              throw new std::runtime_error("minRight exceeds axis Limit");
+              throw std::runtime_error("minRight exceeds axis limit");
             } else if (limits.minRight == rightAxis.minValue) {
               VariationRegion region = getVariationRegion(rightTatweelIndex, {getF2DOT14(-1.0), getF2DOT14(-1.0), 0});
               regionIndexes.push_back(getRegionIndex(region, {.righttatweel = limits.minRight}));
@@ -723,10 +793,7 @@ digitalkhatt::ByteBuffer ToOpenType::gsub() {
 digitalkhatt::ByteBuffer ToOpenType::head() {
   digitalkhatt::ByteBuffer data;
 
-  constexpr std::int64_t secondsFrom1904To1970 = 2'082'844'800;
-  const auto unixSeconds = std::chrono::duration_cast<std::chrono::seconds>(
-      std::chrono::system_clock::now().time_since_epoch()).count();
-  const std::int64_t secs = unixSeconds + secondsFrom1904To1970;
+  const std::int64_t secs = fontTimestamp();
 
   data << (uint16_t)1;                                                  // majorVersion
   data << (uint16_t)0;                                                  // minorVersion
@@ -853,7 +920,7 @@ digitalkhatt::ByteBuffer ToOpenType::name() {
 
   for (int i = 0; i < axisCount; i++) {
     names.push_back(Name{static_cast<std::uint16_t>(axisNameIds[i]),
-                         ot_layout->font->axes()[i].name});
+                         effectiveAxes[i].name});
   }
 
   digitalkhatt::ByteBuffer stringStorage;
@@ -1906,7 +1973,7 @@ digitalkhatt::ByteBuffer ToOpenType::fvar() {
   data << (uint16_t)0;                    // instanceCount
   data << (uint16_t)(axisCount * 4 + 4);  // instanceSize : axisCount * sizeof(Fixed) + 4
 
-  const auto& axes = ot_layout->font->axes();
+  const auto& axes = effectiveAxes;
 
   for (int i = 0; i < axisCount; i++) {
     auto& axis = axes[i];
@@ -1938,7 +2005,7 @@ digitalkhatt::ByteBuffer ToOpenType::STAT() {
   data << (uint32_t)0;          // offsetToAxisValueOffsets
   data << (uint16_t)2;          // elidedFallbackNameID
 
-  const auto& axes = ot_layout->font->axes();
+  const auto& axes = effectiveAxes;
 
   for (int i = 0; i < axisCount; i++) {
     auto& axis = axes[i];
@@ -2088,12 +2155,9 @@ digitalkhatt::ByteBuffer ToOpenType::HVAR() {
 
   deltaSets.resize(regionIndexesArray.size());
 
-  std::vector<int> defaultValue;
-  defaultValue.resize(axisCount * 2);
-
-  deltaSets[0].insert({defaultValue, 0});
-
-  auto defaultPos = std::make_pair(0, 0);
+  DefaultDelta defaultValue(regionIndexesArray.front().size(), 0);
+  const auto defaultPos =
+      getDeltaSetEntry(std::move(defaultValue), 0, deltaSets);
 
   for (int i = 0; i < glyphCount; i++) {
     if (glyphs.contains(i)) {
@@ -2265,21 +2329,39 @@ digitalkhatt::ByteBuffer ToOpenType::getVariationRegionList() {
   return variationRegionList;
 }
 
-std::pair<int, int> ToOpenType::getDeltaSetEntry(DefaultDelta delta, const int subregionIndex, std::vector<std::map<std::vector<int>, int>>& delatSets) {
-  auto& subRegionDataSet = delatSets[subregionIndex];
-
-  const auto& it = subRegionDataSet.find(delta);
-  if (it != subRegionDataSet.end()) {
-    return {subregionIndex, it->second};
-  } else {
-    int val = subRegionDataSet.size();
-    subRegionDataSet.insert({delta, val});
-    return {subregionIndex, val};
+std::pair<int, int> ToOpenType::getDeltaSetEntry(
+    DefaultDelta delta, const int subregionIndex,
+    std::vector<std::map<std::vector<int>, int>>& deltaSets) {
+  if (subregionIndex < 0 ||
+      static_cast<std::size_t>(subregionIndex) >= regionIndexesArray.size() ||
+      static_cast<std::size_t>(subregionIndex) >= deltaSets.size()) {
+    throw std::runtime_error("Invalid variation subregion index");
   }
+  const auto expectedSize = regionIndexesArray[subregionIndex].size();
+  if (delta.size() != expectedSize) {
+    throw std::runtime_error(
+        "Variation delta count " + std::to_string(delta.size()) +
+        " does not match region-index count " +
+        std::to_string(expectedSize) + " for subregion " +
+        std::to_string(subregionIndex));
+  }
+
+  auto& subRegionDataSet = deltaSets[subregionIndex];
+  const auto found = subRegionDataSet.find(delta);
+  if (found != subRegionDataSet.end()) {
+    return {subregionIndex, found->second};
+  }
+  const int index = static_cast<int>(subRegionDataSet.size());
+  subRegionDataSet.emplace(std::move(delta), index);
+  return {subregionIndex, index};
 }
-digitalkhatt::ByteBuffer ToOpenType::getItemVariationStore(const std::vector<std::map<std::vector<int>, int>>& delatSets) {
-  if (delatSets.size() == 0) {
-    return {};
+
+digitalkhatt::ByteBuffer ToOpenType::getItemVariationStore(
+    const std::vector<std::map<std::vector<int>, int>>& deltaSets) {
+  if (deltaSets.empty()) return {};
+  if (deltaSets.size() != regionIndexesArray.size()) {
+    throw std::runtime_error(
+        "Variation delta-set count does not match the subregion count");
   }
 
   digitalkhatt::ByteBuffer itemVariationStore;
@@ -2297,7 +2379,7 @@ digitalkhatt::ByteBuffer ToOpenType::getItemVariationStore(const std::vector<std
 
   for (int subregionIndex = 0; subregionIndex < regionIndexesArray.size(); subregionIndex++) {
     auto& subRegion = regionIndexesArray[subregionIndex];
-    auto& defaultDeltaSet = delatSets[subregionIndex];
+    const auto& defaultDeltaSet = deltaSets[subregionIndex];
 
     itemVariationStore << (uint32_t)(itemVariationDataOffsets);  // itemVariationDataOffsets[itemVariationDataCount]
 
@@ -2306,7 +2388,9 @@ digitalkhatt::ByteBuffer ToOpenType::getItemVariationStore(const std::vector<std
       localDelatSets.insert({it.second, it.first});
     }
 
-    assert(localDelatSets.size() == defaultDeltaSet.size());
+    if (localDelatSets.size() != defaultDeltaSet.size()) {
+      throw std::runtime_error("Invalid variation delta-set indexes");
+    }
 
     digitalkhatt::ByteBuffer ItemVariationData;
     // subtable
@@ -2318,7 +2402,10 @@ digitalkhatt::ByteBuffer ToOpenType::getItemVariationStore(const std::vector<std
       ItemVariationData << (uint16_t)index;  // regionIndexes
     }
     for (auto& it : localDelatSets) {
-      assert(subRegion.size() == it.second.size());
+      if (subRegion.size() != it.second.size()) {
+        throw std::runtime_error(
+            "Variation delta count does not match its region-index count");
+      }
       for (auto value : it.second) {
         ItemVariationData << (uint16_t)value;
       }
