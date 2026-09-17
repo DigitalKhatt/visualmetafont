@@ -61,6 +61,8 @@ struct LineLayoutInfo {
   double fontSize;
   double xscale = 1;
   double xscaleparameter = 0;
+  double simpleSpaceAdvance = 0;
+  double ayahSpaceAdvance = 0;
 };
 
 enum class LineJustification {
