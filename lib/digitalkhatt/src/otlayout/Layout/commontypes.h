@@ -71,33 +71,8 @@ struct Point {
   int y_{};
 };
 
-struct GlyphParameters {
-  double lefttatweel{0.0};
-  double righttatweel{0.0};
-  double third{0.0};
-  double fourth{0.0};
-  double fifth{0.0};
-  double scalex{0.0};
-
-  bool operator==(const GlyphParameters& r) const {
-    return r.lefttatweel == lefttatweel && r.righttatweel == righttatweel && r.third == third && r.fourth == fourth && r.fifth == fifth && r.scalex == scalex;
-  }
-};
-namespace std {
-template <>
-struct hash<GlyphParameters> {
-  size_t operator()(const GlyphParameters& r) const {
-    return hash<double>{}(r.lefttatweel) ^ hash<double>{}(r.righttatweel) ^ hash<double>{}(r.third) ^ hash<double>{}(r.fourth) ^ hash<double>{}(r.fifth) ^ hash<double>{}(r.scalex);
-  }
-};
-
-template <>
-struct equal_to<GlyphParameters> {
-  bool operator()(const GlyphParameters& r, const GlyphParameters& r2) const {
-    return r == r2;
-  }
-};
-}  // namespace std
+#include <digitalkhatt/core/GlyphParameters.h>
+using GlyphParameters = digitalkhatt::GlyphParameters;
 
 struct RegionAxisCoordinate {
   int16_t startCoord = 0;

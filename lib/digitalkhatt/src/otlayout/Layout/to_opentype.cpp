@@ -256,10 +256,11 @@ void ToOpenType::setAxes() {
         }
       }
     }
-    if (scaleXIndex != -1 /* && !glyphName.contains(".added_")*/) {
+    if (scaleXIndex != -1) {
       bool includeglyph = true;
-      if (glyphName.find(".added_") != std::string::npos) {
-        if (glyph->charlt > 3 || glyph->charrt > 0) {
+      if (glyph->sourceGlyphCode) {
+        if (glyph->parameters.lefttatweel > 3 ||
+            glyph->parameters.righttatweel > 0) {
           includeglyph = false;
         }
       }
@@ -452,6 +453,14 @@ void ToOpenType::setGIds() {
       }
       currentAnchors = anchors;
     }
+  }
+
+  for (auto& [name, glyph] : ot_layout->glyphs) {
+    if (!glyph.sourceGlyphCode) continue;
+    const auto mappedSource = newCodes.find(*glyph.sourceGlyphCode);
+    if (mappedSource == newCodes.end())
+      throw new std::runtime_error("Source code for " + name + " not found");
+    glyph.sourceGlyphCode = mappedSource->second;
   }
 
   ot_layout->glyphCodePerName = glyphCodePerName;
@@ -782,12 +791,13 @@ digitalkhatt::ByteBuffer ToOpenType::hmtx() {
     if (glyphs.contains(i)) {
       auto glyph = glyphs.at(i);
 
-      bool ismark = false;
-      if (!glyph->originalglyph.empty()) {
-        ismark = marks.contains(glyph->originalglyph);
-      } else {
-        ismark = marks.contains(glyph->name);
-      }
+      std::string classificationName = glyph->name;
+      if (glyph->sourceGlyphCode)
+        classificationName =
+            ot_layout->getGlyph(*glyph->sourceGlyphCode)->name;
+      else if (!glyph->originalglyph.empty())
+        classificationName = glyph->originalglyph;
+      const bool ismark = marks.contains(classificationName);
       if (ismark) {
         data << (uint16_t)0;
       } else {
@@ -991,19 +1001,27 @@ digitalkhatt::ByteBuffer ToOpenType::post() {
 
     data << (int16_t)glyphCount;
 
-    int index = 0;
+    // Custom name 258 is the fallback used for gid 0 and for holes in the
+    // sparse glyph map.  Do not dereference glyphs[0] here: the live
+    // HarfBuzz face can request `post` before export has remapped .notdef to
+    // gid 0.
+    int index = 1;
 
     digitalkhatt::ByteBuffer stringData;
-
-    glyphs[0]->name = ".notdef";
+    constexpr std::string_view notdefName = ".notdef";
+    stringData << static_cast<std::uint8_t>(notdefName.size());
+    appendBytes(stringData, notdefName);
 
     for (int i = 0; i < glyphCount; i++) {
       digitalkhatt::ByteBuffer glyphArray;
 
-      if (glyphs.contains(i)) {
+      if (i == 0) {
+        data << (uint16_t)258;  // .notdef
+      } else if (const auto found = glyphs.find(i);
+                 found != glyphs.end() && found->second != nullptr) {
         data << (uint16_t)(index + 258);
         index++;
-        auto glyph = glyphs.at(i);
+        auto glyph = found->second;
         auto newName = glyph->name;
         if (const auto pos = newName.find("added"); pos != std::string::npos) {
           newName.replace(pos, 5, compactNumber(glyph->charlt * 10) + "_" +

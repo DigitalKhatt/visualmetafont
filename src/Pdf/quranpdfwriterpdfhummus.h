@@ -93,10 +93,9 @@ class QuranPdfWriterPdfHummus : public QObject {
  private:
   struct GlyphKey {
     int code = 0;
-    double lefttatweel = 0;
-    double righttatweel = 0;
+    GlyphParameters parameters;
     bool operator==(const GlyphKey& r) const {
-      return code == r.code && lefttatweel == r.lefttatweel && righttatweel == r.righttatweel;
+      return code == r.code && parameters == r.parameters;
     }
   };
 
@@ -124,9 +123,7 @@ class QuranPdfWriterPdfHummus : public QObject {
   struct HashGlyphKey {
     std::size_t operator()(const GlyphKey& k) const {
       std::size_t h1 = std::hash<int>{}(k.code);
-      std::size_t h2 = std::hash<double>{}(k.lefttatweel);
-      std::size_t h3 = std::hash<double>{}(k.righttatweel);
-      return h1 ^ (h2 << 1) ^ (h3 << 2);
+      return h1 ^ (std::hash<GlyphParameters>{}(k.parameters) << 1);
     }
   };
 

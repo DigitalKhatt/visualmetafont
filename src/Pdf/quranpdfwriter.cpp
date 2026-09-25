@@ -670,9 +670,9 @@ void QuranPdfWriter::generateQuranPages(LayoutPageList pages, int lineWidth, Ori
 
   auto& glyphs = d_ep->otlayout->glyphs;
 
-  d_ep->getIndex(MyQPdf::GlyphKey{glyphs["endofaya"].charcode, 0, 0});
+  d_ep->getIndex(MyQPdf::GlyphKey{glyphs["endofaya"].charcode});
   for (int i = 0; i < 10; i++) {
-    d_ep->getIndex(MyQPdf::GlyphKey{i + 1632, 0, 0});
+    d_ep->getIndex(MyQPdf::GlyphKey{i + 1632});
   }
 
   d_ep->currenttype3Font = -1;
@@ -812,7 +812,7 @@ void QuranPdfWriter::generateQuranPages(LayoutPageList pages, int lineWidth, Ori
       for (int i = 0; i < line.glyphs.size(); i++) {
         char buf[5];
 
-        auto index = d_ep->getIndex({line.glyphs[i].codepoint, line.glyphs[i].lefttatweel, line.glyphs[i].righttatweel});
+        auto index = d_ep->getIndex({line.glyphs[i].codepoint, line.glyphs[i].parameters});
 
         if (index.font != currentfont) {
           currentfont = index.font;

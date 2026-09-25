@@ -166,8 +166,8 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
         measures.append(round_up(glyph.x_offset));
         measures.append(round_up(glyph.y_offset));
         measures.append(round_up((int)glyph.color));
-        measures.append(round_up(glyph.lefttatweel));
-        measures.append(round_up(glyph.righttatweel));
+        measures.append(round_up(glyph.parameters.lefttatweel));
+        measures.append(round_up(glyph.parameters.righttatweel));
 
         glyphsArray.append(measures);*/
 
@@ -191,12 +191,12 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
           glyphObject["color"] = (int)glyph.color;
         }
 
-        if (glyph.lefttatweel != 0) {
-          glyphObject["lefttatweel"] = glyph.lefttatweel;
+        if (glyph.parameters.lefttatweel != 0) {
+          glyphObject["lefttatweel"] = glyph.parameters.lefttatweel;
         }
 
-        if (glyph.righttatweel != 0) {
-          glyphObject["righttatweel"] = glyph.righttatweel;
+        if (glyph.parameters.righttatweel != 0) {
+          glyphObject["righttatweel"] = glyph.parameters.righttatweel;
         }
 
         if (glyph.beginsajda) {

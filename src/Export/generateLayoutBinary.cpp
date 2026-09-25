@@ -240,12 +240,12 @@ static void generateBinaryPages(LayoutPages& layoutPages, QByteArray& data, int 
           glyphdata << (uint8_t)colorToTajweedEnum[glyph.color];
           glyphMask = glyphMask | 0b1000;
         }
-        if(glyph.lefttatweel != 0){
-          glyphdata << (uint32_t)getFixed(glyph.lefttatweel);
+        if(glyph.parameters.lefttatweel != 0){
+          glyphdata << (uint32_t)getFixed(glyph.parameters.lefttatweel);
           glyphMask = glyphMask | 0b10000;
         }
-        if(glyph.righttatweel != 0){
-          glyphdata << (uint32_t)getFixed(glyph.righttatweel);
+        if(glyph.parameters.righttatweel != 0){
+          glyphdata << (uint32_t)getFixed(glyph.parameters.righttatweel);
           glyphMask = glyphMask | 0b100000;
         }
         if(glyph.cluster > 255){

@@ -270,19 +270,13 @@ void LayoutWindow::editLookup(QString lookupName) {
         if (m_otlayout->glyphs.contains(glyphName)) {
           GlyphVis& glyph = m_otlayout->glyphs[glyphName];
 
-          /*auto glyphItem = new GlyphItem(1, &glyph, m_otlayout, glyph_info[i].lookup_index, glyph_info[i].subtable_index, glyph_info[i].base_codepoint, glyph_info[i].lefttatweel, glyph_info[i].righttatweel);
-          glyphItem->setFlag(QGraphicsItem::ItemIsMovable);
-          graphicsScene->addItem(glyphItem);*/
           currentxPos -= glyph_pos[i].x_advance;
           QPoint pos(currentxPos + (glyph_pos[i].x_offset), glyph_pos[i].y_offset);
 
           auto glyphPath = digitalkhatt::qt::pathForGlyph(glyph);
 
-          if (glyph_info[i].lefttatweel != 0 || glyph_info[i].righttatweel != 0) {
-            GlyphParameters parameters{};
-
-            parameters.lefttatweel = glyph_info[i].lefttatweel;
-            parameters.righttatweel = glyph_info[i].righttatweel;
+          const auto parameters = m_otlayout->glyphParameters(glyph_info[i]);
+          if (!parameters.isDefault()) {
 
             glyphPath = digitalkhatt::qt::pathForGlyph(
                 *glyph.getAlternate(parameters));

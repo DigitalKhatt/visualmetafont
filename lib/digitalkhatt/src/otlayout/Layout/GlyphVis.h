@@ -19,8 +19,9 @@
 
 #pragma once
 
-#include <optional>
+#include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include "commontypes.h"
 #include "metafont.h"
@@ -68,6 +69,10 @@ class GlyphVis {
 
   std::string name;
   std::string originalglyph;
+  // Authoritative provenance for a generated parameterized instance. Unlike
+  // originalglyph, this does not depend on a generated name or MetaPost
+  // metadata and can identify glyph code 0.
+  std::optional<std::uint16_t> sourceGlyphCode;
   std::string coloredglyph;
   GlyphType glyphtype = GlyphType::Unknown;
   int charcode = 0;
@@ -77,6 +82,10 @@ class GlyphVis {
   double depth = 0;
   double charlt = 0;
   double charrt = 0;
+  // Full coordinates used to generate an alternate outline. charlt/charrt are
+  // retained for compatibility and diagnostics, but are insufficient once an
+  // exported glyph also carries body or future axes.
+  GlyphParameters parameters;
   BBox bbox;
   std::optional<Point> leftAnchor;
   std::optional<Point> rightAnchor;

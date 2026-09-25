@@ -9,12 +9,18 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include <hb-ot.h>
+
 #include "hb-buffer.hh"
 #include "hb-font.hh"
+
+#include "FeatureJustifierInternal.h"
+#include "JustificationShaping.h"
 
 namespace digitalkhatt::justify {
 namespace {
@@ -30,16 +36,6 @@ using std::max;
 using std::min;
 using std::set;
 using std::vector;
-
-bool contains(std::u16string_view text, char16_t character) {
-  return text.find(character) != std::u16string_view::npos;
-}
-
-std::string shrinkFeatureName(int index) {
-  std::ostringstream stream;
-  stream << "sk" << std::setw(2) << std::setfill('0') << index;
-  return stream.str();
-}
 
 // Drops every occurrence of any character in charsToDrop, mirroring
 // QString::remove(QRegularExpression("[...]")) / QString::remove(QChar) on a
@@ -78,232 +74,30 @@ TextString formatPattern(TextView tmpl, TextView a1, TextView a2, TextView a3) {
   return replaceAll(formatPattern(tmpl, a1, a2), u"%3", a3);
 }
 
-static const int FONTSIZE = 1000;
+using runtime::analyzeLineForJust;
+using runtime::AppliedResult;
+using runtime::contains;
+using runtime::getWidth;
+using runtime::getWordWidth;
+using runtime::JustInfo;
+using runtime::JustResultByLine;
+using runtime::LayoutResult;
+using runtime::LineTextInfo;
+using runtime::shape;
+using runtime::shapeLine;
+using runtime::shrinkFeatureName;
+using runtime::SpaceType;
+using runtime::StretchType;
+using runtime::SubWordCharIndex;
+using runtime::SubWordInfo;
+using runtime::TextFontFeatures;
+using runtime::tryApplyFeatures;
+using runtime::WordInfo;
 
-enum class SpaceType {
-  Simple = 1,
-  Aya,
-};
-
-enum class StretchType {
-  None = 0,
-  Beh = 1,
-  FinaAscendant = 2,
-  OtherKashidas = 3,
-  Kaf = 4,
-  SecondKashidaNotSameSubWord = 5,
-  SecondKashidaSameSubWord = 6,
-  BehNonGreedy = 7,
-};
-
-enum class AppliedResult {
-  NoChange,
-  Positive,
-  Overflow,
-  Forbiden,
-};
-
-struct SubWordCharIndex {
-  int subWordIndex;
-  int characterIndexInSubWord;
-};
-
-struct LayoutResult {
-  double parWidth;
-  map<StretchType, SubWordCharIndex> appliedKashidas;
-};
-
-struct SubWordInfo {
-  vector<int> baseIndexes;
-  TextString baseText;
-};
-
-struct WordInfo {
-  TextString text;
-  TextString baseText;
-  int startIndex;
-  int endIndex;
-  vector<int> baseIndexes;
-  vector<SubWordInfo> subwords = {{}};
-};
-
-struct LineTextInfo {
-  TextString lineText;
-  vector<int> ayaSpaceIndexes;
-  vector<int> simpleSpaceIndexes;
-  map<int, SpaceType> spaces;
-  vector<WordInfo> wordInfos;
-};
-
-struct TextFontFeatures {
-  std::string name;
-  int value;
-};
-
-struct JustResultByLine {
-  float sclxAxis = 0;
-  vector<TextFontFeatures> globalFeatures = {};
-  map<int, vector<TextFontFeatures>> fontFeatures = {}; /* FontFeatures by character index in the line */
-  double simpleSpacing;
-  double ayaSpacing;
-  double xScale;
-  bool isShrink = false;
-  double addedSpaceAfterShrink = 0.0;
-};
-
-struct JustInfo {
-  map<int, vector<TextFontFeatures>> fontFeatures = {};
-  double desiredWidth;
-  double textLineWidth;
-  vector<LayoutResult> layoutResult;
-  hb_font_t* font;
-};
+constexpr int FONTSIZE = runtime::kFontSize;
 
 static const TextString rightNoJoinLetters = u"آاٱأإدذرزوؤءة";
 static const TextString dualJoinLetters = u"بتثجحخسشصضطظعغفقكلمنهيئى";
-
-static set<char16_t> bases{};
-
-void initBases() {
-  for (int i = 0; i < static_cast<int>(dualJoinLetters.size()); i++) {
-    bases.insert(dualJoinLetters.at(i));
-  }
-  for (int i = 0; i < static_cast<int>(rightNoJoinLetters.size()); i++) {
-    bases.insert(rightNoJoinLetters.at(i));
-  }
-}
-
-static hb_segment_properties_t savedprops{
-    HB_DIRECTION_RTL,
-    HB_SCRIPT_ARABIC,
-    hb_language_from_string("ar", strlen("ar")),
-    0,
-    0};
-
-static LineTextInfo analyzeLineForJust(TextString lineText) {
-  if (bases.size() == 0) {
-    initBases();
-  }
-
-  LineTextInfo lineTextInfo = {
-      .lineText = lineText,
-      .ayaSpaceIndexes = {},
-      .simpleSpaceIndexes = {},
-      .spaces = {},
-      .wordInfos = {}};
-
-  lineTextInfo.wordInfos.push_back({});
-  WordInfo* currentWord = &lineTextInfo.wordInfos.back();
-  currentWord->startIndex = 0;
-  currentWord->endIndex = -1;
-
-  for (int i = 0; i < static_cast<int>(lineText.size()); i++) {
-    char16_t qchar = lineText.at(i);
-    if (qchar == ' ') {
-      if ((i > 0 && lineText.at(i - 1) >= 0x0660 && lineText.at(i - 1) <= 0x0669) ||
-          (i + 1 < static_cast<int>(lineText.size()) && lineText.at(i + 1) == 0x06DD)) {
-        lineTextInfo.ayaSpaceIndexes.push_back(i);
-        lineTextInfo.spaces.insert({i, SpaceType::Aya});
-      } else {
-        lineTextInfo.simpleSpaceIndexes.push_back(i);
-        lineTextInfo.spaces.insert({i, SpaceType::Simple});
-      }
-      lineTextInfo.wordInfos.push_back({});
-      currentWord = &lineTextInfo.wordInfos.back();
-      currentWord->startIndex = i + 1;
-      currentWord->endIndex = i;
-    } else {
-      currentWord->text += qchar;
-      if (bases.find(qchar) != bases.end()) {
-        currentWord->baseText += qchar;
-        currentWord->baseIndexes.push_back(i - currentWord->startIndex);
-        if (qchar == U'ء') {
-          currentWord->subwords.push_back({.baseIndexes = {}, .baseText = u""});
-        }
-        auto& subWord = currentWord->subwords.back();
-        subWord.baseText += qchar;
-        subWord.baseIndexes.push_back(i - currentWord->startIndex);
-        if (i < static_cast<int>(lineText.size()) - 1 && qchar != U'ء' && contains(rightNoJoinLetters, qchar)) {
-          currentWord->subwords.push_back({.baseIndexes = {}, .baseText = u""});
-        }
-      }
-      currentWord->endIndex++;
-    }
-  }
-
-  return lineTextInfo;
-}
-
-static hb_buffer_t* shape(TextString text, hb_font_t* font, vector<hb_feature_t> features) {
-  hb_buffer_t* buffer = buffer = hb_buffer_create();
-
-  hb_buffer_set_segment_properties(buffer, &savedprops);
-  hb_buffer_set_cluster_level(buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
-  buffer->justContext = nullptr;
-  buffer->useCallback = true;
-  buffer->justifyLine = false;
-
-  hb_buffer_add_utf16(buffer, reinterpret_cast<const uint16_t*>(text.data()), static_cast<int>(text.size()), 0, static_cast<int>(text.size()));
-
-  hb_shape(font, buffer, features.data(), features.size());
-
-  return buffer;
-}
-
-static double getWidth(const TextString& text, hb_font_t* font, const vector<hb_feature_t>& features) {
-  auto buffer = shape(text, font, features);
-
-  double totalWidth = 0.0;
-
-  unsigned int glyph_count;
-
-  hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
-
-  for (int i = 0; i < static_cast<int>(glyph_count); i++) {
-    totalWidth += glyph_pos[i].x_advance;
-  }
-
-  hb_buffer_destroy(buffer);
-
-  return totalWidth;
-}
-
-static double getWordWidth(const WordInfo& wordInfo, const map<int, vector<TextFontFeatures>>& justResults, hb_font_t* font) {
-  vector<hb_feature_t> features{};
-
-  for (int i = wordInfo.startIndex; i <= wordInfo.endIndex; i++) {
-    auto justInfo = justResults.find(i);
-    if (justInfo != justResults.end()) {
-      for (auto& feat : justInfo->second) {
-        features.push_back({hb_tag_from_string(feat.name.c_str(), static_cast<int>(feat.name.size())),
-                            (uint32_t)feat.value,
-                            (unsigned int)(i - wordInfo.startIndex),
-                            (unsigned int)(i - wordInfo.startIndex + 1)});
-      }
-    }
-  }
-
-  return getWidth(wordInfo.text, font, features);
-}
-
-static AppliedResult tryApplyFeatures(int wordIndex, const LineTextInfo& lineTextInfo, JustInfo& justInfo, const map<int, vector<TextFontFeatures>>& newFeatures) {
-  auto& layout = justInfo.layoutResult[wordIndex];
-
-  const auto& wordInfo = lineTextInfo.wordInfos[wordIndex];
-
-  const auto& wordNewWidth = getWordWidth(wordInfo, newFeatures, justInfo.font);
-  auto diff = wordNewWidth - layout.parWidth;
-  if (wordNewWidth != layout.parWidth && justInfo.textLineWidth + diff < justInfo.desiredWidth) {
-    justInfo.textLineWidth += diff;
-    layout.parWidth = wordNewWidth;
-    justInfo.fontFeatures = newFeatures;
-    return AppliedResult::Positive;
-  } else if (diff == 0) {
-    return AppliedResult::NoChange;
-  } else {
-    return AppliedResult::Overflow;
-  }
-}
 
 struct SubWordsMatch {
   vector<int> subWordIndexes;
@@ -1073,7 +867,7 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
     layOutResult.push_back({parWidth, {}});
   }
 
-  auto currentLineWidth = getWidth(lineText, font, {});
+  double currentLineWidth = getWidth(lineText, font, {});
 
   auto diff = desiredWidth - currentLineWidth;
 
@@ -1083,7 +877,13 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
   result.simpleSpacing = spaceWidth;
   result.ayaSpacing = spaceWidth;
 
-  JustInfo justInfo{.fontFeatures = {}, .desiredWidth = desiredWidth, .textLineWidth = currentLineWidth, .layoutResult = layOutResult, .font = font};
+  JustInfo justInfo{.fontFeatures = {},
+                    .desiredWidth = desiredWidth,
+                    .textLineWidth = currentLineWidth,
+                    .layoutResult = layOutResult,
+                    .font = font,
+                    .layout = &layout,
+                    .catalog = layout.justificationCatalog()};
 
   if (diff > 0) {
     // stretch
@@ -1178,137 +978,10 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
 
   return result;
 }
-static std::map<std::string, int> tajweedNameToColor = {
-    {"green", 0x00A650FF}, {"tafkim", 0x006694FF}, {"lgray", 0xB4B4B4FF}, {"lkalkala", 0x00ADEFFF}, {"red1", 0xC38A08FF}, {"red2", 0xF47216FF}, {"red3", 0xEC008CFF}, {"red4", 0x8C0000FF}};
-
-static LineLayoutInfo shapeLine(FeatureJustificationLayout& layout, int lineWidth, int pageWidth,
-                                const LineTextInfo& lineTextInfo, const JustResultByLine& justResult, bool tajweedColor, double emScale, hb_font_t* font,
-                                LineJustification justification, int& currentyPos, digitalkhatt::TajweedMap& tajweedResult) {
-  vector<hb_feature_t> features{};
-
-  for (auto& feat : justResult.globalFeatures) {
-    features.push_back({hb_tag_from_string(feat.name.c_str(), static_cast<int>(feat.name.size())),
-                        (uint32_t)feat.value,
-                        (unsigned int)0,
-                        (unsigned int)-1});
-  }
-
-  for (auto& wordInfo : lineTextInfo.wordInfos) {
-    for (int i = wordInfo.startIndex; i <= wordInfo.endIndex; i++) {
-      auto justInfo = justResult.fontFeatures.find(i);
-      if (justInfo != justResult.fontFeatures.end()) {
-        for (auto& feat : justInfo->second) {
-          features.push_back({hb_tag_from_string(feat.name.c_str(), static_cast<int>(feat.name.size())),
-                              (uint32_t)feat.value,
-                              (unsigned int)(i),
-                              (unsigned int)(i + 1)});
-        }
-      }
-    }
-  }
-
-  auto buffer = shape(lineTextInfo.lineText, font, features);
-
-  unsigned int glyph_count;
-
-  hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-  hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
-
-  LineLayoutInfo lineLayout;
-  int currentlineWidth = 0;
-
-  for (int i = glyph_count - 1; i >= 0; i--) {
-    GlyphLayoutInfo glyphLayout;
-
-    glyphLayout.codepoint = glyph_info[i].codepoint;
-    glyphLayout.lefttatweel = glyph_info[i].lefttatweel;    // normalToParameter(glyph_info[i].codepoint, glyph_info[i].lefttatweel, true);
-    glyphLayout.righttatweel = glyph_info[i].righttatweel;  // normalToParameter(glyph_info[i].codepoint, glyph_info[i].righttatweel, false);
-    glyphLayout.cluster = glyph_info[i].cluster;
-    glyphLayout.x_advance = glyph_pos[i].x_advance;
-    glyphLayout.y_advance = glyph_pos[i].y_advance;
-    glyphLayout.x_offset = glyph_pos[i].x_offset;
-    glyphLayout.y_offset = glyph_pos[i].y_offset;
-    glyphLayout.lookup_index = glyph_pos[i].lookup_index;
-    if (tajweedColor) {
-      auto color = tajweedResult.find(glyphLayout.cluster);
-      if (color != tajweedResult.end()) {
-        glyphLayout.color = tajweedNameToColor[color->second];
-      } else if (lineTextInfo.lineText[glyphLayout.cluster] == u'\u034F') {
-        auto nextIndex = i - 1;
-        auto nextCluster = glyph_info[nextIndex].cluster;
-        auto currCluster = glyphLayout.cluster + 1;
-        if (nextCluster > static_cast<uint32_t>(currCluster)) {
-          auto color = tajweedResult.find(currCluster);
-          if (color != tajweedResult.end()) {
-            // happens only in لِيَسُ͏ࣳٓـٔ͏ُوا۟ page 282 line 14
-            // console.log(`cgi***************************************************************Page ${this.pageIndex + 1} Line ${lineIndex + 1}`)
-            glyphLayout.color = tajweedNameToColor[color->second];
-          }
-          /* debug
-          if (nextCluster - currCluster > 1 && lineText[glyph.Cluster + 2] !== "\u034Fu") {
-            console.log(`nextCluster - currCluster > 1**********************************************************Page ${this.pageIndex + 1} Line ${lineIndex + 1}`)
-          }*/
-        } /*else {
-          // happens only for فَٱدَّٰرَٰ͏ْٔتُمْ page 11 line 5 no tajweed coloring so it is OK
-          //console.log(`nextCluster<=currCluster**********************************************************Page ${this.pageIndex + 1} Line ${lineIndex + 1}`)
-        }  */
-      }
-    } else {
-      glyphLayout.color = 0;
-    }
-    glyphLayout.subtable_index = glyph_pos[i].subtable_index;
-    glyphLayout.base_codepoint = glyph_pos[i].base_codepoint;
-
-    glyphLayout.beginsajda = false;
-    glyphLayout.endsajda = false;
-
-    if (!justResult.isShrink) {
-      auto space = lineTextInfo.spaces.find(glyphLayout.cluster);
-
-      if (space != lineTextInfo.spaces.end()) {
-        if (space->second == SpaceType::Aya) {
-          glyphLayout.x_advance = justResult.ayaSpacing * emScale;
-        } else if (space->second == SpaceType::Simple) {
-          glyphLayout.x_advance = justResult.simpleSpacing * emScale;
-        }
-      }
-    } else if (justResult.addedSpaceAfterShrink != 0) {
-      auto space = lineTextInfo.spaces.find(glyphLayout.cluster);
-
-      if (space != lineTextInfo.spaces.end()) {
-        glyphLayout.x_advance += justResult.addedSpaceAfterShrink;
-      }
-    }
-
-    currentlineWidth += glyphLayout.x_advance;
-
-    lineLayout.glyphs.push_back(glyphLayout);
-  }
-
-  lineLayout.desiredLineWidth = lineWidth;
-  lineLayout.currentLineWidth = currentlineWidth;
-
-  lineLayout.overfull = lineWidth != 0 ? currentlineWidth - lineWidth : 0;
-
-  if (justification == LineJustification::Distribute) {
-    lineLayout.xstartposition = 0;
-  } else {
-    lineLayout.xstartposition = (pageWidth - currentlineWidth) / 2;
-  }
-
-  lineLayout.ystartposition = currentyPos;
-  lineLayout.fontSize = emScale;
-
-  currentyPos = currentyPos + (layout.interLineSpacing() << layout.scaleBy());
-
-  hb_buffer_destroy(buffer);
-
-  return lineLayout;
-}
 
 }  // namespace
 
-std::vector<LineLayoutInfo> FeatureJustifier::justifyPageUsingFeatures(
+std::vector<LineLayoutInfo> FeatureJustifier::justifyPage(
     double emScale, int pageWidth, const std::vector<LineToJustify>& lines,
     bool newFace, bool tajweedColor,
     hb_buffer_cluster_level_t clusterLevel, JustOption justOption,
@@ -1444,7 +1117,7 @@ std::vector<LineLayoutInfo> FeatureJustifier::justifyPageUsingFeatures(
     if (justOption.justStyle == JustStyle::SCLX) {
       lineLayoutInfo.fontSize = lineLayoutInfo.fontSize * justResultByLine.xScale;
       lineLayoutInfo.xscale = 1;
-      lineLayoutInfo.xscaleparameter = static_cast<double>(justResultByLine.sclxAxis);
+      layout_.setLineParameter(lineLayoutInfo, ScaleXAxis, static_cast<double>(justResultByLine.sclxAxis));
     } else if (lineLayoutInfo.type == LineType::Line) {
       if (justOption.justStyle == JustStyle::XScale) {
         lineLayoutInfo.xscale = justResultByLine.xScale;

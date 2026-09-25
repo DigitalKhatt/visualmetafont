@@ -264,13 +264,14 @@ static int buffer_get_glyphs(lua_State *L) {
       lua_setfield(L, -2, "flags");
     }
 
-    lua_pushnumber(L, info[i].lefttatweel);
+    dk_glyph_instance_t state = dk_get_instance(L, info[i].instance_id);
+    lua_pushnumber(L, state.left);
     lua_setfield(L, -2, "lefttatweel");
 
-    lua_pushnumber(L, info[i].righttatweel);
+    lua_pushnumber(L, state.right);
     lua_setfield(L, -2, "righttatweel");
 
-    lua_pushnumber(L, pos[i].base_codepoint);
+    lua_pushnumber(L, state.has_positioning ? state.positioning.base_codepoint : 0);
     lua_setfield(L, -2, "color");
 
     lua_settable(L, -3); // Add child table at index i+1 to parent table

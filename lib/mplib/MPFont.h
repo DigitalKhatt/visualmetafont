@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <map>
+#include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -58,6 +59,8 @@ class MPFont {
   void registerGlyphSource(std::string name, std::string source,
                            std::string beginMacro, int unicode);
   bool hasGlyph(std::string_view name) const;
+  void generateAlternate(std::string_view name, std::span<const std::pair<unsigned, double>> parameters,
+                         std::string_view source = {}, int alternateCode = 983040);
   void generateAlternate(std::string_view name, double leftTatweel,
                          double rightTatweel, double third, double fourth,
                          double fifth, double scaleX,

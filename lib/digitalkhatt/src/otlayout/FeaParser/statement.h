@@ -35,5 +35,12 @@ namespace feayy {
 	public:
 		void accept(Visitor&) override;
 	};
+
+	// A parsed declaration consumed directly from FeaContext.  It has no
+	// OpenType visitor behavior and therefore cannot become a GSUB/GPOS table.
+	class DeclarativeStatement : public Statement {
+	public:
+		void accept(Visitor&) override {}
+	};
 }
 #endif // H_FEAAST_STATEMENT

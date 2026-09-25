@@ -20,7 +20,6 @@
 #include "feaast.h"
 #include "MPFont.h"
 
-#include <format>
 #include <iostream>
 
 #include "Subtable.h"
@@ -88,6 +87,7 @@ void ClassDefinition::accept(Visitor& v) { v.accept(*this); }
 void MarkedGlyphSetRegExp::accept(Visitor& v) { v.accept(*this); }
 void LigatureSubstitutionRule::accept(Visitor& v) { v.accept(*this); }
 void MultipleSubstitutionRule::accept(Visitor& v) { v.accept(*this); }
+void AlternateSubstitutionRule::accept(Visitor& v) { v.accept(*this); }
 void TableDefinition::accept(Visitor& v) { v.accept(*this); }
 void JustTable::accept(Visitor& v) { v.accept(*this); }
 void IncludeStatment::accept(Visitor& v) { v.accept(*this); }
@@ -429,7 +429,7 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
   const auto hasMatchingFormat = [&] {
     if (newsubtable == nullptr) return false;
     if (singleRule.format == 11)
-      return dynamic_cast<SingleSubtableWithTatweel*>(newsubtable) != nullptr;
+      return dynamic_cast<SingleSubtableWithParameters*>(newsubtable) != nullptr;
     const auto* single = dynamic_cast<SingleSubtable*>(newsubtable);
     return single != nullptr && single->format == singleRule.format;
   };
@@ -438,7 +438,7 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
     if (singleRule.format == 10) {
       newsubtable = new SingleSubtableWithExpansion(lookup);
     } else if (singleRule.format == 11) {
-      newsubtable = new SingleSubtableWithTatweel(lookup);
+      newsubtable = new SingleSubtableWithParameters(lookup);
     } else {
       newsubtable = new SingleSubtable(lookup, singleRule.format);
     }
@@ -490,13 +490,20 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
     }
 
   } else if (singleRule.format == 11) {
+    GlyphParameters parameters;
+    for (const auto& [name, value] : singleRule.parameterAdjustments) {
+      const auto axis = otlayout->axisRegistry.find(name);
+      if (axis == digitalkhatt::NoGlyphAxis)
+        throw std::runtime_error("Unknown glyph parameter '" + name + "'");
+      parameters.set(axis, parameters.value(axis) + value);
+    }
     if (singleRule.firstType == SingleSubstituionRule::FirstType::GLYPHSET) {
       auto firstunicodes = singleRule.firstGlyphSet->getCodes(otlayout);
 
-      SingleSubtableWithTatweel* subtable = (SingleSubtableWithTatweel*)newsubtable;
+      SingleSubtableWithParameters* subtable = (SingleSubtableWithParameters*)newsubtable;
 
       for (auto code : firstunicodes) {
-        subtable->subst[code] = {code, singleRule.expansion};
+        subtable->subst[code] = {code, singleRule.expansion, parameters};
       }
     } else {
       /*auto firstunicodes = singleRule.firstglyph->getCodes(otlayout);
@@ -518,9 +525,10 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
 
       auto secondunicode = singleRule.secondglyph->getCode(otlayout);
 
-      SingleSubtableWithTatweel* subtable = (SingleSubtableWithTatweel*)newsubtable;
+      SingleSubtableWithParameters* subtable = (SingleSubtableWithParameters*)newsubtable;
 
-      subtable->subst[firstunicode] = {secondunicode, singleRule.expansion};
+      subtable->subst[firstunicode] = {secondunicode, singleRule.expansion,
+                                      parameters};
     }
   }
 }
@@ -782,6 +790,50 @@ void LookupDefinitionVisitor::accept(MultipleSubstitutionRule& multipleSubstitut
   }
 
   newsubtable->subst.insert_or_assign(glyphCode, std::move(seq));
+}
+
+void LookupDefinitionVisitor::accept(
+    AlternateSubstitutionRule& alternateSubstitutionRule) {
+  if (lookup->type == Lookup::none) {
+    lookup->type = Lookup::alternate;
+  } else if (lookup->type != Lookup::alternate) {
+    throw "Lookup with different subtable type";
+  }
+
+  auto* subtable = lookup->subtables.empty()
+                       ? nullptr
+                       : dynamic_cast<AlternateSubtableWithParameters*>(
+                             lookup->subtables.back());
+  if (subtable == nullptr) {
+    subtable = new AlternateSubtableWithParameters(lookup);
+    subtable->name = "subtable" +
+                     std::to_string(lookup->subtables.size() + 1);
+    lookup->subtables.push_back(subtable);
+  }
+
+  std::vector<ExtendedGlyph> alternates;
+  for (auto* component : alternateSubstitutionRule.alternates->components()) {
+    if (auto* parameterized = dynamic_cast<GlyphWithParameters*>(component)) {
+      alternates.emplace_back(parameterized->getCode(otlayout),
+                              parameterized->resolvedParameters(otlayout));
+      continue;
+    }
+    if (auto* glyph = dynamic_cast<Glyph*>(component)) {
+      alternates.emplace_back(glyph->getCode(otlayout), GlyphParameters{});
+      continue;
+    }
+    auto codes = component->getCodes(otlayout);
+    std::vector<std::uint16_t> sortedCodes(codes.begin(), codes.end());
+    std::sort(sortedCodes.begin(), sortedCodes.end());
+    for (auto code : sortedCodes)
+      alternates.emplace_back(code, GlyphParameters{});
+  }
+  if (alternates.empty())
+    throw std::runtime_error("Alternate substitution has no alternates");
+
+  subtable->alternates.insert_or_assign(
+      alternateSubstitutionRule.glyph->getCode(otlayout),
+      std::move(alternates));
 }
 
 void LookupDefinitionVisitor::accept(LigatureSubstitutionRule& ligatureSubstitutionRule) {

@@ -77,11 +77,40 @@ target_link_libraries(digitalkhatt_core PRIVATE $<BUILD_LOCAL_INTERFACE:pcre2-16
 
 add_library(digitalkhatt_justify
   src/justify/FeatureJustifier.cpp
+  src/justify/declpolicy/FixedSlotDfa.cpp
+  src/justify/declpolicy/DeclPolicyJustifier.cpp
+  src/justify/declpolicy/DeclPolicyPageJustifier.cpp
+  src/justify/declpolicy/DeclPolicyAdapter.cpp
+  src/justify/declpolicy/JustificationActionEvaluator.cpp
+  src/justify/declpolicy/JustificationCandidate.cpp
+  src/justify/JustificationShaping.cpp
+  src/justify/declpolicy/JustificationLinePolicy.cpp
+  src/justify/declpolicy/JustificationPagePolicy.cpp
+  src/justify/declpolicy/JustificationCatalog.cpp
 )
 
 target_include_directories(digitalkhatt_justify PUBLIC include)
 target_compile_features(digitalkhatt_justify PUBLIC cxx_std_20)
 target_link_libraries(digitalkhatt_justify PUBLIC harfbuzz PRIVATE digitalkhatt_core)
+
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(digitalkhatt_test_decl_policy
+    tests/declpolicy/DeclPolicyTest.cpp
+  )
+  target_compile_features(digitalkhatt_test_decl_policy PRIVATE cxx_std_20)
+  target_link_libraries(digitalkhatt_test_decl_policy PRIVATE digitalkhatt_justify)
+  add_test(NAME digitalkhatt.decl_policy COMMAND digitalkhatt_test_decl_policy)
+
+  add_executable(digitalkhatt_test_line_policy tests/declpolicy/JustificationLinePolicyTest.cpp)
+  target_compile_features(digitalkhatt_test_line_policy PRIVATE cxx_std_20)
+  target_link_libraries(digitalkhatt_test_line_policy PRIVATE digitalkhatt_justify)
+  add_test(NAME digitalkhatt.line_policy COMMAND digitalkhatt_test_line_policy)
+  add_executable(digitalkhatt_test_page_policy tests/declpolicy/JustificationPagePolicyTest.cpp)
+  target_compile_features(digitalkhatt_test_page_policy PRIVATE cxx_std_20)
+  target_link_libraries(digitalkhatt_test_page_policy PRIVATE digitalkhatt_justify)
+  add_test(NAME digitalkhatt.page_policy COMMAND digitalkhatt_test_page_policy)
+endif()
 
 
 # ---------------------------------------------------------------------------
@@ -252,6 +281,11 @@ if(NOT EMSCRIPTEN)
   target_compile_features(digitalkhatt_compare_mushaf_shaping PRIVATE cxx_std_20)
   target_link_libraries(digitalkhatt_compare_mushaf_shaping
     PRIVATE digitalkhatt::otlayout ${DIGITALKHATT_SQLITE3_LIBRARY}
+  )
+  # The probes drive the justification internals directly, so the tool sees
+  # src/justify the way the library's own translation units do.
+  target_include_directories(digitalkhatt_compare_mushaf_shaping PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/justify
   )
   target_compile_definitions(digitalkhatt_compare_mushaf_shaping PRIVATE
     DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/metafont"

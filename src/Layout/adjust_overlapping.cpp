@@ -73,9 +73,7 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
     for (auto& line : page) {
       for (auto& glyph : line.glyphs) {
         // GlyphVis* currentGlyph =
-        m_otlayout->getGlyph(glyph.codepoint,
-                             {.lefttatweel = glyph.lefttatweel,
-                              .righttatweel = glyph.righttatweel});
+        m_otlayout->getGlyph(glyph);
       }
     }
   }
@@ -181,8 +179,7 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
         glyphInfo.lookup_index = 0;
         glyphInfo.subtable_index = 0;
         glyphInfo.base_codepoint = 0;
-        glyphInfo.lefttatweel = 0;
-        glyphInfo.righttatweel = 0;
+        glyphInfo.parameters = {};
 
         lineInfo.glyphs.push_back(glyphInfo);
 
@@ -290,10 +287,7 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
 
         const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
-        GlyphVis& currentGlyph = *m_otlayout->getGlyph(
-            glyphName, {.lefttatweel = glyphLayout.lefttatweel,
-                        .righttatweel = glyphLayout.righttatweel,
-                        .scalex = line.xscaleparameter});
+        GlyphVis& currentGlyph = *m_otlayout->getGlyph(glyphLayout);
         QPoint pos = linePositions[g];
         QPainterPath path;
         if (!glyphName.find("space") != std::string::npos && !glyphName.find("cgj") != std::string::npos) {
@@ -341,12 +335,7 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
             if ((isMark || isPrevMark) &&
                 !isPrevrSpace) {  //|| isIsol || isPrevIsol
 
-              GlyphVis& otherGlyph = *m_otlayout->getGlyph(
-                  prev_glyphName,
-                  {.lefttatweel = prev_glyphLayout.lefttatweel,
-                   .righttatweel = prev_glyphLayout.righttatweel,
-                   .scalex =
-                       line.xscaleparameter});  // m_otlayout->glyphs[prev_glyphName];
+              GlyphVis& otherGlyph = *m_otlayout->getGlyph(prev_glyphLayout);
 
               QPoint otherpos = prev_linePositions[prev_g];
 
@@ -392,12 +381,7 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
                 continue;
             }
 
-            GlyphVis& otherGlyph = *m_otlayout->getGlyph(
-                otherglyphName,
-                {.lefttatweel = otherglyphLayout.lefttatweel,
-                 .righttatweel =
-                     otherglyphLayout
-                         .righttatweel});  // glyphs[otherglyphName];
+            GlyphVis& otherGlyph = *m_otlayout->getGlyph(otherglyphLayout);
             QPointF otherpos = linePositions[gg];
 
             QPainterPath& otherpath = paths[gg];

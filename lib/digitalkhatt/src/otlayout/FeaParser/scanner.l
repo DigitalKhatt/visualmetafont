@@ -32,12 +32,35 @@ using token = feayy::Parser::token;
 %x DIRECTIVE
 %x COMMENT
 
+UTF8_ONE [\x00-\x09\x0B\x0C\x0E-\x21\x23-\x5B\x5D-\x7F]
+UTF8_TWO [\xC2-\xDF][\x80-\xBF]
+UTF8_THREE (\xE0[\xA0-\xBF][\x80-\xBF]|[\xE1-\xEC\xEE-\xEF][\x80-\xBF]{2}|\xED[\x80-\x9F][\x80-\xBF])
+UTF8_FOUR (\xF0[\x90-\xBF][\x80-\xBF]{2}|[\xF1-\xF3][\x80-\xBF]{3}|\xF4[\x80-\x8F][\x80-\xBF]{2})
+
 %%
 
 %{
     // reset location
     yylloc->step();
 %}
+
+\"({UTF8_ONE}|{UTF8_TWO}|{UTF8_THREE}|{UTF8_FOUR})*\" {
+    // Expand a string to Unicode scalars, not bytes or visual graphemes. The
+    // patterns reject overlong encodings, surrogates and values above U+10FFFF.
+    const auto* bytes = reinterpret_cast<const unsigned char*>(yytext + 1);
+    std::vector<int> characters;
+    for (int offset = 0; offset < yyleng - 2;) {
+        const auto first = bytes[offset];
+        const int length = first < 0x80 ? 1 : first < 0xE0 ? 2 : first < 0xF0 ? 3 : 4;
+        int value = first & (length == 1 ? 0x7F : (1 << (7 - length)) - 1);
+        for (int i = 1; i < length; ++i) value = (value << 6) | (bytes[offset + i] & 0x3F);
+        characters.push_back(value);
+        offset += length;
+    }
+    yylval->emplace<std::vector<int>>(std::move(characters));
+    return token::CHAR_STRING;
+}
+\"[^\"\r\n]*\" { throw feayy::Parser::syntax_error(*yylloc, "Character string must contain valid UTF-8 (no escape sequences)"); }
 
 
 [ \t\r]+													{yylloc->step();} /* gobble up white-spaces */
@@ -60,6 +83,38 @@ using token = feayy::Parser::token;
 "stretch"													{return(token::STRETCH);}
 "shrink"													{return(token::SHRINK);}
 "aftergsub"													{return(token::AFTERGSUB);}
+"justdfa"                                                   {return(token::JUSTDFA);}
+"linepolicy"                                                {return(token::LINEPOLICY);}
+"pagepolicy"                                                {return(token::PAGEPOLICY);}
+"facts"                                                     {return(token::FACTS);}
+"rules"                                                     {return(token::RULES);}
+"actions"                                                   {return(token::ACTIONS);}
+"selections"                                                {return(token::SELECTIONS);}
+"stretchpolicy"                                             {return(token::STRETCHPOLICY);}
+"shrinkpolicy"                                              {return(token::SHRINKPOLICY);}
+"stages"                                                    {return(token::STAGES);}
+"stage"                                                     {return(token::STAGE);}
+"quantize"                                                  {return(token::QUANTIZE);}
+"fact"                                                      {return(token::FACT);}
+"rule"                                                      {return(token::RULE);}
+"bind"                                                      {return(token::BIND);}
+"selection"                                                 {return(token::SELECTION);}
+"choose"                                                    {return(token::CHOOSE);}
+"traversal"                                                 {return(token::TRAVERSAL);}
+"phase"                                                     {return(token::PHASE);}
+"glyphs"                                                     {return(token::GLYPHS);}
+"attachments"                                                     {return(token::ATTACHMENTS);}
+"attachment"                                                     {return(token::ATTACHMENT);}
+"forbid"                                                     {return(token::FORBID);}
+"update"                                                     {return(token::UPDATE);}
+"replace"                                                     {return(token::REPLACE);}
+"isfact"                                                     {return(token::ISFACT);}
+"and"                                                     {return(token::AND);}
+"or"                                                     {return(token::OR);}
+"not"                                                     {return(token::NOT);}
+"when"                                                     {return(token::WHEN);}
+"clear"                                                     {return(token::CLEAR);}
+"has"                                                     {return(token::HAS);}
 "end"													    {return(token::END);}
 "step"													    {return(token::STEP);}
 "position"													{return(token::POSITION);}
@@ -88,6 +143,9 @@ using token = feayy::Parser::token;
 "markClass"													{return(token::MARKCLASS);} 
 "by"														{return(token::BY);} 
 "add"														{return(token::ADD);}
+"vary"                           {return(token::VARY);}
+"addparams"                       {return(token::ADDPARAMS);}
+"params"                          {return(token::PARAMS);}
 "coord"                           {return(token::COORD);}
 "from"														{return(token::FROM);} 
 "table"														{return(token::TABLE);} 
@@ -142,5 +200,3 @@ int yyFlexLexer::yylex()
     std::cerr << "in FeaFlexLexer::yylex() !" << std::endl;
     return 0;
 }
-
-

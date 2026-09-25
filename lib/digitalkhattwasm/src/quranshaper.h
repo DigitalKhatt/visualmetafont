@@ -1064,10 +1064,7 @@ private:
            glyphIndex < static_cast<int>(line.glyphs.size()); ++glyphIndex) {
         auto &glyphLayout = line.glyphs[glyphIndex];
         const auto &glyphName = layout->glyphNamePerCode[glyphLayout.codepoint];
-        auto *glyphVis = layout->getGlyph(
-            glyphName, {.lefttatweel = glyphLayout.lefttatweel,
-                        .righttatweel = glyphLayout.righttatweel,
-                        .scalex = line.xscaleparameter});
+        auto *glyphVis = layout->getGlyph(glyphLayout);
 
         auto glyphToPoly = glyphToPolys.find(glyphVis);
         if (glyphToPoly == glyphToPolys.end()) {

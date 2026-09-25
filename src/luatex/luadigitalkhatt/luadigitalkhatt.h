@@ -20,6 +20,18 @@ typedef hb_script_t Script;
 typedef hb_direction_t Direction;
 typedef hb_language_t Language;
 
+/* Immutable external states shared by the fonts and buffers in one Lua state.
+ * ID zero is neutral; Lua-facing field names remain backward compatible. */
+typedef struct {
+  double left, right;
+  hb_glyph_provenance_t positioning;
+  unsigned char has_positioning;
+} dk_glyph_instance_t;
+dk_glyph_instance_t dk_get_instance(lua_State *L, uint32_t id);
+uint32_t dk_intern_instance(lua_State *L, const dk_glyph_instance_t *state);
+hb_bool_t dk_access_instance(hb_font_t *font, hb_glyph_instance_operation_t operation,
+                            hb_glyph_info_t *info, void *payload, void *user_data);
+
 typedef struct luahb_constant_t {
   const char *name;
   unsigned int value;
@@ -46,4 +58,3 @@ int dk_register_unicode(lua_State *L);
 #else
   __attribute__ ((visibility ("default"))) int luaopen_luadigitalkhatt(lua_State *L);
 #endif
-

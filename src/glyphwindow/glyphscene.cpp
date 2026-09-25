@@ -531,6 +531,15 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
   int numpoint = point->m_numpoint;
 
   if (m_glyph->controlledPaths.contains(numpath) && m_glyph->controlledPaths[numpath].contains(numpoint)) {
+    // Explicit-curve insertion changes the neighbouring handles as well as
+    // adding a knot. Snapshot before those changes so undo restores them.
+    QMap<int, QMap<int, Glyph::Knot> > old_controlledPaths;
+    QMap<int, QMap<int, Glyph::Knot> > new_controlledPaths;
+    for (auto path = m_glyph->controlledPaths.cbegin(); path != m_glyph->controlledPaths.cend(); ++path) {
+      for (auto knot = path.value().cbegin(); knot != path.value().cend(); ++knot) {
+        old_controlledPaths[path.key()][knot.key()] = *knot.value();
+      }
+    }
     QMap<int, Glyph::Knot*> newcontrolledPaths;
     auto controlledPath = m_glyph->controlledPaths[numpath];
     auto iterator = controlledPath.begin();
@@ -562,7 +571,7 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
         left.jointtype = Glyph::path_join_tension;
         right.jointtype = Glyph::path_join_tension;
         left.tensionExpr = std::make_unique<LitPathNumericExp>(1);
-        if (!dir.isNull()) {
+        if (!dir.isEmpty()) {
           left.type = Glyph::mpgui_given;
           left.dirExpr = std::make_unique<VarMFExpr>(dir, false);
         } else {
@@ -572,13 +581,14 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
         right.tensionExpr = std::make_unique<LitPathNumericExp>(1);
         right.type = Glyph::mpgui_open;
 
-        //
-        // if (nextite != controlledPath.end()) {
-        //  auto nextknot = controlledPath[nextite.key()];
-        //  /*f(!nextknot->leftValue.isControlConstant) {
-        //    right.isEqualAfter = true;
-        //  }*/
-        //}
+        if (nextknot && currentKnot->rightValue.jointtype == Glyph::path_join_control) {
+          // Start both new segments with tension 1 and 1, for the designer
+          // to adjust. Clear both old control handles and shared-control
+          // flags; retaining either would leave an invalid mixed segment.
+          // Endpoint expressions (including their axis parameters) stay intact.
+          currentKnot->rightValue = right;
+          nextknot->leftValue = right;
+        }
 
         newknot->leftValue = left;
         newknot->rightValue = right;
@@ -588,19 +598,6 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
         newcontrolledPaths[iterator.key() + 1] = controlledPath[iterator.key()];
       }
       ++iterator;
-    }
-
-    QMap<int, QMap<int, Glyph::Knot> > old_controlledPaths;
-    QMap<int, QMap<int, Glyph::Knot> > new_controlledPaths;
-
-    QMapIterator<int, QMap<int, Glyph::Knot*> > j(m_glyph->controlledPaths);
-    while (j.hasNext()) {
-      j.next();
-      QMapIterator<int, Glyph::Knot*> h(j.value());
-      while (h.hasNext()) {
-        h.next();
-        old_controlledPaths[j.key()][h.key()] = *m_glyph->controlledPaths[j.key()][h.key()];
-      }
     }
 
     m_glyph->controlledPaths[numpath] = newcontrolledPaths;

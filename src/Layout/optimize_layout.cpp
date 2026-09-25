@@ -92,10 +92,7 @@ void LayoutWindow::optimizeLayout(LayoutPageList& pages, const OriginalPageList&
       for (size_t g = 0; g < line.glyphs.size(); g++) {
         auto& glyphLayout = line.glyphs[g];
         const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-        auto glyphVis = m_otlayout->getGlyph(
-            glyphName, {.lefttatweel = glyphLayout.lefttatweel,
-                        .righttatweel = glyphLayout.righttatweel,
-                        .scalex = line.xscaleparameter});
+        auto glyphVis = m_otlayout->getGlyph(glyphLayout);
         auto glyphToPoly = glyphToPolys.find(glyphVis);
 
         if (glyphToPoly == glyphToPolys.end()) {

@@ -845,6 +845,45 @@ else:
    dft + factor_ * dmax
 fi
 enddef;
+% Additive multi-axis interpolation. Each axis contributes a delta from the
+% same default, rather than interpolating an already-deformed absolute point.
+% Unknown parameters are neutral; a zero bound disables that side of the axis.
+% Local temporaries make calls safe to compose inside other interpolations.
+vardef axisdelta[](expr dmax,dmin) =
+  save v_,bound_,weight_;
+  numeric v_,bound_,weight_;
+  v_ := params@ ?? 0;
+  if v_ < 0:
+    bound_ := minA@ ?? -1;
+    weight_ := if bound_ < 0: min(1,v_/bound_) else: 0 fi;
+    weight_ * dmin
+  else:
+    bound_ := maxA@ ?? 20;
+    weight_ := if bound_ > 0: min(1,v_/bound_) else: 0 fi;
+    weight_ * dmax
+  fi
+enddef;
+% Apply two selectable editor axes to one default point. The two-digit suffix
+% names the parameter slots; for example lerp02(...) combines
+% lefttatweel (params0) with the third/body axis (params2). Keeping the axis
+% selectors out of the argument list leaves one pair of parentheses for the
+% editor's graphical F1, F2, ... controls.
+vardef lerp[](expr dft,firstMax,firstMin,secondMax,secondMin) =
+  save firstAxis_,secondAxis_;
+  numeric firstAxis_,secondAxis_;
+  firstAxis_ := floor(@ / 10);
+  secondAxis_ := @ - 10firstAxis_;
+  dft + axisdelta[firstAxis_](firstMax,firstMin)
+      + axisdelta[secondAxis_](secondMax,secondMin)
+enddef;
+% Editor axes: 0=lefttatweel, 1=righttatweel, 2=third (body for kaf).
+% The first argument remains the editable default point. Unused axes take
+% zero deltas. axisdelta3/axisdelta4 can be added for further editor axes.
+vardef liiiMulti(expr dft,lmax,lmin,rmax,rmin,bmax,bmin) =
+  dft + axisdelta0(lmax,lmin)
+      + axisdelta1(rmax,rmin)
+      + axisdelta2(bmax,bmin)
+enddef;
 vardef leii[](expr dft,dmax) =
 _maxA := maxA@ ?? 20;
 _minA := minA@ ?? 0;

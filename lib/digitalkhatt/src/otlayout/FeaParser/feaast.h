@@ -25,9 +25,12 @@
 #include <map>
 #include <set>
 #include <stack>
+#include <string>
 #include <unordered_set>
+#include <utility>
 #include <variant>
 #include <vector>
+#include <digitalkhatt/justify/declpolicy/JustificationDfaSource.h>
 #include "GlyphVis.h"
 #include "Lookup.h"
 #include "OtLayout.h"
@@ -224,9 +227,29 @@ class GlyphWithParameters : public Glyph {
   explicit GlyphWithParameters(Glyph* glyph, GlyphParameters parameters)
       : Glyph(glyph->glyphType()), glyph{glyph}, parameters{parameters} {}
 
+  explicit GlyphWithParameters(
+      Glyph* glyph,
+      std::vector<std::pair<std::string, double>> namedParameters)
+      : Glyph(glyph->glyphType()),
+        glyph{glyph},
+        namedParameters{std::move(namedParameters)} {}
+
+  GlyphParameters resolvedParameters(OtLayout* otlayout) const {
+    auto result = parameters;
+    for (const auto& [name, value] : namedParameters) {
+      const auto axis = otlayout->axisRegistry.find(name);
+      if (axis == digitalkhatt::NoGlyphAxis)
+        throw std::runtime_error("Unknown glyph parameter '" + name + "'");
+      result.set(axis, result.value(axis) + value);
+    }
+    return result;
+  }
+
   std::unordered_set<std::uint16_t> getCodes(OtLayout* otlayout) override {
     auto glyphCode = glyph->getCode(otlayout);
-    auto alternate = otlayout->getAlternate(glyphCode, parameters, true, true);
+    auto alternate =
+        otlayout->getAlternate(glyphCode, resolvedParameters(otlayout), true,
+                               true);
     return {static_cast<std::uint16_t>(alternate->charcode)};
   }
 
@@ -244,6 +267,7 @@ class GlyphWithParameters : public Glyph {
  private:
   Glyph* glyph;
   GlyphParameters parameters;
+  std::vector<std::pair<std::string, double>> namedParameters;
 };
 
 class GlyphClass {
@@ -292,6 +316,10 @@ class GlyphClass {
     }
 
     return unicodes;
+  }
+
+  const std::vector<ClassComponent*>& components() const {
+    return _components;
   }
 };
 
@@ -705,6 +733,7 @@ class SingleSubstituionRule : public LookupStatement {
   Glyph* secondglyph;
   int format;
   GlyphExpansion expansion;
+  std::vector<std::pair<std::string, double>> parameterAdjustments;
   StartEndLig startEndLig = StartEndLig::StartEnd;
 
   explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, int format)
@@ -721,6 +750,23 @@ class SingleSubstituionRule : public LookupStatement {
 
   explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, double lefttatweel, double righttatweel)
       : firstGlyphSet{firstGlyphSet}, firstType{FirstType::GLYPHSET}, secondglyph{nullptr}, format{11}, expansion{lefttatweel, lefttatweel, righttatweel, righttatweel}, startEndLig{StartEndLig::StartEnd} {}
+
+  explicit SingleSubstituionRule(
+      GlyphSet* firstGlyphSet,
+      std::vector<std::pair<std::string, double>> parameterAdjustments)
+      : firstGlyphSet{firstGlyphSet},
+        firstType{FirstType::GLYPHSET},
+        secondglyph{nullptr},
+        format{11},
+        parameterAdjustments{std::move(parameterAdjustments)} {}
+
+  explicit SingleSubstituionRule(
+      Glyph* firstglyph, Glyph* secondglyph,
+      std::vector<std::pair<std::string, double>> parameterAdjustments)
+      : firstglyph{firstglyph},
+        secondglyph{secondglyph},
+        format{11},
+        parameterAdjustments{std::move(parameterAdjustments)} {}
 
   explicit SingleSubstituionRule(GlyphSet* firstGlyphSet, int format, GlyphExpansion expansion, StartEndLig startEndLig)
       : firstGlyphSet{firstGlyphSet}, firstType{FirstType::GLYPHSET}, secondglyph{nullptr}, format{format}, expansion{expansion}, startEndLig{startEndLig} {}
@@ -758,6 +804,22 @@ class MultipleSubstitutionRule : public LookupStatement {
     }
     delete glyph;
     delete sequence;
+  }
+
+  void accept(Visitor&) override;
+};
+
+class AlternateSubstitutionRule : public LookupStatement {
+ public:
+  Glyph* glyph;
+  GlyphClass* alternates;
+
+  explicit AlternateSubstitutionRule(Glyph* glyph, GlyphClass* alternates)
+      : glyph{glyph}, alternates{alternates} {}
+
+  ~AlternateSubstitutionRule() override {
+    delete glyph;
+    delete alternates;
   }
 
   void accept(Visitor&) override;
@@ -1060,6 +1122,12 @@ class FeaContext {
   std::set<FeatureDefenition*> notincludedfeatures;
   std::map<std::string, TableDefinition*> tables;
   JustTable jusTable;
+  std::map<std::string, digitalkhatt::justify::JustificationDfaSource> justificationDfas;
+  // Glyph sets referenced by table(justdfa) facts, indexed by
+  // DfaFactSource::glyphSetRef.  Expanding a glyph set needs the font and its
+  // substitutions, so the parser only records the set here; OtLayout resolves
+  // them once the features are populated.
+  std::vector<std::shared_ptr<GlyphSet>> justificationGlyphSets;
 
   FeaRoot* root;
 
@@ -1095,6 +1163,7 @@ class Visitor {
   virtual void accept(Mark2BaseRule&) = 0;
   virtual void accept(SingleSubstituionRule&) = 0;
   virtual void accept(MultipleSubstitutionRule&) = 0;
+  virtual void accept(AlternateSubstitutionRule&) = 0;
   virtual void accept(LookupStatement&) = 0;
   virtual void accept(FeatureReference&) = 0;
   virtual void accept(FeatureDefenition&) = 0;
@@ -1120,6 +1189,7 @@ class LookupDefinitionVisitor : public Visitor {
   void accept(Mark2BaseRule&) override;
   void accept(SingleSubstituionRule&) override;
   void accept(MultipleSubstitutionRule&) override;
+  void accept(AlternateSubstitutionRule&) override;
   void accept(LookupStatement&) override;
   void accept(FeatureDefenition&) override;
   void accept(FeatureReference&) override;

@@ -35,9 +35,12 @@
 #include "JustificationContext.h"
 #include "ParameterJson.h"
 #include "commontypes.h"
+#include "GlyphInstanceStore.h"
 #include "global.h"
 #include "hb.h"
 #include <digitalkhatt/core/digitalkahtt_types.h>
+#include <digitalkhatt/justify/FeatureJustifier.h>
+#include <digitalkhatt/justify/declpolicy/JustificationCatalog.h>
 #include <digitalkhatt/layout/ClassMap.h>
 
 struct Lookup;
@@ -57,8 +60,20 @@ typedef struct MP_instance* MP;
 
 struct ExtendedGlyph {
   int code;
-  double lefttatweel;
-  double righttatweel;
+  GlyphParameters parameters;
+
+  ExtendedGlyph(int code, double lefttatweel, double righttatweel)
+      : code(code),
+        parameters{.lefttatweel = lefttatweel,
+                   .righttatweel = righttatweel} {}
+  ExtendedGlyph(int code, GlyphParameters parameters)
+      : code(code), parameters(std::move(parameters)) {}
+};
+
+// The source MetaPost glyph and complete coordinates represented by a glyph.
+struct ResolvedGlyphInstance {
+  GlyphVis* sourceGlyph = nullptr;
+  GlyphParameters parameters;
 };
 
 using GlyphLayoutInfo = digitalkhatt::GlyphLayoutInfo;
@@ -97,7 +112,6 @@ inline digitalkhatt::TextString makeSuraLocationName(digitalkhatt::TextView name
   result += u" )";
   return result;
 }
-
 
 struct ValueRecord {
   std::int16_t xPlacement;
@@ -163,7 +177,6 @@ struct Just {
 };
 
 class OtLayout {
-
   friend class Automedina;
   friend class GlyphVis;
   friend class ToOpenType;
@@ -266,6 +279,9 @@ class OtLayout {
   GlyphVis* getGlyph(int code);
   GlyphVis* getGlyph(const std::string& name, GlyphParameters parameters);
   GlyphVis* getGlyph(int code, GlyphParameters parameters);
+  GlyphVis* getGlyph(const GlyphLayoutInfo& glyph);
+  ResolvedGlyphInstance resolveGlyphInstance(int code);
+  digitalkhatt::GlyphAxisRegistry axisRegistry;
 
   int tajweedcolorindex = 0xFFFF;
 
@@ -289,9 +305,16 @@ class OtLayout {
 
   bool applyJustification = true;
 
-  GlyphVis* getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph = false, bool addToEquivSubst = false);
+  GlyphVis* getAlternate(int glyphCode, GlyphParameters parameters,
+                         bool addToFont = false,
+                         bool recordSubstitutionEquivalent = false);
   std::unordered_map<GlyphParameters, GlyphVis*>& getSubstEquivGlyphs(int glyphCode);
   hb_position_t gethHorizontalAdvance(hb_font_t* hbFont, hb_codepoint_t glyph, GlyphParameters parameters, void* userData);
+  // Native state in design units plus external lookup-coordinate offsets.
+  void setGlyphParameters(hb_glyph_info_t& info, const GlyphParameters& parameters);
+  GlyphParameters glyphParameters(const hb_glyph_info_t& info);
+  GlyphParameters glyphParameters(hb_codepoint_t glyph, std::uint32_t instanceId);
+  GlyphInstanceState glyphInstanceState(const hb_glyph_info_t& info);
 
   void clearAlternates();
 
@@ -327,8 +350,13 @@ class OtLayout {
 
   Just justTable;
 
+  // Compiled from table(justdfa). DigitalKhatt owns and executes this data;
+  // it is not emitted as a GSUB/GPOS lookup or interpreted by HarfBuzz.
+  std::optional<digitalkhatt::justify::CompiledJustificationCatalog>
+      compiledJustificationCatalog;
+
   float normalToParameter(unsigned int code, float tatweel, bool left);
-  static int AlternatelastCode;
+  inline static constexpr int AlternateScratchCode = 0xF0000;
   bool isExtended() const { return extended; }
   void setExtended(bool value) { extended = value; }
 
@@ -336,6 +364,10 @@ class OtLayout {
 
   const digitalkhatt::layout::ClassMap& glyphClasses() const;
   std::unordered_set<std::uint16_t> classToUnicode(const std::string& className);
+  std::optional<hb_codepoint_t> resolveJustificationLookup(hb_codepoint_t glyph, std::string_view lookupName) const;
+  void setJustificationTraceCallback(digitalkhatt::justify::FeatureJustificationLayout::JustificationTraceCallback callback) { justificationTraceCallback_ = std::move(callback); }
+  const digitalkhatt::justify::FeatureJustificationLayout::JustificationTraceCallback& justificationTraceCallback() const { return justificationTraceCallback_; }
+
  private:
   // void evaluateImport();
   // void prepareJSENgine();
@@ -344,6 +376,7 @@ class OtLayout {
 
   std::map<std::string, std::set<std::uint16_t>> allGposFeatures;
   std::map<std::string, std::set<std::uint16_t>> allGsubFeatures;
+  digitalkhatt::justify::FeatureJustificationLayout::JustificationTraceCallback justificationTraceCallback_;
 
   digitalkhatt::ByteBuffer getGSUBorGPOS(bool isgsub, std::vector<Lookup*>& lookups, std::map<std::string, std::set<std::uint16_t>>& allFeatures, std::map<std::string, int>& lookupsIndexByName);
   digitalkhatt::ByteBuffer getFeatureList(const std::map<std::string, std::set<std::uint16_t>>& allFeatures);
@@ -356,6 +389,8 @@ class OtLayout {
   std::unordered_set<std::string> disabledLookups;
 
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> tempGlyphs;
+  GlyphInstanceStore instanceStore;
+  static hb_bool_t glyphInstanceCallback(hb_font_t* font, hb_glyph_instance_operation_t operation, hb_glyph_info_t* info, void* payload, void* userData);
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> addedGlyphs;
   std::unordered_map<int, std::unordered_map<GlyphParameters, GlyphVis*>> substEquivGlyphs;
 

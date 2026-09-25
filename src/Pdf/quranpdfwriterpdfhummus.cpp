@@ -358,9 +358,9 @@ void QuranPdfWriterPdfHummus::writeGlyphStream(
 
 void QuranPdfWriterPdfHummus::seedSpecialGlyphs() {
   auto& glyphs = m_otlayout->glyphs;
-  getIndex({glyphs["endofaya"].charcode, 0, 0});
+  getIndex({glyphs["endofaya"].charcode});
   for (int i = 0; i < 10; ++i)
-    getIndex({i + 1632, 0, 0});
+    getIndex({i + 1632});
   // start new font to use the generated font in other fonts
   m_currentType3Font = -1;
 }
@@ -466,7 +466,7 @@ void QuranPdfWriterPdfHummus::generateSurahFontFromSvg(const QVector<QPainterPat
     g.glyphIndex = i;
     g.path = out;
     m_surahs.append(g);
-    font.glyphs.append({i, 0, 0});
+    font.glyphs.append({i});
   }
 }
 
@@ -519,7 +519,7 @@ void QuranPdfWriterPdfHummus::generateSurahFont() {
 
     int unicode = chars[i].unicode();
 
-    font.glyphs.append({unicode, 0, 0});
+    font.glyphs.append({unicode});
   }
 }
 
@@ -714,7 +714,7 @@ QByteArray QuranPdfWriterPdfHummus::generateGlyphStream(GlyphVis& glyph) {
   } else if (glyph.charcode >= Automedina::AyaNumberCode && glyph.charcode <= Automedina::AyaNumberCode + 286) {
     int ayaNumber = (glyph.charcode - Automedina::AyaNumberCode) + 1;
     int digitheight = 120;
-    auto endofayaIndex = getIndex({m_otlayout->glyphs["endofaya"].charcode, 0, 0});
+    auto endofayaIndex = getIndex({m_otlayout->glyphs["endofaya"].charcode});
     GlyphVis& endGlyph = m_otlayout->glyphs["endofaya"];
 
     s << endGlyph.width << " 0 d0\n";
@@ -729,7 +729,7 @@ QByteArray QuranPdfWriterPdfHummus::generateGlyphStream(GlyphVis& glyph) {
 
     auto drawDigit = [&](int digit, int x) {
       GlyphVis& dg = m_otlayout->glyphs[m_otlayout->glyphNamePerCode[1632 + digit]];
-      auto idx = getIndex({dg.charcode, 0, 0});
+      auto idx = getIndex({dg.charcode});
       s << "/F" << idx.font << " 1000 Tf\n";
       s << "1 0 0 1 " << x << ' ' << digitheight << " Tm <"
         << QString::fromStdString(pdfHexByte((unsigned char)idx.encoding)) << "> Tj\n";
@@ -863,7 +863,7 @@ unsigned long QuranPdfWriterPdfHummus::createSurahFrameFormXObject() {
 bool QuranPdfWriterPdfHummus::writeType3Fonts() {
   auto& glyphs = m_otlayout->glyphs;
   auto& endOfAyaGlyph = glyphs["endofaya"];
-  int ayaFont = getIndex({endOfAyaGlyph.charcode, 0, 0}).font;
+  int ayaFont = getIndex({endOfAyaGlyph.charcode}).font;
 
   auto coloredEnd = endOfAyaGlyph.getColoredGlyph();
   if (coloredEnd)
@@ -905,12 +905,9 @@ bool QuranPdfWriterPdfHummus::writeType3Fonts() {
       if (!isSurahFont) {
         glyphName = QString::fromStdString(m_otlayout->glyphNamePerCode[glyphCode.code]);
         GlyphVis* glyph = &glyphs[glyphName.toStdString()];
-        if (glyphCode.lefttatweel != 0 || glyphCode.righttatweel != 0) {
-          GlyphParameters params{};
-          params.lefttatweel = glyphCode.lefttatweel;
-          params.righttatweel = glyphCode.righttatweel;
-          glyph = glyph->getAlternate(params);
-          glyphName = QString("%1%2%3").arg(glyphName).arg(params.lefttatweel).arg(params.righttatweel);
+        if (!glyphCode.parameters.isDefault()) {
+          glyph = m_otlayout->getGlyph(glyphCode.code, glyphCode.parameters);
+          glyphName = QString("%1_p%2").arg(glyphName).arg(i);
         }
         glyphWidth = glyph->width;
         box = QRectF(glyph->bbox.llx, glyph->bbox.lly, glyph->bbox.urx - glyph->bbox.llx, glyph->bbox.ury - glyph->bbox.lly);
@@ -1180,7 +1177,7 @@ bool QuranPdfWriterPdfHummus::generateQuranPages(LayoutPageList pages,
   for (const auto& page : pages) {
     for (const auto& line : page) {
       for (const auto& g : line.glyphs)
-        getIndex({g.codepoint, g.lefttatweel, g.righttatweel});
+        getIndex({g.codepoint, g.parameters});
     }
   }
   writeType3Fonts();
@@ -1283,7 +1280,7 @@ bool QuranPdfWriterPdfHummus::generateQuranPages(LayoutPageList pages,
       raw(ctx, "/P << /MCID " + std::to_string(MCID) + " >>\nBDC\n");
 
       for (int i = 0; i < line.glyphs.size(); ++i) {
-        auto index = getIndex({line.glyphs[i].codepoint, line.glyphs[i].lefttatweel, line.glyphs[i].righttatweel});
+        auto index = getIndex({line.glyphs[i].codepoint, line.glyphs[i].parameters});
         if (index.font != currentFont) {
           currentFont = index.font;
           QString fName = ensureFontResource(pdfPage, currentFont);

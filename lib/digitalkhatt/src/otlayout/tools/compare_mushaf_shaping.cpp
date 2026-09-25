@@ -1,11 +1,16 @@
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <optional>
+#include <iomanip>
 #include <regex>
+#include <set>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -14,24 +19,26 @@
 
 #include <hb-ot.h>
 #include "hb-buffer.hh"
+#include "hb-font.hh"
 #include <sqlite3.h>
 
 #include "Layout/GlyphVis.h"
 #include "Layout/OtLayout.h"
 #include "MPFont.h"
 #include "digitalkhatt/justify/FeatureJustifier.h"
+#include "digitalkhatt/justify/declpolicy/DeclPolicyPageJustifier.h"
 #include "qurantext/quran.h"
 
 namespace fs = std::filesystem;
 using digitalkhatt::JustOption;
 using digitalkhatt::JustStyle;
+using digitalkhatt::JustType;
 using digitalkhatt::LineJustification;
 using digitalkhatt::LineLayoutInfo;
 using digitalkhatt::LineToJustify;
 using digitalkhatt::LineType;
 using digitalkhatt::ShrinkType;
 using digitalkhatt::TextString;
-using digitalkhatt::JustType;
 
 namespace {
 
@@ -244,14 +251,7 @@ std::vector<std::vector<TextString>> loadQpcV1Pages(const fs::path& database) {
 }
 
 const std::map<int, double> oldMadinaLineWidths{
-    {1 * 15 + 2, .5},   {1 * 15 + 3, .65},  {1 * 15 + 4, .80},
-    {1 * 15 + 5, .9},   {1 * 15 + 6, .80},  {1 * 15 + 7, .65},
-    {1 * 15 + 8, .4},   {2 * 15 + 2, .5},   {2 * 15 + 3, .65},
-    {2 * 15 + 4, .85},  {2 * 15 + 5, .9},   {2 * 15 + 6, .85},
-    {2 * 15 + 7, .65},  {2 * 15 + 8, .4},   {600 * 15 + 9, .82},
-    {602 * 15 + 5, .57}, {602 * 15 + 15, .55},
-    {603 * 15 + 10, .63}, {604 * 15 + 9, .79},
-    {604 * 15 + 14, .67}, {604 * 15 + 15, .51}};
+    {1 * 15 + 2, .5}, {1 * 15 + 3, .65}, {1 * 15 + 4, .80}, {1 * 15 + 5, .9}, {1 * 15 + 6, .80}, {1 * 15 + 7, .65}, {1 * 15 + 8, .4}, {2 * 15 + 2, .5}, {2 * 15 + 3, .65}, {2 * 15 + 4, .85}, {2 * 15 + 5, .9}, {2 * 15 + 6, .85}, {2 * 15 + 7, .65}, {2 * 15 + 8, .4}, {600 * 15 + 9, .82}, {602 * 15 + 5, .57}, {602 * 15 + 15, .55}, {603 * 15 + 10, .63}, {604 * 15 + 9, .79}, {604 * 15 + 14, .67}, {604 * 15 + 15, .51}};
 
 bool isSura(const TextString& line) { return line.starts_with(u"سُورَةُ "); }
 bool isBism(const TextString& line) {
@@ -289,14 +289,19 @@ std::vector<LineToJustify> makeLines(const std::vector<TextString>& text,
   return result;
 }
 
+std::string generatedGlyphIdentity(const std::string& name);
+
 class OpenTypeProvider final
     : public digitalkhatt::justify::FeatureJustificationLayout {
  public:
-  explicit OpenTypeProvider(const fs::path& path)
+  OpenTypeProvider(
+      const fs::path& path,
+      const digitalkhatt::justify::CompiledJustificationCatalog* catalog)
       : bytes_(readFile(path)),
         blob_(hb_blob_create(bytes_.data(), bytes_.size(),
                              HB_MEMORY_MODE_READONLY, nullptr, nullptr)),
-        face_(hb_face_create(blob_, 0)) {
+        face_(hb_face_create(blob_, 0)),
+        catalog_(catalog) {
     if (hb_blob_get_length(blob_) == 0 || hb_face_get_glyph_count(face_) == 0)
       throw std::runtime_error("Invalid OpenType font " + path.string());
   }
@@ -316,12 +321,30 @@ class OpenTypeProvider final
   int scaleBy() const override { return OtLayout::SCALEBY; }
   int topSpace() const override { return OtLayout::TopSpace; }
   int interLineSpacing() const override { return OtLayout::InterLineSpacing; }
+  std::string glyphName(hb_font_t* font,
+                        hb_codepoint_t glyph) const override {
+    char name[256]{};
+    return hb_font_get_glyph_name(font, glyph, name, sizeof(name))
+               ? std::string{name}
+               : std::string{};
+  }
+  std::string recognitionGlyphName(hb_font_t* font, hb_codepoint_t glyph) const override {
+    const auto found = recognitionNames_.find(glyph);
+    if (found != recognitionNames_.end()) return found->second;
+    return recognitionNames_.emplace(glyph, generatedGlyphIdentity(glyphName(font, glyph))).first->second;
+  }
+  const digitalkhatt::justify::CompiledJustificationCatalog*
+  justificationCatalog() const override {
+    return catalog_;
+  }
   hb_face_t* face() const { return face_; }
 
  private:
+  mutable std::map<hb_codepoint_t, std::string> recognitionNames_;
   std::string bytes_;
   hb_blob_t* blob_;
   hb_face_t* face_;
+  const digitalkhatt::justify::CompiledJustificationCatalog* catalog_;
 };
 
 std::string glyphName(hb_font_t* font, std::uint32_t code) {
@@ -336,6 +359,36 @@ struct SemanticGlyph {
   double right = 0;
 };
 
+SemanticGlyph liveSemanticGlyph(OtLayout& layout,
+                                const GlyphLayoutInfo& glyph,
+                                std::string& name) {
+  name = layout.glyphNamePerCode.contains(glyph.codepoint)
+             ? layout.glyphNamePerCode.at(glyph.codepoint)
+             : "gid" + std::to_string(glyph.codepoint);
+  SemanticGlyph semantic{name, glyph.parameters.lefttatweel, glyph.parameters.righttatweel};
+  if (const auto found = layout.glyphs.find(name);
+      found != layout.glyphs.end() &&
+      found->second.sourceGlyphCode &&
+      layout.glyphNamePerCode.contains(*found->second.sourceGlyphCode)) {
+    semantic = {layout.glyphNamePerCode.at(*found->second.sourceGlyphCode),
+                found->second.parameters.lefttatweel,
+                found->second.parameters.righttatweel};
+  } else if (glyph.parameters.lefttatweel != 0 || glyph.parameters.righttatweel != 0) {
+    const auto& requested = glyph.parameters;
+    /*
+     * The buffer stores requested justification parameters. An outline may
+     * clamp an unsupported direction or an out-of-range value. Compare the
+     * effective parameters recorded by the generated live outline.
+     */
+    if (auto* effective = layout.getAlternate(glyph.codepoint, requested,
+                                              false, false)) {
+      semantic.left = effective->charlt;
+      semantic.right = effective->charrt;
+    }
+  }
+  return semantic;
+}
+
 SemanticGlyph parseGeneratedName(const std::string& name) {
   static const std::regex generated(
       R"(^(.+?)\.(-?[0-9]+(?:\.[0-9]+)?)_(-?[0-9]+(?:\.[0-9]+)?)_[0-9]+$)");
@@ -346,6 +399,10 @@ SemanticGlyph parseGeneratedName(const std::string& name) {
     return {match[1].str(), std::stod(match[2].str()) / 10.0,
             std::stod(match[3].str()) / 10.0};
   return {name, 0, 0};
+}
+
+std::string generatedGlyphIdentity(const std::string& name) {
+  return parseGeneratedName(name).base;
 }
 
 struct ShapeTrace {
@@ -381,9 +438,10 @@ ShapeTrace traceShape(const TextString& text, hb_font_t* font,
       name = sourceLayout->glyphNamePerCode.at(infos[i].codepoint);
     else
       name = glyphName(font, infos[i].codepoint);
-    if (infos[i].lefttatweel != 0 || infos[i].righttatweel != 0)
-      name += "(" + std::to_string(infos[i].lefttatweel) + "," +
-              std::to_string(infos[i].righttatweel) + ")";
+    const auto tatweels = font->glyph_tatweels(infos[i]);
+    if (tatweels.left != 0 || tatweels.right != 0)
+      name += "(" + std::to_string(tatweels.left) + "," +
+              std::to_string(tatweels.right) + ")";
     result.glyphs.push_back(std::move(name));
     result.advances.push_back(positions[i].x_advance);
   }
@@ -427,6 +485,247 @@ void traceShrinkFeatures(const TextString& text, OtLayout& sourceLayout,
   hb_font_destroy(otFont);
 }
 
+// ---------------------------------------------------------------------------
+// Golden snapshots
+//
+// The whole-Mushaf gate compares one engine against another.  That answers
+// "did this change relative to the reference", which is exactly the right
+// question while a reference exists -- and no question at all once it is
+// retired.  A snapshot records what an engine actually produced, so the same
+// gate survives Experimental2 going away, and so a deliberate change arrives
+// as a reviewable diff rather than as a count of differing glyphs.
+//
+// The file is per line, not per glyph, so it stays small enough to keep under
+// version control.  Two digests rather than one, because the two kinds of
+// regression read differently: `shape` covers which glyphs were chosen and how
+// far each was stretched, `metrics` covers where they were finally placed.
+// With --snapshot-glyphs the per-glyph detail is written too; the check never
+// decides anything from it, it only uses it to say what moved.
+
+constexpr std::string_view kSnapshotMagic =
+    "digitalkhatt-justification-snapshot";
+constexpr int kSnapshotVersion = 1;
+constexpr std::uint64_t kFnvOffsetBasis = 0xcbf29ce484222325ULL;
+
+std::uint64_t hashBytes(std::uint64_t seed, const void* data,
+                        std::size_t size) {
+  const auto* bytes = static_cast<const unsigned char*>(data);
+  for (std::size_t index = 0; index < size; ++index) {
+    seed ^= bytes[index];
+    seed *= 0x100000001b3ULL;  // FNV-1a
+  }
+  return seed;
+}
+template <typename T>
+std::uint64_t hashValue(std::uint64_t seed, const T& value) {
+  return hashBytes(seed, &value, sizeof(value));
+}
+
+struct LineDigest {
+  std::size_t glyphs = 0;
+  std::uint64_t shape = kFnvOffsetBasis;
+  std::uint64_t metrics = kFnvOffsetBasis;
+  double xscale = 1;
+  double fontSize = 0;
+  int width = 0;
+  bool operator==(const LineDigest&) const = default;
+};
+
+// Tatweels are hashed as their exact bit patterns.  A golden file wants
+// exactness: a tatweel that moved in the last bit is a change to explain, not
+// one to round away.
+LineDigest digestLine(const LineLayoutInfo& line, bool provenance = false) {
+  LineDigest digest{.glyphs = line.glyphs.size(),
+                    .xscale = line.xscale,
+                    .fontSize = line.fontSize,
+                    .width = line.currentLineWidth};
+  for (const auto& glyph : line.glyphs) {
+    digest.shape = hashValue(digest.shape, glyph.codepoint);
+    digest.shape = hashValue(digest.shape, glyph.cluster);
+    const auto& parameters = glyph.parameters;
+    digest.shape = hashValue(digest.shape, parameters.lefttatweel);
+    digest.shape = hashValue(digest.shape, parameters.righttatweel);
+    // Preserve legacy neutral digests, while detecting extra-axis changes.
+    if (parameters.third != 0 || parameters.fourth != 0 || parameters.fifth != 0) {
+      digest.shape = hashValue(digest.shape, parameters.third);
+      digest.shape = hashValue(digest.shape, parameters.fourth);
+      digest.shape = hashValue(digest.shape, parameters.fifth);
+    }
+    for (digitalkhatt::GlyphAxisId axis = 5; axis < parameters.size(); ++axis) {
+      if (parameters.value(axis) == 0) continue;
+      digest.shape = hashValue(digest.shape, axis);
+      digest.shape = hashValue(digest.shape, parameters.value(axis));
+    }
+    digest.metrics = hashValue(digest.metrics, glyph.x_advance);
+    digest.metrics = hashValue(digest.metrics, glyph.x_offset);
+    digest.metrics = hashValue(digest.metrics, glyph.y_offset);
+    if (provenance) {
+      digest.metrics = hashValue(digest.metrics, glyph.y_advance);
+      digest.metrics = hashValue(digest.metrics, glyph.lookup_index);
+      digest.metrics = hashValue(digest.metrics, glyph.subtable_index);
+      digest.metrics = hashValue(digest.metrics, glyph.base_codepoint);
+    }
+  }
+  return digest;
+}
+
+std::string hex64(std::uint64_t value) {
+  std::ostringstream stream;
+  stream << std::hex << std::setw(16) << std::setfill('0') << value;
+  return stream.str();
+}
+
+// Enough precision to round-trip a double exactly, so rewriting a snapshot
+// that did not change produces a byte-identical file.
+std::string exact(double value) {
+  std::ostringstream stream;
+  stream << std::setprecision(17) << value;
+  return stream.str();
+}
+
+struct SnapshotGlyph {
+  std::string name;
+  double lefttatweel = 0;
+  double righttatweel = 0;
+  int x_advance = 0;
+  int x_offset = 0;
+  int y_offset = 0;
+  int cluster = 0;
+  double third = 0, fourth = 0, fifth = 0;
+  GlyphParameters parameters;
+};
+
+struct SnapshotLine {
+  int page = 0;
+  int line = 0;
+  LineDigest digest;
+  std::vector<SnapshotGlyph> glyphs;  // only when the file carries detail
+};
+
+std::vector<std::string> splitFields(const std::string& row) {
+  std::vector<std::string> fields;
+  std::size_t start = 0;
+  while (true) {
+    const auto comma = row.find(',', start);
+    fields.push_back(row.substr(start, comma - start));
+    if (comma == std::string::npos) break;
+    start = comma + 1;
+  }
+  return fields;
+}
+
+struct Snapshot {
+  std::string engine;
+  bool hasGlyphs = false;
+  std::map<std::pair<int, int>, SnapshotLine> lines;
+};
+
+Snapshot readSnapshot(const fs::path& path) {
+  std::ifstream file(path);
+  if (!file) throw std::runtime_error("Could not read snapshot " + path.string());
+  Snapshot snapshot;
+  std::string row;
+  bool sawMagic = false;
+  SnapshotLine* current = nullptr;
+  while (std::getline(file, row)) {
+    if (!row.empty() && row.back() == '\r') row.pop_back();
+    if (row.empty()) continue;
+    if (row.front() == '#') {
+      if (row.find(kSnapshotMagic) != std::string::npos) sawMagic = true;
+      const auto engine = row.find("engine=");
+      if (engine != std::string::npos) {
+        const auto end = row.find(' ', engine);
+        snapshot.engine = row.substr(engine + 7, end - engine - 7);
+      }
+      if (row.find("glyphs=yes") != std::string::npos) snapshot.hasGlyphs = true;
+      continue;
+    }
+    if (row.rfind("page,", 0) == 0) continue;  // column header
+    const auto fields = splitFields(row);
+    if (fields.front() == "g") {
+      if (current == nullptr || fields.size() < 9)
+        throw std::runtime_error("Malformed glyph row in " + path.string());
+      current->glyphs.push_back({.name = fields[2],
+                                 .lefttatweel = std::stod(fields[3]),
+                                 .righttatweel = std::stod(fields[4]),
+                                 .x_advance = std::stoi(fields[5]),
+                                 .x_offset = std::stoi(fields[6]),
+                                 .y_offset = std::stoi(fields[7]),
+                                 .cluster = std::stoi(fields[8]),
+                                 .third = fields.size() > 9 ? std::stod(fields[9]) : 0,
+                                 .fourth = fields.size() > 10 ? std::stod(fields[10]) : 0,
+                                 .fifth = fields.size() > 11 ? std::stod(fields[11]) : 0});
+      auto& glyph = current->glyphs.back();
+      glyph.parameters = {.lefttatweel = glyph.lefttatweel, .righttatweel = glyph.righttatweel, .third = glyph.third, .fourth = glyph.fourth, .fifth = glyph.fifth};
+      for (std::size_t field = 12; field < fields.size(); ++field)
+        glyph.parameters.set(static_cast<digitalkhatt::GlyphAxisId>(field - 7), std::stod(fields[field]));
+      continue;
+    }
+    if (fields.size() < 8)
+      throw std::runtime_error("Malformed line row in " + path.string());
+    SnapshotLine entry;
+    entry.page = std::stoi(fields[0]);
+    entry.line = std::stoi(fields[1]);
+    entry.digest.glyphs = static_cast<std::size_t>(std::stoul(fields[2]));
+    entry.digest.shape = std::stoull(fields[3], nullptr, 16);
+    entry.digest.metrics = std::stoull(fields[4], nullptr, 16);
+    entry.digest.xscale = std::stod(fields[5]);
+    entry.digest.fontSize = std::stod(fields[6]);
+    entry.digest.width = std::stoi(fields[7]);
+    const auto key = std::make_pair(entry.page, entry.line);
+    current = &snapshot.lines.emplace(key, std::move(entry)).first->second;
+  }
+  if (!sawMagic)
+    throw std::runtime_error(path.string() + " is not a justification snapshot");
+  return snapshot;
+}
+
+void writeSnapshotHeader(std::ostream& out, std::string_view engine,
+                         int firstPage, int lastPage, bool withGlyphs) {
+  out << "# " << kSnapshotMagic << ' ' << kSnapshotVersion << '\n'
+      << "# engine=" << engine << " pages=" << firstPage << '-' << lastPage
+      << " glyphs=" << (withGlyphs ? "yes" : "no") << '\n'
+      << "page,line,glyphs,shape,metrics,xscale,fontsize,width\n";
+}
+
+void writeSnapshotLine(std::ostream& out, int page, int lineNumber,
+                       const LineLayoutInfo& line, const LineDigest& digest,
+                       bool withGlyphs, hb_font_t* namingFont) {
+  out << page << ',' << lineNumber << ',' << digest.glyphs << ','
+      << hex64(digest.shape) << ',' << hex64(digest.metrics) << ','
+      << exact(digest.xscale) << ',' << exact(digest.fontSize) << ','
+      << digest.width << '\n';
+  if (!withGlyphs) return;
+  for (std::size_t index = 0; index < line.glyphs.size(); ++index) {
+    const auto& glyph = line.glyphs[index];
+    const auto& parameters = glyph.parameters;
+    out << "g," << index << ',' << glyphName(namingFont, glyph.codepoint) << ','
+        << exact(parameters.lefttatweel) << ',' << exact(parameters.righttatweel) << ','
+        << glyph.x_advance << ',' << glyph.x_offset << ',' << glyph.y_offset
+        << ',' << glyph.cluster << ',' << exact(parameters.third) << ',' << exact(parameters.fourth) << ',' << exact(parameters.fifth);
+    for (digitalkhatt::GlyphAxisId axis = 5; axis < parameters.size(); ++axis) out << ',' << exact(parameters.value(axis));
+    out << '\n';
+  }
+}
+
+// Names the first field that differs, so a failure reads as a cause rather
+// than as a page number.
+std::string describeDigestDifference(const LineDigest& baseline,
+                                     const LineDigest& current) {
+  if (baseline.glyphs != current.glyphs)
+    return "glyph count " + std::to_string(baseline.glyphs) + " -> " +
+           std::to_string(current.glyphs);
+  if (baseline.shape != current.shape) return "different glyphs or tatweels";
+  if (baseline.metrics != current.metrics) return "different positions";
+  if (baseline.width != current.width)
+    return "line width " + std::to_string(baseline.width) + " -> " +
+           std::to_string(current.width);
+  if (baseline.xscale != current.xscale)
+    return "xscale " + exact(baseline.xscale) + " -> " + exact(current.xscale);
+  return "font size " + exact(baseline.fontSize) + " -> " +
+         exact(current.fontSize);
+}
+
 std::string csvQuote(std::string value) {
   for (std::size_t pos = 0; (pos = value.find('"', pos)) != std::string::npos;
        pos += 2)
@@ -434,20 +733,230 @@ std::string csvQuote(std::string value) {
   return '"' + value + '"';
 }
 
+void printCandidateTrace(int page, const digitalkhatt::justify::JustificationDecisionTrace& trace);
+
+// Writes a snapshot, or checks one.  Returns the number of differing lines;
+// writing always returns zero.
+std::size_t runSnapshot(OpenTypeProvider& provider, const std::vector<std::vector<TextString>>& pages, int firstPage, int lastPage, const fs::path& path, bool check, bool withGlyphs, JustType engine, int stretchPolicy, int shrinkPolicy, std::ostream& reportOut, OtLayout* live = nullptr, int tracePage = 0, int traceLine = 0) {
+  const std::string engineName = std::string(live ? (live->quantizeGlyphAdvances ? "live-" : "live-native-") : "") +
+      (engine == JustType::DeclPolicy ? "decl-policy" : engine == JustType::HarfBuzz ? "harfbuzz" : "experimental2");
+  const JustOption options{engine, JustStyle::FontSizeXScale, ShrinkType::Standard, stretchPolicy, shrinkPolicy};
+  const double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
+  const int pageWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+
+  Snapshot baseline;
+  if (check) {
+    baseline = readSnapshot(path);
+    if (!baseline.engine.empty() && baseline.engine != engineName) {
+      throw std::runtime_error("Snapshot was recorded from the " +
+                               baseline.engine + " engine, but this run uses " +
+                               std::string(engineName));
+    }
+  }
+  std::ofstream out;
+  if (!check) {
+    out.open(path);
+    if (!out) throw std::runtime_error("Could not create " + path.string());
+    writeSnapshotHeader(out, engineName, firstPage, lastPage, withGlyphs);
+  }
+
+  digitalkhatt::justify::FeatureJustifier featureJustifier(provider);
+  digitalkhatt::justify::DeclPolicyPageJustifier declPolicyJustifier(provider);
+  bool newFace = true;
+  std::size_t differingLines = 0;
+  std::size_t comparedLines = 0;
+  std::size_t reported = 0;
+  std::set<std::pair<int, int>> seen;
+  constexpr std::size_t kMaxReported = 20;
+  std::chrono::steady_clock::duration shapingTime{};
+  const auto currentPage = std::make_shared<int>(0);
+  if (tracePage != 0) {
+    auto callback = [currentPage, tracePage, traceLine](const auto& trace) {
+      if (*currentPage == tracePage && trace.lineIndex + 1 == traceLine) printCandidateTrace(*currentPage, trace);
+    };
+    if (live) live->setJustificationTraceCallback(callback);
+    else provider.setJustificationTraceCallback(callback);
+  }
+
+  for (int page = firstPage; page <= lastPage; ++page) {
+    *currentPage = page;
+    const auto lines = makeLines(pages.at(page - 1), page, pageWidth);
+    const auto started = std::chrono::steady_clock::now();
+    const auto laidOut =
+        live ? live->justifyPage(scale, pageWidth, lines, newFace, false,
+                  HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, options, "qpc_v1_layout") : engine == JustType::DeclPolicy
+            ? declPolicyJustifier.justifyPage(
+                  scale, pageWidth, lines, newFace, false,
+                  HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, options,
+                  "qpc_v1_layout")
+            : featureJustifier.justifyPage(
+                  scale, pageWidth, lines, newFace, false,
+                  HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, options,
+                  "qpc_v1_layout");
+    shapingTime += std::chrono::steady_clock::now() - started;
+    newFace = false;
+    auto* namingFont = live ? live->createFont(1, false) : provider.createFont(1, false);
+    for (std::size_t index = 0; index < laidOut.size(); ++index) {
+      const int lineNumber = static_cast<int>(index) + 1;
+      const auto digest = digestLine(laidOut[index], live != nullptr);
+      if (!check) {
+        writeSnapshotLine(out, page, lineNumber, laidOut[index], digest,
+                          withGlyphs, namingFont);
+        continue;
+      }
+      ++comparedLines;
+      seen.emplace(page, lineNumber);
+      const auto recorded = baseline.lines.find({page, lineNumber});
+      if (recorded == baseline.lines.end()) {
+        ++differingLines;
+        reportOut << page << ',' << lineNumber
+                  << ",-1,,,,,,,,,,,,,missing_from_snapshot\n";
+        if (reported++ < kMaxReported)
+          std::cout << "  page " << page << " line " << lineNumber
+                    << ": not in the snapshot\n";
+        continue;
+      }
+      if (recorded->second.digest == digest) continue;
+      ++differingLines;
+      const auto reason =
+          describeDigestDifference(recorded->second.digest, digest);
+      reportOut << page << ',' << lineNumber << ",-1,,,,,,,,,,,,,"
+                << csvQuote(reason) << '\n';
+      if (reported < kMaxReported) {
+        ++reported;
+        std::cout << "  page " << page << " line " << lineNumber << ": "
+                  << reason << '\n';
+        // Detail is only ever explanatory: the digests above already decided.
+        if (baseline.hasGlyphs) {
+          const auto& before = recorded->second.glyphs;
+          const auto& after = laidOut[index].glyphs;
+          std::size_t shown = 0;
+          for (std::size_t glyph = 0;
+               glyph < std::max(before.size(), after.size()) && shown < 5;
+               ++glyph) {
+            if (glyph >= before.size() || glyph >= after.size()) {
+              std::cout << "      glyph " << glyph << ": only on one side\n";
+              ++shown;
+              continue;
+            }
+            const auto& was = before[glyph];
+            const auto& now = after[glyph];
+            const auto name = glyphName(namingFont, now.codepoint);
+            const auto& nowParameters = now.parameters;
+            if (was.name == name && was.parameters == nowParameters &&
+                was.x_advance == now.x_advance &&
+                was.x_offset == now.x_offset && was.y_offset == now.y_offset)
+              continue;
+            std::cout << "      glyph " << glyph << ": " << was.name << " ["
+                      << exact(was.lefttatweel) << ' '
+                      << exact(was.righttatweel) << ' ' << exact(was.third) << "] adv "
+                      << was.x_advance << "  ->  " << name << " ["
+                      << exact(nowParameters.lefttatweel) << ' '
+                      << exact(nowParameters.righttatweel) << ' ' << exact(nowParameters.third) << "] adv "
+                      << now.x_advance << '\n';
+            ++shown;
+          }
+        }
+      }
+    }
+    hb_font_destroy(namingFont);
+    std::cout << (check ? "Checked page " : "Recorded page ") << page << '\n';
+  }
+  if (check) {
+    // A line the snapshot has and this run did not produce is a regression
+    // too, and the page loop above cannot see it.
+    for (const auto& [key, entry] : baseline.lines) {
+      const auto [page, lineNumber] = key;
+      if (page < firstPage || page > lastPage) continue;
+      if (seen.contains(key)) continue;
+      ++differingLines;
+      reportOut << page << ',' << lineNumber
+                << ",-1,,,,,,,,,,,,,missing_from_run\n";
+      if (reported++ < kMaxReported)
+        std::cout << "  page " << page << " line " << lineNumber
+                  << ": in the snapshot but not produced (" << entry.digest.glyphs
+                  << " glyphs)\n";
+    }
+    std::cout << "Snapshot lines compared: " << comparedLines << '\n'
+              << "Differing lines: " << differingLines << '\n';
+    if (reported >= kMaxReported && differingLines > kMaxReported)
+      std::cout << "  (" << differingLines - kMaxReported
+                << " more, see the report)\n";
+  } else {
+    std::cout << "Snapshot written: " << fs::absolute(path) << '\n';
+  }
+  std::cout << "Snapshot shaping seconds: " << std::chrono::duration<double>(shapingTime).count() << '\n';
+  return differingLines;
+}
+
 void usage(const char* program) {
-  std::cerr
-      << "Usage: " << program << " [options] oldmadina.mp font.otf\n"
-         "Compare qpc_v1_layout Mushaf shaping using live MetaPost outlines "
-         "and a generated OpenType font.\n\n"
-         "Options:\n"
-         "  -o, --output PATH    Detailed CSV output\n"
-         "  --database PATH      quran-data.sqlite path\n"
-         "  --resources DIR      mfplain.mp/mpost.mp/vmf.mp directory\n"
-         "  --pages A[-B]        Compare only this page or inclusive range\n"
-         "  --tolerance N        Position tolerance in 1/256 font units\n"
-         "  --trace-shrink P:L   Print cumulative sk01-sk20 widths\n"
-         "  --fail-on-difference Return exit status 3 when differences exist\n"
-         "  -h, --help           Show this help\n";
+  std::cerr << "Usage: " << program
+            << " [options] oldmadina.mp font.otf\n"
+               "Compare qpc_v1_layout Mushaf shaping using live MetaPost outlines "
+               "and a generated OpenType font.\n\n"
+               "Options:\n"
+               "  -o, --output PATH    Detailed CSV output\n"
+               "  --database PATH      quran-data.sqlite path\n"
+               "  --resources DIR      mfplain.mp/mpost.mp/vmf.mp directory\n"
+               "  --features PATH      feature file used to compile the live policy\n"
+               "  --pages A[-B]        Compare only this page or inclusive range\n"
+               "  --tolerance N        Position tolerance in 1/256 font units\n"
+               "  --trace-shrink P:L   Print cumulative sk01-sk20 widths\n"
+               "  --trace-candidates P:L  Print candidate-pool decisions as JSON lines\n"
+               "  --decl-policy        Compare Experimental2 with declarative-policy justification\n"
+               "  --same-provider      Run both engines on one OpenType provider and print timings\n"
+               "  --snapshot PATH      Record one engine's own output as a golden file\n"
+               "  --check-snapshot PATH  Compare this run against such a file\n"
+               "  --snapshot-glyphs    Include per-glyph detail when recording\n"
+               "  --snapshot-live      Snapshot live rendering, including positioning provenance\n"
+               "  --snapshot-native-metrics  Use unquantized live advances\n"
+               "  --snapshot-engine E  decl-policy (default), experimental2, or harfbuzz\n"
+               "  --stretch-policy NAME  Override the declarative stretchpolicy named by linepolicy\n"
+               "  --shrink-policy NAME  Override the declarative shrinkpolicy named by linepolicy\n"
+               "  --fail-on-difference Return exit status 3 when differences exist\n"
+               "  -h, --help           Show this help\n";
+}
+
+void printCandidateTrace(int page, const digitalkhatt::justify::JustificationDecisionTrace& trace) {
+  const auto optionalNumber = [](const std::optional<double>& value) {
+    return value ? std::to_string(*value) : std::string{"null"};
+  };
+  std::cout << "candidate_trace {\"page\":" << page
+            << ",\"line\":" << trace.lineIndex + 1
+            << ",\"pass\":" << trace.pass
+            << ",\"priority_band\":" << trace.priorityBand
+            << ",\"selection\":" << std::quoted(trace.selection)
+            << ",\"rule\":" << std::quoted(trace.rule)
+            << ",\"word\":" << trace.wordIndex
+            << ",\"subword\":" << trace.subwordIndex
+            << ",\"site\":" << trace.site
+            << ",\"subword_length\":" << trace.subwordLength
+            << ",\"connection_after\":" << trace.connectionAfter
+            << ",\"occurrence\":" << trace.occurrence
+            << ",\"base_weight\":" << trace.baseWeight
+            << ",\"occurrence_adjustment\":" << trace.occurrenceAdjustment
+            << ",\"subword_length_adjustment\":" << trace.subwordLengthAdjustment
+            << ",\"centrality_adjustment\":" << trace.centralityAdjustment
+            << ",\"word_position_adjustment\":" << trace.wordPositionAdjustment
+            << ",\"score\":" << trace.score
+            << ",\"minimum_width_delta\":" << optionalNumber(trace.minimumWidthDelta)
+            << ",\"maximum_width_delta\":" << optionalNumber(trace.maximumWidthDelta)
+            << ",\"remaining_width\":" << trace.remainingWidth
+            << ",\"applied_ratio\":" << trace.appliedRatio
+            << ",\"decision\":" << std::quoted(trace.decision)
+            << ",\"reason\":" << std::quoted(trace.reason)
+            << ",\"parameters\":[";
+  for (std::size_t index = 0; index < trace.parameters.size(); ++index) {
+    if (index != 0) std::cout << ',';
+    const auto& parameter = trace.parameters[index];
+    std::cout << "{\"site\":" << parameter.site
+              << ",\"attribute\":" << std::quoted(parameter.attribute)
+              << ",\"initial\":" << parameter.initialValue
+              << ",\"minimum\":" << parameter.minimumValue
+              << ",\"maximum\":" << parameter.maximumValue
+              << ",\"applied\":" << parameter.appliedValue << '}';
+  }
+  std::cout << "]}\n";
 }
 
 }  // namespace
@@ -456,15 +965,28 @@ int main(int argc, char** argv) {
   try {
     fs::path project;
     fs::path otf;
-    fs::path output{"mushaf-shaping-comparison.csv"};
+    fs::path output{"output/mushaf-shaping-comparison.csv"};
     fs::path database{DIGITALKHATT_QURAN_DATABASE};
     fs::path resources{DIGITALKHATT_METAFONT_RESOURCES};
+    fs::path features;
     int firstPage = 1;
     int lastPage = 604;
     int tolerance = 1;
     bool failOnDifference = false;
+    bool compareDeclPolicy = false;
+    bool sameProvider = false;
+    fs::path snapshotPath;
+    bool snapshotCheck = false;
+    bool snapshotGlyphs = false;
+    bool snapshotLive = false;
+    bool snapshotNativeMetrics = false;
+    JustType snapshotEngine = JustType::DeclPolicy;
+    std::string stretchPolicyName;
+    std::string shrinkPolicyName;
     int tracePage = 0;
     int traceLine = 0;
+    int candidateTracePage = 0;
+    int candidateTraceLine = 0;
     for (int i = 1; i < argc; ++i) {
       const std::string_view arg{argv[i]};
       auto value = [&]() -> std::string {
@@ -481,10 +1003,45 @@ int main(int argc, char** argv) {
         database = value();
       } else if (arg == "--resources") {
         resources = value();
+      } else if (arg == "--features") {
+        features = fs::absolute(value());
       } else if (arg == "--tolerance") {
         tolerance = std::stoi(value());
       } else if (arg == "--fail-on-difference") {
         failOnDifference = true;
+      } else if (arg == "--decl-policy" || arg == "--dfa") {
+        compareDeclPolicy = true;
+      } else if (arg == "--same-provider") {
+        compareDeclPolicy = true;
+        sameProvider = true;
+      } else if (arg == "--snapshot") {
+        snapshotPath = fs::absolute(value());
+        snapshotCheck = false;
+      } else if (arg == "--check-snapshot") {
+        snapshotPath = fs::absolute(value());
+        snapshotCheck = true;
+      } else if (arg == "--snapshot-glyphs") {
+        snapshotGlyphs = true;
+      } else if (arg == "--snapshot-live") {
+        snapshotLive = true;
+      } else if (arg == "--snapshot-native-metrics") {
+        snapshotNativeMetrics = true;
+      } else if (arg == "--snapshot-engine") {
+        const auto name = value();
+        if (name == "decl-policy" || name == "fixed-slot") {
+          snapshotEngine = JustType::DeclPolicy;
+        } else if (name == "experimental2") {
+          snapshotEngine = JustType::Experimental2;
+        } else if (name == "harfbuzz") {
+          snapshotEngine = JustType::HarfBuzz;
+        } else {
+          throw std::runtime_error(
+              "--snapshot-engine expects decl-policy, experimental2, or harfbuzz");
+        }
+      } else if (arg == "--stretch-policy") {
+        stretchPolicyName = value();
+      } else if (arg == "--shrink-policy") {
+        shrinkPolicyName = value();
       } else if (arg == "--trace-shrink") {
         const auto location = value();
         const auto colon = location.find(':');
@@ -492,6 +1049,12 @@ int main(int argc, char** argv) {
           throw std::runtime_error("--trace-shrink expects PAGE:LINE");
         tracePage = std::stoi(location.substr(0, colon));
         traceLine = std::stoi(location.substr(colon + 1));
+      } else if (arg == "--trace-candidates") {
+        const auto location = value();
+        const auto colon = location.find(':');
+        if (colon == std::string::npos) throw std::runtime_error("--trace-candidates expects PAGE:LINE");
+        candidateTracePage = std::stoi(location.substr(0, colon));
+        candidateTraceLine = std::stoi(location.substr(colon + 1));
       } else if (arg == "--pages") {
         const auto range = value();
         const auto dash = range.find('-');
@@ -515,6 +1078,7 @@ int main(int argc, char** argv) {
     }
     if (firstPage < 1 || lastPage < firstPage)
       throw std::runtime_error("Invalid page range");
+    if (features.empty()) features = project.parent_path() / "features.fea";
 
     MPFont mpFont;
     initializeFont(mpFont, project, resources);
@@ -523,13 +1087,38 @@ int main(int argc, char** argv) {
     // instead of converting it to pre-generated equivalent glyph IDs.
     OtLayout sourceLayout(&mpFont, true, true);
     sourceLayout.useNormAxisValues = false;
-    sourceLayout.quantizeGlyphAdvances = true;
-    sourceLayout.loadLookupFile("features.fea");
+    sourceLayout.quantizeGlyphAdvances = !snapshotNativeMetrics;
+    sourceLayout.loadLookupFile(features.string());
 
-    OpenTypeProvider otProvider(otf);
+    const auto* catalog = sourceLayout.compiledJustificationCatalog
+                              ? &*sourceLayout.compiledJustificationCatalog
+                              : nullptr;
+    const bool runsDeclPolicy = !snapshotPath.empty() ? snapshotEngine == JustType::DeclPolicy : compareDeclPolicy;
+    if (!snapshotPath.empty() && snapshotEngine == JustType::HarfBuzz && !snapshotLive) throw std::runtime_error("the HarfBuzz snapshot engine requires --snapshot-live");
+    int stretchPolicy = -1;
+    if (!stretchPolicyName.empty()) {
+      if (!runsDeclPolicy) throw std::runtime_error("--stretch-policy requires a declarative-policy comparison");
+      if (!catalog) throw std::runtime_error("the font has no justification catalog");
+      stretchPolicy = catalog->stretchPolicyIndex(stretchPolicyName);
+      if (stretchPolicy < 0) throw std::runtime_error("unknown stretch policy " + stretchPolicyName);
+    }
+    int shrinkPolicy = -1;
+    if (!shrinkPolicyName.empty()) {
+      if (!runsDeclPolicy) throw std::runtime_error("--shrink-policy requires a declarative-policy comparison");
+      if (!catalog) throw std::runtime_error("the font has no justification catalog");
+      shrinkPolicy = catalog->shrinkPolicyIndex(shrinkPolicyName);
+      if (shrinkPolicy < 0) throw std::runtime_error("unknown shrink policy " + shrinkPolicyName);
+    }
+
+    OpenTypeProvider otProvider(otf, catalog);
     digitalkhatt::justify::FeatureJustifier otJustifier(otProvider);
+    digitalkhatt::justify::DeclPolicyPageJustifier otDeclPolicyJustifier(otProvider);
     const auto pages = loadQpcV1Pages(database);
     lastPage = std::min(lastPage, static_cast<int>(pages.size()));
+    if (candidateTracePage != 0) {
+      if (!runsDeclPolicy) throw std::runtime_error("--trace-candidates requires declarative-policy justification");
+      if (candidateTracePage < 1 || candidateTracePage > static_cast<int>(pages.size()) || candidateTraceLine < 1 || candidateTraceLine > static_cast<int>(pages[candidateTracePage - 1].size())) throw std::runtime_error("Candidate trace page or line is out of range");
+    }
     if (tracePage != 0) {
       if (tracePage < 1 || tracePage > static_cast<int>(pages.size()) ||
           traceLine < 1 ||
@@ -545,9 +1134,16 @@ int main(int argc, char** argv) {
               "ot_left,ot_right,source_advance,ot_advance,source_x_offset,"
               "ot_x_offset,source_y_offset,ot_y_offset,status\n";
 
-    constexpr JustOption options{JustType::Experimental2,
-                                 JustStyle::FontSizeXScale,
-                                 ShrinkType::Standard};
+    if (!snapshotPath.empty()) {
+      const auto differing = runSnapshot(otProvider, pages, firstPage, lastPage, snapshotPath, snapshotCheck, snapshotGlyphs, snapshotEngine, stretchPolicy, shrinkPolicy, report, snapshotLive ? &sourceLayout : nullptr, candidateTracePage, candidateTraceLine);
+      std::cout << "Report: " << fs::absolute(output) << '\n';
+      return failOnDifference && differing != 0 ? 3 : 0;
+    }
+
+    constexpr JustOption sourceOptions{JustType::Experimental2,
+                                       JustStyle::FontSizeXScale,
+                                       ShrinkType::Standard};
+    const JustOption otOptions{compareDeclPolicy ? JustType::DeclPolicy : JustType::Experimental2, JustStyle::FontSizeXScale, ShrinkType::Standard, stretchPolicy, shrinkPolicy};
     const double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
     const int pageWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
     std::size_t comparedGlyphs = 0;
@@ -555,19 +1151,59 @@ int main(int argc, char** argv) {
     std::size_t differingLines = 0;
     bool sourceNewFace = true;
     bool otNewFace = true;
+    std::chrono::steady_clock::duration regexTime{};
+    std::chrono::steady_clock::duration targetTime{};
+    int currentPage = 0;
+    if (candidateTracePage != 0) {
+      otProvider.setJustificationTraceCallback([&](const auto& trace) {
+        if (currentPage == candidateTracePage && trace.lineIndex + 1 == candidateTraceLine) printCandidateTrace(currentPage, trace);
+      });
+    }
 
     for (int page = firstPage; page <= lastPage; ++page) {
+      currentPage = page;
       const auto lines = makeLines(pages.at(page - 1), page, pageWidth);
-      auto sourcePage = sourceLayout.justifyPage(
-          scale, pageWidth, lines, sourceNewFace, false,
-          HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, options,
-          "qpc_v1_layout");
-      auto otPage = otJustifier.justifyPageUsingFeatures(
-          scale, pageWidth, lines, otNewFace, false,
-          HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, options,
-          "qpc_v1_layout");
-      sourceNewFace = false;
-      otNewFace = false;
+      std::vector<LineLayoutInfo> sourcePage;
+      std::vector<LineLayoutInfo> otPage;
+      auto runRegex = [&] {
+        const auto start = std::chrono::steady_clock::now();
+        if (sameProvider) {
+          sourcePage = otJustifier.justifyPage(
+              scale, pageWidth, lines, sourceNewFace, false,
+              HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, sourceOptions,
+              "qpc_v1_layout");
+        } else {
+          sourcePage = sourceLayout.justifyPage(
+              scale, pageWidth, lines, sourceNewFace, false,
+              HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, sourceOptions,
+              "qpc_v1_layout");
+        }
+        regexTime += std::chrono::steady_clock::now() - start;
+        sourceNewFace = false;
+      };
+      auto runTarget = [&] {
+        const auto start = std::chrono::steady_clock::now();
+        otPage = compareDeclPolicy
+                     ? otDeclPolicyJustifier.justifyPage(
+                           scale, pageWidth, lines, otNewFace, false,
+                           HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES,
+                           otOptions, "qpc_v1_layout")
+                     : otJustifier.justifyPage(
+                           scale, pageWidth, lines, otNewFace, false,
+                           HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES,
+                           otOptions, "qpc_v1_layout");
+        otNewFace = false;
+        targetTime += std::chrono::steady_clock::now() - start;
+      };
+      // Alternate execution order so neither engine consistently benefits
+      // from running second on warmed layout/font caches.
+      if (sameProvider && (page - firstPage) % 2 != 0) {
+        runTarget();
+        runRegex();
+      } else {
+        runRegex();
+        runTarget();
+      }
 
       auto* namingFont = otProvider.createFont(1, false);
       for (std::size_t line = 0;
@@ -612,37 +1248,16 @@ int main(int argc, char** argv) {
           ++comparedGlyphs;
           const auto& source = sourceGlyphs[glyphIndex];
           const auto& generated = otGlyphs[glyphIndex];
-          const auto sourceName =
-              sourceLayout.glyphNamePerCode.contains(source.codepoint)
-                  ? sourceLayout.glyphNamePerCode.at(source.codepoint)
-                  : "gid" + std::to_string(source.codepoint);
+          std::string sourceName;
+          const auto semanticSource = sameProvider
+                                          ? parseGeneratedName(
+                                                sourceName = glyphName(
+                                                    namingFont,
+                                                    source.codepoint))
+                                          : liveSemanticGlyph(
+                                                sourceLayout, source,
+                                                sourceName);
           const auto otName = glyphName(namingFont, generated.codepoint);
-          SemanticGlyph semanticSource{sourceName, source.lefttatweel,
-                                        source.righttatweel};
-          if (const auto found = sourceLayout.glyphs.find(sourceName);
-              sourceName.find(".added_") != std::string::npos &&
-              found != sourceLayout.glyphs.end() &&
-              !found->second.originalglyph.empty()) {
-            semanticSource = {found->second.originalglyph,
-                              found->second.charlt, found->second.charrt};
-          } else if (source.lefttatweel != 0 ||
-                     source.righttatweel != 0) {
-            GlyphParameters requested;
-            requested.lefttatweel = source.lefttatweel;
-            requested.righttatweel = source.righttatweel;
-            /*
-             * The buffer stores requested justification parameters.  An
-             * outline may clamp an unsupported direction or a value outside
-             * the glyph's limits.  Compare the effective parameters recorded
-             * by the generated live outline, matching the values encoded in
-             * the generated OpenType glyph name.
-             */
-            if (auto* effective = sourceLayout.getAlternate(
-                    source.codepoint, requested, false, false)) {
-              semanticSource.left = effective->charlt;
-              semanticSource.right = effective->charrt;
-            }
-          }
           const auto semanticOt = parseGeneratedName(otName);
           const bool nameDiffers = semanticSource.base != semanticOt.base;
           const bool tatweelDiffers =
@@ -671,9 +1286,18 @@ int main(int argc, char** argv) {
       hb_font_destroy(namingFont);
       std::cout << "Compared page " << page << '\n';
     }
+    const auto regexMs =
+        std::chrono::duration<double, std::milli>(regexTime).count();
+    const auto targetMs =
+        std::chrono::duration<double, std::milli>(targetTime).count();
     std::cout << "Compared glyphs: " << comparedGlyphs << '\n'
               << "Differing glyphs: " << differingGlyphs << '\n'
               << "Differing lines: " << differingLines << '\n'
+              << "Regex justification time: " << regexMs << " ms\n"
+              << (compareDeclPolicy ? "Declarative-policy justification time: "
+                             : "OpenType justification time: ")
+              << targetMs << " ms\n"
+              << "Target/regex time ratio: " << targetMs / regexMs << '\n'
               << "Report: " << fs::absolute(output) << '\n';
     return failOnDifference && differingGlyphs != 0 ? 3 : 0;
   } catch (const std::exception& error) {

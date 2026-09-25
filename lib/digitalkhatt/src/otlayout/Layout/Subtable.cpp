@@ -39,6 +39,77 @@ using namespace std;
 
 namespace {
 
+constexpr std::uint16_t GlyphParameterAdd = 0;
+
+class Offset16Overflow : public std::runtime_error {
+ public:
+  using std::runtime_error::runtime_error;
+};
+
+std::uint16_t checkedU16(std::size_t value, std::string_view description) {
+  if (value > std::numeric_limits<std::uint16_t>::max())
+    throw Offset16Overflow(std::string(description) + " exceeds Offset16");
+  return static_cast<std::uint16_t>(value);
+}
+
+digitalkhatt::ByteBuffer serializeParameterAdjustments(
+    const OtLayout& layout, const GlyphParameters& parameters) {
+  digitalkhatt::ByteBuffer result;
+  std::size_t count = 0;
+  for (digitalkhatt::GlyphAxisId axis = 0; axis < parameters.size(); ++axis)
+    if (parameters.value(axis) != 0) ++count;
+  result << checkedU16(count, "Glyph parameter adjustment count");
+  for (digitalkhatt::GlyphAxisId axis = 0; axis < parameters.size(); ++axis) {
+    const auto value = parameters.value(axis);
+    if (value == 0) continue;
+    if (axis >= layout.axisRegistry.axes().size())
+      throw std::invalid_argument("Glyph parameter uses an unregistered axis");
+    const auto parameter = layout.axisRegistry.axes()[axis].metaPostIndex;
+    if (parameter > std::numeric_limits<std::uint16_t>::max())
+      throw std::invalid_argument("MetaPost parameter index exceeds UInt16");
+    OT::F16DOT16 encoded;
+    encoded.set_float(value);
+    result << static_cast<std::uint16_t>(parameter) << GlyphParameterAdd
+           << static_cast<std::int32_t>(encoded.to_int());
+  }
+  return result;
+}
+
+GlyphParameters substitutionParameters(
+    const SingleSubtableWithParameters::Substitution& substitution) {
+  auto parameters = substitution.parameters;
+  parameters.lefttatweel += substitution.expansion.MinLeftTatweel;
+  parameters.righttatweel += substitution.expansion.MinRightTatweel;
+  return parameters;
+}
+
+double normalizedTatweel(const OtLayout& layout, std::uint16_t glyph,
+                         double value, bool left) {
+  if (value == 0) return 0;
+  ValueLimits limits;
+  const auto& name = layout.glyphNamePerCode.at(glyph);
+  if (const auto found = layout.expandableGlyphs.find(name);
+      found != layout.expandableGlyphs.end())
+    limits = found->second;
+  const auto minimum = left ? limits.minLeft : limits.minRight;
+  const auto maximum = left ? limits.maxLeft : limits.maxRight;
+  if ((value < 0 && value < minimum) || (value > 0 && value > maximum))
+    std::cout << (left ? "MinLeftTatweel" : "MinRightTatweel")
+              << " error for glyph " << name << std::endl;
+  if (value < 0) {
+    const auto denominator = layout.toOpenType->isUniformAxis()
+                                 ? (left ? layout.toOpenType->axisLimits.minLeft
+                                         : layout.toOpenType->axisLimits.minRight)
+                                 : minimum;
+    return -value / denominator;
+  }
+  const auto denominator = layout.toOpenType->isUniformAxis()
+                               ? (left ? layout.toOpenType->axisLimits.maxLeft
+                                       : layout.toOpenType->axisLimits.maxRight)
+                               : maximum;
+  return value / denominator;
+}
+
 digitalkhatt::ByteBuffer makeCoverage(
     const std::vector<std::uint16_t>& sortedGlyphs) {
   digitalkhatt::ByteBuffer format1;
@@ -81,10 +152,16 @@ std::vector<digitalkhatt::ByteBuffer> splitMapBySerializedSize(
   while (!pending.empty()) {
     auto current = std::move(pending.front());
     pending.pop_front();
-    auto bytes = serialize(current);
-    if (bytes.size() <= 0xFFFF) {
-      result.push_back(std::move(bytes));
-      continue;
+    try {
+      auto bytes = serialize(current);
+      if (bytes.size() <= 0xFFFF) {
+        result.push_back(std::move(bytes));
+        continue;
+      }
+    } catch (const Offset16Overflow&) {
+      // An internal Offset16 can overflow before serialization has produced a
+      // buffer whose total size we can inspect. Split the same way as an
+      // oversized completed buffer; unrelated serialization failures escape.
     }
     if (current.size() < 2)
       throw std::runtime_error("Unsplittable " + description +
@@ -147,22 +224,17 @@ void SingleSubtable::readJson(const ParameterJsonObject& json) {
     subst[unicode] = value;
   }
 }
-SingleSubtableWithTatweel::SingleSubtableWithTatweel(Lookup* lookup)
+SingleSubtableWithParameters::SingleSubtableWithParameters(Lookup* lookup)
     : Subtable(lookup) {}
 
-void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
+void SingleSubtableWithParameters::generateSubstEquivGlyphs() {
   for (const auto& [glyphCode, substitution] : subst) {
-    const auto& expan = substitution.expansion;
+    const auto parameters = substitutionParameters(substitution);
 
-    if (expan.MinLeftTatweel != 0 || expan.MinRightTatweel != 0) {
-      if (expan.MinLeftTatweel > 0 && expan.MinRightTatweel > 0) {
+    if (!parameters.isDefault()) {
+      if (parameters.lefttatweel > 0 && parameters.righttatweel > 0) {
         throw new std::runtime_error("SHOULD NOT");
       }
-
-      GlyphParameters parameters;
-
-      parameters.lefttatweel = expan.MinLeftTatweel;
-      parameters.righttatweel = expan.MinRightTatweel;
 
       auto substGlyph = substitution.glyphCode;
       auto substEquivGlyphs = m_layout->getSubstEquivGlyphs(substGlyph);
@@ -170,7 +242,9 @@ void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
         auto oldSize = substEquivGlyphs.size();
 
         for (auto& glyph : substEquivGlyphs) {
-          if ((expan.MinLeftTatweel > 0 && glyph.second->charrt > 0) || (expan.MinRightTatweel > 0 && glyph.second->charlt > 3)) continue;
+          if ((parameters.lefttatweel > 0 && glyph.second->charrt > 0) ||
+              (parameters.righttatweel > 0 && glyph.second->charlt > 3))
+            continue;
           if ((glyph.second->charlt > 5 || glyph.second->charrt > 5)) continue;
           // if ((glyph.second->charlt < -0.1 || glyph.second->charrt < -0.1)) continue;
 
@@ -190,19 +264,17 @@ void SingleSubtableWithTatweel::generateSubstEquivGlyphs() {
     }
   }
 }
-digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() {
+digitalkhatt::ByteBuffer SingleSubtableWithParameters::getConvertedOpenTypeTable() {
   std::map<std::uint16_t, std::uint16_t> newsubst;
 
   for (const auto& [glyphCode, substitution] : subst) {
     const auto substGlyph = substitution.glyphCode;
-    const auto& expan = substitution.expansion;
+    const auto adjustment = substitutionParameters(substitution);
 
-    if (expan.MinLeftTatweel != 0 || expan.MinRightTatweel != 0) {
+    if (!adjustment.isDefault()) {
       auto clampParameters = [this, substGlyph](GlyphParameters parameters) {
-        auto* glyph = m_layout->getGlyph(substGlyph);
-        if (glyph != nullptr && glyph->isAlternate)
-          glyph = &m_layout->glyphs[glyph->originalglyph];
-        if (glyph == nullptr) return parameters;
+        auto* glyph =
+            m_layout->resolveGlyphInstance(substGlyph).sourceGlyph;
         const auto limits = m_layout->expandableGlyphs.find(glyph->name);
         if (limits == m_layout->expandableGlyphs.end()) return parameters;
         parameters.lefttatweel =
@@ -213,10 +285,7 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() 
                        limits->second.maxRight);
         return parameters;
       };
-      GlyphParameters parameters;
-
-      parameters.lefttatweel = (double)expan.MinLeftTatweel;
-      parameters.righttatweel = (double)expan.MinRightTatweel;
+      auto parameters = adjustment;
       parameters = clampParameters(parameters);
 
       auto& addedSubstGlyphs = m_layout->getSubstEquivGlyphs(substGlyph);
@@ -224,25 +293,14 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() 
       auto found = addedSubstGlyphs.find(parameters);
 
       if (found != addedSubstGlyphs.end()) {
-        /*
-        auto name = m_layout->glyphNamePerCode[found->second->charcode];
-
-        if (name.contains("meem.fina.basmala")) {
-          auto& tt = m_layout->glyphs["meem.fina.basmala"];
-          auto& tt2 = m_layout->glyphs[name];
-          cout << "meem.fina.basmala=" << tt.width << ";" << name << "=" << tt2.width << std::endl;
-        }*/
-
         newsubst.emplace(glyphCode, found->second->charcode);
       }
 
       auto& addedGlyphs = m_layout->getSubstEquivGlyphs(glyphCode);
 
       for (auto& addedGlyph : addedGlyphs) {
-        GlyphParameters parameters;
-
-        parameters.lefttatweel = addedGlyph.second->charlt + (double)expan.MinLeftTatweel;
-        parameters.righttatweel = addedGlyph.second->charrt + (double)expan.MinRightTatweel;
+        auto parameters = addedGlyph.first;
+        parameters += adjustment;
         parameters = clampParameters(parameters);
 
         auto found = addedSubstGlyphs.find(parameters);
@@ -280,115 +338,66 @@ digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getConvertedOpenTypeTable() 
 }
 
 std::vector<digitalkhatt::ByteBuffer>
-SingleSubtableWithTatweel::getConvertedOpenTypeTables() {
+SingleSubtableWithParameters::getConvertedOpenTypeTables() {
   return splitMapBySerializedSize(
       subst,
       [&](const auto& values) {
-        SingleSubtableWithTatweel chunk(m_lookup);
+        SingleSubtableWithParameters chunk(m_lookup);
         chunk.name = name;
         chunk.subst = values;
         return chunk.getConvertedOpenTypeTable();
       },
       "converted SingleSubst " + m_lookup->name + "/" + name);
 }
-digitalkhatt::ByteBuffer SingleSubtableWithTatweel::getOpenTypeTable(bool extended) {
+digitalkhatt::ByteBuffer SingleSubtableWithParameters::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer root;
   digitalkhatt::ByteBuffer coverage;
-  digitalkhatt::ByteBuffer substituteGlyphIDs;
+  std::vector<digitalkhatt::ByteBuffer> parameterSets;
 
-  std::uint16_t glyphCount = subst.size();
-  std::uint16_t coverage_offset = 2 + 2 + 2 + 10 * glyphCount;
-
-  root << (std::uint16_t)format;
-  root << coverage_offset;
-  root << glyphCount;
-
-  coverage << (std::uint16_t)1;
-  coverage << (std::uint16_t)glyphCount;
-
+  const auto glyphCount = checkedU16(subst.size(), "SingleSubst glyph count");
+  const std::size_t headerSize = 2 + 2 + 2 + 2 * glyphCount + 2 + 2 * glyphCount;
+  std::size_t parameterDataSize = 0;
+  parameterSets.reserve(glyphCount);
   for (const auto& [glyphCode, substitution] : subst) {
-    const auto substGlyph = substitution.glyphCode;
-    const auto& expan = substitution.expansion;
-    root << substGlyph;
-
-    if (!m_layout->useNormAxisValues) {
-      OT::F16DOT16 lefttatweel;
-      lefttatweel.set_float(expan.MinLeftTatweel);
-
-      OT::F16DOT16 righttatweel;
-      righttatweel.set_float(expan.MinRightTatweel);
-
-      root << (int32_t)lefttatweel.to_int() << (int32_t)righttatweel.to_int();
-    } else {
-      OT::F16DOT16 value;
-
-      ValueLimits limits;
-
-      auto& name = m_layout->glyphNamePerCode[substGlyph];
-
-      const auto& find = m_layout->expandableGlyphs.find(name);
-
-      if (find != m_layout->expandableGlyphs.end()) {
-        limits = find->second;
-      }
-
-      if ((expan.MinLeftTatweel < 0 && expan.MinLeftTatweel < limits.minLeft) || (expan.MinLeftTatweel > 0 && expan.MinLeftTatweel > limits.maxLeft)) {
-        std::cout << "MinLeftTatweel error for glyph " << name << std::endl;
-        // throw new runtime_error("MinLeftTatweel error for glyph " + name);
-      } else if (expan.MinLeftTatweel < 0.0) {
-        if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(-expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.minLeft);
-        } else {
-          value.set_float(-expan.MinLeftTatweel / limits.minLeft);
-        }
-
-        root << (int32_t)value.to_int();
-      } else if (expan.MinLeftTatweel > 0.0) {
-        if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(expan.MinLeftTatweel / m_layout->toOpenType->axisLimits.maxLeft);
-        } else {
-          value.set_float(expan.MinLeftTatweel / limits.maxLeft);
-        }
-
-        root << (int32_t)value.to_int();
-      } else {
-        value.set_float(0.0);
-        root << (int32_t)value.to_int();
-      }
-
-      if ((expan.MinRightTatweel < 0 && expan.MinRightTatweel < limits.minRight) || (expan.MinRightTatweel > 0 && expan.MinRightTatweel > limits.maxRight)) {
-        std::cout << "MinRightTatweel error for glyph " << name << std::endl;
-        // throw new runtime_error("MinRightTatweel error for glyph " + name);
-      } else if (expan.MinRightTatweel < 0.0) {
-        if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(-expan.MinRightTatweel / m_layout->toOpenType->axisLimits.minRight);
-        } else {
-          value.set_float(-expan.MinRightTatweel / limits.minRight);
-        }
-        root << (int32_t)value.to_int();
-        ;
-      } else if (expan.MinRightTatweel > 0.0) {
-        if (m_layout->toOpenType->isUniformAxis()) {
-          value.set_float(expan.MinRightTatweel / m_layout->toOpenType->axisLimits.maxRight);
-        } else {
-          value.set_float(expan.MinRightTatweel / limits.maxRight);
-        }
-        root << (int32_t)value.to_int();
-        ;
-      } else {
-        value.set_float(0.0);
-        root << (int32_t)value.to_int();
-        ;
-      }
+    auto parameters = substitutionParameters(substitution);
+    if (m_layout->useNormAxisValues) {
+      for (digitalkhatt::GlyphAxisId axis = 2; axis < parameters.size(); ++axis)
+        if (parameters.value(axis) != 0)
+          throw std::runtime_error(
+              "Normalized custom substitutions support only tatweels");
+      parameters.lefttatweel = normalizedTatweel(
+          *m_layout, substitution.glyphCode, parameters.lefttatweel, true);
+      parameters.righttatweel = normalizedTatweel(
+          *m_layout, substitution.glyphCode, parameters.righttatweel, false);
     }
-
-    coverage << glyphCode;
+    parameterSets.push_back(
+        serializeParameterAdjustments(*m_layout, parameters));
+    parameterDataSize += parameterSets.back().size();
   }
 
-  root.append(coverage);
+  coverage = makeCoverage([&] {
+    std::vector<std::uint16_t> glyphs;
+    glyphs.reserve(subst.size());
+    for (const auto& [glyph, substitution] : subst) glyphs.push_back(glyph);
+    return glyphs;
+  }());
+  const auto coverageOffset =
+      checkedU16(headerSize + parameterDataSize,
+                 "SingleSubst coverage offset");
 
+  root << format << coverageOffset << glyphCount;
+  for (const auto& [glyph, substitution] : subst)
+    root << substitution.glyphCode;
+  root << glyphCount;
+  std::size_t parameterOffset = headerSize;
+  for (const auto& parameters : parameterSets) {
+    root << checkedU16(parameterOffset, "SingleSubst parameter offset");
+    parameterOffset += parameters.size();
+  }
+  for (const auto& parameters : parameterSets) root.append(parameters);
+  root.append(coverage);
   return root;
-};
+}
 
 digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
   const auto checkedOffset16 = [](std::size_t value,
@@ -586,16 +595,16 @@ digitalkhatt::ByteBuffer FSMSubtable::getOpenTypeTable(bool extended) {
 }
 
 std::vector<digitalkhatt::ByteBuffer>
-SingleSubtableWithTatweel::getOpenTypeTables(bool extended) {
+SingleSubtableWithParameters::getOpenTypeTables(bool extended) {
   return splitMapBySerializedSize(
       subst,
       [&](const auto& values) {
-        SingleSubtableWithTatweel chunk(m_lookup);
+        SingleSubtableWithParameters chunk(m_lookup);
         chunk.name = name;
         chunk.subst = values;
         return chunk.getOpenTypeTable(extended);
       },
-      "SingleSubstWithTatweel " + m_lookup->name + "/" + name);
+      "SingleSubstWithParameters " + m_lookup->name + "/" + name);
 }
 
 digitalkhatt::ByteBuffer SingleSubtable::getOpenTypeTable(bool extended) {
@@ -613,14 +622,9 @@ digitalkhatt::ByteBuffer SingleSubtable::getOpenTypeTable(bool extended) {
       auto& afterGlyphs = m_layout->getSubstEquivGlyphs(after);
 
       for (auto& addedGlyph : beforeGlyphs) {
-        GlyphParameters targetParameters{};
-        targetParameters.lefttatweel = addedGlyph.second->charlt;
-        targetParameters.righttatweel = addedGlyph.second->charrt;
-        auto* target = m_layout->getGlyph(after);
-        if (target != nullptr && target->isAlternate)
-          target = &m_layout->glyphs[target->originalglyph];
-        if (target == nullptr ||
-            !m_layout->expandableGlyphs.contains(target->name)) {
+        auto targetParameters = addedGlyph.first;
+        auto* target = m_layout->resolveGlyphInstance(after).sourceGlyph;
+        if (!m_layout->expandableGlyphs.contains(target->name)) {
           newSubst.emplace(addedGlyph.second->charcode, after);
           continue;
         }
@@ -881,10 +885,8 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
     auto originalCode = glyphCode;
 
     if (!extended) {
-      auto glyph = m_layout->getGlyph(originalCode);
-      if (glyph->name.find(".added_") != std::string::npos) {
-        originalCode = m_layout->glyphCodePerName[glyph->originalglyph];
-      }
+      originalCode =
+          m_layout->resolveGlyphInstance(originalCode).sourceGlyph->charcode;
     }
 
     if (parameters.contains(originalCode)) {
@@ -1037,13 +1039,8 @@ void PairAdjustmentSubtable::getPairValue(hb_cursive_anchor_context_t* context) 
 
   if (isValueRecord1 && isValueRecord2) return;
 
-  float lefttatweel = m_layout->normalToParameter(context->glyph_id, context->lefttatweel, true);
-  float righttatweel = m_layout->normalToParameter(context->glyph_id, context->righttatweel, false);
-  float lefttatweel2 = m_layout->normalToParameter(context->base_glyph_id, context->lefttatweel2, true);
-  float righttatweel2 = m_layout->normalToParameter(context->base_glyph_id, context->righttatweel2, false);
-
-  auto firstParams = GlyphParameters{.lefttatweel = lefttatweel, .righttatweel = righttatweel};
-  auto secondParams = GlyphParameters{.lefttatweel = lefttatweel2, .righttatweel = righttatweel2};
+  auto firstParams = m_layout->glyphParameters(context->glyph_id, context->instance_id);
+  auto secondParams = m_layout->glyphParameters(context->base_glyph_id, context->instance_id2);
 
   auto glypVis1 = m_layout->getAlternate(context->glyph_id, firstParams);
   auto glypVis2 = m_layout->getAlternate(context->base_glyph_id, secondParams);
@@ -1325,73 +1322,68 @@ AlternateSubtable::getOpenTypeTables(bool extended) {
       "AlternateSubst " + m_lookup->name + "/" + name);
 }
 
-AlternateSubtableWithTatweel::AlternateSubtableWithTatweel(Lookup* lookup) : AlternateSubtable(lookup, 10) {};
+AlternateSubtableWithParameters::AlternateSubtableWithParameters(Lookup* lookup)
+    : AlternateSubtable(lookup, 10) {}
 
-void AlternateSubtableWithTatweel::generateSubstEquivGlyphs() {
+void AlternateSubtableWithParameters::generateSubstEquivGlyphs() {
   for (const auto& [glyphCode, seqtable] : alternates) {
     for (auto& alternateGlyph : seqtable) {
-      if (alternateGlyph.lefttatweel != 0.0 || alternateGlyph.righttatweel != 0.0) {
-        GlyphParameters parameters{};
-
-        parameters.lefttatweel = alternateGlyph.lefttatweel;
-        parameters.righttatweel = alternateGlyph.righttatweel;
-
-        m_layout->getAlternate(alternateGlyph.code, parameters, true, true);
-      }
+      if (!alternateGlyph.parameters.isDefault())
+        m_layout->getAlternate(alternateGlyph.code, alternateGlyph.parameters,
+                               true, true);
     }
   }
 }
 
-digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getOpenTypeTable(bool extended) {
+digitalkhatt::ByteBuffer AlternateSubtableWithParameters::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer root;
   digitalkhatt::ByteBuffer coverage;
   digitalkhatt::ByteBuffer sequencetables;
 
-  std::uint16_t total = alternates.size();
-  unsigned int coverage_size = 2 + 2 + 2 * total;
-  std::uint16_t coverage_offset = 2 + 2 + 2 + 2 * total;
-  std::uint16_t debutsequence = coverage_offset + coverage_size;
+  const auto total = checkedU16(alternates.size(), "AlternateSubst set count");
+  std::vector<std::uint16_t> coverageGlyphs;
+  coverageGlyphs.reserve(total);
+  for (const auto& [glyphCode, sequence] : alternates)
+    coverageGlyphs.push_back(glyphCode);
+  coverage = makeCoverage(coverageGlyphs);
+  const auto coverage_offset =
+      checkedU16(2 + 2 + 2 + 2 * total, "AlternateSubst coverage offset");
+  std::size_t debutsequence = coverage_offset + coverage.size();
 
   root << (std::uint16_t)format;
   root << coverage_offset;
   root << total;
 
-  coverage << (std::uint16_t)1;
-  coverage << (std::uint16_t)total;
-
   for (const auto& [glyphCode, seqtable] : alternates) {
-    root << debutsequence;
-    coverage << glyphCode;
+    root << checkedU16(debutsequence, "AlternateSubst set offset");
 
-    digitalkhatt::ByteBuffer alternatesArray;
-    digitalkhatt::ByteBuffer tatweelsArray;
+    const auto alternateCount =
+        checkedU16(seqtable.size(), "AlternateSubst alternate count");
+    const std::size_t setHeaderSize = 2 + 2 * alternateCount + 2 +
+                                      2 * alternateCount;
+    std::vector<digitalkhatt::ByteBuffer> parameterSets;
+    parameterSets.reserve(alternateCount);
+    std::size_t parameterOffset = setHeaderSize;
 
-
-    alternatesArray << (std::uint16_t)seqtable.size();
-    tatweelsArray << (std::uint16_t)seqtable.size();
-
-    for (auto& alternateGlyph : seqtable) {
-      alternatesArray << (std::uint16_t)alternateGlyph.code;
-      if (!m_layout->useNormAxisValues) {
-        OT::F16DOT16 lefttatweel;
-        lefttatweel.set_float(alternateGlyph.lefttatweel);
-
-        OT::F16DOT16 righttatweel;
-        righttatweel.set_float(alternateGlyph.righttatweel);
-
-        tatweelsArray << (int32_t)lefttatweel.to_int() << (int32_t)righttatweel.to_int();
-      } else {
-        throw std::runtime_error("Not implemented");
-      }
+    digitalkhatt::ByteBuffer set;
+    set << alternateCount;
+    for (const auto& alternateGlyph : seqtable)
+      set << static_cast<std::uint16_t>(alternateGlyph.code);
+    set << alternateCount;
+    for (const auto& alternateGlyph : seqtable) {
+      if (m_layout->useNormAxisValues)
+        throw std::runtime_error(
+            "Normalized alternate parameter values are not implemented");
+      auto parameters =
+          serializeParameterAdjustments(*m_layout, alternateGlyph.parameters);
+      set << checkedU16(parameterOffset,
+                        "AlternateSubst parameter-set offset");
+      parameterOffset += parameters.size();
+      parameterSets.push_back(std::move(parameters));
     }
-
-    // sequencetables << alternatesArray;
-    // sequencetables << tatweelsArray;
-
-    sequencetables.append(alternatesArray);
-    sequencetables.append(tatweelsArray);
-
-    debutsequence += alternatesArray.size() + tatweelsArray.size();
+    for (const auto& parameters : parameterSets) set.append(parameters);
+    sequencetables.append(set);
+    debutsequence += set.size();
   }
 
   root.append(coverage);
@@ -1401,43 +1393,38 @@ digitalkhatt::ByteBuffer AlternateSubtableWithTatweel::getOpenTypeTable(bool ext
 };
 
 std::vector<digitalkhatt::ByteBuffer>
-AlternateSubtableWithTatweel::getOpenTypeTables(bool extended) {
+AlternateSubtableWithParameters::getOpenTypeTables(bool extended) {
   return splitMapBySerializedSize(
       alternates,
       [&](const auto& values) {
-        AlternateSubtableWithTatweel chunk(m_lookup);
+        AlternateSubtableWithParameters chunk(m_lookup);
         chunk.name = name;
         chunk.alternates = values;
         return chunk.getOpenTypeTable(extended);
       },
-      "AlternateSubstWithTatweel " + m_lookup->name + "/" + name);
+      "AlternateSubstWithParameters " + m_lookup->name + "/" + name);
 }
 
 std::map<std::uint16_t, std::vector<std::uint16_t>>
-AlternateSubtableWithTatweel::getConvertedAlternates() {
+AlternateSubtableWithParameters::getConvertedAlternates() {
   std::map<std::uint16_t, std::vector<std::uint16_t>> convertedAlternates;
   auto resolveTarget = [this](const ExtendedGlyph& alternateGlyph,
-                              double inputLeft, double inputRight) {
-    GlyphParameters parameters{};
-    parameters.lefttatweel = inputLeft + alternateGlyph.lefttatweel;
-    parameters.righttatweel = inputRight + alternateGlyph.righttatweel;
+                              const GlyphParameters& inputParameters) {
+    auto parameters = inputParameters + alternateGlyph.parameters;
 
-    auto* target = m_layout->getGlyph(alternateGlyph.code);
-    if (target != nullptr && target->isAlternate)
-      target = &m_layout->glyphs[target->originalglyph];
-    if (target != nullptr) {
-      const auto limits = m_layout->expandableGlyphs.find(target->name);
-      if (limits != m_layout->expandableGlyphs.end()) {
-        parameters.lefttatweel =
-            std::clamp(parameters.lefttatweel, limits->second.minLeft,
-                       limits->second.maxLeft);
-        parameters.righttatweel =
-            std::clamp(parameters.righttatweel, limits->second.minRight,
-                       limits->second.maxRight);
-      }
+    auto* target =
+        m_layout->resolveGlyphInstance(alternateGlyph.code).sourceGlyph;
+    const auto limits = m_layout->expandableGlyphs.find(target->name);
+    if (limits != m_layout->expandableGlyphs.end()) {
+      parameters.lefttatweel =
+          std::clamp(parameters.lefttatweel, limits->second.minLeft,
+                     limits->second.maxLeft);
+      parameters.righttatweel =
+          std::clamp(parameters.righttatweel, limits->second.minRight,
+                     limits->second.maxRight);
     }
 
-    if (parameters.lefttatweel == 0 && parameters.righttatweel == 0)
+    if (parameters.isDefault())
       return static_cast<std::uint16_t>(alternateGlyph.code);
     const auto& targets =
         m_layout->getSubstEquivGlyphs(alternateGlyph.code);
@@ -1450,14 +1437,13 @@ AlternateSubtableWithTatweel::getConvertedAlternates() {
   for (const auto& [glyphCode, seqtable] : alternates) {
     auto& baseSequence = convertedAlternates[glyphCode];
     for (const auto& alternateGlyph : seqtable)
-      baseSequence.push_back(resolveTarget(alternateGlyph, 0, 0));
+      baseSequence.push_back(resolveTarget(alternateGlyph, {}));
 
     for (const auto& [inputParameters, inputGlyph] :
          m_layout->getSubstEquivGlyphs(glyphCode)) {
       auto& sequence = convertedAlternates[inputGlyph->charcode];
       for (const auto& alternateGlyph : seqtable)
-        sequence.push_back(resolveTarget(alternateGlyph, inputGlyph->charlt,
-                                         inputGlyph->charrt));
+        sequence.push_back(resolveTarget(alternateGlyph, inputParameters));
     }
   }
 
@@ -1465,7 +1451,7 @@ AlternateSubtableWithTatweel::getConvertedAlternates() {
 }
 
 digitalkhatt::ByteBuffer
-AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
+AlternateSubtableWithParameters::getConvertedOpenTypeTable() {
   AlternateSubtable chunk(m_lookup, 1);
   chunk.name = name;
   for (const auto& [glyphCode, sequence] : getConvertedAlternates()) {
@@ -1477,7 +1463,7 @@ AlternateSubtableWithTatweel::getConvertedOpenTypeTable() {
 }
 
 std::vector<digitalkhatt::ByteBuffer>
-AlternateSubtableWithTatweel::getConvertedOpenTypeTables() {
+AlternateSubtableWithParameters::getConvertedOpenTypeTables() {
   const auto converted = getConvertedAlternates();
   return splitMapBySerializedSize(
       converted,
@@ -1813,31 +1799,17 @@ void CursiveSubtable::setAnchorTable(std::uint16_t glyphCode,
                                      std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
                                      std::map<std::pair<int, int>,
                                               std::uint16_t>& sharedAnchors,
-                                     bool extended,
                                      bool isEntry,
                                      bool enabled) {
   if (!enabled) {
     entryExitRecords << (std::uint16_t)0;
     return;
   }
-  const auto& glyphName = m_layout->glyphNamePerCode[glyphCode];
+  const auto resolved = m_layout->resolveGlyphInstance(glyphCode);
 
-  std::string originalGlyphName = glyphName;
-  double charlt = 0.0;
-  double charrt = 0.0;
-
-  if (!extended) {
-    auto glyph = m_layout->getGlyph(glyphCode);
-    if (glyph->name.find(".added_") != std::string::npos) {
-      originalGlyphName = glyph->originalglyph;
-    }
-    charlt = glyph->charlt;
-    charrt = glyph->charrt;
-  }
-
-  auto& originalGlyph = m_layout->glyphs[originalGlyphName];
-
-  std::optional<Point> calcanchor = isEntry ? getEntry(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt}) : getExit(originalGlyph.charcode, {.lefttatweel = charlt, .righttatweel = charrt});
+  std::optional<Point> calcanchor =
+      isEntry ? getEntry(resolved.sourceGlyph->charcode, resolved.parameters)
+              : getExit(resolved.sourceGlyph->charcode, resolved.parameters);
 
   if (!calcanchor) {
     entryExitRecords << (std::uint16_t)0;
@@ -1869,12 +1841,13 @@ void CursiveSubtable::setAnchorTable(std::uint16_t glyphCode,
     if (glyphParamertersArray.size() != 0) {
       DefaultDelta delatX;
       DefaultDelta delatY;
-      for (auto& parameters : glyphParamertersArray) {
+      for (const auto& parameters : glyphParamertersArray) {
         if (parameters.scalex != 0) {
           delatX.push_back(anchor.x() * (parameters.scalex / 100) - anchor.x());
           delatY.push_back(0);
         } else {
-          auto val = isEntry ? getEntry(glyphCode, parameters) : getExit(glyphCode, parameters);
+          auto val = isEntry ? getEntry(glyphCode, parameters)
+                             : getExit(glyphCode, parameters);
           delatX.push_back(val->x() - anchor.x());
           delatY.push_back(val->y() - anchor.y());
         }
@@ -1958,13 +1931,12 @@ digitalkhatt::ByteBuffer CursiveSubtable::buildOpenTypeTable(
 
   std::map<int, std::pair<int, std::pair<int, int>>> posToVar;
   std::map<std::pair<int, int>, std::uint16_t> sharedAnchors;
-
   for (auto glyphCode : coveredGlyphs) {
     setAnchorTable(glyphCode, entryExitRecords, anchorTables, anchorOffset,
-                   posToVar, sharedAnchors, extended, true,
+                   posToVar, sharedAnchors, true,
                    !entryGlyphs || entryGlyphs->contains(glyphCode));
     setAnchorTable(glyphCode, entryExitRecords, anchorTables, anchorOffset,
-                   posToVar, sharedAnchors, extended, false,
+                   posToVar, sharedAnchors, false,
                    !exitGlyphs || exitGlyphs->contains(glyphCode));
   }
 
@@ -2189,24 +2161,13 @@ void MarkBaseSubtable::setAnchorTable(std::string className,
                                       digitalkhatt::ByteBuffer& anchorTables,
                                       std::uint32_t& anchorOffset,
                                       std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
-                                      bool extended,
                                       bool isBase) {
-  const auto& glyphName = m_layout->glyphNamePerCode[glyphCode];
-
-  std::string originalGlyph = glyphName;
-  double charlt = 0.0;
-  double charrt = 0.0;
-
-  if (!extended) {
-    auto glyph = m_layout->getGlyph(glyphCode);
-    if (glyph->name.find(".added_") != std::string::npos) {
-      originalGlyph = glyph->originalglyph;
-    }
-    charlt = glyph->charlt;
-    charrt = glyph->charrt;
-  }
-
-  Point coordinate = isBase ? getBaseAnchor(originalGlyph, className, {.lefttatweel = charlt, .righttatweel = charrt}) : getMarkAnchor(originalGlyph, className, {.lefttatweel = charlt, .righttatweel = charrt});
+  const auto resolved = m_layout->resolveGlyphInstance(glyphCode);
+  Point coordinate =
+      isBase ? getBaseAnchor(resolved.sourceGlyph->name, className,
+                             resolved.parameters)
+             : getMarkAnchor(resolved.sourceGlyph->name, className,
+                             resolved.parameters);
 
   bool done = false;
   if (m_layout->isOTVar) {
@@ -2219,12 +2180,14 @@ void MarkBaseSubtable::setAnchorTable(std::string className,
     if (glyphParamertersArray.size() != 0) {
       DefaultDelta delatX;
       DefaultDelta delatY;
-      for (auto& parameters : glyphParamertersArray) {
+      for (const auto& parameters : glyphParamertersArray) {
         if (parameters.scalex != 0) {
-          delatX.push_back(coordinate.x() * (parameters.scalex / 100) - coordinate.x());
+          delatX.push_back(coordinate.x() * (parameters.scalex / 100) -
+                           coordinate.x());
           delatY.push_back(0);
         } else {
-          auto val = isBase ? getBaseAnchor(glyphName, className, parameters) : getMarkAnchor(glyphName, className, parameters);
+          auto val = isBase ? getBaseAnchor(glyphName, className, parameters)
+                            : getMarkAnchor(glyphName, className, parameters);
           delatX.push_back(val.x() - coordinate.x());
           delatY.push_back(val.y() - coordinate.y());
         }
@@ -2362,18 +2325,17 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
   std::uint32_t baseAnchorOffset = 2 + baseCount * (markClassCount * 2);
 
   std::map<int, std::pair<int, std::pair<int, int>>> basePosToVar;
-
   std::vector<std::uint16_t> serializedBaseCodes;
   serializedBaseCodes.reserve(sortedBaseCodes.size());
   baseArray << baseCount;
 
   for (int i = 0; i < sortedBaseCodes.size(); ++i) {
     std::uint16_t glyphCode = sortedBaseCodes.at(i);
-    const auto& baseglyphName = m_layout->glyphNamePerCode[glyphCode];
     serializedBaseCodes.push_back(glyphCode);
     for (auto it = classes.cbegin(); it != classes.cend(); ++it) {
       baseArray << (std::uint16_t)baseAnchorOffset;
-      setAnchorTable(it->first, glyphCode, baseAnchorTables, baseAnchorOffset, basePosToVar, extended, true);
+      setAnchorTable(it->first, glyphCode, baseAnchorTables, baseAnchorOffset,
+                     basePosToVar, true);
     }
   }
   baseCoverage = makeCoverage(serializedBaseCodes);
@@ -2399,7 +2361,8 @@ digitalkhatt::ByteBuffer MarkBaseSubtable::getOpenTypeTable(bool extended) {
 
     markArray << classIndex;
     markArray << (std::uint16_t)markAnchorOffset;
-    setAnchorTable(className, charcode, markAnchorTables, markAnchorOffset, markPosToVar, extended, false);
+    setAnchorTable(className, charcode, markAnchorTables, markAnchorOffset,
+                   markPosToVar, false);
   }
   markCoverage = makeCoverage(serializedMarkCodes);
   setVariationIndexOffset(markAnchorTables, markAnchorOffset, markPosToVar);

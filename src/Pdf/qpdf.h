@@ -156,8 +156,7 @@ const char* toHex(uchar u, char* buffer);
 
 struct GlyphKey {
   int code;
-  double lefttatweel = 0;
-  double righttatweel = 0;
+  GlyphParameters parameters;
 
   /*
   GlyphKey() {}
@@ -166,7 +165,7 @@ struct GlyphKey {
   GlyphKey(int code, double lefttatweel, double righttatweel) : code{ code }, lefttatweel{ lefttatweel }, righttatweel{ righttatweel }{};*/
 
   bool operator==(const GlyphKey& r) const {
-    return r.code == code && r.lefttatweel == lefttatweel && r.righttatweel == righttatweel;
+    return r.code == code && r.parameters == parameters;
   }
 };
 
@@ -176,7 +175,7 @@ namespace std {
 template <>
 struct hash<MyQPdf::GlyphKey> {
   size_t operator()(const MyQPdf::GlyphKey& r) const {
-    return hash<double>{}(r.code) ^ hash<double>{}(r.lefttatweel) ^ hash<double>{}(r.righttatweel);
+    return hash<int>{}(r.code) ^ (hash<GlyphParameters>{}(r.parameters) << 1);
   }
 };
 

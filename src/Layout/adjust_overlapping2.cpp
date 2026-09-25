@@ -120,9 +120,7 @@ void LayoutWindow::adjustOverlapping2(LayoutPageList& pages,
     for (auto& line : page) {
       for (auto& glyph : line.glyphs) {
         // GlyphVis* currentGlyph =
-        auto glyphVis = m_otlayout->getGlyph(
-            glyph.codepoint, {.lefttatweel = glyph.lefttatweel,
-                              .righttatweel = glyph.righttatweel});
+        auto glyphVis = m_otlayout->getGlyph(glyph);
         if (glyphToPolys.find(glyphVis) == glyphToPolys.end()) {
           glyphToPolys.insert(
               {glyphVis, buildConvexPartsFromCubics(
@@ -236,8 +234,7 @@ void LayoutWindow::adjustOverlapping2(LayoutPageList& pages,
         glyphInfo.lookup_index = 0;
         glyphInfo.subtable_index = 0;
         glyphInfo.base_codepoint = 0;
-        glyphInfo.lefttatweel = 0;
-        glyphInfo.righttatweel = 0;
+        glyphInfo.parameters = {};
 
         lineInfo.glyphs.push_back(glyphInfo);
 
@@ -563,9 +560,7 @@ void LayoutWindow::adjustOverlapping2(LayoutPageList& pages,
     for (auto& page : pages) {
       for (auto& line : page) {
         for (auto& glyph : line.glyphs) {
-          auto glyphVis = m_otlayout->getGlyph(
-              glyph.codepoint, {.lefttatweel = glyph.lefttatweel,
-                                .righttatweel = glyph.righttatweel});
+          auto glyphVis = m_otlayout->getGlyph(glyph);
           if (glyphToPolys.find(glyphVis) == glyphToPolys.end()) {
             glyphToPolys.insert(
                 {glyphVis, buildConvexPartsFromCubics(
@@ -612,10 +607,7 @@ void LayoutWindow::adjustOverlapping2(LayoutPageList& pages,
         auto& glyphLayout = line.glyphs[g];
 
         auto glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-        auto currentGlyph = m_otlayout->getGlyph(
-            glyphName, {.lefttatweel = glyphLayout.lefttatweel,
-                        .righttatweel = glyphLayout.righttatweel,
-                        .scalex = line.xscaleparameter});
+        auto currentGlyph = m_otlayout->getGlyph(glyphLayout);
         currentxPos -= glyphLayout.x_advance * line.xscale;
         QPoint pos(currentxPos + (glyphLayout.x_offset * line.xscale),
                    currentyPos + (glyphLayout.y_offset));
@@ -733,12 +725,7 @@ void LayoutWindow::adjustOverlapping2(LayoutPageList& pages,
                 aabbsB[j] = computeAABB(Bs[j]);
               }
 
-              GlyphVis& otherGlyph = *m_otlayout->getGlyph(
-                  otherglyphName,
-                  {.lefttatweel = otherglyphLayout.lefttatweel,
-                   .righttatweel = otherglyphLayout.righttatweel,
-                   .scalex =
-                       line.xscaleparameter});  // m_otlayout->glyphs[prev_glyphName];
+              GlyphVis& otherGlyph = *m_otlayout->getGlyph(otherglyphLayout);
 
               auto geo1 = glyphToPolys.find(&currentGlyph);
               auto geo2 = glyphToPolys.find(&otherGlyph);

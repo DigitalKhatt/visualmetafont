@@ -36,11 +36,14 @@
 #include "GlyphVis.h"
 #include "digitalkhatt/core/ByteBuffer.h"
 #include "digitalkhatt/core/Regex16.h"
+#include "digitalkhatt/justify/declpolicy/JustificationCatalog.h"
 #include "automedina/automedina.h"
 
+#include <cmath>
 #include <cfenv>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <limits>
 #include <ranges>
 #include <span>
@@ -48,7 +51,6 @@
 #include <string_view>
 
 #include "metafont.h"
-
 
 namespace {
 digitalkhatt::TextString utf8ToUtf16(std::string_view input) {
@@ -153,7 +155,6 @@ float OtLayout::normalToParameter(unsigned int code, float tatweel, bool left) {
   }
   return tatweel < 0 ? -tatweel * min : tatweel * max;
 }
-
 
 #include "hb-ot-name-table.hh"
 
@@ -268,7 +269,7 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
 
     GlyphVis* pglyph = &layout->glyphs[name];
 
-    if (parameters.lefttatweel != 0 || parameters.righttatweel != 0) {
+    if (!parameters.isDefault()) {
       pglyph = layout->getAlternate(pglyph->charcode, parameters);
     }
 
@@ -295,6 +296,111 @@ hb_position_t OtLayout::gethHorizontalAdvance(hb_font_t* hbFont, hb_codepoint_t 
   return getGlyphHorizontalAdvance(hbFont, this, glyph, parameters, userData);
 }
 
+void OtLayout::setGlyphParameters(hb_glyph_info_t& info, const GlyphParameters& parameters) {
+  auto state = instanceStore.get(info.instance_id);
+  state.parameters = parameters;
+  state.lookupLeft = state.lookupRight = 0;
+  info.instance_id = instanceStore.intern(state);
+}
+
+GlyphParameters OtLayout::glyphParameters(hb_codepoint_t glyph, std::uint32_t instanceId) {
+  const auto state = instanceStore.get(instanceId);
+  auto parameters = state.parameters;
+  parameters.lefttatweel += normalToParameter(glyph, state.lookupLeft, true);
+  parameters.righttatweel += normalToParameter(glyph, state.lookupRight, false);
+  return parameters;
+}
+
+GlyphParameters OtLayout::glyphParameters(const hb_glyph_info_t& info) {
+  return glyphParameters(info.codepoint, info.instance_id);
+}
+
+GlyphInstanceState OtLayout::glyphInstanceState(const hb_glyph_info_t& info) {
+  auto state = instanceStore.get(info.instance_id);
+  state.parameters = glyphParameters(info);
+  state.lookupLeft = state.lookupRight = 0;
+  return state;
+}
+
+hb_bool_t OtLayout::glyphInstanceCallback(hb_font_t*, hb_glyph_instance_operation_t operation, hb_glyph_info_t* glyphInfo, void* payload, void* userData) {
+  auto* layout = static_cast<OtLayout*>(userData);
+  auto& info = *glyphInfo;
+  auto state = layout->instanceStore.get(info.instance_id);
+  switch (operation) {
+    case HB_INSTANCE_READ_TATWEELS: {
+      auto& value = *static_cast<hb_glyph_tatweels_t*>(payload);
+      value = {state.lookupLeft, state.lookupRight, !state.parameters.isDefault()};
+      return true;
+    }
+    case HB_INSTANCE_WRITE_TATWEELS: {
+      const auto& value = *static_cast<hb_glyph_tatweels_t*>(payload);
+      state.lookupLeft = value.left;
+      state.lookupRight = value.right;
+      info.instance_id = layout->instanceStore.intern(state);
+      return true;
+    }
+    case HB_INSTANCE_ADJUST_PARAMETERS: {
+      // Parameter values are serialized as 16.16 fixed point.  Successive
+      // additions that cancel can otherwise leave a one-quantum residue.
+      constexpr double parameterQuantum = 1.0 / 65536.0;
+      const auto canonicalize = [](double value) {
+        return std::abs(value) <= parameterQuantum ? 0.0 : value;
+      };
+      const auto& values =
+          *static_cast<hb_glyph_parameter_adjustments_t*>(payload);
+      for (unsigned i = 0; i < values.count; ++i) {
+        const auto& adjustment = values.adjustments[i];
+        const auto axis =
+            layout->axisRegistry.findMetaPostIndex(adjustment.parameter);
+        if (axis == digitalkhatt::NoGlyphAxis) return false;
+        double* current = nullptr;
+        if (axis == digitalkhatt::LeftTatweelAxis)
+          current = &state.lookupLeft;
+        else if (axis == digitalkhatt::RightTatweelAxis)
+          current = &state.lookupRight;
+        if (current) {
+          if (adjustment.operation == HB_GLYPH_PARAMETER_ADD)
+            *current += adjustment.value;
+          else if (adjustment.operation == HB_GLYPH_PARAMETER_SET)
+            *current = adjustment.value;
+          else
+            return false;
+          *current = canonicalize(*current);
+        } else {
+          const auto oldValue = state.parameters.value(axis);
+          if (adjustment.operation == HB_GLYPH_PARAMETER_ADD)
+            state.parameters.set(
+                axis, canonicalize(oldValue + adjustment.value));
+          else if (adjustment.operation == HB_GLYPH_PARAMETER_SET)
+            state.parameters.set(axis, canonicalize(adjustment.value));
+          else
+            return false;
+        }
+      }
+      info.instance_id = layout->instanceStore.intern(state);
+      return true;
+    }
+    case HB_INSTANCE_READ_POSITIONING: {
+      auto& value = *static_cast<hb_glyph_provenance_t*>(payload);
+      if (state.positioning) value = {state.positioning->lookup_index, state.positioning->subtable_index, state.positioning->base_codepoint};
+      return true;
+    }
+    case HB_INSTANCE_CLEAR_POSITIONING:
+      if (!state.positioning) return true;
+      state.positioning.reset();
+      break;
+    case HB_INSTANCE_WRITE_POSITIONING: {
+      const auto& value = *static_cast<hb_glyph_provenance_t*>(payload);
+      state.positioning = GlyphProvenance{value.lookup_index, value.subtable_index, value.base_codepoint};
+      break;
+    }
+    default:
+      return false;
+  }
+  info.instance_id = layout->instanceStore.intern(state);
+  return true;
+}
+
 static void
 hb_ot_get_glyph_h_advances(hb_font_t* font, void* font_data,
                            unsigned count,
@@ -315,28 +421,30 @@ hb_ot_get_glyph_h_advances(hb_font_t* font, void* font_data,
   // return ot_face->table.cmap->
 
   int coords[2];
-
-  auto glyphs = (hb_glyph_info_t*)(first_glyph);
-  auto positions = (hb_glyph_position_t*)(first_advance);
   for (unsigned int i = 0; i < count; i++) {
-    // double leftTatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].lefttatweel, true);
-    // double righttatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].righttatweel, false);
-
     /*
     *first_advance = font->em_scale_x(ot_face->table.hmtx->get_advance(*first_glyph, font));
     first_glyph = &StructAtOffsetUnaligned<hb_codepoint_t>(first_glyph, glyph_stride);
     first_advance = &StructAtOffsetUnaligned<hb_position_t>(first_advance, advance_stride);*/
-    if (glyphs[i].lefttatweel != 0.0 || glyphs[i].righttatweel != 0.0) {
-      coords[0] = roundf(glyphs[i].lefttatweel * 16384.f);
-      coords[1] = roundf(glyphs[i].righttatweel * 16384.f);
+    const auto* info = glyph_stride == sizeof(hb_glyph_info_t) ? reinterpret_cast<const hb_glyph_info_t*>(first_glyph) : nullptr;
+    const auto tatweels = info ? font->glyph_tatweels(*info) : hb_glyph_tatweels_t{};
+    if (info && tatweels.native_parameters) {
+      *first_advance = getGlyphHorizontalAdvance(font, font_data, *first_glyph, layout->glyphParameters(*info), user_data);
+    } else if (info && (tatweels.left != 0.0 || tatweels.right != 0.0)) {
+      coords[0] = roundf(tatweels.left * 16384.f);
+      coords[1] = roundf(tatweels.right * 16384.f);
+      const auto savedCount = font->num_coords;
+      auto* savedCoords = font->coords;
       font->num_coords = 2;
       font->coords = &coords[0];
-      positions[i].x_advance = font->em_scale_x(ot_face->table.hmtx->get_advance_with_var_unscaled(glyphs[i].codepoint, font));
-      font->num_coords = 0;
-      font->coords = nullptr;
+      *first_advance = font->em_scale_x(ot_face->table.hmtx->get_advance_with_var_unscaled(*first_glyph, font));
+      font->num_coords = savedCount;
+      font->coords = savedCoords;
     } else {
-      positions[i].x_advance = font->em_scale_x(ot_face->table.hmtx->get_advance_with_var_unscaled(glyphs[i].codepoint, font));
+      *first_advance = font->em_scale_x(ot_face->table.hmtx->get_advance_with_var_unscaled(*first_glyph, font));
     }
+    first_glyph = reinterpret_cast<const hb_codepoint_t*>(reinterpret_cast<const char*>(first_glyph) + glyph_stride);
+    first_advance = reinterpret_cast<hb_position_t*>(reinterpret_cast<char*>(first_advance) + advance_stride);
   }
 }
 
@@ -347,17 +455,15 @@ static void get_glyph_h_advances_custom(hb_font_t* font, void* font_data,
                                         hb_position_t* first_advance,
                                         unsigned advance_stride,
                                         void* user_data) {
-  // TODO:hacking
-  auto glyphs = (hb_glyph_info_t*)(first_glyph);
-  auto positions = (hb_glyph_position_t*)(first_advance);
-
   OtLayout* layout = reinterpret_cast<OtLayout*>(font_data);
 
   for (unsigned int i = 0; i < count; i++) {
     GlyphParameters parameters;
 
-    parameters.lefttatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].lefttatweel, true);
-    parameters.righttatweel = layout->normalToParameter(glyphs[i].codepoint, glyphs[i].righttatweel, false);
+    // OT passes strided info records. Ordinary public advance calls may pass
+    // plain glyph IDs instead: never read beyond those IDs or assume pos stride.
+    if (glyph_stride == sizeof(hb_glyph_info_t))
+      parameters = layout->glyphParameters(*reinterpret_cast<const hb_glyph_info_t*>(first_glyph));
 
     /*
     unsigned int num_coords = 0;
@@ -369,7 +475,9 @@ static void get_glyph_h_advances_custom(hb_font_t* font, void* font_data,
       //std::cout << "coords[0]=" << coords[0] << ";";
     }*/
 
-    positions[i].x_advance = getGlyphHorizontalAdvance(font, font_data, glyphs[i].codepoint, parameters, user_data);
+    *first_advance = getGlyphHorizontalAdvance(font, font_data, *first_glyph, parameters, user_data);
+    first_glyph = reinterpret_cast<const hb_codepoint_t*>(reinterpret_cast<const char*>(first_glyph) + glyph_stride);
+    first_advance = reinterpret_cast<hb_position_t*>(reinterpret_cast<char*>(first_advance) + advance_stride);
   }
 }
 
@@ -387,11 +495,10 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
   if (lookupTable->type == Lookup::cursive) {
     CursiveSubtable* subtableTable = static_cast<CursiveSubtable*>(subtable);
 
-    double lefttatweel = layout->normalToParameter(context->glyph_id, context->lefttatweel, true);
-    double righttatweel = layout->normalToParameter(context->glyph_id, context->righttatweel, false);
+    auto parameters = layout->glyphParameters(context->glyph_id, context->instance_id);
 
     if (context->type == hb_cursive_anchor_context_t::entry) {
-      auto anchor = subtableTable->getEntry(context->glyph_id, {.lefttatweel = lefttatweel, .righttatweel = righttatweel});
+      auto anchor = subtableTable->getEntry(context->glyph_id, parameters);
       if (anchor) {
         *x = anchor->x();
         *y = anchor->y();
@@ -402,7 +509,7 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
         *y = 0;
       }
     } else if (context->type == hb_cursive_anchor_context_t::exit) {
-      auto anchor = subtableTable->getExit(context->glyph_id, {.lefttatweel = lefttatweel, .righttatweel = righttatweel});
+      auto anchor = subtableTable->getExit(context->glyph_id, parameters);
       if (anchor) {
         *x = anchor->x();
         *y = anchor->y();
@@ -421,15 +528,16 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
 
     const std::string& className = subtableTable->classNamebyIndex[classIndex];
 
-    double lefttatweel = layout->normalToParameter(context->base_glyph_id, context->lefttatweel, true);
-    double righttatweel = layout->normalToParameter(context->base_glyph_id, context->righttatweel, false);
+    // A mark's own parameters must be normalized using the mark, not its base.
+    const auto parameterGlyph = context->type == hb_cursive_anchor_context_t::mark ? context->glyph_id : context->base_glyph_id;
+    auto parameters = layout->glyphParameters(parameterGlyph, context->instance_id);
 
     if (context->type == hb_cursive_anchor_context_t::base) {
       const auto& baseGlyphName = layout->glyphNamePerCode[context->base_glyph_id];
 
       GlyphVis& curr = layout->glyphs[baseGlyphName];
 
-      auto anchor = subtableTable->getBaseAnchor(context->glyph_id, context->base_glyph_id, {.lefttatweel = lefttatweel, .righttatweel = righttatweel});
+      auto anchor = subtableTable->getBaseAnchor(context->glyph_id, context->base_glyph_id, parameters);
       if (anchor) {
         *x = anchor->x();
         *y = anchor->y();
@@ -445,7 +553,7 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
 
       GlyphVis& curr = layout->glyphs[markGlyphName];
 
-      auto anchor = subtableTable->getMarkAnchor(context->glyph_id, context->base_glyph_id, {.lefttatweel = lefttatweel, .righttatweel = righttatweel});
+      auto anchor = subtableTable->getMarkAnchor(context->glyph_id, context->base_glyph_id, parameters);
       if (anchor) {
         *x = anchor->x();
         *y = anchor->y();
@@ -492,12 +600,11 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
     char prevName[64];
     hb_font_get_glyph_name(font, prev_info.codepoint, prevName, sizeof(prevName));
     if (std::string_view(prevName) == "behshape.medi.expa") {
-      curr_info.lefttatweel = (std::min)(prev_info.lefttatweel, 1.5);
+      font->set_glyph_tatweels(curr_info, (std::min)(font->glyph_tatweels(prev_info).left, 1.5), font->glyph_tatweels(curr_info).right);
     } else if (std::string_view(prevName).find(".expa") != std::string_view::npos) {
-      curr_info.lefttatweel = 1.5;
+      font->set_glyph_tatweels(curr_info, 1.5, font->glyph_tatweels(curr_info).right);
 
     } else {
-      // curr_info.lefttatweel = 0.07 + 0.1 * prev_info.lefttatweel;
     }
 
     auto& curr_glyph = *layout->getGlyph(curr_info.codepoint);
@@ -535,8 +642,7 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
     // JustificationContext::GlyphsToExtend.append(buffer->idx);
 
     if (name == "behshape.medi") {
-      curr_info.lefttatweel = 3;
-      curr_info.righttatweel = 2;
+      font->set_glyph_tatweels(curr_info, 3, 2);
     }
 
   } else {
@@ -556,8 +662,7 @@ static hb_bool_t get_substitution(hb_font_t* font, void* font_data,
               dynamic_cast<SingleSubtableWithExpansion*>(subtable)) {
         auto expa = tatweelSubtable->expansion.at(curr_info.codepoint);
         // layout->justificationContext.Expansions.insert({ buffer->idx, tatweelSubtable->expansion.value(curr_info.codepoint) });
-        curr_info.lefttatweel += expa.MaxLeftTatweel;
-        curr_info.righttatweel += expa.MaxRightTatweel;
+        font->add_glyph_tatweels(curr_info, expa.MaxLeftTatweel, expa.MaxRightTatweel);
       }
     }
   }
@@ -601,7 +706,8 @@ hb_ot_get_glyph_name(hb_font_t* font HB_UNUSED,
   return false;
 }
 static hb_font_funcs_t* getFontFunctions(hb_font_t* font, bool otVar) {
-  static hb_font_funcs_t* harfbuzzCoreTextFontFuncs = 0;
+  static hb_font_funcs_t* fontFunctions[2] = {};
+  auto& harfbuzzCoreTextFontFuncs = fontFunctions[otVar ? 1 : 0];
 
   // auto& ffunctions = hb_font_get_font_funcs(*font);
 
@@ -663,7 +769,7 @@ Point AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable,
 GlyphVis* OtLayout::getGlyph(const std::string& name, GlyphParameters parameters) {
   GlyphVis* pglyph = &this->glyphs[name];
 
-  if (parameters.lefttatweel != 0 || parameters.righttatweel != 0 || parameters.scalex != 0) {
+  if (!parameters.isDefault()) {
     pglyph = getAlternate(pglyph->charcode, parameters);
   }
 
@@ -678,6 +784,10 @@ GlyphVis* OtLayout::getGlyph(int code, GlyphParameters parameters) {
   return nullptr;
 }
 
+GlyphVis* OtLayout::getGlyph(const GlyphLayoutInfo& glyph) {
+  return getGlyph(glyph.codepoint, glyph.parameters);
+}
+
 GlyphVis* OtLayout::getGlyph(int code) {
   GlyphVis* curr = nullptr;
 
@@ -688,6 +798,23 @@ GlyphVis* OtLayout::getGlyph(int code) {
   }
 
   return curr;
+}
+
+ResolvedGlyphInstance OtLayout::resolveGlyphInstance(int code) {
+  auto* glyph = getGlyph(code);
+  if (glyph == nullptr)
+    throw std::runtime_error("Glyph not found: " + std::to_string(code));
+
+  // Extended fonts carry instance parameters in the shaping buffer. Their
+  // glyph ID therefore remains the anchor source even if the same layout has
+  // generated materialized alternates. Standard OpenType fonts instead
+  // recover the source glyph and the coordinates baked into that glyph ID.
+  if (extended || !glyph->sourceGlyphCode) return {glyph, {}};
+
+  auto* source = getGlyph(*glyph->sourceGlyphCode);
+  if (source == nullptr)
+    throw std::runtime_error("Source glyph not found for " + glyph->name);
+  return {source, glyph->parameters};
 }
 
 digitalkhatt::ByteBuffer OtLayout::getGDEF() {
@@ -826,10 +953,10 @@ digitalkhatt::ByteBuffer OtLayout::getFeatureList(
   uint16_t featureOffset = 2 + 6 * featureCount;
   for (const auto& [featureName, lookupIndexes] : allFeatures) {
     for (int tagIndex = 0; tagIndex < 4; ++tagIndex)
-      featureList.writeU8(featureName.at(tagIndex));          // featureTag
-    featureList.writeU16(featureOffset);                      // featureOffset
-    features.writeU16(0);                                    // featureParams
-    features.writeU16(lookupIndexes.size());                  // lookupIndexCount
+      featureList.writeU8(featureName.at(tagIndex));  // featureTag
+    featureList.writeU16(featureOffset);              // featureOffset
+    features.writeU16(0);                             // featureParams
+    features.writeU16(lookupIndexes.size());          // lookupIndexCount
     for (auto lookupIndex : lookupIndexes) features.writeU16(lookupIndex);
     featureOffset += 4 + 2 * lookupIndexes.size();
   }
@@ -838,23 +965,23 @@ digitalkhatt::ByteBuffer OtLayout::getFeatureList(
 }
 digitalkhatt::ByteBuffer OtLayout::getScriptList(int featureCount) {
   digitalkhatt::ByteBuffer scriptList;
-  scriptList.writeU16(1);  // scriptCount
+  scriptList.writeU16(1);                                                  // scriptCount
   for (char byte : std::string_view("arab", 4)) scriptList.writeU8(byte);  // scriptTag
-  scriptList.writeU16(8);   // scriptOffset
-  scriptList.writeU16(10);  // defaultLangSys
-  scriptList.writeU16(1);   // langSysCount
+  scriptList.writeU16(8);                                                  // scriptOffset
+  scriptList.writeU16(10);                                                 // defaultLangSys
+  scriptList.writeU16(1);                                                  // langSysCount
   for (char byte : std::string_view("ARA ", 4)) scriptList.writeU8(byte);  // langSysTag
-  scriptList.writeU16(10);       // langSysOffset (2 + 2 + 4 + 2)
-  scriptList.writeU16(0);        // lookupOrder
-  scriptList.writeU16(0xFFFF);   // requiredFeatureIndex
-  scriptList.writeU16(featureCount);  // featureIndexCount
+  scriptList.writeU16(10);                                                 // langSysOffset (2 + 2 + 4 + 2)
+  scriptList.writeU16(0);                                                  // lookupOrder
+  scriptList.writeU16(0xFFFF);                                             // requiredFeatureIndex
+  scriptList.writeU16(featureCount);                                       // featureIndexCount
   for (uint16_t index = 0; index < featureCount; ++index)
     scriptList.writeU16(index);
   return scriptList;
 }
 
 digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup*>& lookups, std::map<std::string, std::set<std::uint16_t>>& allFeatures,
-                                   std::map<std::string, int>& lookupsIndexByName) {
+                                                 std::map<std::string, int>& lookupsIndexByName) {
   allFeatures.clear();
   lookupsIndexByName.clear();
   lookups.clear();
@@ -882,7 +1009,6 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
 
   auto scriptList = getScriptList(allFeatures.size());
   auto featureList = getFeatureList(allFeatures);
-
 
   const std::uint16_t scriptListOffset = 10;
   const std::uint16_t featureListOffset = scriptListOffset + scriptList.size();
@@ -944,14 +1070,14 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
     const auto& lookupSubtables = serializedLookups[lookupIndex];
     digitalkhatt::ByteBuffer lookupTable;
     digitalkhatt::ByteBuffer extensions;
-    lookupTable.writeU16(extensiontype);          // lookupType
-    lookupTable.writeU16(lookup->flags);          // lookupFlag
-    lookupTable.writeU16(lookupSubtables.size()); // subTableCount
+    lookupTable.writeU16(extensiontype);           // lookupType
+    lookupTable.writeU16(lookup->flags);           // lookupFlag
+    lookupTable.writeU16(lookupSubtables.size());  // subTableCount
     uint16_t extensionOffset = 6 + 2 * lookupSubtables.size();
     if (lookup->markGlyphSetIndex != Lookup::NoMarkGlyphSet) extensionOffset += 2;
     for (const auto& subtableBytes : lookupSubtables) {
       lookupTable.writeU16(extensionOffset);
-      extensions.writeU16(1);  // extension format
+      extensions.writeU16(1);                                         // extension format
       extensions.writeU16(static_cast<std::uint16_t>(lookup->type));  // extensionLookupType
       const std::uint64_t extensionSubtableOffset =
           lookupOffset + extensionOffset;
@@ -984,10 +1110,20 @@ digitalkhatt::ByteBuffer OtLayout::getGSUBorGPOS(bool isgsub, std::vector<Lookup
   return root;
 }
 OtLayout::OtLayout(MPFont* font, bool extended, bool generateVariableOpenType)
-    : fsmDriver{*this}, justTable{this}, font{font},
-      isOTVar{generateVariableOpenType} {
-
+    : fsmDriver{*this}, justTable{this}, font{font}, isOTVar{generateVariableOpenType} {
   this->extended = extended;
+  // Native bindings use dense storage slots even when the MetaPost suffix is
+  // sparse. Other OpenType-axis expressions keep their existing behavior.
+  for (const auto& axis : font->axes()) {
+    auto expression = axis.equivExpr;
+    if (!expression.starts_with("params")) continue;
+    auto suffix = expression.substr(6);
+    if (suffix.size() > 2 && suffix.front() == '[' && suffix.back() == ']') suffix = suffix.substr(1, suffix.size() - 2);
+    if (suffix.empty() || suffix.find_first_not_of("0123456789") != std::string::npos) continue;
+    const auto index = std::stoul(suffix);
+    if (index > std::numeric_limits<unsigned>::max()) throw std::invalid_argument("MetaPost parameter index out of range");
+    axisRegistry.add(axis.name, static_cast<unsigned>(index));
+  }
   face = hb_face_create_for_tables(harfbuzzGetTables, this, 0);
 
   dirty = true;
@@ -1180,6 +1316,7 @@ void OtLayout::parseFeatureFile(std::string fileName) {
   // twice, recreating every Lookup object; the name-based disabled state must
   // remain in effect across those reparses.
   tables.clear();
+  compiledJustificationCatalog.reset();
   // nojustalternatePaths.clear();
 
   feayy::FeaContext context{this};
@@ -1189,7 +1326,67 @@ void OtLayout::parseFeatureFile(std::string fileName) {
     std::cout << "Error in parsing " << fileName << std::endl;
   };
 
+  if (context.justificationDfas.size() > 1) {
+    throw std::runtime_error(
+        "a layout takes exactly one table(justdfa); declare several "
+        "stretchpolicy blocks inside it rather than several catalogs");
+  }
+  if (!context.justificationDfas.empty()) {
+    compiledJustificationCatalog =
+        digitalkhatt::justify::compileJustificationCatalog(
+            context.justificationDfas.begin()->second, axisRegistry);
+  }
+
   context.populateFeatures();
+
+  // Action lookups are intentionally not required to belong to an OpenType
+  // feature. Materialize every lookup named by table(justdfa) directly from
+  // the parsed lookup catalog so live actions do not depend on a dummy cvXX
+  // feature or on HarfBuzz requesting the serialized GSUB table first.
+  if (compiledJustificationCatalog) {
+    std::set<std::string> actionLookups;
+    const std::function<void(const std::vector<digitalkhatt::justify::JustEffect>&)> collectLookups = [&](const auto& effects) {
+      for (const auto& effect : effects) {
+        if (effect.kind == digitalkhatt::justify::JustEffectKind::Lookup) actionLookups.insert(effect.lookup);
+        collectLookups(effect.nested);
+      }
+    };
+    for (const auto& action : compiledJustificationCatalog->actionDefinitions) collectLookups(action.effects);
+
+    feayy::LookupDefinitionVisitor visitor{this, context};
+    for (const auto& name : actionLookups) {
+      if (lookupsIndexByName.contains(name)) continue;
+      const auto definition = context.lookups.find(name);
+      if (definition == context.lookups.end()) throw std::runtime_error("Unknown GSUB justification lookup " + name);
+      definition->second->accept(visitor);
+      if (!lookupsIndexByName.contains(name)) throw std::runtime_error("Empty GSUB justification lookup " + name);
+    }
+  }
+
+  // Glyph sets are expanded only now: GlyphName::getCodes folds in
+  // getSubsts(), which is not populated until the features are.  Names rather
+  // than glyph ids, so the same catalog stays valid against a second font --
+  // the shaping comparison tool relies on that.
+  if (compiledJustificationCatalog) {
+    digitalkhatt::justify::resolveJustificationGlyphSets(
+        *compiledJustificationCatalog,
+        [&](int glyphSetRef) {
+          const auto ref = static_cast<std::size_t>(glyphSetRef);
+          if (glyphSetRef < 0 || ref >= context.justificationGlyphSets.size()) {
+            throw std::runtime_error(
+                "a table(justdfa) entry references an unknown glyph set");
+          }
+          // getCodes folds in getSubsts, so naming a glyph also covers the
+          // alternates justification substitutes it with.
+          std::vector<std::string> names;
+          for (const auto code :
+               context.justificationGlyphSets[ref]->getCodes(this)) {
+            const auto found = glyphNamePerCode.find(code);
+            if (found != glyphNamePerCode.end()) names.push_back(found->second);
+          }
+          return names;
+        });
+  }
 
   if (face != nullptr) {
     hb_face_destroy(face);
@@ -1261,6 +1458,7 @@ hb_font_t* OtLayout::createFont(double emScale, bool newFace) {
   hb_font_funcs_destroy(ffunctions);*/
 
   hb_font_set_funcs(subfont, getFontFunctions(font, useNormAxisValues), this, 0);
+  hb_font_set_instance_func(subfont, glyphInstanceCallback, this);
 
   return subfont;
 }
@@ -1402,14 +1600,14 @@ void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& dif
         GlyphExpansion& expa = justificationContext.Expansions[index];
 
         if (expa.stretchIsAbsolute) {
-          expa.MaxLeftTatweel = expa.MaxLeftTatweel - glyph_info[index].lefttatweel;
-          expa.MaxRightTatweel = expa.MaxRightTatweel - glyph_info[index].righttatweel;
+          expa.MaxLeftTatweel = expa.MaxLeftTatweel - shapefont->glyph_tatweels(glyph_info[index]).left;
+          expa.MaxRightTatweel = expa.MaxRightTatweel - shapefont->glyph_tatweels(glyph_info[index]).right;
           expa.stretchIsAbsolute = false;
         }
 
         if (expa.shrinkIsAbsolute) {
-          expa.MinLeftTatweel = expa.MinLeftTatweel - glyph_info[index].lefttatweel;
-          expa.MinRightTatweel = expa.MinRightTatweel - glyph_info[index].righttatweel;
+          expa.MinLeftTatweel = expa.MinLeftTatweel - shapefont->glyph_tatweels(glyph_info[index]).left;
+          expa.MinRightTatweel = expa.MinRightTatweel - shapefont->glyph_tatweels(glyph_info[index]).right;
           expa.shrinkIsAbsolute = false;
         }
 
@@ -1418,7 +1616,8 @@ void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& dif
         if (glyph_info[index].codepoint == justificationContext.Substitutes[i]) {
           newWidth += glyph_pos[index].x_advance;
         } else {
-          newWidth += getGlyphHorizontalAdvance(shapefont, this, justificationContext.Substitutes[i], {.lefttatweel = glyph_pos[index].lefttatweel, .righttatweel = glyph_pos[index].righttatweel}, nullptr);  // substitute.width* emScale;
+          // This historical branch evaluated neutral substitute metrics (position-side axes were always zero).
+          newWidth += getGlyphHorizontalAdvance(shapefont, this, justificationContext.Substitutes[i], {}, nullptr);
         }
 
         groupExpa.weight += expa.weight;
@@ -1471,8 +1670,7 @@ void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& dif
                 double leftTatweel = (tatweel * (expa.MaxLeftTatweel / maxTatweel)) / nuqta;
                 double rightTatweel = (tatweel * (expa.MaxRightTatweel / maxTatweel)) / nuqta;
 
-                glyph_info[index].lefttatweel += leftTatweel;
-                glyph_info[index].righttatweel += rightTatweel;
+                shapefont->add_glyph_tatweels(glyph_info[index], leftTatweel, rightTatweel);
 
                 diff -= tatweel;
 
@@ -1506,8 +1704,7 @@ void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& dif
                 double leftTatweel = (tatweel * (expa.MinLeftTatweel / MinTatweel)) / nuqta;
                 double rightTatweel = (tatweel * (expa.MinRightTatweel / MinTatweel)) / nuqta;
 
-                glyph_info[index].lefttatweel += leftTatweel;
-                glyph_info[index].righttatweel += rightTatweel;
+                shapefont->add_glyph_tatweels(glyph_info[index], leftTatweel, rightTatweel);
 
                 diff -= tatweel;
 
@@ -1539,6 +1736,28 @@ void OtLayout::applyJustFeature(hb_buffer_t* buffer, bool& needgpos, double& dif
   buffer->reverse();
   if (copy_buffer)
     hb_buffer_destroy(copy_buffer);
+}
+
+std::optional<hb_codepoint_t> OtLayout::resolveJustificationLookup(hb_codepoint_t glyph, std::string_view lookupName) const {
+  const auto found = lookupsIndexByName.find(std::string(lookupName));
+  if (found == lookupsIndexByName.end()) throw std::runtime_error("Unknown GSUB justification lookup " + std::string(lookupName));
+  const auto lookupIndex = static_cast<std::size_t>(found->second);
+  if (lookupIndex >= lookups.size()) throw std::runtime_error("Invalid GSUB justification lookup index for " + std::string(lookupName));
+  const auto* lookup = lookups[lookupIndex];
+  if (lookup->type != Lookup::single) throw std::runtime_error("Action lookup " + std::string(lookupName) + " must be a one-to-one GSUB lookup");
+  for (const auto* subtable : lookup->subtables) {
+    if (const auto* parameterized = dynamic_cast<const SingleSubtableWithParameters*>(subtable)) {
+      const auto substitution = parameterized->subst.find(glyph);
+      if (substitution == parameterized->subst.end()) continue;
+      if (!substitution->second.parameters.isDefault()) throw std::runtime_error("Action lookup " + std::string(lookupName) + " carries parameters; declare them in the justification action instead");
+      return substitution->second.glyphCode;
+    }
+    if (const auto* single = dynamic_cast<const SingleSubtable*>(subtable)) {
+      const auto substitution = single->subst.find(glyph);
+      if (substitution != single->subst.end()) return substitution->second;
+    }
+  }
+  return std::nullopt;
 }
 
 void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double& diff, const std::string& feature, hb_font_t* shapefont, double nuqta, double emScale) {
@@ -1612,8 +1831,8 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
           if (glyph_info[index].codepoint == justificationContext.Substitutes[i]) {
             newWidth += glyph_pos[index].x_advance;
           } else {
-            double leftTatweel = glyph_pos[index].lefttatweel + expa.MinLeftTatweel > 0 ? expa.MinLeftTatweel : 0;
-            double rightTatweel = glyph_pos[index].righttatweel + expa.MinRightTatweel > 0 ? expa.MinRightTatweel : 0;
+            double leftTatweel = expa.MinLeftTatweel > 0 ? expa.MinLeftTatweel : 0;
+            double rightTatweel = expa.MinRightTatweel > 0 ? expa.MinRightTatweel : 0;
             newWidth += getGlyphHorizontalAdvance(shapefont, this, justificationContext.Substitutes[i], {.lefttatweel = leftTatweel, .righttatweel = rightTatweel}, nullptr);  // substitute.width* emScale;
           }
 
@@ -1634,8 +1853,8 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
               GlyphExpansion& expa = justificationContext.Expansions[index];
 
               if (glyph_info[index].codepoint == justificationContext.Substitutes[i]) {
-                expa.MaxLeftTatweel = expa.MaxLeftTatweel - glyph_info[index].lefttatweel;
-                expa.MaxRightTatweel = expa.MaxRightTatweel - glyph_info[index].righttatweel;
+                expa.MaxLeftTatweel = expa.MaxLeftTatweel - shapefont->glyph_tatweels(glyph_info[index]).left;
+                expa.MaxRightTatweel = expa.MaxRightTatweel - shapefont->glyph_tatweels(glyph_info[index]).right;
 
                 if (stretch && expa.MaxLeftTatweel <= 0 && expa.MaxRightTatweel <= 0 || !stretch && expa.MinLeftTatweel >= 0 && expa.MinRightTatweel >= 0)
                   continue;
@@ -1649,12 +1868,12 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
 
                 glyph_info[index].codepoint = justificationContext.Substitutes[i];
                 if (expa.MinLeftTatweel > 0) {
-                  glyph_info[index].lefttatweel += expa.MinLeftTatweel;
+                  shapefont->add_glyph_tatweels(glyph_info[index], expa.MinLeftTatweel, 0);
                   expa.MinLeftTatweel = 0;
                 }
 
                 if (expa.MinRightTatweel > 0) {
-                  glyph_info[index].righttatweel += expa.MinRightTatweel;
+                  shapefont->add_glyph_tatweels(glyph_info[index], 0, expa.MinRightTatweel);
                   expa.MinRightTatweel = 0;
                 }
 
@@ -1707,8 +1926,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
               double leftTatweel = (tatweel * (expa.MaxLeftTatweel / MaxTatweel)) / nuqta;
               double rightTatweel = (tatweel * (expa.MaxRightTatweel / MaxTatweel)) / nuqta;
 
-              glyph_info[index].lefttatweel += leftTatweel;
-              glyph_info[index].righttatweel += rightTatweel;
+              shapefont->add_glyph_tatweels(glyph_info[index], leftTatweel, rightTatweel);
 
               if (meanTatweel < maxStretch && diff > 0) {
                 expa.MaxLeftTatweel -= leftTatweel;
@@ -1734,8 +1952,7 @@ void OtLayout::applyJustFeature_old(hb_buffer_t* buffer, bool& needgpos, double&
               double leftTatweel = (tatweel * (expa.MinLeftTatweel / MinTatweel)) / nuqta;
               double rightTatweel = (tatweel * (expa.MinRightTatweel / MinTatweel)) / nuqta;
 
-              glyph_info[index].lefttatweel += leftTatweel;
-              glyph_info[index].righttatweel += rightTatweel;
+              shapefont->add_glyph_tatweels(glyph_info[index], leftTatweel, rightTatweel);
 
               if (meanTatweel > minShrink && diff < 0) {
                 expa.MinLeftTatweel -= leftTatweel;
@@ -1921,7 +2138,8 @@ std::vector<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth,
   auto justType = justOption.justType;
   auto justStyle = justOption.justStyle;
 
-  if (justType == JustType::Madina || justType == JustType::IndoPak || justType == JustType::Experimental || justType == JustType::Experimental2) {
+  if (justType == JustType::Madina || justType == JustType::IndoPak || justType == JustType::Experimental ||
+      justType == JustType::Experimental2 || justType == JustType::DeclPolicy) {
     return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, cluster_level, justOption, mushafLayout);
   }
 
@@ -1985,18 +2203,18 @@ std::vector<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth,
       for (int i = glyph_count - 1; i >= 0; i--) {
         GlyphLayoutInfo glyphLayout;
 
+        const auto provenance = currentFont->glyph_positioning(glyph_info[i]);
         glyphLayout.codepoint = glyph_info[i].codepoint;
-        glyphLayout.lefttatweel = normalToParameter(glyph_info[i].codepoint, glyph_info[i].lefttatweel, true);     // glyph_info[i].lefttatweel;
-        glyphLayout.righttatweel = normalToParameter(glyph_info[i].codepoint, glyph_info[i].righttatweel, false);  // glyph_info[i].righttatweel;
+        glyphLayout.parameters = glyphParameters(glyph_info[i]);
         glyphLayout.cluster = glyph_info[i].cluster;
         glyphLayout.x_advance = glyph_pos[i].x_advance;
         glyphLayout.y_advance = glyph_pos[i].y_advance;
         glyphLayout.x_offset = glyph_pos[i].x_offset;
         glyphLayout.y_offset = glyph_pos[i].y_offset;
-        glyphLayout.lookup_index = glyph_pos[i].lookup_index;
-        glyphLayout.color = glyph_pos[i].lookup_index >= this->tajweedcolorindex ? glyph_pos[i].base_codepoint : 0;
-        glyphLayout.subtable_index = glyph_pos[i].subtable_index;
-        glyphLayout.base_codepoint = glyph_pos[i].base_codepoint;
+        glyphLayout.lookup_index = provenance.lookup_index;
+        glyphLayout.color = provenance.lookup_index >= this->tajweedcolorindex ? provenance.base_codepoint : 0;
+        glyphLayout.subtable_index = provenance.subtable_index;
+        glyphLayout.base_codepoint = provenance.base_codepoint;
 
         glyphLayout.beginsajda = false;
         glyphLayout.endsajda = false;
@@ -2092,9 +2310,9 @@ std::vector<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth,
 }
 
 OriginalPageList OtLayout::pageBreak(double emScale, int lineWidth,
-                                      bool pageFinishbyaVerse,
-                                      digitalkhatt::TextString text,
-                                      int nbPages) {
+                                     bool pageFinishbyaVerse,
+                                     digitalkhatt::TextString text,
+                                     int nbPages) {
   std::unordered_set<int> forcedBreaks;
   constexpr std::u16string_view suraWord = u"سُورَةُ";
   constexpr std::u16string_view bism = u"بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
@@ -2475,7 +2693,6 @@ LayoutPages OtLayout::pageBreak(std::vector<digitalkhatt::TextString> textPages,
   digitalkhatt::TextString quran;
 
   for (int i = 2; i < lastPage; i++) {
-
     quran.append(textPages[i] + u"\n");
   }
 
@@ -2513,7 +2730,7 @@ LayoutPages OtLayout::pageBreak(std::vector<digitalkhatt::TextString> textPages,
 
   std::ranges::replace(quran, u'\n', u' ');
   quran = digitalkhatt::replaceAll(quran, digitalkhatt::TextString{bism} + u' ',
-                                    digitalkhatt::TextString{bism} + u'\n');
+                                   digitalkhatt::TextString{bism} + u'\n');
 
   // Mark sajda rules
   std::unordered_set<int> beginsajdas;
@@ -2821,10 +3038,11 @@ LayoutPages OtLayout::pageBreak(std::vector<digitalkhatt::TextString> textPages,
       glyphLayout.y_advance = glyph_pos[i].y_advance;
       glyphLayout.x_offset = glyph_pos[i].x_offset;
       glyphLayout.y_offset = glyph_pos[i].y_offset;
-      glyphLayout.lookup_index = glyph_pos[i].lookup_index;
-      glyphLayout.color = glyph_pos[i].lookup_index >= this->tajweedcolorindex ? glyph_pos[i].base_codepoint : 0;
-      glyphLayout.subtable_index = glyph_pos[i].subtable_index;
-      glyphLayout.base_codepoint = glyph_pos[i].base_codepoint;
+      const auto provenance = font->glyph_positioning(glyph_info[i]);
+      glyphLayout.lookup_index = provenance.lookup_index;
+      glyphLayout.color = provenance.lookup_index >= this->tajweedcolorindex ? provenance.base_codepoint : 0;
+      glyphLayout.subtable_index = provenance.subtable_index;
+      glyphLayout.base_codepoint = provenance.base_codepoint;
       // Todo Optimize
       glyphLayout.beginsajda = false;
       glyphLayout.endsajda = false;
@@ -2988,161 +3206,156 @@ LayoutPages OtLayout::pageBreak(std::vector<digitalkhatt::TextString> textPages,
 
   return {pages, originalPages, suraNamebyPage};
 }
-int OtLayout::AlternatelastCode = 0xF0000;
 std::unordered_map<GlyphParameters, GlyphVis*>& OtLayout::getSubstEquivGlyphs(int glyphCode) {
   return substEquivGlyphs[glyphCode];
 }
-GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool generateNewGlyph, bool addToEquivSubst) {
-  if (addToEquivSubst) {
-    auto find = substEquivGlyphs.find(glyphCode);
-    if (find != substEquivGlyphs.end()) {
-      auto find2 = find->second.find(parameters);
-      if (find2 != find->second.end()) {
-        return find2->second;
-      }
-    }
+GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters,
+                                 bool addToFont,
+                                 bool recordSubstitutionEquivalent) {
+  auto* sourceGlyph = getGlyph(glyphCode);
+  if (sourceGlyph == nullptr)
+    throw std::runtime_error("Glyph not found: " + std::to_string(glyphCode));
+
+  // A request may start from an already materialized instance. Resolve it to
+  // its source before consulting the cache, because the source code plus the
+  // complete parameter vector is the canonical identity of an alternate.
+  if (sourceGlyph->sourceGlyphCode) {
+    parameters += sourceGlyph->parameters;
+    const auto sourceCode = *sourceGlyph->sourceGlyphCode;
+    sourceGlyph = getGlyph(sourceCode);
+    if (sourceGlyph == nullptr)
+      throw std::runtime_error("Source glyph " + std::to_string(sourceCode) +
+                               " not found for generated instance");
+  } else if (sourceGlyph->isAlternate &&
+             !sourceGlyph->originalglyph.empty()) {
+    // A source-font alternate may still describe its design relationship by
+    // name. Resolve that once while materializing the parameterized instance;
+    // the generated glyph records the resulting code and full coordinates.
+    parameters.lefttatweel += sourceGlyph->charlt;
+    parameters.righttatweel += sourceGlyph->charrt;
+    const auto source = glyphs.find(sourceGlyph->originalglyph);
+    if (source == glyphs.end())
+      throw std::runtime_error("Source glyph not found for " +
+                               sourceGlyph->name);
+    sourceGlyph = &source->second;
   }
 
-  auto cachedGlyphs = !generateNewGlyph ? &tempGlyphs[glyphCode] : &addedGlyphs[glyphCode];
+  const auto sourceCode = glyphCodePerName.find(sourceGlyph->name);
+  if (sourceCode == glyphCodePerName.end())
+    throw std::runtime_error("Source glyph code not found for " +
+                             sourceGlyph->name);
+  const auto stableSourceCode = sourceCode->second;
 
-  auto tryfind1 = cachedGlyphs->find(parameters);
+  if (parameters.size() > axisRegistry.axes().size())
+    throw std::invalid_argument("Glyph parameters have an unregistered axis");
+  for (digitalkhatt::GlyphAxisId axis = 0; axis < parameters.size(); ++axis)
+    if (!std::isfinite(parameters.value(axis)))
+      throw std::invalid_argument("Glyph parameter is not finite");
 
-  if (tryfind1 != cachedGlyphs->end()) {
-    if (addToEquivSubst) {
-      auto& tt = substEquivGlyphs[glyphCode];
-      tt.insert({parameters, tryfind1->second});
-    }
-    return tryfind1->second;
+  const auto expandable = expandableGlyphs.find(sourceGlyph->name);
+  if (expandable != expandableGlyphs.end()) {
+    const auto& limits = expandable->second;
+    parameters.lefttatweel = std::clamp(
+        parameters.lefttatweel, limits.minLeft, limits.maxLeft);
+    parameters.righttatweel = std::clamp(
+        parameters.righttatweel, limits.minRight, limits.maxRight);
+    if (parameters.isDefault() && !addToFont) return sourceGlyph;
+  } else if (parameters.scalex == 0 && !parameters.hasExtraAxes()) {
+    // Tatweel coordinates have no effect on a glyph that is not expandable.
+    return sourceGlyph;
   }
 
-  auto glyph = this->getGlyph(glyphCode);
+  const auto findCached = [&](const auto& cache) -> GlyphVis* {
+    const auto glyphsForSource = cache.find(stableSourceCode);
+    if (glyphsForSource == cache.end()) return nullptr;
+    const auto found = glyphsForSource->second.find(parameters);
+    return found == glyphsForSource->second.end() ? nullptr : found->second;
+  };
+  const auto rememberEquivalent = [&](GlyphVis* glyph) {
+    if (recordSubstitutionEquivalent)
+      substEquivGlyphs[stableSourceCode].try_emplace(parameters, glyph);
+  };
 
-  if (glyph == nullptr) {
-    throw std::runtime_error{"Glyph  not found."};
+  if (recordSubstitutionEquivalent)
+    if (auto* equivalent = findCached(substEquivGlyphs)) return equivalent;
+
+  auto& cache = addToFont ? addedGlyphs : tempGlyphs;
+  if (auto* cached = findCached(cache)) {
+    rememberEquivalent(cached);
+    return cached;
   }
 
-  if (glyph->isAlternate) {
-    auto originalGlyph = glyph->originalglyph;
-    parameters.lefttatweel += glyph->charlt;
-    parameters.righttatweel += glyph->charrt;
+  std::vector<std::pair<unsigned, double>> axisValues;
+  axisValues.reserve(axisRegistry.axes().size());
+  for (digitalkhatt::GlyphAxisId i = 0; i < axisRegistry.axes().size(); ++i)
+    axisValues.emplace_back(axisRegistry.axes()[i].metaPostIndex, parameters.value(i));
 
-    glyph = &glyphs[originalGlyph];
-
-    glyphCode = glyph->charcode;
-  }
-
-  auto expnadable = expandableGlyphs.find(glyph->name);
-
-  if (expnadable != expandableGlyphs.end()) {
-    if (parameters.lefttatweel < expnadable->second.minLeft) {
-      parameters.lefttatweel = expnadable->second.minLeft;
-    } else if (parameters.lefttatweel > expnadable->second.maxLeft) {
-      parameters.lefttatweel = expnadable->second.maxLeft;
-    }
-    if (parameters.righttatweel < expnadable->second.minRight) {
-      parameters.righttatweel = expnadable->second.minRight;
-    } else if (parameters.righttatweel > expnadable->second.maxRight) {
-      parameters.righttatweel = expnadable->second.maxRight;
-    }
-    GlyphParameters nullpar;
-    if (nullpar == parameters && !generateNewGlyph) {
-      return glyph;
-    }
-  } else if (parameters.scalex == 0) {
-    // std::cout << "No parameter is set for glyph " << glyph->name.toStdString() << std::endl;
-    return glyph;
-  }
-
-  cachedGlyphs = !generateNewGlyph ? &tempGlyphs[glyphCode] : &addedGlyphs[glyphCode];
-
-  auto tryfind2 = cachedGlyphs->find(parameters);
-
-  if (tryfind2 != cachedGlyphs->end()) {
-    if (addToEquivSubst) {
-      auto& tt = substEquivGlyphs[glyphCode];
-      tt.insert({parameters, tryfind2->second});
-    }
-    return tryfind2->second;
-  }
-
-  auto addedGlyphFind = automedina->addedGlyphs.find(glyph->name);
-  if (addedGlyphFind != automedina->addedGlyphs.end()) {
-    font->generateAlternate(glyph->name, parameters.lefttatweel,
-                            parameters.righttatweel, parameters.third,
-                            parameters.fourth, parameters.fifth,
-                            parameters.scalex, addedGlyphFind->second,
-                            AlternatelastCode);
-  } else if (!font->hasGlyph(glyph->name)) {
-    // std::cout << glyph->name.toStdString() << " is auto generated. It dows not exist in the original font" <<  std::endl;
-    return glyph;
+  const auto customSource = automedina->addedGlyphs.find(sourceGlyph->name);
+  if (customSource != automedina->addedGlyphs.end()) {
+    font->generateAlternate(sourceGlyph->name, axisValues,
+                            customSource->second, AlternateScratchCode);
+  } else if (!font->hasGlyph(sourceGlyph->name)) {
+    return sourceGlyph;
   } else {
-    font->generateAlternate(glyph->name, parameters.lefttatweel,
-                            parameters.righttatweel, parameters.third,
-                            parameters.fourth, parameters.fifth,
-                            parameters.scalex, {}, AlternatelastCode);
+    font->generateAlternate(sourceGlyph->name, axisValues, {},
+                            AlternateScratchCode);
   }
 
-  mp_edge_object* edge = font->edge(AlternatelastCode);
+  auto* edge = font->edge(AlternateScratchCode);
+  if (edge == nullptr)
+    throw std::runtime_error("MetaPost did not generate alternate for " +
+                             sourceGlyph->name);
 
-  if (edge == nullptr) {
-    throw "Error";
-  }
+  GlyphVis* alternateGlyph = nullptr;
 
-  GlyphVis* newglyph = nullptr;
-
-  if (!generateNewGlyph) {
-    newglyph = new GlyphVis{this, edge};
-    newglyph->expanded = true;
+  if (!addToFont) {
+    alternateGlyph = new GlyphVis{this, edge};
+    alternateGlyph->expanded = true;
   } else {
-    // Add glyph to font
-    std::uint16_t charcode = glyphNamePerCode.empty() ? 0 : glyphNamePerCode.rbegin()->first + 1;
+    if (!glyphNamePerCode.empty() &&
+        glyphNamePerCode.rbegin()->first ==
+            std::numeric_limits<std::uint16_t>::max())
+      throw std::length_error("No glyph code is available for an alternate");
+    const std::uint16_t newGlyphCode =
+        glyphNamePerCode.empty() ? 0 : glyphNamePerCode.rbegin()->first + 1;
 
-    const std::string name = std::format("{}.added_{}", glyph->name, charcode);
+    const std::string name =
+        std::format("{}.added_{}", sourceGlyph->name, newGlyphCode);
 
-    GlyphVis& temp = glyphs.insert_or_assign(name, GlyphVis(this, edge)).first->second;
+    auto& insertedGlyph =
+        glyphs.insert_or_assign(name, GlyphVis(this, edge)).first->second;
 
-    newglyph = &temp;
+    alternateGlyph = &insertedGlyph;
+    alternateGlyph->charcode = newGlyphCode;
+    alternateGlyph->name = name;
+    alternateGlyph->expanded = true;
+    alternateGlyph->isAlternate = true;
+    alternateGlyph->originalglyph = sourceGlyph->name;
+    glyphNamePerCode[newGlyphCode] = name;
+    glyphCodePerName[name] = newGlyphCode;
 
-    newglyph->charcode = charcode;
-    newglyph->name = name;
-    newglyph->expanded = true;
-    newglyph->isAlternate = true;
-    newglyph->originalglyph = glyph->name;
+    if (const auto glyphClass = glyphGlobalClasses.find(stableSourceCode);
+        glyphClass != glyphGlobalClasses.end())
+      glyphGlobalClasses[newGlyphCode] = glyphClass->second;
 
-    glyphNamePerCode[newglyph->charcode] = newglyph->name;
-    glyphCodePerName[newglyph->name] = newglyph->charcode;
-
-    if (glyphGlobalClasses.contains(glyphCode)) {
-      glyphGlobalClasses[newglyph->charcode] = glyphGlobalClasses[glyphCode];
-
-      /*
-      for (auto& pclass : automedina->classes) {
-        if (pclass.contains(glyph->name)) {
-
-          pclass.insert(newglyph->name);
-        }
-
-      }*/
-    }
-
-    for (const auto& [anchorKey, anchor] : newglyph->anchors) {
-      auto anchorName = anchorKey.name;
+    for (const auto& [anchorKey, anchor] : alternateGlyph->anchors) {
+      const auto& anchorName = anchorKey.name;
 
       switch (anchor.type) {
         case 1:
-          automedina->markAnchors[anchorName][newglyph->charcode] = anchor.anchor;
+          automedina->markAnchors[anchorName][newGlyphCode] = anchor.anchor;
           break;
         case 2:
-          automedina->entryAnchors[anchorName][newglyph->charcode] = anchor.anchor;
+          automedina->entryAnchors[anchorName][newGlyphCode] = anchor.anchor;
           break;
         case 3:
-          automedina->exitAnchors[anchorName][newglyph->charcode] = anchor.anchor;
+          automedina->exitAnchors[anchorName][newGlyphCode] = anchor.anchor;
           break;
         case 4:
-          automedina->entryAnchorsRTL[anchorName][newglyph->charcode] = anchor.anchor;
+          automedina->entryAnchorsRTL[anchorName][newGlyphCode] = anchor.anchor;
           break;
         case 5:
-          automedina->exitAnchorsRTL[anchorName][newglyph->charcode] = anchor.anchor;
+          automedina->exitAnchorsRTL[anchorName][newGlyphCode] = anchor.anchor;
           break;
         default:
           break;
@@ -3150,14 +3363,14 @@ GlyphVis* OtLayout::getAlternate(int glyphCode, GlyphParameters parameters, bool
     }
   }
 
-  cachedGlyphs->insert({parameters, newglyph});
+  // Store the current layout code; the OpenType exporter remaps this
+  // provenance field whenever it renumbers glyphs again.
+  alternateGlyph->sourceGlyphCode = stableSourceCode;
+  alternateGlyph->parameters = parameters;
+  cache[stableSourceCode].try_emplace(parameters, alternateGlyph);
+  rememberEquivalent(alternateGlyph);
 
-  if (addToEquivSubst) {
-    auto& tt = substEquivGlyphs[glyphCode];
-    tt.insert({parameters, newglyph});
-  }
-
-  return newglyph;
+  return alternateGlyph;
 }
 digitalkhatt::ByteBuffer OtLayout::getCmap() {
   struct Segemnt {
@@ -3200,13 +3413,13 @@ digitalkhatt::ByteBuffer OtLayout::getCmap() {
   data.writeU16(0);           // version
   data.writeU16(nbEncoding);  // numTables
   // encodingRecords[0]
-  data.writeU16(0);                       // platformID
-  data.writeU16(3);                       // encodingID
-  data.writeU32(4 + 8 * nbEncoding);      // subtable offset
+  data.writeU16(0);                   // platformID
+  data.writeU16(3);                   // encodingID
+  data.writeU32(4 + 8 * nbEncoding);  // subtable offset
   // encodingRecords[1]
-  data.writeU16(3);                       // platformID
-  data.writeU16(1);                       // encodingID
-  data.writeU32(4 + 8 * nbEncoding);      // subtable offset
+  data.writeU16(3);                   // platformID
+  data.writeU16(1);                   // encodingID
+  data.writeU32(4 + 8 * nbEncoding);  // subtable offset
   digitalkhatt::ByteBuffer subtable;
   subtable.writeU16(4);  // format
   const auto lengthPosition = subtable.size();
@@ -3258,9 +3471,9 @@ digitalkhatt::ByteBuffer Just::getOpenTypeTable() {
           if (index != -1) lookupIndexes.push_back(index);
         }
       }
-      offsets.writeU16(currentOffset);             // stepOffset
-      stepData.writeU32(step.gsub);                // isGsub
-      stepData.writeU16(lookupIndexes.size());     // lookupCount
+      offsets.writeU16(currentOffset);          // stepOffset
+      stepData.writeU32(step.gsub);             // isGsub
+      stepData.writeU16(lookupIndexes.size());  // lookupCount
       for (auto index : lookupIndexes) stepData.writeU16(index);
       currentOffset += 6 + 2 * lookupIndexes.size();
     }
@@ -3270,12 +3483,12 @@ digitalkhatt::ByteBuffer Just::getOpenTypeTable() {
   auto stretchStepsTable = buildSteps(stretchSteps);
   auto shrinkStepsTable = buildSteps(shrinkSteps);
   digitalkhatt::ByteBuffer data;
-  data.writeU16(1);   // majorVersion
-  data.writeU16(0);   // minorVersion
-  data.writeU16(10);  // stretchStepsOffset
-  data.writeU16(12 + stretchStepsTable.size());  // shrinkStepsOffset
+  data.writeU16(1);                                                        // majorVersion
+  data.writeU16(0);                                                        // minorVersion
+  data.writeU16(10);                                                       // stretchStepsOffset
+  data.writeU16(12 + stretchStepsTable.size());                            // shrinkStepsOffset
   data.writeU16(14 + stretchStepsTable.size() + shrinkStepsTable.size());  // afterGsubOffset
-  data.writeU16(stretchSteps.size());  // stretchStepsCount
+  data.writeU16(stretchSteps.size());                                      // stretchStepsCount
   data.append(stretchStepsTable);
   data.writeU16(shrinkSteps.size());  // shrinkStepsCount
   data.append(shrinkStepsTable);

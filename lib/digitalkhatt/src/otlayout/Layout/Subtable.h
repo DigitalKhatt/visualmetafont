@@ -156,13 +156,14 @@ struct SingleSubtableWithExpansion : SingleSubtable {
   bool isConvertible() override { return false; }
 };
 
-struct SingleSubtableWithTatweel : Subtable {
+struct SingleSubtableWithParameters : Subtable {
   struct Substitution {
     std::uint16_t glyphCode;
     GlyphExpansion expansion;
+    GlyphParameters parameters;
   };
 
-  SingleSubtableWithTatweel(Lookup* lookup);
+  SingleSubtableWithParameters(Lookup* lookup);
 
   std::map<std::uint16_t, Substitution> subst;
   static constexpr std::uint16_t format = 11;
@@ -204,8 +205,8 @@ struct AlternateSubtable : Subtable {
   std::uint16_t format = 1;
 };
 
-struct AlternateSubtableWithTatweel : AlternateSubtable {
-  AlternateSubtableWithTatweel(Lookup* lookup);
+struct AlternateSubtableWithParameters : AlternateSubtable {
+  AlternateSubtableWithParameters(Lookup* lookup);
 
   std::map<std::uint16_t, std::vector<ExtendedGlyph>> alternates;
 
@@ -223,6 +224,11 @@ struct AlternateSubtableWithTatweel : AlternateSubtable {
 
   virtual void generateSubstEquivGlyphs() override;
 };
+
+// Source compatibility for font projects that have not migrated their C++
+// lookup builders yet. New code should use the parameter-oriented names.
+using SingleSubtableWithTatweel = SingleSubtableWithParameters;
+using AlternateSubtableWithTatweel = AlternateSubtableWithParameters;
 
 struct LigatureSubtable : Subtable {
   LigatureSubtable(Lookup* lookup);
@@ -323,7 +329,6 @@ struct CursiveSubtable : Subtable {
                       std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
                       std::map<std::pair<int, int>, std::uint16_t>&
                           sharedAnchors,
-                      bool extended,
                       bool isEntry,
                       bool enabled = true);
 };
@@ -371,7 +376,6 @@ struct MarkBaseSubtable : Subtable {
                       digitalkhatt::ByteBuffer& anchorTables,
                       std::uint32_t& anchorOffset,
                       std::map<int, std::pair<int, std::pair<int, int>>>& posToVar,
-                      bool extended,
                       bool isBase);
 };
 

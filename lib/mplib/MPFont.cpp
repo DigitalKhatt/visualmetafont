@@ -1,6 +1,7 @@
 #include "MPFont.h"
 
 #include <cstdio>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -169,16 +170,30 @@ void MPFont::generateAlternate(std::string_view name, double left, double right,
                                double third, double fourth, double fifth,
                                double scaleX, std::string_view source,
                                int alternateCode) {
-  char buffer[256];
-  std::snprintf(buffer, sizeof(buffer),
-      "save params;params0:=%.9g;params1:=%.9g;params3:=%.9g;params4:=%.9g;params5:=%.9g;params100:=%.9g;",
-      left, right, third, fourth, fifth, scaleX);
-  std::string prefix{buffer};
+  const std::pair<unsigned, double> parameters[]{{0, left}, {1, right}, {2, third}, {3, fourth}, {4, fifth}, {100, scaleX}};
+  generateAlternate(name, parameters, source, alternateCode);
+}
+
+void MPFont::generateAlternate(std::string_view name, std::span<const std::pair<unsigned, double>> parameters,
+                               std::string_view source, int alternateCode) {
+  std::string prefix{"save params;"};
+  prefix.reserve(16 + parameters.size() * 32);
+  bool deformed = false;
+  double scaleX = 0;
+  for (const auto& [index, value] : parameters) {
+    if (!std::isfinite(value)) throw std::invalid_argument("Nonfinite MetaPost parameter");
+    char buffer[96];
+    const int length = std::snprintf(buffer, sizeof(buffer), "params%u:=%.9g;", index, value);
+    if (length < 0 || static_cast<std::size_t>(length) >= sizeof(buffer)) throw std::runtime_error("MetaPost parameter formatting failed");
+    prefix.append(buffer, length);
+    if (index == 100) scaleX = value;
+    else deformed |= value != 0;
+  }
   if (!source.empty()) {
     execute(prefix + std::string{source});
     return;
   }
-  if (left != 0 || right != 0) {
+  if (deformed) {
     execute(prefix + "generateAlternate(" + std::string{name} + "$,params);");
     return;
   }

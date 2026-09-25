@@ -954,15 +954,7 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
       const int gx = currentxPos + glyphLayout.x_offset;
       const int gy = (glyphLayout.y_offset);  // because we flipped y in outlines
 
-      GlyphParameters parameters{.lefttatweel = glyphLayout.lefttatweel,
-                                 .righttatweel = glyphLayout.righttatweel,
-                                 .scalex = 0};
-      const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-
-      GlyphVis& glyph = m_otlayout->glyphs[glyphName];
-
-      auto glyphPath = digitalkhatt::qt::pathForGlyph(
-          *glyph.getAlternate(parameters));
+      auto glyphPath = digitalkhatt::qt::pathForGlyph(*m_otlayout->getGlyph(glyphLayout));
 
       if (!glyphPath.isEmpty()) {
         painter.save();
@@ -994,15 +986,7 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
           const int gx = currentxPos + glyphLayout.x_offset;
           const int gy = (glyphLayout.y_offset);  // because we flipped y in outlines
 
-          GlyphParameters parameters{.lefttatweel = glyphLayout.lefttatweel,
-                                     .righttatweel = glyphLayout.righttatweel,
-                                     .scalex = 0};
-          const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-
-          GlyphVis& glyph = m_otlayout->glyphs[glyphName];
-
-          auto glyphPath = digitalkhatt::qt::pathForGlyph(
-              *glyph.getAlternate(parameters));
+          auto glyphPath = digitalkhatt::qt::pathForGlyph(*m_otlayout->getGlyph(glyphLayout));
 
           if (!glyphPath.isEmpty()) {
             painter.save();

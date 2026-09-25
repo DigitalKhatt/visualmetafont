@@ -698,6 +698,7 @@ void LayoutWindow::createActions() {
   justCombo->addItem("IndoPak", qVariantFromValue(JustType::IndoPak));
   justCombo->addItem("Experimental", qVariantFromValue(JustType::Experimental));
   justCombo->addItem("Experimental2", qVariantFromValue(JustType::Experimental2));
+  justCombo->addItem("Declarative policy", qVariantFromValue(JustType::DeclPolicy));
 
   jutifyToolbar->addWidget(justCombo);
 
@@ -1170,9 +1171,7 @@ void LayoutWindow::checkOffMarks() {
             digitalkhatt::layout::classesOrEmpty(m_otlayout->glyphClasses(), "marks").contains(glyphName);
 
         if (!isMark) {
-          baseGlyph = m_otlayout->getGlyph(
-              glyphName, {.lefttatweel = glyphLayout.lefttatweel,
-                          .righttatweel = glyphLayout.righttatweel});
+          baseGlyph = m_otlayout->getGlyph(glyphLayout);
           baseIndex = g;
           basePos = linePositions[baseIndex];
           continue;
@@ -1182,9 +1181,7 @@ void LayoutWindow::checkOffMarks() {
           throw std::runtime_error("Error");
         }
 
-        GlyphVis* markGlyph = m_otlayout->getGlyph(
-            glyphName, {.lefttatweel = glyphLayout.lefttatweel,
-                        .righttatweel = glyphLayout.righttatweel});
+        GlyphVis* markGlyph = m_otlayout->getGlyph(glyphLayout);
         QPointF markPos = linePositions[g];
 
         double markXStart = markPos.x() + markGlyph->bbox.llx * scale;
@@ -1294,7 +1291,7 @@ bool LayoutWindow::save() {
   ParameterJsonObject parametersObject;
   m_otlayout->saveParameters(parametersObject);
   std::string buffer;
-  if (glz::write_json(parametersObject, buffer)) {
+  if (writeParameterJson(parametersObject, buffer)) {
     QApplication::restoreOverrideCursor();
     return false;
   }
@@ -1359,16 +1356,7 @@ bool LayoutWindow::exportpdf() {
         auto glyph = line.glyphs[i];
 
         const auto& glyphName = m_otlayout->glyphNamePerCode[glyph.codepoint];
-        GlyphVis* glyphVis = &m_otlayout->glyphs[glyphName];
-
-        if (glyph.lefttatweel != 0 || glyph.righttatweel != 0) {
-          GlyphParameters parameters{};
-
-          parameters.lefttatweel = glyph.lefttatweel;
-          parameters.righttatweel = glyph.righttatweel;
-
-          glyphVis = glyphVis->getAlternate(parameters);
-        }
+        GlyphVis* glyphVis = m_otlayout->getGlyph(glyph);
 
         currentxPos -= line.glyphs[i].x_advance;
         int x = currentxPos + line.glyphs[i].x_offset;
@@ -1900,12 +1888,12 @@ bool LayoutWindow::generateMadinaVARHTML() {
           // currentxPos += glyph->x_advance / (1000.0 * scale);
 
           QString axes;
-          if (glyph->lefttatweel != 0.0 || glyph->righttatweel != 0) {
+          if (glyph->parameters.lefttatweel != 0.0 || glyph->parameters.righttatweel != 0) {
             axes = "font-variation-settings:";
-            if (glyph->lefttatweel != 0.0) {
+            if (glyph->parameters.lefttatweel != 0.0) {
               float leftTatweel = 0.0;
 
-              if (glyph->lefttatweel > 0) {
+              if (glyph->parameters.lefttatweel > 0) {
                 auto maxLeft =
                     layout
                         .expandableGlyphs
@@ -1917,9 +1905,9 @@ bool LayoutWindow::generateMadinaVARHTML() {
                                   roundf(maxLeft / maxAxisLeft * 16384.f) /
                                   16384.f;
 
-                leftTatweel = glyph->lefttatweel > f214limit
+                leftTatweel = glyph->parameters.lefttatweel > f214limit
                                   ? f214limit
-                                  : glyph->lefttatweel;
+                                  : glyph->parameters.lefttatweel;
 
               } else {
                 auto minLeft =
@@ -1933,20 +1921,20 @@ bool LayoutWindow::generateMadinaVARHTML() {
                                   roundf(minLeft / minAxisLeft * 16384.f) /
                                   16384.f;
 
-                leftTatweel = glyph->lefttatweel < f214limit
+                leftTatweel = glyph->parameters.lefttatweel < f214limit
                                   ? f214limit
-                                  : glyph->lefttatweel;
+                                  : glyph->parameters.lefttatweel;
               }
 
               axes = axes + QString("\"LTAT\" %1").arg(leftTatweel);
-              if (glyph->righttatweel != 0.0) {
+              if (glyph->parameters.righttatweel != 0.0) {
                 axes = axes + ",";
               }
             }
-            if (glyph->righttatweel != 0.0) {
+            if (glyph->parameters.righttatweel != 0.0) {
               float rightTatweel = 0.0;
 
-              if (glyph->righttatweel > 0) {
+              if (glyph->parameters.righttatweel > 0) {
                 auto maxRight =
                     layout
                         .expandableGlyphs
@@ -1958,9 +1946,9 @@ bool LayoutWindow::generateMadinaVARHTML() {
                                   roundf(maxRight / maxAxisRight * 16384.f) /
                                   16384.f;
 
-                rightTatweel = glyph->righttatweel > f214limit
+                rightTatweel = glyph->parameters.righttatweel > f214limit
                                    ? f214limit
-                                   : glyph->righttatweel;
+                                   : glyph->parameters.righttatweel;
 
               } else {
                 auto minRight =
@@ -1974,9 +1962,9 @@ bool LayoutWindow::generateMadinaVARHTML() {
                                   roundf(minRight / minAxisLRight * 16384.f) /
                                   16384.f;
 
-                rightTatweel = glyph->righttatweel < f214limit
+                rightTatweel = glyph->parameters.righttatweel < f214limit
                                    ? f214limit
-                                   : glyph->righttatweel;
+                                   : glyph->parameters.righttatweel;
               }
 
               axes = axes + QString("\"RTAT\" %1").arg(rightTatweel);
@@ -2021,8 +2009,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
           if (position_relative) {
             auto defaultAdvance = layout.gethHorizontalAdvance(
                 hbfont, glyph->codepoint,
-                {.lefttatweel = glyph->lefttatweel,
-                 .righttatweel = glyph->righttatweel},
+                glyph->parameters,
                 nullptr);
 
             if (defaultAdvance != 0) {
@@ -2053,8 +2040,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
           } else {
             auto defaultAdvance = layout.gethHorizontalAdvance(
                 hbfont, glyph->codepoint,
-                {.lefttatweel = glyph->lefttatweel,
-                 .righttatweel = glyph->righttatweel},
+                glyph->parameters,
                 nullptr);
 
             if (defaultAdvance != 0) {
@@ -2096,8 +2082,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
           if (position_relative) {
             auto defaultAdvance = layout.gethHorizontalAdvance(
                 hbfont, glyph->codepoint,
-                {.lefttatweel = glyph->lefttatweel,
-                 .righttatweel = glyph->righttatweel},
+                glyph->parameters,
                 nullptr);
 
             if (defaultAdvance != 0) {
@@ -2118,8 +2103,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
           } else {
             auto defaultAdvance = layout.gethHorizontalAdvance(
                 hbfont, glyph->codepoint,
-                {.lefttatweel = glyph->lefttatweel,
-                 .righttatweel = glyph->righttatweel},
+                glyph->parameters,
                 nullptr);
 
             if (defaultAdvance != 0) {
@@ -2271,8 +2255,8 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
         out2 << glyph.x_advance;
         out2 << glyph.x_offset;
         out2 << glyph.y_offset;
-        out2 << glyph.lefttatweel;
-        out2 << glyph.righttatweel;
+        out2 << glyph.parameters.lefttatweel;
+        out2 << glyph.parameters.righttatweel;
       }
     }
   }
@@ -3596,9 +3580,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
         GlyphItem* glyphItem = nullptr;
         if (refresh) {
           glyphItem = new GlyphItem(xScale, yScale, &glyph, this,
-                                    {.lefttatweel = glyphLayout.lefttatweel,
-                                     .righttatweel = glyphLayout.righttatweel,
-                                     .scalex = 0},
+                                    glyphLayout.parameters,
                                     glyphLayout.lookup_index,
                                     glyphLayout.subtable_index,
                                     glyphLayout.base_codepoint);

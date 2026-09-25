@@ -47,6 +47,7 @@ GlyphVis::~GlyphVis() {
 GlyphVis::GlyphVis(const GlyphVis& other) {
   name = other.name;
   originalglyph = other.originalglyph;
+  sourceGlyphCode = other.sourceGlyphCode;
   coloredglyph = other.coloredglyph;
   glyphtype = other.glyphtype;
   charcode = other.charcode;
@@ -56,6 +57,7 @@ GlyphVis::GlyphVis(const GlyphVis& other) {
   depth = other.depth;
   charlt = other.charlt;
   charrt = other.charrt;
+  parameters = other.parameters;
   bbox = other.bbox;
   leftAnchor = other.leftAnchor;
   rightAnchor = other.rightAnchor;
@@ -95,7 +97,7 @@ GlyphType GlyphVis::getGlypfType() {
 }
 
 GlyphVis* GlyphVis::getAlternate(GlyphParameters parameters) {
-  if (m_otLayout != nullptr && (parameters.lefttatweel != 0.0 || parameters.righttatweel != 0.0 || parameters.scalex != 0)) {
+  if (m_otLayout != nullptr && !parameters.isDefault()) {
     return m_otLayout->getAlternate(charcode, parameters);
   } else {
     return this;
@@ -115,6 +117,7 @@ void GlyphVis::swap(GlyphVis& other) noexcept {
   using std::swap;
   swap(name, other.name);
   swap(originalglyph, other.originalglyph);
+  swap(sourceGlyphCode, other.sourceGlyphCode);
   swap(coloredglyph, other.coloredglyph);
   swap(glyphtype, other.glyphtype);
   swap(charcode, other.charcode);
@@ -124,6 +127,7 @@ void GlyphVis::swap(GlyphVis& other) noexcept {
   swap(depth, other.depth);
   swap(charlt, other.charlt);
   swap(charrt, other.charrt);
+  swap(parameters, other.parameters);
   swap(bbox, other.bbox);
   swap(leftAnchor, other.leftAnchor);
   swap(rightAnchor, other.rightAnchor);

@@ -3347,7 +3347,7 @@ void MyQPdfEnginePrivate::writeType3Fonts() {
 
   auto& endOfAyaGlyph = glyphs["endofaya"];
 
-  auto ayafont = getIndex({endOfAyaGlyph.charcode, 0, 0}).font;
+  auto ayafont = getIndex({endOfAyaGlyph.charcode}).font;
 
   auto coloredGlyph = endOfAyaGlyph.getColoredGlyph();
 
@@ -3401,17 +3401,9 @@ void MyQPdfEnginePrivate::writeType3Fonts() {
         GlyphVis* glyph = &glyphs[glyphName.toStdString()];
 
         // if (glyphCode.lefttatweel >= 0.0001 || glyphCode.righttatweel >= 0.0001) {
-        if (glyphCode.lefttatweel != 0 || glyphCode.righttatweel != 0) {
-          GlyphParameters parameters{};
-
-          parameters.lefttatweel = glyphCode.lefttatweel;
-          parameters.righttatweel = glyphCode.righttatweel;
-
-          // std::cout << glyphName.toStdString() << "," << glyphCode.lefttatweel << "," << glyphCode.righttatweel << "\n";
-
-          glyph = glyph->getAlternate(parameters);
-
-          glyphName = QString("%1%2%3").arg(glyphName).arg(parameters.lefttatweel).arg(parameters.righttatweel);
+        if (!glyphCode.parameters.isDefault()) {
+          glyph = otlayout->getGlyph(glyphCode.code, glyphCode.parameters);
+          glyphName = QString("%1_p%2").arg(glyphName).arg(i);
         }
         arrayWidthStream << glyph->width;
 
@@ -3676,7 +3668,7 @@ QByteArray MyQPdfEnginePrivate::generateGlyph(GlyphVis& glyph) {
 
     int digitheight = 120;
 
-    auto endofayaIndex = getIndex({otlayout->glyphs["endofaya"].charcode, 0, 0});
+    auto endofayaIndex = getIndex({otlayout->glyphs["endofaya"].charcode});
 
     steamDataByteStream << otlayout->glyphs["endofaya"].width << 0 << "d0\n";
     char buf[5];
@@ -3694,7 +3686,7 @@ QByteArray MyQPdfEnginePrivate::generateGlyph(GlyphVis& glyph) {
 
     if (ayaNumber < 10) {
       auto& onesglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + ayaNumber]];
-      auto oneglyphIndex = getIndex({onesglyph.charcode, 0, 0});
+      auto oneglyphIndex = getIndex({onesglyph.charcode});
 
       auto position = otlayout->glyphs["endofaya"].width / 2 - (onesglyph.width) / 2;
 
@@ -3711,8 +3703,8 @@ QByteArray MyQPdfEnginePrivate::generateGlyph(GlyphVis& glyph) {
       auto& onesglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + onesdigit]];
       auto& tensglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + tensdigit]];
 
-      auto oneglyphIndex = getIndex({onesglyph.charcode, 0, 0});
-      auto tensglyphIndex = getIndex({tensglyph.charcode, 0, 0});
+      auto oneglyphIndex = getIndex({onesglyph.charcode});
+      auto tensglyphIndex = getIndex({tensglyph.charcode});
 
       auto position = otlayout->glyphs["endofaya"].width / 2 - (onesglyph.width + tensglyph.width + 40) / 2;
       // painter.translate(position, digitheight);
@@ -3739,9 +3731,9 @@ QByteArray MyQPdfEnginePrivate::generateGlyph(GlyphVis& glyph) {
       auto& tensglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + tensdigit]];
       auto& hundredsglyph = otlayout->glyphs[otlayout->glyphNamePerCode[1632 + hundredsdigit]];
 
-      auto oneglyphIndex = getIndex({onesglyph.charcode, 0, 0});
-      auto tensglyphIndex = getIndex({tensglyph.charcode, 0, 0});
-      auto hundredsglyphIndex = getIndex({hundredsglyph.charcode, 0, 0});
+      auto oneglyphIndex = getIndex({onesglyph.charcode});
+      auto tensglyphIndex = getIndex({tensglyph.charcode});
+      auto hundredsglyphIndex = getIndex({hundredsglyph.charcode});
 
       auto position = otlayout->glyphs["endofaya"].width / 2 - (onesglyph.width + tensglyph.width + hundredsglyph.width + 80) / 2;
       // painter.translate(position, digitheight);

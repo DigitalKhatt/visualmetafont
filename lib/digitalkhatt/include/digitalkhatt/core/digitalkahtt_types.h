@@ -1,4 +1,5 @@
 #pragma once
+#include "GlyphParameters.h"
 
 #include <cstdint>
 #include <functional>
@@ -42,8 +43,7 @@ struct GlyphLayoutInfo {
   int cluster;
   unsigned int lookup_index;
   unsigned int subtable_index;
-  double lefttatweel = 0;
-  double righttatweel = 0;
+  GlyphParameters parameters;
   uint32_t base_codepoint;
   bool beginsajda;
   bool endsajda;
@@ -60,7 +60,6 @@ struct LineLayoutInfo {
   int currentLineWidth;
   double fontSize;
   double xscale = 1;
-  double xscaleparameter = 0;
 };
 
 enum class LineJustification {
@@ -83,7 +82,8 @@ enum class JustType {
   Madina,
   IndoPak,
   Experimental,
-  Experimental2
+  Experimental2,
+  DeclPolicy
 };
 enum class JustStyle {
   None,
@@ -102,6 +102,12 @@ struct JustOption {
   JustType justType = JustType::None;
   JustStyle justStyle = JustStyle::None;
   ShrinkType shrinkType = ShrinkType::None;
+  // Optional index overriding the stretch policy named by linepolicy. A
+  // negative value uses the font-declared default.
+  int justStretchPolicy = -1;
+  // Optional index overriding the shrink policy named by linepolicy. This is
+  // used by DeclPolicy; ShrinkType remains the legacy-engine selector.
+  int justShrinkPolicy = -1;
 };
 
 struct LineInput {
