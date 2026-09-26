@@ -1,0 +1,16 @@
+DIGITALKHATT_ENGINE_0.1 {
+  global:
+    dk_engine_abi_version;
+    dk_engine_create_from_file;
+    dk_engine_create_from_memory;
+    dk_engine_destroy;
+    dk_engine_emit_glyph_outline_v1;
+    dk_engine_shape_line_v1;
+    dk_engine_upem;
+    dk_line_destroy;
+    dk_line_get_glyph_v1;
+    dk_line_get_metrics_v1;
+    dk_status_message;
+  local:
+    *;
+};
