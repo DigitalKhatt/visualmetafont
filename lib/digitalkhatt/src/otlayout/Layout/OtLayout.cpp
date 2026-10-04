@@ -2285,7 +2285,7 @@ std::vector<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth,
         lineLayout.xscale = ratio;
         //}
       }
-      currentyPos = currentyPos + (InterLineSpacing << OtLayout::SCALEBY);
+      currentyPos = currentyPos + (interLineSpacing() << OtLayout::SCALEBY);
 
       lineLayout.type = line.lineType;
 
@@ -2950,7 +2950,7 @@ LayoutPages OtLayout::pageBreak(std::vector<digitalkhatt::TextString> textPages,
   int nbbeginsajda = 0;
   int nbendsajda = 0;
 
-  int lastLinePos = (OtLayout::TopSpace + OtLayout::InterLineSpacing * 14) << OtLayout::SCALEBY;
+  int lastLinePos = (OtLayout::TopSpace + interLineSpacing() * 14) << OtLayout::SCALEBY;
 
   int currentyPos = lastLinePos;
 
@@ -3087,7 +3087,7 @@ LayoutPages OtLayout::pageBreak(std::vector<digitalkhatt::TextString> textPages,
       currentPage.push_back(lineLayout);
     }
 
-    currentyPos -= OtLayout::InterLineSpacing << OtLayout::SCALEBY;
+    currentyPos -= interLineSpacing() << OtLayout::SCALEBY;
     cand = &candidates.at(cand->prev);
   }
 
@@ -3108,7 +3108,7 @@ LayoutPages OtLayout::pageBreak(std::vector<digitalkhatt::TextString> textPages,
     const auto text = textPages[pageNumber];
     const auto lines = splitLines(text);
 
-    int beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3)) << OtLayout::SCALEBY;
+    int beginsura = (OtLayout::TopSpace + (interLineSpacing() * 3)) << OtLayout::SCALEBY;
 
     int pageWidth = lineWidth;
     int newLineWidth = 0;
@@ -3139,10 +3139,10 @@ LayoutPages OtLayout::pageBreak(std::vector<digitalkhatt::TextString> textPages,
 
       if (lineIndex == 0) {
         lineResult.type = LineType::Sura;
-        lineResult.ystartposition = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1)) << OtLayout::SCALEBY;
+        lineResult.ystartposition = (OtLayout::TopSpace + (interLineSpacing() * 1)) << OtLayout::SCALEBY;
       } else {
         lineResult.ystartposition = beginsura;
-        beginsura += OtLayout::InterLineSpacing << OtLayout::SCALEBY;
+        beginsura += interLineSpacing() << OtLayout::SCALEBY;
       }
 
       page.push_back(lineResult);

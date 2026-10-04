@@ -499,7 +499,7 @@ void LayoutWindow::loadMushafLayout(QString layoutName) {
       lastSurahNumber++;
     } else if (type == "basmallah") {
       if (textCol != "indopak" && textCol != "dk_indopak") {
-        word = "\nبِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
+        word = "\n" + QString::fromStdU16String(madinaBasmalaText(lastSurahNumber));
       } else {
         word =
             "\nبِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ "
@@ -703,6 +703,28 @@ void LayoutWindow::createActions() {
   jutifyToolbar->addWidget(justCombo);
 
   QSettings settings;
+  jutifyToolbar->addWidget(new QLabel(tr("Line spacing:")));
+  interLineSpacingSpinBox = new QSpinBox;
+  interLineSpacingSpinBox->setRange(1, OtLayout::FrameHeight);
+  interLineSpacingSpinBox->setSingleStep(1);
+  interLineSpacingSpinBox->setKeyboardTracking(false);
+  interLineSpacingSpinBox->setSuffix(tr(" units"));
+  interLineSpacingSpinBox->setToolTip(tr(
+      "Baseline distance in font units (1000 units = 1 em). "
+      "Used by preview, PDF and layout generation, including Force collision handling."));
+  const int savedLineSpacing = settings.value("Layout/InterLineSpacing",
+      OtLayout::DefaultInterLineSpacing).toInt();
+  interLineSpacingSpinBox->setValue(savedLineSpacing > 0 && savedLineSpacing <= OtLayout::FrameHeight
+      ? savedLineSpacing : OtLayout::DefaultInterLineSpacing);
+  jutifyToolbar->addWidget(interLineSpacingSpinBox);
+  connect(interLineSpacingSpinBox, qOverload<int>(&QSpinBox::valueChanged),
+          [this](int units) {
+            m_otlayout->setInterLineSpacing(units);
+            QSettings settings;
+            settings.setValue("Layout/InterLineSpacing", units);
+            executeRunText(true, 1);
+          });
+
   QString lastJust = settings.value("LastJust").value<QString>();
   if (!lastJust.isEmpty()) {
     justCombo->setCurrentText(lastJust);
@@ -866,6 +888,7 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended,
 
   OtLayout layout =
       OtLayout(&m_font->mpFont(), extended, extended ? true : generateVariableOpenType);
+  layout.setInterLineSpacing(m_otlayout->interLineSpacing());
 
   // allFeatures is still empty here: GenerateFile parses the feature file
   // later. Read disabled lookup names directly so this does not depend on
@@ -1050,6 +1073,7 @@ bool LayoutWindow::generateOpenType() {
       fileInfo.path() + "/output/" + fileInfo.completeBaseName() + "-cff1.otf";
 
   OtLayout layout = OtLayout(&m_font->mpFont(), false, true);
+  layout.setInterLineSpacing(m_otlayout->interLineSpacing());
   layout.useNormAxisValues = true;
   layout.toOpenType->isCff2 = false;
 
@@ -1638,6 +1662,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
   QFileInfo fileInfo = QFileInfo(path);
 
   OtLayout layout = OtLayout(&m_font->mpFont(), true, true);
+  layout.setInterLineSpacing(m_otlayout->interLineSpacing());
 
   std::map<std::uint16_t, std::vector<std::uint16_t>> cv01feature;
 
@@ -2575,6 +2600,7 @@ void LayoutWindow::createDockWindows() {
   otherMenu->addAction(action);
 
   m_otlayout = new OtLayout(&m_font->mpFont(), true, true);
+  m_otlayout->setInterLineSpacing(interLineSpacingSpinBox->value());
   m_otlayout->useNormAxisValues = false;
   m_otlayout->setExtended(true);
   m_otlayout->applyJustification = applyJustification;

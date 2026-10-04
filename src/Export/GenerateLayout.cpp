@@ -73,6 +73,21 @@ void GenerateLayout::generateGlyphs(QJsonObject& glyphsObject) {
 
     glyphObject["default"] = pathArray;
 
+    if (GenerateLayoutSupport::hasKafBodyAxis(glyph.name)) {
+      QJsonArray thirdLimitsArray;
+      thirdLimitsArray.append(GenerateLayoutSupport::KafBodyMin);
+      thirdLimitsArray.append(GenerateLayoutSupport::KafBodyMax);
+      glyphObject["thirdLimits"] = thirdLimitsArray;
+
+      GlyphParameters parameters{};
+      parameters.third = GenerateLayoutSupport::KafBodyMax;
+      auto alternate = glyph.getAlternate(parameters);
+
+      QJsonArray bodyPathArray;
+      edgetoHTML5Path(alternate->copiedPath, bodyPathArray);
+      glyphObject["maxThird"] = bodyPathArray;
+    }
+
     const auto& ff = m_otlayout->expandableGlyphs.find(glyph.name);
 
     if (ff != m_otlayout->expandableGlyphs.end()) {
@@ -198,6 +213,9 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
         if (glyph.parameters.righttatweel != 0) {
           glyphObject["righttatweel"] = glyph.parameters.righttatweel;
         }
+        if (glyph.parameters.third != 0) {
+          glyphObject["third"] = glyph.parameters.third;
+        }
 
         if (glyph.beginsajda) {
           glyphObject["beginsajda"] = true;
@@ -213,6 +231,7 @@ void GenerateLayout::generatePages(QJsonArray& pagesArray, int lineWidth, int sc
       lineObject["type"] = (int)line.type;
       lineObject["x"] = round_up(line.xstartposition);
       lineObject["y"] = round_up(line.ystartposition);
+      lineObject["fontSize"] = line.fontSize;
       if (line.xscale != 1) {
         lineObject["xscale"] = line.xscale;
       }

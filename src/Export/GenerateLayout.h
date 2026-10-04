@@ -22,9 +22,19 @@
 
 #include "OtLayout.h"
 #include "qtextstream.h"
+#include <string_view>
 
 struct mp_graphic_object;
 typedef struct mp_gr_knot_data* mp_gr_knot;
+
+namespace GenerateLayoutSupport {
+inline constexpr double KafBodyMin = 0.0;
+inline constexpr double KafBodyMax = 20.0;
+
+inline bool hasKafBodyAxis(std::string_view glyphName) {
+  return glyphName == "kaf.init.ii" || glyphName == "kaf.medi.ii";
+}
+}  // namespace GenerateLayoutSupport
 
 class GenerateLayout
 {

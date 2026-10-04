@@ -184,8 +184,16 @@ class OtLayout {
  public:
   constexpr static int FrameHeight = 27400;
   constexpr static int FrameWidth = 17000;
-  constexpr static int InterLineSpacing = 1800;  // (1.5969)
-  // constexpr static int InterLineSpacing = 1690; //(1.5)
+  constexpr static int DefaultInterLineSpacing = 1800;
+
+  // Baseline distance in unscaled font units (1000 units = 1 em). Set before
+  // justification/optimization so collision handling sees the final spacing.
+  int interLineSpacing() const { return interLineSpacing_; }
+  void setInterLineSpacing(int units) {
+    if (units <= 0 || units > FrameHeight)
+      throw std::invalid_argument("Line spacing must be between 1 and FrameHeight font units");
+    interLineSpacing_ = units;
+  }
   constexpr static int TopSpace = 1450;  // 1600
   constexpr static int Margin = 300;
   // 15500 for oldMadinah
@@ -407,6 +415,7 @@ class OtLayout {
   std::vector<Lookup*> tables;
 
   FSMDriver fsmDriver;
+  int interLineSpacing_ = DefaultInterLineSpacing;
 
   // std::unordered_map<DefaultDelta, int> defaultDeltaSets;
 };

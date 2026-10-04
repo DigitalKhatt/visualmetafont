@@ -276,7 +276,7 @@ std::vector<std::vector<QuranLine>> loadLines(const fs::path& database) {
           throw std::runtime_error("Too many surah-name rows");
         current->dk = utf8ToUtf16(surahNames[surah++]);
       } else if (type == "basmallah") {
-        current->dk = u"بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
+        current->dk = madinaBasmalaText(surah);
       }
     }
     if (type != "ayah") continue;

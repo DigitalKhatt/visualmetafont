@@ -24,3 +24,11 @@
 
 
 extern std::vector<std::string> surahNames;
+
+// Choose the actual source text before shaping, so glyphs, clusters and the
+// exported UTF-16 length all include the shadda for At-Tin and Al-Qadr.
+inline std::u16string madinaBasmalaText(int surahNumber) {
+  return surahNumber == 95 || surahNumber == 97
+      ? u"بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+      : u"بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
+}

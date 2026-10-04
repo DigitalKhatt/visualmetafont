@@ -194,6 +194,32 @@ static void generateBinaryGlyphs(OtLayout& layout, QByteArray& data) {
       glyphData << (uint32_t)0;
     }
 
+    const bool hasKafBodyAxis = GenerateLayoutSupport::hasKafBodyAxis(glyph.name);
+    const double minThird = hasKafBodyAxis ? GenerateLayoutSupport::KafBodyMin : 0.0;
+    const double maxThird = hasKafBodyAxis ? GenerateLayoutSupport::KafBodyMax : 0.0;
+    glyphData << (uint32_t)getFixed(minThird);
+    glyphData << (uint32_t)getFixed(maxThird);
+
+    if (minThird != 0.0) {
+      GlyphParameters parameters{};
+      parameters.third = minThird;
+      auto alternate = glyph.getAlternate(parameters);
+
+      QByteArray pathArray;
+      edgetoHTML5Path(alternate->copiedPath, pathArray);
+      glyphData.append(pathArray);
+    }
+
+    if (maxThird != 0.0) {
+      GlyphParameters parameters{};
+      parameters.third = maxThird;
+      auto alternate = glyph.getAlternate(parameters);
+
+      QByteArray pathArray;
+      edgetoHTML5Path(alternate->copiedPath, pathArray);
+      glyphData.append(pathArray);
+    }
+
     data.append(glyphData);    
   }
 }
@@ -248,6 +274,10 @@ static void generateBinaryPages(LayoutPages& layoutPages, QByteArray& data, int 
           glyphdata << (uint32_t)getFixed(glyph.parameters.righttatweel);
           glyphMask = glyphMask | 0b100000;
         }
+        if(glyph.parameters.third != 0){
+          glyphdata << (uint32_t)getFixed(glyph.parameters.third);
+          glyphMask = glyphMask | 0b1000000;
+        }
         if(glyph.cluster > 255){
           throw "Error";
         }
@@ -262,6 +292,7 @@ static void generateBinaryPages(LayoutPages& layoutPages, QByteArray& data, int 
       data << (uint8_t)line.type;
       data << (int16_t)line.xstartposition;
       data << (uint32_t)getFixed(line.xscale);
+      data << (uint32_t)getFixed(line.fontSize);
       data << (uint16_t)(lineText.size());
       if((int)line.type == 1){
         data << (uint8_t)surahIndex++;      
@@ -283,6 +314,9 @@ void GenerateLayout::generateLayoutBinary(int lineWidth, int scale) {
 
   QByteArray glyphsData;
   QByteArray pagesData;  
+
+  glyphsData.append("DKLY", 4);
+  glyphsData << (uint16_t)3; // v3 adds each line's outline fontSize after xscale.
 
   generateBinaryGlyphs(*m_otlayout,glyphsData);
 

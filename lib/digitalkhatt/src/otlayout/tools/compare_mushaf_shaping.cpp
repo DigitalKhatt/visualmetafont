@@ -204,7 +204,7 @@ std::vector<std::vector<TextString>> loadQpcV1Pages(const fs::path& database) {
         throw std::runtime_error("Too many surah-name rows");
       word = utf8ToUtf16(surahNames[lastSurah++]);
     } else if (type == "basmallah") {
-      word = u"\nبِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
+      word = u"\n" + madinaBasmalaText(lastSurah);
     } else {
       normalizeDkV1(word);
     }
@@ -296,12 +296,13 @@ class OpenTypeProvider final
  public:
   OpenTypeProvider(
       const fs::path& path,
-      const digitalkhatt::justify::CompiledJustificationCatalog* catalog)
+      const digitalkhatt::justify::CompiledJustificationCatalog* catalog,
+      int interLineSpacing)
       : bytes_(readFile(path)),
         blob_(hb_blob_create(bytes_.data(), bytes_.size(),
                              HB_MEMORY_MODE_READONLY, nullptr, nullptr)),
         face_(hb_face_create(blob_, 0)),
-        catalog_(catalog) {
+        catalog_(catalog), interLineSpacing_(interLineSpacing) {
     if (hb_blob_get_length(blob_) == 0 || hb_face_get_glyph_count(face_) == 0)
       throw std::runtime_error("Invalid OpenType font " + path.string());
   }
@@ -320,7 +321,7 @@ class OpenTypeProvider final
   }
   int scaleBy() const override { return OtLayout::SCALEBY; }
   int topSpace() const override { return OtLayout::TopSpace; }
-  int interLineSpacing() const override { return OtLayout::InterLineSpacing; }
+  int interLineSpacing() const override { return interLineSpacing_; }
   std::string glyphName(hb_font_t* font,
                         hb_codepoint_t glyph) const override {
     char name[256]{};
@@ -345,6 +346,7 @@ class OpenTypeProvider final
   hb_blob_t* blob_;
   hb_face_t* face_;
   const digitalkhatt::justify::CompiledJustificationCatalog* catalog_;
+  int interLineSpacing_;
 };
 
 std::string glyphName(hb_font_t* font, std::uint32_t code) {
@@ -1110,7 +1112,7 @@ int main(int argc, char** argv) {
       if (shrinkPolicy < 0) throw std::runtime_error("unknown shrink policy " + shrinkPolicyName);
     }
 
-    OpenTypeProvider otProvider(otf, catalog);
+    OpenTypeProvider otProvider(otf, catalog, sourceLayout.interLineSpacing());
     digitalkhatt::justify::FeatureJustifier otJustifier(otProvider);
     digitalkhatt::justify::DeclPolicyPageJustifier otDeclPolicyJustifier(otProvider);
     const auto pages = loadQpcV1Pages(database);

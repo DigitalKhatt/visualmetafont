@@ -368,7 +368,7 @@ public:
 
     int currentyPos = 0;
     int margin = 0;
-    int InterLineSpacing = layout->InterLineSpacing << OtLayout::SCALEBY;
+    int InterLineSpacing = layout->interLineSpacing() << OtLayout::SCALEBY;
 
     double maxWidth = 0;
 
@@ -485,7 +485,7 @@ public:
 
     if (pageIndex == 0 || pageIndex == 1) {
       justification = LineJustification::Center;
-      beginsura = (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 3))
+      beginsura = (OtLayout::TopSpace + (layout->interLineSpacing() * 3))
                   << OtLayout::SCALEBY;
       if (lineIndex > 0) {
         double ratio = pageIndex == 0 ? 0.9 : 0.9;
@@ -598,12 +598,12 @@ public:
         if (/*i == 0 &&*/ (pageIndex == 0 || pageIndex == 1)) {
           // page[i].type = LineType::Sura;
           page[i].ystartposition =
-              (OtLayout::TopSpace + (OtLayout::InterLineSpacing * 1))
+              (OtLayout::TopSpace + (layout->interLineSpacing() * 1))
               << OtLayout::SCALEBY;
         }
         /*else {
           page[i].ystartposition = beginsura;
-          beginsura += OtLayout::InterLineSpacing << OtLayout::SCALEBY;
+          beginsura += layout->interLineSpacing() << OtLayout::SCALEBY;
 
         }*/
       }

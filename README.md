@@ -4,6 +4,48 @@ A graphical tool developed to allow the design of the Metafont-based dynamic fon
 
 This project is sponsored by [@tarteelAI](https://github.com/TarteelAI) [![TarteelAI](https://assets-global.website-files.com/6167e862f6dfba5084eb5554/61680717c50ec79defcdb062_logo-group.svg "TarteelAI")](https://www.tarteel.ai/)
 
+## Line spacing for precomputed layouts
+
+In the layout editor's **Justify** toolbar, set **Line spacing** before enabling
+Force and running **Generate Layout Info**. The value is the distance between
+baselines in integer font units (1000 units = 1 em). It defaults to 1800 and is
+saved between editor sessions. Changing it refreshes the preview and applies to
+subsequent PDF/layout generation. Existing first-page header positioning and
+page margins are unchanged.
+
+The library exposes the same setting per `OtLayout` instance:
+
+```cpp
+layout.setInterLineSpacing(1683);
+const int spacing = layout.interLineSpacing();
+```
+
+Set it before justification and collision optimization. HarfBuzz, feature-based
+and declarative justification use the instance's spacing. The Force optimizer
+receives the resulting baseline positions, so it evaluates glyph clearance at
+that spacing. Valid values are 1 through `OtLayout::FrameHeight`.
+
+### Matching Tarteel's current simulator
+
+The iPad Pro 13-inch simulator measured on 2026-09-26 uses a paragraph width of
+755.333333 points and height of 1133 points. In mushaf-renderer:
+
+```text
+baseline distance = (paragraphHeight - 5) / 15 = 75.2 points
+glyph scale       = (paragraphWidth × 0.97) / 16400
+spacing in units  = baseline distance / glyph scale = 1683.260389
+```
+
+Use **1683 units** for this configuration (rounded to the library's integer
+coordinates). This is about 6.49% less than 1800. Recalculate for other page
+dimensions; this is not a universal device-independent spacing.
+
+The current binary format does not store baseline spacing, and Tarteel computes
+its own baselines from the page dimensions. Regenerating with the matching
+spacing lets Force optimize glyph placements for that distance; it does not
+change the app's spacing. Keep **Force** and **Tajweed** enabled and use the
+intended justification settings when generating the binary.
+
 ## Key Workflow Steps in the Development Of a New DigitalKhatt Font
 
 The primary tool used for the design of a DigitalKhatt font is VisualMetaFont. It was developed initially as a tool to help in the design of the new Madinah Mushaf font and the digital Mushaf. Hence many features are specific to that font and the Quran typesetting and are hard coded in the tool. With the development of the old Madinah font, some of these hard coded and specific features were eliminated however many still exist and the process of making it more general and more font designer friendly is ongoing.

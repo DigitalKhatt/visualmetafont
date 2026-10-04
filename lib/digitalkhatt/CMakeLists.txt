@@ -95,6 +95,10 @@ target_link_libraries(digitalkhatt_justify PUBLIC harfbuzz PRIVATE digitalkhatt_
 
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(digitalkhatt_test_madina_basmala tests/qurantext/MadinaBasmalaTest.cpp)
+  target_compile_features(digitalkhatt_test_madina_basmala PRIVATE cxx_std_17)
+  add_test(NAME digitalkhatt.madina_basmala COMMAND digitalkhatt_test_madina_basmala)
+
   add_executable(digitalkhatt_test_decl_policy
     tests/declpolicy/DeclPolicyTest.cpp
   )

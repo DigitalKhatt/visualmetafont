@@ -203,6 +203,7 @@ class LayoutWindow : public QMainWindow {
   QSpinBox* integerSpinBox;
   QLabel* suraName;
   QSpinBox* fontSizeSpinBox;
+  QSpinBox* interLineSpacingSpinBox;
   QTreeWidget* lokkupTreeWidget;
 
   QList<QString> currentQuranText;

@@ -504,7 +504,7 @@ void LayoutWindow::compareQPCWithAnalyzer() {
   int pageHpx = 2 * OtLayout::FrameHeight * unitsToPt;
   double yPos = OtLayout::TopSpace * unitsToPt;
   double xMargin = OtLayout::Margin * unitsToPt;
-  double interLine = OtLayout::InterLineSpacing * unitsToPt;
+  double interLine = m_otlayout->interLineSpacing() * unitsToPt;
   double dpi = 300.0;
 
   auto xStartRightToLeft = pageWpx - xMargin;
@@ -841,7 +841,7 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
   int pageHpx = 2 * OtLayout::FrameHeight * unitsToPt;
   double yPos = OtLayout::TopSpace * unitsToPt;
   double xMargin = OtLayout::Margin * unitsToPt;
-  double interLine = OtLayout::InterLineSpacing * unitsToPt;
+  double interLine = m_otlayout->interLineSpacing() * unitsToPt;
   double dpi = 300.0;
 
   auto xStartRightToLeft = pageWpx - xMargin;
