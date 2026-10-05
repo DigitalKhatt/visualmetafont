@@ -25,7 +25,7 @@ struct YlaneConstraint : XPBDConstraint {
       : mark{mark} {
     compliance = comp;
     this->laneHeight = laneHeight;
-    reportEnabled = false;
+    reportEnabled = true;
   }
 
   void project(SolverContext& solverContext, double dt) override;

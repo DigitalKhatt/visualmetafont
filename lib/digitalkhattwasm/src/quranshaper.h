@@ -1121,8 +1121,7 @@ private:
            ++glyphIndex) {
         auto &glyphLayout = page[lineIndex].glyphs[glyphIndex];
         const auto &glyph = pageGlyphs[lineIndex][glyphIndex];
-        glyphLayout.x_offset += glyph.dx;
-        glyphLayout.y_offset += glyph.dy;
+        digitalkhatt::layout::applySolvedGlyphOffsets(glyphLayout, glyph, page[lineIndex].xscale);
       }
     }
   }

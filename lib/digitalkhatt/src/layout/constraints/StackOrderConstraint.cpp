@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "digitalkhatt/layout/ConstraintViolation.h"
+#include "digitalkhatt/layout/ConstraintDiagnostics.h"
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
 #include "digitalkhatt/layout/SolverContext.h"
 
@@ -46,8 +47,8 @@ void StackOrderConstraint::project(SolverContext& solverContext, double dt) {
 
         if (wI > 0.0) inner.dy += wI * gradInner * deltaLambda;
         if (wO > 0.0) outer.dy += wO * gradOuter * deltaLambda;
-        buildWorldPolys(inner);
-        buildWorldPolys(outer);
+        updateWorldPolys(inner);
+        updateWorldPolys(outer);
       }
     } else {
       lambdaGap = 0.0;
@@ -68,15 +69,16 @@ void StackOrderConstraint::project(SolverContext& solverContext, double dt) {
 
       if (wI > 0.0) inner.dx += wI * deltaLambda;
       if (wO > 0.0) outer.dx -= wO * deltaLambda;
-      buildWorldPolys(inner);
-      buildWorldPolys(outer);
+      updateWorldPolys(inner);
+      updateWorldPolys(outer);
     }
   }
 }
 
 void StackOrderConstraint::reportViolations(
     SolverContext&, std::vector<ConstraintViolation>& out) const {
-  // Hard gap arm only; the soft x-alignment arm is deferred to phase 2.
+  reportSoftTarget(out, ViolationType::SoftTargetResidual, outer, &inner,
+      boxCenterX(inner) - boxCenterX(outer) - offsetX, "Stack horizontal alignment");
   const double C = isAbove
       ? (boxBottomY(outer) - boxTopY(inner)) - minGap
       : (boxBottomY(inner) - boxTopY(outer)) - minGap;  // violation when C < 0

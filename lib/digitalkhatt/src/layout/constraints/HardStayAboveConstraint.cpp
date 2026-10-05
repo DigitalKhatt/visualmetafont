@@ -47,7 +47,7 @@ void HardStayAboveConstraint::project(SolverContext& solverContext, double dt) {
 
   // grad dC/dy = -1
   mark.dy += (-1.0) * w * applied;
-  buildWorldPolys(mark);
+  updateWorldPolys(mark);
 }
 
 void HardStayAboveConstraint::reportViolations(

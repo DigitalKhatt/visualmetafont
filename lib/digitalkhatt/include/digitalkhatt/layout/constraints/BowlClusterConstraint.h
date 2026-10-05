@@ -30,9 +30,11 @@ struct BowlClusterConstraint : XPBDConstraint {
                         double interiorInset_ = 0.0)
       : base(base_), marks(marks_), interiorInset(interiorInset_) {
     compliance = compliance_;
+    reportEnabled = true;
   }
 
   void project(SolverContext& solverContext, double dt) override;
+  void reportViolations(SolverContext&, std::vector<ConstraintViolation>& out) const override;
 };
 
 }  // namespace digitalkhatt::layout

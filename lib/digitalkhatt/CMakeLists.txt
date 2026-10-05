@@ -150,6 +150,7 @@ add_library(digitalkhatt_layout
   src/layout/GapConstraint.cpp
   src/layout/MarkClassifier.cpp
   src/layout/OptimizeLayout.cpp
+  src/layout/PlacementAudit.cpp
   src/layout/constraints/YlaneConstraint.cpp
   src/layout/constraints/HorizontalOrderConstraint.cpp
   src/layout/constraints/DotWidthWithinBaseConstraint.cpp
@@ -169,6 +170,12 @@ add_library(digitalkhatt_layout
 target_include_directories(digitalkhatt_layout PUBLIC include)
 target_compile_features(digitalkhatt_layout PUBLIC cxx_std_20)
 target_link_libraries(digitalkhatt_layout PUBLIC digitalkhatt_geometry digitalkhatt_core)
+
+if(BUILD_TESTING)
+  add_executable(digitalkhatt_test_placement_safety tests/layout/PlacementSafetyTest.cpp)
+  target_link_libraries(digitalkhatt_test_placement_safety PRIVATE digitalkhatt_layout)
+  add_test(NAME digitalkhatt.placement_safety COMMAND digitalkhatt_test_placement_safety)
+endif()
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +233,8 @@ add_library(digitalkhatt_otlayout ${DIGITALKHATT_OTLAYOUT_LIB_TYPE}
   src/otlayout/qurantext/surahs.cpp
   src/otlayout/Layout/JustificationContext.cpp
   src/otlayout/Layout/GlyphVis.cpp
+  src/otlayout/Layout/PlacementPipeline.cpp
+  src/otlayout/Layout/MushafLayout.cpp
   src/otlayout/Layout/Lookup.cpp
   src/otlayout/Layout/OtLayout.cpp
   src/otlayout/Layout/Subtable.cpp
@@ -267,6 +276,29 @@ set_target_properties(digitalkhatt_otlayout PROPERTIES
 
 if(NOT EMSCRIPTEN)
   find_library(DIGITALKHATT_SQLITE3_LIBRARY NAMES sqlite3 REQUIRED)
+
+  add_library(digitalkhatt_pdf src/pdf/ViolationReportWriter.cpp src/pdf/MushafPdfWriter.cpp)
+  add_library(digitalkhatt::pdf ALIAS digitalkhatt_pdf)
+  target_include_directories(digitalkhatt_pdf PUBLIC include)
+  target_compile_features(digitalkhatt_pdf PUBLIC cxx_std_20)
+  target_link_libraries(digitalkhatt_pdf PUBLIC digitalkhatt::otlayout PDFHummus::PDFWriter)
+
+  add_executable(digitalkhatt_generate_mushaf tools/generate_mushaf.cpp)
+  target_link_libraries(digitalkhatt_generate_mushaf PRIVATE digitalkhatt::pdf ${DIGITALKHATT_SQLITE3_LIBRARY})
+  target_compile_definitions(digitalkhatt_generate_mushaf PRIVATE
+    DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/metafont"
+    DIGITALKHATT_QURAN_DATABASE="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/quran-data.sqlite"
+    DIGITALKHATT_PDF_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources"
+    DIGITALKHATT_LAYOUT_LIBRARY="$<TARGET_FILE:digitalkhatt_otlayout>"
+  )
+  if(BUILD_TESTING)
+    add_executable(digitalkhatt_test_mushaf_layout tests/layout/MushafLayoutTest.cpp)
+    target_link_libraries(digitalkhatt_test_mushaf_layout PRIVATE digitalkhatt::otlayout ${DIGITALKHATT_SQLITE3_LIBRARY})
+    target_compile_definitions(digitalkhatt_test_mushaf_layout PRIVATE
+      DIGITALKHATT_QURAN_DATABASE="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/quran-data.sqlite"
+    )
+    add_test(NAME digitalkhatt.mushaf_layout COMMAND digitalkhatt_test_mushaf_layout)
+  endif()
 
   add_executable(digitalkhatt_generate_opentype
     src/otlayout/tools/generate_opentype.cpp

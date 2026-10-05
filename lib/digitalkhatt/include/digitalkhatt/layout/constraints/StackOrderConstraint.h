@@ -27,7 +27,9 @@ struct StackOrderConstraint : XPBDConstraint {
                        double minGap_, double gapCompliance_, double xAlignCompliance_,
                        double offsetX_ = 0.0)
       : inner(inner_), outer(outer_), isAbove(isAbove_), minGap(minGap_),
-        gapCompliance(gapCompliance_), xAlignCompliance(xAlignCompliance_), offsetX(offsetX_) {}
+        gapCompliance(gapCompliance_), xAlignCompliance(xAlignCompliance_), offsetX(offsetX_) {
+    reportEnabled = true;
+  }
 
   void project(SolverContext& solverContext, double dt) override;
   void reportViolations(SolverContext& solverContext,

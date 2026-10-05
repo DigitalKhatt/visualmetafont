@@ -73,7 +73,7 @@ void YlaneConstraint::project(SolverContext& solverContext, double dt) {
   if (grad != 0.0) {
     // Correction along grad = +1 (up only): dy += w * applied.
     mark.dy += grad * w * applied;
-    buildWorldPolys(mark);
+    updateWorldPolys(mark);
   }
 }
 
@@ -90,7 +90,7 @@ void YlaneConstraint::reportViolations(
   const auto mb = mark.worldPolys.boundingAABB();
   ConstraintViolation v;
   v.type = ViolationType::Ylane;
-  v.kind = ViolationKind::Hard;
+  v.kind = ViolationKind::Soft;
   v.residual = C;
   v.severity = -C;
   v.glyphA = mark.globalIndex;

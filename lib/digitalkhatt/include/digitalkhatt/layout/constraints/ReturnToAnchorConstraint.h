@@ -18,9 +18,11 @@ struct ReturnToAnchorConstraint : XPBDConstraint {
 
   explicit ReturnToAnchorConstraint(GlyphInstance& mark_, double compliance_) : mark(mark_) {
     compliance = compliance_;
+    reportEnabled = true;
   }
 
   void project(SolverContext& solverContext, double dt) override;
+  void reportViolations(SolverContext&, std::vector<ConstraintViolation>& out) const override;
 };
 
 }  // namespace digitalkhatt::layout

@@ -3,9 +3,8 @@
 namespace digitalkhatt::layout {
 
 // Lets a caller (e.g. a tuning UI) disable individual constraint types to
-// see their isolated effect on a layout. All default to true (current
-// behavior); this is purely a diagnostic/tuning knob, not a correctness
-// mechanism.
+// see their isolated effect on a layout. Final placement diagnostics are
+// independent of these force switches.
 struct ConstraintToggles {
   bool ylane = true;
   bool waqfPlacement = true;
@@ -27,7 +26,8 @@ struct ConstraintToggles {
   // equivalent type-level opt-out: independent of genericGapConstraint (which
   // gates whether the constraint runs at all), this gates whether its
   // violations are collected into the post-solve report.
-  bool reportGenericGap = false;
+  bool reportGenericGap = true;
+  bool reportSoftResiduals = false;  // optional lane/alignment preferences
 };
 
 // Per-constraint-type XPBD compliance (softness), broken out so each can be
@@ -70,7 +70,7 @@ struct OptParams {
   double maxShiftMark = 20.0;  // for marks: radial limit
 
   int maxIters = 20;
-  double tolCollision = 0.5;  // stop when max penetration > -tolCollision
+  double tolCollision = 0.5;  // convergence tolerance for corrections and hard bounds
 
   // Hard violations reported below this magnitude (font units) are treated as
   // XPBD's leftover convergence residual after maxIters, not a real defect,

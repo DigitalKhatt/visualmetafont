@@ -18,6 +18,9 @@
 */
 
 #include "LayoutWindow.h"
+#include "Layout/MushafLayout.h"
+#include "Layout/MushafRunOptions.h"
+#include <glaze/glaze.hpp>
 
 #include <QFile>
 #include <QTreeView>
@@ -476,60 +479,14 @@ void LayoutWindow::loadMushafLayout(QString layoutName) {
 
   currentQuranText.clear();
   suraNameByPage.clear();
-
   QSqlQuery query(queryString);
-  int lastPage = 1;
-  int lastLine = 1;
-  int lastSurahNumber = 0;
-  int wordNumberInLine = 1;
-  QString currentPage;
-
-  while (query.next()) {
-    int page = query.value(0).toInt();
-    int line = query.value(1).toInt();
-    QString type = query.value(2).toString();
-    QString word = query.value(3).toString();
-
-    if (type == "surah_name") {
-      word = QString::fromStdString(surahNames[lastSurahNumber]);
-      if (textCol == "indopak" || textCol == "dk_indopak") {
-        word.replace("\u064E\u0670", "\u0670");
-        word.replace("\u0627\u0655\u0650", "\u0627\u0650");
-      }
-      lastSurahNumber++;
-    } else if (type == "basmallah") {
-      if (textCol != "indopak" && textCol != "dk_indopak") {
-        word = "\n" + QString::fromStdU16String(madinaBasmalaText(lastSurahNumber));
-      } else {
-        word =
-            "\nبِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ "
-            "۝";
-      }
-    } else {
-      changeText(textCol, word);
-    }
-
-    if (lastPage != page) {
-      currentQuranText.append(currentPage);
-      suraNameByPage.append("");
-      lastPage = page;
-      lastLine = 1;
-      currentPage = word;
-    } else if (lastLine != line &&
-               !(lastPage == 213 && lastLine == 4 && wordNumberInLine <= 11)) {
-      currentPage += "\n" + word;
-      lastLine = line;
-      wordNumberInLine = 1;
-    } else if (currentPage.isEmpty()) {
-      currentPage = word;
-      wordNumberInLine++;
-    } else {
-      currentPage += " " + word;
-      wordNumberInLine++;
-    }
+  std::vector<digitalkhatt::MushafWordRow> rows;
+  while (query.next()) rows.push_back({query.value(0).toInt(), query.value(1).toInt(),
+      query.value(2).toString().toStdString(), query.value(3).toString().toStdU16String()});
+  for (const auto& page : digitalkhatt::assembleMushafText(rows, std::string_view(textCol))) {
+    currentQuranText.append(QString::fromStdU16String(page));
+    suraNameByPage.append("");
   }
-  currentQuranText.append(currentPage);
-  suraNameByPage.append("");
   integerSpinBox->setRange(1, currentQuranText.size());
   integerSpinBox->valueChanged(integerSpinBox->value());
 }
@@ -1455,180 +1412,21 @@ bool LayoutWindow::exportpdf() {
   return true;
 }
 
-static QMap<int, double> oldMadinaLineWidths = {
-    {1 * 15 + 2, 0.5}, {1 * 15 + 3, 0.65}, {1 * 15 + 4, 0.80}, {1 * 15 + 5, 0.9}, {1 * 15 + 6, 0.80}, {1 * 15 + 7, 0.65}, {1 * 15 + 8, 0.4}, {2 * 15 + 2, 0.5}, {2 * 15 + 3, 0.65}, {2 * 15 + 4, 0.85}, {2 * 15 + 5, 0.9}, {2 * 15 + 6, 0.85}, {2 * 15 + 7, 0.65}, {2 * 15 + 8, 0.4}, {600 * 15 + 9, 0.82}, {602 * 15 + 5, 0.57}, {602 * 15 + 15, 0.55}, {603 * 15 + 10, 0.63}, {604 * 15 + 9, 0.79}, {604 * 15 + 14, 0.67}, {604 * 15 + 15, 0.51}};
-
-static QMap<int, double> madinaLineWidths = {
-    {586 * 15 + 1, 0.81},
-    {593 * 15 + 2, 0.81},
-    {594 * 15 + 5, 0.63},
-    {600 * 15 + 10, 0.63},
-    {601 * 15 + 3, 1},
-    {601 * 15 + 4, 1},
-    {601 * 15 + 7, 1},
-    {601 * 15 + 8, 1},
-    {601 * 15 + 9, 1},
-    {601 * 15 + 10, 1},
-    {601 * 15 + 13, 1},
-    {601 * 15 + 14, 1},
-    {601 * 15 + 15, 1},
-    {602 * 15 + 5, 0.63},
-    {602 * 15 + 11, 0.9},
-    {602 * 15 + 15, 0.53},
-    {603 * 15 + 10, 0.66},
-    {603 * 15 + 13, 1},
-    {603 * 15 + 15, 0.60},
-    {604 * 15 + 3, 1},
-    {604 * 15 + 4, 0.55},
-    {604 * 15 + 7, 1},
-    {604 * 15 + 8, 1},
-    {604 * 15 + 9, 0.55},
-    {604 * 15 + 12, 1},
-    {604 * 15 + 13, 1},
-    {604 * 15 + 14, 0.675},
-    {604 * 15 + 15, 0.5},
-};
-
-LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth,
-                                      OtLayout* layout,
-                                      hb_buffer_cluster_level_t cluster_level) {
+LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth, OtLayout* layout,
+    hb_buffer_cluster_level_t cluster_level) {
   layout->loadLookupFile("features.fea");
-
   LayoutPages result;
-  QStringList originalPage;
-
-  bool newface = true;
-
-  auto justification = LineJustification::Distribute;
-
-  QString suraWord = "سُورَةُ";
-  QString bism = QString("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ") + "( ۝١)?";
-
-  QString surapattern =
-      "^(" + suraWord + " .*|" + bism + "|" + "بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" + ")$";
-
-  QMap<int, double>& lineWidths =
-      mushafLayouts->currentText() == "qpc_v2_layout" ? madinaLineWidths
-                                                      : oldMadinaLineWidths;
-
-  QRegularExpression surabism(surapattern, QRegularExpression::MultilineOption);
-
-  QString sajdapatterns =
-      "(وَٱسْجُدْ) وَٱقْتَرِب|(خَرُّوا۟ سُجَّدࣰا)|(وَلِلَّهِ يَسْجُدُ)|(يَسْجُدُونَ)۩|(فَٱسْجُدُوا۟ لِلَّهِ)|(وَٱسْجُدُوا۟ "
-      "لِلَّهِ)|(أَلَّا يَسْجُدُوا۟ لِلَّهِ)|(وَخَرَّ رَاكِعࣰا)|(يَسْجُدُ لَهُ)|(يَخِرُّونَ لِلْأَذْقَانِ سُجَّدࣰا)|"
-      "(ٱسْجُدُوا۟) لِلرَّحْمَٰنِ|ٱرْكَعُوا۟ (وَٱسْجُدُوا۟)";
-
-  sajdapatterns = sajdapatterns.replace("\u0627\u0654", "\u0627\u034F\u0654\u034F");
-
-  QRegularExpression sajdaRe = QRegularExpression(sajdapatterns, QRegularExpression::MultilineOption);
-
-  int beginsajda = 0;
-  int endsajda = 0;
-  int sajdamatched = 0;
-
-  for (int pagenum = 0; pagenum < currentQuranText.size(); pagenum++) {
-    auto& pageText = currentQuranText[pagenum];
-
-    auto lines = pageText.split(char(10), Qt::SkipEmptyParts);
-    std::vector<LineToJustify> newLines;
-
-    for (int lineIndex = 0; lineIndex < lines.size(); lineIndex++) {
-      auto newJustification = justification;
-      auto line = QStringList{lines[lineIndex]};
-      int key = (pagenum + 1) * 15 + (lineIndex + 1);
-      int lineWidth = pageWidth;
-      auto match = surabism.match(lines[lineIndex]);
-      auto basm2 = false;
-
-      LineType lineType = LineType::Line;
-
-      if (match.hasMatch()) {
-        if (match.captured(0).startsWith("سُ")) {
-          lineType = LineType::Sura;
-        } else {
-          lineType = LineType::Bism;
-        }
-
-        if (!((pagenum == 0 || pagenum == 1) && lineIndex == 1)) {
-          lineWidth = 0;
-          newJustification = LineJustification::Center;
-        } else {
-          basm2 = true;
-        }
-      }
-
-      if (lineWidths.contains(key)) {
-        double ratio = lineWidths.value(key);
-
-        if (ratio < 1) {
-          lineWidth = pageWidth * ratio;
-          newJustification = LineJustification::Center;
-        }
-      }
-
-      newLines.push_back({lines[lineIndex].toStdU16String(), lineWidth, newJustification, lineType, basm2});
-    }
-
-    auto shapedPage = layout->justifyPage(
-        scale, pageWidth, newLines, newface, tajweedEnabled,
-        cluster_level,
-        getJustOption(),
-        mushafLayouts->currentText().toStdString());
-    if (pagenum == 0 || pagenum == 1) {
-      for (int i = 0; i < shapedPage.size(); i++) {
-        auto& line = shapedPage[i];
-        if (i > 0) {
-          line.ystartposition += 3000 << OtLayout::SCALEBY;
-        }
-      }
-    }
-    for (int lineIndex = 0; lineIndex < shapedPage.size(); lineIndex++) {
-      auto& lineLayoutInfo = shapedPage[lineIndex];
-
-      auto match = surabism.match(lines[lineIndex]);
-
-      newface = false;
-
-      if (lineLayoutInfo.type == LineType::Line) {
-        // check if sajda
-        match = sajdaRe.match(lines[lineIndex]);
-        if (match.hasMatch()) {
-          sajdamatched++;
-
-          int startOffset = match.capturedStart(match.lastCapturedIndex());  // startOffset == 6
-          int endOffset = match.capturedEnd(match.lastCapturedIndex()) - 1;  // endOffset == 9
-
-          while (lines[lineIndex][endOffset].isMark()) endOffset--;
-
-          bool beginDone = false;
-
-          auto& glyphs = lineLayoutInfo.glyphs;
-
-          for (auto& glyphLayout : glyphs) {
-            if (glyphLayout.cluster == startOffset && !beginDone) {
-              glyphLayout.beginsajda = true;
-              beginDone = true;
-              beginsajda++;
-
-            } else if (glyphLayout.cluster == endOffset) {
-              glyphLayout.endsajda = true;
-              endsajda++;
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    newface = false;
-    result.pages.emplace_back(shapedPage.begin(), shapedPage.end());
-    result.originalPages.push_back(toOriginalPage(lines));
+  bool newFace = true;
+  for (int p = 0; p < currentQuranText.size(); ++p) {
+    auto text = digitalkhatt::splitMushafLines(currentQuranText[p].toStdU16String());
+    auto input = digitalkhatt::mushafLineInputs(text, p + 1, pageWidth, mushafLayouts->currentText().toStdString());
+    auto shaped = layout->justifyPage(scale, pageWidth, input, newFace, tajweedEnabled,
+        cluster_level, getJustOption(), mushafLayouts->currentText().toStdString());
+    digitalkhatt::finishMushafPage(shaped, text, p + 1);
+    newFace = false;
+    result.pages.push_back(std::move(shaped));
+    result.originalPages.push_back(std::move(text));
   }
-
-  if (beginsajda != 15 || endsajda != 15 || sajdamatched != 15) {
-    qDebug() << "sajdas problems? beginsajda=" << beginsajda << ", endsajda=" << endsajda << ", sajdamatched" << sajdamatched;
-  }
-
   return result;
 }
 bool LayoutWindow::generateLayoutInfo() {
@@ -2237,6 +2035,33 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
   QFileInfo fileInfo = QFileInfo(path);
 
   if (!isHTML) {
+    // Save the live editor selections so command-line exports can reproduce
+    // this Generate Mushaf run, including solver tuning and disabled lookups.
+    digitalkhatt::MushafRunOptions settings;
+    settings.font = fileInfo.absoluteFilePath().toStdString();
+    settings.layout = mushafLayouts->currentText().toStdString();
+    const auto just = getJustOption();
+    settings.justifier = digitalkhatt::justifierName(just.justType);
+    settings.style = digitalkhatt::styleName(just.justStyle);
+    settings.shrink = digitalkhatt::shrinkName(just.shrinkType);
+    settings.lineSpacing = m_otlayout->interLineSpacing();
+    settings.emScale = OtLayout::EMSCALE;
+    settings.force = applyForce;
+    settings.tajweed = tajweedEnabled;
+    settings.xpbd = m_solverParams;
+    settings.report = m_solverParams.toggles.reportViolations;
+    const auto databasePath = QSqlDatabase::database().databaseName();
+    if (QFileInfo(databasePath).isFile()) settings.database = QFileInfo(databasePath).absoluteFilePath().toStdString();
+    const auto& disabled = m_otlayout->disabledLookupNames();
+    settings.disabledLookups.assign(disabled.begin(), disabled.end());
+    std::sort(settings.disabledLookups.begin(), settings.disabledLookups.end());
+    std::string json;
+    if (!glz::write<glz::opts{.prettify = true}>(settings, json)) {
+      QDir().mkpath(fileInfo.path() + "/output");
+      QFile snapshot(fileInfo.path() + "/output/mushaf.settings.json");
+      if (snapshot.open(QIODevice::WriteOnly)) snapshot.write(json.data(), json.size());
+      else qWarning() << "Cannot save Mushaf command-line settings:" << snapshot.errorString();
+    } else qWarning() << "Cannot serialize Mushaf command-line settings";
     auto res = 4800 << OtLayout::SCALEBY;
     QPageSize pageSize{{90.2, 144.5}, QPageSize::Millimeter, "MedianQuranBook"};
     QPageLayout pageLayout{pageSize, QPageLayout::Portrait,

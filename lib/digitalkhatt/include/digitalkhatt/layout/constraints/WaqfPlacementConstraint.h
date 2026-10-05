@@ -59,7 +59,9 @@ struct WaqfPlacementConstraint : XPBDConstraint {
         minGapToBase(minGapToBase_),
         minGapToTopMarks(minGapToTopMarks_),
         desiredExtraLift(desiredExtraLift_),
-        upperCeilingY(upperCeilingY_) {}
+        upperCeilingY(upperCeilingY_) {
+    reportEnabled = true;
+  }
 
   // Choose a below mark belonging to the same base.
   // Preference: closest in x to the waqf.

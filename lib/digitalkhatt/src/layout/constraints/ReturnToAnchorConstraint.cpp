@@ -1,4 +1,5 @@
 #include "digitalkhatt/layout/constraints/ReturnToAnchorConstraint.h"
+#include "digitalkhatt/layout/ConstraintDiagnostics.h"
 
 namespace digitalkhatt::layout {
 
@@ -26,7 +27,13 @@ void ReturnToAnchorConstraint::project(SolverContext& solverContext, double dt) 
     mark.dy += w * deltaLambda;
   }
 
-  buildWorldPolys(mark);
+  updateWorldPolys(mark);
+}
+
+void ReturnToAnchorConstraint::reportViolations(SolverContext&,
+    std::vector<ConstraintViolation>& out) const {
+  reportSoftTarget(out, ViolationType::ReturnToAnchor, mark, mark.prevBase,
+      std::hypot(mark.dx, mark.dy), "Displacement from the shaped anchor");
 }
 
 }  // namespace digitalkhatt::layout

@@ -22,6 +22,12 @@ struct GlyphInstance {
   double dx = 0.0;
   double dy = 0.0;
 
+  // Observe every applied projection, including corrections that cancel later
+  // in the same iteration. A net displacement alone can hide conflicting forces.
+  double lastBuiltDx = 0.0;
+  double lastBuiltDy = 0.0;
+  double iterationMaxMovementSquared = 0.0;
+
   const geometry::GeometrySet* geom = nullptr;
 
   geometry::GeometrySet geomScaled;
@@ -30,7 +36,7 @@ struct GlyphInstance {
 
   bool isTopMark = false;
 
-  geometry::GeometrySet worldPolys;  // recomputed each iteration
+  geometry::GeometrySet worldPolys;  // rebuilt after an offset changes
 
   GlyphLayoutInfo* glyphLayout = nullptr;
   GlyphMetrics metrics;
@@ -51,5 +57,12 @@ struct GlyphInstance {
 };
 
 void buildWorldPolys(GlyphInstance& g);
+// During constraint projection, base position and local geometry stay fixed.
+// Initial preparation still calls buildWorldPolys unconditionally.
+inline void updateWorldPolys(GlyphInstance& g) {
+  if (g.dx != g.lastBuiltDx || g.dy != g.lastBuiltDy) buildWorldPolys(g);
+}
+// Solver deltas are in world space; rendered x offsets are scaled by line.xscale.
+void applySolvedGlyphOffsets(GlyphLayoutInfo& layout, const GlyphInstance& g, double horizontalScale);
 
 }  // namespace digitalkhatt::layout

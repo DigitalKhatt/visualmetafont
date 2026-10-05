@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 
 project(digitalkhatt)
+option(DIGITALKHATT_BUILD_GUI "Build the VisualMetaFont Qt editor and Qt comparison tools" ON)
 
 
 set(CMAKE_CXX_STANDARD 20)
@@ -34,16 +35,17 @@ add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 
 add_subdirectory(lib/harfbuzz)
 add_subdirectory(lib/mplib)
-if (NOT EMSCRIPTEN)
+if (NOT EMSCRIPTEN AND DIGITALKHATT_BUILD_GUI)
   add_subdirectory(lib/QtPropertyBrowser)
 endif()
 add_subdirectory(lib/digitalkhatt)
 if (NOT EMSCRIPTEN)
   add_subdirectory(tools)
-  add_subdirectory(src)
+  if (DIGITALKHATT_BUILD_GUI)
+    add_subdirectory(src)
+  endif()
 endif()
 
 if (EMSCRIPTEN)
   add_subdirectory(lib/digitalkhattwasm)
 endif()
-

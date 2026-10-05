@@ -19,6 +19,7 @@ SqueezeCenterConstraint::SqueezeCenterConstraint(
     const std::vector<GlyphInstance*>& obstacles_,
     double centerCompliance_)
     : mark(mark_), P(P_), centerCompliance(centerCompliance_) {
+  reportEnabled = true;
   obstacles.reserve(obstacles_.size());
   for (GlyphInstance* g : obstacles_) {
     if (!g) continue;
@@ -71,12 +72,12 @@ void SqueezeCenterConstraint::project(SolverContext& solverContext, double dt) {
       if (wM > 0.0) {
         mark.dx += n.x * (-wM * deltaLambda);
         mark.dy += n.y * (-wM * deltaLambda);
-        buildWorldPolys(mark);
+        updateWorldPolys(mark);
       }
       if (wO > 0.0) {
         obs.dx += n.x * (wO * deltaLambda);
         obs.dy += n.y * (wO * deltaLambda);
-        buildWorldPolys(obs);
+        updateWorldPolys(obs);
       }
     }
 
@@ -115,7 +116,7 @@ void SqueezeCenterConstraint::project(SolverContext& solverContext, double dt) {
       const double deltaLambda = (-C - alpha * lambdaCenter) / denom;
       lambdaCenter += deltaLambda;
       mark.dx += wM * deltaLambda;
-      buildWorldPolys(mark);
+      updateWorldPolys(mark);
     }
   } else {
     lambdaCenter = 0.0;

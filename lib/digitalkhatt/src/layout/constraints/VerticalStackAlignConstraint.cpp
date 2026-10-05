@@ -24,12 +24,12 @@ void VerticalStackAlignConstraint::project(SolverContext& solverContext, double 
   // grad wrt upperMark.x = -1
   if (wL > 0.0) {
     lowerMark.dx += wL * deltaLambda;
-    buildWorldPolys(lowerMark);
+    updateWorldPolys(lowerMark);
   }
 
   if (wU > 0.0) {
     upperMark.dx -= wU * deltaLambda;
-    buildWorldPolys(upperMark);
+    updateWorldPolys(upperMark);
   }
 }
 

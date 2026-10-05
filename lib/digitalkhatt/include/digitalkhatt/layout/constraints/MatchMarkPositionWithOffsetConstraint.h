@@ -20,9 +20,11 @@ struct MatchMarkPositionWithOffsetConstraint : XPBDConstraint {
                                                  double offsetY_,
                                                  double compliance_) : A(a), B(b), offsetX(offsetX_), offsetY(offsetY_) {
     compliance = compliance_;
+    reportEnabled = true;
   }
 
   void project(SolverContext& solverContext, double dt) override;
+  void reportViolations(SolverContext&, std::vector<ConstraintViolation>& out) const override;
 };
 
 }  // namespace digitalkhatt::layout

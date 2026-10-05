@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <functional>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "digitalkhatt/layout/GlyphInstance.h"
 #include "digitalkhatt/layout/OptParams.h"
@@ -10,6 +12,13 @@
 namespace digitalkhatt::layout {
 
 struct SolverContext;  // defined in SolverContext.h
+struct ConstraintViolation;
+
+std::pair<double, double> gapMobilities(const SolverContext& context,
+    const GlyphInstance& A, const GlyphInstance& B);
+void collectGapViolations(SolverContext& context,
+    const std::vector<std::reference_wrapper<GlyphInstance>>& glyphs,
+    const OptParams& params, std::vector<ConstraintViolation>& out);
 
 double gapCompliance(const GlyphInstance& A, const GlyphInstance& B);
 
@@ -34,7 +43,7 @@ double expectedComplianceResidual(double initialC, double compliance, double w, 
 struct GapKey {
   GlyphInstance *a, *b;
   bool operator==(const GapKey& other) const {
-    return ((a == other.a && b == other.b) || (a == other.b || b == other.a));
+    return (a == other.a && b == other.b) || (a == other.b && b == other.a);
   }
 };
 
@@ -54,7 +63,8 @@ struct GapKeyHasher {
     std::size_t h1 = std::hash<GlyphInstance*>{}(k.a);
     std::size_t h2 = std::hash<GlyphInstance*>{}(k.b);
 
-    return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+    // Equality accepts reversed pairs, so the hash must also be symmetric.
+    return h1 ^ h2;
   }
 };
 

@@ -49,7 +49,7 @@ void DotWidthWithinBaseConstraint::project(SolverContext& solverContext, double 
 
     // grad = -1 in x
     mark.dx += (-1.0) * (w * applied);
-    buildWorldPolys(mark);
+    updateWorldPolys(mark);
   }
 
   // -------------------------
@@ -67,7 +67,7 @@ void DotWidthWithinBaseConstraint::project(SolverContext& solverContext, double 
     lambdaRight = lambdaNew;
 
     mark.dx += (+1.0) * (w * applied);
-    buildWorldPolys(mark);
+    updateWorldPolys(mark);
   }
 }
 

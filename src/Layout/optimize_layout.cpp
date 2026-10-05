@@ -17,180 +17,57 @@
  * <https: //www.gnu.org/licenses />.
 */
 
-// Thin Qt-side adapter for the Qt-free XPBD collision-avoidance / mark-
-// positioning solver in lib/digitalkhatt (namespace digitalkhatt::layout).
-// Mirrors the pattern used for FeatureJustifier in just_features.cpp: build
-// plain-C++ input from the Qt-side glyph/font data, call the Qt-free
-// algorithm, then apply the result back onto the Qt-side layout structures.
-
-#include <digitalkhatt/layout/OptimizeLayout.h>
-
-#include <unordered_map>
-#include <utility>
-#include <vector>
-
-#include "GlyphVis.h"
-#include "font.hpp"
+// Shared native placement pipeline; Qt only supplies editor preferences and paths.
 #include "LayoutWindow.h"
-#include "automedina/automedina.h"
-#include "digitalkhatt.h"
-
+#include "font.hpp"
+#include "Layout/PlacementPipeline.h"
+#include <digitalkhatt/layout/ViolationReportContext.h>
+#include <unordered_set>
 #if defined(ENABLE_PDF_GENERATION)
 #include <QDir>
 #include <QFileInfo>
-
+#include <QDebug>
 #include "Pdf/ViolationReportWriter.h"
 #endif
 
-using namespace geometry;
-
-void LayoutWindow::optimizeLayout(LayoutPageList& pages, const OriginalPageList& originalPages, int beginPage, int nbPages, double emScale) {
-  auto scale = emScale;
-
-  std::unordered_map<GlyphVis*, GeometrySet> glyphToPolys;
-
-  const auto& classes = m_otlayout->glyphClasses();
-  const auto& marks = digitalkhatt::layout::classesOrEmpty(classes, "marks");
-  const auto& topmarks = digitalkhatt::layout::classesOrEmpty(classes, "topmarks");
-  const auto& lowmarks = digitalkhatt::layout::classesOrEmpty(classes, "lowmarks");
-  const auto& waqfmarks = digitalkhatt::layout::classesOrEmpty(classes, "waqfmarks");
-  const auto& topdotmarks = digitalkhatt::layout::classesOrEmpty(classes, "topdotmarks");
-  const auto& downdotmarks = digitalkhatt::layout::classesOrEmpty(classes, "downdotmarks");
-
-  auto isTopMark = [&topmarks, &lowmarks, &waqfmarks, &topdotmarks, &downdotmarks](const std::string& glyphName) {
-    return topmarks.contains(glyphName) || waqfmarks.contains(glyphName) || topdotmarks.contains(glyphName);
-  };
-
-  auto isBottomMark = [&topmarks, &lowmarks, &waqfmarks, &topdotmarks, &downdotmarks](QString glyphName) {
-    auto glyphNameStd = glyphName.toStdString();
-    return lowmarks.contains(glyphNameStd) || downdotmarks.contains(glyphNameStd);
-  };
-
-  // fetch all gryph initially otherwise mpost is not thread safe when
-  // executing getAlternate
-
-  std::vector<std::vector<std::vector<digitalkhatt::layout::GlyphInstance>>> pagesGlyphs;
-  for (int p = beginPage; p < beginPage + nbPages; p++) {
-    auto& page = pages[p];
-    pagesGlyphs.push_back({});
-    auto& pageGlyphs = pagesGlyphs.back();
-    for (int l = 0; l < page.size(); l++) {
-      auto& line = page[l];
-      pageGlyphs.push_back({});
-      auto& lineGlyphs = pageGlyphs.back();
-      // To guarantee also the validity of the pointers in GlyphInstance
-      lineGlyphs.reserve(line.glyphs.size());
-      auto xScale = line.fontSize * line.xscale;
-      auto yScale = line.fontSize;
-
-      int currentxPos = -line.xstartposition;
-      int currentyPos = line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
-      currentyPos = currentyPos * -1;
-      digitalkhatt::layout::GlyphInstance* currentBase = nullptr;
-      digitalkhatt::layout::GlyphInstance* prevBase = nullptr;
-
-      for (size_t g = 0; g < line.glyphs.size(); g++) {
-        auto& glyphLayout = line.glyphs[g];
-        const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-        auto glyphVis = m_otlayout->getGlyph(glyphLayout);
-        auto glyphToPoly = glyphToPolys.find(glyphVis);
-
-        if (glyphToPoly == glyphToPolys.end()) {
-          if (marks.contains(glyphName)) {
-            glyphToPoly = glyphToPolys.insert(
-                                          {glyphVis,
-                                           buildPolyFromCubics(
-                                               getGlyphCubic(glyphVis->copiedPath),
-                                               CUBIC_FLATNESS_TOLERANCE)
-                                               .scaled(scale, scale)})
-                              .first;
-          } else {
-            glyphToPoly = glyphToPolys.insert(
-                                          {glyphVis,
-                                           buildConvexPartsFromCubics(
-                                               getGlyphCubic(glyphVis->copiedPath),
-                                               CUBIC_FLATNESS_TOLERANCE)
-                                               .scaled(scale, scale)})
-                              .first;
-          }
-        }
-
-        currentxPos -= glyphLayout.x_advance * line.xscale;
-
-        auto& glyphInstance = lineGlyphs.emplace_back(digitalkhatt::layout::GlyphInstance{});
-
-        glyphInstance.isMark = marks.contains(glyphName);
-        glyphInstance.isTopMark = isTopMark(glyphName);
-        glyphInstance.lineY = currentyPos;
-        glyphInstance.baseX = currentxPos + (glyphLayout.x_offset * line.xscale);
-        glyphInstance.baseY = currentyPos + (glyphLayout.y_offset);
-        glyphInstance.glyphLayout = &glyphLayout;
-        glyphInstance.metrics = {glyphVis->width, glyphVis->height, glyphVis->bbox.llx, glyphVis->bbox.urx};
-        glyphInstance.glyphName = glyphName;
-        glyphInstance.lineIndex = l;
-        glyphInstance.glyphIndex = g;
-
-        if (xScale == 1 && yScale == 1) {
-          glyphInstance.geom = &glyphToPoly->second;
-        } else {
-          glyphInstance.geomScaled = glyphToPoly->second.scaled(xScale, yScale);
-        }
-
-        glyphInstance.prevBase = currentBase;
-
-        if (!glyphInstance.isMark) {
-          prevBase = currentBase;
-          currentBase = &lineGlyphs.back();
-          if (prevBase) {
-            prevBase->nextBase = currentBase;
-          }
-        }
-      }
-    }
-  }
-
-  // optimize Pages (m_solverParams is a persistent member so the Solver
-  // Tuning dock's edits take effect on the next render)
-  auto coreClasses = classes;
-  // Seed the bowl-base allowlist used by BowlClusterConstraint's named-override
-  // detection, if the font's features.fea did not define one. Geometric
-  // enclosure is the primary signal; this list is a safety net for the known
-  // isolated/final hah-family bowls (Hah/Jeem/Khah). A font-defined
-  // "bowlbases" class takes precedence and is left untouched.
-  if (!coreClasses.contains("bowlbases")) {
-    coreClasses["bowlbases"] = {"hah.isol", "hah.fina", "ain.fina"};
-  }
+void LayoutWindow::optimizeLayout(LayoutPageList& pages, const OriginalPageList& originalPages,
+    int beginPage, int nbPages, double emScale) {
+  (void)originalPages;
 #if defined(ENABLE_PDF_GENERATION)
   const bool report = m_solverParams.toggles.reportViolations;
 #else
   const bool report = false;
 #endif
+  digitalkhatt::layout::PlacementPipeline pipeline(*m_otlayout, emScale);
+  std::vector<std::vector<std::vector<digitalkhatt::layout::GlyphInstance>>> pagesGlyphs;
   std::vector<std::vector<digitalkhatt::layout::ConstraintViolation>> allViolations;
-  for (auto& page : pagesGlyphs) {
-    std::vector<digitalkhatt::layout::ConstraintViolation> pageV;
-    digitalkhatt::layout::optimizePage(page, coreClasses, m_solverParams,
-                                       report ? &pageV : nullptr);
-    if (report) allViolations.push_back(std::move(pageV));
+  for (int p = beginPage; p < beginPage + nbPages; ++p) {
+    auto solved = pipeline.solve(pages[p], m_solverParams, true, report);
+    pagesGlyphs.push_back(std::move(solved.glyphs));
+    if (report) allViolations.push_back(std::move(solved.violations));
   }
-
-  // Update positions
-  for (int p = beginPage; p < beginPage + nbPages; p++) {
-    auto& page = pages[p];
-    auto& pageGlyphs = pagesGlyphs[p];
-    for (int l = 0; l < page.size(); l++) {
-      auto& line = page[l];
-      auto& lineGlyphs = pageGlyphs[l];
-      for (size_t g = 0; g < line.glyphs.size(); g++) {
-        auto& glyphLayout = line.glyphs[g];
-        auto& glyph = lineGlyphs[g];
-        glyphLayout.x_offset += glyph.dx;
-        glyphLayout.y_offset += glyph.dy;
-      }
-    }
-  }
-
 #if defined(ENABLE_PDF_GENERATION)
   if (report) {
+    const auto& toggles = m_solverParams.toggles;
+    const auto flag = [](bool enabled) { return enabled ? "on" : "off"; };
+    const std::vector<std::string> notes = {
+        "Final side, class and base-association audit: on. Blue dashed: shaped position; red/amber: flagged result.",
+        QString("Report generic gaps: %1; soft targets: %2; cutoff: %3; gap slack margin: %4")
+            .arg(flag(toggles.reportGenericGap)).arg(flag(toggles.reportSoftResiduals))
+            .arg(m_solverParams.minViolationSeverity).arg(m_solverParams.complianceResidualMargin).toStdString(),
+        QString("Forces: lane %1; stack %2; vicinity %3; order %4; waqf %5; gap %6; side rails %7; match %8")
+            .arg(flag(toggles.ylane)).arg(flag(toggles.stackOrder)).arg(flag(toggles.baseVicinity))
+            .arg(flag(toggles.horizontalOrder)).arg(flag(toggles.waqfPlacement)).arg(flag(toggles.genericGapConstraint))
+            .arg(flag(toggles.hardStayAboveBelow)).arg(flag(toggles.matchMarkPosition)).toStdString()};
+    std::unordered_set<const digitalkhatt::layout::GlyphInstance*> reportMembers;
+    for (const auto& page : pagesGlyphs)
+      for (const auto& line : page)
+        for (const auto& g : line) reportMembers.insert(&g);
+    const auto glyphRef = [&](const digitalkhatt::layout::GlyphInstance& g) {
+      return ViolationReportWriter::GlyphRef{&g.worldPolys, g.glyphName, g.globalIndex,
+          g.isMark && reportMembers.contains(g.prevBase) ? g.prevBase->globalIndex : -1,
+          g.lineIndex + 1, g.dx, g.dy};
+    };
     // Build one diagnostic page per solved page. Flatten line-then-glyph so
     // each glyph's position matches the globalIndex optimizePage assigned it
     // (the violations reference glyphs by that index). pagesGlyphs (and its
@@ -198,14 +75,16 @@ void LayoutWindow::optimizeLayout(LayoutPageList& pages, const OriginalPageList&
     std::vector<ViolationReportWriter::Page> reportPages;
     reportPages.reserve(pagesGlyphs.size());
     // One row per violation across every page, severity-ordered by the
-    // writer: page/line number plus the glyphs of just the word containing
-    // it, so the summary PDF can show a small cropped rendering per row.
+    // writer: page/line number plus the participating words and owning bases,
+    // so the summary PDF can show their relationship in each row.
     std::vector<ViolationReportWriter::WordEntry> summaryEntries;
     for (size_t p = 0; p < pagesGlyphs.size(); ++p) {
       ViolationReportWriter::Page rp;
+      rp.pageNumber = beginPage + static_cast<int>(p) + 1;
+      rp.notes = notes;
       for (auto& lineGlyphs : pagesGlyphs[p]) {
         for (auto& g : lineGlyphs) {
-          rp.glyphs.push_back({&g.worldPolys, g.glyphName, g.globalIndex});
+          rp.glyphs.push_back(glyphRef(g));
         }
       }
       if (p < allViolations.size()) rp.violations = std::move(allViolations[p]);
@@ -230,23 +109,14 @@ void LayoutWindow::optimizeLayout(LayoutPageList& pages, const OriginalPageList&
 
         int line = 0;
         while (line + 1 < static_cast<int>(lineStart.size()) - 1 && lineStart[line + 1] <= anchor) line++;
-        const int lineLo = lineStart[line];
-        const int lineHi = lineStart[line + 1];  // exclusive
-
-        int left = anchor;
-        while (left > lineLo && flat[left - 1]->glyphName != "space") left--;
-        int right = anchor;
-        while (right + 1 < lineHi && flat[right + 1]->glyphName != "space") right++;
-
         ViolationReportWriter::WordEntry entry;
-        entry.pageNumber = static_cast<int>(p) + 1;
+        entry.pageNumber = rp.pageNumber;
         entry.lineNumber = line + 1;
+        if (v.glyphB >= 0 && v.glyphB < static_cast<int>(flat.size()))
+          entry.otherLineNumber = flat[v.glyphB]->lineIndex + 1;
         entry.violation = v;
-        entry.wordGlyphs.reserve(right - left + 1);
-        for (int idx = left; idx <= right; idx++) {
-          if (flat[idx]->glyphName == "space") continue;
-          entry.wordGlyphs.push_back({&flat[idx]->worldPolys, flat[idx]->glyphName, idx});
-        }
+        for (int idx : digitalkhatt::layout::violationContextIndices(flat, lineStart, v))
+          entry.wordGlyphs.push_back(glyphRef(*flat[idx]));
         summaryEntries.push_back(std::move(entry));
       }
 
@@ -257,8 +127,10 @@ void LayoutWindow::optimizeLayout(LayoutPageList& pages, const OriginalPageList&
     QDir().mkpath(fi.path() + "/output");
     const QString base = fi.path() + "/output/violations";
     ViolationReportWriter writer;
-    writer.write(reportPages, base + ".pdf", base + ".csv");
-    writer.writeSummary(summaryEntries, base + "_summary.pdf");
+    if (!writer.write(reportPages, base + ".pdf", base + ".csv"))
+      qWarning() << "XPBD violation report could not be written" << base;
+    if (!writer.writeSummary(summaryEntries, base + "_summary.pdf", notes))
+      qWarning() << "XPBD violation summary could not be written" << base;
   }
 #endif
 }

@@ -35,7 +35,7 @@ void BaseVicinityConstraint::project(SolverContext& solverContext, double dt) {
         lambdaLeft = lambdaNew;
 
         mark.dx += (-1.0) * (w * applied);
-        buildWorldPolys(mark);
+        updateWorldPolys(mark);
       }
     } else {
       lambdaLeft = 0.0;
@@ -57,7 +57,7 @@ void BaseVicinityConstraint::project(SolverContext& solverContext, double dt) {
         lambdaRight = lambdaNew;
 
         mark.dx += (+1.0) * (w * applied);
-        buildWorldPolys(mark);
+        updateWorldPolys(mark);
       }
     } else {
       lambdaRight = 0.0;

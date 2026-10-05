@@ -361,6 +361,7 @@ if (NOT EMSCRIPTEN)
     Clipper2::Clipper2
     #GJK-EPA
     PDFHummus::PDFWriter
+    digitalkhatt::pdf
   )
 
 else()

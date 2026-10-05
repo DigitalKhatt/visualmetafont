@@ -336,6 +336,7 @@ class OtLayout {
   void setDisabled(Lookup* lookup);
   void setLookupDisabled(Lookup* lookup, bool disabled);
   void setLookupDisabled(std::string lookupName, bool disabled);
+  const std::unordered_set<std::string>& disabledLookupNames() const { return disabledLookups; }
 
   void executeFSM(FSMSubtable& subtable, OT::hb_ot_apply_context_t* c) {
     fsmDriver.executeFSM(subtable, c);

@@ -11,6 +11,7 @@
 #include "digitalkhatt/layout/GapConstraint.h"
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
 #include "digitalkhatt/layout/MarkClassifier.h"
+#include "digitalkhatt/layout/PlacementAudit.h"
 #include "digitalkhatt/layout/SolverContext.h"
 #include "digitalkhatt/layout/SweepBroadphase.h"
 #include "digitalkhatt/layout/XPBDConstraint.h"
@@ -158,67 +159,6 @@ void wireStackTable(const std::vector<GlyphInstance*>& group, const StackTable& 
   }
 }
 
-// Re-evaluate the generic broadphase gap pass read-only, after the solve, to
-// collect penetrations. The gap pass has no persistent constraint objects, so
-// it must be rebuilt here. Squeezed pairs are owned by SqueezeCenterConstraint
-// (whose reportViolations covers them), so they are skipped -- the same
-// partition the solver uses, avoiding double-counting and coverage gaps.
-void collectGapViolations(
-    SolverContext& solverContext,
-    const std::vector<std::reference_wrapper<GlyphInstance>>& glyphs,
-    const OptParams& P,
-    std::vector<ConstraintViolation>& out) {
-  std::vector<std::pair<int, int>> pairs;
-  SweepBroadphase sweep(glyphs, P);
-  sweep.findPairs(pairs);
-
-  for (auto& pr : pairs) {
-    if (solverContext.isGapExcluded(pr)) continue;
-    GlyphInstance& A = glyphs[pr.first];
-    GlyphInstance& B = glyphs[pr.second];
-    if (!(A.isMark || B.isMark)) continue;  // mirror solveGapConstraint's filter
-
-    const double gmin = chooseMinGap(A, B, P);
-    auto dr = geometry::getDistance(A.worldPolys, B.worldPolys, gmin);
-    if (!std::isfinite(dr.contact.depth_or_gap)) continue;
-
-    const double C = dr.contact.depth_or_gap - gmin;  // violation when C < 0
-    if (C >= 0.0) continue;
-
-    // A soft (compliance > 0) gap constraint is a spring by design: it is
-    // expected to settle at a nonzero residual, not close fully. Predict that
-    // residual from the pair's own compliance/mobility (same formula the
-    // solver's convergence follows) and drop the violation if the actual
-    // residual is at or below it -- that's the constraint behaving exactly as
-    // configured, not a defect. initialC comes from the live solve's
-    // gapInfos (set the first time this pair was seen violated); if this
-    // exact pair was never processed there (no entry), fall back to the
-    // current C itself, i.e. assume no compliance shrinkage history and don't
-    // suppress -- conservative, avoids hiding a genuine issue.
-    const double compliance = effectiveGapCompliance(A, B, gmin);
-    const double w = A.mobility + B.mobility;
-    const auto gapIt = solverContext.gapInfos.find(GapKey{&A, &B});
-    const double initialC =
-        (gapIt != solverContext.gapInfos.end() && gapIt->second.hasInitialC)
-            ? gapIt->second.initialC
-            : C;
-    const double expected =
-        expectedComplianceResidual(initialC, compliance, w, /*dt=*/1.0);
-    if (-C <= -expected * P.complianceResidualMargin) continue;
-
-    ConstraintViolation v;
-    v.type = ViolationType::GenericGap;
-    v.kind = ViolationKind::Hard;
-    v.residual = C;
-    v.severity = -C;
-    v.glyphA = A.globalIndex;
-    v.glyphB = B.globalIndex;
-    v.markerCount = 2;  // the contact segment between the two shapes
-    v.marker[0] = dr.contact.pA;
-    v.marker[1] = dr.contact.pB;
-    out.push_back(v);
-  }
-}
 
 }  // namespace
 
@@ -245,6 +185,14 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     }
   }
 
+  std::unordered_set<const GlyphInstance*> validBases;
+  for (const auto& ref : glyphs) {
+    const auto& g = ref.get();
+    if (!g.isMark && g.glyphName != "space" && !g.worldPolys.empty()) validBases.insert(&g);
+  }
+  const auto validOwner = [&](const GlyphInstance& g) {
+    return validBases.contains(g.prevBase) && g.prevBase->lineIndex == g.lineIndex;
+  };
   std::vector<std::unique_ptr<XPBDConstraint>> xpbdConstraints;
 
   std::vector<std::unique_ptr<XPBDConstraint>> hardConstraints;
@@ -272,7 +220,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
   if (P.toggles.bowlCluster) {
     for (auto& gRef : glyphs) {
       GlyphInstance& g = gRef.get();
-      if (!g.isMark || g.prevBase == nullptr) continue;
+      if (!g.isMark || !validOwner(g)) continue;
       const bool isAbove = solverContext.topmarks.contains(g.glyphName) ||
                            solverContext.topdotmarks.contains(g.glyphName);
       if (isAbove) continue;
@@ -284,6 +232,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
 
   for (size_t i = 0; i < glyphs.size(); ++i) {
     GlyphInstance& mark = glyphs[i];
+    if (!mark.isMark || !validOwner(mark)) continue;
     // NOTE: the harakat lane (YlaneConstraint) is built per-base in a second
     // pass after this loop, once aboveStackGroups is fully populated.
 
@@ -323,15 +272,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     //     produces. Dots that are already below the reh/waw's bbox bottom
     //     aren't in the collision zone this exception is for, so they keep
     //     the normal generic handling.
-    const bool manuallyPositioned =
-        (isBelowMark && solverContext.isBowlBase(*mark.prevBase)) ||
-        (solverContext.downdotmarks.contains(mark.glyphName) &&
-         mark.prevBase->glyphName.starts_with("behshape.init") &&
-         mark.prevBase->glyphName != "behshape.init.beforenoon" &&
-         mark.prevBase->prevBase != nullptr &&
-         (mark.prevBase->prevBase->glyphName.starts_with("reh") ||
-          mark.prevBase->prevBase->glyphName.starts_with("waw")) &&
-         boxBottomY(mark) > boxBottomY(*mark.prevBase->prevBase));
+    const bool manuallyPositioned = isManuallyPositionedMark(mark, solverContext);
     if (manuallyPositioned) {
       solverContext.gapExcludedGlyphs.insert(mark.globalIndex);
       continue;
@@ -396,7 +337,9 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
       // ---- 5) Base-vicinity leash (ownership ambiguity) ----
       if (P.toggles.baseVicinity) {
         const MarkRole role = classifyMark(mark);
-        const double margin = (role == MarkRole::Dots) ? (mark.metrics.width * 0.5) : mark.metrics.width;
+        const auto bounds = mark.worldPolys.boundingAABB();
+        const double width = bounds.maxx - bounds.minx;
+        const double margin = (role == MarkRole::Dots) ? width * 0.5 : width;
         xpbdConstraints.push_back(std::make_unique<BaseVicinityConstraint>(
             mark, margin, P.compliance.baseVicinityLeft, P.compliance.baseVicinityRight));
       }
@@ -406,7 +349,8 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     // unit): not a collision/placement rule, keep as an explicit pairing.
     if (P.toggles.matchMarkPosition && mark.glyphName == "smalllowmeem" && i > 0) {
       GlyphInstance& prevMark = glyphs[i - 1];
-      if (prevMark.glyphName == "kasra") {
+      if (prevMark.glyphName == "kasra" && prevMark.prevBase == mark.prevBase &&
+          prevMark.lineIndex == mark.lineIndex) {
         xpbdConstraints.push_back(std::make_unique<MatchMarkPositionWithOffsetConstraint>(
             prevMark, mark, 130, 0, P.compliance.matchMarkPosition));
       }
@@ -489,7 +433,9 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
   if (P.toggles.horizontalOrder) {
     for (size_t i = 0; i < glyphs.size(); ++i) {
       GlyphInstance& markB = glyphs[i];
-      if (markB.isMark && markB.prevBase->prevBase != nullptr) {
+      if (markB.isMark && validOwner(markB) &&
+          validBases.contains(markB.prevBase->prevBase) &&
+          markB.prevBase->prevBase->lineIndex == markB.lineIndex) {
         if (solverContext.isWaqf(markB) && (markB.prevBase->glyphName == "smallwaw" || markB.prevBase->glyphName == "smallyeh"))
           continue;
         // Manually-positioned marks (see the manuallyPositioned continue
@@ -500,7 +446,8 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
         for (int glyphIndex = prevBase->glyphIndex + 1; glyphIndex < markB.prevBase->glyphIndex; glyphIndex++) {
           auto& markA = pageGlyphs[markB.lineIndex][glyphIndex];
           if (solverContext.gapExcludedGlyphs.contains(markA.globalIndex)) continue;
-          if (markA.isTopMark == markB.isTopMark && !solverContext.isWaqf(markA) && !solverContext.isWaqf(markB)) {
+          if (markA.isMark && markA.isTopMark == markB.isTopMark &&
+              !solverContext.isWaqf(markA) && !solverContext.isWaqf(markB)) {
             xpbdConstraints.push_back(std::make_unique<HorizontalOrderConstraint>(
                 markA, markB, P.horizontalOrderSelfKeep, P.horizontalOrderCrossKeep, P.compliance.horizontalOrder));
           }
@@ -509,19 +456,19 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     }
   }
 
+  std::vector<std::pair<int, int>> pairs;
+  const double toleranceSquared = P.tolCollision * P.tolCollision;
   for (int iter = 0; iter < P.maxIters; ++iter) {
-    // 1. Rebuild world polys
-
-    // 2. Broadphase
-    std::vector<std::pair<int, int>> pairs;
-    SweepBroadphase sweep(glyphs, P);
-    sweep.findPairs(pairs);
-
-    double maxPenetration = 0.0;  // most negative C
+    for (auto& ref : glyphs) ref.get().iterationMaxMovementSquared = 0.0;
 
     for (auto& c : xpbdConstraints) {
       c->project(solverContext, dt);
     }
+
+    // Lane/stack/placement projections can move marks beyond the old candidate
+    // horizon. Build candidate pairs from the updated world geometry.
+    SweepBroadphase(glyphs, P).findPairs(pairs);
+    double maxPenetration = 0.0;
 
     // 3. Gap / collision constraints
     // Iterate candidate pairs
@@ -539,10 +486,21 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
       c->project(solverContext, dt);
     }
 
-    // 7. Early exit
-    if (-maxPenetration < P.tolCollision) {
-      // maxPenetration is <= 0; closer to 0 is better.
-      break;
+    double maxMovementSquared = 0.0;
+    for (const auto& ref : glyphs)
+      maxMovementSquared = std::max(maxMovementSquared, ref.get().iterationMaxMovementSquared);
+    if (P.tolCollision >= 0.0 && maxMovementSquared <= toleranceSquared) {
+      // Re-evaluate ALL active hard bounds, including types omitted from the
+      // user-facing report. Soft targets may retain their designed spring slack;
+      // their applied corrections above still participate in convergence.
+      std::vector<ConstraintViolation> remaining;
+      for (const auto& c : xpbdConstraints) c->reportViolations(solverContext, remaining);
+      for (const auto& c : hardConstraints) c->reportViolations(solverContext, remaining);
+      if (P.toggles.genericGapConstraint) collectGapViolations(solverContext, glyphs, P, remaining);
+      const bool hardBoundUnresolved = std::any_of(remaining.begin(), remaining.end(), [&](const auto& v) {
+        return v.kind == ViolationKind::Hard && v.severity > P.tolCollision;
+      });
+      if (!hardBoundUnresolved) break;
     }
   }
 
@@ -559,6 +517,13 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     if (P.toggles.reportGenericGap) {
       collectGapViolations(solverContext, glyphs, P, *outViolations);
     }
+    if (!P.toggles.reportSoftResiduals) {
+      std::erase_if(*outViolations, [](const auto& v) { return v.kind == ViolationKind::Soft; });
+    }
+    // These checks remain active even when the corresponding force is off.
+    // Geometric ownership warnings are retained regardless of the soft-target
+    // preference switch: they indicate placement ambiguity, not a tuning goal.
+    collectPlacementViolations(solverContext, *outViolations);
 
     // Drop residual-scale entries (see OptParams::minViolationSeverity):
     // constraints are solved iteratively and rarely land on an exact C=0, so
@@ -566,7 +531,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     // unit "violations" that are really just XPBD's convergence noise floor,
     // not something a font designer should act on.
     std::erase_if(*outViolations, [&](const ConstraintViolation& v) {
-      return v.severity < P.minViolationSeverity;
+      return !v.structural && v.severity < P.minViolationSeverity;
     });
   }
 }

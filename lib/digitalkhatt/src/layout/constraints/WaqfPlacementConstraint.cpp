@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "digitalkhatt/layout/ConstraintViolation.h"
+#include "digitalkhatt/layout/ConstraintDiagnostics.h"
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
 #include "digitalkhatt/layout/SolverContext.h"
 
@@ -124,7 +125,7 @@ void WaqfPlacementConstraint::project(SolverContext& solverContext,
 
         // grad dC/dy = -1
         waqfMark.dy += (-1.0) * w * applied;
-        buildWorldPolys(waqfMark);
+        updateWorldPolys(waqfMark);
       }
     }
   }
@@ -145,7 +146,7 @@ void WaqfPlacementConstraint::project(SolverContext& solverContext,
 
         // grad dC/dy = +1
         waqfMark.dy += w * applied;
-        buildWorldPolys(waqfMark);
+        updateWorldPolys(waqfMark);
       }
     }
   }
@@ -163,7 +164,7 @@ void WaqfPlacementConstraint::project(SolverContext& solverContext,
 
       // grad dC/dy = +1
       waqfMark.dy += w * deltaLambda;
-      buildWorldPolys(waqfMark);
+      updateWorldPolys(waqfMark);
     }
   }
 
@@ -201,7 +202,7 @@ void WaqfPlacementConstraint::project(SolverContext& solverContext,
 
       // grad dC/dx = +1
       waqfMark.dx += w * deltaLambda;
-      buildWorldPolys(waqfMark);
+      updateWorldPolys(waqfMark);
     }
   }
 }
@@ -267,6 +268,11 @@ void WaqfPlacementConstraint::reportViolations(
 
   pushBound(yMin - boxBottomY(waqfMark), yMin);  // hard lower bound breach
   pushBound(boxTopY(waqfMark) - yMax, yMax);     // hard upper bound breach
+  const double yTarget = std::clamp(yMin + desiredExtraLift, yMin, yMaxBottom);
+  reportSoftTarget(out, ViolationType::SoftTargetResidual, waqfMark, base,
+      boxBottomY(waqfMark) - yTarget, "Waqf target height");
+  reportSoftTarget(out, ViolationType::SoftTargetResidual, waqfMark, base,
+      wb.minx - base->worldPolys.boundingAABB().minx, "Waqf horizontal alignment");
 }
 
 }  // namespace digitalkhatt::layout

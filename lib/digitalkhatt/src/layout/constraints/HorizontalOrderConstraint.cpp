@@ -18,17 +18,19 @@ namespace digitalkhatt::layout {
 // self-floor (recognizability) and a cross-floor (not swamped by the neighbor):
 //   exposed(A) = wA - O >= max(selfKeep*wA, crossKeep*wB)
 //   exposed(B) = wB - O >= max(selfKeep*wB, crossKeep*wA)
-// Collapsing to a single allowed overlap T (may be negative -> forces a gap):
+// Collapsing to a single allowed overlap T (clamped to zero):
 //   C = O - T,  want C <= 0.
 // The bbox terms are constant w.r.t. dx, so the gradient is unchanged.
 static double horizontalOrderResidual(const GlyphInstance& markA,
                                       const GlyphInstance& markB,
                                       double selfKeep, double crossKeep) {
-  const double wA = markA.metrics.bboxUrx - markA.metrics.bboxLlx;
-  const double wB = markB.metrics.bboxUrx - markB.metrics.bboxLlx;
+  const auto a = markA.worldPolys.boundingAABB();
+  const auto b = markB.worldPolys.boundingAABB();
+  const double wA = a.maxx - a.minx;
+  const double wB = b.maxx - b.minx;
 
-  const double B_R = markB.baseX + markB.dx + markB.metrics.bboxUrx;
-  const double A_L = markA.baseX + markA.dx + markA.metrics.bboxLlx;
+  const double B_R = b.maxx;
+  const double A_L = a.minx;
   const double O = B_R - A_L;
 
   const double TA = wA - std::max(selfKeep * wA, crossKeep * wB);
@@ -69,10 +71,10 @@ void HorizontalOrderConstraint::project(SolverContext& solverContext, double dt)
 
   // Apply corrections
   markA.dx += nA.x * (wAinv * applied);
-  buildWorldPolys(markA);
+  updateWorldPolys(markA);
 
   markB.dx += nB.x * (wBinv * applied);
-  buildWorldPolys(markB);
+  updateWorldPolys(markB);
 }
 
 void HorizontalOrderConstraint::reportViolations(

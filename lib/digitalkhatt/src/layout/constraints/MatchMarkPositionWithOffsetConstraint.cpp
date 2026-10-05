@@ -1,6 +1,7 @@
 #include "digitalkhatt/layout/constraints/MatchMarkPositionWithOffsetConstraint.h"
 
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
+#include "digitalkhatt/layout/ConstraintDiagnostics.h"
 #include "digitalkhatt/layout/SolverContext.h"
 
 namespace digitalkhatt::layout {
@@ -23,8 +24,8 @@ void MatchMarkPositionWithOffsetConstraint::project(SolverContext& solverContext
     if (wA > 0.0) A.dx += wA * deltaLambda;
     if (wB > 0.0) B.dx -= wB * deltaLambda;
 
-    buildWorldPolys(A);
-    buildWorldPolys(B);
+    updateWorldPolys(A);
+    updateWorldPolys(B);
   }
 
   {
@@ -35,9 +36,17 @@ void MatchMarkPositionWithOffsetConstraint::project(SolverContext& solverContext
     if (wA > 0.0) A.dy += wA * deltaLambda;
     if (wB > 0.0) B.dy -= wB * deltaLambda;
 
-    buildWorldPolys(A);
-    buildWorldPolys(B);
+    updateWorldPolys(A);
+    updateWorldPolys(B);
   }
+}
+
+void MatchMarkPositionWithOffsetConstraint::reportViolations(
+    SolverContext&, std::vector<ConstraintViolation>& out) const {
+  const double dx = boxCenterX(A) - boxCenterX(B) - offsetX;
+  const double dy = boxCenterY(A) - boxCenterY(B) - offsetY;
+  reportSoftTarget(out, ViolationType::MatchMarkPosition, A, &B,
+      std::hypot(dx, dy), "Compound mark alignment");
 }
 
 }  // namespace digitalkhatt::layout

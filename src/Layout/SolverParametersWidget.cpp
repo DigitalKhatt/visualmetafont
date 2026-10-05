@@ -225,6 +225,10 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
               toggles.genericGapConstraint, this, &SolverParametersWidget::scheduleChanged);
   addToggleRow(constraintsForm, tr("Report constraint violations (PDF+log)"), settings, "toggle.reportViolations",
               toggles.reportViolations, this, &SolverParametersWidget::scheduleChanged);
+  addToggleRow(constraintsForm, tr("Include generic gap violations in report"), settings, "toggle.reportGenericGap",
+              toggles.reportGenericGap, this, &SolverParametersWidget::scheduleChanged);
+  addToggleRow(constraintsForm, tr("Include soft target residuals in report"), settings, "toggle.reportSoftResiduals",
+              toggles.reportSoftResiduals, this, &SolverParametersWidget::scheduleChanged);
   mainLayout->addWidget(constraintsBox);
 
   // Every per-constraint-type tunable (HorizontalOrder's self/cross-keep

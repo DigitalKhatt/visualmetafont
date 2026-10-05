@@ -1144,8 +1144,7 @@ void applyForceLayout(OtLayout& layout, std::vector<LineLayoutInfo>& page,
          ++glyphIndex) {
       auto& positioned = page[lineIndex].glyphs[glyphIndex];
       const auto& solved = pageGlyphs[lineIndex][glyphIndex];
-      positioned.x_offset += solved.dx;
-      positioned.y_offset += solved.dy;
+      digitalkhatt::layout::applySolvedGlyphOffsets(positioned, solved, page[lineIndex].xscale);
     }
   }
 }

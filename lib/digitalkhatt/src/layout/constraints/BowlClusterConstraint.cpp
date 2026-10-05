@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
+#include "digitalkhatt/layout/ConstraintDiagnostics.h"
 #include "digitalkhatt/layout/SolverContext.h"
 
 namespace digitalkhatt::layout {
@@ -44,8 +45,22 @@ void BowlClusterConstraint::project(SolverContext& solverContext, double dt) {
   for (GlyphInstance* m : marks) {
     if (m->mobility <= 0.0) continue;
     m->dx += deltaLambda;
-    buildWorldPolys(*m);
+    updateWorldPolys(*m);
   }
+}
+
+void BowlClusterConstraint::reportViolations(SolverContext&,
+    std::vector<ConstraintViolation>& out) const {
+  if (marks.empty()) return;
+  double left = std::numeric_limits<double>::infinity();
+  double right = -left;
+  for (const auto* m : marks) {
+    const auto box = m->worldPolys.boundingAABB();
+    left = std::min(left, box.minx);
+    right = std::max(right, box.maxx);
+  }
+  reportSoftTarget(out, ViolationType::SoftTargetResidual, *marks.front(), &base,
+      0.5 * (left + right) - boxCenterX(base), "Bowl cluster centering");
 }
 
 }  // namespace digitalkhatt::layout

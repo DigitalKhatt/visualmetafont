@@ -26,7 +26,7 @@ void WaqfAlignXConstraint::project(SolverContext& solverContext, double dt) {
 
   // grad = +1 in x
   mark.dx += w * deltaLambda;
-  buildWorldPolys(mark);
+  updateWorldPolys(mark);
 }
 
 }  // namespace digitalkhatt::layout
