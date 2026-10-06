@@ -1,5 +1,6 @@
 #include "JustificationShaping.h"
 
+#include <cmath>
 #include <cstring>
 #include <exception>
 #include <stdexcept>
@@ -316,6 +317,8 @@ LineLayoutInfo shapeLine(FeatureJustificationLayout& layout, int lineWidth, int 
 
   LineLayoutInfo lineLayout;
   int currentlineWidth = 0;
+  int lastAdjustedSpaceCluster = -1;
+  double spaceAdjustmentRemainder = 0.0;
 
   for (int i = glyph_count - 1; i >= 0; i--) {
     GlyphLayoutInfo glyphLayout;
@@ -373,11 +376,21 @@ LineLayoutInfo shapeLine(FeatureJustificationLayout& layout, int lineWidth, int 
           glyphLayout.x_advance = justResult.simpleSpacing * emScale;
         }
       }
-    } else if (justResult.addedSpaceAfterShrink != 0) {
+    } else if (justResult.addedSpaceAfterShrink != 0 || !justResult.spaceAdvanceAdjustments.empty()) {
       auto space = lineTextInfo.spaces.find(glyphLayout.cluster);
 
       if (space != lineTextInfo.spaces.end()) {
-        glyphLayout.x_advance += justResult.addedSpaceAfterShrink;
+        glyphLayout.x_advance += justResult.addedSpaceAfterShrink * emScale;
+        const auto adjustment = justResult.spaceAdvanceAdjustments.find(glyphLayout.cluster);
+        if (adjustment != justResult.spaceAdvanceAdjustments.end() && glyphLayout.cluster != lastAdjustedSpaceCluster) {
+          // Carry fractional units across spaces instead of losing one
+          // fraction per space when converting to integer advances.
+          const double scaled = adjustment->second * emScale + spaceAdjustmentRemainder;
+          const int added = static_cast<int>(std::round(scaled));
+          spaceAdjustmentRemainder = scaled - added;
+          glyphLayout.x_advance += added;
+          lastAdjustedSpaceCluster = glyphLayout.cluster;
+        }
       }
     }
 

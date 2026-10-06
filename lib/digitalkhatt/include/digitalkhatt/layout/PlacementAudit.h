@@ -13,7 +13,8 @@ struct SolverContext;
 // The caller must first validate mark.prevBase.
 bool isManuallyPositionedMark(const GlyphInstance& mark, const SolverContext& context);
 
-// Read-only final audit, independent of enabled forces and report-type switches.
+// Read-only final audit, independent of enabled forces. Collection is gated by
+// OptParams::toggles.reportPlacementAudit at the reporting call site.
 // A geometric association warning is evidence for review, not a reassignment.
 void collectPlacementViolations(const SolverContext& context,
                                 std::vector<ConstraintViolation>& out);

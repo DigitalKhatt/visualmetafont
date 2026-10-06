@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <algorithm>
+#include <cmath>
 #include <string>
 
 #include "digitalkhatt/geometry/geometry.h"
@@ -20,7 +22,7 @@ enum class ViolationType {
   BaseVicinity,     // mark horizontal leash overflow
   SqueezeCenter,    // per-obstacle min-gap breach under a squeezed mark
   Ylane,            // soft harakat band preference
-  WaqfPlacement,    // waqf hard lower/upper bound breach or infeasible band
+  WaqfPlacement,    // waqf bounds, preceding-line clearance or infeasible band
   HorizontalOrder,  // world-ink mark ordering breach
   MarkSide,         // final mark on the wrong side of its base/baseline
   BaseAssociation,  // invalid owner, or new geometric ambiguity with a neighbor
@@ -100,6 +102,31 @@ inline int violationReviewPriority(const ConstraintViolation& v) {
 inline bool violationPrecedes(const ConstraintViolation& a, const ConstraintViolation& b) {
   const int pa = violationReviewPriority(a), pb = violationReviewPriority(b);
   return pa != pb ? pa > pb : a.severity > b.severity;
+}
+
+// Rank the excess beyond permitted slack, rather than a compliant residual.
+// Discrete structural diagnostics have no length unit and form their own group.
+inline double violationReportSeverity(const ConstraintViolation& v) {
+  if (!std::isfinite(v.severity) || !std::isfinite(v.allowedResidual)) return 0.0;
+  // Compliant clearance slack never excuses an intersecting collision proxy.
+  if (v.type == ViolationType::GenericGap &&
+      (v.detail.starts_with("Collision-proxy") || v.detail == "Ink intersection"))
+    return std::max(0.0, v.severity);
+  return std::max(0.0, v.severity - std::max(0.0, v.allowedResidual));
+}
+inline int violationReportGroup(const ConstraintViolation& v) {
+  if (!v.structural) return 1;
+  return v.kind == ViolationKind::Hard ? 0 : 2;
+}
+inline bool violationReportPrecedes(const ConstraintViolation& a, const ConstraintViolation& b,
+                                   const std::string& sort) {
+  const int ga = violationReportGroup(a), gb = violationReportGroup(b);
+  if (ga != gb) return ga < gb;
+  if (a.structural || sort == "priority") {
+    const int pa = violationReviewPriority(a), pb = violationReviewPriority(b);
+    if (pa != pb) return pa > pb;
+  }
+  return violationReportSeverity(a) > violationReportSeverity(b);
 }
 
 }  // namespace digitalkhatt::layout

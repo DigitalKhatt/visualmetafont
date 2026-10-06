@@ -34,103 +34,81 @@ void LayoutWindow::optimizeLayout(LayoutPageList& pages, const OriginalPageList&
     int beginPage, int nbPages, double emScale) {
   (void)originalPages;
 #if defined(ENABLE_PDF_GENERATION)
-  const bool report = m_solverParams.toggles.reportViolations;
+  bool report = m_solverParams.toggles.reportViolations;
+  ViolationReportWriter writer;
+  QString base;
+  const auto flag = [](bool enabled) { return enabled ? "on" : "off"; };
+  const auto& toggles = m_solverParams.toggles;
+  const std::vector<std::string> notes = {
+      std::string("Placement audit (side, class, owner): ") + flag(toggles.reportPlacementAudit) +
+          ". Blue dashed: shaped position; red/amber: flagged result.",
+      QString("Report generic gaps: %1; soft targets: %2; minimum excess severity: %3")
+          .arg(flag(toggles.reportGenericGap)).arg(flag(toggles.reportSoftResiduals))
+          .arg(m_solverParams.minViolationSeverity).toStdString(),
+      QString("Sort: %1; maximum findings: %2; only new/worsened (plus structural): %3")
+          .arg(QString::fromStdString(m_solverParams.reportSort))
+          .arg(m_solverParams.reportMaxFindings ? QString::number(m_solverParams.reportMaxFindings) : QString("unlimited"))
+          .arg(flag(m_solverParams.reportOnlyChanged)).toStdString(),
+      QString("BaseVicinity reporting tolerance (% of mark width): marks %1; dots %2")
+          .arg(m_solverParams.baseVicinityMarkTolerancePercent)
+          .arg(m_solverParams.baseVicinityDotTolerancePercent).toStdString()};
+  if (report) {
+    QFileInfo fi(m_font->filePath());
+    QDir().mkpath(fi.path() + "/output");
+    base = fi.path() + "/output/violations";
+    report = writer.start((base + ".pdf").toStdString(), (base + ".csv").toStdString(), m_solverParams);
+    if (!report) qWarning() << "XPBD violation report could not be started" << base;
+  }
 #else
   const bool report = false;
 #endif
   digitalkhatt::layout::PlacementPipeline pipeline(*m_otlayout, emScale);
-  std::vector<std::vector<std::vector<digitalkhatt::layout::GlyphInstance>>> pagesGlyphs;
-  std::vector<std::vector<digitalkhatt::layout::ConstraintViolation>> allViolations;
   for (int p = beginPage; p < beginPage + nbPages; ++p) {
     auto solved = pipeline.solve(pages[p], m_solverParams, true, report);
-    pagesGlyphs.push_back(std::move(solved.glyphs));
-    if (report) allViolations.push_back(std::move(solved.violations));
+#if defined(ENABLE_PDF_GENERATION)
+    if (!report) continue;
+    std::unordered_set<const digitalkhatt::layout::GlyphInstance*> members;
+    for (const auto& line : solved.glyphs)
+      for (const auto& g : line) members.insert(&g);
+    ViolationReportWriter::Page page;
+    page.pageNumber = p + 1;
+    page.notes = notes;
+    page.violations = std::move(solved.violations);
+    for (const auto& line : solved.glyphs) {
+      for (const auto& g : line) {
+        ViolationReportWriter::GlyphRef ref{&g.worldPolys, g.glyphName, g.globalIndex,
+            g.isMark && members.contains(g.prevBase) ? g.prevBase->globalIndex : -1,
+            g.lineIndex + 1, g.dx, g.dy};
+        ref.cluster = g.glyphLayout ? static_cast<int>(g.glyphLayout->cluster) : -1;
+        if (p < static_cast<int>(originalPages.size()) && g.lineIndex < static_cast<int>(originalPages[p].size())) {
+          const auto& text = originalPages[p][g.lineIndex];
+          ref.wordNumber = digitalkhatt::layout::violationWordNumber(text, ref.cluster);
+          if (ref.wordNumber) {
+            std::size_t begin = ref.cluster, end = ref.cluster;
+            while (begin && text[begin - 1] != u' ') --begin;
+            while (end < text.size() && text[end] != u' ') ++end;
+            ref.wordText = QString::fromStdU16String(text.substr(begin, end - begin)).toUtf8().toStdString();
+          }
+        }
+        page.glyphs.push_back(std::move(ref));
+      }
+    }
+    if (!writer.appendPage(page)) qWarning() << "XPBD report page could not be collected" << p + 1;
+#endif
   }
 #if defined(ENABLE_PDF_GENERATION)
   if (report) {
-    const auto& toggles = m_solverParams.toggles;
-    const auto flag = [](bool enabled) { return enabled ? "on" : "off"; };
-    const std::vector<std::string> notes = {
-        "Final side, class and base-association audit: on. Blue dashed: shaped position; red/amber: flagged result.",
-        QString("Report generic gaps: %1; soft targets: %2; cutoff: %3; gap slack margin: %4")
-            .arg(flag(toggles.reportGenericGap)).arg(flag(toggles.reportSoftResiduals))
-            .arg(m_solverParams.minViolationSeverity).arg(m_solverParams.complianceResidualMargin).toStdString(),
-        QString("Forces: lane %1; stack %2; vicinity %3; order %4; waqf %5; gap %6; side rails %7; match %8")
-            .arg(flag(toggles.ylane)).arg(flag(toggles.stackOrder)).arg(flag(toggles.baseVicinity))
-            .arg(flag(toggles.horizontalOrder)).arg(flag(toggles.waqfPlacement)).arg(flag(toggles.genericGapConstraint))
-            .arg(flag(toggles.hardStayAboveBelow)).arg(flag(toggles.matchMarkPosition)).toStdString()};
-    std::unordered_set<const digitalkhatt::layout::GlyphInstance*> reportMembers;
-    for (const auto& page : pagesGlyphs)
-      for (const auto& line : page)
-        for (const auto& g : line) reportMembers.insert(&g);
-    const auto glyphRef = [&](const digitalkhatt::layout::GlyphInstance& g) {
-      return ViolationReportWriter::GlyphRef{&g.worldPolys, g.glyphName, g.globalIndex,
-          g.isMark && reportMembers.contains(g.prevBase) ? g.prevBase->globalIndex : -1,
-          g.lineIndex + 1, g.dx, g.dy};
-    };
-    // Build one diagnostic page per solved page. Flatten line-then-glyph so
-    // each glyph's position matches the globalIndex optimizePage assigned it
-    // (the violations reference glyphs by that index). pagesGlyphs (and its
-    // worldPolys) are still alive here.
-    std::vector<ViolationReportWriter::Page> reportPages;
-    reportPages.reserve(pagesGlyphs.size());
-    // One row per violation across every page, severity-ordered by the
-    // writer: page/line number plus the participating words and owning bases,
-    // so the summary PDF can show their relationship in each row.
-    std::vector<ViolationReportWriter::WordEntry> summaryEntries;
-    for (size_t p = 0; p < pagesGlyphs.size(); ++p) {
-      ViolationReportWriter::Page rp;
-      rp.pageNumber = beginPage + static_cast<int>(p) + 1;
-      rp.notes = notes;
-      for (auto& lineGlyphs : pagesGlyphs[p]) {
-        for (auto& g : lineGlyphs) {
-          rp.glyphs.push_back(glyphRef(g));
-        }
-      }
-      if (p < allViolations.size()) rp.violations = std::move(allViolations[p]);
-
-      // Page-global-index -> line lookup, used below to find the word
-      // (space-delimited run of glyphs, "space" being the literal glyph
-      // HarfBuzz shaping emits for whitespace) containing each violation.
-      // Built from pagesGlyphs directly rather than rp.glyphs so each entry
-      // keeps a GlyphInstance* (rp.glyphs only has the projected GlyphRef).
-      std::vector<digitalkhatt::layout::GlyphInstance*> flat;
-      std::vector<int> lineStart;  // first global index of each line, + a
-                                   // trailing sentinel = total glyph count
-      for (auto& lineGlyphs : pagesGlyphs[p]) {
-        lineStart.push_back(static_cast<int>(flat.size()));
-        for (auto& g : lineGlyphs) flat.push_back(&g);
-      }
-      lineStart.push_back(static_cast<int>(flat.size()));
-
-      for (const auto& v : rp.violations) {
-        const int anchor = v.glyphA >= 0 ? v.glyphA : v.glyphB;
-        if (anchor < 0 || anchor >= static_cast<int>(flat.size())) continue;
-
-        int line = 0;
-        while (line + 1 < static_cast<int>(lineStart.size()) - 1 && lineStart[line + 1] <= anchor) line++;
-        ViolationReportWriter::WordEntry entry;
-        entry.pageNumber = rp.pageNumber;
-        entry.lineNumber = line + 1;
-        if (v.glyphB >= 0 && v.glyphB < static_cast<int>(flat.size()))
-          entry.otherLineNumber = flat[v.glyphB]->lineIndex + 1;
-        entry.violation = v;
-        for (int idx : digitalkhatt::layout::violationContextIndices(flat, lineStart, v))
-          entry.wordGlyphs.push_back(glyphRef(*flat[idx]));
-        summaryEntries.push_back(std::move(entry));
-      }
-
-      reportPages.push_back(std::move(rp));
-    }
-
-    QFileInfo fi(m_font->filePath());
-    QDir().mkpath(fi.path() + "/output");
-    const QString base = fi.path() + "/output/violations";
-    ViolationReportWriter writer;
-    if (!writer.write(reportPages, base + ".pdf", base + ".csv"))
-      qWarning() << "XPBD violation report could not be written" << base;
-    if (!writer.writeSummary(summaryEntries, base + "_summary.pdf", notes))
+    if (!writer.finish()) qWarning() << "XPBD violation report could not be written" << base;
+    auto summary = writer.summaryEntries();
+    auto summaryNotes = notes;
+    summaryNotes.push_back("Selected " + std::to_string(writer.selectedCount()) + " of " +
+        std::to_string(writer.eligibleCount()) + " eligible findings; same selection as CSV and page overview.");
+    if (!writer.writeSummary(summary, base + "_summary.pdf", summaryNotes))
       qWarning() << "XPBD violation summary could not be written" << base;
+    if (!writer.writeCompact(summary, (base + "_compact.pdf").toStdString(), summaryNotes))
+      qWarning() << "XPBD compact violation report could not be written" << base;
+    if (!writer.writeWeb(summary, (base + ".html").toStdString(), summaryNotes))
+      qWarning() << "XPBD web violation report could not be written" << base;
   }
 #endif
 }

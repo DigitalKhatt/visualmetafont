@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace digitalkhatt::layout {
 
 // Lets a caller (e.g. a tuning UI) disable individual constraint types to
@@ -26,8 +28,9 @@ struct ConstraintToggles {
   // equivalent type-level opt-out: independent of genericGapConstraint (which
   // gates whether the constraint runs at all), this gates whether its
   // violations are collected into the post-solve report.
-  bool reportGenericGap = true;
+  bool reportGenericGap = false;
   bool reportSoftResiduals = false;  // optional lane/alignment preferences
+  bool reportPlacementAudit = false; // final side/class/owner diagnostics
 };
 
 // Per-constraint-type XPBD compliance (softness), broken out so each can be
@@ -72,12 +75,25 @@ struct OptParams {
   int maxIters = 20;
   double tolCollision = 0.5;  // convergence tolerance for corrections and hard bounds
 
-  // Hard violations reported below this magnitude (font units) are treated as
+  // Non-structural violations whose excess beyond allowed slack is below this
+  // magnitude (font units) are treated as
   // XPBD's leftover convergence residual after maxIters, not a real defect,
   // and are dropped from the post-solve violation report. Fallback floor for
   // constraint types without a formula-based prediction of their own (see
   // complianceResidualMargin for GenericGap's compliance-aware version).
   double minViolationSeverity = 1.0;
+
+  // Shared GUI/CLI presentation controls; they do not affect XPBD forces.
+  // Zero means unlimited. Structural findings are not removed by the cutoff.
+  int reportMaxFindings = 1000;
+  std::string reportSort = "severity";  // severity or priority
+  bool reportOnlyChanged = false;     // keep new/worsened plus structural findings
+
+  // Reporting allowance beyond the BaseVicinity boundary, as a percentage
+  // of the mark's horizontal ink width. Does not affect projection or solver
+  // convergence. Dots retain strict ownership boundaries by default.
+  double baseVicinityMarkTolerancePercent = 5.0;
+  double baseVicinityDotTolerancePercent = 0.0;
 
   // GenericGap violations are compared against expectedComplianceResidual()
   // (GapConstraint.h) -- the residual a soft (compliance > 0) pairwise

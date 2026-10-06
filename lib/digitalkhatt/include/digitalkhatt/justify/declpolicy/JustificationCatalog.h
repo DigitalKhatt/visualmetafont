@@ -200,7 +200,8 @@ enum class LineStepOp : std::uint8_t { CapSpaces,
                                        AllFeatures,
                                        FitSclx,
                                        Balance,
-                                       Scale };
+                                       Scale,
+                                       ReduceSpaces };
 struct LinePolicyStep {
   LineStepOp operation;
   std::vector<double> arguments;

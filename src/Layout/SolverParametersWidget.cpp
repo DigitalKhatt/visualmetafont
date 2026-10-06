@@ -1,6 +1,7 @@
 #include "SolverParametersWidget.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QFrame>
@@ -13,6 +14,7 @@
 #include <QVBoxLayout>
 
 #include <memory>
+#include <algorithm>
 #include <vector>
 
 #include "FlowLayout.h"
@@ -223,13 +225,57 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   auto& toggles = m_params.toggles;
   addToggleRow(constraintsForm, tr("Generic gap constraint (broadphase)"), settings, "toggle.genericGapConstraint",
               toggles.genericGapConstraint, this, &SolverParametersWidget::scheduleChanged);
-  addToggleRow(constraintsForm, tr("Report constraint violations (PDF+log)"), settings, "toggle.reportViolations",
-              toggles.reportViolations, this, &SolverParametersWidget::scheduleChanged);
-  addToggleRow(constraintsForm, tr("Include generic gap violations in report"), settings, "toggle.reportGenericGap",
-              toggles.reportGenericGap, this, &SolverParametersWidget::scheduleChanged);
-  addToggleRow(constraintsForm, tr("Include soft target residuals in report"), settings, "toggle.reportSoftResiduals",
-              toggles.reportSoftResiduals, this, &SolverParametersWidget::scheduleChanged);
   mainLayout->addWidget(constraintsBox);
+
+  auto* reportBox = new QGroupBox(tr("Violation report"), this);
+  auto* reportForm = new QFormLayout(reportBox);
+  addToggleRow(reportForm, tr("Generate report (PDF + CSV)"), settings, "toggle.reportViolations",
+              toggles.reportViolations, this, &SolverParametersWidget::scheduleChanged);
+  addToggleRow(reportForm, tr("Include generic gap violations"), settings, "toggle.reportGenericGap",
+              toggles.reportGenericGap, this, &SolverParametersWidget::scheduleChanged);
+  addToggleRow(reportForm, tr("Include placement audit (side, class, owner)"), settings, "toggle.reportPlacementAudit",
+              toggles.reportPlacementAudit, this, &SolverParametersWidget::scheduleChanged);
+  addToggleRow(reportForm, tr("Include soft target residuals"), settings, "toggle.reportSoftResiduals",
+              toggles.reportSoftResiduals, this, &SolverParametersWidget::scheduleChanged);
+  addToggleRow(reportForm, tr("Only new/worsened (plus structural)"), settings, "reportOnlyChanged",
+              m_params.reportOnlyChanged, this, &SolverParametersWidget::scheduleChanged);
+  addDoubleRow(reportForm, tr("Minimum severity (beyond allowed slack)"), settings, "minViolationSeverity",
+              m_params.minViolationSeverity, 0.0, 10000.0, 1.0, 3, this, &SolverParametersWidget::scheduleChanged);
+  addDoubleRow(reportForm, tr("Base vicinity tolerance: marks (% of mark width)"), settings, "baseVicinityMarkTolerancePercent",
+              m_params.baseVicinityMarkTolerancePercent, 0.0, 100.0, 1.0, 2, this, &SolverParametersWidget::scheduleChanged);
+  addDoubleRow(reportForm, tr("Base vicinity tolerance: dots (% of dot width)"), settings, "baseVicinityDotTolerancePercent",
+              m_params.baseVicinityDotTolerancePercent, 0.0, 100.0, 1.0, 2, this, &SolverParametersWidget::scheduleChanged);
+  {
+    const QString key = QString(kSettingsPrefix) + "reportMaxFindings";
+    m_params.reportMaxFindings = std::clamp(settings.value(key, m_params.reportMaxFindings).toInt(), 0, 1000000);
+    auto* spin = new QSpinBox(this);
+    spin->setRange(0, 1000000);
+    spin->setSpecialValueText(tr("Unlimited"));
+    spin->setKeyboardTracking(false);
+    spin->setValue(m_params.reportMaxFindings);
+    reportForm->addRow(tr("Maximum findings (whole report)"), spin);
+    connect(spin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this, key](int value) {
+      m_params.reportMaxFindings = value;
+      QSettings().setValue(key, value);
+      scheduleChanged();
+    });
+  }
+  {
+    const QString key = QString(kSettingsPrefix) + "reportSort";
+    m_params.reportSort = settings.value(key, QString::fromStdString(m_params.reportSort)).toString().toStdString();
+    if (m_params.reportSort != "severity" && m_params.reportSort != "priority") m_params.reportSort = "severity";
+    auto* combo = new QComboBox(this);
+    combo->addItem(tr("Severity descending"), "severity");
+    combo->addItem(tr("Review priority, then severity"), "priority");
+    combo->setCurrentIndex(combo->findData(QString::fromStdString(m_params.reportSort)));
+    reportForm->addRow(tr("Sort order (critical structural first)"), combo);
+    connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, key, combo](int) {
+      m_params.reportSort = combo->currentData().toString().toStdString();
+      QSettings().setValue(key, QString::fromStdString(m_params.reportSort));
+      scheduleChanged();
+    });
+  }
+  mainLayout->addWidget(reportBox);
 
   // Every per-constraint-type tunable (HorizontalOrder's self/cross-keep
   // thresholds plus every constraint's XPBD compliance) alongside that
@@ -264,8 +310,8 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Hard stay above/below"),
       "toggle.hardStayAboveBelow", toggles.hardStayAboveBelow,
       {
-          {tr("Above"), "compliance.hardStayAbove", &comp.hardStayAbove, 0.0, 0.01, 0.0001, 6},
-          {tr("Below"), "compliance.hardStayBelow", &comp.hardStayBelow, 0.0, 0.01, 0.0001, 6},
+          {tr("Above compliance"), "compliance.hardStayAbove", &comp.hardStayAbove, 0.0, 0.01, 0.0000001, 8},
+          {tr("Below compliance"), "compliance.hardStayBelow", &comp.hardStayBelow, 0.0, 0.01, 0.0000001, 8},
       },
       this, &SolverParametersWidget::scheduleChanged));
 

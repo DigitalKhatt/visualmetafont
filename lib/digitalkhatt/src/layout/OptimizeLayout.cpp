@@ -109,7 +109,7 @@ const StackTable& topStackTable() {
       {{"fatha", "fathatanidgham", "fathatan"}, {"shadda"}, 0, 0},
       {{"damma", "dammatanidgham", "dammatan"}, {"shadda"}, 30, 0},
       {{"fatha", "fathatanidgham", "fathatan", "damma", "dammatanidgham", "dammatan"}, {"hamzaabove", "hamzaabove.joined"}, 30, 0},
-      {{"fatha", "fathatanidgham", "fathatan", "damma", "dammatanidgham", "dammatan"}, {"onedotup", "twodotsup", "three_dots"}, 30, 0},
+      {{"fatha", "fathatanidgham", "fathatan", "damma", "dammatanidgham", "dammatan"}, {"onedotup", "twodotsup", "three_dots"}, 30, 10},
       {{"maddahabove"}, {"smallalef.isol", "smallalef.replacement", "smallalef.joined"}, 30, 0}};
   return table;
 }
@@ -158,7 +158,6 @@ void wireStackTable(const std::vector<GlyphInstance*>& group, const StackTable& 
     }
   }
 }
-
 
 }  // namespace
 
@@ -464,7 +463,6 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     for (auto& c : xpbdConstraints) {
       c->project(solverContext, dt);
     }
-
     // Lane/stack/placement projections can move marks beyond the old candidate
     // horizon. Build candidate pairs from the updated world geometry.
     SweepBroadphase(glyphs, P).findPairs(pairs);
@@ -520,10 +518,30 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     if (!P.toggles.reportSoftResiduals) {
       std::erase_if(*outViolations, [](const auto& v) { return v.kind == ViolationKind::Soft; });
     }
-    // These checks remain active even when the corresponding force is off.
+    // The optional audit is independent of the corresponding force switches.
     // Geometric ownership warnings are retained regardless of the soft-target
     // preference switch: they indicate placement ambiguity, not a tuning goal.
-    collectPlacementViolations(solverContext, *outViolations);
+    if (P.toggles.reportPlacementAudit)
+      collectPlacementViolations(solverContext, *outViolations);
+
+    // Annotate only the final report. The convergence check above continues
+    // to evaluate raw hard residuals, independently of reporting allowances.
+    for (auto& v : *outViolations) {
+      if (v.type != ViolationType::BaseVicinity || v.glyphA < 0 ||
+          v.glyphA >= static_cast<int>(glyphs.size())) continue;
+      const auto& mark = glyphs[v.glyphA].get();
+      const auto bounds = mark.worldPolys.boundingAABB();
+      const bool dots = classifyMark(mark) == MarkRole::Dots;
+      const double percent = dots ? P.baseVicinityDotTolerancePercent : P.baseVicinityMarkTolerancePercent;
+      const double width = std::max(0.0, bounds.maxx - bounds.minx);
+      v.allowedResidual = width * (std::isfinite(percent) ? std::clamp(percent, 0.0, 100.0) : 0.0) / 100.0;
+      const auto baseBounds = mark.prevBase->worldPolys.boundingAABB();
+      const bool left = v.marker[0].x < 0.5 * (baseBounds.minx + baseBounds.maxx);
+      if (v.detail.empty())
+        v.detail = std::string(left ? "Left" : "Right") +
+            " horizontal overflow beyond owning base footprint + margin";
+      v.detail += std::string("; ") + (dots ? "dot" : "mark") + " reporting tolerance applied";
+    }
 
     // Drop residual-scale entries (see OptParams::minViolationSeverity):
     // constraints are solved iteratively and rarely land on an exact C=0, so
@@ -531,7 +549,9 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     // unit "violations" that are really just XPBD's convergence noise floor,
     // not something a font designer should act on.
     std::erase_if(*outViolations, [&](const ConstraintViolation& v) {
-      return !v.structural && v.severity < P.minViolationSeverity;
+      return !v.structural &&
+          ((v.type == ViolationType::BaseVicinity && v.severity <= v.allowedResidual) ||
+           violationReportSeverity(v) < P.minViolationSeverity);
     });
   }
 }

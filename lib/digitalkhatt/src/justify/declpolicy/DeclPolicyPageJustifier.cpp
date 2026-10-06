@@ -44,6 +44,49 @@ class ShapingLineBackend final : public decl::LineJustificationBackend {
   double measure(const vector<runtime::TextFontFeatures>& candidateFeatures, const vector<runtime::TextFontFeatures>& currentFeatures, double currentWidth) override {
     return currentWidth + measureCached(candidateFeatures) - measureCached(currentFeatures);
   }
+  bool restoreShrunkSpaces(const vector<runtime::TextFontFeatures>& candidateFeatures,
+                          double amount, std::map<int, double>& additions) override {
+    // Shrink recipes use global features. A backend carrying native per-site
+    // assignments must measure those as well before restoring any spaces.
+    if (!info_.fontFeatures.empty() || !info_.baselineFeatures.empty() || !info_.substitutions.empty()) return false;
+    const auto originalSpaces = spaceWidths(info_.recognitionBuffer);
+    auto capacities = shapedSpaceWidths(candidateFeatures);
+    double totalCapacity = 0.0;
+    for (auto& [cluster, capacity] : capacities) {
+      const auto original = originalSpaces.find(cluster);
+      capacity = original == originalSpaces.end() ? 0.0 : std::max(0.0, original->second - capacity);
+      totalCapacity += capacity;
+    }
+    if (!std::isfinite(amount) || amount <= 0.0 || totalCapacity < amount) return false;
+    const double ratio = amount / totalCapacity;
+    std::erase_if(capacities, [](const auto& entry) { return entry.second == 0.0; });
+    for (auto& [cluster, capacity] : capacities) capacity *= ratio;
+    additions = std::move(capacities);
+    return true;
+  }
+  double reduceSpaces(const vector<runtime::TextFontFeatures>& globalFeatures,
+                      double amount, double minimumRatio, std::map<int, double>& adjustments) override {
+    if (!std::isfinite(amount) || amount <= 0.0) return 0.0;
+    const auto originalSpaces = spaceWidths(info_.recognitionBuffer);
+    auto capacities = shapedSpaceWidths(globalFeatures);
+    double totalCapacity = 0.0;
+    for (auto& [cluster, capacity] : capacities) {
+      const auto original = originalSpaces.find(cluster);
+      const auto adjustment = adjustments.find(cluster);
+      if (adjustment != adjustments.end()) capacity += adjustment->second;
+      // A font feature may already have narrowed a space below the floor.
+      // Such a space receives no further reduction.
+      capacity = original == originalSpaces.end() ? 0.0 :
+          std::max(0.0, capacity - original->second * minimumRatio);
+      totalCapacity += capacity;
+    }
+    if (totalCapacity <= 0.0) return 0.0;
+    const double reduction = std::min(amount, totalCapacity);
+    const double ratio = reduction / totalCapacity;
+    for (const auto& [cluster, capacity] : capacities)
+      if (capacity > 0.0) adjustments[cluster] -= capacity * ratio;
+    return reduction;
+  }
   double applyStage(std::span<const PolicyPhase> phases, const vector<runtime::TextFontFeatures>& globalFeatures, double currentWidth) override {
     measuredWidths_.clear();
     synchronizeGlobalFeatures(globalFeatures);
@@ -60,6 +103,39 @@ class ShapingLineBackend final : public decl::LineJustificationBackend {
   }
 
  private:
+  std::map<int, double> shapedSpaceWidths(const vector<runtime::TextFontFeatures>& globalFeatures) const {
+    vector<hb_feature_t> features;
+    vector<runtime::GlyphParameterAssignment> parameters;
+    for (const auto& feature : globalFeatures)
+      features.push_back({hb_tag_from_string(feature.name.c_str(), static_cast<int>(feature.name.size())),
+                          static_cast<std::uint32_t>(feature.value), 0u, static_cast<unsigned int>(-1)});
+    for (const auto& [cluster, substitute] : info_.substitutions)
+      parameters.push_back({static_cast<unsigned>(cluster), NoGlyphAxis, 0, substitute});
+    for (const auto& [cluster, values] : runtime::resolvedJustificationFeatures(info_)) {
+      for (const auto& value : values) {
+        if (value.axis != NoGlyphAxis)
+          parameters.push_back({static_cast<unsigned>(cluster), value.axis, value.value, static_cast<hb_codepoint_t>(-1)});
+        else
+          features.push_back({hb_tag_from_string(value.name.c_str(), static_cast<int>(value.name.size())),
+                              static_cast<std::uint32_t>(value.value), static_cast<unsigned>(cluster), static_cast<unsigned>(cluster + 1)});
+      }
+    }
+    runtime::ShapingBuffer buffer(shapeForMeasurement(text_.lineText, info_.font, features, &layout_, parameters));
+    return spaceWidths(buffer.get());
+  }
+
+  std::map<int, double> spaceWidths(hb_buffer_t* buffer) const {
+    std::map<int, double> widths;
+    unsigned count = 0;
+    const auto* glyphs = hb_buffer_get_glyph_infos(buffer, &count);
+    const auto* positions = hb_buffer_get_glyph_positions(buffer, &count);
+    for (unsigned index = 0; index < count; ++index) {
+      const int cluster = static_cast<int>(glyphs[index].cluster);
+      if (text_.spaces.contains(cluster)) widths[cluster] += positions[index].x_advance;
+    }
+    return widths;
+  }
+
   void synchronizeGlobalFeatures(const vector<runtime::TextFontFeatures>& globalFeatures) {
     if (info_.globalFeatures == globalFeatures) return;
     info_.globalFeatures = globalFeatures;

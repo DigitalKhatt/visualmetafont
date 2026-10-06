@@ -2049,6 +2049,7 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
     settings.force = applyForce;
     settings.tajweed = tajweedEnabled;
     settings.xpbd = m_solverParams;
+    settings.summaryLimit = m_solverParams.reportMaxFindings;
     settings.report = m_solverParams.toggles.reportViolations;
     const auto databasePath = QSqlDatabase::database().databaseName();
     if (QFileInfo(databasePath).isFile()) settings.database = QFileInfo(databasePath).absoluteFilePath().toStdString();

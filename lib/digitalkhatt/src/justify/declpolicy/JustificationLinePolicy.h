@@ -12,6 +12,15 @@ class LineJustificationBackend {
  public:
   virtual ~LineJustificationBackend() = default;
   virtual double measure(const std::vector<runtime::TextFontFeatures>& candidateFeatures, const std::vector<runtime::TextFontFeatures>& currentFeatures, double currentWidth) = 0;
+  // Accept an undershooting trial only if its narrowed spaces can absorb the
+  // excess shrink without exceeding their original advances. No mutation on
+  // failure; additions are expressed in the measurement em by source cluster.
+  virtual bool restoreShrunkSpaces(const std::vector<runtime::TextFontFeatures>&,
+                                  double, std::map<int, double>&) { return false; }
+  // Remove up to the requested width from spaces, bounded by a fraction of
+  // each original advance. Return the actual reduction in measurement units.
+  virtual double reduceSpaces(const std::vector<runtime::TextFontFeatures>&,
+                              double, double, std::map<int, double>&) { return 0.0; }
   virtual double applyStage(std::span<const PolicyPhase> phases, const std::vector<runtime::TextFontFeatures>& globalFeatures, double currentWidth) = 0;
   virtual double measureSclx(float value) = 0;
 };

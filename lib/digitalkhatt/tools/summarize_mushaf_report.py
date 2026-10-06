@@ -27,9 +27,10 @@ def summarize(csv_path, manifest_path):
                     counters[key][row['type']] += 1
             category = row['type'] if row['type'] in ('MarkSide', 'BaseAssociation', 'MarkClassification', 'InvalidPlacement', 'PlacementRejected') else row['detail']
             if category and len(examples[category]) < 8:
-                examples[category].append({key: row[key] for key in ('page', 'lineA', 'lineB', 'glyphA_name', 'glyphB_name', 'wordA', 'wordB', 'severity', 'initial_severity', 'introduced', 'worsened', 'detail')})
-    if total != manifest['statistics']['findings']:
-        raise ValueError(f'CSV has {total} rows; manifest expects {manifest["statistics"]["findings"]}')
+                examples[category].append({key: row[key] for key in ('page', 'lineA', 'lineB', 'wordA_number', 'wordB_number', 'glyphA_name', 'glyphB_name', 'wordA', 'wordB', 'severity', 'report_severity', 'report_rank', 'initial_severity', 'introduced', 'worsened', 'detail') if key in row})
+    expected = manifest['statistics'].get('reportedFindings', manifest['statistics']['findings'])
+    if total != expected:
+        raise ValueError(f'CSV has {total} rows; manifest expects {expected} retained findings')
     return {'complete': True, 'configuration': manifest['options'], 'coverage': manifest['statistics'],
             'counts': {key: dict(value) for key, value in counters.items()}, 'examples': dict(examples),
             'interpretation': 'In historical reports, PlacementRejected records a restored candidate. Current XPBD has no additional placement clamps or contact rollback. Minimum gap warnings include clearance targets. Contacts use unsplit mark component hulls and decomposed bases, not exact filled ink; ownership and side diagnostics also require visual review.'}

@@ -9,6 +9,7 @@
 
 #include "digitalkhatt/geometry/geometry.h"
 #include "digitalkhatt/layout/ConstraintViolation.h"
+#include "digitalkhatt/layout/OptParams.h"
 
 // PDF-Writer / PDFHummus
 #include "PDFWriter.h"
@@ -44,6 +45,7 @@ class ViolationReportWriter {
     std::shared_ptr<const geometry::GeometrySet> ownedGeometry;
     std::string wordText;
     int cluster = -1;
+    int wordNumber = 0;  // 1-based, source word within its line
   };
 
   // One diagnostic page. `glyphs` is indexed by GlyphInstance::globalIndex so
@@ -60,32 +62,65 @@ class ViolationReportWriter {
   // skipped). Returns true on success.
   bool write(const std::vector<Page>& pages,
              const std::filesystem::path& pdfPath,
-             const std::filesystem::path& logPath);
+             const std::filesystem::path& logPath,
+             const layout::OptParams& params = {});
 
-  bool start(const std::filesystem::path& pdfPath, const std::filesystem::path& logPath);
+  bool start(const std::filesystem::path& pdfPath, const std::filesystem::path& logPath,
+             const layout::OptParams& params = {});
+  // Collect globally ranked findings. Geometry for retained pages is owned
+  // here, so a streaming caller may release its solved page immediately.
   bool appendPage(const Page& page);
   bool finish();
 
-  // One row of the severity-ordered summary report: the caller resolves
-  // page/line number and the participating words and owning bases for the
-  // violation (word-boundary detection needs Qt-side glyph-name/text
-  // knowledge this class doesn't otherwise depend on).
+  // One summary row with both participants' words and owning bases.
+  // summaryEntries() derives this context from the retained page's glyphs.
   struct WordEntry {
     int pageNumber = 0;  // 1-based, for display
     int lineNumber = 0;  // 1-based, for display
     int otherLineNumber = 0;
     digitalkhatt::layout::ConstraintViolation violation;
     std::vector<GlyphRef> wordGlyphs;  // participating words and owning bases
+    int wordNumber = 0, otherWordNumber = 0;
+    std::size_t rank = 0;  // matches CSV report_rank and both PDF summaries
   };
 
-  // Severity-ordered (descending) index of every violation across all pages:
+  // Ordered index of retained violations across all pages:
   // one row per violation with page number, line number, constraint type and
   // severity, plus a small rendering of the participating words and bases.
-  // Complements write()'s per-page overview. `entries` is sorted in place.
+  // Critical structural errors and structural review warnings have separate
+  // sections from geometric residuals. `entries` is sorted in place.
   bool writeSummary(std::vector<WordEntry>& entries, const std::filesystem::path& pdfPath,
                     const std::vector<std::string>& notes = {});
 
+  // Dense visual index: 30 vector word-context crops per landscape A4 page.
+  bool writeCompact(std::vector<WordEntry>& entries, const std::filesystem::path& pdfPath,
+                    const std::vector<std::string>& notes = {});
+
+  // Self-contained offline viewer with vector contexts, filters and review status.
+  bool writeWeb(const std::vector<WordEntry>& entries, const std::filesystem::path& htmlPath,
+                const std::vector<std::string>& notes = {}) const;
+
+  // Available after finish(); uses exactly the CSV/overview selection/order.
+  std::vector<WordEntry> summaryEntries() const;
+  std::size_t selectedCount() const { return m_selected.size(); }
+  std::size_t eligibleCount() const { return m_eligibleCount; }
+
  private:
+  struct Finding {
+    std::shared_ptr<Page> page;
+    layout::ConstraintViolation violation;
+    std::size_t sequence = 0;
+    int pageNumber = 0;
+  };
+  bool precedes(const Finding& a, const Finding& b) const;
+  bool drawPage(const Page& page);
+  void writeCsvFinding(const Finding& finding, std::size_t rank);
+
+  layout::OptParams m_params;
+  std::vector<Finding> m_selected;  // worst-first heap until finish()
+  std::size_t m_sequence = 0;
+  std::size_t m_eligibleCount = 0;
+  std::vector<std::string> m_notes;
   PDFWriter m_writer;
   std::ofstream m_log;
   PDFUsedFont* m_labelFont = nullptr;

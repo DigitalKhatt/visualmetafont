@@ -25,7 +25,7 @@ struct MushafRunOptions {
   bool force = false, tajweed = false, notice = true;
   bool report = false, pdf = true;
   int firstPage = 1, lastPage = 0;
-  int summaryLimit = 1000;
+  int summaryLimit = 1000;  // legacy alias of xpbd.reportMaxFindings in snapshots
   layout::OptParams xpbd;
 };
 

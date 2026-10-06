@@ -6,8 +6,19 @@
 
 #include "digitalkhatt/layout/ConstraintViolation.h"
 #include "digitalkhatt/layout/GlyphInstance.h"
+#include "digitalkhatt/core/digitalkahtt_types.h"
 
 namespace digitalkhatt::layout {
+
+// One-based, space-delimited source word within a line, in reading order.
+// Use UTF-16 source clusters so ligatures and mark glyphs do not alter numbering.
+inline int violationWordNumber(TextView text, int cluster) {
+  if (cluster < 0 || cluster >= static_cast<int>(text.size()) || text[cluster] == u' ') return 0;
+  int word = 0;
+  for (int i = 0; i <= cluster; ++i)
+    if (text[i] != u' ' && (i == 0 || text[i - 1] == u' ')) ++word;
+  return word;
+}
 
 // Include both participants and their owning bases, expanding each seed to its
 // entire word. Cross-word/line diagnostics must show the competing attachment.

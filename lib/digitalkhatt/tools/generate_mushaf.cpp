@@ -8,7 +8,6 @@
 #include <iostream>
 #include <map>
 #include <memory>
-#include <queue>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -41,7 +40,10 @@ template<class T> void readJson(T& value, const fs::path& path) {
   // Accept older GUI snapshots without keeping the removed solver option.
   // Other unknown fields still fail the normal strict configuration reader.
   if constexpr (std::is_same_v<T, MushafRunOptions> || std::is_same_v<T, OptParams>) {
-    if (data.find("preserveMarkSemantics") != std::string::npos) {
+    if (data.find("preserveMarkSemantics") != std::string::npos ||
+        data.find("waqfBaseVicinity") != std::string::npos ||
+        data.find("waqfInterLineGap") != std::string::npos ||
+        data.find("waqfStackGap") != std::string::npos) {
       glz::generic_i64 document;
       if (const auto error = glz::read_json(document, data))
         throw std::runtime_error("Invalid JSON in " + path.string() + ": " + glz::format_error(error, data));
@@ -54,7 +56,21 @@ template<class T> void readJson(T& value, const fs::path& path) {
       auto* xpbd = &document;
       if constexpr (std::is_same_v<T, MushafRunOptions>) xpbd = child(xpbd, "xpbd");
       auto* toggles = child(xpbd, "toggles");
-      if (toggles && toggles->is_object() && toggles->get_object().erase("preserveMarkSemantics")) {
+      bool changed = false;
+      if (toggles && toggles->is_object()) {
+        changed |= toggles->get_object().erase("preserveMarkSemantics") != 0;
+        changed |= toggles->get_object().erase("waqfBaseVicinity") != 0;
+      }
+      if (xpbd && xpbd->is_object()) {
+        for (const auto* key : {"waqfBaseVicinityMarginFactor", "waqfInterLineGap", "waqfStackGap"})
+          changed |= xpbd->get_object().erase(key) != 0;
+      }
+      auto* compliance = child(xpbd, "compliance");
+      if (compliance && compliance->is_object()) {
+        changed |= compliance->get_object().erase("waqfBaseVicinityLeft") != 0;
+        changed |= compliance->get_object().erase("waqfBaseVicinityRight") != 0;
+      }
+      if (changed) {
         data.clear();
         if (glz::write_json(document, data)) throw std::runtime_error("Cannot normalize " + path.string());
       }
@@ -62,6 +78,12 @@ template<class T> void readJson(T& value, const fs::path& path) {
   }
   if (const auto error = glz::read_json(value, data))
     throw std::runtime_error("Invalid JSON in " + path.string() + ": " + glz::format_error(error, data));
+  if constexpr (std::is_same_v<T, MushafRunOptions>) {
+    // Older snapshots limited only the summary. Carry that setting into the
+    // shared report selection unless the new field is explicitly present.
+    if (data.find("\"summaryLimit\"") != std::string::npos && data.find("\"reportMaxFindings\"") == std::string::npos)
+      value.xpbd.reportMaxFindings = value.summaryLimit;
+  }
 }
 template<class T> void writeJson(const T& value, const fs::path& path) {
   std::string text;
@@ -154,6 +176,7 @@ std::vector<TextString> loadCorpus(const MushafRunOptions& options) {
 struct Statistics {
   uint64_t pages=0, lines=0, glyphs=0, marks=0, findings=0, hard=0, soft=0, introduced=0, worsened=0;
   uint64_t surahHeaders=0, basmalaLines=0, sajdaStarts=0, sajdaEnds=0;
+  uint64_t reportedFindings=0, eligibleFindings=0;
   std::map<std::string,uint64_t> byType, initialByType, introducedByType, worsenedByType;
 };
 struct RunManifest {
@@ -163,15 +186,12 @@ struct RunManifest {
   Statistics statistics;
   double seconds=0;
 };
-struct EntryOrder {
-  bool operator()(const Report::WordEntry& a,const Report::WordEntry& b) const { return violationPrecedes(a.violation,b.violation); }
-};
-Report::GlyphRef glyphRef(const GlyphInstance& g,const std::vector<TextString>& text,bool own) {
+Report::GlyphRef glyphRef(const GlyphInstance& g,const std::vector<TextString>& text) {
   Report::GlyphRef result{&g.worldPolys,g.glyphName,g.globalIndex,g.isMark&&g.prevBase?g.prevBase->globalIndex:-1,g.lineIndex+1,g.dx,g.dy};
-  if (own) { result.ownedGeometry=std::make_shared<geometry::GeometrySet>(g.worldPolys); result.worldPolys=result.ownedGeometry.get(); }
   if (g.glyphLayout && g.lineIndex>=0 && g.lineIndex<static_cast<int>(text.size())) {
     result.cluster=g.glyphLayout->cluster;
     const auto& line=text[g.lineIndex];
+    result.wordNumber=violationWordNumber(line,result.cluster);
     if (result.cluster>=0 && result.cluster<static_cast<int>(line.size())) {
       size_t begin=result.cluster, end=result.cluster;
       while (begin && line[begin-1]!=u' ') --begin;
@@ -195,16 +215,24 @@ void usage() {
       "  --stretch-policy NAME      Declarative stretch policy override\n"
       "  --shrink-policy NAME       Declarative shrink policy override\n"
       "  --force / --no-force       Enable/disable XPBD (default matches GUI: off)\n"
-      "  --report / --no-report     Generate violation PDF, CSV and summary\n"
+      "  --report / --no-report     Generate PDFs, CSV and offline web viewer\n"
       "  --xpbd-config PATH         Partial/full OptParams JSON\n"
       "  --soft-targets             Include optional soft residuals\n"
+      "  --report-generic-gap / --no-report-generic-gap  Include/exclude gap findings (default off)\n"
+      "  --placement-audit / --no-placement-audit  Include/exclude final side/class/owner audit (default off)\n"
+      "  --min-severity N           Minimum residual beyond allowed slack (default 1)\n"
+      "  --base-vicinity-mark-tolerance N  Reporting slack in percent of mark width (default 5)\n"
+      "  --base-vicinity-dot-tolerance N   Reporting slack in percent of dot width (default 0)\n"
+      "  --report-limit N           Highest-ranked findings across all report outputs (default 1000; 0 unlimited)\n"
+      "  --report-sort MODE         severity (default) or priority; critical structural findings first\n"
+      "  --only-changed / --all-findings  New/worsened plus structural, or all eligible findings\n"
       "  --line-spacing N           Baseline distance in font units\n"
       "  --text-width N             Text width in font units\n"
       "  --em-scale N               GUI font size percentage / 100\n"
       "  --tajweed / --no-tajweed   Tajweed coloring\n"
       "  --disable-lookup NAME      Disable a lookup; repeatable\n"
       "  --pages A[-B]              Inclusive range; default all corpus pages\n"
-      "  --summary-limit N          Highest priority rows in summary (default 1000); CSV covers all findings\n"
+      "  --summary-limit N          Legacy alias for --report-limit\n"
       "  --database PATH           Quran SQLite database\n"
       "  --features PATH           Font feature file (default features.fea)\n"
       "  --resources DIR           MetaPost resource directory\n"
@@ -245,7 +273,11 @@ int main(int argc,char** argv) {
       else if (arg=="--line-spacing") options.lineSpacing=std::stoi(value());
       else if (arg=="--text-width") options.textWidth=std::stoi(value());
       else if (arg=="--em-scale") options.emScale=std::stod(value());
-      else if (arg=="--summary-limit") options.summaryLimit=std::stoi(value());
+      else if (arg=="--summary-limit" || arg=="--report-limit") options.xpbd.reportMaxFindings=std::stoi(value());
+      else if (arg=="--report-sort") options.xpbd.reportSort=value();
+      else if (arg=="--min-severity") options.xpbd.minViolationSeverity=std::stod(value());
+      else if (arg=="--base-vicinity-mark-tolerance") options.xpbd.baseVicinityMarkTolerancePercent=std::stod(value());
+      else if (arg=="--base-vicinity-dot-tolerance") options.xpbd.baseVicinityDotTolerancePercent=std::stod(value());
       else if (arg=="--database") options.database=value();
       else if (arg=="--features") options.features=value();
       else if (arg=="--resources") options.resources=value();
@@ -260,6 +292,12 @@ int main(int argc,char** argv) {
       else if (arg=="--tajweed") options.tajweed=true;
       else if (arg=="--no-tajweed") options.tajweed=false;
       else if (arg=="--soft-targets") options.xpbd.toggles.reportSoftResiduals=true;
+      else if (arg=="--report-generic-gap") options.xpbd.toggles.reportGenericGap=true;
+      else if (arg=="--no-report-generic-gap") options.xpbd.toggles.reportGenericGap=false;
+      else if (arg=="--placement-audit") options.xpbd.toggles.reportPlacementAudit=true;
+      else if (arg=="--no-placement-audit") options.xpbd.toggles.reportPlacementAudit=false;
+      else if (arg=="--only-changed") options.xpbd.reportOnlyChanged=true;
+      else if (arg=="--all-findings") options.xpbd.reportOnlyChanged=false;
       else if (arg=="--no-notice") options.notice=false;
       else if (arg=="--no-pdf") options.pdf=false;
       else if (arg=="--pages") {
@@ -274,9 +312,15 @@ int main(int argc,char** argv) {
     if (options.layout=="qpc" || options.layout=="v2" || options.layout=="v2_layout") options.layout="qpc_v2_layout";
     if (options.layout=="v1" || options.layout=="v1_layout") options.layout="qpc_v1_layout";
     if (options.layout=="v4" || options.layout=="v4_layout") options.layout="qpc_v4_layout";
-    if (options.summaryLimit<1 || options.xpbd.maxIters<0 || options.xpbd.maxIters>10000 ||
+    if (options.xpbd.reportMaxFindings<0 || options.xpbd.maxIters<0 || options.xpbd.maxIters>10000 ||
+        !std::isfinite(options.xpbd.minViolationSeverity) || options.xpbd.minViolationSeverity<0 ||
+        !std::isfinite(options.xpbd.baseVicinityMarkTolerancePercent) || options.xpbd.baseVicinityMarkTolerancePercent<0 || options.xpbd.baseVicinityMarkTolerancePercent>100 ||
+        !std::isfinite(options.xpbd.baseVicinityDotTolerancePercent) || options.xpbd.baseVicinityDotTolerancePercent<0 || options.xpbd.baseVicinityDotTolerancePercent>100 ||
         !std::isfinite(options.emScale) || options.emScale<=0 || options.emScale>5 ||
         options.textWidth<1 || options.textWidth>100000) throw std::runtime_error("Invalid numeric option");
+    if (options.xpbd.reportSort != "severity" && options.xpbd.reportSort != "priority")
+      throw std::runtime_error("--report-sort must be severity or priority");
+    options.summaryLimit=options.xpbd.reportMaxFindings;
     options.font=fs::absolute(options.font).string();
     for (auto* path:{&options.database,&options.resources,&options.pdfResources}) if (!path->empty()) *path=fs::absolute(*path).string();
     if (options.database.empty()) options.database=DIGITALKHATT_QURAN_DATABASE;
@@ -334,12 +378,14 @@ int main(int argc,char** argv) {
       mushaf=std::make_unique<digitalkhatt::pdf::MushafPdfWriter>(layout,pdfOptions); mushaf->start();
     }
     Report report;
-    if (options.report && !report.start(sidecar("_violations.pdf"),sidecar("_violations.csv"))) throw std::runtime_error("Cannot start violation report");
-    std::priority_queue<Report::WordEntry,std::vector<Report::WordEntry>,EntryOrder> selected;
+    if (options.report && !report.start(sidecar("_violations.pdf"),sidecar("_violations.csv"),options.xpbd)) throw std::runtime_error("Cannot start violation report");
     const std::vector<std::string> notes={
         "Configuration: "+options.layout+"; "+options.justifier+"; "+options.style+"; spacing "+std::to_string(options.lineSpacing)+"; Force "+(options.force?"on":"off"),
         "Blue dashed: shaped position. Red: hard finding. Amber: review. NEW/WORSE compares the same shaped page.",
-        "Generic gaps: "+std::string(options.xpbd.toggles.reportGenericGap?"on":"off")+"; soft targets: "+(options.xpbd.toggles.reportSoftResiduals?"on":"off")+"; cutoff "+std::to_string(options.xpbd.minViolationSeverity)};
+        "Placement audit (side, class, owner): "+std::string(options.xpbd.toggles.reportPlacementAudit?"on":"off"),
+        "Generic gaps: "+std::string(options.xpbd.toggles.reportGenericGap?"on":"off")+"; soft targets: "+(options.xpbd.toggles.reportSoftResiduals?"on":"off")+"; minimum excess severity "+std::to_string(options.xpbd.minViolationSeverity),
+        "Sort: "+options.xpbd.reportSort+"; maximum findings: "+std::to_string(options.xpbd.reportMaxFindings)+" (0 unlimited); only changed (plus structural): "+(options.xpbd.reportOnlyChanged?"on":"off"),
+        "BaseVicinity reporting tolerance (% of mark width): marks "+std::to_string(options.xpbd.baseVicinityMarkTolerancePercent)+"; dots "+std::to_string(options.xpbd.baseVicinityDotTolerancePercent)};
     bool newFace=true; int surah=0;
     for (int p=1;p<=options.lastPage;++p) {
       const auto text=splitMushafLines(pages[p-1]);
@@ -365,24 +411,14 @@ int main(int argc,char** argv) {
       for (const auto& v:solved.initialViolations) ++statistics.initialByType[violationTypeName(v.type)];
       if (options.report) {
         Report::Page page; page.pageNumber=p; page.notes=notes; page.violations=solved.violations;
-        std::vector<GlyphInstance*> flat; std::vector<int> starts;
         for (auto& line:solved.glyphs) {
-          starts.push_back(static_cast<int>(flat.size()));
-          for (auto& g:line) { flat.push_back(&g); page.glyphs.push_back(glyphRef(g,text,false)); }
+          for (auto& g:line) page.glyphs.push_back(glyphRef(g,text));
         }
-        starts.push_back(static_cast<int>(flat.size()));
         for (const auto& v:solved.violations) {
           ++statistics.findings; ++statistics.byType[violationTypeName(v.type)];
           if (v.kind==ViolationKind::Hard) ++statistics.hard; else ++statistics.soft;
           if (v.introduced) { ++statistics.introduced; ++statistics.introducedByType[violationTypeName(v.type)]; }
           if (v.worsened) { ++statistics.worsened; ++statistics.worsenedByType[violationTypeName(v.type)]; }
-          if (static_cast<int>(selected.size())>=options.summaryLimit && !violationPrecedes(v,selected.top().violation)) continue;
-          if (static_cast<int>(selected.size())>=options.summaryLimit) selected.pop();
-          Report::WordEntry entry; entry.pageNumber=p; entry.violation=v;
-          if (v.glyphA>=0 && v.glyphA<static_cast<int>(flat.size())) entry.lineNumber=flat[v.glyphA]->lineIndex+1;
-          if (v.glyphB>=0 && v.glyphB<static_cast<int>(flat.size())) entry.otherLineNumber=flat[v.glyphB]->lineIndex+1;
-          for (int index:violationContextIndices(flat,starts,v)) entry.wordGlyphs.push_back(glyphRef(*flat[index],text,true));
-          selected.push(std::move(entry));
         }
         if (!report.appendPage(page)) throw std::runtime_error("Cannot write violation page "+std::to_string(p));
       }
@@ -392,11 +428,14 @@ int main(int argc,char** argv) {
     if (mushaf) mushaf->finish();
     if (options.report) {
       if (!report.finish()) throw std::runtime_error("Cannot finalize violation report");
-      std::vector<Report::WordEntry> summary;
-      while (!selected.empty()) { summary.push_back(selected.top()); selected.pop(); }
+      auto summary=report.summaryEntries();
+      manifest.statistics.reportedFindings=report.selectedCount();
+      manifest.statistics.eligibleFindings=report.eligibleCount();
       auto summaryNotes=notes;
-      summaryNotes.push_back("Summary: "+std::to_string(summary.size())+" selected rows of "+std::to_string(manifest.statistics.findings)+" findings; complete data is in CSV.");
+      summaryNotes.push_back("Selected "+std::to_string(summary.size())+" of "+std::to_string(report.eligibleCount())+" eligible findings; same selection as CSV and page overview.");
       if (!report.writeSummary(summary,sidecar("_violations_summary.pdf"),summaryNotes)) throw std::runtime_error("Cannot write violation summary");
+      if (!report.writeCompact(summary,sidecar("_violations_compact.pdf"),summaryNotes)) throw std::runtime_error("Cannot write compact violation report");
+      if (!report.writeWeb(summary,sidecar("_violations.html"),summaryNotes)) throw std::runtime_error("Cannot write web violation report");
     }
     for (const auto& [path,hash]:manifest.sources) if (checksum(path)!=hash) throw std::runtime_error("Source changed during run: "+path);
     manifest.complete=true;
@@ -404,6 +443,7 @@ int main(int argc,char** argv) {
     writeJson(manifest,sidecar(".run.json"));
     std::cout << "Completed " << manifest.statistics.pages << " pages in " << manifest.seconds << " seconds.\n";
     if (options.pdf) std::cout << "Mushaf: " << output << '\n';
+    if (options.report) std::cout << "Placement review: " << sidecar("_violations.html") << '\n';
     std::cout << "Run manifest: " << sidecar(".run.json") << '\n';
     return 0;
   } catch (const std::exception& error) { std::cerr << "Generate Mushaf: " << error.what() << '\n'; return 1; }

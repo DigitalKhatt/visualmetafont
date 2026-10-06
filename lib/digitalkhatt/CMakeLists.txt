@@ -277,7 +277,7 @@ set_target_properties(digitalkhatt_otlayout PROPERTIES
 if(NOT EMSCRIPTEN)
   find_library(DIGITALKHATT_SQLITE3_LIBRARY NAMES sqlite3 REQUIRED)
 
-  add_library(digitalkhatt_pdf src/pdf/ViolationReportWriter.cpp src/pdf/MushafPdfWriter.cpp)
+  add_library(digitalkhatt_pdf src/pdf/ViolationReportWriter.cpp src/pdf/ViolationReportWeb.cpp src/pdf/MushafPdfWriter.cpp)
   add_library(digitalkhatt::pdf ALIAS digitalkhatt_pdf)
   target_include_directories(digitalkhatt_pdf PUBLIC include)
   target_compile_features(digitalkhatt_pdf PUBLIC cxx_std_20)

@@ -103,6 +103,9 @@ struct JustResultByLine {
   double xScale;
   bool isShrink = false;
   double addedSpaceAfterShrink = 0.0;
+  // Signed per-space advance adjustments in the measurement em, by cluster.
+  // Restoration adds width; final bounded space reduction removes width.
+  std::map<int, double> spaceAdvanceAdjustments = {};
 };
 
 struct JustInfo {
