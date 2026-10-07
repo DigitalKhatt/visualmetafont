@@ -219,6 +219,11 @@ void usage() {
       "  --report / --no-report     Generate PDFs, CSV and offline web viewer\n"
       "  --xpbd-config PATH         Partial/full OptParams JSON\n"
       "  --soft-targets             Include optional soft residuals\n"
+      "  --report-waqf-bounds / --no-report-waqf-bounds  Solver height-bound residuals (default off)\n"
+      "  --waqf-left-drift-tolerance N   Allowed left drift, % of waqf width (default 100)\n"
+      "  --waqf-right-drift-tolerance N  Allowed right drift, % of waqf width (default 50)\n"
+      "  --waqf-previous-line-margin N  Margin below previous baseline, % of spacing (default 20)\n"
+      "  --waqf-x-alignment-band N   Inactive horizontal band, % of waqf width each side (default 25)\n"
       "  --report-generic-gap / --no-report-generic-gap  Include/exclude gap findings (default off)\n"
       "  --placement-audit / --no-placement-audit  Include/exclude final side/class/owner audit (default off)\n"
       "  --min-severity N           Minimum residual beyond allowed slack (default 1)\n"
@@ -279,6 +284,12 @@ int main(int argc,char** argv) {
       else if (arg=="--min-severity") options.xpbd.minViolationSeverity=std::stod(value());
       else if (arg=="--base-vicinity-mark-tolerance") options.xpbd.baseVicinityMarkTolerancePercent=std::stod(value());
       else if (arg=="--base-vicinity-dot-tolerance") options.xpbd.baseVicinityDotTolerancePercent=std::stod(value());
+      else if (arg=="--waqf-left-drift-tolerance") options.xpbd.waqfLeftDriftTolerancePercent=std::stod(value());
+      else if (arg=="--waqf-right-drift-tolerance") options.xpbd.waqfRightDriftTolerancePercent=std::stod(value());
+      else if (arg=="--waqf-previous-line-margin") options.xpbd.waqfPreviousLineMarginPercent=std::stod(value());
+      else if (arg=="--waqf-x-alignment-band") options.xpbd.waqfHorizontalAlignmentBandPercent=std::stod(value());
+      else if (arg=="--report-waqf-bounds") options.xpbd.toggles.reportWaqfBounds=true;
+      else if (arg=="--no-report-waqf-bounds") options.xpbd.toggles.reportWaqfBounds=false;
       else if (arg=="--database") options.database=value();
       else if (arg=="--features") options.features=value();
       else if (arg=="--resources") options.resources=value();
@@ -317,6 +328,10 @@ int main(int argc,char** argv) {
         !std::isfinite(options.xpbd.minViolationSeverity) || options.xpbd.minViolationSeverity<0 ||
         !std::isfinite(options.xpbd.baseVicinityMarkTolerancePercent) || options.xpbd.baseVicinityMarkTolerancePercent<0 || options.xpbd.baseVicinityMarkTolerancePercent>100 ||
         !std::isfinite(options.xpbd.baseVicinityDotTolerancePercent) || options.xpbd.baseVicinityDotTolerancePercent<0 || options.xpbd.baseVicinityDotTolerancePercent>100 ||
+        !std::isfinite(options.xpbd.waqfLeftDriftTolerancePercent) || options.xpbd.waqfLeftDriftTolerancePercent<0 || options.xpbd.waqfLeftDriftTolerancePercent>1000 ||
+        !std::isfinite(options.xpbd.waqfRightDriftTolerancePercent) || options.xpbd.waqfRightDriftTolerancePercent<0 || options.xpbd.waqfRightDriftTolerancePercent>1000 ||
+        !std::isfinite(options.xpbd.waqfPreviousLineMarginPercent) || options.xpbd.waqfPreviousLineMarginPercent<0 || options.xpbd.waqfPreviousLineMarginPercent>100 ||
+        !std::isfinite(options.xpbd.waqfHorizontalAlignmentBandPercent) || options.xpbd.waqfHorizontalAlignmentBandPercent<0 || options.xpbd.waqfHorizontalAlignmentBandPercent>1000 ||
         !std::isfinite(options.emScale) || options.emScale<=0 || options.emScale>5 ||
         options.textWidth<1 || options.textWidth>100000) throw std::runtime_error("Invalid numeric option");
     if (options.xpbd.reportSort != "severity" && options.xpbd.reportSort != "priority")
@@ -386,7 +401,9 @@ int main(int argc,char** argv) {
         "Placement audit (side, class, owner): "+std::string(options.xpbd.toggles.reportPlacementAudit?"on":"off"),
         "Generic gaps: "+std::string(options.xpbd.toggles.reportGenericGap?"on":"off")+"; soft targets: "+(options.xpbd.toggles.reportSoftResiduals?"on":"off")+"; minimum excess severity "+std::to_string(options.xpbd.minViolationSeverity),
         "Sort: "+options.xpbd.reportSort+"; maximum findings: "+std::to_string(options.xpbd.reportMaxFindings)+" (0 unlimited); only changed (plus structural): "+(options.xpbd.reportOnlyChanged?"on":"off"),
-        "BaseVicinity reporting tolerance (% of mark width): marks "+std::to_string(options.xpbd.baseVicinityMarkTolerancePercent)+"; dots "+std::to_string(options.xpbd.baseVicinityDotTolerancePercent)};
+        "BaseVicinity reporting tolerance (% of mark width): marks "+std::to_string(options.xpbd.baseVicinityMarkTolerancePercent)+"; dots "+std::to_string(options.xpbd.baseVicinityDotTolerancePercent),
+        "Waqf allowed left/right drift (% of waqf width): "+std::to_string(options.xpbd.waqfLeftDriftTolerancePercent)+"/"+std::to_string(options.xpbd.waqfRightDriftTolerancePercent),
+        "Waqf previous-baseline margin (% of line spacing): "+std::to_string(options.xpbd.waqfPreviousLineMarginPercent)+"; solver bound residuals: "+(options.xpbd.toggles.reportWaqfBounds?"on":"off")};
     bool newFace=true; int surah=0;
     for (int p=1;p<=options.lastPage;++p) {
       const auto text=splitMushafLines(pages[p-1]);

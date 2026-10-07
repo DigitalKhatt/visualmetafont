@@ -298,7 +298,7 @@ bool ViolationReportWriter::start(const std::filesystem::path& pdfPath, const st
   m_notes.clear();
   m_log.open(logPath);
   if (!m_log) return false;
-  m_log << "page,type,kind,glyphA_index,glyphA_name,glyphB_index,glyphB_name,residual,severity,lineA,lineB,baseA_index,baseB_index,shiftA_x,shiftA_y,shiftB_x,shiftB_y,allowed_residual,structural,detail,initial_severity,introduced,worsened,wordA,wordB,clusterA,clusterB,report_rank,report_severity,wordA_number,wordB_number\n";
+  m_log << "page,type,kind,glyphA_index,glyphA_name,glyphB_index,glyphB_name,residual,severity,lineA,lineB,baseA_index,baseB_index,shiftA_x,shiftA_y,shiftB_x,shiftB_y,allowed_residual,structural,detail,initial_severity,introduced,worsened,wordA,wordB,clusterA,clusterB,report_rank,report_severity,wordA_number,wordB_number,diagnostic,waqf_horizontal_offset,waqf_allowed_left,waqf_allowed_right,waqf_top_above_baseline,waqf_below_previous_baseline,waqf_previous_line_margin,waqf_previous_ink_box_clearance\n";
   m_log << std::setprecision(12);
   PDFCreationSettings settings(true, true);
   if (m_writer.StartPDF(pdfPath.string(), ePDFVersion17, LogConfiguration::DefaultLogConfiguration(), settings) != eSuccess) return false;
@@ -368,7 +368,16 @@ void ViolationReportWriter::writeCsvFinding(const Finding& finding, std::size_t 
           << v.residual << ',' << v.severity << ',' << a.lineNumber << ',' << b.lineNumber << ','
           << a.baseGlobalIndex << ',' << b.baseGlobalIndex << ',' << a.dx << ',' << a.dy << ',' << b.dx << ',' << b.dy << ','
           << v.allowedResidual << ',' << v.structural << ',' << csvText(v.detail) << ',' << v.initialSeverity << ','
-          << v.introduced << ',' << v.worsened << ',' << csvText(a.wordText) << ',' << csvText(b.wordText) << ',' << a.cluster << ',' << b.cluster << ',' << rank << ',' << violationReportSeverity(v) << ',' << a.wordNumber << ',' << b.wordNumber << '\n';
+          << v.introduced << ',' << v.worsened << ',' << csvText(a.wordText) << ',' << csvText(b.wordText) << ',' << a.cluster << ',' << b.cluster << ',' << rank << ',' << violationReportSeverity(v) << ',' << a.wordNumber << ',' << b.wordNumber << ',' << csvText(v.diagnostic);
+  if (v.waqf) {
+    const auto& m = *v.waqf;
+    m_log << ',' << m.horizontalOffset << ',' << m.allowedLeftDrift << ',' << m.allowedRightDrift << ',' << m.heightAboveBaseline;
+    for (const auto& value : {m.previousBaselineDistance, m.previousLineMargin, m.previousInkBoxClearance}) {
+      m_log << ',';
+      if (value) m_log << *value;
+    }
+  } else m_log << ",,,,,,,";
+  m_log << '\n';
 }
 
 bool ViolationReportWriter::drawPage(const Page& page) {
@@ -387,7 +396,7 @@ bool ViolationReportWriter::finish() {
   std::stable_sort(m_selected.begin(), m_selected.end(), [this](const Finding& a, const Finding& b) { return precedes(a, b); });
   std::map<int, Page> pages;
   const std::string selection = "Selected " + std::to_string(m_selected.size()) + " of " + std::to_string(m_eligibleCount) +
-      " eligible findings; sort " + m_params.reportSort + "; critical structural diagnostics first.";
+      " eligible findings; sort " + m_params.reportSort + "; critical structural, then waqf association findings first.";
   for (std::size_t i = 0; i < m_selected.size(); ++i) {
     const auto& finding = m_selected[i];
     writeCsvFinding(finding, i + 1);
@@ -567,7 +576,19 @@ bool ViolationReportWriter::writeSummary(std::vector<WordEntry>& entries, const 
       };
       ctx->WriteText(textX, rowTop - 66.0,
           "Assigned bases: A " + ownerOf(e.violation.glyphA) + "; B " + ownerOf(e.violation.glyphB), small);
-      const auto detailLines = wrapDetail(e.violation.detail);
+      auto detailLines = wrapDetail(e.violation.detail);
+      if (e.violation.waqf) {
+        const auto& m = *e.violation.waqf;
+        detailLines.clear();
+        std::snprintf(buf, sizeof(buf), "X offset: %.2f; allowed left/right: %.2f / %.2f", m.horizontalOffset, m.allowedLeftDrift, m.allowedRightDrift);
+        detailLines.emplace_back(buf);
+        std::snprintf(buf, sizeof(buf), "Top above own baseline: %.2f; %s", m.heightAboveBaseline, e.violation.diagnostic.c_str());
+        detailLines.emplace_back(buf);
+        if (m.previousBaselineDistance) {
+          std::snprintf(buf, sizeof(buf), "Below previous baseline: %.2f; margin: %.2f; box gap: %.2f", *m.previousBaselineDistance, *m.previousLineMargin, *m.previousInkBoxClearance);
+          detailLines.emplace_back(buf);
+        }
+      }
       for (size_t line = 0; line < std::min<size_t>(3, detailLines.size()); ++line)
         ctx->WriteText(textX, rowTop - 82.0 - 10.0 * line, detailLines[line], small);
     }

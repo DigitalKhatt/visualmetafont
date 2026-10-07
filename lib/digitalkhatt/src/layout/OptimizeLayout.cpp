@@ -243,7 +243,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
             P.compliance.waqfMax, P.compliance.waqfXAlign,
             /*minDistFromBaseline=*/700.0, /*minGapToBase=*/100.0,
             /*minGapToTopMarks=*/50.0, /*desiredExtraLift=*/0.0,
-            /*upperCeilingY=*/1400.0);
+            /*upperCeilingY=*/1400.0, P.waqfHorizontalAlignmentBandPercent);
         waqfPlacements.push_back(placement.get());
         xpbdConstraints.push_back(std::move(placement));
       }
@@ -523,6 +523,14 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     if (!P.toggles.reportSoftResiduals) {
       std::erase_if(*outViolations, [](const auto& v) { return v.kind == ViolationKind::Soft; });
     }
+    if (!P.toggles.reportWaqfBounds) {
+      std::erase_if(*outViolations, [](const auto& v) {
+        return v.type == ViolationType::WaqfBoundsResidual;
+      });
+    }
+    // Association diagnostics are collected only for reports. They neither
+    // participate in convergence nor depend on the soft-target/force switches.
+    collectWaqfPlacementViolations(solverContext, P, *outViolations);
     // The optional audit is independent of the corresponding force switches.
     // Geometric ownership warnings are retained regardless of the soft-target
     // preference switch: they indicate placement ambiguity, not a tuning goal.

@@ -3,6 +3,7 @@
 #include <array>
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <string>
 
 #include "digitalkhatt/geometry/geometry.h"
@@ -22,7 +23,8 @@ enum class ViolationType {
   BaseVicinity,     // mark horizontal leash overflow
   SqueezeCenter,    // per-obstacle min-gap breach under a squeezed mark
   Ylane,            // soft harakat band preference
-  WaqfPlacement,    // waqf bounds, preceding-line clearance or infeasible band
+  WaqfPlacement,    // horizontal ownership drift or preceding-line intrusion
+  WaqfBoundsResidual, // optional solver floor/ceiling or infeasible-band residual
   HorizontalOrder,  // world-ink mark ordering breach
   MarkSide,         // final mark on the wrong side of its base/baseline
   BaseAssociation,  // invalid owner, or new geometric ambiguity with a neighbor
@@ -47,6 +49,7 @@ inline const char* violationTypeName(ViolationType t) {
     case ViolationType::SqueezeCenter: return "SqueezeCenter";
     case ViolationType::Ylane: return "Ylane";
     case ViolationType::WaqfPlacement: return "WaqfPlacement";
+    case ViolationType::WaqfBoundsResidual: return "WaqfBoundsResidual";
     case ViolationType::HorizontalOrder: return "HorizontalOrder";
     case ViolationType::MarkSide: return "MarkSide";
     case ViolationType::BaseAssociation: return "BaseAssociation";
@@ -59,9 +62,20 @@ inline const char* violationTypeName(ViolationType t) {
   return "Unknown";
 }
 
+// Measurements in the same scaled world coordinates as glyph outlines.
+struct WaqfPlacementMeasurements {
+  int baseIndex = -1;
+  double horizontalOffset = 0.0; // left edge relative to own base; negative = left
+  double allowedLeftDrift = 0.0;
+  double allowedRightDrift = 0.0;
+  double heightAboveBaseline = 0.0; // waqf top, not bottom
+  std::optional<double> previousBaselineDistance; // positive = below previous line
+  std::optional<double> previousLineMargin;
+  std::optional<double> previousInkBoxClearance; // AABB distance, not exact ink gap
+};
+
 // One reported violation. Geometry (markers) is in worldPolys space so the
-// Qt-side writer can draw it with the same fit transform it uses for the
-// glyph outlines.
+// writer can draw it with the same fit transform it uses for the glyph outlines.
 struct ConstraintViolation {
   ViolationType type = ViolationType::GenericGap;
   ViolationKind kind = ViolationKind::Hard;
@@ -74,6 +88,8 @@ struct ConstraintViolation {
   double allowedResidual = 0.0;  // expected compliant slack, when applicable
   bool structural = false;     // classification/owner failures have no length unit
   std::string detail;
+  std::string diagnostic; // stable reason, independent of values in detail
+  std::optional<WaqfPlacementMeasurements> waqf;
   double initialSeverity = -1.0;  // negative: no corresponding shaped-position finding
   bool introduced = false;
   bool worsened = false;
@@ -94,6 +110,7 @@ inline int violationReviewPriority(const ConstraintViolation& v) {
   if (v.structural && v.kind == ViolationKind::Hard) priority += 400;
   if (v.type == ViolationType::MarkSide || v.type == ViolationType::InvalidPlacement) priority += 300;
   if (v.type == ViolationType::BaseAssociation) priority += 200;
+  if (v.type == ViolationType::WaqfPlacement) priority += 200;
   if (v.type == ViolationType::GenericGap &&
       (v.detail == "Ink intersection" || v.detail == "Collision-proxy intersection")) priority += 150;
   if (v.introduced || v.worsened) priority += 50;
@@ -115,8 +132,8 @@ inline double violationReportSeverity(const ConstraintViolation& v) {
   return std::max(0.0, v.severity - std::max(0.0, v.allowedResidual));
 }
 inline int violationReportGroup(const ConstraintViolation& v) {
-  if (!v.structural) return 1;
-  return v.kind == ViolationKind::Hard ? 0 : 2;
+  if (!v.structural) return v.type == ViolationType::WaqfPlacement ? 1 : 2;
+  return v.kind == ViolationKind::Hard ? 0 : 3;
 }
 inline bool violationReportPrecedes(const ConstraintViolation& a, const ConstraintViolation& b,
                                    const std::string& sort) {

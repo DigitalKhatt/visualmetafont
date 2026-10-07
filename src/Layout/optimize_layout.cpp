@@ -51,7 +51,11 @@ void LayoutWindow::optimizeLayout(LayoutPageList& pages, const OriginalPageList&
           .arg(flag(m_solverParams.reportOnlyChanged)).toStdString(),
       QString("BaseVicinity reporting tolerance (% of mark width): marks %1; dots %2")
           .arg(m_solverParams.baseVicinityMarkTolerancePercent)
-          .arg(m_solverParams.baseVicinityDotTolerancePercent).toStdString()};
+          .arg(m_solverParams.baseVicinityDotTolerancePercent).toStdString(),
+      QString("Waqf allowed left/right drift (% of waqf width): %1/%2")
+          .arg(m_solverParams.waqfLeftDriftTolerancePercent).arg(m_solverParams.waqfRightDriftTolerancePercent).toStdString(),
+      QString("Waqf previous-baseline margin (% of line spacing): %1; solver bound residuals: %2")
+          .arg(m_solverParams.waqfPreviousLineMarginPercent).arg(flag(toggles.reportWaqfBounds)).toStdString()};
   if (report) {
     QFileInfo fi(m_font->filePath());
     QDir().mkpath(fi.path() + "/output");

@@ -72,15 +72,24 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
   if (!force) options.maxIters = 0;
   optimizePage(result.glyphs, classes, options, report ? &result.violations : nullptr);
   if (report) {
-    using Key = std::tuple<ViolationType, int, int>;
-    std::map<Key, double> before;
+    using Key = std::tuple<ViolationType, int, int, std::string>;
+    const auto key = [](const ConstraintViolation& v) -> Key {
+      // The nearest previous-line glyph can change during solving. Association
+      // findings still refer to the same waqf, its owner, and the same axis.
+      return {v.type, v.glyphA, v.waqf ? v.waqf->baseIndex : v.glyphB, v.diagnostic};
+    };
+    // Keep the raw initial value for display, and the excess for association
+    // change detection (left/right allowances can differ).
+    std::map<Key, std::pair<double, double>> before;
     for (const auto& v : result.initialViolations)
-      before[{v.type, v.glyphA, v.glyphB}] = v.severity;
+      before[key(v)] = {v.severity, violationReportSeverity(v)};
     for (auto& v : result.violations) {
-      const auto prior = before.find({v.type, v.glyphA, v.glyphB});
-      if (prior != before.end()) v.initialSeverity = prior->second;
+      const auto prior = before.find(key(v));
+      if (prior != before.end()) v.initialSeverity = prior->second.first;
       v.introduced = force && prior == before.end();
-      v.worsened = force && prior != before.end() && v.severity > prior->second + params.tolCollision;
+      v.worsened = force && prior != before.end() &&
+          (v.waqf ? violationReportSeverity(v) > prior->second.second + params.tolCollision
+                  : v.severity > prior->second.first + params.tolCollision);
     }
   }
   if (force) {

@@ -7,6 +7,11 @@
 
 namespace digitalkhatt::layout {
 
+struct OptParams;
+// Read-only association diagnostics, independent of constraint force switches.
+void collectWaqfPlacementViolations(SolverContext& context, const OptParams& params,
+                                   std::vector<ConstraintViolation>& out);
+
 struct WaqfPlacementConstraint : XPBDConstraint {
   GlyphInstance& waqfMark;
 
@@ -24,20 +29,15 @@ struct WaqfPlacementConstraint : XPBDConstraint {
   // Upper bound on waqf TOP (usually from line above)
   double upperCeilingY = 0.0;
 
-  // ---------- Horizontal switching policy ----------
-  bool enableBelowMarkFallbackX = true;
-
-  // If free vertical band is below this, blend x target toward below mark
-  double tightBandThreshold = 80.0;
-
-  // If waqf top is this close to upperCeilingY, blend x target toward below mark
-  double upperPressureThreshold = 40.0;
+  // No alignment force inside this band around the leftmost ink edge of
+  // the base and its attached top marks (excluding waqf signs).
+  double xAlignmentBandPercent = 25.0;
 
   // ---------- Persistent XPBD state ----------
   double lambdaMin = 0.0;     // lower bound inequality
   double lambdaTarget = 0.0;  // target-height equality
   double lambdaMax = 0.0;     // upper bound inequality
-  double lambdaX = 0.0;       // horizontal equality
+  double lambdaX = 0.0;       // signed horizontal band multiplier
   const GlyphInstance* lowerBoundMark = nullptr;  // active above-stack floor
   bool lowerBoundAboveStack = false;
 
@@ -51,7 +51,8 @@ struct WaqfPlacementConstraint : XPBDConstraint {
       double minGapToBase_,
       double minGapToTopMarks_,
       double desiredExtraLift_,
-      double upperCeilingY_)
+      double upperCeilingY_,
+      double xAlignmentBandPercent_ = 25.0)
       : waqfMark(waqf),
         minCompliance(minCompliance_),
         targetCompliance(targetCompliance_),
@@ -61,16 +62,10 @@ struct WaqfPlacementConstraint : XPBDConstraint {
         minGapToBase(minGapToBase_),
         minGapToTopMarks(minGapToTopMarks_),
         desiredExtraLift(desiredExtraLift_),
-        upperCeilingY(upperCeilingY_) {
+        upperCeilingY(upperCeilingY_),
+        xAlignmentBandPercent(xAlignmentBandPercent_) {
     reportEnabled = true;
   }
-
-  // Choose a below mark belonging to the same base.
-  // Preference: closest in x to the waqf.
-  static GlyphInstance* chooseBelowMark(
-      GlyphInstance& waqfMark,
-      GlyphInstance* base,
-      std::vector<std::vector<GlyphInstance>>& pageGlyphs);
 
   void project(SolverContext& solverContext, double dt) override;
   void reportViolations(SolverContext& solverContext,

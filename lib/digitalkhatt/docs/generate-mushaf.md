@@ -75,6 +75,30 @@ overlap, the stronger bottom-above-top floor applies. Baseline/base visibility
 limits and the upper ceiling also bound the target. Solver and reporting use
 the same target calculation; there is no separate height-band parameter.
 
+The shared defaults use `compliance.waqfTarget = 5.0` and
+`compliance.waqfXAlign = 0.24`. The softer height target lets collision constraints
+move a waqf down beside its own stack. The GUI target control accepts 0–10;
+explicit values in saved GUI preferences and JSON snapshots override defaults.
+
+## Waqf horizontal alignment band
+
+Horizontal alignment prefers the leftmost ink edge among the owning base and
+its attached top marks (including dots and excluding waqf signs), with no force
+inside a band of 25% of the waqf's ink width on either side. Outside the band,
+the existing `waqfXAlign` compliance supplies a soft restoring force. Contacts
+can still move the waqf farther when needed; this is not a hard movement limit.
+The unilateral multiplier resets when the mark enters the band or crosses to
+the opposite side. There is no forced left relocation when a vertical stack
+exceeds its ceiling. The reference follows the current base/top-stack footprint;
+it does not subtract a whole waqf width to force a placement beside the stack.
+
+Set **X band (% width)** in the GUI's **Waqf placement** row, use
+`--waqf-x-alignment-band N`, or save `waqfHorizontalAlignmentBandPercent` under
+`xpbd`. A value of 0 requests exact soft left-edge alignment; larger values
+allow more free movement. This solver parameter is independent of the
+horizontal drift reporting tolerances below. Optional soft-target reporting
+measures only the excess outside the band.
+
 ## Filter and order the violation report
 
 The GUI's **Solver Tuning > Violation report** section and the CLI use the
@@ -144,6 +168,48 @@ These controls are saved under `xpbd` in the GUI snapshot: `minViolationSeverity
 The two BaseVicinity allowances are saved as
 `baseVicinityMarkTolerancePercent` and `baseVicinityDotTolerancePercent` under
 `xpbd`. Older snapshots without these fields receive the new 5% / 0% defaults.
+
+### Waqf association reporting
+
+`WaqfPlacement` reports two independent association risks, without changing XPBD
+forces or convergence. These findings remain enabled when soft target residuals,
+placement audit, or the waqf placement force are disabled:
+
+- `horizontal-drift`: waqf ink left edge minus its owning base's ink left edge.
+  Negative means left; positive means right. Reporting allowances default to
+  100% of waqf width on the left and 50% on the right. Severity is the absolute
+  offset beyond the allowance for that direction.
+- `previous-line-intrusion`: the waqf top crosses a boundary 20% of the actual
+  baseline spacing below the previous populated line's baseline. Severity is
+  the amount above that boundary. The report includes the nearest previous-line
+  glyph and its word. This is an association-risk heuristic, not proof of visual
+  confusion. First lines have no previous-line finding. Empty surah-header rows
+  are skipped.
+
+The GUI's **Violation report** section exposes all three tolerances. JSON saves
+them as `waqfLeftDriftTolerancePercent`, `waqfRightDriftTolerancePercent`, and
+`waqfPreviousLineMarginPercent` under `xpbd`. CLI overrides are
+`--waqf-left-drift-tolerance`, `--waqf-right-drift-tolerance`, and
+`--waqf-previous-line-margin`. Horizontal percentages accept 0–1000; the baseline
+margin accepts 0–100. A larger baseline margin flags more high placements.
+
+The web detail view and CSV show horizontal offset, left/right allowances, top
+height above its own baseline, distance below the previous baseline, required
+margin, and nearest previous-line ink-box clearance. This clearance is an AABB
+distance, not an exact polygon collision measurement. Distances use the solver's
+scaled world coordinates. Offsets measure association with the owning base,
+rather than movement from the initial HarfBuzz position.
+
+Association findings rank after critical structural failures and before ordinary
+constraint residuals. Within each group the selected severity/priority ordering
+still applies. Initial/final comparisons match each axis to the same waqf and
+owning base even if the nearest previous-line glyph changes.
+
+The former waqf floor, ceiling, and infeasible-band findings are now named
+`WaqfBoundsResidual` and omitted by default. Enable **Include waqf solver
+height-bound residuals**, `toggles.reportWaqfBounds`, or `--report-waqf-bounds`
+to include them. They continue participating in solver convergence regardless
+of this reporting switch.
 
 ## Outputs
 

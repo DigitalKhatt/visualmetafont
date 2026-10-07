@@ -31,6 +31,7 @@ struct ConstraintToggles {
   bool reportGenericGap = false;
   bool reportSoftResiduals = false;  // optional lane/alignment preferences
   bool reportPlacementAudit = false; // final side/class/owner diagnostics
+  bool reportWaqfBounds = false;     // optional solver floor/ceiling residuals
 };
 
 // Per-constraint-type XPBD compliance (softness), broken out so each can be
@@ -41,9 +42,9 @@ struct ConstraintToggles {
 // so a single shared knob matches current behavior exactly.
 struct ConstraintCompliance {
   double waqfMin = 0.3;         // hard-ish lower bound
-  double waqfTarget = 0.4;      // softer target height
+  double waqfTarget = 5.0;      // softer target height
   double waqfMax = 0.3;         // hard-ish upper bound
-  double waqfXAlign = 0.3;
+  double waqfXAlign = 0.24;
 
   double hardStayAbove = 1e-7;  // near-zero: rigid rail
   double hardStayBelow = 1e-7;  // near-zero: rigid rail
@@ -94,6 +95,17 @@ struct OptParams {
   // convergence. Dots retain strict ownership boundaries by default.
   double baseVicinityMarkTolerancePercent = 5.0;
   double baseVicinityDotTolerancePercent = 0.0;
+
+  // Waqf association diagnostics only; no effect on forces or convergence.
+  // Horizontal offsets compare ink left edges, allowing more movement left.
+  double waqfLeftDriftTolerancePercent = 100.0;   // % of waqf ink width
+  double waqfRightDriftTolerancePercent = 50.0;
+  double waqfPreviousLineMarginPercent = 20.0;   // % of actual baseline spacing
+
+  // Solver preference: no horizontal force within this distance on either
+  // side of the leftmost ink edge of the base and its attached top marks.
+  // Contacts may move farther.
+  double waqfHorizontalAlignmentBandPercent = 25.0; // % of waqf ink width
 
   // GenericGap violations are compared against expectedComplianceResidual()
   // (GapConstraint.h) -- the residual a soft (compliance > 0) pairwise

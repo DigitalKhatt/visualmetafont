@@ -237,6 +237,8 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
               toggles.reportPlacementAudit, this, &SolverParametersWidget::scheduleChanged);
   addToggleRow(reportForm, tr("Include soft target residuals"), settings, "toggle.reportSoftResiduals",
               toggles.reportSoftResiduals, this, &SolverParametersWidget::scheduleChanged);
+  addToggleRow(reportForm, tr("Include waqf solver height-bound residuals"), settings, "toggle.reportWaqfBounds",
+              toggles.reportWaqfBounds, this, &SolverParametersWidget::scheduleChanged);
   addToggleRow(reportForm, tr("Only new/worsened (plus structural)"), settings, "reportOnlyChanged",
               m_params.reportOnlyChanged, this, &SolverParametersWidget::scheduleChanged);
   addDoubleRow(reportForm, tr("Minimum severity (beyond allowed slack)"), settings, "minViolationSeverity",
@@ -245,6 +247,12 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
               m_params.baseVicinityMarkTolerancePercent, 0.0, 100.0, 1.0, 2, this, &SolverParametersWidget::scheduleChanged);
   addDoubleRow(reportForm, tr("Base vicinity tolerance: dots (% of dot width)"), settings, "baseVicinityDotTolerancePercent",
               m_params.baseVicinityDotTolerancePercent, 0.0, 100.0, 1.0, 2, this, &SolverParametersWidget::scheduleChanged);
+  addDoubleRow(reportForm, tr("Waqf allowed left drift (% of waqf width)"), settings, "waqfLeftDriftTolerancePercent",
+              m_params.waqfLeftDriftTolerancePercent, 0.0, 1000.0, 5.0, 2, this, &SolverParametersWidget::scheduleChanged);
+  addDoubleRow(reportForm, tr("Waqf allowed right drift (% of waqf width)"), settings, "waqfRightDriftTolerancePercent",
+              m_params.waqfRightDriftTolerancePercent, 0.0, 1000.0, 5.0, 2, this, &SolverParametersWidget::scheduleChanged);
+  addDoubleRow(reportForm, tr("Waqf margin below previous baseline (% of line spacing)"), settings, "waqfPreviousLineMarginPercent",
+              m_params.waqfPreviousLineMarginPercent, 0.0, 100.0, 1.0, 2, this, &SolverParametersWidget::scheduleChanged);
   {
     const QString key = QString(kSettingsPrefix) + "reportMaxFindings";
     m_params.reportMaxFindings = std::clamp(settings.value(key, m_params.reportMaxFindings).toInt(), 0, 1000000);
@@ -301,9 +309,10 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
       "toggle.waqfPlacement", toggles.waqfPlacement,
       {
           {tr("Min"), "compliance.waqfMin", &comp.waqfMin, 0.0, 2.0, 0.01, 3},
-          {tr("Target"), "compliance.waqfTarget", &comp.waqfTarget, 0.0, 2.0, 0.01, 3},
+          {tr("Target"), "compliance.waqfTarget", &comp.waqfTarget, 0.0, 10.0, 0.01, 3},
           {tr("Max"), "compliance.waqfMax", &comp.waqfMax, 0.0, 2.0, 0.01, 3},
           {tr("X-align"), "compliance.waqfXAlign", &comp.waqfXAlign, 0.0, 2.0, 0.01, 3},
+          {tr("X band (% width)"), "waqfHorizontalAlignmentBandPercent", &m_params.waqfHorizontalAlignmentBandPercent, 0.0, 1000.0, 5.0, 1},
       },
       this, &SolverParametersWidget::scheduleChanged));
 

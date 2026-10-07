@@ -78,6 +78,23 @@ bool ViolationReportWriter::writeWeb(const std::vector<WordEntry>& entries,
          << ",\"priority\":" << layout::violationReviewPriority(v) << ",\"status\":";
     string(data, v.introduced ? "new" : v.worsened ? "worse" : "unchanged");
     data << ",\"detail\":"; string(data, v.detail);
+    data << ",\"diagnostic\":"; string(data, v.diagnostic);
+    if (v.waqf) {
+      const auto& m = *v.waqf;
+      data << ",\"waqf\":{\"base\":" << m.baseIndex
+           << ",\"horizontalOffset\":" << finite(m.horizontalOffset)
+           << ",\"allowedLeft\":" << finite(m.allowedLeftDrift)
+           << ",\"allowedRight\":" << finite(m.allowedRightDrift)
+           << ",\"heightAboveBaseline\":" << finite(m.heightAboveBaseline);
+      const auto optional = [&](const char* name, const std::optional<double>& value) {
+        data << ",\"" << name << "\":";
+        if (value) data << finite(*value); else data << "null";
+      };
+      optional("previousBaselineDistance", m.previousBaselineDistance);
+      optional("previousLineMargin", m.previousLineMargin);
+      optional("previousInkBoxClearance", m.previousInkBoxClearance);
+      data << '}';
+    }
     data << ",\"a\":" << v.glyphA << ",\"b\":" << v.glyphB << ",\"markers\":[";
     for (int m = 0; m < std::clamp(v.markerCount, 0, 2); ++m) {
       if (m) data << ',';

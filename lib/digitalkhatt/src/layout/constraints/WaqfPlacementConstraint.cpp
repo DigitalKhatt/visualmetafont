@@ -3,10 +3,14 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <iomanip>
+#include <locale>
+#include <sstream>
 
 #include "digitalkhatt/layout/ConstraintViolation.h"
 #include "digitalkhatt/layout/ConstraintDiagnostics.h"
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
+#include "digitalkhatt/layout/OptParams.h"
 #include "digitalkhatt/layout/SolverContext.h"
 
 namespace digitalkhatt::layout {
@@ -14,7 +18,7 @@ namespace digitalkhatt::layout {
 namespace {
 struct WaqfFloor {
   double minimum;
-  double stackMinimum;
+  double leftEdge; // leftmost ink edge of the base and its ordinary top marks
   const GlyphInstance* mark = nullptr;
   bool aboveStack = false;
   double topMinimum = -std::numeric_limits<double>::infinity();
@@ -26,7 +30,7 @@ WaqfFloor placementFloor(const WaqfPlacementConstraint& constraint,
   const auto bounds = waqf.worldPolys.boundingAABB();
   const double baseMinimum = std::max(boxTopY(base) + constraint.minGapToBase,
                                     base.lineY + constraint.minDistFromBaseline);
-  WaqfFloor floor{baseMinimum, baseMinimum};
+  WaqfFloor floor{baseMinimum, base.worldPolys.boundingAABB().minx};
   const auto& line = context.pageGlyphs[base.lineIndex];
   const int end = waqf.nextBase ? waqf.nextBase->glyphIndex
                               : static_cast<int>(line.size());
@@ -35,10 +39,12 @@ WaqfFloor placementFloor(const WaqfPlacementConstraint& constraint,
     if (&mark == &waqf || !mark.isMark || !mark.isTopMark || mark.prevBase != &base)
       continue;
     const auto markBounds = mark.worldPolys.boundingAABB();
+    // Waqf signs cannot serve as one another's alignment reference.
+    if (!context.isWaqf(mark) && !mark.worldPolys.empty())
+      floor.leftEdge = std::min(floor.leftEdge, markBounds.minx);
     floor.topMinimum = std::max(floor.topMinimum,
                                markBounds.maxy - (bounds.maxy - bounds.miny));
     const double stackMinimum = markBounds.maxy + constraint.minGapToTopMarks;
-    floor.stackMinimum = std::max(floor.stackMinimum, stackMinimum);
     const bool overlaps = bounds.minx < markBounds.maxx && bounds.maxx > markBounds.minx;
     // Above an overlapping mark, the waqf's bottom must clear its top.
     // Beside it, descent is allowed only while the waqf's top stays above its top.
@@ -63,17 +69,13 @@ double heightTarget(const WaqfPlacementConstraint& constraint, const WaqfFloor& 
   return std::clamp(preferred + constraint.desiredExtraLift, floor.minimum, maximumBottom);
 }
 
-double horizontalTarget(const WaqfPlacementConstraint& constraint,
-                        SolverContext& context, GlyphInstance& base,
-                        double stackMinimum, double maximumBottom) {
-  if (constraint.enableBelowMarkFallbackX && stackMinimum > maximumBottom) {
-    if (auto* mark = WaqfPlacementConstraint::chooseBelowMark(
-            constraint.waqfMark, &base, context.pageGlyphs)) {
-      const auto bounds = constraint.waqfMark.worldPolys.boundingAABB();
-      return mark->worldPolys.boundingAABB().minx - (bounds.maxx - bounds.minx);
-    }
-  }
-  return base.worldPolys.boundingAABB().minx;
+double horizontalBandResidual(const WaqfPlacementConstraint& constraint,
+                              double leftEdge) {
+  const auto bounds = constraint.waqfMark.worldPolys.boundingAABB();
+  const double percent = std::isfinite(constraint.xAlignmentBandPercent)
+      ? std::clamp(constraint.xAlignmentBandPercent, 0.0, 1000.0) : 0.0;
+  const double band = (bounds.maxx - bounds.minx) * percent / 100.0;
+  return bounds.minx - std::clamp(bounds.minx, leftEdge - band, leftEdge + band);
 }
 }  // namespace
 
@@ -86,38 +88,6 @@ void WaqfTopOrderConstraint::project(SolverContext& solverContext, double) {
   // Zero compliance, with only the waqf mobile: the XPBD weight cancels.
   waqf.dy += correction;
   updateWorldPolys(waqf);
-}
-
-GlyphInstance* WaqfPlacementConstraint::chooseBelowMark(
-    GlyphInstance& waqfMark,
-    GlyphInstance* base,
-    std::vector<std::vector<GlyphInstance>>& pageGlyphs) {
-  if (!base) return nullptr;
-
-  GlyphInstance* best = nullptr;
-  double bestScore = std::numeric_limits<double>::infinity();
-  double xW = boxCenterX(waqfMark);
-
-  auto& line = pageGlyphs[base->lineIndex];
-  int startIndex = base->glyphIndex + 1;
-  int endIndex = waqfMark.nextBase != nullptr ? waqfMark.nextBase->glyphIndex
-                                              : static_cast<int>(line.size());
-
-  for (int index = startIndex; index < endIndex; ++index) {
-    GlyphInstance& gi = line[index];
-    if (&gi == &waqfMark) continue;
-    if (gi.lineIndex != base->lineIndex) continue;
-    if (!gi.isMark) continue;
-    if (!gi.isTopMark) continue;        // want above mark
-    if (gi.prevBase != base) continue;  // same base only
-
-    double dx = std::abs(boxCenterX(gi) - xW);
-    if (dx < bestScore) {
-      bestScore = dx;
-      best = &gi;
-    }
-  }
-  return best;
 }
 
 void WaqfPlacementConstraint::project(SolverContext& solverContext,
@@ -177,7 +147,6 @@ void WaqfPlacementConstraint::project(SolverContext& solverContext,
         double lambdaNew = std::min(0.0, lambdaMin + deltaLambda);
         double applied = lambdaNew - lambdaMin;
         lambdaMin = lambdaNew;
-
         // grad dC/dy = -1
         waqfMark.dy += (-1.0) * w * applied;
         updateWorldPolys(waqfMark);
@@ -198,7 +167,6 @@ void WaqfPlacementConstraint::project(SolverContext& solverContext,
         double lambdaNew = std::min(0.0, lambdaMax + deltaLambda);
         double applied = lambdaNew - lambdaMax;
         lambdaMax = lambdaNew;
-
         // grad dC/dy = +1
         waqfMark.dy += w * applied;
         updateWorldPolys(waqfMark);
@@ -217,7 +185,6 @@ void WaqfPlacementConstraint::project(SolverContext& solverContext,
     if (denom > 1e-12) {
       double deltaLambda = -(C + alpha * lambdaTarget) / denom;
       lambdaTarget += deltaLambda;
-
       // grad dC/dy = +1
       waqfMark.dy += w * deltaLambda;
       updateWorldPolys(waqfMark);
@@ -225,27 +192,27 @@ void WaqfPlacementConstraint::project(SolverContext& solverContext,
   }
 
   // ----------------------------------------------------------
-  // 7) Dynamic horizontal target
-  //
-  // Prefer the left fallback while the full stack cannot fit above.
-  // Otherwise retain the normal base alignment, allowing an above placement.
-  // ----------------------------------------------------------
-  const double xTarget = horizontalTarget(*this, solverContext, *base,
-                                         floor.stackMinimum, yMaxBottom);
-
-  // ----------------------------------------------------------
-  // 8) Soft horizontal equality: xWaqf - xTarget = 0
+  // 7) Soft horizontal band around the leftmost edge of the base/top stack.
+  // Vertical pressure does not switch to an entirely different placement.
   // ----------------------------------------------------------
   {
-    double xW = waqfMark.worldPolys.boundingAABB().minx;
-    double C = xW - xTarget;
+    const double C = horizontalBandResidual(*this, floor.leftEdge);
+    if (C == 0.0) {
+      lambdaX = 0.0; // inactive inside the band; release the restoring force
+      return;
+    }
+    // Opposite sides are different unilateral constraints and cannot inherit
+    // one another's multiplier after a contact pushes across the band.
+    if (C * lambdaX > 0.0) lambdaX = 0.0;
 
     double alpha = xAlignCompliance / (dt * dt);
     double denom = w + alpha;
     if (denom > 1e-12) {
       double deltaLambda = -(C + alpha * lambdaX) / denom;
-      lambdaX += deltaLambda;
-
+      const double nextLambda = C < 0.0 ? std::max(0.0, lambdaX + deltaLambda)
+                                       : std::min(0.0, lambdaX + deltaLambda);
+      deltaLambda = nextLambda - lambdaX;
+      lambdaX = nextLambda;
       // grad dC/dx = +1
       waqfMark.dx += w * deltaLambda;
       updateWorldPolys(waqfMark);
@@ -269,7 +236,9 @@ void WaqfPlacementConstraint::reportViolations(
   if (yMin > yMaxBottom) {
     // Infeasible band: the hard lower and upper bounds conflict.
     ConstraintViolation v;
-    v.type = ViolationType::WaqfPlacement;
+    v.type = ViolationType::WaqfBoundsResidual;
+    v.diagnostic = "infeasible-band";
+    v.detail = "Waqf lower and upper height bounds conflict";
     v.kind = ViolationKind::Hard;
     v.residual = yMin - yMaxBottom;
     v.severity = yMin - yMaxBottom;
@@ -285,7 +254,9 @@ void WaqfPlacementConstraint::reportViolations(
   auto pushBound = [&](double C, double railY) {
     if (C <= 0.0) return;
     ConstraintViolation v;
-    v.type = ViolationType::WaqfPlacement;
+    v.type = ViolationType::WaqfBoundsResidual;
+    v.diagnostic = railY == yMin ? "lower-bound" : "upper-bound";
+    v.detail = railY == yMin ? "Waqf minimum-height residual" : "Waqf upper-ceiling residual";
     v.kind = ViolationKind::Hard;
     v.residual = C;
     v.severity = C;
@@ -303,9 +274,113 @@ void WaqfPlacementConstraint::reportViolations(
   reportSoftTarget(out, ViolationType::SoftTargetResidual, waqfMark, base,
       boxBottomY(waqfMark) - yTarget, "Waqf target height");
   reportSoftTarget(out, ViolationType::SoftTargetResidual, waqfMark, base,
-      wb.minx - horizontalTarget(*this, solverContext, *base,
-                                floor.stackMinimum, yMaxBottom),
-      "Waqf horizontal alignment");
+      horizontalBandResidual(*this, floor.leftEdge), "Waqf horizontal alignment band");
+}
+
+void collectWaqfPlacementViolations(SolverContext& context, const OptParams& params,
+                                   std::vector<ConstraintViolation>& out) {
+  const auto percent = [](double value, double maximum) {
+    return std::isfinite(value) ? std::clamp(value, 0.0, maximum) / 100.0 : 0.0;
+  };
+  for (const auto& line : context.pageGlyphs) {
+    for (const auto& waqf : line) {
+      if (!context.isWaqf(waqf) || waqf.worldPolys.empty()) continue;
+      const auto* base = waqf.prevBase;
+      // The shared factory already rejects invalid owners. Check membership
+      // before dereferencing here, since reporting is independent of forces.
+      if (!base || std::none_of(line.begin(), line.end(), [&](const auto& g) {
+            return &g == base && !g.isMark && g.glyphName != "space" && !g.worldPolys.empty();
+          })) continue;
+      const auto wb = waqf.worldPolys.boundingAABB();
+      const auto bb = base->worldPolys.boundingAABB();
+      const double width = std::max(0.0, wb.maxx - wb.minx);
+      WaqfPlacementMeasurements measurements;
+      measurements.baseIndex = base->globalIndex;
+      measurements.horizontalOffset = wb.minx - bb.minx;
+      measurements.allowedLeftDrift = width * percent(params.waqfLeftDriftTolerancePercent, 1000.0);
+      measurements.allowedRightDrift = width * percent(params.waqfRightDriftTolerancePercent, 1000.0);
+      measurements.heightAboveBaseline = wb.maxy - base->lineY;
+
+      const GlyphInstance* previousGlyph = nullptr;
+      double closestDistance = std::numeric_limits<double>::infinity();
+      // Empty surah-header rows contain no solver geometry. Use the nearest
+      // preceding populated row and its actual baseline distance.
+      for (int l = waqf.lineIndex - 1; l >= 0; --l) {
+        const auto& previous = context.pageGlyphs[l];
+        for (const auto& g : previous) {
+          if (g.glyphName == "space" || g.worldPolys.empty() || g.lineY <= base->lineY) continue;
+          const auto gb = g.worldPolys.boundingAABB();
+          const double xGap = std::max({0.0, gb.minx - wb.maxx, wb.minx - gb.maxx});
+          const double yGap = std::max({0.0, gb.miny - wb.maxy, wb.miny - gb.maxy});
+          const double distance = std::hypot(xGap, yGap);
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            previousGlyph = &g;
+          }
+        }
+        if (previousGlyph) break;
+      }
+      if (previousGlyph) {
+        const double spacing = previousGlyph->lineY - base->lineY;
+        measurements.previousBaselineDistance = previousGlyph->lineY - wb.maxy;
+        measurements.previousLineMargin = spacing * percent(params.waqfPreviousLineMarginPercent, 100.0);
+        measurements.previousInkBoxClearance = closestDistance;
+      }
+
+      const auto describe = [&](const char* reason) {
+        std::ostringstream text;
+        text.imbue(std::locale::classic());
+        text << std::fixed << std::setprecision(2) << reason
+             << "; horizontal offset " << measurements.horizontalOffset
+             << " (negative = left); allowed left/right " << measurements.allowedLeftDrift
+             << '/' << measurements.allowedRightDrift
+             << "; top above own baseline " << measurements.heightAboveBaseline;
+        if (previousGlyph)
+          text << "; distance below previous baseline " << *measurements.previousBaselineDistance
+               << "; required margin " << *measurements.previousLineMargin
+               << "; nearest previous-line glyph " << previousGlyph->glyphName
+               << "; ink-box clearance " << closestDistance;
+        return text.str();
+      };
+      const double offset = measurements.horizontalOffset;
+      const double allowance = offset < 0 ? measurements.allowedLeftDrift : measurements.allowedRightDrift;
+      if (std::abs(offset) > allowance) {
+        ConstraintViolation v;
+        v.type = ViolationType::WaqfPlacement;
+        v.kind = ViolationKind::Soft; // association risk to review, not a force residual
+        v.diagnostic = "horizontal-drift";
+        v.residual = offset;
+        v.severity = std::abs(offset);
+        v.allowedResidual = allowance;
+        v.glyphA = waqf.globalIndex;
+        v.glyphB = base->globalIndex;
+        v.waqf = measurements;
+        v.detail = describe(offset < 0 ? "Waqf too far left of its base" : "Waqf too far right of its base");
+        v.markerCount = 2;
+        v.marker[0] = {bb.minx, wb.miny};
+        v.marker[1] = {wb.minx, wb.miny};
+        out.push_back(std::move(v));
+      }
+      if (previousGlyph && *measurements.previousBaselineDistance < *measurements.previousLineMargin) {
+        const double safeTop = previousGlyph->lineY - *measurements.previousLineMargin;
+        ConstraintViolation v;
+        v.type = ViolationType::WaqfPlacement;
+        v.kind = ViolationKind::Soft;
+        v.diagnostic = "previous-line-intrusion";
+        v.residual = wb.maxy - safeTop;
+        v.severity = measurements.heightAboveBaseline;
+        v.allowedResidual = safeTop - base->lineY;
+        v.glyphA = waqf.globalIndex;
+        v.glyphB = previousGlyph->globalIndex;
+        v.waqf = measurements;
+        v.detail = describe("Waqf enters the previous line's baseline margin");
+        v.markerCount = 2;
+        v.marker[0] = {wb.minx, safeTop};
+        v.marker[1] = {wb.maxx, safeTop};
+        out.push_back(std::move(v));
+      }
+    }
+  }
 }
 
 }  // namespace digitalkhatt::layout
