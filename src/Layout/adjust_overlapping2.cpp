@@ -48,6 +48,7 @@
 #include "Export/GenerateLayout.h"
 #include "GeometryQt.h"
 #include "digitalkhatt.h"
+#include "digitalkhatt/layout/CollisionReport.h"
 #include "gllobal_strings.h"
 #include "to_opentype.h"
 
@@ -418,131 +419,36 @@ void findIntersections(
     double minDistance,
     std::vector<OverlapResult>& result,
     QVector<int>& set) {
-  double pad_ = minDistance / 2;
-
+  (void)layout;
   auto& page = pages[pageIndex];
-
-  std::string spaceName("space");
-  std::string linefeedName("linefeed");
-
-  int glyphCount = 0;
-
-  for (auto& line : glyphs) {
-    glyphCount += line.size();
-  }
-
-  std::vector<GlyphInfoForInt> rectsInput;
-
-  rectsInput.reserve(glyphCount);
-  for (size_t i = 0; i < glyphs.size(); ++i) {
-    auto& line = glyphs[i];
-    auto wordId = 0;
-    for (size_t j = 0; j < line.size(); ++j) {
-      auto& glyphInfo = line[j];
-      bool isSpace = glyphInfo.glyphName.find(spaceName) != std::string::npos || glyphInfo.glyphName.find(linefeedName) != std::string::npos;
-      if (isSpace) {
-        ++wordId;
-      } else {
-        AABB raw = glyphInfo.geometrySet.boundingAABB();
-        AABB box = padAABB(raw, pad_);
-        rectsInput.push_back(GlyphInfoForInt{box, i, wordId, j});
-      }
+  std::vector<digitalkhatt::layout::CollisionGlyph> collisionGlyphs;
+  std::vector<std::pair<int, int>> source;
+  for (int l = 0; l < static_cast<int>(glyphs.size()); ++l) {
+    int word = 0;
+    for (int g = 0; g < static_cast<int>(glyphs[l].size()); ++g) {
+      const auto& glyph = glyphs[l][g];
+      collisionGlyphs.push_back({&glyph.geometrySet, glyph.glyphName,
+          l, word, glyph.isMark, page[l].fontSize});
+      source.emplace_back(l, g);
+      if (digitalkhatt::layout::isCollisionSpace(glyph.glyphName)) ++word;
     }
   }
-
-  std::sort(rectsInput.begin(), rectsInput.end(),
-            [](const GlyphInfoForInt& a, const GlyphInfoForInt& b) {
-              return a.aabb.minx < b.aabb.minx;
-            });
-
-  std::vector<Intersection> intersections;
-  const size_t n = rectsInput.size();
-  intersections.reserve(n);
-
-  for (size_t i = 0; i < n; ++i) {
-    const auto& firstGlyph = rectsInput[i];
-    const AABB& A = firstGlyph.aabb;
-    // advance until B.minx > A.maxx
-    for (size_t j = i + 1; j < n; ++j) {
-      const auto& secondGlyph = rectsInput[j];
-      const AABB& B = secondGlyph.aabb;
-      if (B.minx > A.maxx)
-        break;  // rest are further right → done
-
-      // check y-overlap
-      if (!(A.maxy < B.miny || A.miny > B.maxy)) {
-        if (firstGlyph.lineIdx > secondGlyph.lineIdx) {
-          intersections.push_back({secondGlyph, firstGlyph});
-        } else if (firstGlyph.lineIdx == secondGlyph.lineIdx) {
-          if (firstGlyph.glyphIdx > secondGlyph.glyphIdx) {
-            intersections.push_back({secondGlyph, firstGlyph});
-          } else {
-            intersections.push_back({firstGlyph, secondGlyph});
-          }
-        } else {
-          intersections.push_back({firstGlyph, secondGlyph});
-        }
-      }
+  const auto contacts = digitalkhatt::layout::findCollisionContacts(collisionGlyphs, minDistance);
+  for (const auto& contact : contacts) {
+    const auto [firstLine, firstGlyph] = source[contact.first];
+    const auto [secondLine, secondGlyph] = source[contact.second];
+    page[firstLine].glyphs[firstGlyph].color = 0xFF000000;
+    page[secondLine].glyphs[secondGlyph].color = 0xFF000000;
+    if (firstLine == secondLine) {
+      OverlapResult overlap;
+      overlap.pageIndex = pageIndex;
+      overlap.lineIndex = firstLine;
+      overlap.prevGlyph = firstGlyph;
+      overlap.nextGlyph = secondGlyph;
+      result.push_back(overlap);
     }
   }
-
-  auto isIntersection = false;
-
-  for (auto& intersection : intersections) {
-    const auto& firstGlyph = intersection.first;
-    const auto& secondGlyph = intersection.second;
-    auto isSameLine = firstGlyph.lineIdx == secondGlyph.lineIdx;
-    auto& glyphInfo1 = glyphs[firstGlyph.lineIdx][firstGlyph.glyphIdx];
-    auto& glyphInfo2 = glyphs[secondGlyph.lineIdx][secondGlyph.glyphIdx];
-    if (isSameLine) {
-      auto isSameWord = isSameLine && (firstGlyph.wordIdx == secondGlyph.wordIdx);
-      if (isSameWord && (glyphInfo2.isMedi || glyphInfo2.isFina) && (glyphInfo1.isInit || glyphInfo1.isMedi)) {
-        continue;
-      }
-
-      auto& line = page[firstGlyph.lineIdx];
-
-      auto minDisPolys = minDistance * line.fontSize;
-      GSContact gsContact = getDistance(glyphInfo1.geometrySet, glyphInfo2.geometrySet, minDisPolys);
-      auto intersect = gsContact.contact.depth_or_gap < minDisPolys;
-      if (intersect) {
-        line.glyphs[firstGlyph.glyphIdx].color = 0xFF000000;
-
-        line.glyphs[secondGlyph.glyphIdx].color = 0xFF000000;
-        isIntersection = true;
-
-        OverlapResult overlap;
-
-        overlap.pageIndex = pageIndex;
-        overlap.lineIndex = firstGlyph.lineIdx;
-        overlap.prevGlyph = firstGlyph.glyphIdx;
-        overlap.nextGlyph = secondGlyph.glyphIdx;
-
-        result.push_back(overlap);
-
-        // debugIntersection(glyphInfo1, glyphInfo2, gsContact);
-      }
-    } else {
-      if (glyphInfo1.isMark || glyphInfo2.isMark) {
-        auto minDisPolys = minDistance;
-
-        GSContact gsContact = getDistance(glyphInfo1.geometrySet, glyphInfo2.geometrySet, minDisPolys);
-        auto intersect = gsContact.contact.depth_or_gap < minDisPolys;
-
-        if (intersect) {
-          auto& line = page[firstGlyph.lineIdx];
-          auto& secondLine = page[secondGlyph.lineIdx];
-          line.glyphs[firstGlyph.glyphIdx].color = 0xFF000000;
-
-          secondLine.glyphs[secondGlyph.glyphIdx].color = 0xFF000000;
-          isIntersection = true;
-        }
-      }
-    }
-  }
-  if (isIntersection) {
-    set.append(pageIndex);
-  }
+  if (!contacts.empty()) set.append(pageIndex);
 }
 
 void LayoutWindow::adjustOverlapping2(LayoutPageList& pages,
@@ -570,7 +476,7 @@ void LayoutWindow::adjustOverlapping2(LayoutPageList& pages,
       }
     }
   }
-  double minDistance = 10;
+  double minDistance = m_solverParams.collisionReportMinGap;
 
   const auto& markClass = digitalkhatt::layout::classesOrEmpty(m_otlayout->glyphClasses(), "marks");
   std::string spaceName("space");

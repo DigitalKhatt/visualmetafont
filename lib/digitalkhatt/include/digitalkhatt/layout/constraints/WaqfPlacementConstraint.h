@@ -32,6 +32,7 @@ struct WaqfPlacementConstraint : XPBDConstraint {
   // No alignment force inside this band around the leftmost ink edge of
   // the base and its attached top marks (excluding waqf signs).
   double xAlignmentBandPercent = 25.0;
+  bool collisionEscapeActive = false; // bounded left/down preference owns alignment
 
   // ---------- Persistent XPBD state ----------
   double lambdaMin = 0.0;     // lower bound inequality
@@ -68,6 +69,7 @@ struct WaqfPlacementConstraint : XPBDConstraint {
   }
 
   void project(SolverContext& solverContext, double dt) override;
+  double escapeMinimumBottom(const SolverContext& context) const;
   void reportViolations(SolverContext& solverContext,
                         std::vector<ConstraintViolation>& out) const override;
 };

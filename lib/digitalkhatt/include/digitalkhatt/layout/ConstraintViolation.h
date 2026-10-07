@@ -112,7 +112,7 @@ inline int violationReviewPriority(const ConstraintViolation& v) {
   if (v.type == ViolationType::BaseAssociation) priority += 200;
   if (v.type == ViolationType::WaqfPlacement) priority += 200;
   if (v.type == ViolationType::GenericGap &&
-      (v.detail == "Ink intersection" || v.detail == "Collision-proxy intersection")) priority += 150;
+      (v.detail.starts_with("Ink intersection") || v.detail == "Collision-proxy intersection")) priority += 150;
   if (v.introduced || v.worsened) priority += 50;
   return priority;
 }
@@ -127,7 +127,7 @@ inline double violationReportSeverity(const ConstraintViolation& v) {
   if (!std::isfinite(v.severity) || !std::isfinite(v.allowedResidual)) return 0.0;
   // Compliant clearance slack never excuses an intersecting collision proxy.
   if (v.type == ViolationType::GenericGap &&
-      (v.detail.starts_with("Collision-proxy") || v.detail == "Ink intersection"))
+      (v.detail.starts_with("Collision-proxy") || v.detail.starts_with("Ink intersection")))
     return std::max(0.0, v.severity);
   return std::max(0.0, v.severity - std::max(0.0, v.allowedResidual));
 }

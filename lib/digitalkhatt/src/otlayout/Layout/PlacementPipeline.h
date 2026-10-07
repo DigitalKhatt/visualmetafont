@@ -11,6 +11,10 @@ struct PlacementPage {
   std::vector<std::vector<GlyphInstance>> glyphs;
   std::vector<ConstraintViolation> initialViolations;
   std::vector<ConstraintViolation> violations;
+  std::vector<geometry::GeometrySet> collisionGeometry;
+  const geometry::GeometrySet& reportGeometry(const GlyphInstance& glyph) const {
+    return collisionGeometry.empty() ? glyph.worldPolys : collisionGeometry[glyph.globalIndex];
+  }
 };
 
 // Shared by the editor and native tools: identical outline scaling, base
@@ -24,6 +28,9 @@ class PlacementPipeline {
   OtLayout& layout_;
   double emScale_;
   std::unordered_map<const GlyphVis*, geometry::GeometrySet> geometry_;
+  std::unordered_map<const GlyphVis*, geometry::GeometrySet> collisionGeometry_;
+  void collectCollisions(const std::vector<LineLayoutInfo>& page, PlacementPage& result,
+      double minimumGap, std::vector<ConstraintViolation>& violations);
 };
 
 }  // namespace digitalkhatt::layout

@@ -11,6 +11,8 @@
 
 namespace digitalkhatt::layout {
 
+struct WaqfEscapeConstraint;
+
 struct SolverContext {
   SolverContext(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
                 const ClassMap& classes);
@@ -37,6 +39,8 @@ struct SolverContext {
   }
 
   GapsInfo gapInfos;
+  // Registered once by global glyph index; null entries cost no class lookup.
+  std::vector<WaqfEscapeConstraint*> waqfEscapes;
   const ClassMap& classes;
   std::vector<std::vector<GlyphInstance>>& pageGlyphs;
 

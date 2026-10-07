@@ -4,11 +4,60 @@
 #include <tuple>
 #include "GlyphVis.h"
 #include "digitalkhatt/layout/GlyphCollisionGeometry.h"
+#include "digitalkhatt/layout/CollisionReport.h"
 
 namespace digitalkhatt::layout {
 
 PlacementPipeline::PlacementPipeline(OtLayout& layout, double emScale)
     : layout_(layout), emScale_(emScale) {}
+
+void PlacementPipeline::collectCollisions(const std::vector<LineLayoutInfo>& page,
+    PlacementPage& result, double minimumGap, std::vector<ConstraintViolation>& violations) {
+  std::size_t count = 0;
+  for (const auto& line : result.glyphs) count += line.size();
+  result.collisionGeometry.clear();
+  result.collisionGeometry.reserve(count);
+  std::vector<CollisionGlyph> glyphs;
+  glyphs.reserve(count);
+  for (std::size_t l = 0; l < page.size(); ++l) {
+    const auto& line = page[l];
+    // Match Save Collision's integer placement after solved offsets are rounded.
+    int x = -line.xstartposition;
+    const int y = -(line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY));
+    int word = 0;
+    for (const auto& g : result.glyphs[l]) {
+      const auto& positioned = line.glyphs[g.glyphIndex];
+      auto* outline = layout_.getGlyph(positioned);
+      auto found = collisionGeometry_.find(outline);
+      if (found == collisionGeometry_.end())
+        found = collisionGeometry_.emplace(outline, geometry::buildConvexPartsFromCubics(
+            geometry::getGlyphCubic(outline->copiedPath), geometry::CUBIC_FLATNESS_TOLERANCE)).first;
+      x -= positioned.x_advance * line.xscale;
+      const int px = x + positioned.x_offset * line.xscale;
+      const int py = y + positioned.y_offset;
+      auto& geometry = result.collisionGeometry.emplace_back(found->second.scaleTranslate(
+          line.fontSize * line.xscale, line.fontSize, px, py));
+      glyphs.push_back({&geometry, g.glyphName, g.lineIndex, word, g.isMark, line.fontSize});
+      if (isCollisionSpace(g.glyphName)) ++word;
+    }
+  }
+  for (const auto& c : findCollisionContacts(glyphs, minimumGap * emScale_)) {
+    ConstraintViolation v;
+    v.type = ViolationType::GenericGap;
+    v.kind = ViolationKind::Hard;
+    v.residual = c.contact.depth_or_gap - c.minimumGap;
+    v.severity = -v.residual;
+    v.diagnostic = "save-collision";
+    v.detail = c.contact.depth_or_gap < 0.0 ? "Ink intersection (Save Collision)"
+                                          : "Clearance below Save Collision minimum";
+    v.glyphA = static_cast<int>(c.first);
+    v.glyphB = static_cast<int>(c.second);
+    v.markerCount = 2;
+    v.marker[0] = c.contact.pA;
+    v.marker[1] = c.contact.pB;
+    violations.push_back(std::move(v));
+  }
+}
 
 PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
     const OptParams& params, bool force, bool report) {
@@ -64,13 +113,22 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
     }
   }
   auto options = params;
+  const bool collisionReport = report && params.toggles.reportGenericGap && params.reportGenericGapCollisionsOnly;
   if (report) {
     auto initialOptions = options;
     initialOptions.maxIters = 0;
     optimizePage(result.glyphs, classes, initialOptions, &result.initialViolations);
+    if (collisionReport) collectCollisions(page, result, params.collisionReportMinGap, result.initialViolations);
   }
   if (!force) options.maxIters = 0;
   optimizePage(result.glyphs, classes, options, report ? &result.violations : nullptr);
+  if (force) {
+    for (size_t l = 0; l < page.size(); ++l)
+      for (size_t i = 0; i < result.glyphs[l].size(); ++i)
+        applySolvedGlyphOffsets(page[l].glyphs[i], result.glyphs[l][i],
+            page[l].type == LineType::Line ? page[l].xscale : 1.0);
+  }
+  if (collisionReport) collectCollisions(page, result, params.collisionReportMinGap, result.violations);
   if (report) {
     using Key = std::tuple<ViolationType, int, int, std::string>;
     const auto key = [](const ConstraintViolation& v) -> Key {
@@ -91,12 +149,6 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
           (v.waqf ? violationReportSeverity(v) > prior->second.second + params.tolCollision
                   : v.severity > prior->second.first + params.tolCollision);
     }
-  }
-  if (force) {
-    for (size_t l = 0; l < page.size(); ++l)
-      for (size_t i = 0; i < result.glyphs[l].size(); ++i)
-        applySolvedGlyphOffsets(page[l].glyphs[i], result.glyphs[l][i],
-            page[l].type == LineType::Line ? page[l].xscale : 1.0);
   }
   return result;
 }

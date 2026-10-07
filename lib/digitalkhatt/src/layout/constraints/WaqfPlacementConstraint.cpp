@@ -45,9 +45,11 @@ WaqfFloor placementFloor(const WaqfPlacementConstraint& constraint,
     floor.topMinimum = std::max(floor.topMinimum,
                                markBounds.maxy - (bounds.maxy - bounds.miny));
     const double stackMinimum = markBounds.maxy + constraint.minGapToTopMarks;
-    const bool overlaps = bounds.minx < markBounds.maxx && bounds.maxx > markBounds.minx;
+    const bool overlaps = !constraint.collisionEscapeActive &&
+        bounds.minx < markBounds.maxx && bounds.maxx > markBounds.minx;
     // Above an overlapping mark, the waqf's bottom must clear its top.
-    // Beside it, descent is allowed only while the waqf's top stays above its top.
+    // Beside it or during collision escape, top ordering permits descent;
+    // ordinary gap contacts protect the actual shapes.
     const double markMinimum = overlaps ? stackMinimum
                                         : markBounds.maxy - (bounds.maxy - bounds.miny);
     if (markMinimum > floor.minimum) {
@@ -79,11 +81,17 @@ double horizontalBandResidual(const WaqfPlacementConstraint& constraint,
 }
 }  // namespace
 
+double WaqfPlacementConstraint::escapeMinimumBottom(const SolverContext& context) const {
+  const auto floor = placementFloor(*this, context, *waqfMark.prevBase);
+  return floor.minimum;
+}
+
 void WaqfTopOrderConstraint::project(SolverContext& solverContext, double) {
   auto& waqf = placement.waqfMark;
   if (waqf.mobility <= 0.0 || !waqf.prevBase) return;
   const auto floor = placementFloor(placement, solverContext, *waqf.prevBase);
-  const double correction = floor.topMinimum - boxBottomY(waqf);
+  const double minimum = placement.collisionEscapeActive ? floor.minimum : floor.topMinimum;
+  const double correction = minimum - boxBottomY(waqf);
   if (correction <= 0.0) return;
   // Zero compliance, with only the waqf mobile: the XPBD weight cancels.
   waqf.dy += correction;
@@ -176,8 +184,9 @@ void WaqfPlacementConstraint::project(SolverContext& solverContext,
 
   // ----------------------------------------------------------
   // 6) Soft vertical target: yBottom - yTargetBottom = 0
+  // Collision escape supplies the bounded downward target when active.
   // ----------------------------------------------------------
-  {
+  if (!collisionEscapeActive) {
     const double bottom = boxBottomY(waqfMark);
     const double C = bottom - heightTarget(*this, floor, yMaxBottom);
     double alpha = targetCompliance / (dt * dt);
@@ -195,7 +204,7 @@ void WaqfPlacementConstraint::project(SolverContext& solverContext,
   // 7) Soft horizontal band around the leftmost edge of the base/top stack.
   // Vertical pressure does not switch to an entirely different placement.
   // ----------------------------------------------------------
-  {
+  if (!collisionEscapeActive) {
     const double C = horizontalBandResidual(*this, floor.leftEdge);
     if (C == 0.0) {
       lambdaX = 0.0; // inactive inside the band; release the restoring force
@@ -270,11 +279,13 @@ void WaqfPlacementConstraint::reportViolations(
 
   pushBound(yMin - boxBottomY(waqfMark), yMin);  // hard lower bound breach
   pushBound(boxTopY(waqfMark) - yMax, yMax);     // hard upper bound breach
-  const double yTarget = heightTarget(*this, floor, yMaxBottom);
-  reportSoftTarget(out, ViolationType::SoftTargetResidual, waqfMark, base,
-      boxBottomY(waqfMark) - yTarget, "Waqf target height");
-  reportSoftTarget(out, ViolationType::SoftTargetResidual, waqfMark, base,
-      horizontalBandResidual(*this, floor.leftEdge), "Waqf horizontal alignment band");
+  if (!collisionEscapeActive) {
+    const double yTarget = heightTarget(*this, floor, yMaxBottom);
+    reportSoftTarget(out, ViolationType::SoftTargetResidual, waqfMark, base,
+        boxBottomY(waqfMark) - yTarget, "Waqf target height");
+    reportSoftTarget(out, ViolationType::SoftTargetResidual, waqfMark, base,
+        horizontalBandResidual(*this, floor.leftEdge), "Waqf horizontal alignment band");
+  }
 }
 
 void collectWaqfPlacementViolations(SolverContext& context, const OptParams& params,

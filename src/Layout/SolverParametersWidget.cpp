@@ -233,6 +233,10 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
               toggles.reportViolations, this, &SolverParametersWidget::scheduleChanged);
   addToggleRow(reportForm, tr("Include generic gap violations"), settings, "toggle.reportGenericGap",
               toggles.reportGenericGap, this, &SolverParametersWidget::scheduleChanged);
+  addToggleRow(reportForm, tr("Only Save Collision cases"), settings, "reportGenericGapCollisionsOnly",
+              m_params.reportGenericGapCollisionsOnly, this, &SolverParametersWidget::scheduleChanged);
+  addDoubleRow(reportForm, tr("Save Collision clearance (font units)"), settings, "collisionReportMinGap",
+              m_params.collisionReportMinGap, 0.0, 1000.0, 1.0, 2, this, &SolverParametersWidget::scheduleChanged);
   addToggleRow(reportForm, tr("Include placement audit (side, class, owner)"), settings, "toggle.reportPlacementAudit",
               toggles.reportPlacementAudit, this, &SolverParametersWidget::scheduleChanged);
   addToggleRow(reportForm, tr("Include soft target residuals"), settings, "toggle.reportSoftResiduals",
@@ -313,6 +317,16 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
           {tr("Max"), "compliance.waqfMax", &comp.waqfMax, 0.0, 2.0, 0.01, 3},
           {tr("X-align"), "compliance.waqfXAlign", &comp.waqfXAlign, 0.0, 2.0, 0.01, 3},
           {tr("X band (% width)"), "waqfHorizontalAlignmentBandPercent", &m_params.waqfHorizontalAlignmentBandPercent, 0.0, 1000.0, 5.0, 1},
+      },
+      this, &SolverParametersWidget::scheduleChanged));
+
+  paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Waqf left/down escape"),
+      "toggle.waqfEscape", toggles.waqfEscape,
+      {
+          {tr("Trigger gap"), "waqfEscapeMinGap", &m_params.waqfEscapeMinGap, 0.0, 1000.0, 1.0, 2},
+          {tr("Step (% width)"), "waqfEscapeStepPercent", &m_params.waqfEscapeStepPercent, 0.0, 100.0, 1.0, 2},
+          {tr("Down step (% height)"), "waqfEscapeDownStepPercent", &m_params.waqfEscapeDownStepPercent, 0.0, 100.0, 1.0, 2},
+          {tr("Max left (% width)"), "waqfEscapeMaxLeftPercent", &m_params.waqfEscapeMaxLeftPercent, 0.0, 1000.0, 5.0, 2},
       },
       this, &SolverParametersWidget::scheduleChanged));
 

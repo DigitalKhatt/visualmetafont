@@ -24,6 +24,7 @@
 #include "digitalkhatt/layout/constraints/SqueezeCenterConstraint.h"
 #include "digitalkhatt/layout/constraints/StackOrderConstraint.h"
 #include "digitalkhatt/layout/constraints/WaqfPlacementConstraint.h"
+#include "digitalkhatt/layout/constraints/WaqfEscapeConstraint.h"
 #include "digitalkhatt/layout/constraints/YlaneConstraint.h"
 
 namespace digitalkhatt::layout {
@@ -196,6 +197,9 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
 
   std::vector<std::unique_ptr<XPBDConstraint>> hardConstraints;
   std::vector<WaqfPlacementConstraint*> waqfPlacements;
+  std::vector<std::unique_ptr<WaqfEscapeConstraint>> waqfEscapes;
+  if (P.toggles.waqfEscape && P.toggles.waqfPlacement && P.toggles.genericGapConstraint)
+    solverContext.waqfEscapes.resize(glyphs.size(), nullptr);
 
   // Per-base groups of top marks, matched against the explicit stacking
   // chains below. (No below-mark stacking chains are defined yet -- kasra
@@ -245,6 +249,11 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
             /*minGapToTopMarks=*/50.0, /*desiredExtraLift=*/0.0,
             /*upperCeilingY=*/1400.0, P.waqfHorizontalAlignmentBandPercent);
         waqfPlacements.push_back(placement.get());
+        if (!solverContext.waqfEscapes.empty()) {
+          auto escape = std::make_unique<WaqfEscapeConstraint>(*placement, P);
+          solverContext.waqfEscapes[mark.globalIndex] = escape.get();
+          waqfEscapes.push_back(std::move(escape));
+        }
         xpbdConstraints.push_back(std::move(placement));
       }
       // Waqf marks already get a full placement solve above; skip the
@@ -464,6 +473,12 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
   const double toleranceSquared = P.tolCollision * P.tolCollision;
   for (int iter = 0; iter < P.maxIters; ++iter) {
     for (auto& ref : glyphs) ref.get().iterationMaxMovementSquared = 0.0;
+    // Consume the previous ordinary gap pass, then clear its samples. The
+    // existing broadphase/contact pass below handles any induced movement.
+    for (auto& escape : waqfEscapes) {
+      escape->project(solverContext, dt);
+      escape->contacts.clear();
+    }
 
     for (auto& c : xpbdConstraints) {
       c->project(solverContext, dt);
@@ -517,7 +532,9 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     for (const auto& c : hardConstraints) {
       if (c->reportEnabled) c->reportViolations(solverContext, *outViolations);
     }
-    if (P.toggles.reportGenericGap) {
+    for (const auto& escape : waqfEscapes)
+      if (escape->reportEnabled) escape->reportViolations(solverContext, *outViolations);
+    if (P.toggles.reportGenericGap && !P.reportGenericGapCollisionsOnly) {
       collectGapViolations(solverContext, glyphs, P, *outViolations);
     }
     if (!P.toggles.reportSoftResiduals) {

@@ -99,7 +99,68 @@ allow more free movement. This solver parameter is independent of the
 horizontal drift reporting tolerances below. Optional soft-target reporting
 measures only the excess outside the band.
 
+## Conditional waqf left/down escape
+
+**Waqf left/down escape** is a separate XPBD preference, enabled by default
+when waqf placement and generic gap forces are enabled. It uses contacts
+already sampled by the ordinary gap pass; there are no extra broadphase scans,
+GJK queries, placement searches, contact sweeps or solver iterations.
+
+The preference activates when a previous-line obstacle pushes downward on the
+waqf and its estimated clearance stays below 10 font units with less than 10%
+of the desired gap improvement for three iterations. An opposing lower mark
+is not required. Contact estimates account for translations after sampling;
+they trigger the preference but do not certify final clearance. Final collision
+reporting still uses fresh geometry.
+
+While clearance is below the trigger, compliant targets advance left by 5% of
+waqf ink width and downward by 5% of its ink height per iteration. The left
+target is capped at one waqf width left of its base. Descent stops at the owning
+base's visibility floor (100 units above base ink and 700 above its baseline)
+and keeps the waqf's top at or above every attached top mark's top. During
+escape, overlapping horizontal boxes no longer impose a bottom-above-mark
+floor; ordinary gap contacts protect the actual shapes. The existing final
+top-order rail also enforces the visibility floor for escaping waqf signs.
+Normal placement retains its 50-unit top lift preference before escape activates.
+
+The left preference uses X-align compliance (0.24); descent uses the chosen
+height-target compliance (5.0). Normal soft height/alignment targets yield to
+the escape preferences, so each axis has one soft target while escaping.
+Targets stop advancing once trigger clearance is reached and hold for the remainder of the solve. A preference is
+inactive when its target is already satisfied. Contacts can move the glyph
+farther left than its preferred target; association reporting remains active.
+
+GUI controls: **Trigger gap**, **Step (% width)**, **Down step (% height)** and
+**Max left (% width)**. JSON stores `toggles.waqfEscape`, `waqfEscapeMinGap`,
+`waqfEscapeStepPercent`, `waqfEscapeDownStepPercent` and
+`waqfEscapeMaxLeftPercent` under `xpbd`. CLI flags are `--waqf-escape` /
+`--no-waqf-escape`, `--waqf-escape-min-gap N`, `--waqf-escape-step N`,
+`--waqf-escape-down-step N`, and `--waqf-escape-max-left N`.
+The trigger is a preference control, not a hard clearance guarantee. Optional
+soft-target reporting includes the active left and downward escape residuals.
+
 ## Filter and order the violation report
+
+When **Include generic gap violations** is enabled, **Only Save Collision cases**
+is on by default. It uses the same shared collision detector as the GUI's
+**Save Collision** action: decomposed outlines for every glyph, rounded output
+positions, intentional cursive connections skipped, and cross-line checks when
+at least one glyph is a mark. The clearance defaults to **10 font units** and
+is controlled by **Save Collision clearance** in the GUI. That value also
+controls Save Collision itself. Surah headings rendered as frames/icons remain
+excluded from native placement reporting.
+
+CLI: `--report-generic-gap --report-gap-mode collisions --collision-report-gap 10`.
+`--report-gap-mode all` restores the full XPBD gap-residual report; the GUI can
+uncheck **Only Save Collision cases** for the same result. JSON stores
+`reportGenericGapCollisionsOnly` and `collisionReportMinGap` under `xpbd`.
+
+Collision severity is the shortfall from this clearance, including penetration;
+there is no compliant spring allowance. Small collisions are retained regardless
+of the report's minimum severity, while the report limit and new/worsened filter
+still apply. Collision contexts use the decomposed report outlines. This mode
+does not change solver geometry, forces, gaps, iteration count or convergence;
+when reports are disabled the collision audit does no work.
 
 The GUI's **Solver Tuning > Violation report** section and the CLI use the
 same settings and selection. Fresh defaults exclude GenericGap, retain up to

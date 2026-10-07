@@ -45,6 +45,9 @@ void LayoutWindow::optimizeLayout(LayoutPageList& pages, const OriginalPageList&
       QString("Report generic gaps: %1; soft targets: %2; minimum excess severity: %3")
           .arg(flag(toggles.reportGenericGap)).arg(flag(toggles.reportSoftResiduals))
           .arg(m_solverParams.minViolationSeverity).toStdString(),
+      QString("Gap report: %1; Save Collision clearance: %2 font units")
+          .arg(m_solverParams.reportGenericGapCollisionsOnly ? "Save Collision cases" : "all solver residuals")
+          .arg(m_solverParams.collisionReportMinGap).toStdString(),
       QString("Sort: %1; maximum findings: %2; only new/worsened (plus structural): %3")
           .arg(QString::fromStdString(m_solverParams.reportSort))
           .arg(m_solverParams.reportMaxFindings ? QString::number(m_solverParams.reportMaxFindings) : QString("unlimited"))
@@ -80,7 +83,7 @@ void LayoutWindow::optimizeLayout(LayoutPageList& pages, const OriginalPageList&
     page.violations = std::move(solved.violations);
     for (const auto& line : solved.glyphs) {
       for (const auto& g : line) {
-        ViolationReportWriter::GlyphRef ref{&g.worldPolys, g.glyphName, g.globalIndex,
+        ViolationReportWriter::GlyphRef ref{&solved.reportGeometry(g), g.glyphName, g.globalIndex,
             g.isMark && members.contains(g.prevBase) ? g.prevBase->globalIndex : -1,
             g.lineIndex + 1, g.dx, g.dy};
         ref.cluster = g.glyphLayout ? static_cast<int>(g.glyphLayout->cluster) : -1;

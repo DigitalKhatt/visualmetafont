@@ -6,6 +6,7 @@
 #include "digitalkhatt/layout/SolverContext.h"
 #include "digitalkhatt/layout/ConstraintViolation.h"
 #include "digitalkhatt/layout/SweepBroadphase.h"
+#include "digitalkhatt/layout/constraints/WaqfEscapeConstraint.h"
 
 using namespace geometry;
 
@@ -79,6 +80,13 @@ void solveGapConstraint(SolverContext& solverContext,
     return;
 
   double C = dr.contact.depth_or_gap - gmin;  // want C >= 0
+
+  if (C < 0.0 && !solverContext.waqfEscapes.empty()) {
+    if (auto* escape = solverContext.waqfEscapes[A.globalIndex])
+      escape->recordContact(B, dr.contact.normal * -1.0, dr.contact.depth_or_gap, gmin);
+    if (auto* escape = solverContext.waqfEscapes[B.globalIndex])
+      escape->recordContact(A, dr.contact.normal, dr.contact.depth_or_gap, gmin);
+  }
 
   auto gapKey = GapKey{&A, &B};
 

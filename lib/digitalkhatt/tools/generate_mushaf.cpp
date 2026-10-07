@@ -219,12 +219,19 @@ void usage() {
       "  --report / --no-report     Generate PDFs, CSV and offline web viewer\n"
       "  --xpbd-config PATH         Partial/full OptParams JSON\n"
       "  --soft-targets             Include optional soft residuals\n"
+      "  --waqf-escape / --no-waqf-escape  Conditional left escape (default on)\n"
+      "  --waqf-escape-min-gap N     Escape trigger/stop clearance (default 10)\n"
+      "  --waqf-escape-step N        Target step, % of waqf width (default 5)\n"
+      "  --waqf-escape-down-step N   Downward target step, % of waqf height (default 5)\n"
+      "  --waqf-escape-max-left N    Maximum target offset, % of width (default 100)\n"
       "  --report-waqf-bounds / --no-report-waqf-bounds  Solver height-bound residuals (default off)\n"
       "  --waqf-left-drift-tolerance N   Allowed left drift, % of waqf width (default 100)\n"
       "  --waqf-right-drift-tolerance N  Allowed right drift, % of waqf width (default 50)\n"
       "  --waqf-previous-line-margin N  Margin below previous baseline, % of spacing (default 20)\n"
       "  --waqf-x-alignment-band N   Inactive horizontal band, % of waqf width each side (default 25)\n"
       "  --report-generic-gap / --no-report-generic-gap  Include/exclude gap findings (default off)\n"
+      "  --report-gap-mode MODE     collisions (Save Collision, default) or all (solver residuals)\n"
+      "  --collision-report-gap N   Save Collision minimum clearance, font units (default 10)\n"
       "  --placement-audit / --no-placement-audit  Include/exclude final side/class/owner audit (default off)\n"
       "  --min-severity N           Minimum residual beyond allowed slack (default 1)\n"
       "  --base-vicinity-mark-tolerance N  Reporting slack in percent of mark width (default 5)\n"
@@ -288,6 +295,12 @@ int main(int argc,char** argv) {
       else if (arg=="--waqf-right-drift-tolerance") options.xpbd.waqfRightDriftTolerancePercent=std::stod(value());
       else if (arg=="--waqf-previous-line-margin") options.xpbd.waqfPreviousLineMarginPercent=std::stod(value());
       else if (arg=="--waqf-x-alignment-band") options.xpbd.waqfHorizontalAlignmentBandPercent=std::stod(value());
+      else if (arg=="--waqf-escape") options.xpbd.toggles.waqfEscape=true;
+      else if (arg=="--no-waqf-escape") options.xpbd.toggles.waqfEscape=false;
+      else if (arg=="--waqf-escape-min-gap") options.xpbd.waqfEscapeMinGap=std::stod(value());
+      else if (arg=="--waqf-escape-step") options.xpbd.waqfEscapeStepPercent=std::stod(value());
+      else if (arg=="--waqf-escape-down-step") options.xpbd.waqfEscapeDownStepPercent=std::stod(value());
+      else if (arg=="--waqf-escape-max-left") options.xpbd.waqfEscapeMaxLeftPercent=std::stod(value());
       else if (arg=="--report-waqf-bounds") options.xpbd.toggles.reportWaqfBounds=true;
       else if (arg=="--no-report-waqf-bounds") options.xpbd.toggles.reportWaqfBounds=false;
       else if (arg=="--database") options.database=value();
@@ -306,6 +319,12 @@ int main(int argc,char** argv) {
       else if (arg=="--soft-targets") options.xpbd.toggles.reportSoftResiduals=true;
       else if (arg=="--report-generic-gap") options.xpbd.toggles.reportGenericGap=true;
       else if (arg=="--no-report-generic-gap") options.xpbd.toggles.reportGenericGap=false;
+      else if (arg=="--report-gap-mode") {
+        auto mode=value();
+        if (mode!="collisions" && mode!="all") throw std::runtime_error("--report-gap-mode must be collisions or all");
+        options.xpbd.reportGenericGapCollisionsOnly=mode=="collisions";
+      }
+      else if (arg=="--collision-report-gap") options.xpbd.collisionReportMinGap=std::stod(value());
       else if (arg=="--placement-audit") options.xpbd.toggles.reportPlacementAudit=true;
       else if (arg=="--no-placement-audit") options.xpbd.toggles.reportPlacementAudit=false;
       else if (arg=="--only-changed") options.xpbd.reportOnlyChanged=true;
@@ -325,6 +344,7 @@ int main(int argc,char** argv) {
     if (options.layout=="v1" || options.layout=="v1_layout") options.layout="qpc_v1_layout";
     if (options.layout=="v4" || options.layout=="v4_layout") options.layout="qpc_v4_layout";
     if (options.xpbd.reportMaxFindings<0 || options.xpbd.maxIters<0 || options.xpbd.maxIters>10000 ||
+        !std::isfinite(options.xpbd.collisionReportMinGap) || options.xpbd.collisionReportMinGap<0 || options.xpbd.collisionReportMinGap>1000 ||
         !std::isfinite(options.xpbd.minViolationSeverity) || options.xpbd.minViolationSeverity<0 ||
         !std::isfinite(options.xpbd.baseVicinityMarkTolerancePercent) || options.xpbd.baseVicinityMarkTolerancePercent<0 || options.xpbd.baseVicinityMarkTolerancePercent>100 ||
         !std::isfinite(options.xpbd.baseVicinityDotTolerancePercent) || options.xpbd.baseVicinityDotTolerancePercent<0 || options.xpbd.baseVicinityDotTolerancePercent>100 ||
@@ -332,6 +352,10 @@ int main(int argc,char** argv) {
         !std::isfinite(options.xpbd.waqfRightDriftTolerancePercent) || options.xpbd.waqfRightDriftTolerancePercent<0 || options.xpbd.waqfRightDriftTolerancePercent>1000 ||
         !std::isfinite(options.xpbd.waqfPreviousLineMarginPercent) || options.xpbd.waqfPreviousLineMarginPercent<0 || options.xpbd.waqfPreviousLineMarginPercent>100 ||
         !std::isfinite(options.xpbd.waqfHorizontalAlignmentBandPercent) || options.xpbd.waqfHorizontalAlignmentBandPercent<0 || options.xpbd.waqfHorizontalAlignmentBandPercent>1000 ||
+        !std::isfinite(options.xpbd.waqfEscapeMinGap) || options.xpbd.waqfEscapeMinGap<0 || options.xpbd.waqfEscapeMinGap>1000 ||
+        !std::isfinite(options.xpbd.waqfEscapeStepPercent) || options.xpbd.waqfEscapeStepPercent<0 || options.xpbd.waqfEscapeStepPercent>100 ||
+        !std::isfinite(options.xpbd.waqfEscapeDownStepPercent) || options.xpbd.waqfEscapeDownStepPercent<0 || options.xpbd.waqfEscapeDownStepPercent>100 ||
+        !std::isfinite(options.xpbd.waqfEscapeMaxLeftPercent) || options.xpbd.waqfEscapeMaxLeftPercent<0 || options.xpbd.waqfEscapeMaxLeftPercent>1000 ||
         !std::isfinite(options.emScale) || options.emScale<=0 || options.emScale>5 ||
         options.textWidth<1 || options.textWidth>100000) throw std::runtime_error("Invalid numeric option");
     if (options.xpbd.reportSort != "severity" && options.xpbd.reportSort != "priority")
@@ -400,6 +424,7 @@ int main(int argc,char** argv) {
         "Blue dashed: shaped position. Red: hard finding. Amber: review. NEW/WORSE compares the same shaped page.",
         "Placement audit (side, class, owner): "+std::string(options.xpbd.toggles.reportPlacementAudit?"on":"off"),
         "Generic gaps: "+std::string(options.xpbd.toggles.reportGenericGap?"on":"off")+"; soft targets: "+(options.xpbd.toggles.reportSoftResiduals?"on":"off")+"; minimum excess severity "+std::to_string(options.xpbd.minViolationSeverity),
+        "Gap report: "+std::string(options.xpbd.reportGenericGapCollisionsOnly?"Save Collision cases":"all solver residuals")+"; collision clearance "+std::to_string(options.xpbd.collisionReportMinGap)+" font units",
         "Sort: "+options.xpbd.reportSort+"; maximum findings: "+std::to_string(options.xpbd.reportMaxFindings)+" (0 unlimited); only changed (plus structural): "+(options.xpbd.reportOnlyChanged?"on":"off"),
         "BaseVicinity reporting tolerance (% of mark width): marks "+std::to_string(options.xpbd.baseVicinityMarkTolerancePercent)+"; dots "+std::to_string(options.xpbd.baseVicinityDotTolerancePercent),
         "Waqf allowed left/right drift (% of waqf width): "+std::to_string(options.xpbd.waqfLeftDriftTolerancePercent)+"/"+std::to_string(options.xpbd.waqfRightDriftTolerancePercent),
@@ -430,7 +455,11 @@ int main(int argc,char** argv) {
       if (options.report) {
         Report::Page page; page.pageNumber=p; page.notes=notes; page.violations=solved.violations;
         for (auto& line:solved.glyphs) {
-          for (auto& g:line) page.glyphs.push_back(glyphRef(g,text));
+          for (auto& g:line) {
+            auto ref=glyphRef(g,text);
+            ref.worldPolys=&solved.reportGeometry(g);
+            page.glyphs.push_back(std::move(ref));
+          }
         }
         for (const auto& v:solved.violations) {
           ++statistics.findings; ++statistics.byType[violationTypeName(v.type)];

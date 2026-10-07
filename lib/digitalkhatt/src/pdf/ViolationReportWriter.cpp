@@ -326,7 +326,8 @@ bool ViolationReportWriter::appendPage(const Page& page) {
   const auto order = [this](const Finding& a, const Finding& b) { return precedes(a, b); };
   for (const auto& v : page.violations) {
     if (!m_params.toggles.reportGenericGap && v.type == ViolationType::GenericGap) continue;
-    if (!v.structural && violationReportSeverity(v) < m_params.minViolationSeverity) continue;
+    if (!v.structural && v.diagnostic != "save-collision" &&
+        violationReportSeverity(v) < m_params.minViolationSeverity) continue;
     if (m_params.reportOnlyChanged && !v.structural && !v.introduced && !v.worsened) continue;
     ++m_eligibleCount;
     Finding candidate{ownedPage, v, m_sequence++, page.pageNumber > 0 ? page.pageNumber : m_pageIndex};
@@ -514,7 +515,8 @@ bool ViolationReportWriter::writeSummary(std::vector<WordEntry>& entries, const 
     ctx = m_writer.StartPageContentContext(pdfPage);
     const auto title = entries.empty() ? "XPBD placement report - No retained findings" :
         section == 0 ? "XPBD report - Critical structural diagnostics" :
-        section == 2 ? "XPBD report - Structural review warnings" : "XPBD report - Geometric violations";
+        section == 1 ? "XPBD report - Waqf association" :
+        section == 3 ? "XPBD report - Structural review warnings" : "XPBD report - Geometric violations";
     drawHeader(ctx, textFont, margin, H - margin, title, notes);
   };
 

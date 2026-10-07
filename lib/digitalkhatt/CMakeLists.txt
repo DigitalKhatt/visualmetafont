@@ -148,6 +148,7 @@ add_library(digitalkhatt_layout
   src/layout/GlyphInstance.cpp
   src/layout/SolverContext.cpp
   src/layout/GapConstraint.cpp
+  src/layout/CollisionReport.cpp
   src/layout/MarkClassifier.cpp
   src/layout/OptimizeLayout.cpp
   src/layout/PlacementAudit.cpp
@@ -156,6 +157,7 @@ add_library(digitalkhatt_layout
   src/layout/constraints/DotWidthWithinBaseConstraint.cpp
   src/layout/constraints/WaqfAlignXConstraint.cpp
   src/layout/constraints/WaqfPlacementConstraint.cpp
+  src/layout/constraints/WaqfEscapeConstraint.cpp
   src/layout/constraints/HardStayAboveConstraint.cpp
   src/layout/constraints/HardStayBelowConstraint.cpp
   src/layout/constraints/MatchMarkPositionWithOffsetConstraint.cpp

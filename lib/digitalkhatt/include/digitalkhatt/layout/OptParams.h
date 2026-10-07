@@ -10,6 +10,7 @@ namespace digitalkhatt::layout {
 struct ConstraintToggles {
   bool ylane = true;
   bool waqfPlacement = true;
+  bool waqfEscape = true;         // conditional left preference for a stalled squeeze
   bool hardStayAboveBelow = false;  // both stay-above/stay-below rails
   bool returnToAnchor = false;      // bowl exception
   bool squeezeCenter = false;
@@ -89,6 +90,8 @@ struct OptParams {
   int reportMaxFindings = 1000;
   std::string reportSort = "severity";  // severity or priority
   bool reportOnlyChanged = false;     // keep new/worsened plus structural findings
+  bool reportGenericGapCollisionsOnly = true; // same check as GUI Save Collision
+  double collisionReportMinGap = 10.0; // font units, independent of solver gaps
 
   // Reporting allowance beyond the BaseVicinity boundary, as a percentage
   // of the mark's horizontal ink width. Does not affect projection or solver
@@ -106,6 +109,11 @@ struct OptParams {
   // side of the leftmost ink edge of the base and its attached top marks.
   // Contacts may move farther.
   double waqfHorizontalAlignmentBandPercent = 25.0; // % of waqf ink width
+
+  double waqfEscapeMinGap = 10.0;       // trigger/stop clearance, font units
+  double waqfEscapeStepPercent = 5.0;   // target advance per iteration, % of ink width
+  double waqfEscapeDownStepPercent = 5.0; // downward target advance, % of ink height
+  double waqfEscapeMaxLeftPercent = 100.0; // cap target offset from owning base
 
   // GenericGap violations are compared against expectedComplianceResidual()
   // (GapConstraint.h) -- the residual a soft (compliance > 0) pairwise
