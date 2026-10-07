@@ -38,6 +38,8 @@ struct WaqfPlacementConstraint : XPBDConstraint {
   double lambdaTarget = 0.0;  // target-height equality
   double lambdaMax = 0.0;     // upper bound inequality
   double lambdaX = 0.0;       // horizontal equality
+  const GlyphInstance* lowerBoundMark = nullptr;  // active above-stack floor
+  bool lowerBoundAboveStack = false;
 
   explicit WaqfPlacementConstraint(
       GlyphInstance& waqf,
@@ -73,6 +75,15 @@ struct WaqfPlacementConstraint : XPBDConstraint {
   void project(SolverContext& solverContext, double dt) override;
   void reportViolations(SolverContext& solverContext,
                         std::vector<ConstraintViolation>& out) const override;
+};
+
+// Rigid top-edge ordering, projected after contacts alongside the other hard
+// rails. Diagnostics are included in WaqfPlacementConstraint's shared floor.
+struct WaqfTopOrderConstraint : XPBDConstraint {
+  WaqfPlacementConstraint& placement;
+  explicit WaqfTopOrderConstraint(WaqfPlacementConstraint& placement_)
+      : placement(placement_) {}
+  void project(SolverContext& solverContext, double dt) override;
 };
 
 }  // namespace digitalkhatt::layout

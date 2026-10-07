@@ -57,20 +57,29 @@ void StackOrderConstraint::project(SolverContext& solverContext, double dt) {
 
   // ------------------------------------------------------------
   // Soft equality: keep the two marks horizontally aligned (± offsetX).
+  // Dots are the reference: only the outer mark follows their position.
+  // Their actual mobility remains available to gap and other constraints.
   // ------------------------------------------------------------
   {
+    const bool innerIsDots = solverContext.topdotmarks.contains(inner.glyphName) ||
+                             solverContext.downdotmarks.contains(inner.glyphName);
+    const double wAlignInner = innerIsDots ? 0.0 : wI;
     const double C = (boxCenterX(inner) - boxCenterX(outer)) - offsetX;
 
     const double alpha = xAlignCompliance / (dt * dt);
-    const double denom = wI + wO + alpha;
+    const double denom = wAlignInner + wO + alpha;
     if (denom >= 1e-9) {
       const double deltaLambda = (-C - alpha * lambdaX) / denom;
       lambdaX += deltaLambda;
 
-      if (wI > 0.0) inner.dx += wI * deltaLambda;
-      if (wO > 0.0) outer.dx -= wO * deltaLambda;
-      updateWorldPolys(inner);
-      updateWorldPolys(outer);
+      if (wAlignInner > 0.0) {
+        inner.dx += wAlignInner * deltaLambda;
+        updateWorldPolys(inner);
+      }
+      if (wO > 0.0) {
+        outer.dx -= wO * deltaLambda;
+        updateWorldPolys(outer);
+      }
     }
   }
 }

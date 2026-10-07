@@ -11,6 +11,8 @@ namespace digitalkhatt::layout {
 // X-alignment. `inner` is the mark closer to the base, `outer` is further
 // out; `isAbove` says whether the stack extends upward (top marks) or
 // downward (bottom marks) from the base.
+// If inner is dots, horizontal alignment moves only outer; the vertical
+// minimum-gap constraint still uses both marks' mobilities.
 struct StackOrderConstraint : XPBDConstraint {
   GlyphInstance& inner;
   GlyphInstance& outer;

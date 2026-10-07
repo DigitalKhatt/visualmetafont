@@ -195,6 +195,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
   std::vector<std::unique_ptr<XPBDConstraint>> xpbdConstraints;
 
   std::vector<std::unique_ptr<XPBDConstraint>> hardConstraints;
+  std::vector<WaqfPlacementConstraint*> waqfPlacements;
 
   // Per-base groups of top marks, matched against the explicit stacking
   // chains below. (No below-mark stacking chains are defined yet -- kasra
@@ -237,15 +238,14 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
 
     if (solverContext.isWaqf(mark)) {
       if (P.toggles.waqfPlacement) {
-        xpbdConstraints.push_back(std::make_unique<WaqfPlacementConstraint>(mark, /*minCompliance=*/P.compliance.waqfMin,
-                                                                            /*targetCompliance=*/P.compliance.waqfTarget,
-                                                                            /*maxCompliance=*/P.compliance.waqfMax,
-                                                                            /*xAlignCompliance=*/P.compliance.waqfXAlign,
-                                                                            /*minDistFromBaseline=*/700.0,
-                                                                            /*minGapToBase=*/100.0,
-                                                                            /*minGapToTopMarks=*/50.0,
-                                                                            /*desiredExtraLift=*/0.0,
-                                                                            /*upperCeilingY=*/1400.0));
+        auto placement = std::make_unique<WaqfPlacementConstraint>(
+            mark, P.compliance.waqfMin, P.compliance.waqfTarget,
+            P.compliance.waqfMax, P.compliance.waqfXAlign,
+            /*minDistFromBaseline=*/700.0, /*minGapToBase=*/100.0,
+            /*minGapToTopMarks=*/50.0, /*desiredExtraLift=*/0.0,
+            /*upperCeilingY=*/1400.0);
+        waqfPlacements.push_back(placement.get());
+        xpbdConstraints.push_back(std::move(placement));
       }
       // Waqf marks already get a full placement solve above; skip the
       // generic below rail/vicinity/squeeze handling for them.
@@ -454,6 +454,11 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
       }
     }
   }
+
+  // Apply waqf top ordering after all ordinary mark rails, so their upward
+  // corrections cannot leave the waqf below its own stack's highest top.
+  for (auto* placement : waqfPlacements)
+    hardConstraints.push_back(std::make_unique<WaqfTopOrderConstraint>(*placement));
 
   std::vector<std::pair<int, int>> pairs;
   const double toleranceSquared = P.tolCollision * P.tolCollision;

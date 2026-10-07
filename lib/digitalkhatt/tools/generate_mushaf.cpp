@@ -43,7 +43,8 @@ template<class T> void readJson(T& value, const fs::path& path) {
     if (data.find("preserveMarkSemantics") != std::string::npos ||
         data.find("waqfBaseVicinity") != std::string::npos ||
         data.find("waqfInterLineGap") != std::string::npos ||
-        data.find("waqfStackGap") != std::string::npos) {
+        data.find("waqfStackGap") != std::string::npos ||
+        data.find("waqfHeightPreferenceBand") != std::string::npos) {
       glz::generic_i64 document;
       if (const auto error = glz::read_json(document, data))
         throw std::runtime_error("Invalid JSON in " + path.string() + ": " + glz::format_error(error, data));
@@ -62,7 +63,7 @@ template<class T> void readJson(T& value, const fs::path& path) {
         changed |= toggles->get_object().erase("waqfBaseVicinity") != 0;
       }
       if (xpbd && xpbd->is_object()) {
-        for (const auto* key : {"waqfBaseVicinityMarginFactor", "waqfInterLineGap", "waqfStackGap"})
+        for (const auto* key : {"waqfBaseVicinityMarginFactor", "waqfInterLineGap", "waqfStackGap", "waqfHeightPreferenceBand"})
           changed |= xpbd->get_object().erase(key) != 0;
       }
       auto* compliance = child(xpbd, "compliance");

@@ -66,6 +66,15 @@ therefore differ from fresh defaults. The old separate collision-adjustment
 checkbox (`adjustOverlapping2`) is not part of this XPBD command; leave that
 legacy pass disabled for reproducible GUI/CLI comparisons.
 
+## Waqf height target
+
+When a waqf is beside its stack, its soft target puts its top above the highest
+same-base top mark by the existing top-mark gap (50 font units). The hard
+top-order floor allows their tops to be level. When their horizontal bounds
+overlap, the stronger bottom-above-top floor applies. Baseline/base visibility
+limits and the upper ceiling also bound the target. Solver and reporting use
+the same target calculation; there is no separate height-band parameter.
+
 ## Filter and order the violation report
 
 The GUI's **Solver Tuning > Violation report** section and the CLI use the
