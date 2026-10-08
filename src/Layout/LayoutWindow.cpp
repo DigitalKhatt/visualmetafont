@@ -482,7 +482,7 @@ void LayoutWindow::loadMushafLayout(QString layoutName) {
   QSqlQuery query(queryString);
   std::vector<digitalkhatt::MushafWordRow> rows;
   while (query.next()) rows.push_back({query.value(0).toInt(), query.value(1).toInt(),
-      query.value(2).toString().toStdString(), query.value(3).toString().toStdU16String()});
+                                       query.value(2).toString().toStdString(), query.value(3).toString().toStdU16String()});
   for (const auto& page : digitalkhatt::assembleMushafText(rows, std::string_view(textCol))) {
     currentQuranText.append(QString::fromStdU16String(page));
     suraNameByPage.append("");
@@ -585,7 +585,7 @@ void LayoutWindow::createActions() {
   connect(generateAllPDF, &QAction::triggered, this,
           &LayoutWindow::generateAllQuranTexBreaking);
   fileMenu->addAction(generateAllPDF);
-  fileToolBar->addAction(generateAllPDF);
+  // fileToolBar->addAction(generateAllPDF);
 
   QIcon icon =
       QIcon::fromTheme("document-save", QIcon(":/images/downloadpdf.png"));
@@ -603,8 +603,8 @@ void LayoutWindow::createActions() {
   connect(genMedinaAction, &QAction::triggered, this,
           [&]() { generateMushaf(true); });
   fileMenu->addAction(genMedinaAction);
-  fileToolBar->addAction(genMedinaAction);
-  fileToolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  // fileToolBar->addAction(genMedinaAction);
+  // fileToolBar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
 
   QIcon genLayoutIcon =
       QIcon::fromTheme("document-save", QIcon(":/images/save.png"));
@@ -670,9 +670,11 @@ void LayoutWindow::createActions() {
       "Baseline distance in font units (1000 units = 1 em). "
       "Used by preview, PDF and layout generation, including Force collision handling."));
   const int savedLineSpacing = settings.value("Layout/InterLineSpacing",
-      OtLayout::DefaultInterLineSpacing).toInt();
+                                              OtLayout::DefaultInterLineSpacing)
+                                   .toInt();
   interLineSpacingSpinBox->setValue(savedLineSpacing > 0 && savedLineSpacing <= OtLayout::FrameHeight
-      ? savedLineSpacing : OtLayout::DefaultInterLineSpacing);
+                                        ? savedLineSpacing
+                                        : OtLayout::DefaultInterLineSpacing);
   jutifyToolbar->addWidget(interLineSpacingSpinBox);
   connect(interLineSpacingSpinBox, qOverload<int>(&QSpinBox::valueChanged),
           [this](int units) {
@@ -1413,7 +1415,7 @@ bool LayoutWindow::exportpdf() {
 }
 
 LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth, OtLayout* layout,
-    hb_buffer_cluster_level_t cluster_level) {
+                                      hb_buffer_cluster_level_t cluster_level) {
   layout->loadLookupFile("features.fea");
   LayoutPages result;
   bool newFace = true;
@@ -1421,7 +1423,7 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth, OtLayout* lay
     auto text = digitalkhatt::splitMushafLines(currentQuranText[p].toStdU16String());
     auto input = digitalkhatt::mushafLineInputs(text, p + 1, pageWidth, mushafLayouts->currentText().toStdString());
     auto shaped = layout->justifyPage(scale, pageWidth, input, newFace, tajweedEnabled,
-        cluster_level, getJustOption(), mushafLayouts->currentText().toStdString());
+                                      cluster_level, getJustOption(), mushafLayouts->currentText().toStdString());
     digitalkhatt::finishMushafPage(shaped, text, p + 1);
     newFace = false;
     result.pages.push_back(std::move(shaped));
@@ -2060,9 +2062,12 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
     if (!glz::write<glz::opts{.prettify = true}>(settings, json)) {
       QDir().mkpath(fileInfo.path() + "/output");
       QFile snapshot(fileInfo.path() + "/output/mushaf.settings.json");
-      if (snapshot.open(QIODevice::WriteOnly)) snapshot.write(json.data(), json.size());
-      else qWarning() << "Cannot save Mushaf command-line settings:" << snapshot.errorString();
-    } else qWarning() << "Cannot serialize Mushaf command-line settings";
+      if (snapshot.open(QIODevice::WriteOnly))
+        snapshot.write(json.data(), json.size());
+      else
+        qWarning() << "Cannot save Mushaf command-line settings:" << snapshot.errorString();
+    } else
+      qWarning() << "Cannot serialize Mushaf command-line settings";
     auto res = 4800 << OtLayout::SCALEBY;
     QPageSize pageSize{{90.2, 144.5}, QPageSize::Millimeter, "MedianQuranBook"};
     QPageLayout pageLayout{pageSize, QPageLayout::Portrait,
