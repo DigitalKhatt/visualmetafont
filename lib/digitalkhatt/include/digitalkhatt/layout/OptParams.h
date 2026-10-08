@@ -67,6 +67,10 @@ struct ConstraintCompliance {
 };
 
 struct OptParams {
+  // Experimental whole-outline contact oracle; XPBD and its defaults stay intact.
+  bool useNoFitPolygons = false;
+  int noFitPolygonCacheLimit = 16384;
+
   double minGapBody = 10.0;  // font units
   double minGapMark = 100.0;
 

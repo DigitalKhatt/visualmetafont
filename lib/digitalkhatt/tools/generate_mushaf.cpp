@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <array>
+#include <limits>
 #include <chrono>
 #include <cctype>
 #include <cmath>
@@ -21,6 +23,8 @@
 #include "Layout/MushafRunOptions.h"
 #include "Layout/PlacementPipeline.h"
 #include "digitalkhatt/layout/ViolationReportContext.h"
+#include "digitalkhatt/layout/CollisionReport.h"
+#include "digitalkhatt/layout/MarkClassifier.h"
 #include "digitalkhatt/pdf/MushafPdfWriter.h"
 #include "digitalkhatt/pdf/ViolationReportWriter.h"
 
@@ -174,7 +178,12 @@ std::vector<TextString> loadCorpus(const MushafRunOptions& options) {
   return pages;
 }
 
+struct MovementStatistics {
+  uint64_t count=0, moved=0;
+  double totalDistance=0, maximumDistance=0, totalHorizontal=0, totalVertical=0;
+};
 struct Statistics {
+  std::map<std::string,MovementStatistics> movement;
   uint64_t pages=0, lines=0, glyphs=0, marks=0, findings=0, hard=0, soft=0, introduced=0, worsened=0;
   uint64_t surahHeaders=0, basmalaLines=0, sajdaStarts=0, sajdaEnds=0;
   uint64_t reportedFindings=0, eligibleFindings=0;
@@ -186,6 +195,24 @@ struct RunManifest {
   std::map<std::string,std::string> sources;
   Statistics statistics;
   double seconds=0;
+  geometry::NoFitPolygonStatistics noFitPolygons;
+  double placementSeconds=0;
+};
+struct ReviewGlyph {
+  int index, base, line, word;
+  std::string name, text;
+  bool mark;
+  double dx, dy;
+  std::array<double,4> box;
+  std::vector<std::vector<std::array<double,2>>> polygons;
+};
+struct ReviewWord {
+  int page, line, word;
+  std::vector<ReviewGlyph> glyphs;
+};
+struct ReviewDocument {
+  std::string contactMethod;
+  std::vector<ReviewWord> words;
 };
 Report::GlyphRef glyphRef(const GlyphInstance& g,const std::vector<TextString>& text) {
   Report::GlyphRef result{&g.worldPolys,g.glyphName,g.globalIndex,g.isMark&&g.prevBase?g.prevBase->globalIndex:-1,g.lineIndex+1,g.dx,g.dy};
@@ -199,6 +226,35 @@ Report::GlyphRef glyphRef(const GlyphInstance& g,const std::vector<TextString>& 
       while (end<line.size() && line[end]!=u' ') ++end;
       result.wordText=utf8(TextView(line).substr(begin,end-begin));
     }
+  }
+  return result;
+}
+ReviewWord reviewWord(int page, int line, int word, const PlacementPage& solved,
+                     const std::vector<TextString>& text) {
+  ReviewWord result{page,line,word,{}};
+  double left=std::numeric_limits<double>::infinity(),right=-left;
+  for (const auto& row:solved.glyphs) for (const auto& g:row) {
+    const auto ref=glyphRef(g,text);
+    if (ref.lineNumber!=line || ref.wordNumber!=word || isCollisionSpace(g.glyphName)) continue;
+    const auto box=solved.reportGeometry(g).boundingAABB();
+    left=std::min(left,box.minx);right=std::max(right,box.maxx);
+  }
+  if (!std::isfinite(left)) return result;
+  for (const auto& row:solved.glyphs) for (const auto& g:row) {
+    if (g.lineIndex+1!=line && g.lineIndex+1!=line-1) continue;
+    if (isCollisionSpace(g.glyphName)) continue;
+    const auto& geometry=solved.reportGeometry(g);
+    if (geometry.empty()) continue;
+    const auto box=geometry.boundingAABB();
+    if (box.maxx<left-400 || box.minx>right+400) continue;
+    const auto ref=glyphRef(g,text);
+    ReviewGlyph preview{g.globalIndex,ref.baseGlobalIndex,ref.lineNumber,ref.wordNumber,
+        g.glyphName,ref.wordText,g.isMark,g.dx,g.dy,{box.minx,box.miny,box.maxx,box.maxy},{}};
+    for (const auto& polygon:geometry.polys()) {
+      auto& points=preview.polygons.emplace_back();
+      for (const auto& point:polygon) points.push_back({point.x,point.y});
+    }
+    result.glyphs.push_back(std::move(preview));
   }
   return result;
 }
@@ -216,8 +272,11 @@ void usage() {
       "  --stretch-policy NAME      Declarative stretch policy override\n"
       "  --shrink-policy NAME       Declarative shrink policy override\n"
       "  --force / --no-force       Enable/disable XPBD (default matches GUI: off)\n"
+      "  --review-word P:L:W       Export paired-review ink to .review.json; repeatable, requires --report\n"
       "  --report / --no-report     Generate PDFs, CSV and offline web viewer\n"
       "  --xpbd-config PATH         Partial/full OptParams JSON\n"
+      "  --contact-method METHOD    gjk (default) or nfp (experimental whole-outline)\n"
+      "  --nfp-cache-limit N        Maximum cached pair/clearance regions (default 16384)\n"
       "  --soft-targets             Include optional soft residuals\n"
       "  --waqf-escape / --no-waqf-escape  Conditional left escape (default on)\n"
       "  --waqf-escape-min-gap N     Escape trigger/stop clearance (default 10)\n"
@@ -262,6 +321,7 @@ int main(int argc,char** argv) {
   std::cout << std::unitbuf;
   try {
     MushafRunOptions options;
+    std::vector<std::array<int,3>> reviewCases;
     options.database=DIGITALKHATT_QURAN_DATABASE;
     options.resources=DIGITALKHATT_METAFONT_RESOURCES;
     options.pdfResources=DIGITALKHATT_PDF_RESOURCES;
@@ -308,6 +368,21 @@ int main(int argc,char** argv) {
       else if (arg=="--resources") options.resources=value();
       else if (arg=="--pdf-resources") options.pdfResources=value();
       else if (arg=="--disable-lookup") options.disabledLookups.push_back(value());
+      else if (arg=="--review-word") {
+        std::istringstream input(value());
+        std::array<int,3> location{};char first=0,second=0;
+        if (!(input>>location[0]>>first>>location[1]>>second>>location[2]) ||
+            first!=':' || second!=':' || !input.eof() ||
+            location[0]<1 || location[1]<1 || location[2]<1)
+          throw std::runtime_error("--review-word requires positive page:line:word numbers");
+        reviewCases.push_back(location);
+      }
+      else if (arg=="--contact-method") {
+        const auto method=value();
+        if (method!="gjk" && method!="nfp") throw std::runtime_error("--contact-method must be gjk or nfp");
+        options.xpbd.useNoFitPolygons=method=="nfp";
+      }
+      else if (arg=="--nfp-cache-limit") options.xpbd.noFitPolygonCacheLimit=std::stoi(value());
       else if (arg=="--xpbd-config") readJson(options.xpbd,value());
       else if (arg=="--write-config") extraConfig=value();
       else if (arg=="--force") options.force=true;
@@ -343,6 +418,8 @@ int main(int argc,char** argv) {
     if (options.layout=="qpc" || options.layout=="v2" || options.layout=="v2_layout") options.layout="qpc_v2_layout";
     if (options.layout=="v1" || options.layout=="v1_layout") options.layout="qpc_v1_layout";
     if (options.layout=="v4" || options.layout=="v4_layout") options.layout="qpc_v4_layout";
+    if (options.xpbd.noFitPolygonCacheLimit<1 || options.xpbd.noFitPolygonCacheLimit>1000000)
+      throw std::runtime_error("--nfp-cache-limit must be between 1 and 1000000");
     if (options.xpbd.reportMaxFindings<0 || options.xpbd.maxIters<0 || options.xpbd.maxIters>10000 ||
         !std::isfinite(options.xpbd.collisionReportMinGap) || options.xpbd.collisionReportMinGap<0 || options.xpbd.collisionReportMinGap>1000 ||
         !std::isfinite(options.xpbd.minViolationSeverity) || options.xpbd.minViolationSeverity<0 ||
@@ -360,6 +437,8 @@ int main(int argc,char** argv) {
         options.textWidth<1 || options.textWidth>100000) throw std::runtime_error("Invalid numeric option");
     if (options.xpbd.reportSort != "severity" && options.xpbd.reportSort != "priority")
       throw std::runtime_error("--report-sort must be severity or priority");
+    if (!reviewCases.empty() && !options.report)
+      throw std::runtime_error("--review-word requires --report");
     options.summaryLimit=options.xpbd.reportMaxFindings;
     options.font=fs::absolute(options.font).string();
     for (auto* path:{&options.database,&options.resources,&options.pdfResources}) if (!path->empty()) *path=fs::absolute(*path).string();
@@ -417,10 +496,12 @@ int main(int argc,char** argv) {
       pdfOptions.pageWidthMM=options.pageWidthMM; pdfOptions.pageHeightMM=options.pageHeightMM; pdfOptions.textWidth=width;
       mushaf=std::make_unique<digitalkhatt::pdf::MushafPdfWriter>(layout,pdfOptions); mushaf->start();
     }
+    ReviewDocument reviews{options.xpbd.useNoFitPolygons?"nfp":"gjk",{}};
     Report report;
     if (options.report && !report.start(sidecar("_violations.pdf"),sidecar("_violations.csv"),options.xpbd)) throw std::runtime_error("Cannot start violation report");
     const std::vector<std::string> notes={
         "Configuration: "+options.layout+"; "+options.justifier+"; "+options.style+"; spacing "+std::to_string(options.lineSpacing)+"; Force "+(options.force?"on":"off"),
+        "Contact method: "+std::string(options.xpbd.useNoFitPolygons?"NFP whole-outline (experimental)":"GJK/EPA component hulls"),
         "Blue dashed: shaped position. Red: hard finding. Amber: review. NEW/WORSE compares the same shaped page.",
         "Placement audit (side, class, owner): "+std::string(options.xpbd.toggles.reportPlacementAudit?"on":"off"),
         "Generic gaps: "+std::string(options.xpbd.toggles.reportGenericGap?"on":"off")+"; soft targets: "+(options.xpbd.toggles.reportSoftResiduals?"on":"off")+"; minimum excess severity "+std::to_string(options.xpbd.minViolationSeverity),
@@ -439,7 +520,11 @@ int main(int argc,char** argv) {
       auto shaped=layout.justifyPage(scale,width,input,newFace,options.tajweed,HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES,just,options.layout);
       newFace=false; finishMushafPage(shaped,text,p);
       if (shaped.size()!=text.size()) throw std::runtime_error("Wrong line count on page "+std::to_string(p));
+      const auto placementStart=std::chrono::steady_clock::now();
       auto solved=placement.solve(shaped,options.xpbd,options.force,options.report);
+      manifest.placementSeconds+=std::chrono::duration<double>(std::chrono::steady_clock::now()-placementStart).count();
+      for (const auto& location:reviewCases) if (location[0]==p)
+        reviews.words.push_back(reviewWord(p,location[1],location[2],solved,text));
       auto& statistics=manifest.statistics;
       ++statistics.pages; statistics.lines+=shaped.size();
       for (const auto& line : shaped) {
@@ -450,7 +535,22 @@ int main(int argc,char** argv) {
           if (g.endsajda) ++statistics.sajdaEnds;
         }
       }
-      for (const auto& line:solved.glyphs) for (const auto& g:line) { ++statistics.glyphs; if (g.isMark) ++statistics.marks; }
+      for (const auto& line:solved.glyphs) for (const auto& g:line) {
+        ++statistics.glyphs;
+        if (!g.isMark) continue;
+        ++statistics.marks;
+        const auto classification=classifyMark(g);
+        const std::string role=classification==MarkRole::Dots ? "dots" :
+            classification==MarkRole::WaqfSign ? "waqf" : "other-marks";
+        auto& movement=statistics.movement[role];
+        ++movement.count;
+        const double distance=std::hypot(g.dx,g.dy);
+        if (distance>options.xpbd.tolCollision) ++movement.moved;
+        movement.totalDistance+=distance;
+        movement.maximumDistance=std::max(movement.maximumDistance,distance);
+        movement.totalHorizontal+=std::abs(g.dx);
+        movement.totalVertical+=std::abs(g.dy);
+      }
       for (const auto& v:solved.initialViolations) ++statistics.initialByType[violationTypeName(v.type)];
       if (options.report) {
         Report::Page page; page.pageNumber=p; page.notes=notes; page.violations=solved.violations;
@@ -485,6 +585,8 @@ int main(int argc,char** argv) {
       if (!report.writeWeb(summary,sidecar("_violations.html"),summaryNotes)) throw std::runtime_error("Cannot write web violation report");
     }
     for (const auto& [path,hash]:manifest.sources) if (checksum(path)!=hash) throw std::runtime_error("Source changed during run: "+path);
+    if (!reviewCases.empty()) writeJson(reviews,sidecar(".review.json"));
+    manifest.noFitPolygons=placement.noFitPolygonStatistics();
     manifest.complete=true;
     manifest.seconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-started).count();
     writeJson(manifest,sidecar(".run.json"));

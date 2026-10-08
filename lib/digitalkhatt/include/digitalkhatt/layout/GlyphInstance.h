@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <optional>
 
 #include "digitalkhatt/core/digitalkahtt_types.h"
 #include "digitalkhatt/geometry/geometry.h"
@@ -31,6 +32,16 @@ struct GlyphInstance {
   const geometry::GeometrySet* geom = nullptr;
 
   geometry::GeometrySet geomScaled;
+
+  // Optional unsplit outline, scaled exactly like geomScaled. NFP uses this
+  // independently of the hull/decomposed geometry used by other constraints.
+  std::optional<geometry::GeometrySet> noFitGeometry;
+  const geometry::GeometrySet& noFitLocalGeometry() const {
+    return noFitGeometry ? *noFitGeometry : (geom ? *geom : geomScaled);
+  }
+
+  std::size_t noFitShape = 0; // registered scaled-local shape for the optional oracle
+  bool noFitConvexContact = false;
 
   bool isMark = false;
 

@@ -129,6 +129,7 @@ endif()
 add_library(digitalkhatt_geometry
   src/geometry/geometry.cpp
   src/geometry/gjk_epa.cpp
+  src/geometry/NoFitPolygon.cpp
   src/geometry/polypartition.cpp
 )
 
@@ -177,6 +178,9 @@ if(BUILD_TESTING)
   add_executable(digitalkhatt_test_placement_safety tests/layout/PlacementSafetyTest.cpp)
   target_link_libraries(digitalkhatt_test_placement_safety PRIVATE digitalkhatt_layout)
   add_test(NAME digitalkhatt.placement_safety COMMAND digitalkhatt_test_placement_safety)
+  add_executable(digitalkhatt_test_no_fit_polygon tests/layout/NoFitPolygonTest.cpp)
+  target_link_libraries(digitalkhatt_test_no_fit_polygon PRIVATE digitalkhatt_geometry)
+  add_test(NAME digitalkhatt.no_fit_polygon COMMAND digitalkhatt_test_no_fit_polygon)
 endif()
 
 

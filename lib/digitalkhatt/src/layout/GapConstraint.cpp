@@ -54,6 +54,23 @@ double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptPar
     return 80;
 }
 
+namespace {
+GSContact gapContact(SolverContext& context, const GlyphInstance& A,
+                     const GlyphInstance& B, double gap) {
+  if (!context.noFitPolygons) return getDistance(A.worldPolys,B.worldPolys,gap);
+  if (A.noFitConvexContact && B.noFitConvexContact)
+    return context.noFitPolygons->contactConvex(A.worldPolys, B.worldPolys, gap);
+  const auto a=A.worldPolys.boundingAABB(), b=B.worldPolys.boundingAABB();
+  const double dx=std::max({a.minx-b.maxx,b.minx-a.maxx,0.0});
+  const double dy=std::max({a.miny-b.maxy,b.miny-a.maxy,0.0});
+  if (A.worldPolys.empty() || B.worldPolys.empty() || dx*dx+dy*dy > gap*gap) {
+    GSContact result;result.contact.depth_or_gap=INFINITY;return result;
+  }
+  return context.noFitPolygons->contact(A.noFitShape,{A.baseX+A.dx,A.baseY+A.dy},
+      B.noFitShape,{B.baseX+B.dx,B.baseY+B.dy},gap);
+}
+}  // namespace
+
 void solveGapConstraint(SolverContext& solverContext,
                         GlyphInstance& A,
                         GlyphInstance& B,
@@ -75,7 +92,7 @@ void solveGapConstraint(SolverContext& solverContext,
   const double gmin = chooseMinGap(A, B, P);
   double compliance = effectiveGapCompliance(A, B, gmin);
 
-  auto dr = getDistance(A.worldPolys, B.worldPolys, gmin);
+  auto dr = gapContact(solverContext, A, B, gmin);
   if (!std::isfinite(dr.contact.depth_or_gap))
     return;
 
@@ -165,7 +182,7 @@ void collectGapViolations(
     if (!(A.isMark || B.isMark)) continue;  // mirror solveGapConstraint's filter
 
     const double gmin = chooseMinGap(A, B, P);
-    auto dr = geometry::getDistance(A.worldPolys, B.worldPolys, gmin);
+    auto dr = gapContact(solverContext, A, B, gmin);
     if (!std::isfinite(dr.contact.depth_or_gap)) continue;
 
     const double C = dr.contact.depth_or_gap - gmin;  // violation when C < 0
@@ -201,11 +218,21 @@ void collectGapViolations(
     v.residual = C;
     v.severity = -C;
     v.allowedResidual = allowed;
-    v.detail = dr.contact.depth_or_gap < 0.0 ? "Collision-proxy intersection" :
-        dr.contact.intersect ? "Collision-proxy contact (touching or unresolved penetration)" : "Minimum gap not reached";
+    const bool wholeOutlineContact = solverContext.noFitPolygons &&
+        !(A.noFitConvexContact && B.noFitConvexContact);
+    if (wholeOutlineContact) {
+      // The expanded-region residual can be negative even inside a free ink
+      // pocket when the requested clearance closes that pocket.
+      v.diagnostic = "no-fit-clearance";
+      v.detail = dr.contact.intersect ? "Whole-outline intersection (NFP)"
+                                     : "Whole-outline clearance not reached (NFP)";
+    } else {
+      v.detail = dr.contact.depth_or_gap < 0.0 ? "Collision-proxy intersection" :
+          dr.contact.intersect ? "Collision-proxy contact (touching or unresolved penetration)" : "Minimum gap not reached";
+    }
     v.glyphA = A.globalIndex;
     v.glyphB = B.globalIndex;
-    v.markerCount = 2;  // the contact segment between the two shapes
+    v.markerCount = wholeOutlineContact ? 0 : 2;  // NFP has no ink witnesses
     v.marker[0] = dr.contact.pA;
     v.marker[1] = dr.contact.pB;
     out.push_back(v);

@@ -105,6 +105,15 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
       g.glyphLayout = &positioned;
       g.metrics = {outline->width, outline->height, outline->bbox.llx, outline->bbox.urx};
       g.geomScaled = geom->second.scaled(line.fontSize * xscale, line.fontSize);
+      if (params.useNoFitPolygons) {
+        auto noFit = noFitGeometry_.find(outline);
+        if (noFit == noFitGeometry_.end()) {
+          noFit = noFitGeometry_.emplace(outline, geometry::buildPolyFromCubics(
+              geometry::getGlyphCubic(outline->copiedPath),
+              geometry::CUBIC_FLATNESS_TOLERANCE)).first;
+        }
+        g.noFitGeometry = noFit->second.scaled(line.fontSize * xscale, line.fontSize);
+      }
       g.prevBase = base;
       if (!g.isMark) {
         if (base) base->nextBase = &g;
@@ -113,15 +122,19 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
     }
   }
   auto options = params;
+  if (params.useNoFitPolygons && (!noFitPolygons_ || noFitPolygonCacheLimit_ != params.noFitPolygonCacheLimit)) {
+    noFitPolygons_ = std::make_unique<geometry::NoFitPolygonCache>(params.noFitPolygonCacheLimit);
+    noFitPolygonCacheLimit_ = params.noFitPolygonCacheLimit;
+  }
   const bool collisionReport = report && params.toggles.reportGenericGap && params.reportGenericGapCollisionsOnly;
   if (report) {
     auto initialOptions = options;
     initialOptions.maxIters = 0;
-    optimizePage(result.glyphs, classes, initialOptions, &result.initialViolations);
+    optimizePage(result.glyphs, classes, initialOptions, &result.initialViolations, noFitPolygons_.get());
     if (collisionReport) collectCollisions(page, result, params.collisionReportMinGap, result.initialViolations);
   }
   if (!force) options.maxIters = 0;
-  optimizePage(result.glyphs, classes, options, report ? &result.violations : nullptr);
+  optimizePage(result.glyphs, classes, options, report ? &result.violations : nullptr, noFitPolygons_.get());
   if (force) {
     for (size_t l = 0; l < page.size(); ++l)
       for (size_t i = 0; i < result.glyphs[l].size(); ++i)

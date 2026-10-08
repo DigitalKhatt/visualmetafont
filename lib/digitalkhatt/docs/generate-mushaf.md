@@ -383,3 +383,98 @@ Summarize and validate a completed CSV:
 python3 visualmetafont/lib/digitalkhatt/tools/summarize_mushaf_report.py \
   mushaf_violations.csv --output mushaf.audit.json
 ```
+
+## Experimental cached no-fit polygon contacts
+
+XPBD still runs the placement constraints. `--contact-method nfp` replaces only
+its generic-gap contact oracle with a whole-outline translational forbidden
+region; `--contact-method gjk` retains the existing default component-hull
+GJK/EPA path. There is no new GUI control in this prototype. Native/GUI runs
+still default to GJK/EPA with the intentional mark hull policy.
+
+```sh
+build/mushaf-cli/visualmetafont/lib/digitalkhatt/digitalkhatt_generate_mushaf \
+  --config output/pdf/mushaf-cli/mushaf.settings.json \
+  --force --contact-method nfp --report --output output/pdf/nfp/mushaf.pdf
+```
+
+NFP has its own outline cache built with `buildPolyFromCubics()` for **every**
+glyph, including bases. These unsplit outlines are scaled like the ordinary
+solver geometry and supplied separately to NFP. Other constraints continue using
+`buildGlyphCollisionGeometry()`; the Save Collision audit uses its existing
+decomposed report outlines. NFP inputs are not derived from those decomposed
+base polygons.
+
+The cache interns the scaled local polygon coordinates (0.001-unit grid), with
+an equality check after hashing. For a pair whose two raw outlines and ordinary
+solver geometries are
+single convex polygons, it calls the same floating-point GJK/EPA routine as the
+default solver, with the same world vertices, pair order and requested gap.
+Other pairs decompose each nonconvex silhouette once, merge the convex edge
+sequences to compute `B - A` in linear time, and union all sums before querying
+any contact. Convex components skip decomposition. Clearance expands that
+complete union using round joins. The arc
+approximation has a 0.02-unit chord tolerance. The expansion radius is exactly
+the requested clearance; there is no extra outward allowance. Arc and grid
+approximation can still introduce small differences on the whole-outline path.
+The nearest boundary of the union gives one pair correction, including free
+pockets and disconnected components. Original outline holes retain the existing
+filled-hole policy; this is not an exact cubic-curve or filled-ink oracle.
+
+Translations only change the relative query point. Outline, deformation or scale
+changes register distinct shapes; clearance is part of the region key. Pair order
+is canonicalized. PlacementPipeline shares its cache across the corpus; direct
+`optimizePage` callers get a solve-local cache unless they supply a shared one.
+`--nfp-cache-limit N` bounds pair/clearance entries with LRU eviction (default
+16384); interned shapes and their decomposition are retained for the pipeline's
+lifetime. Changing the limit resets that pipeline cache.
+
+The NFP scalar is `clearance + signed_distance_to_expanded_region`. Subtracting
+the clearance gives the solver's constraint residual. In a narrow concavity it
+must not be interpreted as unexpanded ink penetration depth. The optional full
+gap report labels ink intersection and insufficient clearance separately and
+omits witness markers, since the nearest configuration-space point is not an
+ink witness. Save Collision reporting remains unchanged and uses rounded output
+positions plus decomposed geometry for both methods. Stacking, squeeze and kasra /
+meem-iqlab cohesion keep their existing implementations and exclusions. Resolving
+one pair does not guarantee that all neighboring pairs or semantic constraints
+are satisfied.
+
+The run manifest adds `placementSeconds` (including diagnostics when reporting is
+on), `noFitPolygons` cache/query counters and times (including `convexGjkQueries`
+for shared convex contacts; `queries` counts whole-outline queries), and movement
+summaries by mark role. JSON parameters are `xpbd.useNoFitPolygons` and
+`xpbd.noFitPolygonCacheLimit`. Enable `--review-word P:L:W` with `--report` to
+export requested words and nearby upper-line geometry in `.review.json`, even
+when the requested word has no finding.
+
+Reproduce the full comparison, paired word viewer, reports and serialized timing
+runs with a fresh cache per process:
+
+```sh
+python3 visualmetafont/lib/digitalkhatt/tools/compare_contacts.py \
+  --executable build/mushaf-cli/visualmetafont/lib/digitalkhatt/digitalkhatt_generate_mushaf \
+  --config output/pdf/mushaf-cli/mushaf.settings.json \
+  --output-dir output/pdf/nfp-comparison --pdf --timing-runs 3
+```
+
+`--pages A-B`, repeatable `--case P:L:W`, and `--timing-runs N` narrow a comparison.
+`--nfp-cache-limit N` selects the cache capacity (default 16384). The comparison
+passes it explicitly to both methods, overriding an older saved cache limit.
+`--reuse-audits` accepts completed audits only when input/binary fingerprints and
+placement settings still match the new timing runs. The comparison permits only
+the contact-method setting to differ between methods. Placement audit is disabled
+for both by default, overriding saved settings. Use `--placement-audit` to enable
+it explicitly. Findings remain unlimited, and timings are measured without
+PDF/report generation. Without `--pdf`, it still writes CSV, report PDFs and the
+web viewer, but omits the two whole Mushaf PDFs. Findings are diagnostics for
+visual review; their counts are not a proof of better Quran typography.
+
+The comparison row **BaseAssociation (placement audit)** corresponds to the
+existing `BaseAssociation` diagnostics from `collectPlacementViolations()`.
+It is not an Ownership constraint. The audit checks owner validity and shaped-run
+association, and flags a mark whose center moves over a neighbor's ink while
+leaving its owner's ink. It is read-only and enabled explicitly for both methods
+only when this comparison is given `--placement-audit` (off by default). Normal
+GUI reporting keeps its chosen audit toggle. Bounding-box ambiguity warnings
+require visual interpretation.

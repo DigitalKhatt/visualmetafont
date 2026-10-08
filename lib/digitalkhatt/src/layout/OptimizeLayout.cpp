@@ -171,16 +171,33 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
 void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
                   const ClassMap& classes,
                   const OptParams& P,
-                  std::vector<ConstraintViolation>* outViolations) {
+                  std::vector<ConstraintViolation>* outViolations,
+                  geometry::NoFitPolygonCache* noFitPolygons) {
   initGlyphMobilities(pageGlyphs);
   double dt = 1.0;
   SolverContext solverContext{pageGlyphs, classes};
+  // Direct library callers get a solve-local cache; PlacementPipeline shares
+  // its cache across pages. No work or allocation on the default GJK path.
+  std::unique_ptr<geometry::NoFitPolygonCache> localCache;
+  if (P.useNoFitPolygons) {
+    if (!noFitPolygons) {
+      localCache = std::make_unique<geometry::NoFitPolygonCache>(P.noFitPolygonCacheLimit);
+      noFitPolygons = localCache.get();
+    }
+    solverContext.noFitPolygons = noFitPolygons;
+  }
 
   std::vector<std::reference_wrapper<GlyphInstance>> glyphs;
   for (auto& lineGlyphs : pageGlyphs) {
     for (auto& g : lineGlyphs) {
       g.globalIndex = static_cast<int>(glyphs.size());
       buildWorldPolys(g);
+      if (solverContext.noFitPolygons) {
+        g.noFitShape = solverContext.noFitPolygons->registerShape(g.noFitLocalGeometry());
+        const auto& outline = g.noFitLocalGeometry();
+        g.noFitConvexContact = outline.size() == 1 && g.worldPolys.size() == 1 &&
+            geometry::isConvexPolygon(outline[0]) && geometry::isConvexPolygon(g.worldPolys[0]);
+      }
       glyphs.push_back(g);
     }
   }

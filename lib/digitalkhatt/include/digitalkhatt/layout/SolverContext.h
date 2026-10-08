@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include "digitalkhatt/geometry/NoFitPolygon.h"
 
 #include "digitalkhatt/layout/ClassMap.h"
 #include "digitalkhatt/layout/GapConstraint.h"
@@ -38,6 +39,7 @@ struct SolverContext {
     return bowlbases.contains(base.glyphName);
   }
 
+  geometry::NoFitPolygonCache* noFitPolygons = nullptr; // solve-owned; null uses GJK/EPA
   GapsInfo gapInfos;
   // Registered once by global glyph index; null entries cost no class lookup.
   std::vector<WaqfEscapeConstraint*> waqfEscapes;

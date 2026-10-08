@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include "digitalkhatt/geometry/NoFitPolygon.h"
 
 #include "digitalkhatt/layout/ClassMap.h"
 #include "digitalkhatt/layout/ConstraintViolation.h"
@@ -21,6 +22,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
 void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
                   const ClassMap& classes,
                   const OptParams& P,
-                  std::vector<ConstraintViolation>* outViolations);
+                  std::vector<ConstraintViolation>* outViolations,
+                  geometry::NoFitPolygonCache* noFitPolygons = nullptr);
 
 }  // namespace digitalkhatt::layout
