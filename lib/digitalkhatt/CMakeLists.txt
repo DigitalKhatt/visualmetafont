@@ -177,6 +177,9 @@ if(BUILD_TESTING)
   add_executable(digitalkhatt_test_placement_safety tests/layout/PlacementSafetyTest.cpp)
   target_link_libraries(digitalkhatt_test_placement_safety PRIVATE digitalkhatt_layout)
   add_test(NAME digitalkhatt.placement_safety COMMAND digitalkhatt_test_placement_safety)
+  add_executable(digitalkhatt_test_waqf_escape tests/layout/WaqfEscapeTest.cpp)
+  target_link_libraries(digitalkhatt_test_waqf_escape PRIVATE digitalkhatt_layout)
+  add_test(NAME digitalkhatt.waqf_escape COMMAND digitalkhatt_test_waqf_escape)
 endif()
 
 

@@ -106,10 +106,12 @@ when waqf placement and generic gap forces are enabled. It uses contacts
 already sampled by the ordinary gap pass; there are no extra broadphase scans,
 GJK queries, placement searches, contact sweeps or solver iterations.
 
-The preference activates when a previous-line obstacle pushes downward on the
+The preference activates when a previous-line obstacle remains too close to the
 waqf and its estimated clearance stays below 10 font units with less than 10%
 of the desired gap improvement for three iterations. An opposing lower mark
-is not required. Contact estimates account for translations after sampling;
+is not required. The obstacle's owning line identifies it as an upper obstacle;
+an alternating separation normal must not reset a persistent squeeze.
+Contact estimates account for translations after sampling;
 they trigger the preference but do not certify final clearance. Final collision
 reporting still uses fresh geometry.
 

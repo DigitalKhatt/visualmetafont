@@ -36,7 +36,10 @@ void WaqfEscapeConstraint::project(SolverContext& context, double dt) {
   // Account for subsequent translations using their existing contact normals.
   // These estimates only trigger a preference; they never certify clearance.
   for (const auto& upper : contacts) {
-    if (upper.normal.y > -0.5 || upper.obstacle->lineIndex >= waqf.lineIndex) continue;
+    // A persistent contact with the previous line can alternate its nearest
+    // feature and separation direction while the waqf is trapped. Identify
+    // upper obstacles by their owning line, rather than the current normal.
+    if (upper.obstacle->lineIndex >= waqf.lineIndex) continue;
     const auto estimate = [&](const WaqfEscapeContact& c) {
       const geometry::Vec2 relative{waqf.dx - c.obstacle->dx,
                                    waqf.dy - c.obstacle->dy};
