@@ -43,6 +43,7 @@
 #include "qurantext/quran.h"
 // #include <QGLWidget>
 
+#include <algorithm>
 #include <vector>
 
 #include "GlyphItem.h"
@@ -642,12 +643,15 @@ void LayoutWindow::createActions() {
 
   viewMenu = menuBar()->addMenu(tr("&View"));
 
+  addToolBarBreak();
   auto jutifyToolbar = addToolBar(tr("Justify"));
+  jutifyToolbar->setObjectName("justificationToolbar");
   jutifyToolbar->addWidget(fontSizeSpinBox);
 
   otherMenu = menuBar()->addMenu(tr("&Other"));
 
   justCombo = new QComboBox;
+  justCombo->setObjectName("justificationPolicy");
 
   justCombo->addItem("No Justification", qVariantFromValue(JustType::None));
   justCombo->addItem("HarfBuzz", qVariantFromValue(JustType::HarfBuzz));
@@ -656,8 +660,6 @@ void LayoutWindow::createActions() {
   justCombo->addItem("Experimental", qVariantFromValue(JustType::Experimental));
   justCombo->addItem("Experimental2", qVariantFromValue(JustType::Experimental2));
   justCombo->addItem("Declarative policy", qVariantFromValue(JustType::DeclPolicy));
-
-  jutifyToolbar->addWidget(justCombo);
 
   QSettings settings;
   jutifyToolbar->addWidget(new QLabel(tr("Line spacing:")));
@@ -676,6 +678,7 @@ void LayoutWindow::createActions() {
                                         ? savedLineSpacing
                                         : OtLayout::DefaultInterLineSpacing);
   jutifyToolbar->addWidget(interLineSpacingSpinBox);
+  jutifyToolbar->addWidget(justCombo);
   connect(interLineSpacingSpinBox, qOverload<int>(&QSpinBox::valueChanged),
           [this](int units) {
             m_otlayout->setInterLineSpacing(units);
@@ -701,10 +704,12 @@ void LayoutWindow::createActions() {
                 justCombo->currentData().value<JustType>() != JustType::None;
             m_otlayout->applyJustification = applyJustification;
             settings.setValue("LastJust", justCombo->currentText());
+            updateJustificationControls();
             executeRunText(true, 1);
           });
 
   justStyleCombo = new QComboBox;
+  justStyleCombo->setObjectName("pageFitting");
 
   justStyleCombo->addItem("No Style", qVariantFromValue(JustStyle::None));
   justStyleCombo->addItem("Same Size By page",
@@ -714,7 +719,8 @@ void LayoutWindow::createActions() {
   justStyleCombo->addItem("FontSizeXScale", qVariantFromValue(JustStyle::FontSizeXScale));
   // justStyleCombo->addItem("SCLX Axis", qVariantFromValue(JustStyle::SCLX));
 
-  jutifyToolbar->addWidget(justStyleCombo);
+  justStyleLabelAction = jutifyToolbar->addWidget(new QLabel(tr("Page fitting:")));
+  justStyleAction = jutifyToolbar->addWidget(justStyleCombo);
 
   QString lastJustStyle = settings.value("LastJustStyle").value<QString>();
   if (!lastJustStyle.isEmpty()) {
@@ -727,17 +733,22 @@ void LayoutWindow::createActions() {
           [&](int index) {
             QSettings settings;
             settings.setValue("LastJustStyle", justStyleCombo->currentText());
+            settings.setValue(QString("Layout/JustificationStyle/%1").arg(static_cast<int>(justCombo->currentData().value<JustType>())),
+                              static_cast<int>(justStyleCombo->currentData().value<JustStyle>()));
             executeRunText(true, 1);
           });
 
   shrinkTypeCombo = new QComboBox;
+  shrinkTypeCombo->setObjectName("legacyShrinkRules");
+  shrinkTypeCombo->setToolTip(tr("Shrink rules used by Madina, IndoPak and the experimental engines."));
 
   shrinkTypeCombo->addItem("None", qVariantFromValue(ShrinkType::None));
   shrinkTypeCombo->addItem("Standard",
                            qVariantFromValue(ShrinkType::Standard));
   shrinkTypeCombo->addItem("Test", qVariantFromValue(ShrinkType::Test));
 
-  jutifyToolbar->addWidget(shrinkTypeCombo);
+  shrinkTypeLabelAction = jutifyToolbar->addWidget(new QLabel(tr("Shrink rules:")));
+  shrinkTypeAction = jutifyToolbar->addWidget(shrinkTypeCombo);
 
   QString lastShrinkType = settings.value("LastShrinkType").value<QString>();
   if (!lastShrinkType.isEmpty()) {
@@ -752,6 +763,19 @@ void LayoutWindow::createActions() {
             settings.setValue("LastShrinkType", shrinkTypeCombo->currentText());
             executeRunText(true, 1);
           });
+
+  shrinkPolicyLabelAction = jutifyToolbar->addWidget(new QLabel(tr("Shrink policy:")));
+  shrinkPolicyCombo = new QComboBox;
+  shrinkPolicyCombo->setObjectName("shrinkPolicy");
+  shrinkPolicyCombo->setToolTip(tr("Shrink recipe declared by the font, used by Declarative policy."));
+  shrinkPolicyAction = jutifyToolbar->addWidget(shrinkPolicyCombo);
+  refreshShrinkPolicies();
+  connect(shrinkPolicyCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this]() {
+    QSettings settings;
+    settings.setValue("LastDeclShrinkPolicy", shrinkPolicyCombo->currentData().toString());
+    updateJustificationControls();
+    executeRunText(true, 1);
+  });
 
   QPushButton* toggleButton = new QPushButton(tr("&Collision Detection"));
   toggleButton->setCheckable(true);
@@ -1285,12 +1309,109 @@ bool LayoutWindow::save() {
   return true;
 }
 
+void LayoutWindow::refreshShrinkPolicies() {
+  if (!shrinkPolicyCombo) return;
+  QSettings settings;
+  const auto selected = settings.value("LastDeclShrinkPolicy").toString();
+  const QSignalBlocker blocker(shrinkPolicyCombo);
+  shrinkPolicyCombo->clear();
+  shrinkPolicyCombo->addItem(tr("Font default"), QString());
+  if (m_otlayout && m_otlayout->compiledJustificationCatalog) {
+    for (const auto& recipe : m_otlayout->compiledJustificationCatalog->shrinkPolicies) {
+      const auto name = QString::fromStdString(recipe.name);
+      shrinkPolicyCombo->addItem(name, name);
+    }
+  }
+  const auto index = shrinkPolicyCombo->findData(selected);
+  shrinkPolicyCombo->setCurrentIndex(index >= 0 ? index : 0);
+  if (m_otlayout && m_otlayout->compiledJustificationCatalog) {
+    const auto& catalog = *m_otlayout->compiledJustificationCatalog;
+    if (catalog.linePolicy) {
+      const auto defaultIndex = shrinkPolicyCombo->findData(QString::fromStdString(catalog.linePolicy->shrinkPolicy));
+      if (defaultIndex > 0) shrinkPolicyCombo->setItemText(0, tr("Font default (%1)").arg(shrinkPolicyCombo->itemText(defaultIndex)));
+    }
+  }
+  updateJustificationControls();
+}
+
+void LayoutWindow::updateJustificationControls() {
+  if (!justStyleCombo || !shrinkPolicyCombo) return;
+  const auto engine = justCombo->currentData().value<JustType>();
+  const bool declarative = engine == JustType::DeclPolicy;
+  const bool legacy = engine == JustType::Madina || engine == JustType::IndoPak ||
+                      engine == JustType::Experimental || engine == JustType::Experimental2;
+  const auto* catalog = m_otlayout && m_otlayout->compiledJustificationCatalog
+      ? &*m_otlayout->compiledJustificationCatalog : nullptr;
+  const bool hasRecipes = declarative && catalog && !catalog->shrinkPolicies.empty();
+  shrinkTypeLabelAction->setVisible(legacy);
+  shrinkTypeAction->setVisible(legacy);
+  shrinkPolicyLabelAction->setVisible(hasRecipes);
+  shrinkPolicyAction->setVisible(hasRecipes);
+  shrinkPolicyCombo->setEnabled(hasRecipes);
+
+  // Keep a preference per engine. Filtering or font reloads do not overwrite
+  // an unavailable preference, so switching back restores the original choice.
+  QSettings settings;
+  const auto preference = settings.value(QString("Layout/JustificationStyle/%1").arg(static_cast<int>(engine)));
+  auto preferred = preference.isValid() ? static_cast<JustStyle>(preference.toInt())
+                                       : justStyleCombo->currentData().value<JustStyle>();
+  if (!preference.isValid()) {
+    const auto saved = settings.value("LastJustStyle").toString();
+    const std::pair<const char*, JustStyle> styles[] = {
+        {"No Style", JustStyle::None}, {"Same Size By page", JustStyle::SameSizeByPage},
+        {"XScale", JustStyle::XScale}, {"FontSize", JustStyle::FontSize},
+        {"FontSizeXScale", JustStyle::FontSizeXScale}, {"SCLX Axis", JustStyle::SCLX}};
+    for (const auto& [name, style] : styles) if (saved == name) preferred = style;
+    settings.setValue(QString("Layout/JustificationStyle/%1").arg(static_cast<int>(engine)), static_cast<int>(preferred));
+  }
+  std::set<JustStyle> supported{JustStyle::None};
+  if (legacy) {
+    supported.insert({JustStyle::SameSizeByPage, JustStyle::XScale, JustStyle::FontSize, JustStyle::FontSizeXScale});
+  } else if (engine == JustType::HarfBuzz || engine == JustType::None) {
+    supported.insert({JustStyle::XScale, JustStyle::FontSize});
+  } else if (declarative && catalog && catalog->pagePolicy) {
+    for (const auto& rule : catalog->pagePolicy->sizing) if (rule.style) supported.insert(*rule.style);
+    for (const auto& rule : catalog->pagePolicy->rendering) if (rule.style) supported.insert(*rule.style);
+    // The axis-output style is meaningful only with an axis shrink recipe.
+    auto recipeIndex = catalog->shrinkPolicyIndex(shrinkPolicyCombo->currentData().toString().toStdString());
+    if (recipeIndex < 0 && catalog->linePolicy) recipeIndex = catalog->linePolicy->shrinkPolicyIndex;
+    const bool axisShrink = recipeIndex >= 0 && std::any_of(catalog->shrinkPolicies[recipeIndex].steps.begin(),
+        catalog->shrinkPolicies[recipeIndex].steps.end(), [](const auto& step) {
+          return step.operation == digitalkhatt::justify::LineStepOp::FitSclx;
+        });
+    if (!axisShrink) supported.erase(JustStyle::SCLX);
+  }
+  const QSignalBlocker blocker(justStyleCombo);
+  justStyleCombo->clear();
+  const auto add = [&](const char* label, JustStyle style) {
+    if (supported.contains(style)) justStyleCombo->addItem(tr(label), qVariantFromValue(style));
+  };
+  add("No Style", JustStyle::None);
+  add("Same Size By page", JustStyle::SameSizeByPage);
+  add("XScale", JustStyle::XScale);
+  add("FontSize", JustStyle::FontSize);
+  add("FontSizeXScale", JustStyle::FontSizeXScale);
+  add("SCLX Axis", JustStyle::SCLX);
+  const auto selected = justStyleCombo->findData(qVariantFromValue(preferred));
+  justStyleCombo->setCurrentIndex(selected >= 0 ? selected : 0);
+  const bool hasFitting = justStyleCombo->count() > 1;
+  justStyleLabelAction->setVisible(hasFitting);
+  justStyleAction->setVisible(hasFitting);
+}
+
 JustOption LayoutWindow::getJustOption() {
-  return {
+  JustOption option{
       justCombo->currentData().value<JustType>(),
       justStyleCombo->currentData().value<JustStyle>(),
       shrinkTypeCombo->currentData().value<ShrinkType>(),
   };
+  if (option.justType == JustType::None || option.justType == JustType::HarfBuzz || option.justType == JustType::DeclPolicy)
+    option.shrinkType = ShrinkType::None;
+  if (option.justType == JustType::DeclPolicy && shrinkPolicyCombo && m_otlayout && m_otlayout->compiledJustificationCatalog) {
+    const auto name = shrinkPolicyCombo->currentData().toString().toStdString();
+    option.justShrinkPolicy = m_otlayout->compiledJustificationCatalog->shrinkPolicyIndex(name);
+  }
+  return option;
 }
 bool LayoutWindow::exportpdf() {
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
@@ -2207,6 +2328,7 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
 
 void LayoutWindow::loadLookupFile(QString fileName) {
   m_otlayout->loadLookupFile(fileName.toStdString());
+  refreshShrinkPolicies();
 
   QSettings settings;
 

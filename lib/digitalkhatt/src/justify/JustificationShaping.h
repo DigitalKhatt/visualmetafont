@@ -37,6 +37,7 @@ struct GlyphParameterAssignment {
   GlyphAxisId axis;
   double value;
   hb_codepoint_t substitute = static_cast<hb_codepoint_t>(-1);
+  bool additive = false;
 };
 
 hb_buffer_t* shape(TextString text, hb_font_t* font,

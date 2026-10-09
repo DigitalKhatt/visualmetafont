@@ -1,5 +1,7 @@
 #include <digitalkhatt/justify/declpolicy/JustificationCatalog.h>
 
+#include "NativeParameterAttribute.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -333,7 +335,7 @@ CompiledJustificationCatalog compileJustificationCatalog(
   std::unordered_map<std::string, JustAttributeId> attributeIds;
   const auto attributeId = [&](const std::string& tag) {
     // Native parameters are not truncated into OpenType feature tags.
-    const auto axis = axes.find(tag);
+    const auto axis = decl::parameterAttributeAxis(axes, tag);
     if (tag.size() != 4 && axis == NoGlyphAxis) {
       throw std::invalid_argument(
           "justification attribute " + tag +
@@ -349,6 +351,13 @@ CompiledJustificationCatalog compileJustificationCatalog(
     result.attributes.push_back(tag);
     result.attributeAxes.push_back(axis);
     attributeIds.emplace(tag, id);
+    return id;
+  };
+
+  const auto writableAttributeId = [&](const std::string& tag) {
+    const auto id = attributeId(tag);
+    if (result.attributeAxes[id] != NoGlyphAxis && decl::isFeatureParameterQuery(tag))
+      throw std::invalid_argument("feature parameter query " + tag + " is read-only");
     return id;
   };
 
@@ -464,7 +473,7 @@ CompiledJustificationCatalog compileJustificationCatalog(
         compiledEffect.target = compileTarget(effect.target, definition.name);
         if (effect.kind == "add") {
           compiledEffect.kind = JustEffectKind::Add;
-          compiledEffect.attribute = attributeId(effect.attribute);
+          compiledEffect.attribute = writableAttributeId(effect.attribute);
           compiledEffect.value = compileExpr(effect.value, definition.name);
           if (effect.clamp <= 0) {
             throw std::invalid_argument("justification action " +
@@ -474,7 +483,7 @@ CompiledJustificationCatalog compileJustificationCatalog(
           compiledEffect.clamp = effect.clamp;
         } else if (effect.kind == "update") {
           compiledEffect.kind = JustEffectKind::Update;
-          compiledEffect.attribute = attributeId(effect.attribute);
+          compiledEffect.attribute = writableAttributeId(effect.attribute);
           compiledEffect.value = compileExpr(effect.value, definition.name);
         } else if (effect.kind == "clear") {
           compiledEffect.kind = JustEffectKind::Clear;
@@ -484,7 +493,7 @@ CompiledJustificationCatalog compileJustificationCatalog(
           compiledEffect.lookup = effect.lookup;
         } else if (effect.kind == "vary") {
           compiledEffect.kind = JustEffectKind::Vary;
-          compiledEffect.attribute = attributeId(effect.attribute);
+          compiledEffect.attribute = writableAttributeId(effect.attribute);
           if (result.attributeAxes[compiledEffect.attribute] == NoGlyphAxis) {
             throw std::invalid_argument("justification action " + definition.name +
                                         " varies OpenType feature " + effect.attribute +
@@ -500,7 +509,7 @@ CompiledJustificationCatalog compileJustificationCatalog(
           }
           for (const auto& write : effect.writes) {
             compiledEffect.writes.push_back(
-                {.attribute = attributeId(write.attribute),
+                {.attribute = writableAttributeId(write.attribute),
                  .value = compileExpr(write.value, definition.name)});
           }
         } else {
@@ -692,6 +701,10 @@ CompiledJustificationCatalog compileJustificationCatalog(
         const auto found = stages.find(step.stage);
         if (found == stages.end()) throw std::invalid_argument(direction + " policy " + policy.name + " references undefined stage " + step.stage);
         step.phases = found->second;
+        if (!stretch && std::any_of(step.phases.begin(), step.phases.end(), [](const auto& phase) {
+              return phase.allocator != PolicyPhase::Allocator::CandidatePool;
+            }))
+          throw std::invalid_argument("shrink stages require candidate_pool allocation");
       }
       compiled.push_back(std::move(step));
     }

@@ -98,6 +98,7 @@ int main() {
   ok &= expect(near(quantizeProportionalParameter(3.141, 0, 20, 16), 3.125), "default proportional grid rounds expansion downward to a sixteenth");
   ok &= expect(near(quantizeProportionalParameter(3.141, 0, 20, 0), 3.141), "zero subdivisions disable proportional quantization");
   ok &= expect(near(quantizeProportionalParameter(3.141, 3.13, 20, 16), 3.13), "quantization never crosses the accepted minimum endpoint");
+  ok &= expect(near(quantizeProportionalParameter(-0.141, 0, -0.2, 100), -0.14), "decreasing shrink ranges round toward the uncompressed endpoint");
   const auto stretch = stretchFixture();
   const auto standardShrink = standardShrinkFixture();
   const auto executeWith = [](std::span<const LinePolicyStep> stretchSteps, std::span<const LinePolicyStep> shrinkSteps, LineJustificationMetrics metrics, LineJustificationBackend& selectedBackend) { return executeLineJustificationPolicy(stretchSteps, shrinkSteps, metrics, selectedBackend); };
@@ -120,6 +121,24 @@ int main() {
   backend = {};
   result = executeWith(changedStretch, standardShrink, {1250, 1000, 100, 1, 1}, backend);
   ok &= expect(backend.glyphCalls == 1 && backend.glyphInput == 1000, "feature-file step order is authoritative");
+
+  const std::vector<LinePolicyStep> pooledShrink{
+      compileLinePolicyStep({.operation = "stage", .stage = "Shrink"}, false),
+      compileLinePolicyStep({.operation = "stage", .stage = "Fallback"}, false),
+      compileLinePolicyStep({.operation = "balance"}, false)};
+  backend = {};
+  backend.glyphGain = -100;
+  result = executeWith(stretch, pooledShrink, {900, 1000, 100, 1, 1}, backend);
+  ok &= expect(backend.glyphCalls == 1 && backend.glyphInput == 1000 && result.isShrink && result.xScale == 1 && result.simpleSpacing == 100,
+               "shrink stages preserve shaped spaces and skip subsequent stages at the target");
+  backend = {};
+  backend.glyphGain = -50;
+  result = executeWith(stretch, pooledShrink, {800, 1000, 100, 1, 1}, backend);
+  ok &= expect(backend.glyphCalls == 2 && backend.glyphInput == 950 && near(result.xScale, 800.0 / 900),
+               "successive shrink stages receive the accepted current width before balance");
+  backend = {};
+  result = executeWith(stretch, pooledShrink, {1000, 1000, 100, 1, 1}, backend);
+  ok &= expect(backend.glyphCalls == 0 && result.isShrink, "exact-width shrink stages do not run");
 
   backend = {};
   backend.widths = {1100, 900, 700};

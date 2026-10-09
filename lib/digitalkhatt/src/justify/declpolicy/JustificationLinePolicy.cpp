@@ -19,7 +19,7 @@ LinePolicyStep compileLinePolicyStep(const DfaLineStepSource& step, bool stretch
   };
   static constexpr Operation operations[] = {
       {"cap_spaces", LineStepOp::CapSpaces, 2, false, true, false},
-      {"stage", LineStepOp::Stage, 0, false, true, false},
+      {"stage", LineStepOp::Stage, 0, false, true, true},
       {"fill_spaces", LineStepOp::FillSpaces, 0, false, true, false},
       {"fit_features", LineStepOp::FitFeatures, 0, true, true, true},
       {"all_features", LineStepOp::AllFeatures, 0, true, false, true},
@@ -89,7 +89,9 @@ runtime::JustResultByLine executeLineJustificationPolicy(std::span<const LinePol
         break;
       }
       case LineStepOp::Stage:
-        if (metrics.targetWidth > metrics.currentWidth) metrics.currentWidth = backend.applyStage(step.phases, result.globalFeatures, metrics.currentWidth);
+        if (!stretching) result.isShrink = true;
+        if (stretching ? metrics.targetWidth > metrics.currentWidth : metrics.currentWidth > metrics.targetWidth)
+          metrics.currentWidth = backend.applyStage(step.phases, result.globalFeatures, metrics.currentWidth);
         break;
       case LineStepOp::FillSpaces:
         fill();

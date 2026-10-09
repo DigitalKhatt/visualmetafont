@@ -46,9 +46,6 @@ class ShapingLineBackend final : public decl::LineJustificationBackend {
   }
   bool restoreShrunkSpaces(const vector<runtime::TextFontFeatures>& candidateFeatures,
                           double amount, std::map<int, double>& additions) override {
-    // Shrink recipes use global features. A backend carrying native per-site
-    // assignments must measure those as well before restoring any spaces.
-    if (!info_.fontFeatures.empty() || !info_.baselineFeatures.empty() || !info_.substitutions.empty()) return false;
     const auto originalSpaces = spaceWidths(info_.recognitionBuffer);
     auto capacities = shapedSpaceWidths(candidateFeatures);
     double totalCapacity = 0.0;
@@ -103,7 +100,7 @@ class ShapingLineBackend final : public decl::LineJustificationBackend {
   }
 
  private:
-  std::map<int, double> shapedSpaceWidths(const vector<runtime::TextFontFeatures>& globalFeatures) const {
+  runtime::ShapingBuffer shapeWithFeatures(const vector<runtime::TextFontFeatures>& globalFeatures) const {
     vector<hb_feature_t> features;
     vector<runtime::GlyphParameterAssignment> parameters;
     for (const auto& feature : globalFeatures)
@@ -114,13 +111,17 @@ class ShapingLineBackend final : public decl::LineJustificationBackend {
     for (const auto& [cluster, values] : runtime::resolvedJustificationFeatures(info_)) {
       for (const auto& value : values) {
         if (value.axis != NoGlyphAxis)
-          parameters.push_back({static_cast<unsigned>(cluster), value.axis, value.value, static_cast<hb_codepoint_t>(-1)});
+          parameters.push_back({static_cast<unsigned>(cluster), value.axis, value.value, static_cast<hb_codepoint_t>(-1), value.additive});
         else
           features.push_back({hb_tag_from_string(value.name.c_str(), static_cast<int>(value.name.size())),
                               static_cast<std::uint32_t>(value.value), static_cast<unsigned>(cluster), static_cast<unsigned>(cluster + 1)});
       }
     }
-    runtime::ShapingBuffer buffer(shapeForMeasurement(text_.lineText, info_.font, features, &layout_, parameters));
+    return runtime::ShapingBuffer(shapeForMeasurement(text_.lineText, info_.font, features, &layout_, parameters));
+  }
+
+  std::map<int, double> shapedSpaceWidths(const vector<runtime::TextFontFeatures>& globalFeatures) const {
+    auto buffer = shapeWithFeatures(globalFeatures);
     return spaceWidths(buffer.get());
   }
 
@@ -139,6 +140,8 @@ class ShapingLineBackend final : public decl::LineJustificationBackend {
   void synchronizeGlobalFeatures(const vector<runtime::TextFontFeatures>& globalFeatures) {
     if (info_.globalFeatures == globalFeatures) return;
     info_.globalFeatures = globalFeatures;
+    info_.nativeBaseline.reset();
+    info_.featureParameterDeltas.clear();
     info_.declPolicyState.currentGlyphs.clear();
     info_.acceptedWordBuffers.resize(text_.wordInfos.size());
     for (std::size_t wordIndex = 0; wordIndex < text_.wordInfos.size(); ++wordIndex) {
@@ -156,15 +159,12 @@ class ShapingLineBackend final : public decl::LineJustificationBackend {
       for (const auto& feature : globalFeatures) features.push_back({hb_tag_from_string(feature.name.c_str(), static_cast<int>(feature.name.size())), static_cast<std::uint32_t>(feature.value), 0u, static_cast<unsigned int>(-1)});
       width = getWidth(text_.lineText, info_.font, features);
     } else {
-      width = measureWords(globalFeatures);
+      // Include contextual spacing between words as well as accepted sites.
+      // Summing independently shaped words loses later shrink-space features.
+      auto buffer = shapeWithFeatures(globalFeatures);
+      width = getBufferWidth(buffer.get());
     }
     measuredWidths_.emplace_back(globalFeatures, width);
-    return width;
-  }
-
-  double measureWords(const vector<runtime::TextFontFeatures>& globalFeatures) const {
-    double width = 0;
-    for (const auto& word : text_.wordInfos) width += getWordWidth(word, info_.fontFeatures, info_.font, nullptr, info_.layout, globalFeatures, info_.substitutions, info_.baselineFeatures);
     return width;
   }
 

@@ -554,9 +554,11 @@ index for tests and comparison tools. `ShrinkType` is not consulted by
 - `cap_spaces simple aya` allocates remaining width proportionally to the
   two space categories' capacities, capped at those absolute widths in the
   1000-unit measurement em. It never reduces existing space widths.
-- `stage Name` runs that stage's glyph selections/phases if more width is still
-  needed. A policy may invoke several named stages, interleaved with its other
-  steps.
+- `stage Name` runs that stage's glyph selections/phases while the line still
+  needs expansion or reduction in the selected recipe's direction. Shrink
+  stages require `candidate_pool`; `fixed_steps` and `baseline_pool` retain
+  their stretch semantics. A policy may invoke several named stages,
+  interleaved with its other steps.
 - `fill_spaces` shares any remaining width equally among all spaces. For a
   line without spaces it uses horizontal scaling instead of dividing by zero.
 - `fit_features [...]` tries the named features in written order, stopping
@@ -600,6 +602,93 @@ references. A well-formed feature tag absent from the font remains inert,
 matching HarfBuzz and the old `sk01`–`sk20` loop.
 Page-wide font-size thresholds and special sura/basmala handling are declared
 in the separate page policy below.
+
+### Weighted shrinking
+
+OldMadina currently defaults to `shrinkpolicy weighted_native_spacebefore`;
+`standard` retains a whole-line feature schedule for comparison. The
+feature-based `weighted` recipe keeps
+`sk01`–`sk03` as global compact-form/kerning steps, then offers `sk04` and `sk05`
+at individual base clusters. These are discrete feature opportunities, so
+weights control selection order rather than a continuous shrink amount.
+Their existing contextual exclusions and glyph deformation ranges still apply.
+Full word shaping measures each trial; a non-reducing change or one that
+shrinks past the target is rejected without changing accepted state.
+
+The first stage allows one opportunity per subword and two per word. A second
+stage uses the remaining first-level opportunities before offering the second
+level at sites already compressed. Initial/medial forms have weight 3 and
+other forms weight 1, with occurrence decay 0.95 and a longer-subword bonus
+0.2. These are initial tunable values, not a claim of an optimal visual balance.
+Contextual feature fallbacks, `reduce_spaces 0.95`, and `balance` remain
+declared in each recipe. The current recipes omit `sk12` and `sk13`.
+Font-size policy and stretch recipes are unchanged.
+
+For a native-parameter comparison, select **Declarative policy**, then set the
+GUI's **Shrink policy** to `weighted_native`. Select `weighted` for the
+feature-based recipe, or **Font default** to use the recipe declared by
+`linepolicy`. Recipe labels match their exact names in the feature file. The
+GUI retains the selected recipe name across reloads and resolves its index
+against the current font catalog.
+
+The toolbar shows declared shrink recipes only for Declarative policy and
+legacy shrink rules only for Madina, IndoPak and the experimental engines.
+HarfBuzz and No Justification expose neither shrink selector and offer only
+their supported fitting styles (No Style, XScale and FontSize). Declarative
+fitting choices come from the loaded font's page policy; SCLX Axis is shown
+only when its selected shrink recipe uses `fit_sclx`.
+Each engine retains its fitting preference across switching and font reloads.
+The Font default entry also identifies the actual declared shrink recipe.
+
+`weighted_native` keeps the same weights, two passes, discrete reductions and
+fallbacks. It replaces per-site `sk04`/`sk05` feature writes with additive
+`lefttatweel_delta` and `righttatweel_delta` assignments. Read-only attributes
+such as `$self:sk04_lefttatweel` query that feature's contextual parameter
+change at the site. A GSUB baseline and one probe per queried feature are
+cached per line; native assignments are excluded from those probes. A missing
+or structurally substituted site yields zero. Non-native writes or global
+feature changes invalidate the probes. Queries cannot be written by actions.
+These names reserve the `AXIS_delta` and `TAG_AXIS` attribute forms.
+
+The native recipe estimates candidates using affected-glyph advances and
+confirms accepted words by shaping. `weighted_native_full_shape` uses the same
+native actions with exact word-shaped endpoint measurements for validation.
+Deltas are applied after GSUB, preserving later additive reductions. Their
+ordering differs from per-site GSUB features, so later structural fallbacks,
+fixed-point rounding and final balancing can produce a different distribution.
+`weighted_native_spacebefore` moves `sk10` and `sk11` before the native
+shrinking stages, with `sk06`–`sk09` afterward. The native actions themselves
+do not change page sizing; `linepolicy` selects the default recipe.
+This comparison retains discrete levels; it does not yet replace them with
+continuous proportional ranges.
+
+The shared allocator also accepts decreasing native `vary` ranges. It plans
+with positive reduction capacities while retaining signed endpoint deltas,
+interpolates by weight, quantizes toward the mandatory endpoint, and confirms
+an accepted trial with actual shaping. The font must supply appropriate
+negative ranges and contextual guards when authoring such native actions.
+Later global feature trials and space restoration measure the complete line,
+including all accepted per-site features, parameters, and substitutions.
+
+`digitalkhatt_compare_extreme_lines --justifier decl-policy --shrink-policy
+weighted --compare-shrink-policy standard --line-list LINES.csv --output
+comparison.pdf oldmadina.mp` renders both recipes at the same page sizing.
+Each CSV row contains `page,line` (one-based), with an optional header.
+Add `--font-size-scale 0.95` to multiply the normal DigitalKhatt base font size
+by 0.95, like setting the GUI font-size control from 100 to 95. This affects
+natural-width ranking, justification and mark positioning; it keeps the target
+line widths and scanned reference sizes unchanged. Both policies in a paired
+comparison use the same base multiplier. Values must be positive and finite.
+The default multiplier is 1, with the existing FontSizeXScale page fitting.
+`--page-fitting XScale` keeps the base font size fixed while permitting residual
+horizontal scaling; `--page-fitting FontSizeXScale` allows the usual page
+adjustments. Other supported styles are None, SameSizeByPage, FontSize and SCLX.
+Explicit size/fitting options are recorded in PDF labels and console output.
+The PDF labels the upper and lower policies explicitly. The runtime regression
+in `tests/declpolicy/WeightedShrinkIntegrationTest.cpp` covers decreasing native
+ranges, weighted allocation, small budgets, replay, contextual feature probes,
+additive fallback composition, repeat guards, and discrete subword limits;
+its header contains the command for the existing GUI probe runner.
 
 ### Scored candidate pools
 

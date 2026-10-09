@@ -175,6 +175,15 @@ class LayoutWindow : public QMainWindow {
   QComboBox* justCombo;
   QComboBox* justStyleCombo;
   QComboBox* shrinkTypeCombo;
+  QComboBox* shrinkPolicyCombo = nullptr;
+  void refreshShrinkPolicies();
+  void updateJustificationControls();
+  QAction* justStyleLabelAction = nullptr;
+  QAction* justStyleAction = nullptr;
+  QAction* shrinkTypeLabelAction = nullptr;
+  QAction* shrinkTypeAction = nullptr;
+  QAction* shrinkPolicyLabelAction = nullptr;
+  QAction* shrinkPolicyAction = nullptr;
   QDockWidget* textRun;
   QDockWidget* lookupTree;
   QDockWidget* solverTuningDock;
@@ -196,7 +205,7 @@ class LayoutWindow : public QMainWindow {
 
   Font* m_font;
 
-  OtLayout* m_otlayout;
+  OtLayout* m_otlayout = nullptr;
 
   GraphicsViewAdjustment* m_graphicsView;
   GraphicsSceneAdjustment* m_graphicsScene;

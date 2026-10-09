@@ -100,6 +100,38 @@ ReferenceMode parseReferenceMode(std::string_view value) {
       std::string(value) + ")");
 }
 
+JustStyle parsePageFitting(std::string_view value) {
+  if (value == "None") return JustStyle::None;
+  if (value == "SameSizeByPage") return JustStyle::SameSizeByPage;
+  if (value == "XScale") return JustStyle::XScale;
+  if (value == "FontSize") return JustStyle::FontSize;
+  if (value == "FontSizeXScale") return JustStyle::FontSizeXScale;
+  if (value == "SCLX") return JustStyle::SCLX;
+  throw std::runtime_error("--page-fitting must be None, SameSizeByPage, XScale, FontSize, FontSizeXScale, or SCLX");
+}
+
+std::string_view pageFittingName(JustStyle style) {
+  switch (style) {
+    case JustStyle::None: return "None";
+    case JustStyle::SameSizeByPage: return "SameSizeByPage";
+    case JustStyle::XScale: return "XScale";
+    case JustStyle::FontSize: return "FontSize";
+    case JustStyle::FontSizeXScale: return "FontSizeXScale";
+    case JustStyle::SCLX: return "SCLX";
+  }
+  throw std::runtime_error("Unknown page-fitting style");
+}
+
+double parseFontSizeScale(const std::string& value) {
+  std::size_t parsed = 0;
+  double scale = 0;
+  try { scale = std::stod(value, &parsed); }
+  catch (const std::exception&) { throw std::runtime_error("--font-size-scale must be a finite positive number"); }
+  if (parsed != value.size() || !std::isfinite(scale) || scale <= 0)
+    throw std::runtime_error("--font-size-scale must be a finite positive number");
+  return scale;
+}
+
 bool usesQpc(ReferenceMode mode) {
   return mode == ReferenceMode::Qpc || mode == ReferenceMode::Both;
 }
@@ -908,23 +940,11 @@ Bounds qpcInkBounds(const QpcRun& run) {
   return bounds;
 }
 
-Bounds segmentedInkBounds(const SegmentedLine& line) {
-  Bounds bounds;
-  for (const auto& word : line.words) {
-    const double left = word.x;
-    const double right = word.x + word.w;
-    const double bottom = word.y;
-    const double top = word.y + word.h;
-    if (!bounds.valid) {
-      bounds = {left, right, bottom, top, true};
-    } else {
-      bounds.left = std::min(bounds.left, left);
-      bounds.right = std::max(bounds.right, right);
-      bounds.bottom = std::min(bounds.bottom, bottom);
-      bounds.top = std::max(bounds.top, top);
-    }
-  }
-  return bounds;
+double scanPixelScale(double fontUnitScale) {
+  // OldMadina's nominal design size matches the high-resolution scan:
+  // one source pixel is one unscaled layout unit. Only convert to PDF
+  // coordinates; fitting each scan to its target would hide real differences.
+  return (1 << OtLayout::SCALEBY) * fontUnitScale;
 }
 
 std::vector<TextString> splitWords(const TextString& text) {
@@ -1016,7 +1036,7 @@ void drawQpcLine(PageContentContext* context, const QpcRun& run, int targetWidth
 
 bool drawSegmentedLine(PageContentContext* context,
                        SegmentationRepository& segmentation, int page,
-                       int lineIndex, int targetWidth, double right,
+                       int lineIndex, double right,
                        double baseline, double fontUnitScale,
                        SegmentedImageCache& imageCache) {
   const auto* line = segmentation.line(page, lineIndex);
@@ -1025,9 +1045,7 @@ bool drawSegmentedLine(PageContentContext* context,
   if (image.right <= image.left || image.bottom <= image.top ||
       line->baseLine <= 0)
     return false;
-  const double sourceScale =
-      targetWidth * fontUnitScale /
-      static_cast<double>(image.right - image.left);
+  const double sourceScale = scanPixelScale(fontUnitScale);
   const double imageScale = sourceScale / image.pixelsPerSourcePixel;
   AbstractContentContext::ImageOptions options;
   options.transformationMethod = AbstractContentContext::eMatrix;
@@ -1151,12 +1169,12 @@ void applyForceLayout(OtLayout& layout, std::vector<LineLayoutInfo>& page,
 
 using JustifiedPages = std::map<int, std::vector<LineLayoutInfo>>;
 
-JustifiedPages justifySelectedPages(OtLayout& layout, const std::vector<std::vector<QuranLine>>& pages, const std::vector<ExtremeLine>& underfulls, const std::vector<ExtremeLine>& overfulls, int pageWidth, bool applyForce, JustType engine, int stretchPolicy, int shrinkPolicy) {
+JustifiedPages justifySelectedPages(OtLayout& layout, const std::vector<std::vector<QuranLine>>& pages, const std::vector<ExtremeLine>& underfulls, const std::vector<ExtremeLine>& overfulls, int pageWidth, bool applyForce, JustType engine, int stretchPolicy, int shrinkPolicy, JustStyle pageFitting) {
   std::set<int> selectedPages;
   for (const auto& line : underfulls) selectedPages.insert(line.page);
   for (const auto& line : overfulls) selectedPages.insert(line.page);
 
-  const JustOption justification{engine, JustStyle::FontSizeXScale, ShrinkType::Standard, stretchPolicy, shrinkPolicy};
+  const JustOption justification{engine, pageFitting, ShrinkType::Standard, stretchPolicy, shrinkPolicy};
   const double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
   layout.applyJustification = true;
   JustifiedPages result;
@@ -1348,12 +1366,9 @@ void writeScaleReportSection(
     }
 
     const auto* scan = segmentation.line(record.page, record.pageLineIndex);
-    const auto scanBounds = scan ? segmentedInkBounds(*scan) : Bounds{};
     const std::optional<double> scanScale =
-        scanBounds.valid && scanBounds.width() > 0
-            ? std::optional<double>(record.targetWidth * fontUnitScale /
-                                    scanBounds.width())
-            : std::nullopt;
+        scan ? std::optional<double>(scanPixelScale(fontUnitScale))
+             : std::nullopt;
 
     ScaleAverage lineAverage;
     const auto matchedWords =
@@ -1476,7 +1491,7 @@ void renderPdf(const fs::path& path, OtLayout& layout,
                const std::vector<ExtremeLine>& overfulls,
                const JustifiedPages& justified, const fs::path& qpcFontDir,
                SegmentationRepository* segmentation, ReferenceMode mode,
-               int pageWidth, JustType engine, RankingMode rankingMode) {
+               int pageWidth, JustType engine, RankingMode rankingMode, const std::string& sizingLabel) {
   PDFWriter writer;
   PDFCreationSettings settings(true, true);
   if (writer.StartPDF(path.string(), ePDFVersion17,
@@ -1550,11 +1565,11 @@ void renderPdf(const fs::path& path, OtLayout& layout,
     writeLabel(pageWidthPoints - margin - 96, pageHeightPoints - 17,
                "comparison page " + std::to_string(logicalPage), 8);
     writeLabel(margin, pageHeightPoints - 29,
-               mode == ReferenceMode::Both
+               std::string(mode == ReferenceMode::Both
                    ? "Each item: DigitalKhatt, segmented scan, then QPC (QPC second when scan unavailable)"
                : useSegmentation
                    ? "Each item: DigitalKhatt justified line, then segmented scan line"
-                   : "Each item: DigitalKhatt justified line, then QPC reference line",
+                   : "Each item: DigitalKhatt justified line, then QPC reference line") + sizingLabel,
                8);
   };
 
@@ -1611,7 +1626,7 @@ void renderPdf(const fs::path& path, OtLayout& layout,
             pageHeightPoints - (top + itemHeight * scanBaseline);
         scanDrawn = drawSegmentedLine(
             context, *segmentation, record.page, record.pageLineIndex,
-            record.targetWidth, lineRight, scanY, fontUnitScale,
+            lineRight, scanY, fontUnitScale,
             *segmentedImages);
         if (!scanDrawn && mode != ReferenceMode::Both)
           writeLabel(margin, scanY,
@@ -1652,7 +1667,8 @@ void renderPolicyDifferencePdf(const fs::path& path, OtLayout& layout,
                                const std::vector<ExtremeLine>& lines,
                                const JustifiedPages& advancePages,
                                const JustifiedPages& fullShapePages,
-                               int pageWidth) {
+                               int pageWidth, const std::string& primaryLabel,
+                               const std::string& comparisonLabel, const std::string& sizingLabel) {
   PDFWriter writer;
   PDFCreationSettings settings(true, true);
   if (writer.StartPDF(path.string(), ePDFVersion17, LogConfiguration::DefaultLogConfiguration(), settings) != eSuccess)
@@ -1700,8 +1716,8 @@ void renderPolicyDifferencePdf(const fs::path& path, OtLayout& layout,
     pdfPage->SetMediaBox(PDFRectangle(0, 0, pageWidthPoints, pageHeightPoints));
     context = writer.StartPageContentContext(pdfPage);
     if (!context) throw std::runtime_error("Could not start PDF page");
-    writeLabel(margin, pageHeightPoints - 19, "Candidate width measurement comparison", 14);
-    writeLabel(margin, pageHeightPoints - 31, "Top: advance (default). Bottom: full_shape (exact endpoint shaping).", 8);
+    writeLabel(margin, pageHeightPoints - 19, "Justification policy comparison", 14);
+    writeLabel(margin, pageHeightPoints - 31, "Top: " + primaryLabel + ". Bottom: " + comparisonLabel + "." + sizingLabel, 8);
     writeLabel(pageWidthPoints - margin - 90, pageHeightPoints - 19, "page " + std::to_string(number), 8);
   };
 
@@ -1717,12 +1733,13 @@ void renderPolicyDifferencePdf(const fs::path& path, OtLayout& layout,
     separator << "q\n0.75 G\n0.5 w\n" << margin << ' ' << separatorY << " m\n" << pageWidthPoints - margin << ' ' << separatorY << " l\nS\nQ\n";
     raw(context, separator.str());
     writeLabel(margin, separatorY - 11,
-               "#" + std::to_string(index + 1) + "  Mushaf page " + std::to_string(record.page) + ", line " + std::to_string(record.line) + "  widths " + std::to_string(advance.currentLineWidth) + " / " + std::to_string(fullShape.currentLineWidth),
+               "#" + std::to_string(index + 1) + "  Mushaf page " + std::to_string(record.page) + ", line " + std::to_string(record.line) + "  widths " + std::to_string(advance.currentLineWidth) + " / " + std::to_string(fullShape.currentLineWidth) +
+                   (sizingLabel.empty() ? std::string{} : "  font scales " + std::to_string(advance.fontSize / (1 << OtLayout::SCALEBY)) + " / " + std::to_string(fullShape.fontSize / (1 << OtLayout::SCALEBY))),
                8);
     double right = pageWidthPoints - margin;
     if (record.targetWidth != pageWidth) right = margin + (usableWidth + record.targetWidth * fontUnitScale) / 2;
-    drawOldMadinaLine(context, layout, advance, right, separatorY - 66, fontUnitScale);
-    drawOldMadinaLine(context, layout, fullShape, right, separatorY - 143, fontUnitScale);
+    drawOldMadinaLine(context, layout, advance, right, separatorY - 78, fontUnitScale);
+    drawOldMadinaLine(context, layout, fullShape, right, separatorY - 155, fontUnitScale);
     if ((index + 1) % 50 == 0 || index + 1 == lines.size())
       std::cout << "Rendered policy differences: " << index + 1 << '/' << lines.size() << '\n';
   }
@@ -1746,15 +1763,20 @@ void usage(const char* program) {
                "                     in font units (1000/em), excluding GPOS and page scaling; all pages are justified\n"
                "                     terminal includes the expanded-form substitution; kashida measures axis extension\n"
                "  --justifier NAME   decl-policy or experimental2 (default experimental2)\n"
+               "  --font-size-scale N  DigitalKhatt font-size multiplier (default 1); scans stay unchanged\n"
+               "                       Scales the base size before the page-fitting policy is applied\n"
+               "  --page-fitting NAME  None, SameSizeByPage, XScale, FontSize, FontSizeXScale, or SCLX\n"
+               "                       Default FontSizeXScale (use XScale to keep the base size fixed)\n"
                "  --stretch-policy NAME  Override the declarative stretchpolicy named by linepolicy\n"
                "  --shrink-policy NAME  Override the declarative shrinkpolicy named by linepolicy\n"
                "  --compare-stretch-policy NAME  Render this policy below --stretch-policy\n"
+               "  --compare-shrink-policy NAME  Render this policy below --shrink-policy\n"
                "  --line-list PATH    CSV containing page,line pairs for policy comparison\n"
                "  --database PATH    quran-data.sqlite path\n"
                "  --resources DIR    mfplain.mp/mpost.mp/vmf.mp directory\n"
                "  --reference MODE   Reference source: qpc, scan (no QPC), or both\n"
                "  --segmentation DIR Use DIR/pageNNN/words.json and wordimgs for "
-               "scan references\n"
+               "scan references; one source pixel = one unscaled layout unit, without line fitting\n"
                "  --scale-report PATH Write line/word QPC-vs-scan scale CSV "
                "(requires --reference both)\n"
                "  --force            Apply automatic mark positioning (default)\n"
@@ -1783,9 +1805,12 @@ int main(int argc, char** argv) {
     RankingMode rankingMode = RankingMode::Natural;
     bool applyForce = true;
     JustType engine = JustType::Experimental2;
+    std::optional<double> requestedFontSizeScale;
+    std::optional<JustStyle> requestedPageFitting;
     std::string stretchPolicyName;
     std::string shrinkPolicyName;
     std::string compareStretchPolicyName;
+    std::string compareShrinkPolicyName;
     fs::path lineList;
     int count = 50;
     std::optional<int> requestedLooseCount;
@@ -1817,12 +1842,18 @@ int main(int argc, char** argv) {
         if (name == "decl-policy" || name == "fixed-slot") engine = JustType::DeclPolicy;
         else if (name == "experimental2") engine = JustType::Experimental2;
         else throw std::runtime_error("--justifier must be decl-policy or experimental2");
+      } else if (arg == "--font-size-scale") {
+        requestedFontSizeScale = parseFontSizeScale(value());
+      } else if (arg == "--page-fitting") {
+        requestedPageFitting = parsePageFitting(value());
       } else if (arg == "--stretch-policy") {
         stretchPolicyName = value();
       } else if (arg == "--shrink-policy") {
         shrinkPolicyName = value();
       } else if (arg == "--compare-stretch-policy") {
         compareStretchPolicyName = value();
+      } else if (arg == "--compare-shrink-policy") {
+        compareShrinkPolicyName = value();
       } else if (arg == "--line-list") {
         lineList = fs::absolute(value());
       } else if (arg == "--database") {
@@ -1860,13 +1891,17 @@ int main(int argc, char** argv) {
       usage(argv[0]);
       return 2;
     }
-    const bool policyComparison = !compareStretchPolicyName.empty() || !lineList.empty();
-    if (policyComparison && (compareStretchPolicyName.empty() || lineList.empty()))
-      throw std::runtime_error("--compare-stretch-policy and --line-list must be used together");
+    const bool comparesStretch = !compareStretchPolicyName.empty();
+    const bool comparesShrink = !compareShrinkPolicyName.empty();
+    const bool policyComparison = comparesStretch || comparesShrink || !lineList.empty();
+    if (policyComparison && (!(comparesStretch || comparesShrink) || lineList.empty()))
+      throw std::runtime_error("a --compare-stretch-policy or --compare-shrink-policy requires --line-list");
     if (policyComparison && engine != JustType::DeclPolicy)
       throw std::runtime_error("policy comparison requires --justifier decl-policy");
-    if (policyComparison && stretchPolicyName.empty())
+    if (comparesStretch && stretchPolicyName.empty())
       throw std::runtime_error("policy comparison requires --stretch-policy");
+    if (comparesShrink && shrinkPolicyName.empty())
+      throw std::runtime_error("shrink policy comparison requires --shrink-policy");
     if (policyComparison && rankingMode != RankingMode::Natural)
       throw std::runtime_error("--sort-by cannot be used with --line-list policy comparison");
     const ReferenceMode mode = requestedMode.value_or(
@@ -1900,6 +1935,17 @@ int main(int argc, char** argv) {
     if (!scaleReport.empty() && !scaleReport.parent_path().empty())
       fs::create_directories(scaleReport.parent_path());
 
+    OtLayout::EMSCALE = requestedFontSizeScale.value_or(1.0);
+    const auto pageFitting = requestedPageFitting.value_or(JustStyle::FontSizeXScale);
+    std::string sizingLabel;
+    if (requestedFontSizeScale || requestedPageFitting) {
+      std::ostringstream label;
+      label << "  [base font scale " << OtLayout::EMSCALE << "; fitting " << pageFittingName(pageFitting) << ']';
+      sizingLabel = label.str();
+    }
+    std::cout << "DigitalKhatt font-size scale: " << OtLayout::EMSCALE << '\n'
+              << "DigitalKhatt page fitting: " << pageFittingName(pageFitting) << '\n';
+
     MPFont mpFont;
     initializeFont(mpFont, project, resources);
     OtLayout layout(&mpFont, true, true);
@@ -1920,10 +1966,16 @@ int main(int argc, char** argv) {
       shrinkPolicy = layout.compiledJustificationCatalog->shrinkPolicyIndex(shrinkPolicyName);
       if (shrinkPolicy < 0) throw std::runtime_error("unknown shrink policy " + shrinkPolicyName);
     }
-    int compareStretchPolicy = -1;
+    int compareStretchPolicy = stretchPolicy;
     if (!compareStretchPolicyName.empty()) {
       compareStretchPolicy = layout.compiledJustificationCatalog->stretchPolicyIndex(compareStretchPolicyName);
       if (compareStretchPolicy < 0) throw std::runtime_error("unknown stretch policy " + compareStretchPolicyName);
+    }
+
+    int compareShrinkPolicy = shrinkPolicy;
+    if (comparesShrink) {
+      compareShrinkPolicy = layout.compiledJustificationCatalog->shrinkPolicyIndex(compareShrinkPolicyName);
+      if (compareShrinkPolicy < 0) throw std::runtime_error("unknown shrink policy " + compareShrinkPolicyName);
     }
 
     const auto pages = loadLines(database);
@@ -1933,12 +1985,18 @@ int main(int argc, char** argv) {
     if (policyComparison) {
       const auto selected = readSelectedLines(lineList, pages, pageWidth);
       if (selected.empty()) throw std::runtime_error("line list contains no lines");
-      const auto primary = justifySelectedPages(layout, pages, selected, {}, pageWidth, applyForce, engine, stretchPolicy, shrinkPolicy);
-      const auto comparison = justifySelectedPages(layout, pages, selected, {}, pageWidth, applyForce, engine, compareStretchPolicy, shrinkPolicy);
-      renderPolicyDifferencePdf(output, layout, selected, primary, comparison, pageWidth);
+      const auto primary = justifySelectedPages(layout, pages, selected, {}, pageWidth, applyForce, engine, stretchPolicy, shrinkPolicy, pageFitting);
+      const auto comparison = justifySelectedPages(layout, pages, selected, {}, pageWidth, applyForce, engine, compareStretchPolicy, compareShrinkPolicy, pageFitting);
+      const auto labels = [&](bool compared) {
+        std::string label;
+        if (comparesStretch) label = "stretch " + (compared ? compareStretchPolicyName : stretchPolicyName);
+        if (comparesShrink) label += (label.empty() ? "" : ", ") + std::string("shrink ") + (compared ? compareShrinkPolicyName : shrinkPolicyName);
+        return label;
+      };
+      renderPolicyDifferencePdf(output, layout, selected, primary, comparison, pageWidth, labels(false), labels(true), sizingLabel);
       std::cout << "Compared lines: " << selected.size() << '\n'
-                << "Primary stretch policy: " << stretchPolicyName << '\n'
-                << "Comparison stretch policy: " << compareStretchPolicyName << '\n'
+                << "Primary policy: " << labels(false) << '\n'
+                << "Comparison policy: " << labels(true) << '\n'
                 << "PDF: " << output << '\n';
       return 0;
     }
@@ -1949,7 +2007,7 @@ int main(int argc, char** argv) {
       // Rank all requested pages before truncating the two output lists. Reuse
       // this shaping for PDF output; expensive mark optimization is only needed
       // for the pages selected for display, and does not affect advance scores.
-      justified = justifySelectedPages(layout, pages, rankings.underfulls, rankings.overfulls, pageWidth, false, engine, stretchPolicy, shrinkPolicy);
+      justified = justifySelectedPages(layout, pages, rankings.underfulls, rankings.overfulls, pageWidth, false, engine, stretchPolicy, shrinkPolicy, pageFitting);
       rankAppliedStretch(layout, rankings, justified, naturalGlyphs, rankingMode);
       std::cout << "Ranking by largest added " << (rankingMode == RankingMode::Kashida ? "kashida" : "terminal") << " nominal advance (font units, before GPOS/page scaling)\n";
     }
@@ -1992,7 +2050,7 @@ int main(int argc, char** argv) {
                        pageWidth);
 
     if (rankingMode == RankingMode::Natural) {
-      justified = justifySelectedPages(layout, pages, comparisonUnderfulls, comparisonOverfulls, pageWidth, applyForce, engine, stretchPolicy, shrinkPolicy);
+      justified = justifySelectedPages(layout, pages, comparisonUnderfulls, comparisonOverfulls, pageWidth, applyForce, engine, stretchPolicy, shrinkPolicy, pageFitting);
     } else if (applyForce) {
       std::set<int> selectedPages;
       for (const auto& line : comparisonUnderfulls) selectedPages.insert(line.page);
@@ -2002,7 +2060,7 @@ int main(int argc, char** argv) {
     }
     renderPdf(output, layout, pages, comparisonUnderfulls,
               comparisonOverfulls, justified, qpcFontDir,
-              segmentation.get(), mode, pageWidth, engine, rankingMode);
+              segmentation.get(), mode, pageWidth, engine, rankingMode, sizingLabel);
 
     std::string selectedPolicies;
     if (engine == JustType::DeclPolicy) {

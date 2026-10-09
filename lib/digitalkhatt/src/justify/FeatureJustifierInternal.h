@@ -87,6 +87,7 @@ struct TextFontFeatures {
   // fractional values produced by proportional justification.
   double value;
   GlyphAxisId axis = NoGlyphAxis;
+  bool additive = false;
   bool operator==(const TextFontFeatures&) const = default;
 };
 
@@ -127,6 +128,10 @@ struct JustInfo {
   // Last accepted measurement per word, with word-relative clusters. Used
   // only for recognition; GSUB still replays from the original text in order.
   std::vector<ShapingBuffer> acceptedWordBuffers;
+  // GSUB state without external native assignments, plus contextual feature
+  // parameter probes. Pure native changes reuse these buffers across candidates.
+  ShapingBuffer nativeBaseline;
+  std::map<std::string, std::map<int, GlyphParameters>> featureParameterDeltas;
   DeclPolicyExecutionState declPolicyState;
   // Per character index: bit 2*i when the glyph there is in attachment i's
   // find set, bit 2*i+1 when it is in its skip set.  Empty when no attachment
@@ -143,6 +148,7 @@ AppliedResult tryApplyFeatures(
     int wordIndex, const LineTextInfo& lineTextInfo, JustInfo& justInfo,
     const std::map<int, std::vector<TextFontFeatures>>& newFeatures,
     bool retainGlyphs = false,
-    const std::map<int, hb_codepoint_t>* newSubstitutions = nullptr);
+    const std::map<int, hb_codepoint_t>* newSubstitutions = nullptr,
+    bool shrinking = false);
 
 }  // namespace digitalkhatt::justify::runtime

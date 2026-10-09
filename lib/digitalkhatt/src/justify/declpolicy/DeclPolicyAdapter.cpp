@@ -1,4 +1,5 @@
 #include "DeclPolicyAdapter.h"
+#include "NativeParameterAttribute.h"
 
 #include <algorithm>
 #include <cmath>
@@ -158,13 +159,62 @@ hb_codepoint_t currentGlyphAtSite(const LineTextInfo& lineTextInfo, const JustIn
   throw std::runtime_error("action lookup target has no shaped glyph");
 }
 
+// Probe GSUB once per feature and line, rather than re-running it for each
+// candidate. Native assignments are excluded so the cached deltas can be
+// composed with both compact forms and later feature fallbacks.
+ShapingBuffer shapeParameterProbe(const LineTextInfo& text, const JustInfo& info, std::string_view probe = {}) {
+  vector<hb_feature_t> features;
+  vector<runtime::GlyphParameterAssignment> substitutions;
+  for (const auto& value : info.globalFeatures)
+    features.push_back({hb_tag_from_string(value.name.c_str(), value.name.size()), static_cast<unsigned>(value.value), 0u, static_cast<unsigned>(-1)});
+  for (const auto& [site, values] : info.fontFeatures)
+    for (const auto& value : values)
+      if (value.axis == NoGlyphAxis)
+        features.push_back({hb_tag_from_string(value.name.c_str(), value.name.size()), static_cast<unsigned>(value.value), static_cast<unsigned>(site), static_cast<unsigned>(site + 1)});
+  for (const auto& [site, glyph] : info.substitutions)
+    substitutions.push_back({static_cast<unsigned>(site), NoGlyphAxis, 0, glyph});
+  if (!probe.empty()) features.push_back({hb_tag_from_string(probe.data(), probe.size()), 1u, 0u, static_cast<unsigned>(-1)});
+  return ShapingBuffer(runtime::shapeForMeasurement(text.lineText, info.font, features, info.layout, substitutions));
+}
+
+void ensureNativeBaseline(const LineTextInfo& text, JustInfo& info) {
+  if (!info.nativeBaseline) info.nativeBaseline = shapeParameterProbe(text, info);
+}
+
+double featureParameterDelta(const LineTextInfo& text, JustInfo& info, std::string_view name, GlyphAxisId axis, int site) {
+  if (!info.layout->supportsGlyphParameters()) return 0;
+  ensureNativeBaseline(text, info);
+  const std::string tag(name.substr(0, 4));
+  auto found = info.featureParameterDeltas.find(tag);
+  if (found == info.featureParameterDeltas.end()) {
+    auto probe = shapeParameterProbe(text, info, tag);
+    map<int, GlyphParameters> deltas;
+    for (int cluster = 0; cluster < static_cast<int>(text.lineText.size()); ++cluster) {
+      const auto before = glyphInfoAtCluster(info.font, info.nativeBaseline.get(), cluster);
+      const auto after = glyphInfoAtCluster(info.font, probe.get(), cluster);
+      // Structural substitutions are not representable by parameter deltas.
+      if (!before || !after || before->codepoint != after->codepoint) continue;
+      const auto from = info.layout->glyphParameters(*before, 0, 0);
+      const auto to = info.layout->glyphParameters(*after, 0, 0);
+      GlyphParameters delta;
+      for (GlyphAxisId slot = 0; slot < std::max(from.size(), to.size()); ++slot)
+        delta.set(slot, to.value(slot) - from.value(slot));
+      if (!delta.isDefault()) deltas.emplace(cluster, std::move(delta));
+    }
+    found = info.featureParameterDeltas.emplace(tag, std::move(deltas)).first;
+  }
+  const auto delta = found->second.find(site);
+  return delta == found->second.end() ? 0 : delta->second.value(axis);
+}
+
 struct MeasuredGlyphState {
   hb_codepoint_t codepoint;
   GlyphParameters parameters;
 };
 
-std::optional<MeasuredGlyphState> glyphStateAtSite(const JustInfo& justInfo, const map<int, vector<TextFontFeatures>>& features, const map<int, hb_codepoint_t>& substitutions, JustificationSiteRef site) {
-  auto info = glyphInfoAtCluster(justInfo.font, justInfo.recognitionBuffer, site);
+std::optional<MeasuredGlyphState> glyphStateAtSite(const JustInfo& justInfo, const map<int, vector<TextFontFeatures>>& features, const map<int, hb_codepoint_t>& substitutions, JustificationSiteRef site, bool useNativeBaseline = false) {
+  auto info = glyphInfoAtCluster(justInfo.font,
+      useNativeBaseline && justInfo.nativeBaseline ? justInfo.nativeBaseline.get() : justInfo.recognitionBuffer, site);
   if (!info) return std::nullopt;
   if (const auto substitute = substitutions.find(site); substitute != substitutions.end()) info->codepoint = substitute->second;
   auto parameters = justInfo.layout->glyphParameters(*info, 0, 0);
@@ -173,7 +223,7 @@ std::optional<MeasuredGlyphState> glyphStateAtSite(const JustInfo& justInfo, con
   }
   if (const auto values = features.find(site); values != features.end()) {
     for (const auto& value : values->second)
-      if (value.axis != NoGlyphAxis) parameters.set(value.axis, value.value);
+      if (value.axis != NoGlyphAxis) parameters.set(value.axis, value.value + (value.additive ? parameters.value(value.axis) : 0));
   }
   return MeasuredGlyphState{info->codepoint, std::move(parameters)};
 }
@@ -181,8 +231,13 @@ std::optional<MeasuredGlyphState> glyphStateAtSite(const JustInfo& justInfo, con
 std::optional<double> measureGlyphDelta(const JustInfo& justInfo, const map<int, vector<TextFontFeatures>>& beforeFeatures, const map<int, hb_codepoint_t>& beforeSubstitutions, const map<int, vector<TextFontFeatures>>& afterFeatures, const map<int, hb_codepoint_t>& afterSubstitutions, const std::set<JustificationSiteRef>& sites) {
   double delta = 0;
   for (const auto site : sites) {
-    const auto before = glyphStateAtSite(justInfo, beforeFeatures, beforeSubstitutions, site);
-    const auto after = glyphStateAtSite(justInfo, afterFeatures, afterSubstitutions, site);
+    const auto hasDelta = [&](const auto& features) {
+      const auto found = features.find(site);
+      return found != features.end() && std::any_of(found->second.begin(), found->second.end(), [](const auto& value) { return value.additive; });
+    };
+    const bool useNativeBaseline = hasDelta(beforeFeatures) || hasDelta(afterFeatures);
+    const auto before = glyphStateAtSite(justInfo, beforeFeatures, beforeSubstitutions, site, useNativeBaseline);
+    const auto after = glyphStateAtSite(justInfo, afterFeatures, afterSubstitutions, site, useNativeBaseline);
     if (!before || !after) return std::nullopt;
     const auto beforeAdvance = justInfo.layout->glyphAdvance(justInfo.font, before->codepoint, before->parameters);
     const auto afterAdvance = justInfo.layout->glyphAdvance(justInfo.font, after->codepoint, after->parameters);
@@ -206,6 +261,7 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
     stagedSubstitutions_ = justInfo_.substitutions;
     touchedSites_.clear();
     canMeasureAdvance_ = true;
+    changesGsub_ = false;
   }
   void abortTransaction() override {
     staged_.clear();
@@ -213,10 +269,14 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
   }
 
   FixedSlotActionResult commitTransaction(int wordIndex) override {
-    switch (tryApplyFeatures(wordIndex, lineTextInfo_, justInfo_, staged_, true, &stagedSubstitutions_)) {
+    switch (tryApplyFeatures(wordIndex, lineTextInfo_, justInfo_, staged_, true, &stagedSubstitutions_, justInfo_.textLineWidth > justInfo_.desiredWidth)) {
       case AppliedResult::NoChange:
         return FixedSlotActionResult::NoChange;
       case AppliedResult::Positive:
+        if (changesGsub_) {
+          justInfo_.nativeBaseline.reset();
+          justInfo_.featureParameterDeltas.clear();
+        }
         return FixedSlotActionResult::Positive;
       case AppliedResult::Overflow:
         return FixedSlotActionResult::Overflow;
@@ -228,6 +288,8 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
 
   bool present(JustificationSiteRef site,
                JustAttributeId attribute) const override {
+    if (catalog_.attributeAxes.at(attribute) != NoGlyphAxis && isFeatureParameterQuery(tagOf(attribute)))
+      return read(site, attribute) != 0;
     return find(site, attribute) != nullptr;
   }
 
@@ -237,6 +299,9 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
 
   double read(JustificationSiteRef site,
               JustAttributeId attribute) const override {
+    const auto axis = catalog_.attributeAxes.at(attribute);
+    if (axis != NoGlyphAxis && isFeatureParameterQuery(tagOf(attribute)))
+      return featureParameterDelta(lineTextInfo_, justInfo_, tagOf(attribute), axis, site);
     const auto* feature = find(site, attribute);
     return feature == nullptr ? 0 : feature->value;
   }
@@ -252,7 +317,10 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
     if (axis != NoGlyphAxis && !justInfo_.layout->supportsGlyphParameters())
       return;
     touchedSites_.insert(site);
-    if (axis == NoGlyphAxis) canMeasureAdvance_ = false;
+    if (axis == NoGlyphAxis) { canMeasureAdvance_ = false; changesGsub_ = true; }
+    if (axis != NoGlyphAxis && isFeatureParameterQuery(tag)) throw std::runtime_error("feature parameter queries are read-only");
+    const bool additive = axis != NoGlyphAxis && isParameterDelta(tag);
+    if (additive) ensureNativeBaseline(lineTextInfo_, justInfo_);
     if (axis == NoGlyphAxis && value != std::trunc(value))
       throw std::runtime_error("OpenType justification feature values must be integers");
     // In place when the attribute is already there, so the order HarfBuzz sees
@@ -263,14 +331,17 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
         return;
       }
     }
-    features.push_back({.name = tag, .value = static_cast<double>(value), .axis = axis});
+    features.push_back({.name = tag, .value = static_cast<double>(value), .axis = axis, .additive = additive});
   }
 
   void clear(JustificationSiteRef site) override {
     touchedSites_.insert(site);
     if (const auto found = staged_.find(site); found != staged_.end()) {
-      canMeasureAdvance_ = canMeasureAdvance_ && std::none_of(found->second.begin(), found->second.end(), [](const auto& feature) { return feature.axis == NoGlyphAxis; });
+      const bool hasFeature = std::any_of(found->second.begin(), found->second.end(), [](const auto& feature) { return feature.axis == NoGlyphAxis; });
+      canMeasureAdvance_ = canMeasureAdvance_ && !hasFeature;
+      changesGsub_ = changesGsub_ || hasFeature;
     }
+    changesGsub_ = changesGsub_ || stagedSubstitutions_.contains(site);
     staged_[site].clear();
     stagedSubstitutions_.erase(site);
   }
@@ -279,7 +350,10 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
     touchedSites_.insert(site);
     const auto glyph = currentGlyphAtSite(lineTextInfo_, justInfo_, stagedSubstitutions_, site);
     const auto substitute = justInfo_.layout->resolveJustificationLookup(glyph, lookup);
-    if (substitute && *substitute != glyph) stagedSubstitutions_[site] = *substitute;
+    if (substitute && *substitute != glyph) {
+      stagedSubstitutions_[site] = *substitute;
+      changesGsub_ = true;
+    }
   }
 
   std::optional<std::uint32_t> glyph(
@@ -355,6 +429,7 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
   map<int, hb_codepoint_t> stagedSubstitutions_;
   std::set<JustificationSiteRef> touchedSites_;
   bool canMeasureAdvance_ = true;
+  bool changesGsub_ = false;
 };
 
 // Refresh glyph-based attachments alongside base facts. A word refresh clears
@@ -570,12 +645,12 @@ void traceCandidateDecision(const JustInfo& justInfo, std::span<const PolicyPhas
   justInfo.layout->traceJustificationDecision(trace);
 }
 
-void distributeCandidateWidth(const std::vector<const JustificationCandidate*>& candidates, double available, std::vector<double>& allocations) {
+void distributeCandidateWidth(const std::vector<const JustificationCandidate*>& candidates, double available, std::vector<double>& allocations, double direction) {
   allocations.assign(candidates.size(), 0);
   std::vector<std::size_t> active;
   active.reserve(candidates.size());
   for (std::size_t index = 0; index < candidates.size(); ++index) {
-    const auto capacity = *candidates[index]->maximumWidthDelta - *candidates[index]->minimumWidthDelta;
+    const auto capacity = direction * (*candidates[index]->maximumWidthDelta - *candidates[index]->minimumWidthDelta);
     if (capacity > 0) active.push_back(index);
   }
   while (available > 0.000001 && !active.empty()) {
@@ -585,7 +660,7 @@ void distributeCandidateWidth(const std::vector<const JustificationCandidate*>& 
     std::vector<std::size_t> remaining;
     bool saturated = false;
     for (const auto index : active) {
-      const auto capacity = *candidates[index]->maximumWidthDelta - *candidates[index]->minimumWidthDelta;
+      const auto capacity = direction * (*candidates[index]->maximumWidthDelta - *candidates[index]->minimumWidthDelta);
       const auto room = capacity - allocations[index];
       const auto share = unit * candidates[index]->weight;
       if (room <= share + 0.000001) {
@@ -685,10 +760,10 @@ bool applyBaselinePoolStage(const LineTextInfo& text, JustInfo& info, std::span<
 
 constexpr double candidateWidthReserve = 0.5;
 
-double capCandidateRatioToRemainingWidth(const JustificationCandidate& candidate, double ratio, double remainingWidth) {
-  const auto capacity = *candidate.maximumWidthDelta - *candidate.minimumWidthDelta;
+double capCandidateRatioToRemainingWidth(const JustificationCandidate& candidate, double ratio, double remainingWidth, double direction) {
+  const auto capacity = direction * (*candidate.maximumWidthDelta - *candidate.minimumWidthDelta);
   if (capacity <= 0) return 0;
-  const auto ratioThatFits = std::clamp((remainingWidth - *candidate.minimumWidthDelta - candidateWidthReserve) / capacity, 0.0, 1.0);
+  const auto ratioThatFits = std::clamp((remainingWidth - direction * *candidate.minimumWidthDelta - candidateWidthReserve) / capacity, 0.0, 1.0);
   return std::min(ratio, ratioThatFits);
 }
 
@@ -699,8 +774,12 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
   std::map<int, int> wordTotals;
   std::map<std::pair<int, int>, int> subwordTotals;
   int pass = 0;
+  // Work in positive amounts of the requested change; retain signed deltas
+  // in candidates and traces so native shrinking ranges remain decreasing.
+  const double direction = justInfo.desiredWidth >= justInfo.textLineWidth ? 1 : -1;
+  const auto remaining = [&] { return direction * (justInfo.desiredWidth - justInfo.textLineWidth); };
 
-  while (justInfo.textLineWidth + 0.000001 < justInfo.desiredWidth) {
+  while (remaining() > 0.000001) {
     ++pass;
     auto candidates = collectDeclPolicyStageCandidates(lineTextInfo, justInfo, phases);
     std::stable_sort(candidates.begin(), candidates.end(), [](const auto& left, const auto& right) {
@@ -717,7 +796,7 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
     auto trialWordTotals = wordTotals;
     auto trialSubwordTotals = subwordTotals;
     double mandatoryWidth = 0;
-    const auto availableWidth = justInfo.desiredWidth - justInfo.textLineWidth;
+    const auto availableWidth = remaining();
 
     for (auto& candidate : candidates) {
       const auto reject = [&](std::string_view reason) { traceCandidateDecision(justInfo, phases, candidate, pass, "rejected", reason, availableWidth - mandatoryWidth, 0, parameterQuantization); };
@@ -768,11 +847,15 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
         reject("unmeasured_width");
         continue;
       }
-      if (*candidate.maximumWidthDelta <= 0) {
-        reject("non_expanding");
+      if (!std::isfinite(*candidate.minimumWidthDelta) || !std::isfinite(*candidate.maximumWidthDelta) ||
+          direction * *candidate.maximumWidthDelta <= 0 ||
+          (direction < 0 && (direction * *candidate.minimumWidthDelta < 0 ||
+                            direction * (*candidate.maximumWidthDelta - *candidate.minimumWidthDelta) < 0))) {
+        reject(direction > 0 ? "non_expanding" : "non_shrinking");
         continue;
       }
-      if (mandatoryWidth + *candidate.minimumWidthDelta > availableWidth - 0.000001) {
+      const double mandatoryTotal = mandatoryWidth + direction * *candidate.minimumWidthDelta;
+      if (direction < 0 ? mandatoryTotal > availableWidth : mandatoryTotal > availableWidth - 0.000001) {
         reject("mandatory_width_does_not_fit");
         continue;
       }
@@ -780,7 +863,7 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
 
       accepted.push_back(&candidate);
       touchedSites.insert(candidateSites.begin(), candidateSites.end());
-      mandatoryWidth += *candidate.minimumWidthDelta;
+      mandatoryWidth += direction * *candidate.minimumWidthDelta;
       ++trialPhaseTotals[candidate.priorityBand];
       ++trialWordTotals[candidate.wordIndex];
       ++trialSubwordTotals[{candidate.wordIndex, candidate.subwordIndex}];
@@ -789,25 +872,25 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
 
     if (accepted.empty()) break;
     std::vector<double> allocations;
-    distributeCandidateWidth(accepted, std::max(0.0, availableWidth - mandatoryWidth - candidateWidthReserve), allocations);
+    distributeCandidateWidth(accepted, std::max(0.0, availableWidth - mandatoryWidth - candidateWidthReserve), allocations, direction);
     bool changed = false;
     for (std::size_t index = 0; index < accepted.size(); ++index) {
       const auto& candidate = *accepted[index];
-      const auto capacity = *candidate.maximumWidthDelta - *candidate.minimumWidthDelta;
+      const auto capacity = direction * (*candidate.maximumWidthDelta - *candidate.minimumWidthDelta);
       const auto allocatedRatio = capacity > 0 ? std::clamp(allocations[index] / capacity, 0.0, 1.0) : 0;
-      const auto ratio = capCandidateRatioToRemainingWidth(candidate, allocatedRatio, justInfo.desiredWidth - justInfo.textLineWidth);
+      const auto ratio = capCandidateRatioToRemainingWidth(candidate, allocatedRatio, remaining(), direction);
       const auto reason = ratio + 0.000000000001 < allocatedRatio ? "candidate_pool_width_cap" : "candidate_pool";
-      traceCandidateDecision(justInfo, phases, candidate, pass, "selected", reason, justInfo.desiredWidth - justInfo.textLineWidth, ratio, parameterQuantization);
+      traceCandidateDecision(justInfo, phases, candidate, pass, "selected", reason, remaining(), ratio, parameterQuantization);
       const auto result = commitCandidate(lineTextInfo, justInfo, candidate, ratio, parameterQuantization);
       const auto key = candidateKey(candidate);
       if (result != FixedSlotActionResult::Positive) {
         const auto reason = result == FixedSlotActionResult::Overflow ? "commit_overflow" : result == FixedSlotActionResult::Forbidden ? "commit_forbidden"
                                                                                                                                        : "commit_no_change";
-        traceCandidateDecision(justInfo, phases, candidate, pass, "rejected", reason, justInfo.desiredWidth - justInfo.textLineWidth, ratio, parameterQuantization);
+        traceCandidateDecision(justInfo, phases, candidate, pass, "rejected", reason, remaining(), ratio, parameterQuantization);
         blocked.insert(key);
         continue;
       }
-      traceCandidateDecision(justInfo, phases, candidate, pass, "applied", "accepted", justInfo.desiredWidth - justInfo.textLineWidth, ratio, parameterQuantization);
+      traceCandidateDecision(justInfo, phases, candidate, pass, "applied", "accepted", remaining(), ratio, parameterQuantization);
       changed = true;
       ++repetitions[key];
       ++phaseTotals[candidate.priorityBand];

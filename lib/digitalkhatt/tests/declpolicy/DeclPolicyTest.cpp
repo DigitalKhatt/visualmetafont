@@ -531,6 +531,20 @@ int main() {
         ok &= expect(rejected, "baseline spacing cannot clear, substitute or update ordinary action state");
       }
     }
+    {
+      auto shrinkSource = rangeSource;
+      shrinkSource.shrinkPolicies = {{.name = "standard", .steps = {{.operation = "stage", .stage = "Main"}}}};
+      const auto shrinkCatalog = compileJustificationCatalog(shrinkSource);
+      ok &= expect(shrinkCatalog.shrinkPolicies[0].steps[0].phases[0].allocator == PolicyPhase::Allocator::CandidatePool,
+                   "shrink recipes accept scored candidate stages");
+      for (const auto allocator : {"baseline_pool", "fixed_steps"}) {
+        auto invalid = shrinkSource;
+        invalid.stages[0].phases[0].allocator = allocator;
+        bool rejected = false;
+        try { (void)compileJustificationCatalog(invalid); } catch (const std::invalid_argument&) { rejected = true; }
+        ok &= expect(rejected, "shrink recipes reject allocators with stretch-only semantics");
+      }
+    }
     ok &= expect(rangeCatalog.stretchPolicies[0].steps[0].phases[0].allocator == PolicyPhase::Allocator::CandidatePool,
                  "candidate ranges compile with the candidate-pool allocator");
 
@@ -610,6 +624,19 @@ int main() {
                      candidateBackend.committed.empty() &&
                      candidateBackend.committedGlyphIds.at(20) == 100,
                  "candidate collection leaves committed parameter and glyph state unchanged");
+
+    auto shrinkingSource = rangeSource;
+    shrinkingSource.actionDefinitions[0].effects = {
+        {.kind = "vary", .attribute = "third", .value = {{.op = "literal", .literal = -0.2}}}};
+    const auto shrinkingCatalog = compileJustificationCatalog(shrinkingSource);
+    FakeBackend shrinkingBackend;
+    const auto shrinkingCandidate = collectJustificationCandidate(shrinkingCatalog,
+        shrinkingCatalog.actionDefinitions[0], candidateSite, shrinkingBackend, 2.5, 0);
+    ok &= expect(shrinkingCandidate && shrinkingCandidate->parameters[0].minimumValue == 0 &&
+                     shrinkingCandidate->parameters[0].maximumValue == -0.2 &&
+                     shrinkingCandidate->minimumWidthDelta == 0 && shrinkingCandidate->maximumWidthDelta == -0.2 &&
+                     shrinkingBackend.committed.empty(),
+                 "decreasing native ranges retain signed widths without mutating accepted state");
 
     FakeBackend lazyCandidateBackend;
     lazyCandidateBackend.committedGlyphIds[20] = 100;
@@ -993,6 +1020,26 @@ int main() {
   FakeBackend fractionalBackend;
   (void)evaluateJustificationAction(fractionalCatalog, fractionalCatalog.actionDefinitions[0], bodySlots, 0, 0, 0, fractionalBackend);
   ok &= expect(fractionalBackend.read(10, 0) == 0.5, "native axes accept fractional fixed-step values");
+
+  auto deltaSource = bodySource;
+  deltaSource.actionDefinitions[0].effects = {{.kind = "update", .target = self, .attribute = "lefttatweel_delta", .value = {{.op = "attribute", .target = self, .name = "sk04_lefttatweel"}}}};
+  const auto deltaCatalog = compileJustificationCatalog(deltaSource);
+  ok &= expect(deltaCatalog.attributeAxes.size() == 2 &&
+                   deltaCatalog.attributeAxes[0] == digitalkhatt::LeftTatweelAxis &&
+                   deltaCatalog.attributeAxes[1] == digitalkhatt::LeftTatweelAxis,
+               "parameter deltas and contextual feature queries resolve to their native axis");
+  for (const auto* kind : {"update", "add", "vary", "replace"}) {
+    auto queryWrite = deltaSource;
+    auto& effect = queryWrite.actionDefinitions[0].effects[0];
+    effect.kind = kind;
+    effect.attribute = "sk04_lefttatweel";
+    effect.clamp = 1;
+    effect.writes = {{.attribute = "sk04_lefttatweel", .value = {{.op = "literal", .literal = -0.1}}}};
+    bool rejected = false;
+    try { (void)compileJustificationCatalog(queryWrite); }
+    catch (const std::invalid_argument&) { rejected = true; }
+    ok &= expect(rejected, "feature parameter queries reject every kind of write");
+  }
 
   const auto alternate = compileJustificationCatalog(alternateSource);
   ok &= expect(alternate.actionDefinitions.size() == 1 &&

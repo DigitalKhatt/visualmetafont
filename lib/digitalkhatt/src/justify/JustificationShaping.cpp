@@ -147,7 +147,10 @@ hb_buffer_t* shape(TextString text, hb_font_t* font, vector<hb_feature_t> featur
           }
           if (target == nullptr) continue;
           if (parameter.substitute != static_cast<hb_codepoint_t>(-1)) target->codepoint = parameter.substitute;
-          if (parameter.axis != NoGlyphAxis && !context.layout->setGlyphParameter(*target, parameter.axis, parameter.value)) throw std::runtime_error("unsupported native glyph parameter slot");
+          if (parameter.axis != NoGlyphAxis) {
+            const auto value = parameter.value + (parameter.additive ? context.layout->glyphParameters(*target, 0, 0).value(parameter.axis) : 0);
+            if (!context.layout->setGlyphParameter(*target, parameter.axis, value)) throw std::runtime_error("unsupported native glyph parameter slot");
+          }
         }
       } catch (...) { context.error = std::current_exception(); }
       return true; }, &context, nullptr);
@@ -209,13 +212,13 @@ double getWordWidth(const WordInfo& wordInfo, const map<int, vector<TextFontFeat
 
   for (int i = wordInfo.startIndex; i <= wordInfo.endIndex; i++) {
     if (const auto seed = baseline.find(i); seed != baseline.end()) {
-      for (const auto& value : seed->second) parameters.push_back({static_cast<unsigned>(i - wordInfo.startIndex), value.axis, value.value, static_cast<hb_codepoint_t>(-1)});
+      for (const auto& value : seed->second) parameters.push_back({static_cast<unsigned>(i - wordInfo.startIndex), value.axis, value.value, static_cast<hb_codepoint_t>(-1), value.additive});
     }
     auto justInfo = justResults.find(i);
     if (justInfo != justResults.end()) {
       for (auto& feat : justInfo->second) {
         if (feat.axis != NoGlyphAxis) {
-          parameters.push_back({static_cast<unsigned>(i - wordInfo.startIndex), feat.axis, static_cast<double>(feat.value), static_cast<hb_codepoint_t>(-1)});
+          parameters.push_back({static_cast<unsigned>(i - wordInfo.startIndex), feat.axis, static_cast<double>(feat.value), static_cast<hb_codepoint_t>(-1), feat.additive});
           continue;
         }
         features.push_back({hb_tag_from_string(feat.name.c_str(), static_cast<int>(feat.name.size())),
@@ -235,9 +238,9 @@ double getWordWidth(const WordInfo& wordInfo, const map<int, vector<TextFontFeat
 }
 
 // Reshapes the word with the staged features and measures it, keeping the
-// result only when it widens the line without crossing the target width.
+// result only when it fits the requested direction without crossing the target.
 AppliedResult tryApplyFeatures(int wordIndex, const LineTextInfo& lineTextInfo, JustInfo& justInfo, const map<int, vector<TextFontFeatures>>& newFeatures,
-                               bool retainGlyphs, const map<int, hb_codepoint_t>* newSubstitutions) {
+                               bool retainGlyphs, const map<int, hb_codepoint_t>* newSubstitutions, bool shrinking) {
   auto& layout = justInfo.layoutResult[wordIndex];
 
   const auto& wordInfo = lineTextInfo.wordInfos[wordIndex];
@@ -246,7 +249,10 @@ AppliedResult tryApplyFeatures(int wordIndex, const LineTextInfo& lineTextInfo, 
   const auto& substitutions = newSubstitutions == nullptr ? justInfo.substitutions : *newSubstitutions;
   const auto wordNewWidth = getWordWidth(wordInfo, newFeatures, justInfo.font, retainGlyphs ? &candidate : nullptr, justInfo.layout, justInfo.globalFeatures, substitutions, justInfo.baselineFeatures);
   auto diff = wordNewWidth - layout.parWidth;
-  if (wordNewWidth != layout.parWidth && justInfo.textLineWidth + diff < justInfo.desiredWidth) {
+  const bool fits = shrinking
+      ? diff < 0 && justInfo.textLineWidth + diff >= justInfo.desiredWidth
+      : wordNewWidth != layout.parWidth && justInfo.textLineWidth + diff < justInfo.desiredWidth;
+  if (std::isfinite(wordNewWidth) && fits) {
     justInfo.textLineWidth += diff;
     layout.parWidth = wordNewWidth;
     justInfo.fontFeatures = newFeatures;
@@ -296,7 +302,7 @@ LineLayoutInfo shapeLine(FeatureJustificationLayout& layout, int lineWidth, int 
       if (justInfo != justResult.fontFeatures.end()) {
         for (auto& feat : justInfo->second) {
           if (feat.axis != NoGlyphAxis) {
-            parameters.push_back({static_cast<unsigned>(i), feat.axis, static_cast<double>(feat.value), static_cast<hb_codepoint_t>(-1)});
+            parameters.push_back({static_cast<unsigned>(i), feat.axis, static_cast<double>(feat.value), static_cast<hb_codepoint_t>(-1), feat.additive});
             continue;
           }
           features.push_back({hb_tag_from_string(feat.name.c_str(), static_cast<int>(feat.name.size())),
