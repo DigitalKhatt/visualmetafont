@@ -684,6 +684,47 @@ The default multiplier is 1, with the existing FontSizeXScale page fitting.
 horizontal scaling; `--page-fitting FontSizeXScale` allows the usual page
 adjustments. Other supported styles are None, SameSizeByPage, FontSize and SCLX.
 Explicit size/fitting options are recorded in PDF labels and console output.
+Add `--show-natural` to prepend the unjustified DigitalKhatt line, and
+`--show-xscale` to prepend a horizontally compressed natural line for tight
+lines only. Both flags are independent and off by default; when both are
+enabled the order is natural, XScale-only (tight lines), justified result,
+then the requested scan/QPC references. Loose lines never get an XScale-only
+row. Baselines use the base `--font-size-scale` without page fitting, shrink
+features, space adjustment or Force optimization. The XScale-only ratio is
+target width divided by the natural advance width; vertical size and glyph
+parameters are unchanged. These rows are also supported in paired policy
+comparisons. All rows, including short lines and references, share a common
+right ink edge so differences in their left ends reveal their widths.
+Dashed left and right guides always show each line's target width, including
+when both baseline flags are off and in paired policy comparisons.
+Rows retain the original interline spacing, without individual row labels;
+the page header lists their
+order and the item description includes the XScale-only compression ratio for
+tight lines. Items share a page when they fit, with extra paper width when
+necessary to preserve overfull natural ink at the same unit scale.
+The right alignment also applies when neither baseline flag is supplied.
+
+QPC references default to `--qpc-layout tarteel`. This follows the QPC V1
+layout in Tarteel's `generateMadinaParagraph`: one U+0020 space between
+encoded words, the page font `QCF_Pnnn.ttf`, and a fixed page font size derived
+from `paragraphWidth / 15.6`, with the comparison tuning described below.
+Tarteel centers the advance width; the comparison aligns the right ink edge
+with the other rows. Tarteel's `paragraphWidth` already excludes outer
+page margins and may be reduced further by its aspect-ratio constraint. Its
+DigitalKhatt renderer reserves another 1.5% on each side within that paragraph,
+so the full text width is `paragraphWidth * 0.97`. The comparison's `pageWidth`
+variable denotes that full text width (normally 16400 layout units), rather
+than the paragraph or physical page width. At the comparison's drawing scale,
+the exact equivalent QPC em would be `pageWidth / (0.97 * 15.6)` in DigitalKhatt
+layout units. The comparison currently uses the tuned factor `0.95` instead:
+`pageWidth / (0.95 * 15.6)`. It is independent of the individual line's target,
+natural ink width and `--font-size-scale`. Short lines retain their natural
+width and share the common right edge. No extra word spacing or horizontal
+scaling is applied. The PDF and `--scale-report` use the same reference scale.
+Use `--qpc-layout ink-fit` for the previous behavior: uniformly resize each
+line until its ink width matches its DigitalKhatt target, aligning ink edges.
+Comparison alignment differs from Tarteel's centered placement; PDF and Skia
+rasterization can also differ.
 The PDF labels the upper and lower policies explicitly. The runtime regression
 in `tests/declpolicy/WeightedShrinkIntegrationTest.cpp` covers decreasing native
 ranges, weighted allocation, small budgets, replay, contextual feature probes,

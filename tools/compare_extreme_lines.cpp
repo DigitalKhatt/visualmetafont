@@ -43,13 +43,13 @@
 namespace fs = std::filesystem;
 using digitalkhatt::JustOption;
 using digitalkhatt::JustStyle;
+using digitalkhatt::JustType;
 using digitalkhatt::LineJustification;
 using digitalkhatt::LineLayoutInfo;
 using digitalkhatt::LineToJustify;
 using digitalkhatt::LineType;
 using digitalkhatt::ShrinkType;
 using digitalkhatt::TextString;
-using digitalkhatt::JustType;
 using PDFHummus::eSuccess;
 
 struct SegmentedWord {
@@ -80,9 +80,21 @@ struct SegmentedPage {
 
 namespace {
 
-enum class ReferenceMode { Qpc, Scan, Both };
+enum class ReferenceMode { Qpc,
+                           Scan,
+                           Both };
+enum class QpcLayoutMode { Tarteel,
+                           InkFit };
 
-enum class RankingMode { Natural, Kashida, Terminal };
+QpcLayoutMode parseQpcLayout(std::string_view value) {
+  if (value == "tarteel") return QpcLayoutMode::Tarteel;
+  if (value == "ink-fit") return QpcLayoutMode::InkFit;
+  throw std::runtime_error("--qpc-layout must be tarteel or ink-fit");
+}
+
+enum class RankingMode { Natural,
+                         Kashida,
+                         Terminal };
 
 RankingMode parseRankingMode(std::string_view value) {
   if (value == "natural") return RankingMode::Natural;
@@ -112,12 +124,18 @@ JustStyle parsePageFitting(std::string_view value) {
 
 std::string_view pageFittingName(JustStyle style) {
   switch (style) {
-    case JustStyle::None: return "None";
-    case JustStyle::SameSizeByPage: return "SameSizeByPage";
-    case JustStyle::XScale: return "XScale";
-    case JustStyle::FontSize: return "FontSize";
-    case JustStyle::FontSizeXScale: return "FontSizeXScale";
-    case JustStyle::SCLX: return "SCLX";
+    case JustStyle::None:
+      return "None";
+    case JustStyle::SameSizeByPage:
+      return "SameSizeByPage";
+    case JustStyle::XScale:
+      return "XScale";
+    case JustStyle::FontSize:
+      return "FontSize";
+    case JustStyle::FontSizeXScale:
+      return "FontSizeXScale";
+    case JustStyle::SCLX:
+      return "SCLX";
   }
   throw std::runtime_error("Unknown page-fitting style");
 }
@@ -125,8 +143,11 @@ std::string_view pageFittingName(JustStyle style) {
 double parseFontSizeScale(const std::string& value) {
   std::size_t parsed = 0;
   double scale = 0;
-  try { scale = std::stod(value, &parsed); }
-  catch (const std::exception&) { throw std::runtime_error("--font-size-scale must be a finite positive number"); }
+  try {
+    scale = std::stod(value, &parsed);
+  } catch (const std::exception&) {
+    throw std::runtime_error("--font-size-scale must be a finite positive number");
+  }
   if (parsed != value.size() || !std::isfinite(scale) || scale <= 0)
     throw std::runtime_error("--font-size-scale must be a finite positive number");
   return scale;
@@ -330,14 +351,7 @@ std::vector<std::vector<QuranLine>> loadLines(const fs::path& database) {
 }
 
 const std::map<int, double> oldMadinaLineWidths{
-    {1 * 15 + 2, .5},     {1 * 15 + 3, .65},   {1 * 15 + 4, .80},
-    {1 * 15 + 5, .9},     {1 * 15 + 6, .80},   {1 * 15 + 7, .65},
-    {1 * 15 + 8, .4},     {2 * 15 + 2, .5},    {2 * 15 + 3, .65},
-    {2 * 15 + 4, .85},    {2 * 15 + 5, .9},    {2 * 15 + 6, .85},
-    {2 * 15 + 7, .65},    {2 * 15 + 8, .4},    {600 * 15 + 9, .82},
-    {602 * 15 + 5, .57},  {602 * 15 + 15, .55},
-    {603 * 15 + 10, .63}, {604 * 15 + 9, .79}, {604 * 15 + 14, .67},
-    {604 * 15 + 15, .51}};
+    {1 * 15 + 2, .5}, {1 * 15 + 3, .65}, {1 * 15 + 4, .80}, {1 * 15 + 5, .9}, {1 * 15 + 6, .80}, {1 * 15 + 7, .65}, {1 * 15 + 8, .4}, {2 * 15 + 2, .5}, {2 * 15 + 3, .65}, {2 * 15 + 4, .85}, {2 * 15 + 5, .9}, {2 * 15 + 6, .85}, {2 * 15 + 7, .65}, {2 * 15 + 8, .4}, {600 * 15 + 9, .82}, {602 * 15 + 5, .57}, {602 * 15 + 15, .55}, {603 * 15 + 10, .63}, {604 * 15 + 9, .79}, {604 * 15 + 14, .67}, {604 * 15 + 15, .51}};
 
 bool isSura(const TextString& line) { return line.starts_with(u"سُورَةُ "); }
 bool isBism(const TextString& line) {
@@ -440,7 +454,7 @@ Rankings rankNaturalWidths(OtLayout& layout,
                            int firstPage, int lastPage, int pageWidth, NaturalGlyphs* naturalGlyphs = nullptr) {
   Rankings result;
   constexpr JustOption noJustification{JustType::None, JustStyle::None,
-                                        ShrinkType::None};
+                                       ShrinkType::None};
   const double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
   layout.applyJustification = false;
   for (int page = firstPage; page <= lastPage; ++page) {
@@ -795,6 +809,7 @@ struct QpcGlyph {
 struct QpcRun {
   std::vector<QpcGlyph> glyphs;
   int advance = 0;
+  int upem = 0;
 };
 
 class HbDrawToPdfPath {
@@ -887,6 +902,7 @@ QpcRun shapeQpc(hb_font_t* font, const TextString& text,
   const auto* infos = hb_buffer_get_glyph_infos(buffer, &count);
   const auto* positions = hb_buffer_get_glyph_positions(buffer, &count);
   QpcRun run;
+  run.upem = hb_face_get_upem(hb_font_get_face(font));
   run.glyphs.reserve(count);
   for (unsigned index = 0; index < count; ++index) {
     QpcGlyph glyph;
@@ -989,11 +1005,34 @@ std::string pathForGlyph(const GlyphVis& glyph) {
   return hasPath ? stream.str() : std::string{};
 }
 
+Bounds oldMadinaInkBounds(OtLayout& layout, const LineLayoutInfo& line) {
+  Bounds bounds;
+  double x = 0;
+  for (const auto& positioned : line.glyphs) {
+    x -= positioned.x_advance;
+    auto* glyph = layout.getGlyph(positioned);
+    if (!glyph || glyph->bbox.urx <= glyph->bbox.llx || glyph->bbox.ury <= glyph->bbox.lly) continue;
+    const double left = x + positioned.x_offset + glyph->bbox.llx * line.fontSize;
+    const double right = x + positioned.x_offset + glyph->bbox.urx * line.fontSize;
+    if (!bounds.valid) {
+      bounds.left = left;
+      bounds.right = right;
+      bounds.valid = true;
+    } else {
+      bounds.left = std::min(bounds.left, left);
+      bounds.right = std::max(bounds.right, right);
+    }
+  }
+  return bounds;
+}
+
 void drawOldMadinaLine(PageContentContext* context, OtLayout& layout,
                        const LineLayoutInfo& line, double right, double baseline,
-                       double scale) {
+                       double scale, std::optional<double> xscale = std::nullopt) {
   raw(context, "q\n0 g\n");
-  context->cm(scale * line.xscale, 0, 0, scale, right, baseline);
+  const double horizontalScale = scale * xscale.value_or(line.xscale);
+  const auto bounds = oldMadinaInkBounds(layout, line);
+  context->cm(horizontalScale, 0, 0, scale, right - horizontalScale * bounds.right, baseline);
   double x = 0;
   for (const auto& positioned : line.glyphs) {
     x -= positioned.x_advance;
@@ -1013,16 +1052,30 @@ void drawOldMadinaLine(PageContentContext* context, OtLayout& layout,
   raw(context, "Q\n");
 }
 
-void drawQpcLine(PageContentContext* context, const QpcRun& run, int targetWidth,
+double qpcLayoutScale(const QpcRun& run, int targetWidth, int pageWidth,
+                      QpcLayoutMode mode) {
+  if (mode == QpcLayoutMode::Tarteel) {
+    // pageWidth here is the full DK text width, not Tarteel's paragraphWidth.
+    // Tarteel excludes outer page margins from paragraphWidth; its DK renderer
+    // then reserves 1.5% on each side: textWidth = paragraphWidth * .97.
+    // QPC em = paragraphWidth / 15.6. This comparison uses the tuned .95
+    // width factor instead of Tarteel's .97, including for short lines.
+    return double(pageWidth) / (0.95 * 15.6 * run.upem);
+  }
+  const auto bounds = qpcInkBounds(run);
+  return bounds.width() > 0 ? double(targetWidth) / bounds.width() : 0;
+}
+
+void drawQpcLine(PageContentContext* context, const QpcRun& run, int targetWidth, int pageWidth,
+                 QpcLayoutMode mode,
                  double right, double baseline, double scale) {
   const auto inkBounds = qpcInkBounds(run);
   if (!inkBounds.valid || inkBounds.width() <= 0) return;
-  const double qpcScale =
-      static_cast<double>(targetWidth) / inkBounds.width();
-  const double renderedScale = scale * qpcScale;
-  const double inkAlignedRight = right - renderedScale * inkBounds.right;
+  const double renderedScale = scale * qpcLayoutScale(run, targetWidth, pageWidth, mode);
+  // Align visible ink across all comparison rows, preserving each row's scale.
+  const double origin = right - renderedScale * inkBounds.right;
   raw(context, "q\n0 g\n");
-  context->cm(renderedScale, 0, 0, renderedScale, inkAlignedRight, baseline);
+  context->cm(renderedScale, 0, 0, renderedScale, origin, baseline);
   double x = 0;
   for (auto glyph = run.glyphs.rbegin(); glyph != run.glyphs.rend(); ++glyph) {
     x -= glyph->advance;
@@ -1065,10 +1118,10 @@ bool drawSegmentedLine(PageContentContext* context,
 void applyForceLayout(OtLayout& layout, std::vector<LineLayoutInfo>& page,
                       double scale) {
   using digitalkhatt::layout::GlyphInstance;
-  using geometry::CUBIC_FLATNESS_TOLERANCE;
-  using geometry::GeometrySet;
   using geometry::buildConvexPartsFromCubics;
   using geometry::buildPolyFromCubics;
+  using geometry::CUBIC_FLATNESS_TOLERANCE;
+  using geometry::GeometrySet;
   using geometry::getGlyphCubic;
 
   std::unordered_map<GlyphVis*, GeometrySet> glyphToPolys;
@@ -1169,6 +1222,92 @@ void applyForceLayout(OtLayout& layout, std::vector<LineLayoutInfo>& page,
 
 using JustifiedPages = std::map<int, std::vector<LineLayoutInfo>>;
 
+struct BaselineOptions {
+  bool showNatural = false;
+  bool showXScale = false;
+  bool enabled() const { return showNatural || showXScale; }
+  int rows(const LineLayoutInfo& natural, int targetWidth) const {
+    return int(showNatural) + int(showXScale && natural.currentLineWidth > targetWidth);
+  }
+};
+
+JustifiedPages shapeComparisonBaselines(OtLayout& layout,
+                                        const std::vector<std::vector<QuranLine>>& pages,
+                                        const std::vector<ExtremeLine>& first, const std::vector<ExtremeLine>& second,
+                                        int pageWidth, BaselineOptions options) {
+  JustifiedPages result;
+  if (!options.enabled()) return result;
+  std::set<int> selected;
+  for (const auto& line : first) selected.insert(line.page);
+  for (const auto& line : second) selected.insert(line.page);
+  const bool wasJustifying = layout.applyJustification;
+  layout.applyJustification = false;
+  for (int page : selected) {
+    auto shaped = layout.justifyPage(
+        (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE, pageWidth,
+        makeLines(pages.at(page - 1), page, pageWidth), false, false,
+        HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS,
+        {JustType::None, JustStyle::None, ShrinkType::None}, "qpc_v1_layout");
+    result.emplace(page, std::move(shaped));
+  }
+  layout.applyJustification = wasJustifying;
+  return result;
+}
+
+// Preserve the PDF unit scale and give overfull natural ink extra paper width.
+// No reference or natural line is fitted to the available paper width.
+double baselinePaperWidth(OtLayout& layout, const JustifiedPages& natural,
+                          const std::vector<ExtremeLine>& first, const std::vector<ExtremeLine>& second,
+                          int pageWidth, double unitScale) {
+  double extent = pageWidth;
+  for (const auto* lines : {&first, &second}) {
+    for (const auto& record : *lines) {
+      const auto& line = natural.at(record.page).at(record.pageLineIndex);
+      extent = std::max(extent, oldMadinaInkBounds(layout, line).width());
+    }
+  }
+  return 72 + extent * unitScale;
+}
+
+template <class DrawRow>
+void drawComparisonBaselines(const LineLayoutInfo& natural, int targetWidth,
+                             BaselineOptions options, DrawRow&& draw) {
+  if (options.showNatural)
+    draw(natural, 1.0);
+  if (options.showXScale && natural.currentLineWidth > targetWidth)
+    draw(natural, double(targetWidth) / natural.currentLineWidth);
+}
+
+std::string baselineDescription(const LineLayoutInfo& natural, int targetWidth,
+                                BaselineOptions options) {
+  if (!options.showXScale || natural.currentLineWidth <= targetWidth) return {};
+  std::ostringstream text;
+  text << "  XScale-only " << std::fixed << std::setprecision(4)
+       << double(targetWidth) / natural.currentLineWidth;
+  return text.str();
+}
+
+int maximumBaselineRows(const JustifiedPages& natural,
+                        const std::vector<ExtremeLine>& first, const std::vector<ExtremeLine>& second,
+                        BaselineOptions options) {
+  int rows = 0;
+  for (const auto* records : {&first, &second})
+    for (const auto& record : *records)
+      rows = std::max(rows, options.rows(natural.at(record.page).at(record.pageLineIndex), record.targetWidth));
+  return rows;
+}
+
+void drawTargetGuides(PageContentContext* context, double right, double baseline,
+                      int width, double unitScale) {
+  std::ostringstream commands;
+  commands << "q\n0.6 G\n0.6 w\n[2 3] 0 d\n";
+  for (double x : {right - width * unitScale, right})
+    commands << x << ' ' << baseline - 24 << " m\n"
+             << x << ' ' << baseline + 60 << " l\nS\n";
+  commands << "Q\n";
+  raw(context, commands.str());
+}
+
 JustifiedPages justifySelectedPages(OtLayout& layout, const std::vector<std::vector<QuranLine>>& pages, const std::vector<ExtremeLine>& underfulls, const std::vector<ExtremeLine>& overfulls, int pageWidth, bool applyForce, JustType engine, int stretchPolicy, int shrinkPolicy, JustStyle pageFitting) {
   std::set<int> selectedPages;
   for (const auto& line : underfulls) selectedPages.insert(line.page);
@@ -1221,8 +1360,10 @@ void measureAppliedStretch(OtLayout& layout, ExtremeLine& record, const LineLayo
       const double baseline = natural == naturalGlyphs.end() ? 0 : std::max(0.0, left ? natural->second.leftTatweel : natural->second.rightTatweel);
       if ((left ? parameters.lefttatweel : parameters.righttatweel) <= baseline) return 0.0;
       auto neutral = parameters;
-      if (left) neutral.lefttatweel = baseline;
-      else neutral.righttatweel = baseline;
+      if (left)
+        neutral.lefttatweel = baseline;
+      else
+        neutral.righttatweel = baseline;
       auto* unstretched = layout.getGlyph(source->charcode, neutral);
       if (!unstretched) throw std::runtime_error("Missing neutral glyph while measuring stretch");
       return std::max(0.0, glyph->width - unstretched->width);
@@ -1341,7 +1482,7 @@ void writeScaleReportSection(
     const std::vector<ExtremeLine>& ranked,
     const std::vector<std::vector<QuranLine>>& pages,
     SegmentationRepository& segmentation, QpcFontCache& fontCache,
-    const HbDrawToPdfPath& drawer, double fontUnitScale,
+    const HbDrawToPdfPath& drawer, double fontUnitScale, int pageWidth, QpcLayoutMode qpcLayout,
     std::map<int, ScaleAverage>& pageAverages) {
   for (std::size_t rank = 0; rank < ranked.size(); ++rank) {
     const auto& record = ranked[rank];
@@ -1354,8 +1495,7 @@ void writeScaleReportSection(
       throw std::runtime_error("QPC shaping produced empty ink bounds for page " +
                                std::to_string(record.page) + ", line " +
                                std::to_string(record.line));
-    const double qpcScale =
-        static_cast<double>(record.targetWidth) / qpcBounds.width();
+    const double qpcScale = qpcLayoutScale(qpc, record.targetWidth, pageWidth, qpcLayout);
     const double qpcPointScale = qpcScale * fontUnitScale;
     const auto qpcWords = splitWords(quranLine.qpc);
     std::vector<Bounds> qpcWordBounds;
@@ -1454,7 +1594,7 @@ void writeScaleReport(
     const std::vector<ExtremeLine>& underfulls,
     const std::vector<ExtremeLine>& overfulls,
     SegmentationRepository& segmentation, const fs::path& qpcFontDir,
-    int pageWidth) {
+    int pageWidth, QpcLayoutMode qpcLayout) {
   std::ofstream output(path);
   if (!output) throw std::runtime_error("Could not create " + path.string());
   output << "scope,group,rank,page,line,word_index,"
@@ -1469,10 +1609,10 @@ void writeScaleReport(
   HbDrawToPdfPath drawer;
   std::map<int, ScaleAverage> pageAverages;
   writeScaleReportSection(output, "underfull", underfulls, pages,
-                          segmentation, fontCache, drawer, fontUnitScale,
+                          segmentation, fontCache, drawer, fontUnitScale, pageWidth, qpcLayout,
                           pageAverages);
   writeScaleReportSection(output, "overfull", overfulls, pages, segmentation,
-                          fontCache, drawer, fontUnitScale, pageAverages);
+                          fontCache, drawer, fontUnitScale, pageWidth, qpcLayout, pageAverages);
   for (const auto& [page, average] : pageAverages) {
     std::vector<std::string> columns(11);
     columns[0] = "page";
@@ -1491,7 +1631,8 @@ void renderPdf(const fs::path& path, OtLayout& layout,
                const std::vector<ExtremeLine>& overfulls,
                const JustifiedPages& justified, const fs::path& qpcFontDir,
                SegmentationRepository* segmentation, ReferenceMode mode,
-               int pageWidth, JustType engine, RankingMode rankingMode, const std::string& sizingLabel) {
+               int pageWidth, JustType engine, RankingMode rankingMode, const std::string& sizingLabel,
+               BaselineOptions baselineOptions, const JustifiedPages& natural, QpcLayoutMode qpcLayout) {
   PDFWriter writer;
   PDFCreationSettings settings(true, true);
   if (writer.StartPDF(path.string(), ePDFVersion17,
@@ -1513,20 +1654,35 @@ void renderPdf(const fs::path& path, OtLayout& layout,
     }
   }
 
-  constexpr double pageWidthPoints = 842;
   constexpr double pageHeightPoints = 595;
   constexpr double margin = 36;
-  const double right = pageWidthPoints - margin;
-  const double usableWidth = pageWidthPoints - 2 * margin;
+  constexpr double usableWidth = 842 - 2 * margin;
   const double fontUnitScale = usableWidth / pageWidth;
+  const double pageWidthPoints = baselineOptions.showNatural
+                                     ? baselinePaperWidth(layout, natural, underfulls, overfulls, pageWidth, fontUnitScale)
+                                     : 842;
+  const double right = pageWidthPoints - margin;
   const bool useQpc = usesQpc(mode);
   const bool useSegmentation = usesScan(mode);
-  const int itemsPerPage = mode == ReferenceMode::Both
-                               ? 2
-                               : (useSegmentation ? 3 : 4);
+  const int originalItemsPerPage = mode == ReferenceMode::Both ? 2 : (useSegmentation ? 3 : 4);
   constexpr double headerHeight = 33;
-  const double itemHeight =
-      (pageHeightPoints - headerHeight - 12) / itemsPerPage;
+  constexpr double availableHeight = pageHeightPoints - headerHeight - 12;
+  const double originalItemHeight = availableHeight / originalItemsPerPage;
+  // Retain the original interline distance as extra comparison rows are added.
+  const double rowStep = originalItemHeight * (mode == ReferenceMode::Both ? .28 : useSegmentation ? .39
+                                                                                                   : .48);
+  const double firstBaselineOffset = originalItemHeight * (mode == ReferenceMode::Both ? .30 : .43);
+  const double bottomPadding = originalItemHeight * (mode == ReferenceMode::Both ? .14 : useSegmentation ? .18
+                                                                                                         : .09);
+  const int maximumRows = baselineOptions.enabled()
+                              ? maximumBaselineRows(natural, underfulls, overfulls, baselineOptions) + 1 + int(useQpc) + int(useSegmentation)
+                              : 0;
+  const double itemHeight = baselineOptions.enabled()
+                                ? firstBaselineOffset + (maximumRows - 1) * rowStep + bottomPadding
+                                : originalItemHeight;
+  const int itemsPerPage = baselineOptions.enabled()
+                               ? std::max(1, int((availableHeight + 1e-6) / itemHeight))
+                               : originalItemsPerPage;
   std::unique_ptr<QpcFontCache> fontCache;
   if (useQpc)
     fontCache = std::make_unique<QpcFontCache>(qpcFontDir);
@@ -1564,12 +1720,13 @@ void renderPdf(const fs::path& path, OtLayout& layout,
     writeLabel(margin, pageHeightPoints - 19, section + (engine == JustType::DeclPolicy ? " (DeclPolicy)" : " (Experimental2)"), 14);
     writeLabel(pageWidthPoints - margin - 96, pageHeightPoints - 17,
                "comparison page " + std::to_string(logicalPage), 8);
+    const std::string baselineOrder = (baselineOptions.showNatural ? std::string("natural, ") : std::string{}) +
+                                      (baselineOptions.showXScale ? "XScale-only (tight lines), " : "");
     writeLabel(margin, pageHeightPoints - 29,
-               std::string(mode == ReferenceMode::Both
-                   ? "Each item: DigitalKhatt, segmented scan, then QPC (QPC second when scan unavailable)"
-               : useSegmentation
-                   ? "Each item: DigitalKhatt justified line, then segmented scan line"
-                   : "Each item: DigitalKhatt justified line, then QPC reference line") + sizingLabel,
+               ("Each item: " + baselineOrder + std::string(mode == ReferenceMode::Both ? "DigitalKhatt, segmented scan, then QPC (QPC second when scan unavailable)" : useSegmentation ? "DigitalKhatt justified line, then segmented scan line"
+                                                                                                                                                                                        : "DigitalKhatt justified line, then QPC reference line")) +
+                   sizingLabel +
+                   (useQpc ? (qpcLayout == QpcLayoutMode::Tarteel ? " [QPC: Tarteel]" : " [QPC: ink fit]") : ""),
                8);
   };
 
@@ -1589,8 +1746,10 @@ void renderPdf(const fs::path& path, OtLayout& layout,
       const double separatorY = pageHeightPoints - top;
       {
         std::ostringstream commands;
-        commands << "q\n0.75 G\n0.5 w\n" << margin << ' ' << separatorY
-                 << " m\n" << pageWidthPoints - margin << ' ' << separatorY
+        commands << "q\n0.75 G\n0.5 w\n"
+                 << margin << ' ' << separatorY
+                 << " m\n"
+                 << pageWidthPoints - margin << ' ' << separatorY
                  << " l\nS\nQ\n";
         raw(context, commands.str());
       }
@@ -1608,41 +1767,74 @@ void renderPdf(const fs::path& path, OtLayout& layout,
           if (measure.lastGlyph != measure.firstGlyph) label << '-' << measure.lastGlyph + 1;
         }
       }
+      if (baselineOptions.enabled())
+        label << baselineDescription(natural.at(record.page).at(record.pageLineIndex), record.targetWidth, baselineOptions);
       writeLabel(margin, pageHeightPoints - top - 11, label.str(), 8);
 
-      double lineRight = right;
-      if (record.targetWidth != pageWidth)
-        lineRight = margin + (usableWidth + record.targetWidth * fontUnitScale) / 2;
-      const double digitalBaseline =
-          mode == ReferenceMode::Both ? .30 : .43;
-      drawOldMadinaLine(context, layout, oldMadina, lineRight,
-                        pageHeightPoints - (top + itemHeight * digitalBaseline),
-                        fontUnitScale);
-      bool scanDrawn = false;
-      if (useSegmentation) {
-        const double scanBaseline =
-            mode == ReferenceMode::Both ? .59 : .82;
-        const double scanY =
-            pageHeightPoints - (top + itemHeight * scanBaseline);
-        scanDrawn = drawSegmentedLine(
-            context, *segmentation, record.page, record.pageLineIndex,
-            lineRight, scanY, fontUnitScale,
-            *segmentedImages);
-        if (!scanDrawn && mode != ReferenceMode::Both)
-          writeLabel(margin, scanY,
-                     "Segmented scan unavailable for page " +
-                         std::to_string(record.page) + ", line " +
-                         std::to_string(record.line),
-                     8);
-      }
-      if (useQpc) {
-        auto& qpcFont = fontCache->get(record.page);
-        const auto qpc = shapeQpc(qpcFont.font, quranLine.qpc, drawer);
-        const double qpcBaseline =
-            mode == ReferenceMode::Both ? (scanDrawn ? .86 : .59) : .91;
-        drawQpcLine(context, qpc, record.targetWidth, lineRight,
-                    pageHeightPoints - (top + itemHeight * qpcBaseline),
-                    fontUnitScale);
+      const double lineRight = right;
+      if (baselineOptions.enabled()) {
+        const auto& unmodified = natural.at(record.page).at(record.pageLineIndex);
+        double baseline = separatorY - firstBaselineOffset;
+        auto guides = [&]() {
+          drawTargetGuides(context, lineRight, baseline, record.targetWidth, fontUnitScale);
+        };
+        auto digitalRow = [&](const LineLayoutInfo& line, double xscale) {
+          guides();
+          drawOldMadinaLine(context, layout, line, lineRight, baseline, fontUnitScale, xscale);
+          baseline -= rowStep;
+        };
+        drawComparisonBaselines(unmodified, record.targetWidth, baselineOptions, digitalRow);
+        digitalRow(oldMadina, oldMadina.xscale);
+        if (useSegmentation) {
+          guides();
+          if (!drawSegmentedLine(context, *segmentation, record.page, record.pageLineIndex,
+                                 lineRight, baseline, fontUnitScale, *segmentedImages))
+            writeLabel(margin, baseline, "Segmented scan unavailable", 8);
+          baseline -= rowStep;
+        }
+        if (useQpc) {
+          guides();
+          auto& qpcFont = fontCache->get(record.page);
+          drawQpcLine(context, shapeQpc(qpcFont.font, quranLine.qpc, drawer), record.targetWidth, pageWidth, qpcLayout,
+                      lineRight, baseline, fontUnitScale);
+        }
+      } else {
+        const double digitalBaseline =
+            mode == ReferenceMode::Both ? .30 : .43;
+        const double digitalY = pageHeightPoints - (top + itemHeight * digitalBaseline);
+        drawTargetGuides(context, lineRight, digitalY, record.targetWidth, fontUnitScale);
+        drawOldMadinaLine(context, layout, oldMadina, lineRight,
+                          digitalY,
+                          fontUnitScale);
+        bool scanDrawn = false;
+        if (useSegmentation) {
+          const double scanBaseline =
+              mode == ReferenceMode::Both ? .59 : .82;
+          const double scanY =
+              pageHeightPoints - (top + itemHeight * scanBaseline);
+          drawTargetGuides(context, lineRight, scanY, record.targetWidth, fontUnitScale);
+          scanDrawn = drawSegmentedLine(
+              context, *segmentation, record.page, record.pageLineIndex,
+              lineRight, scanY, fontUnitScale,
+              *segmentedImages);
+          if (!scanDrawn && mode != ReferenceMode::Both)
+            writeLabel(margin, scanY,
+                       "Segmented scan unavailable for page " +
+                           std::to_string(record.page) + ", line " +
+                           std::to_string(record.line),
+                       8);
+        }
+        if (useQpc) {
+          auto& qpcFont = fontCache->get(record.page);
+          const auto qpc = shapeQpc(qpcFont.font, quranLine.qpc, drawer);
+          const double qpcBaseline =
+              mode == ReferenceMode::Both ? (scanDrawn ? .86 : .59) : .91;
+          const double qpcY = pageHeightPoints - (top + itemHeight * qpcBaseline);
+          drawTargetGuides(context, lineRight, qpcY, record.targetWidth, fontUnitScale);
+          drawQpcLine(context, qpc, record.targetWidth, pageWidth, qpcLayout, lineRight,
+                      qpcY,
+                      fontUnitScale);
+        }
       }
       ++renderedItems;
       if (renderedItems == totalItems || renderedItems % 10 == 0)
@@ -1668,7 +1860,8 @@ void renderPolicyDifferencePdf(const fs::path& path, OtLayout& layout,
                                const JustifiedPages& advancePages,
                                const JustifiedPages& fullShapePages,
                                int pageWidth, const std::string& primaryLabel,
-                               const std::string& comparisonLabel, const std::string& sizingLabel) {
+                               const std::string& comparisonLabel, const std::string& sizingLabel,
+                               BaselineOptions baselineOptions, const JustifiedPages& natural) {
   PDFWriter writer;
   PDFCreationSettings settings(true, true);
   if (writer.StartPDF(path.string(), ePDFVersion17, LogConfiguration::DefaultLogConfiguration(), settings) != eSuccess)
@@ -1687,14 +1880,20 @@ void renderPolicyDifferencePdf(const fs::path& path, OtLayout& layout,
     if (labelFont) break;
   }
 
-  constexpr double pageWidthPoints = 842;
   constexpr double pageHeightPoints = 595;
   constexpr double margin = 36;
   constexpr double headerHeight = 42;
-  constexpr int itemsPerPage = 3;
-  const double usableWidth = pageWidthPoints - 2 * margin;
+  constexpr double usableWidth = 842 - 2 * margin;
   const double fontUnitScale = usableWidth / pageWidth;
-  const double itemHeight = (pageHeightPoints - headerHeight - 8) / itemsPerPage;
+  const double pageWidthPoints = baselineOptions.showNatural
+                                     ? baselinePaperWidth(layout, natural, lines, {}, pageWidth, fontUnitScale)
+                                     : 842;
+  constexpr double availableHeight = pageHeightPoints - headerHeight - 8;
+  constexpr double rowStep = 77;
+  const double itemHeight = baselineOptions.enabled()
+                                ? 78 + (maximumBaselineRows(natural, lines, {}, baselineOptions) + 1) * rowStep + 18
+                                : availableHeight / 3;
+  const int itemsPerPage = baselineOptions.enabled() ? std::max(1, int((availableHeight + 1e-6) / itemHeight)) : 3;
   PDFPage* pdfPage = nullptr;
   PageContentContext* context = nullptr;
 
@@ -1717,7 +1916,13 @@ void renderPolicyDifferencePdf(const fs::path& path, OtLayout& layout,
     context = writer.StartPageContentContext(pdfPage);
     if (!context) throw std::runtime_error("Could not start PDF page");
     writeLabel(margin, pageHeightPoints - 19, "Justification policy comparison", 14);
-    writeLabel(margin, pageHeightPoints - 31, "Top: " + primaryLabel + ". Bottom: " + comparisonLabel + "." + sizingLabel, 8);
+    const std::string baselineOrder = (baselineOptions.showNatural ? std::string("natural, ") : std::string{}) +
+                                      (baselineOptions.showXScale ? "XScale-only (tight lines), " : "");
+    writeLabel(margin, pageHeightPoints - 31,
+               (baselineOptions.enabled() ? "Each item: " + baselineOrder + primaryLabel + ", then " + comparisonLabel + "."
+                                          : "Top: " + primaryLabel + ". Bottom: " + comparisonLabel + ".") +
+                   sizingLabel,
+               8);
     writeLabel(pageWidthPoints - margin - 90, pageHeightPoints - 19, "page " + std::to_string(number), 8);
   };
 
@@ -1730,16 +1935,33 @@ void renderPolicyDifferencePdf(const fs::path& path, OtLayout& layout,
     const double top = headerHeight + slot * itemHeight;
     const double separatorY = pageHeightPoints - top;
     std::ostringstream separator;
-    separator << "q\n0.75 G\n0.5 w\n" << margin << ' ' << separatorY << " m\n" << pageWidthPoints - margin << ' ' << separatorY << " l\nS\nQ\n";
+    separator << "q\n0.75 G\n0.5 w\n"
+              << margin << ' ' << separatorY << " m\n"
+              << pageWidthPoints - margin << ' ' << separatorY << " l\nS\nQ\n";
     raw(context, separator.str());
     writeLabel(margin, separatorY - 11,
                "#" + std::to_string(index + 1) + "  Mushaf page " + std::to_string(record.page) + ", line " + std::to_string(record.line) + "  widths " + std::to_string(advance.currentLineWidth) + " / " + std::to_string(fullShape.currentLineWidth) +
-                   (sizingLabel.empty() ? std::string{} : "  font scales " + std::to_string(advance.fontSize / (1 << OtLayout::SCALEBY)) + " / " + std::to_string(fullShape.fontSize / (1 << OtLayout::SCALEBY))),
+                   (sizingLabel.empty() ? std::string{} : "  font scales " + std::to_string(advance.fontSize / (1 << OtLayout::SCALEBY)) + " / " + std::to_string(fullShape.fontSize / (1 << OtLayout::SCALEBY))) +
+                   (baselineOptions.enabled() ? baselineDescription(natural.at(record.page).at(record.pageLineIndex), record.targetWidth, baselineOptions) : std::string{}),
                8);
-    double right = pageWidthPoints - margin;
-    if (record.targetWidth != pageWidth) right = margin + (usableWidth + record.targetWidth * fontUnitScale) / 2;
-    drawOldMadinaLine(context, layout, advance, right, separatorY - 78, fontUnitScale);
-    drawOldMadinaLine(context, layout, fullShape, right, separatorY - 155, fontUnitScale);
+    const double right = pageWidthPoints - margin;
+    if (baselineOptions.enabled()) {
+      const auto& unmodified = natural.at(record.page).at(record.pageLineIndex);
+      double baseline = separatorY - 78;
+      auto draw = [&](const LineLayoutInfo& line, double xscale) {
+        drawTargetGuides(context, right, baseline, record.targetWidth, fontUnitScale);
+        drawOldMadinaLine(context, layout, line, right, baseline, fontUnitScale, xscale);
+        baseline -= rowStep;
+      };
+      drawComparisonBaselines(unmodified, record.targetWidth, baselineOptions, draw);
+      draw(advance, advance.xscale);
+      draw(fullShape, fullShape.xscale);
+    } else {
+      drawTargetGuides(context, right, separatorY - 78, record.targetWidth, fontUnitScale);
+      drawOldMadinaLine(context, layout, advance, right, separatorY - 78, fontUnitScale);
+      drawTargetGuides(context, right, separatorY - 155, record.targetWidth, fontUnitScale);
+      drawOldMadinaLine(context, layout, fullShape, right, separatorY - 155, fontUnitScale);
+    }
     if ((index + 1) % 50 == 0 || index + 1 == lines.size())
       std::cout << "Rendered policy differences: " << index + 1 << '/' << lines.size() << '\n';
   }
@@ -1765,6 +1987,8 @@ void usage(const char* program) {
                "  --justifier NAME   decl-policy or experimental2 (default experimental2)\n"
                "  --font-size-scale N  DigitalKhatt font-size multiplier (default 1); scans stay unchanged\n"
                "                       Scales the base size before the page-fitting policy is applied\n"
+               "  --show-natural     Prepend an unjustified DigitalKhatt line at the base font size\n"
+               "  --show-xscale      Prepend a natural line compressed horizontally to target (tight lines only)\n"
                "  --page-fitting NAME  None, SameSizeByPage, XScale, FontSize, FontSizeXScale, or SCLX\n"
                "                       Default FontSizeXScale (use XScale to keep the base size fixed)\n"
                "  --stretch-policy NAME  Override the declarative stretchpolicy named by linepolicy\n"
@@ -1775,6 +1999,9 @@ void usage(const char* program) {
                "  --database PATH    quran-data.sqlite path\n"
                "  --resources DIR    mfplain.mp/mpost.mp/vmf.mp directory\n"
                "  --reference MODE   Reference source: qpc, scan (no QPC), or both\n"
+               "  --qpc-layout MODE  tarteel (default): fixed page font size, natural width\n"
+               "                     ink-fit: resize each QPC line uniformly to fit its ink to target\n"
+               "                     All comparison rows share the same right ink edge\n"
                "  --segmentation DIR Use DIR/pageNNN/words.json and wordimgs for "
                "scan references; one source pixel = one unscaled layout unit, without line fitting\n"
                "  --scale-report PATH Write line/word QPC-vs-scan scale CSV "
@@ -1802,8 +2029,10 @@ int main(int argc, char** argv) {
     fs::path database{DIGITALKHATT_QURAN_DATABASE};
     fs::path resources{DIGITALKHATT_METAFONT_RESOURCES};
     std::optional<ReferenceMode> requestedMode;
+    QpcLayoutMode qpcLayout = QpcLayoutMode::Tarteel;
     RankingMode rankingMode = RankingMode::Natural;
     bool applyForce = true;
+    BaselineOptions baselineOptions;
     JustType engine = JustType::Experimental2;
     std::optional<double> requestedFontSizeScale;
     std::optional<JustStyle> requestedPageFitting;
@@ -1839,11 +2068,18 @@ int main(int argc, char** argv) {
         rankingMode = parseRankingMode(value());
       } else if (arg == "--justifier") {
         const auto name = value();
-        if (name == "decl-policy" || name == "fixed-slot") engine = JustType::DeclPolicy;
-        else if (name == "experimental2") engine = JustType::Experimental2;
-        else throw std::runtime_error("--justifier must be decl-policy or experimental2");
+        if (name == "decl-policy" || name == "fixed-slot")
+          engine = JustType::DeclPolicy;
+        else if (name == "experimental2")
+          engine = JustType::Experimental2;
+        else
+          throw std::runtime_error("--justifier must be decl-policy or experimental2");
       } else if (arg == "--font-size-scale") {
         requestedFontSizeScale = parseFontSizeScale(value());
+      } else if (arg == "--show-natural") {
+        baselineOptions.showNatural = true;
+      } else if (arg == "--show-xscale") {
+        baselineOptions.showXScale = true;
       } else if (arg == "--page-fitting") {
         requestedPageFitting = parsePageFitting(value());
       } else if (arg == "--stretch-policy") {
@@ -1862,6 +2098,8 @@ int main(int argc, char** argv) {
         resources = value();
       } else if (arg == "--reference") {
         requestedMode = parseReferenceMode(value());
+      } else if (arg == "--qpc-layout") {
+        qpcLayout = parseQpcLayout(value());
       } else if (arg == "--segmentation") {
         segmentationDir = fs::absolute(value());
       } else if (arg == "--scale-report") {
@@ -1987,13 +2225,14 @@ int main(int argc, char** argv) {
       if (selected.empty()) throw std::runtime_error("line list contains no lines");
       const auto primary = justifySelectedPages(layout, pages, selected, {}, pageWidth, applyForce, engine, stretchPolicy, shrinkPolicy, pageFitting);
       const auto comparison = justifySelectedPages(layout, pages, selected, {}, pageWidth, applyForce, engine, compareStretchPolicy, compareShrinkPolicy, pageFitting);
+      const auto natural = shapeComparisonBaselines(layout, pages, selected, {}, pageWidth, baselineOptions);
       const auto labels = [&](bool compared) {
         std::string label;
         if (comparesStretch) label = "stretch " + (compared ? compareStretchPolicyName : stretchPolicyName);
         if (comparesShrink) label += (label.empty() ? "" : ", ") + std::string("shrink ") + (compared ? compareShrinkPolicyName : shrinkPolicyName);
         return label;
       };
-      renderPolicyDifferencePdf(output, layout, selected, primary, comparison, pageWidth, labels(false), labels(true), sizingLabel);
+      renderPolicyDifferencePdf(output, layout, selected, primary, comparison, pageWidth, labels(false), labels(true), sizingLabel, baselineOptions, natural);
       std::cout << "Compared lines: " << selected.size() << '\n'
                 << "Primary policy: " << labels(false) << '\n'
                 << "Comparison policy: " << labels(true) << '\n'
@@ -2047,7 +2286,7 @@ int main(int argc, char** argv) {
     if (!scaleReport.empty())
       writeScaleReport(scaleReport, pages, comparisonUnderfulls,
                        comparisonOverfulls, *segmentation, qpcFontDir,
-                       pageWidth);
+                       pageWidth, qpcLayout);
 
     if (rankingMode == RankingMode::Natural) {
       justified = justifySelectedPages(layout, pages, comparisonUnderfulls, comparisonOverfulls, pageWidth, applyForce, engine, stretchPolicy, shrinkPolicy, pageFitting);
@@ -2058,9 +2297,10 @@ int main(int argc, char** argv) {
       const double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
       for (const auto page : selectedPages) applyForceLayout(layout, justified.at(page), scale);
     }
+    const auto natural = shapeComparisonBaselines(layout, pages, comparisonUnderfulls, comparisonOverfulls, pageWidth, baselineOptions);
     renderPdf(output, layout, pages, comparisonUnderfulls,
               comparisonOverfulls, justified, qpcFontDir,
-              segmentation.get(), mode, pageWidth, engine, rankingMode, sizingLabel);
+              segmentation.get(), mode, pageWidth, engine, rankingMode, sizingLabel, baselineOptions, natural, qpcLayout);
 
     std::string selectedPolicies;
     if (engine == JustType::DeclPolicy) {
@@ -2069,7 +2309,13 @@ int main(int argc, char** argv) {
       const int selectedShrink = shrinkPolicy >= 0 ? shrinkPolicy : catalog.linePolicy->shrinkPolicyIndex;
       selectedPolicies = "DigitalKhatt stretch policy: " + catalog.stretchPolicy(selectedStretch).name + "\nDigitalKhatt shrink policy: " + catalog.shrinkPolicy(selectedShrink).name + "\n";
     }
-    std::cout << "DigitalKhatt justifier: " << (engine == JustType::DeclPolicy ? "decl-policy" : "experimental2") << '\n' << selectedPolicies << "DigitalKhatt automatic mark positioning: " << (applyForce ? "enabled" : "disabled") << '\n' << "Underfull lines: " << rankings.underfulls.size() << '\n' << "Overfull lines: " << rankings.overfulls.size() << '\n' << "Underfull CSV: " << underfullCsv << '\n' << "Overfull CSV: " << overfullCsv << '\n' << (scaleReport.empty() ? std::string{} : "Scale report: " + scaleReport.string() + "\n") << "PDF: " << output << '\n';
+    std::cout << "DigitalKhatt justifier: " << (engine == JustType::DeclPolicy ? "decl-policy" : "experimental2") << '\n'
+              << selectedPolicies << "DigitalKhatt automatic mark positioning: " << (applyForce ? "enabled" : "disabled") << '\n'
+              << "Underfull lines: " << rankings.underfulls.size() << '\n'
+              << "Overfull lines: " << rankings.overfulls.size() << '\n'
+              << "Underfull CSV: " << underfullCsv << '\n'
+              << "Overfull CSV: " << overfullCsv << '\n'
+              << (scaleReport.empty() ? std::string{} : "Scale report: " + scaleReport.string() + "\n") << "PDF: " << output << '\n';
     return 0;
   } catch (const std::exception& error) {
     std::cerr << "error: " << error.what() << '\n';
