@@ -55,6 +55,9 @@ or a proof that two differently parameterized curves bound different ink.
 `changes.csv`, `changes.json`, and `summary.json` preserve movements, change
 types, source hashes, and repeatability evidence. The tool reads one page's
 positioned outlines at a time; the HTML includes only changed cases and context.
+Context covers the word's full before/after extent, plus 400 font units on each
+side and one adjacent line above and below. The HTML shares repeated glyph data
+between cases to keep full-corpus comparisons smaller.
 
 The binary contains final placements and ink, not XPBD residuals or original
 HarfBuzz positions. Use the existing placement/violation exports for explaining

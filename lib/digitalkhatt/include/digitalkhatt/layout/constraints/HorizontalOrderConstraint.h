@@ -6,8 +6,10 @@
 namespace digitalkhatt::layout {
 
 struct HorizontalOrderConstraint : XPBDConstraint {
-  GlyphInstance& markA;  // belongs to base glyph
-  GlyphInstance& markB;  // belongs to next glyph
+  // Consecutive semantic owners, including invisible tatweel bases represented
+  // by joined marks. The ordering is determined by glyph sequence, not position.
+  GlyphInstance& markA;  // belongs to the preceding (right) owner
+  GlyphInstance& markB;  // belongs to the following (left) owner
   // Anti-misassociation thresholds, measured on the ink box.
   double selfKeep;   // fraction of a mark's OWN ink that must stay exposed
   double crossKeep;  // exposed protrusion must exceed this fraction of the NEIGHBOR's ink

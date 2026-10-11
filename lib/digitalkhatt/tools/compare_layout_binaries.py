@@ -176,8 +176,13 @@ def compare(before, after):
                     before=list(ga['origin']) if ga else None, after=list(gb['origin']) if gb else None,
                     x=dx, y=dy, distance=distance,
                     kind='placement' if same_shape else 'outline / glyph sequence'))
+            # Preserve the complete word in both states, including large moves,
+            # with nearby ink on adjacent lines rather than whole repeated lines.
+            left = min(g['box'][0] for g in old + new) - 400
+            right = max(g['box'][2] for g in old + new) + 400
             neighbors = lambda record: [{k: v for k, v in g.items() if k != 'local'}
-                                        for g in record['glyphs'] if abs(g['line'] - line) <= 1]
+                for g in record['glyphs'] if abs(g['line'] - line) <= 1
+                and g['box'][2] >= left and g['box'][0] <= right]
             cases.append(dict(page=p + 1, line=line, word=word, text=b['words'].get((line, word), a['words'].get((line, word), '')),
                 changes=changes, maximumMovement=maximum, outlineChanged=outline_changed,
                 structureChanged=structure_changed, regression=False,
@@ -230,7 +235,21 @@ def main():
             for g in c['changes']:
                 writer.writerow([c['page'], c['line'], c['word'], c['text'], g['name'], g['kind'], g['x'], g['y']])
     template = Path(__file__).with_name('placement_comparison.html').read_text()
-    payload = json.dumps(dict(summary=summary, cases=cases), ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c')
+    # Cases on the same page often share context. Embed each positioned glyph
+    # once; the viewer resolves references before filtering or drawing cases.
+    glyphs = []; lookup = {}; html_cases = []
+    for case in cases:
+        preview = dict(case)
+        for side in ('before', 'after'):
+            indices = []
+            for glyph in case[side]:
+                key = (side, case['page'], glyph['index'])
+                if key not in lookup:
+                    lookup[key] = len(glyphs); glyphs.append(glyph)
+                indices.append(lookup[key])
+            preview[side] = indices
+        html_cases.append(preview)
+    payload = json.dumps(dict(summary=summary, cases=html_cases, glyphs=glyphs), ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c')
     (args.output_dir / 'comparison.html').write_text(template.replace('/*PLACEMENT_DATA*/', payload))
     print(json.dumps({k: v for k, v in summary.items() if k not in ('repeatability', 'configuration')}, indent=2))
     print(args.output_dir / 'comparison.html')

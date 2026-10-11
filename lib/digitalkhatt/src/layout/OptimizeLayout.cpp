@@ -379,27 +379,35 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
   }
 
   if (P.toggles.horizontalOrder) {
-    for (size_t i = 0; i < glyphs.size(); ++i) {
-      GlyphInstance& markB = glyphs[i];
-      if (markB.isMark && validOwner(markB) &&
-          validBases.contains(markB.prevBase->prevBase) &&
-          markB.prevBase->prevBase->lineIndex == markB.lineIndex) {
-        if (solverContext.isWaqf(markB) && (markB.prevBase->glyphName == "smallwaw" || markB.prevBase->glyphName == "smallyeh"))
+    for (auto& lineGlyphs : pageGlyphs) {
+      std::vector<GlyphInstance*> previousMarks, currentMarks;
+      for (auto& markB : lineGlyphs) {
+        if (!markB.isMark) {
+          previousMarks = std::move(currentMarks);
+          currentMarks.clear();
           continue;
+        }
+        if (!validOwner(markB)) continue;
+        // These substitutions absorb tatweel into a mark glyph. Its invisible
+        // base still starts a separate horizontal owner, even though prevBase
+        // points to the preceding visible letter. Later marks (e.g. maddah or
+        // damma) belong to this owner until another base or joined mark starts.
+        if (markB.glyphName == "smallalef.joined" || markB.glyphName == "hamzaabove.joined") {
+          previousMarks = std::move(currentMarks);
+          currentMarks.clear();
+        }
         // Manually-positioned marks (see the manuallyPositioned continue
         // above, which also populates gapExcludedGlyphs for them) opt out of
         // this too -- the caller's hand-placed position is the whole point.
         if (solverContext.gapExcludedGlyphs.contains(markB.globalIndex)) continue;
-        auto prevBase = markB.prevBase->prevBase;
-        for (int glyphIndex = prevBase->glyphIndex + 1; glyphIndex < markB.prevBase->glyphIndex; glyphIndex++) {
-          auto& markA = pageGlyphs[markB.lineIndex][glyphIndex];
-          if (solverContext.gapExcludedGlyphs.contains(markA.globalIndex)) continue;
-          if (markA.isMark && markA.isTopMark == markB.isTopMark &&
-              !solverContext.isWaqf(markA) && !solverContext.isWaqf(markB)) {
+        for (auto* markA : previousMarks) {
+          if (markA->lineIndex == markB.lineIndex && markA->isTopMark == markB.isTopMark &&
+              !solverContext.isWaqf(*markA) && !solverContext.isWaqf(markB)) {
             xpbdConstraints.push_back(std::make_unique<HorizontalOrderConstraint>(
-                markA, markB, P.horizontalOrderSelfKeep, P.horizontalOrderCrossKeep, P.compliance.horizontalOrder));
+                *markA, markB, P.horizontalOrderSelfKeep, P.horizontalOrderCrossKeep, P.compliance.horizontalOrder));
           }
         }
+        currentMarks.push_back(&markB);
       }
     }
   }

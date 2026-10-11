@@ -12,7 +12,7 @@ namespace digitalkhatt::layout {
 
 // Signed anti-misassociation residual, measured on the ink box.
 //
-// markB is the left mark (next glyph), markA the right mark (earlier base), so the
+// markB is the left mark (next owner), markA the right mark (earlier owner), so the
 // overlap of markB's right ink edge past markA's left ink edge is O = B_R - A_L.
 // Each mark must keep an exposed protrusion on its own-base side that clears both a
 // self-floor (recognizability) and a cross-floor (not swamped by the neighbor):
