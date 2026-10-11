@@ -39,10 +39,12 @@ inline bool hasKafBodyAxis(std::string_view glyphName) {
 class GenerateLayout
 {
 public:
+  enum class BinaryFormat { Interpolated, WholeGlyphs, Both };
+
   GenerateLayout(OtLayout* otlayout, LayoutPages& layoutPages);
   ~GenerateLayout();
   void generateLayoutJson(int lineWidth, int scale);
-  void generateLayoutBinary(int lineWidth, int scale);
+  void generateLayoutBinary(int lineWidth, int scale, BinaryFormat format = BinaryFormat::Both);
   void generatePages(QJsonArray& pagesArray, int lineWidth, int scale);
 
   void generateGlyphs(QJsonObject& glyphsObject);

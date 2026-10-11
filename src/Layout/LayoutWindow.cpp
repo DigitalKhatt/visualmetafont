@@ -1553,29 +1553,51 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth, OtLayout* lay
   return result;
 }
 bool LayoutWindow::generateLayoutInfo() {
-  // OtLayout layout = OtLayout(m_font, true, true);
-  // layout.useNormAxisValues = false;
+  QSettings settings;
+  QDialog dialog(this);
+  dialog.setWindowTitle(tr("Generate Layout Info"));
+  QVBoxLayout controls(&dialog);
+  QLabel description(tr("Choose the binary layout format. Both formats use the current "
+                        "justification, Force, Tajweed and line spacing settings."), &dialog);
+  description.setWordWrap(true);
+  controls.addWidget(&description);
+  QComboBox formats(&dialog);
+  formats.addItem(tr("Both formats"), static_cast<int>(GenerateLayout::BinaryFormat::Both));
+  formats.addItem(tr("Whole glyphs (no app interpolation)"), static_cast<int>(GenerateLayout::BinaryFormat::WholeGlyphs));
+  formats.addItem(tr("Interpolated glyphs"), static_cast<int>(GenerateLayout::BinaryFormat::Interpolated));
+  const auto saved = settings.value("Layout/BinaryFormat", static_cast<int>(GenerateLayout::BinaryFormat::Both)).toInt();
+  const auto index = formats.findData(saved);
+  formats.setCurrentIndex(index >= 0 ? index : 0);
+  controls.addWidget(&formats);
+  QDialogButtonBox buttons(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+  connect(&buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+  connect(&buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+  controls.addWidget(&buttons);
+  if (dialog.exec() != QDialog::Accepted) return false;
+  const auto format = static_cast<GenerateLayout::BinaryFormat>(formats.currentData().toInt());
+  settings.setValue("Layout/BinaryFormat", static_cast<int>(format));
 
-  double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
-
-  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
-  ;
-
-  auto result = shapeMushaf(scale, lineWidth, m_otlayout,
-                            HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
-
-  if (this->applyForce) {
-    optimizeLayout(result.pages, result.originalPages, 0,
-                   result.pages.size(), scale);
+  try {
+    const double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
+    const int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+    auto result = shapeMushaf(scale, lineWidth, m_otlayout,
+                              HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+    if (this->applyForce) {
+      optimizeLayout(result.pages, result.originalPages, 0,
+                     result.pages.size(), scale);
+    }
+    GenerateLayout generateLayout{m_otlayout, result};
+    generateLayout.generateLayoutBinary(lineWidth, scale, format);
+    generateLayout.generateLayoutJson(lineWidth, scale);
+    const QFileInfo projectFile(QString::fromStdString(m_otlayout->font->projectFile().string()));
+    statusBar()->showMessage(tr("Layout info exported to %1/output").arg(projectFile.path()), 10000);
+    return true;
+  } catch (const std::exception& error) {
+    QMessageBox::critical(this, tr("Layout export failed"), QString::fromUtf8(error.what()));
+  } catch (const char* error) {
+    QMessageBox::critical(this, tr("Layout export failed"), QString::fromUtf8(error));
   }
-
-  GenerateLayout generateLayout{m_otlayout, result};
-
-  generateLayout.generateLayoutJson(lineWidth, scale);
-
-  generateLayout.generateLayoutBinary(lineWidth, scale);
-
-  return true;
+  return false;
 }
 
 bool LayoutWindow::generateMadinaVARHTML() {

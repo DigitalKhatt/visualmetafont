@@ -4,6 +4,35 @@ A graphical tool developed to allow the design of the Metafont-based dynamic fon
 
 This project is sponsored by [@tarteelAI](https://github.com/TarteelAI) [![TarteelAI](https://assets-global.website-files.com/6167e862f6dfba5084eb5554/61680717c50ec79defcdb062_logo-group.svg "TarteelAI")](https://www.tarteel.ai/)
 
+## Precomputed layout formats
+
+**Generate Layout Info** offers **Both formats** (the initial selection),
+**Whole glyphs (no app interpolation)**, or **Interpolated glyphs**. The selection
+is saved between sessions. Files are written under the font project's `output/`:
+
+- `<font>Layout.bin`: DKLY v3, with interpolation masters and all three axes.
+- `<font>Layout.variants.bin`: DKLY v4, with each distinct whole-glyph outline
+  and direct variant IDs; Tarteel needs no outline interpolation at runtime.
+- `<font>Layout.json`: the existing layout information, exported in every mode.
+
+Both binary formats use the same shaped and Force-optimized layout and the
+current justification, Tajweed and line spacing settings. V4 generation stays
+in the GUI exporter: it obtains each actual parameterized `GlyphVis` through
+`OtLayout::getGlyph` and writes its MetaPost contours directly as float32.
+All glyph parameters are included in variant identity, without v3 axis rounding.
+There is no interpolation at export time or in the app. Placement/line metadata
+uses the same writer for both formats. Python is not needed.
+
+Direct MetaPost outlines can differ from the interpolated masters in v3 and
+from v4 files made with the older standalone converter. Regenerate through the
+GUI to use the direct outlines.
+
+Tarteel bundles v4 with all-glyph caching enabled. To update it, copy
+`<font>Layout.variants.bin` to both app asset locations under the existing name
+`oldmadinaLayout.bin`, then rebuild/install the native app. The loader still
+accepts v3 if the interpolated format is copied instead. See
+[the v4 format documentation](tools/bake_layout_variants.md).
+
 ## Line spacing for precomputed layouts
 
 In the layout editor's **Justify** toolbar, set **Line spacing** before enabling

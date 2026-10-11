@@ -1,18 +1,41 @@
-# Bake static layout glyph variants
+# Whole-glyph layout export and standalone conversion
 
-`bake_layout_variants.py` converts a **DKLY v3** layout from Generate Layout Info
-into a **DKLY v4** layout containing final outlines and direct variant IDs. It
-requires Python 3.13+ for fused multiply/add arithmetic matching the iOS Release
-renderer used in the equivalence check.
+## GUI export (direct GlyphVis outlines)
+
+Use **Generate Layout Info** and select **Whole glyphs (no app interpolation)**
+or **Both formats** (the initial selection). The choice is saved between sessions.
+The GUI writes `<font>Layout.variants.bin` (DKLY v4) and, when selected,
+`<font>Layout.bin` (DKLY v3) in the font project's `output/` directory.
+Keep the intended justification parameters, Force, Tajweed and line spacing.
+
+V4 generation is implemented in the GUI's `generateLayoutBinary.cpp`. For each
+distinct body placement's glyph code and complete parameter vector, it obtains
+`OtLayout::getGlyph(placement)` and writes the resulting `GlyphVis::mpPath()`
+contours directly. Values are converted from MetaPost coordinates to float32
+without intermediate fixed-point rounding. Additional axes are included in
+variant identity too. No interpolation or Python is involved.
+
+V3 and v4 share the placement/line-metadata writer. Surah headings use ID zero
+in v4 and the app's separate heading font; body placements use nonzero IDs.
+The native loader accepts both formats. Copy the selected v4 file to both app
+assets under the existing `oldmadinaLayout.bin` names, then rebuild/install.
+Glyph caching remains enabled for all glyphs by default.
+
+## Standalone conversion (baked interpolation)
+
+`bake_layout_variants.py` remains available to convert an existing **DKLY v3**
+file to **DKLY v4** without the source font. It requires Python 3.13+ for fused
+multiply/add arithmetic matching the iOS Release renderer used in the earlier
+equivalence check:
 
 ```sh
 python3 tools/bake_layout_variants.py INPUT.bin OUTPUT.variants.bin
 ```
 
-Export the input using the intended justification parameters, Force and tajweed.
-The converter uses that input without reshaping or changing the layout. It
-refuses to overwrite the input and prints counts, byte sizes and SHA-256 hashes.
-The GUI exporter remains unchanged and continues to write v3.
+This converter blends the serialized interpolation masters. Its outlines can
+differ from the GUI's direct MetaPost evaluation. It does not regenerate the
+font's true parameterized `GlyphVis` outlines. The preservation details and
+historical prototype measurements below apply to this standalone converter.
 
 ## What is preserved
 
@@ -31,9 +54,10 @@ nonzero variant ID, including decorative and ayah basmalas.
 The matching mushaf-renderer loader accepts v2/v3/v4 automatically. V4 creates a
 document-owned immutable typeface at load time; page recording does not scan
 variants or interpolate paths. Cache options still select cached glyph drawing,
-paths, or the joining-glyph fallback. Bundled app assets must both be replaced
-under their existing `oldmadinaLayout.bin` names to opt into v4, with a native
-rebuild/install.
+paths, or the joining-glyph fallback. Tarteel now bundles v4 with glyph caching enabled for all glyphs. To update it,
+replace both app assets under their existing `oldmadinaLayout.bin` names with
+the generated `.variants.bin`, then rebuild/install the native app. Copy the v3
+file instead to switch back to interpolation.
 
 ## V4 format
 
