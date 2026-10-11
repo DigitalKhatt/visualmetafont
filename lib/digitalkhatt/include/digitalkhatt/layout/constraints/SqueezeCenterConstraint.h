@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "digitalkhatt/layout/GlyphInstance.h"
-#include "digitalkhatt/layout/OptParams.h"
 #include "digitalkhatt/layout/XPBDConstraint.h"
 
 namespace digitalkhatt::layout {
@@ -25,13 +24,11 @@ struct SqueezeCenterConstraint : XPBDConstraint {
   };
 
   GlyphInstance& mark;
-  const OptParams& P;
   std::vector<ObstacleState> obstacles;
   double centerCompliance;
   double lambdaCenter = 0.0;  // soft midpoint-equality
 
   SqueezeCenterConstraint(GlyphInstance& mark_,
-                          const OptParams& P_,
                           const std::vector<GlyphInstance*>& obstacles_,
                           double centerCompliance_ = 0.3);
 

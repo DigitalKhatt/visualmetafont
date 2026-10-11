@@ -22,7 +22,7 @@ void collectGapViolations(SolverContext& context,
 
 double gapCompliance(const GlyphInstance& A, const GlyphInstance& B);
 
-double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptParams& P);
+double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B);
 
 // The compliance actually applied to a pair's XPBD update (gapCompliance(A,B)
 // normalized by minGap, exactly as solveGapConstraint computes it). Factored
@@ -73,7 +73,6 @@ using GapsInfo = std::unordered_map<GapKey, GapInfo, GapKeyHasher>;
 void solveGapConstraint(SolverContext& solverContext,
                         GlyphInstance& A,
                         GlyphInstance& B,
-                        const OptParams& P,
                         double dt,
                         double& maxPenetration);
 

@@ -278,7 +278,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
             solverContext.excludedFromGenericGap.insert(
                 {std::min(markIndex, obstacleIndex), std::max(markIndex, obstacleIndex)});
           }
-          xpbdConstraints.push_back(std::make_unique<SqueezeCenterConstraint>(mark, P, obstacles, P.compliance.squeezeCenter));
+          xpbdConstraints.push_back(std::make_unique<SqueezeCenterConstraint>(mark, obstacles, P.compliance.squeezeCenter));
         }
       }
 
@@ -443,7 +443,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
         GlyphInstance& glyphA = glyphs[pair.first];
         GlyphInstance& glyphB = glyphs[pair.second];
         if (!solverContext.isGapExcluded(pair)) {
-          solveGapConstraint(solverContext, glyphA, glyphB, P, dt, maxPenetration);
+          solveGapConstraint(solverContext, glyphA, glyphB, dt, maxPenetration);
         }
       }
     }

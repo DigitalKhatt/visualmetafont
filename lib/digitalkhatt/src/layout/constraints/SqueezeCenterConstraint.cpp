@@ -15,10 +15,9 @@ namespace digitalkhatt::layout {
 
 SqueezeCenterConstraint::SqueezeCenterConstraint(
     GlyphInstance& mark_,
-    const OptParams& P_,
     const std::vector<GlyphInstance*>& obstacles_,
     double centerCompliance_)
-    : mark(mark_), P(P_), centerCompliance(centerCompliance_) {
+    : mark(mark_), centerCompliance(centerCompliance_) {
   reportEnabled = true;
   obstacles.reserve(obstacles_.size());
   for (GlyphInstance* g : obstacles_) {
@@ -47,7 +46,7 @@ void SqueezeCenterConstraint::project(SolverContext& solverContext, double dt) {
     GlyphInstance& obs = *os.obstacle;
     const double wO = obs.mobility;
 
-    const double gmin = chooseMinGap(mark, obs, P);
+    const double gmin = chooseMinGap(mark, obs);
     if (gmin <= 1e-9) continue;
 
     auto dr = getDistance(mark.worldPolys, obs.worldPolys, gmin);
@@ -128,7 +127,7 @@ void SqueezeCenterConstraint::reportViolations(
   // Per-obstacle hard min-gap breach; the soft centering arm is phase 2.
   for (const auto& os : obstacles) {
     GlyphInstance& obs = *os.obstacle;
-    const double gmin = chooseMinGap(mark, obs, P);
+    const double gmin = chooseMinGap(mark, obs);
     if (gmin <= 1e-9) continue;
 
     auto dr = getDistance(mark.worldPolys, obs.worldPolys, gmin);

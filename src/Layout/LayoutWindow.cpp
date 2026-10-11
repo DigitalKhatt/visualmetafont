@@ -2472,11 +2472,8 @@ void LayoutWindow::createDockWindows() {
   solverTuningDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea |
                                     Qt::BottomDockWidgetArea | Qt::TopDockWidgetArea);
 
-  auto* solverTuningScroll = new QScrollArea(solverTuningDock);
-  solverParametersWidget = new SolverParametersWidget(m_solverParams, solverTuningScroll);
-  solverTuningScroll->setWidget(solverParametersWidget);
-  solverTuningScroll->setWidgetResizable(true);
-  solverTuningDock->setWidget(solverTuningScroll);
+  solverParametersWidget = new SolverParametersWidget(m_solverParams, solverTuningDock);
+  solverTuningDock->setWidget(solverParametersWidget);
 
   connect(solverParametersWidget, &SolverParametersWidget::parametersChanged, this,
           [this]() { executeRunText(false, 1); });

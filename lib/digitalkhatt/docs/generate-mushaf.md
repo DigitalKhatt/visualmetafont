@@ -373,11 +373,41 @@ it is not proof of actual filled-ink intersection. Intentional pair exclusions
 and manual bowl placements follow the solver policy. These checks are not a proof
 of linguistic ownership or a replacement for a human Mushaf proofread.
 
-The legacy `minGapBody`, `minGapMark` and maximum-shift fields control broadphase
-candidate padding; they do not set the actual gap target or clamp displacement.
-`attachStrength`, `smoothStrength` and `sepOvershoot` are not consumed by current
-XPBD. These fields remain in snapshots for compatibility. The actual generic
-gap target is currently 80 units, with named 40/10-unit exceptions.
+`broadphasePadding` controls how far each glyph's bounding box is expanded when
+finding candidate contacts. The default is 140 font units. This is search
+coverage, not a minimum gap or a displacement limit. The actual generic gap
+target is currently 80 units, with named 40/10-unit exceptions.
+
+The GUI Solver Tuning panel has three tabs:
+
+- **Placement:** iteration limit and convergence tolerance, then grouped
+  controls for collisions, base association, stacking/harakat, waqf, and special
+  placements. Each constraint's enable switch is beside its parameters.
+- **Reports:** collection, finding selection, diagnostic types, and allowances.
+  These settings affect reporting, not placement forces. Collection and the
+  placement audit remain off by default.
+- **Advanced:** collision-search padding. Search padding does not cap movement.
+
+Compliance controls explain that zero is rigid and larger values are softer.
+Horizontal exposure fractions are displayed as percentages but remain fractions
+in snapshots. Waqf escape controls are unavailable while waqf placement or
+collision avoidance is disabled. Tabs and selected sections are remembered.
+
+Older GUI settings and CLI snapshots migrate the five legacy gap/shift fields
+using their original formula:
+
+```text
+broadphasePadding = max(minGapBody, minGapMark)
+                 + 2 * max(maxShiftBodyX, maxShiftBodyY, maxShiftMark)
+```
+
+An explicit `broadphasePadding` takes precedence over legacy fields in the same
+settings file. CLI partial legacy overrides carry forward the other values loaded earlier in the
+same invocation; omitted values initially use the former defaults. New exports
+contain only `broadphasePadding`. The inactive `attachStrength`, `smoothStrength`,
+`sepOvershoot`, and return-to-anchor toggle/compliance have been removed.
+Loading older CLI snapshots ignores those retired fields; other unknown fields
+still produce configuration errors.
 
 Summarize and validate a completed CSV:
 

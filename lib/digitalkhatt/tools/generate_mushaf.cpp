@@ -39,46 +39,63 @@ std::string readFile(const fs::path& path) {
   if (!in) throw std::runtime_error("Cannot read " + path.string());
   return {std::istreambuf_iterator<char>(in), {}};
 }
-template<class T> void readJson(T& value, const fs::path& path) {
+// Preserve legacy partial overrides across --config and --xpbd-config loads.
+// These fields are migration input only, never live solver parameters.
+struct LegacySearchPadding {
+  std::array<double,5> values{10.0,100.0,15.0,4.0,20.0};
+  double padding() const {
+    return std::max(values[0],values[1])+2.0*std::max({values[2],values[3],values[4]});
+  }
+};
+template<class T> void readJson(T& value, const fs::path& path, LegacySearchPadding* legacyPadding=nullptr) {
   auto data = readFile(path);
-  // Accept older GUI snapshots without keeping the removed solver option.
-  // Other unknown fields still fail the normal strict configuration reader.
+  // Migrate retired options explicitly; all other unknown keys stay errors.
   if constexpr (std::is_same_v<T, MushafRunOptions> || std::is_same_v<T, OptParams>) {
-    if (data.find("preserveMarkSemantics") != std::string::npos ||
-        data.find("waqfBaseVicinity") != std::string::npos ||
-        data.find("waqfInterLineGap") != std::string::npos ||
-        data.find("waqfStackGap") != std::string::npos ||
-        data.find("waqfHeightPreferenceBand") != std::string::npos) {
-      glz::generic_i64 document;
-      if (const auto error = glz::read_json(document, data))
-        throw std::runtime_error("Invalid JSON in " + path.string() + ": " + glz::format_error(error, data));
-      auto child = [](glz::generic_i64* object, const char* key) -> glz::generic_i64* {
-        if (!object || !object->is_object()) return nullptr;
-        auto& fields = object->get_object();
-        const auto it = fields.find(key);
-        return it == fields.end() ? nullptr : &it->second;
-      };
-      auto* xpbd = &document;
-      if constexpr (std::is_same_v<T, MushafRunOptions>) xpbd = child(xpbd, "xpbd");
-      auto* toggles = child(xpbd, "toggles");
-      bool changed = false;
-      if (toggles && toggles->is_object()) {
-        changed |= toggles->get_object().erase("preserveMarkSemantics") != 0;
-        changed |= toggles->get_object().erase("waqfBaseVicinity") != 0;
+    glz::generic_i64 document;
+    if (const auto error = glz::read_json(document, data))
+      throw std::runtime_error("Invalid JSON in " + path.string() + ": " + glz::format_error(error, data));
+    auto child = [](glz::generic_i64* object, const char* key) -> glz::generic_i64* {
+      if (!object || !object->is_object()) return nullptr;
+      auto& fields = object->get_object();
+      const auto it = fields.find(key);
+      return it == fields.end() ? nullptr : &it->second;
+    };
+    auto* xpbd = &document;
+    if constexpr (std::is_same_v<T, MushafRunOptions>) xpbd = child(xpbd, "xpbd");
+    bool changed = false;
+    if (xpbd && xpbd->is_object()) {
+      LegacySearchPadding defaults;
+      auto& legacy = legacyPadding ? *legacyPadding : defaults;
+      const std::array<const char*,5> keys{
+          "minGapBody","minGapMark","maxShiftBodyX","maxShiftBodyY","maxShiftMark"};
+      auto& fields = xpbd->get_object();
+      bool hasLegacyPadding = false;
+      for (size_t i=0;i<keys.size();++i) {
+        if (auto* old = child(xpbd,keys[i])) {
+          if (!old->is_double() && !old->is_int64())
+            throw std::runtime_error("Invalid legacy padding value: "+std::string(keys[i]));
+          legacy.values[i] = old->as_number();
+          fields.erase(keys[i]);
+          hasLegacyPadding = changed = true;
+        }
       }
-      if (xpbd && xpbd->is_object()) {
-        for (const auto* key : {"waqfBaseVicinityMarginFactor", "waqfInterLineGap", "waqfStackGap", "waqfHeightPreferenceBand"})
-          changed |= xpbd->get_object().erase(key) != 0;
-      }
-      auto* compliance = child(xpbd, "compliance");
-      if (compliance && compliance->is_object()) {
-        changed |= compliance->get_object().erase("waqfBaseVicinityLeft") != 0;
-        changed |= compliance->get_object().erase("waqfBaseVicinityRight") != 0;
-      }
-      if (changed) {
-        data.clear();
-        if (glz::write_json(document, data)) throw std::runtime_error("Cannot normalize " + path.string());
-      }
+      if (hasLegacyPadding && !fields.contains("broadphasePadding"))
+        fields["broadphasePadding"] = legacy.padding();
+      for (const auto* key : {"smoothStrength","attachStrength","sepOvershoot",
+          "waqfBaseVicinityMarginFactor","waqfInterLineGap","waqfStackGap","waqfHeightPreferenceBand"})
+        changed |= fields.erase(key) != 0;
+    }
+    if (auto* toggles = child(xpbd,"toggles"); toggles && toggles->is_object()) {
+      for (const auto* key : {"preserveMarkSemantics","waqfBaseVicinity","returnToAnchor"})
+        changed |= toggles->get_object().erase(key) != 0;
+    }
+    if (auto* compliance = child(xpbd,"compliance"); compliance && compliance->is_object()) {
+      for (const auto* key : {"waqfBaseVicinityLeft","waqfBaseVicinityRight","returnToAnchor"})
+        changed |= compliance->get_object().erase(key) != 0;
+    }
+    if (changed) {
+      data.clear();
+      if (glz::write_json(document, data)) throw std::runtime_error("Cannot normalize " + path.string());
     }
   }
   if (const auto error = glz::read_json(value, data))
@@ -343,13 +360,14 @@ int main(int argc,char** argv) {
   std::cout << std::unitbuf;
   try {
     MushafRunOptions options;
+    LegacySearchPadding legacyPadding;
     options.database=DIGITALKHATT_QURAN_DATABASE;
     options.resources=DIGITALKHATT_METAFONT_RESOURCES;
     options.pdfResources=DIGITALKHATT_PDF_RESOURCES;
     fs::path output="mushaf.pdf", extraConfig, placementData, reviewWordsFile, layoutBinary;
     // Config is the base; command-line options override it regardless of order.
     for (int i=1;i<argc;++i) if (std::string_view(argv[i])=="--config") {
-      if (++i>=argc) throw std::runtime_error("Missing --config value"); readJson(options,argv[i]);
+      if (++i>=argc) throw std::runtime_error("Missing --config value"); readJson(options,argv[i],&legacyPadding);
     }
     for (int i=1;i<argc;++i) {
       const std::string arg=argv[i];
@@ -390,7 +408,7 @@ int main(int argc,char** argv) {
       else if (arg=="--resources") options.resources=value();
       else if (arg=="--pdf-resources") options.pdfResources=value();
       else if (arg=="--disable-lookup") options.disabledLookups.push_back(value());
-      else if (arg=="--xpbd-config") readJson(options.xpbd,value());
+      else if (arg=="--xpbd-config") readJson(options.xpbd,value(),&legacyPadding);
       else if (arg=="--write-config") extraConfig=value();
       else if (arg=="--placement-data") placementData=value();
       else if (arg=="--review-words-file") reviewWordsFile=value();
@@ -428,6 +446,7 @@ int main(int argc,char** argv) {
     if (options.layout=="v1" || options.layout=="v1_layout") options.layout="qpc_v1_layout";
     if (options.layout=="v4" || options.layout=="v4_layout") options.layout="qpc_v4_layout";
     if (options.xpbd.reportMaxFindings<0 || options.xpbd.maxIters<0 || options.xpbd.maxIters>10000 ||
+        !std::isfinite(options.xpbd.broadphasePadding) || options.xpbd.broadphasePadding<0 ||
         !std::isfinite(options.xpbd.collisionReportMinGap) || options.xpbd.collisionReportMinGap<0 || options.xpbd.collisionReportMinGap>1000 ||
         !std::isfinite(options.xpbd.minViolationSeverity) || options.xpbd.minViolationSeverity<0 ||
         !std::isfinite(options.xpbd.baseVicinityMarkTolerancePercent) || options.xpbd.baseVicinityMarkTolerancePercent<0 || options.xpbd.baseVicinityMarkTolerancePercent>100 ||

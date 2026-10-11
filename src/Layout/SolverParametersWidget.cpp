@@ -4,160 +4,172 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
-#include <QFrame>
 #include <QGroupBox>
-#include <QHBoxLayout>
 #include <QLabel>
+#include <QScrollArea>
 #include <QSettings>
 #include <QSpinBox>
+#include <QTabWidget>
 #include <QTimer>
+#include <QToolBox>
 #include <QVBoxLayout>
 
-#include <memory>
 #include <algorithm>
-#include <vector>
-
-#include "FlowLayout.h"
+#include <cmath>
 
 namespace {
-
 constexpr int kDebounceMs = 150;
 constexpr char kSettingsPrefix[] = "SolverTuning/";
+using Changed = void (SolverParametersWidget::*)();
+QString settingKey(const QString& key) { return QString(kSettingsPrefix) + key; }
 
-// Note: each lambda below constructs its own QSettings when saving, rather
-// than capturing the constructor's local `settings` by reference — that
-// local goes out of scope once the widget is built, but the lambdas live as
-// long as the signal connections do.
-
-void addDoubleRow(QFormLayout* form, const QString& label, QSettings& settings,
-                  const QString& key, double& field, double minV, double maxV,
-                  double step, int decimals, SolverParametersWidget* owner,
-                  void (SolverParametersWidget::*scheduleChanged)()) {
-  const QString fullKey = QString(kSettingsPrefix) + key;
-  field = settings.value(fullKey, field).toDouble();
-
+// Settings are created inside callbacks; the constructor's QSettings is local.
+QDoubleSpinBox* addDoubleRow(QFormLayout* form, const QString& label, QSettings& settings,
+    const QString& key, double& field, double minV, double maxV, double step, int decimals,
+    SolverParametersWidget* owner, Changed changed, const QString& tip = {},
+    const QString& suffix = {}, double displayScale = 1.0) {
+  const QString fullKey = settingKey(key);
+  const double saved = settings.value(fullKey, field).toDouble();
+  if (std::isfinite(saved)) field = std::clamp(saved, minV / displayScale, maxV / displayScale);
   auto* spin = new QDoubleSpinBox(owner);
+  spin->setObjectName(key);
+  spin->setDecimals(decimals);
   spin->setRange(minV, maxV);
   spin->setSingleStep(step);
-  spin->setDecimals(decimals);
   spin->setKeyboardTracking(false);
-  spin->setValue(field);
+  spin->setSuffix(suffix);
+  spin->setValue(field * displayScale);
+  spin->setToolTip(tip);
   form->addRow(label, spin);
-
+  form->labelForField(spin)->setToolTip(tip);
   QObject::connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), owner,
-                    [&field, fullKey, owner, scheduleChanged](double v) {
-                      field = v;
-                      QSettings().setValue(fullKey, v);
-                      (owner->*scheduleChanged)();
-                    });
+      [&field, fullKey, owner, changed, displayScale](double v) {
+        field = v / displayScale;
+        QSettings().setValue(fullKey, field);
+        (owner->*changed)();
+      });
+  return spin;
 }
 
-void addToggleRow(QFormLayout* form, const QString& label, QSettings& settings,
-                  const QString& key, bool& field, SolverParametersWidget* owner,
-                  void (SolverParametersWidget::*scheduleChanged)()) {
-  const QString fullKey = QString(kSettingsPrefix) + key;
+QCheckBox* addToggleRow(QFormLayout* form, const QString& label, QSettings& settings,
+    const QString& key, bool& field, SolverParametersWidget* owner, Changed changed,
+    const QString& tip = {}) {
+  const QString fullKey = settingKey(key);
   field = settings.value(fullKey, field).toBool();
-
   auto* check = new QCheckBox(owner);
+  check->setObjectName(key);
   check->setChecked(field);
+  check->setToolTip(tip);
   form->addRow(label, check);
-
+  form->labelForField(check)->setToolTip(tip);
   QObject::connect(check, &QCheckBox::toggled, owner,
-                    [&field, fullKey, owner, scheduleChanged](bool checked) {
-                      field = checked;
-                      QSettings().setValue(fullKey, checked);
-                      (owner->*scheduleChanged)();
-                    });
+      [&field, fullKey, owner, changed](bool v) {
+        field = v;
+        QSettings().setValue(fullKey, v);
+        (owner->*changed)();
+      });
+  return check;
 }
 
-// One tunable double belonging to a param row (see makeParamRow below).
-struct FieldSpec {
-  QString label;
-  QString key;
-  double* field;
-  double minV;
-  double maxV;
-  double step;
-  int decimals;
-};
+void addIntRow(QFormLayout* form, const QString& label, QSettings& settings,
+    const QString& key, int& field, int minV, int maxV, SolverParametersWidget* owner,
+    Changed changed, const QString& tip = {}, const QString& zeroText = {}) {
+  const QString fullKey = settingKey(key);
+  field = std::clamp(settings.value(fullKey, field).toInt(), minV, maxV);
+  auto* spin = new QSpinBox(owner);
+  spin->setObjectName(key);
+  spin->setRange(minV, maxV);
+  spin->setKeyboardTracking(false);
+  spin->setSpecialValueText(zeroText);
+  spin->setValue(field);
+  spin->setToolTip(tip);
+  form->addRow(label, spin);
+  QObject::connect(spin, QOverload<int>::of(&QSpinBox::valueChanged), owner,
+      [&field, fullKey, owner, changed](int v) {
+        field = v;
+        QSettings().setValue(fullKey, v);
+        (owner->*changed)();
+      });
+}
 
-// Packs a constraint type's enable/disable checkbox and every tunable it owns
-// into one compact horizontal strip (checkbox, bold type name, then
-// "label: spinbox" for each field) instead of a separate toggle list plus one
-// QFormLayout row per field. The caller adds the returned widget to a
-// FlowLayout, so several single/few-field constraint types end up sharing a
-// line, and only the wide ones (e.g. Waqf's 4 fields) force a wrap -- this is
-// what keeps the dock's total height down. Fields grey out (but keep their
-// stored value) while the checkbox is unchecked, since they have no effect
-// on a disabled constraint.
-QWidget* makeParamRow(QWidget* parentWidget, QSettings& settings, const QString& rowLabel,
-                      const QString& toggleKey, bool& toggleField,
-                      const std::vector<FieldSpec>& fields, SolverParametersWidget* owner,
-                      void (SolverParametersWidget::*scheduleChanged)()) {
-  auto* frame = new QFrame(parentWidget);
-  frame->setFrameShape(QFrame::StyledPanel);
+QFormLayout* makeForm(QWidget* parent) {
+  auto* form = new QFormLayout(parent);
+  form->setRowWrapPolicy(QFormLayout::WrapLongRows);
+  form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+  return form;
+}
 
-  auto* rowLayout = new QHBoxLayout(frame);
-  rowLayout->setContentsMargins(6, 4, 6, 4);
-  rowLayout->setSpacing(6);
+QWidget* addTab(QTabWidget* tabs, const QString& title) {
+  auto* scroll = new QScrollArea(tabs);
+  scroll->setWidgetResizable(true);
+  auto* page = new QWidget(scroll);
+  auto* layout = new QVBoxLayout(page);
+  layout->setContentsMargins(6, 6, 6, 6);
+  scroll->setWidget(page);
+  tabs->addTab(scroll, title);
+  return page;
+}
 
-  const QString toggleFullKey = QString(kSettingsPrefix) + toggleKey;
-  toggleField = settings.value(toggleFullKey, toggleField).toBool();
+QWidget* addSection(QToolBox* sections, const QString& title) {
+  auto* page = new QWidget(sections);
+  auto* layout = new QVBoxLayout(page);
+  layout->setContentsMargins(4, 4, 4, 4);
+  sections->addItem(page, title);
+  return page;
+}
 
-  auto* check = new QCheckBox(frame);
-  check->setChecked(toggleField);
-  rowLayout->addWidget(check);
+void addNote(QWidget* parent, const QString& text) {
+  auto* note = new QLabel(text, parent);
+  note->setWordWrap(true);
+  note->setTextFormat(Qt::PlainText);
+  static_cast<QVBoxLayout*>(parent->layout())->addWidget(note);
+}
 
-  auto* title = new QLabel(rowLabel, frame);
-  QFont boldFont = title->font();
-  boldFont.setBold(true);
-  title->setFont(boldFont);
-  title->setEnabled(toggleField);
-  rowLayout->addWidget(title);
+struct ConstraintForm { QGroupBox* box; QFormLayout* form; };
+ConstraintForm addConstraint(QWidget* parent, const QString& title, QSettings& settings,
+    const QString& key, bool& enabled, SolverParametersWidget* owner, Changed changed) {
+  const QString fullKey = settingKey(key);
+  enabled = settings.value(fullKey, enabled).toBool();
+  auto* box = new QGroupBox(title, parent);
+  box->setObjectName(key);
+  box->setCheckable(true);
+  box->setChecked(enabled);
+  auto* form = makeForm(box);
+  static_cast<QVBoxLayout*>(parent->layout())->addWidget(box);
+  QObject::connect(box, &QGroupBox::toggled, owner,
+      [&enabled, fullKey, owner, changed](bool v) {
+        enabled = v;
+        QSettings().setValue(fullKey, v);
+        (owner->*changed)();
+      });
+  return {box, form};
+}
 
-  auto fieldWidgets = std::make_shared<std::vector<QWidget*>>();
-  fieldWidgets->push_back(title);
+void rememberSection(QToolBox* box, QSettings& settings, const QString& key,
+                     SolverParametersWidget* owner) {
+  const QString fullKey = settingKey(key);
+  box->setCurrentIndex(std::clamp(settings.value(fullKey, 0).toInt(), 0, box->count() - 1));
+  QObject::connect(box, &QToolBox::currentChanged, owner,
+      [fullKey](int index) { QSettings().setValue(fullKey, index); });
+}
 
-  for (const FieldSpec& spec : fields) {
-    const QString fullKey = QString(kSettingsPrefix) + spec.key;
-    *spec.field = settings.value(fullKey, *spec.field).toDouble();
-
-    auto* label = new QLabel(spec.label, frame);
-    label->setEnabled(toggleField);
-    rowLayout->addWidget(label);
-    fieldWidgets->push_back(label);
-
-    auto* spin = new QDoubleSpinBox(frame);
-    spin->setRange(spec.minV, spec.maxV);
-    spin->setSingleStep(spec.step);
-    spin->setDecimals(spec.decimals);
-    spin->setKeyboardTracking(false);
-    spin->setValue(*spec.field);
-    spin->setMaximumWidth(85);
-    spin->setEnabled(toggleField);
-    rowLayout->addWidget(spin);
-    fieldWidgets->push_back(spin);
-
-    double* field = spec.field;
-    QObject::connect(spin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), owner,
-                      [field, fullKey, owner, scheduleChanged](double v) {
-                        *field = v;
-                        QSettings().setValue(fullKey, v);
-                        (owner->*scheduleChanged)();
-                      });
+void migrateSettings(QSettings& settings) {
+  const QString paddingKey = settingKey("broadphasePadding");
+  bool hasLegacyPadding = false;
+  for (const auto* key : {"minGapBody", "minGapMark", "maxShiftBodyX", "maxShiftBodyY", "maxShiftMark"})
+    hasLegacyPadding |= settings.contains(settingKey(key));
+  if (!settings.contains(paddingKey) && hasLegacyPadding) {
+    const double gap = std::max(settings.value(settingKey("minGapBody"), 10.0).toDouble(),
+                                settings.value(settingKey("minGapMark"), 100.0).toDouble());
+    const double shift = std::max({settings.value(settingKey("maxShiftBodyX"), 15.0).toDouble(),
+        settings.value(settingKey("maxShiftBodyY"), 4.0).toDouble(),
+        settings.value(settingKey("maxShiftMark"), 20.0).toDouble()});
+    settings.setValue(paddingKey, gap + 2.0 * shift);
   }
-
-  QObject::connect(check, &QCheckBox::toggled, owner,
-                    [&toggleField, toggleFullKey, owner, scheduleChanged, fieldWidgets](bool checked) {
-                      toggleField = checked;
-                      QSettings().setValue(toggleFullKey, checked);
-                      for (QWidget* w : *fieldWidgets) w->setEnabled(checked);
-                      (owner->*scheduleChanged)();
-                    });
-
-  return frame;
+  for (const auto* key : {"minGapBody", "minGapMark", "maxShiftBodyX", "maxShiftBodyY", "maxShiftMark",
+      "smoothStrength", "attachStrength", "sepOvershoot", "toggle.returnToAnchor", "compliance.returnToAnchor"})
+    settings.remove(settingKey(key));
 }
-
 }  // namespace
 
 SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& params, QWidget* parent)
@@ -165,233 +177,202 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   m_debounce = new QTimer(this);
   m_debounce->setSingleShot(true);
   connect(m_debounce, &QTimer::timeout, this, &SolverParametersWidget::parametersChanged);
-
   QSettings settings;
-
-  auto* mainLayout = new QVBoxLayout(this);
-
-  auto* gapsBox = new QGroupBox(tr("Gaps"), this);
-  auto* gapsForm = new QFormLayout(gapsBox);
-  addDoubleRow(gapsForm, tr("Min gap (body)"), settings, "minGapBody", m_params.minGapBody,
-              0.0, 2000.0, 1.0, 1, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(gapsForm, tr("Min gap (mark)"), settings, "minGapMark", m_params.minGapMark,
-              0.0, 2000.0, 1.0, 1, this, &SolverParametersWidget::scheduleChanged);
-  mainLayout->addWidget(gapsBox);
-
-  auto* shiftsBox = new QGroupBox(tr("Shifts"), this);
-  auto* shiftsForm = new QFormLayout(shiftsBox);
-  addDoubleRow(shiftsForm, tr("Max shift body X"), settings, "maxShiftBodyX", m_params.maxShiftBodyX,
-              0.0, 500.0, 1.0, 1, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(shiftsForm, tr("Max shift body Y"), settings, "maxShiftBodyY", m_params.maxShiftBodyY,
-              0.0, 500.0, 1.0, 1, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(shiftsForm, tr("Max shift mark"), settings, "maxShiftMark", m_params.maxShiftMark,
-              0.0, 500.0, 1.0, 1, this, &SolverParametersWidget::scheduleChanged);
-  mainLayout->addWidget(shiftsBox);
-
-  auto* solverBox = new QGroupBox(tr("Solver"), this);
-  auto* solverForm = new QFormLayout(solverBox);
-
-  {
-    const QString fullKey = QString(kSettingsPrefix) + "maxIters";
-    m_params.maxIters = settings.value(fullKey, m_params.maxIters).toInt();
-    auto* itersSpin = new QSpinBox(this);
-    itersSpin->setRange(1, 200);
-    itersSpin->setKeyboardTracking(false);
-    itersSpin->setValue(m_params.maxIters);
-    solverForm->addRow(tr("Max iterations"), itersSpin);
-    connect(itersSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this, fullKey](int v) {
-      m_params.maxIters = v;
-      QSettings().setValue(fullKey, v);
-      scheduleChanged();
-    });
-  }
-
-  addDoubleRow(solverForm, tr("Tolerance (collision)"), settings, "tolCollision", m_params.tolCollision,
-              0.0, 50.0, 0.1, 2, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(solverForm, tr("Smooth strength"), settings, "smoothStrength", m_params.smoothStrength,
-              0.0, 2.0, 0.01, 3, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(solverForm, tr("Attach strength"), settings, "attachStrength", m_params.attachStrength,
-              0.0, 2.0, 0.01, 3, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(solverForm, tr("Sep. overshoot"), settings, "sepOvershoot", m_params.sepOvershoot,
-              1.0, 3.0, 0.01, 3, this, &SolverParametersWidget::scheduleChanged);
-  mainLayout->addWidget(solverBox);
-
-  // Constraint types with no single-instance compliance knob of their own
-  // (GenericGap is a free function over broadphase pairs, ReportViolations is
-  // a diagnostic flag) -- every other constraint's enable checkbox now lives
-  // next to its own parameters below.
-  auto* constraintsBox = new QGroupBox(tr("Constraints"), this);
-  auto* constraintsForm = new QFormLayout(constraintsBox);
+  migrateSettings(settings);
+  auto* main = new QVBoxLayout(this);
+  main->setContentsMargins(0, 0, 0, 0);
+  auto* tabs = new QTabWidget(this);
+  main->addWidget(tabs);
   auto& toggles = m_params.toggles;
-  addToggleRow(constraintsForm, tr("Generic gap constraint (broadphase)"), settings, "toggle.genericGapConstraint",
-              toggles.genericGapConstraint, this, &SolverParametersWidget::scheduleChanged);
-  mainLayout->addWidget(constraintsBox);
-
-  auto* reportBox = new QGroupBox(tr("Violation report"), this);
-  auto* reportForm = new QFormLayout(reportBox);
-  addToggleRow(reportForm, tr("Generate report (PDF + CSV)"), settings, "toggle.reportViolations",
-              toggles.reportViolations, this, &SolverParametersWidget::scheduleChanged);
-  addToggleRow(reportForm, tr("Include generic gap violations"), settings, "toggle.reportGenericGap",
-              toggles.reportGenericGap, this, &SolverParametersWidget::scheduleChanged);
-  addToggleRow(reportForm, tr("Only Save Collision cases"), settings, "reportGenericGapCollisionsOnly",
-              m_params.reportGenericGapCollisionsOnly, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(reportForm, tr("Save Collision clearance (font units)"), settings, "collisionReportMinGap",
-              m_params.collisionReportMinGap, 0.0, 1000.0, 1.0, 2, this, &SolverParametersWidget::scheduleChanged);
-  addToggleRow(reportForm, tr("Include placement audit (side, class, owner)"), settings, "toggle.reportPlacementAudit",
-              toggles.reportPlacementAudit, this, &SolverParametersWidget::scheduleChanged);
-  addToggleRow(reportForm, tr("Include soft target residuals"), settings, "toggle.reportSoftResiduals",
-              toggles.reportSoftResiduals, this, &SolverParametersWidget::scheduleChanged);
-  addToggleRow(reportForm, tr("Include waqf solver height-bound residuals"), settings, "toggle.reportWaqfBounds",
-              toggles.reportWaqfBounds, this, &SolverParametersWidget::scheduleChanged);
-  addToggleRow(reportForm, tr("Only new/worsened (plus structural)"), settings, "reportOnlyChanged",
-              m_params.reportOnlyChanged, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(reportForm, tr("Minimum severity (beyond allowed slack)"), settings, "minViolationSeverity",
-              m_params.minViolationSeverity, 0.0, 10000.0, 1.0, 3, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(reportForm, tr("Base vicinity tolerance: marks (% of mark width)"), settings, "baseVicinityMarkTolerancePercent",
-              m_params.baseVicinityMarkTolerancePercent, 0.0, 100.0, 1.0, 2, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(reportForm, tr("Base vicinity tolerance: dots (% of dot width)"), settings, "baseVicinityDotTolerancePercent",
-              m_params.baseVicinityDotTolerancePercent, 0.0, 100.0, 1.0, 2, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(reportForm, tr("Waqf allowed left drift (% of waqf width)"), settings, "waqfLeftDriftTolerancePercent",
-              m_params.waqfLeftDriftTolerancePercent, 0.0, 1000.0, 5.0, 2, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(reportForm, tr("Waqf allowed right drift (% of waqf width)"), settings, "waqfRightDriftTolerancePercent",
-              m_params.waqfRightDriftTolerancePercent, 0.0, 1000.0, 5.0, 2, this, &SolverParametersWidget::scheduleChanged);
-  addDoubleRow(reportForm, tr("Waqf margin below previous baseline (% of line spacing)"), settings, "waqfPreviousLineMarginPercent",
-              m_params.waqfPreviousLineMarginPercent, 0.0, 100.0, 1.0, 2, this, &SolverParametersWidget::scheduleChanged);
-  {
-    const QString key = QString(kSettingsPrefix) + "reportMaxFindings";
-    m_params.reportMaxFindings = std::clamp(settings.value(key, m_params.reportMaxFindings).toInt(), 0, 1000000);
-    auto* spin = new QSpinBox(this);
-    spin->setRange(0, 1000000);
-    spin->setSpecialValueText(tr("Unlimited"));
-    spin->setKeyboardTracking(false);
-    spin->setValue(m_params.reportMaxFindings);
-    reportForm->addRow(tr("Maximum findings (whole report)"), spin);
-    connect(spin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this, key](int value) {
-      m_params.reportMaxFindings = value;
-      QSettings().setValue(key, value);
-      scheduleChanged();
-    });
-  }
-  {
-    const QString key = QString(kSettingsPrefix) + "reportSort";
-    m_params.reportSort = settings.value(key, QString::fromStdString(m_params.reportSort)).toString().toStdString();
-    if (m_params.reportSort != "severity" && m_params.reportSort != "priority") m_params.reportSort = "severity";
-    auto* combo = new QComboBox(this);
-    combo->addItem(tr("Severity descending"), "severity");
-    combo->addItem(tr("Review priority, then severity"), "priority");
-    combo->setCurrentIndex(combo->findData(QString::fromStdString(m_params.reportSort)));
-    reportForm->addRow(tr("Sort order (critical structural first)"), combo);
-    connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, key, combo](int) {
-      m_params.reportSort = combo->currentData().toString().toStdString();
-      QSettings().setValue(key, QString::fromStdString(m_params.reportSort));
-      scheduleChanged();
-    });
-  }
-  mainLayout->addWidget(reportBox);
-
-  // Every per-constraint-type tunable (HorizontalOrder's self/cross-keep
-  // thresholds plus every constraint's XPBD compliance) alongside that
-  // constraint's own enable/disable checkbox, grouped one row per constraint
-  // type and packed into a FlowLayout so rows with few fields share a line
-  // instead of each field claiming its own -- keeps this section's height
-  // down even though it now covers the toggles plus ~20 tunable values.
-  auto* paramsBox = new QGroupBox(tr("Constraint Parameters"), this);
-  new FlowLayout(paramsBox, 6, 6, 6);
-  auto* paramsFlow = static_cast<FlowLayout*>(paramsBox->layout());
   auto& comp = m_params.compliance;
+  const auto changed = &SolverParametersWidget::scheduleChanged;
+  const QString units = tr(" units");
+  const QString percent = tr(" %");
+  const QString softness = tr("XPBD compliance: 0 is rigid; larger values allow more deviation from this constraint.");
+  auto compliance = [&](QFormLayout* form, const QString& label, const QString& key,
+                        double& value, double maxV = 2.0, double step = 0.01, int decimals = 3) {
+    addDoubleRow(form, label, settings, key, value, 0.0, maxV, step, decimals, this, changed, softness);
+  };
 
-  paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Horizontal order"),
-      "toggle.horizontalOrder", toggles.horizontalOrder,
-      {
-          {tr("Self keep"), "horizontalOrderSelfKeep", &m_params.horizontalOrderSelfKeep, 0.0, 1.0, 0.01, 2},
-          {tr("Cross keep"), "horizontalOrderCrossKeep", &m_params.horizontalOrderCrossKeep, 0.0, 1.0, 0.01, 2},
-          {tr("Compliance"), "compliance.horizontalOrder", &comp.horizontalOrder, 0.0, 2.0, 0.01, 3},
-      },
-      this, &SolverParametersWidget::scheduleChanged));
+  auto* placement = addTab(tabs, tr("Placement"));
+  auto* solver = new QGroupBox(tr("Solver"), placement);
+  auto* solverForm = makeForm(solver);
+  addIntRow(solverForm, tr("Maximum iterations"), settings, "maxIters", m_params.maxIters,
+      1, 200, this, changed, tr("Upper limit on the number of XPBD iterations per page."));
+  addDoubleRow(solverForm, tr("Convergence tolerance"), settings, "tolCollision", m_params.tolCollision,
+      0.0, 50.0, 0.1, 2, this, changed,
+      tr("Early exit requires small applied corrections and acceptable remaining hard residuals."), units);
+  static_cast<QVBoxLayout*>(placement->layout())->addWidget(solver);
+  auto* constraints = new QToolBox(placement);
+  static_cast<QVBoxLayout*>(placement->layout())->addWidget(constraints);
 
-  paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Waqf placement"),
-      "toggle.waqfPlacement", toggles.waqfPlacement,
-      {
-          {tr("Min"), "compliance.waqfMin", &comp.waqfMin, 0.0, 2.0, 0.01, 3},
-          {tr("Target"), "compliance.waqfTarget", &comp.waqfTarget, 0.0, 10.0, 0.01, 3},
-          {tr("Max"), "compliance.waqfMax", &comp.waqfMax, 0.0, 2.0, 0.01, 3},
-          {tr("X-align"), "compliance.waqfXAlign", &comp.waqfXAlign, 0.0, 2.0, 0.01, 3},
-          {tr("X band (% width)"), "waqfHorizontalAlignmentBandPercent", &m_params.waqfHorizontalAlignmentBandPercent, 0.0, 1000.0, 5.0, 1},
-      },
-      this, &SolverParametersWidget::scheduleChanged));
+  auto* collisionPage = addSection(constraints, tr("Collision avoidance"));
+  auto gaps = addConstraint(collisionPage, tr("Resolve gaps and collisions"), settings,
+      "toggle.genericGapConstraint", toggles.genericGapConstraint, this, changed);
+  auto* gapRules = new QLabel(tr("Clearance uses glyph-pair rules: 80 units normally, 40 for selected marks on alef, and 10 for the kasra / iqlab meem pair."), gaps.box);
+  gapRules->setWordWrap(true);
+  gaps.form->addRow(gapRules);
+  addNote(collisionPage, tr("Save Collision clearance is a separate reporting setting in the Reports tab."));
 
-  paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Waqf left/down escape"),
-      "toggle.waqfEscape", toggles.waqfEscape,
-      {
-          {tr("Trigger gap"), "waqfEscapeMinGap", &m_params.waqfEscapeMinGap, 0.0, 1000.0, 1.0, 2},
-          {tr("Step (% width)"), "waqfEscapeStepPercent", &m_params.waqfEscapeStepPercent, 0.0, 100.0, 1.0, 2},
-          {tr("Down step (% height)"), "waqfEscapeDownStepPercent", &m_params.waqfEscapeDownStepPercent, 0.0, 100.0, 1.0, 2},
-          {tr("Max left (% width)"), "waqfEscapeMaxLeftPercent", &m_params.waqfEscapeMaxLeftPercent, 0.0, 1000.0, 5.0, 2},
-      },
-      this, &SolverParametersWidget::scheduleChanged));
+  auto* association = addSection(constraints, tr("Base association"));
+  auto order = addConstraint(association, tr("Horizontal order"), settings,
+      "toggle.horizontalOrder", toggles.horizontalOrder, this, changed);
+  addDoubleRow(order.form, tr("Own mark exposed"), settings, "horizontalOrderSelfKeep", m_params.horizontalOrderSelfKeep,
+      0.0, 100.0, 1.0, 2, this, changed,
+      tr("Minimum proportion of each mark's width exposed on its own owner's side."), percent, 100.0);
+  addDoubleRow(order.form, tr("Neighbor exposure threshold"), settings, "horizontalOrderCrossKeep", m_params.horizontalOrderCrossKeep,
+      0.0, 100.0, 1.0, 2, this, changed,
+      tr("The exposed portion must also reach this proportion of the neighboring mark's width."), percent, 100.0);
+  compliance(order.form, tr("Compliance"), "compliance.horizontalOrder", comp.horizontalOrder);
+  auto vicinity = addConstraint(association, tr("Stay near base"), settings,
+      "toggle.baseVicinity", toggles.baseVicinity, this, changed);
+  compliance(vicinity.form, tr("Left compliance"), "compliance.baseVicinityLeft", comp.baseVicinityLeft);
+  compliance(vicinity.form, tr("Right compliance"), "compliance.baseVicinityRight", comp.baseVicinityRight);
+  auto side = addConstraint(association, tr("Stay above / below"), settings,
+      "toggle.hardStayAboveBelow", toggles.hardStayAboveBelow, this, changed);
+  compliance(side.form, tr("Above compliance"), "compliance.hardStayAbove", comp.hardStayAbove, 0.01, 0.0000001, 8);
+  compliance(side.form, tr("Below compliance"), "compliance.hardStayBelow", comp.hardStayBelow, 0.01, 0.0000001, 8);
 
-  paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Hard stay above/below"),
-      "toggle.hardStayAboveBelow", toggles.hardStayAboveBelow,
-      {
-          {tr("Above compliance"), "compliance.hardStayAbove", &comp.hardStayAbove, 0.0, 0.01, 0.0000001, 8},
-          {tr("Below compliance"), "compliance.hardStayBelow", &comp.hardStayBelow, 0.0, 0.01, 0.0000001, 8},
-      },
-      this, &SolverParametersWidget::scheduleChanged));
+  auto* stacking = addSection(constraints, tr("Stacking and harakat"));
+  auto stack = addConstraint(stacking, tr("Stack order"), settings,
+      "toggle.stackOrder", toggles.stackOrder, this, changed);
+  compliance(stack.form, tr("Gap compliance"), "compliance.stackOrderGap", comp.stackOrderGap);
+  compliance(stack.form, tr("Horizontal compliance"), "compliance.stackOrderXAlign", comp.stackOrderXAlign);
+  auto lane = addConstraint(stacking, tr("Harakat height band"), settings,
+      "toggle.ylane", toggles.ylane, this, changed);
+  compliance(lane.form, tr("Compliance"), "compliance.ylane", comp.ylane);
 
-  paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Base vicinity"),
-      "toggle.baseVicinity", toggles.baseVicinity,
-      {
-          {tr("Left"), "compliance.baseVicinityLeft", &comp.baseVicinityLeft, 0.0, 2.0, 0.01, 3},
-          {tr("Right"), "compliance.baseVicinityRight", &comp.baseVicinityRight, 0.0, 2.0, 0.01, 3},
-      },
-      this, &SolverParametersWidget::scheduleChanged));
+  auto* waqf = addSection(constraints, tr("Waqf placement"));
+  auto waqfPlacement = addConstraint(waqf, tr("Position waqf marks"), settings,
+      "toggle.waqfPlacement", toggles.waqfPlacement, this, changed);
+  compliance(waqfPlacement.form, tr("Minimum-height compliance"), "compliance.waqfMin", comp.waqfMin);
+  compliance(waqfPlacement.form, tr("Preferred-height compliance"), "compliance.waqfTarget", comp.waqfTarget, 10.0);
+  compliance(waqfPlacement.form, tr("Maximum-height compliance"), "compliance.waqfMax", comp.waqfMax);
+  compliance(waqfPlacement.form, tr("Horizontal compliance"), "compliance.waqfXAlign", comp.waqfXAlign);
+  addDoubleRow(waqfPlacement.form, tr("Horizontal alignment band"), settings, "waqfHorizontalAlignmentBandPercent",
+      m_params.waqfHorizontalAlignmentBandPercent, 0.0, 1000.0, 5.0, 1, this, changed,
+      tr("No horizontal alignment force within this distance on either side of the target, as a percentage of waqf width."), percent);
+  auto escape = addConstraint(waqf, tr("Left / down escape when squeezed"), settings,
+      "toggle.waqfEscape", toggles.waqfEscape, this, changed);
+  addDoubleRow(escape.form, tr("Trigger clearance"), settings, "waqfEscapeMinGap", m_params.waqfEscapeMinGap,
+      0.0, 1000.0, 1.0, 2, this, changed,
+      tr("Estimated clearance to glyphs on an earlier line must remain below this value with stalled progress before escape starts."), units);
+  addDoubleRow(escape.form, tr("Left step"), settings, "waqfEscapeStepPercent", m_params.waqfEscapeStepPercent,
+      0.0, 100.0, 1.0, 2, this, changed, tr("Target advance per iteration, as a percentage of waqf width."), percent);
+  addDoubleRow(escape.form, tr("Down step"), settings, "waqfEscapeDownStepPercent", m_params.waqfEscapeDownStepPercent,
+      0.0, 100.0, 1.0, 2, this, changed, tr("Target advance per iteration, as a percentage of waqf height."), percent);
+  addDoubleRow(escape.form, tr("Maximum left target offset"), settings, "waqfEscapeMaxLeftPercent", m_params.waqfEscapeMaxLeftPercent,
+      0.0, 1000.0, 5.0, 2, this, changed, tr("Cap on the escape target's left offset from the owning base, as a percentage of waqf width."), percent);
+  escape.box->setToolTip(tr("A soft escape preference for persistent contact with an earlier line. Requires waqf placement and collision avoidance to be enabled."));
+  const auto updateEscape = [escape, waqfPlacement, gaps]() {
+    escape.box->setEnabled(waqfPlacement.box->isChecked() && gaps.box->isChecked());
+  };
+  connect(waqfPlacement.box, &QGroupBox::toggled, this, updateEscape);
+  connect(gaps.box, &QGroupBox::toggled, this, updateEscape);
+  updateEscape();
 
-  paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Stack order"),
-      "toggle.stackOrder", toggles.stackOrder,
-      {
-          {tr("Gap"), "compliance.stackOrderGap", &comp.stackOrderGap, 0.0, 2.0, 0.01, 3},
-          {tr("X-align"), "compliance.stackOrderXAlign", &comp.stackOrderXAlign, 0.0, 2.0, 0.01, 3},
-      },
-      this, &SolverParametersWidget::scheduleChanged));
+  auto* special = addSection(constraints, tr("Special placements"));
+  auto pair = addConstraint(special, tr("Kasra / iqlab meem pair"), settings,
+      "toggle.matchMarkPosition", toggles.matchMarkPosition, this, changed);
+  compliance(pair.form, tr("Compliance"), "compliance.matchMarkPosition", comp.matchMarkPosition);
+  auto bowl = addConstraint(special, tr("Bowl-mark clusters"), settings,
+      "toggle.bowlCluster", toggles.bowlCluster, this, changed);
+  compliance(bowl.form, tr("Compliance"), "compliance.bowlCluster", comp.bowlCluster);
+  auto squeeze = addConstraint(special, tr("Center squeezed marks"), settings,
+      "toggle.squeezeCenter", toggles.squeezeCenter, this, changed);
+  compliance(squeeze.form, tr("Compliance"), "compliance.squeezeCenter", comp.squeezeCenter);
+  rememberSection(constraints, settings, "ui.placementSection", this);
 
-  paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Return to anchor"),
-      "toggle.returnToAnchor", toggles.returnToAnchor,
-      {
-          {tr("Compliance"), "compliance.returnToAnchor", &comp.returnToAnchor, 0.0, 2.0, 0.01, 3},
-      },
-      this, &SolverParametersWidget::scheduleChanged));
+  auto* reports = addTab(tabs, tr("Reports"));
+  auto* collectBox = new QGroupBox(tr("Collection"), reports);
+  auto* collectForm = makeForm(collectBox);
+  addToggleRow(collectForm, tr("Collect placement violations"), settings, "toggle.reportViolations",
+      toggles.reportViolations, this, changed, tr("Enable violation reporting when generating the Mushaf."));
+  static_cast<QVBoxLayout*>(reports->layout())->addWidget(collectBox);
+  addNote(reports, tr("These settings select and interpret report findings; they do not change placement forces."));
+  auto* reportSections = new QToolBox(reports);
+  static_cast<QVBoxLayout*>(reports->layout())->addWidget(reportSections);
+  auto* selection = addSection(reportSections, tr("Finding selection"));
+  auto* selectionFormWidget = new QWidget(selection);
+  auto* selectionForm = makeForm(selectionFormWidget);
+  static_cast<QVBoxLayout*>(selection->layout())->addWidget(selectionFormWidget);
+  addToggleRow(selectionForm, tr("Only new / worsened findings"), settings, "reportOnlyChanged",
+      m_params.reportOnlyChanged, this, changed, tr("Structural findings remain included."));
+  addDoubleRow(selectionForm, tr("Minimum excess severity"), settings, "minViolationSeverity", m_params.minViolationSeverity,
+      0.0, 10000.0, 1.0, 3, this, changed, tr("Exclude non-structural findings below this severity after allowed slack."), units);
+  addIntRow(selectionForm, tr("Maximum findings"), settings, "reportMaxFindings", m_params.reportMaxFindings,
+      0, 1000000, this, changed, tr("Limit for the whole report, after filtering and sorting."), tr("Unlimited"));
+  const QString sortKey = settingKey("reportSort");
+  m_params.reportSort = settings.value(sortKey, QString::fromStdString(m_params.reportSort)).toString().toStdString();
+  if (m_params.reportSort != "severity" && m_params.reportSort != "priority") m_params.reportSort = "severity";
+  auto* sort = new QComboBox(selectionFormWidget);
+  sort->addItem(tr("Largest excess severity"), "severity");
+  sort->addItem(tr("Review priority, then severity"), "priority");
+  sort->setCurrentIndex(sort->findData(QString::fromStdString(m_params.reportSort)));
+  sort->setToolTip(tr("Critical structural findings are always sorted first."));
+  selectionForm->addRow(tr("Sort order"), sort);
+  connect(sort, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, sortKey, sort](int) {
+    m_params.reportSort = sort->currentData().toString().toStdString();
+    QSettings().setValue(sortKey, QString::fromStdString(m_params.reportSort));
+    scheduleChanged();
+  });
 
-  paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Squeeze center"),
-      "toggle.squeezeCenter", toggles.squeezeCenter,
-      {
-          {tr("Compliance"), "compliance.squeezeCenter", &comp.squeezeCenter, 0.0, 2.0, 0.01, 3},
-      },
-      this, &SolverParametersWidget::scheduleChanged));
+  auto* diagnostics = addSection(reportSections, tr("Diagnostic types"));
+  auto gapReport = addConstraint(diagnostics, tr("Collision / gap findings"), settings,
+      "toggle.reportGenericGap", toggles.reportGenericGap, this, changed);
+  auto* saveCollision = addToggleRow(gapReport.form, tr("Use Save Collision check"), settings,
+      "reportGenericGapCollisionsOnly", m_params.reportGenericGapCollisionsOnly, this, changed,
+      tr("Use filled-ink geometry and the clearance below. When unchecked, report solver-proxy gap residuals instead."));
+  auto* clearance = addDoubleRow(gapReport.form, tr("Save Collision clearance"), settings,
+      "collisionReportMinGap", m_params.collisionReportMinGap, 0.0, 1000.0, 1.0, 2, this, changed,
+      tr("Reporting threshold for the Save Collision ink check."), units);
+  gapReport.form->labelForField(clearance)->setEnabled(m_params.reportGenericGapCollisionsOnly);
+  clearance->setEnabled(m_params.reportGenericGapCollisionsOnly);
+  connect(saveCollision, &QCheckBox::toggled, this, [gapReport, clearance](bool checked) {
+    gapReport.form->labelForField(clearance)->setEnabled(checked);
+    clearance->setEnabled(checked);
+  });
+  auto* extra = new QWidget(diagnostics);
+  auto* extraForm = makeForm(extra);
+  static_cast<QVBoxLayout*>(diagnostics->layout())->addWidget(extra);
+  addToggleRow(extraForm, tr("Placement audit"), settings, "toggle.reportPlacementAudit", toggles.reportPlacementAudit,
+      this, changed, tr("Read-only checks of mark side, classification and base association."));
+  addToggleRow(extraForm, tr("Soft target residuals"), settings, "toggle.reportSoftResiduals", toggles.reportSoftResiduals,
+      this, changed, tr("Include residuals of placement preferences such as alignment and desired height."));
+  addToggleRow(extraForm, tr("Waqf height-bound residuals"), settings, "toggle.reportWaqfBounds", toggles.reportWaqfBounds,
+      this, changed, tr("Include residuals of the solver's waqf floor and ceiling constraints."));
 
-  paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Match mark position"),
-      "toggle.matchMarkPosition", toggles.matchMarkPosition,
-      {
-          {tr("Compliance"), "compliance.matchMarkPosition", &comp.matchMarkPosition, 0.0, 2.0, 0.01, 3},
-      },
-      this, &SolverParametersWidget::scheduleChanged));
+  auto* allowances = addSection(reportSections, tr("Reporting allowances"));
+  auto* allowanceWidget = new QWidget(allowances);
+  auto* allowanceForm = makeForm(allowanceWidget);
+  static_cast<QVBoxLayout*>(allowances->layout())->addWidget(allowanceWidget);
+  addDoubleRow(allowanceForm, tr("Base vicinity: marks"), settings, "baseVicinityMarkTolerancePercent", m_params.baseVicinityMarkTolerancePercent,
+      0.0, 100.0, 1.0, 2, this, changed, tr("Allowed overflow beyond the vicinity boundary, as a percentage of mark width."), percent);
+  addDoubleRow(allowanceForm, tr("Base vicinity: dots"), settings, "baseVicinityDotTolerancePercent", m_params.baseVicinityDotTolerancePercent,
+      0.0, 100.0, 1.0, 2, this, changed, tr("Allowed overflow beyond the vicinity boundary, as a percentage of dot width."), percent);
+  addDoubleRow(allowanceForm, tr("Waqf: left drift"), settings, "waqfLeftDriftTolerancePercent", m_params.waqfLeftDriftTolerancePercent,
+      0.0, 1000.0, 5.0, 2, this, changed, tr("Allowed left drift, as a percentage of waqf width."), percent);
+  addDoubleRow(allowanceForm, tr("Waqf: right drift"), settings, "waqfRightDriftTolerancePercent", m_params.waqfRightDriftTolerancePercent,
+      0.0, 1000.0, 5.0, 2, this, changed, tr("Allowed right drift, as a percentage of waqf width."), percent);
+  addDoubleRow(allowanceForm, tr("Waqf: previous-line margin"), settings, "waqfPreviousLineMarginPercent", m_params.waqfPreviousLineMarginPercent,
+      0.0, 100.0, 1.0, 2, this, changed, tr("Required margin below the previous baseline, as a percentage of line spacing."), percent);
+  addDoubleRow(allowanceForm, tr("Proxy gap slack multiplier"), settings, "complianceResidualMargin", m_params.complianceResidualMargin,
+      0.0, 100.0, 0.05, 2, this, changed,
+      tr("Multiplier on expected compliance slack for solver-proxy gap findings. Actual intersections remain reportable; Save Collision mode does not use this allowance."));
+  rememberSection(reportSections, settings, "ui.reportSection", this);
 
-  paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Bowl cluster"),
-      "toggle.bowlCluster", toggles.bowlCluster,
-      {
-          {tr("Compliance"), "compliance.bowlCluster", &comp.bowlCluster, 0.0, 2.0, 0.01, 3},
-      },
-      this, &SolverParametersWidget::scheduleChanged));
-
-  paramsFlow->addWidget(makeParamRow(paramsBox, settings, tr("Y-lane"),
-      "toggle.ylane", toggles.ylane,
-      {
-          {tr("Compliance"), "compliance.ylane", &comp.ylane, 0.0, 2.0, 0.01, 3},
-      },
-      this, &SolverParametersWidget::scheduleChanged));
-
-  mainLayout->addWidget(paramsBox);
-
-  mainLayout->addStretch(1);
+  auto* advanced = addTab(tabs, tr("Advanced"));
+  auto* search = new QGroupBox(tr("Collision candidate search"), advanced);
+  auto* searchForm = makeForm(search);
+  addDoubleRow(searchForm, tr("Bounding-box padding"), settings, "broadphasePadding", m_params.broadphasePadding,
+      0.0, 10000.0, 1.0, 1, this, changed,
+      tr("Expand each glyph's bounding box to find potential contacts. This controls search coverage, not minimum clearance or maximum movement."), units);
+  static_cast<QVBoxLayout*>(advanced->layout())->addWidget(search);
+  addNote(advanced, tr("Small padding can miss contacts; larger padding increases candidate checks. The default is 140 units."));
+  static_cast<QVBoxLayout*>(advanced->layout())->addStretch(1);
+  const QString tabKey = settingKey("ui.currentTab");
+  tabs->setCurrentIndex(std::clamp(settings.value(tabKey, 0).toInt(), 0, tabs->count() - 1));
+  connect(tabs, &QTabWidget::currentChanged, this, [tabKey](int index) { QSettings().setValue(tabKey, index); });
 }
 
 void SolverParametersWidget::scheduleChanged() {

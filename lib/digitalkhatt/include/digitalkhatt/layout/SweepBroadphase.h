@@ -26,11 +26,7 @@ struct SweepBroadphase {
 
   SweepBroadphase(const std::vector<std::reference_wrapper<GlyphInstance>>& glyphs,
                   const OptParams& P) {
-    const double maxGap =
-        std::max(P.minGapBody, P.minGapMark);
-    const double maxShift =
-        std::max({P.maxShiftBodyX, P.maxShiftBodyY, P.maxShiftMark});
-    double pad = maxGap + 2.0 * maxShift;
+    const double pad = P.broadphasePadding;
 
     boxes.reserve(glyphs.size());
     for (int idx = 0; idx < static_cast<int>(glyphs.size()); ++idx) {

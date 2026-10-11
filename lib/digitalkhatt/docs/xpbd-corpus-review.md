@@ -139,12 +139,12 @@ semantic audit metadata instead, and retain the existing shaping classes.
    embedded dots and manual bowl placements independently of GSUB/GPOS classes.
    This will make side and ownership checks more meaningful without changing
    the font's shaping behavior.
-3. **Effective parameters in the GUI.** `minGapBody`, `minGapMark` and maximum
-   shifts control broadphase padding rather than actual gap targets or movement
-   limits. `attachStrength`, `smoothStrength` and `sepOvershoot` are not consumed
-   by current XPBD. Label the padding controls accurately and wire or remove
-   inactive controls. Expose the effective generic gap
-   target, currently 80 with named 40/10-unit exceptions, through shared options.
+3. **Effective parameters in the GUI.** The tuning cleanup now replaces the
+   former gap/maximum-shift fields with `broadphasePadding`, migrates their
+   original combined value, and removes inactive strength/overshoot/return
+   controls. Placement, reporting and advanced search settings have separate
+   tabs. The effective generic gap target remains 80 with named 40/10-unit
+   exceptions; making these targets configurable remains a separate change.
 4. **Separate collisions from preferences.** Make actual ink contact the first
    report category. Label desired clearance and compliant placement residuals
    explicitly; thousands of hard-colored clearance rows currently obscure the

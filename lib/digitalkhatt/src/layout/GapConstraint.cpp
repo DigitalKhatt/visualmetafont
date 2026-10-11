@@ -38,7 +38,7 @@ double expectedComplianceResidual(double initialC, double compliance, double w, 
   return initialC * alpha / denom;
 }
 
-double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptParams& P) {
+double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B) {
   if (A.glyphName.starts_with("alef") &&
       B.prevBase == &A &&
       (B.glyphName.starts_with("hamza") ||
@@ -57,7 +57,6 @@ double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptPar
 void solveGapConstraint(SolverContext& solverContext,
                         GlyphInstance& A,
                         GlyphInstance& B,
-                        const OptParams& P,
                         double dt,
                         double& maxPenetration) {
   // Decide desired min gap.
@@ -72,7 +71,7 @@ void solveGapConstraint(SolverContext& solverContext,
     return;
   }
 
-  const double gmin = chooseMinGap(A, B, P);
+  const double gmin = chooseMinGap(A, B);
   double compliance = effectiveGapCompliance(A, B, gmin);
 
   auto dr = getDistance(A.worldPolys, B.worldPolys, gmin);
@@ -164,7 +163,7 @@ void collectGapViolations(
     GlyphInstance& B = glyphs[pr.second];
     if (!(A.isMark || B.isMark)) continue;  // mirror solveGapConstraint's filter
 
-    const double gmin = chooseMinGap(A, B, P);
+    const double gmin = chooseMinGap(A, B);
     auto dr = geometry::getDistance(A.worldPolys, B.worldPolys, gmin);
     if (!std::isfinite(dr.contact.depth_or_gap)) continue;
 

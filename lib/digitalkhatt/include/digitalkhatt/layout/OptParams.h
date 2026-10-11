@@ -12,7 +12,6 @@ struct ConstraintToggles {
   bool waqfPlacement = true;
   bool waqfEscape = true;         // conditional left preference for a stalled squeeze
   bool hardStayAboveBelow = false;  // both stay-above/stay-below rails
-  bool returnToAnchor = false;      // bowl exception
   bool squeezeCenter = false;
   bool stackOrder = true;
   bool baseVicinity = true;
@@ -50,7 +49,6 @@ struct ConstraintCompliance {
   double hardStayAbove = 1e-7;  // near-zero: rigid rail
   double hardStayBelow = 1e-7;  // near-zero: rigid rail
 
-  double returnToAnchor = 0.2;
   double squeezeCenter = 0.3;
 
   double baseVicinityLeft = 0.1;
@@ -67,12 +65,9 @@ struct ConstraintCompliance {
 };
 
 struct OptParams {
-  double minGapBody = 10.0;  // font units
-  double minGapMark = 100.0;
-
-  double maxShiftBodyX = 15.0;
-  double maxShiftBodyY = 4.0;
-  double maxShiftMark = 20.0;  // for marks: radial limit
+  // Expand each ink bounding box when finding potential contact pairs.
+  // Search coverage only: this does not set clearance or limit movement.
+  double broadphasePadding = 140.0;  // font units
 
   int maxIters = 20;
   double tolCollision = 0.5;  // convergence tolerance for corrections and hard bounds
@@ -127,10 +122,6 @@ struct OptParams {
   // change) -- 1.0 would only forgive violations at or below the theoretical
   // ideal exactly.
   double complianceResidualMargin = 1.25;
-
-  double smoothStrength = 0.120;  // 0..1 small
-  double attachStrength = 0.3;  // 0..1 for mark attachment
-  double sepOvershoot = 1.05;   // push a bit extra to converge faster
 
   // HorizontalOrderConstraint anti-misassociation thresholds (see
   // HorizontalOrderConstraint.h): fraction of a mark's own ink that must
