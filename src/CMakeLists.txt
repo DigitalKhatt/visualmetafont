@@ -362,10 +362,11 @@ if (NOT EMSCRIPTEN)
     #GJK-EPA
     PDFHummus::PDFWriter
     digitalkhatt::pdf
+    digitalkhatt_layout_export
   )
 
 else()
-  target_link_libraries(${PROJECT_NAME} PUBLIC digitalkhatt_otlayout QtPropertyBrowser
+  target_link_libraries(${PROJECT_NAME} PUBLIC digitalkhatt_otlayout digitalkhatt_layout_export QtPropertyBrowser
     Qt5::Core Qt5::CorePrivate Qt5::GuiPrivate Qt5::Gui Qt5::Svg Qt5::PrintSupport Qt5::Widgets
     Qt5::QJpegPlugin
     Qt5::QSvgPlugin

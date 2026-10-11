@@ -1,4 +1,5 @@
 #include "GenerateLayout.h"
+#include "digitalkhatt/layout/WholeGlyphLayout.h"
 #include <QDir>
 #include <QSaveFile>
 #include <stdexcept>
@@ -231,103 +232,13 @@ static void generateBinaryGlyphs(OtLayout& layout, QByteArray& data) {
     data.append(glyphData);    
   }
 }
-// Each v4 entry represents one actual GlyphVis instance. Retain all parameter
-// values, including additional axes, without the v3 fixed-point quantization.
-using WholeGlyphKey = std::pair<uint16_t, std::vector<double>>;
-struct WholeGlyphVariant {
-  const GlyphLayoutInfo* placement;
-  uint16_t id = 0;
-};
-using WholeGlyphVariants = std::map<WholeGlyphKey, WholeGlyphVariant>;
-
-static WholeGlyphKey wholeGlyphKey(const GlyphLayoutInfo& glyph) {
-  if (glyph.codepoint < 0 || glyph.codepoint > 65535) {
-    throw std::runtime_error("Glyph code cannot fit the layout binary");
-  }
-  WholeGlyphKey key{static_cast<uint16_t>(glyph.codepoint), {}};
-  key.second.reserve(glyph.parameters.size());
-  for (digitalkhatt::GlyphAxisId axis = 0; axis < glyph.parameters.size(); ++axis) {
-    const auto value = glyph.parameters.value(axis);
-    if (!std::isfinite(value)) throw std::runtime_error("Non-finite glyph parameter");
-    key.second.push_back(value);
-  }
-  return key;
-}
-
-static void appendFloat(QByteArray& data, double coordinate) {
-  static_assert(sizeof(float) == 4 && std::numeric_limits<float>::is_iec559);
-  const auto value = static_cast<float>(coordinate);
-  if (!std::isfinite(value)) throw std::runtime_error("Non-finite glyph outline coordinate");
-  data << std::bit_cast<uint32_t>(value);
-}
-
-static void generateWholeGlyphOutline(const GlyphVis& glyph, QByteArray& data) {
-  QByteArray contours;
-  unsigned count = 0;
-  for (auto* object = glyph.mpPath(); object; object = object->next) {
-    if (object->type != mp_fill_code) continue;
-    auto* start = reinterpret_cast<mp_fill_object*>(object)->path_p;
-    if (!start) continue;
-    if (++count > 255) throw std::runtime_error("Too many glyph contours");
-    appendFloat(contours, start->x_coord);
-    appendFloat(contours, start->y_coord);
-    QByteArray cubics;
-    unsigned cubicCount = 0;
-    auto* p = start;
-    do {
-      if (++cubicCount > 255) throw std::runtime_error("Too many glyph cubics");
-      auto* q = p->next;
-      appendFloat(cubics, p->right_x);
-      appendFloat(cubics, p->right_y);
-      appendFloat(cubics, q->left_x);
-      appendFloat(cubics, q->left_y);
-      appendFloat(cubics, q->x_coord);
-      appendFloat(cubics, q->y_coord);
-      p = q;
-    } while (p != start);
-    contours << static_cast<uint8_t>(cubicCount);
-    contours.append(cubics);
-  }
-  data << static_cast<uint8_t>(count);
-  data.append(contours);
-}
-
-static WholeGlyphVariants generateWholeGlyphs(OtLayout& layout, const LayoutPages& pages,
-                                              QByteArray& data) {
-  WholeGlyphVariants variants;
-  for (const auto& page : pages.pages) {
-    for (const auto& line : page) {
-      if (line.type == LineType::Sura) continue;
-      for (const auto& glyph : line.glyphs) {
-        variants.try_emplace(wholeGlyphKey(glyph), WholeGlyphVariant{&glyph});
-      }
-    }
-  }
-  if (variants.empty() || variants.size() > 65535) {
-    throw std::runtime_error("Whole-glyph variant count cannot fit uint16 IDs");
-  }
-  data << static_cast<uint16_t>(variants.size());
-  unsigned nextId = 1;
-  for (auto& [key, variant] : variants) {
-    variant.id = static_cast<uint16_t>(nextId++);
-    // Resolve the same parameterized GlyphVis used for the PDF, including any
-    // parameters already embedded in a materialized glyph. No master blending.
-    const auto* glyph = layout.getGlyph(*variant.placement);
-    if (!glyph) throw std::runtime_error("Missing GlyphVis for whole-glyph export");
-    data << key.first;
-    generateWholeGlyphOutline(*glyph, data);
-  }
-  return variants;
-}
-
 // TODO use enums
 static QMap<int, int> colorToTajweedEnum = {
   {0x00A650FF,1}, {0x006694FF,2}, {0xB4B4B4FF,3},
   {0x00ADEFFF,4}, {0xC38A08FF,5}, {0xF47216FF,6},
   {0xEC008CFF,7}, {0x8C0000FF,8}
 };
-static void generateBinaryPages(LayoutPages& layoutPages, QByteArray& data, int lineWidth, int scale,
-                                const WholeGlyphVariants* variants = nullptr) {
+static void generateBinaryPages(LayoutPages& layoutPages, QByteArray& data, int lineWidth, int scale) {
 
   data << (uint16_t)layoutPages.pages.size();
   int surahIndex = 0;
@@ -364,15 +275,15 @@ static void generateBinaryPages(LayoutPages& layoutPages, QByteArray& data, int 
           glyphdata << (uint8_t)colorToTajweedEnum[glyph.color];
           glyphMask = glyphMask | 0b1000;
         }
-        if(!variants && glyph.parameters.lefttatweel != 0){
+        if(glyph.parameters.lefttatweel != 0){
           glyphdata << (uint32_t)getFixed(glyph.parameters.lefttatweel);
           glyphMask = glyphMask | 0b10000;
         }
-        if(!variants && glyph.parameters.righttatweel != 0){
+        if(glyph.parameters.righttatweel != 0){
           glyphdata << (uint32_t)getFixed(glyph.parameters.righttatweel);
           glyphMask = glyphMask | 0b100000;
         }
-        if(!variants && glyph.parameters.third != 0){
+        if(glyph.parameters.third != 0){
           glyphdata << (uint32_t)getFixed(glyph.parameters.third);
           glyphMask = glyphMask | 0b1000000;
         }
@@ -380,9 +291,7 @@ static void generateBinaryPages(LayoutPages& layoutPages, QByteArray& data, int 
           throw "Error";
         }
         
-        const uint16_t code = variants
-            ? (line.type == LineType::Sura ? 0 : variants->at(wholeGlyphKey(glyph)).id)
-            : static_cast<uint16_t>(glyph.codepoint);
+        const uint16_t code = static_cast<uint16_t>(glyph.codepoint);
         data << code;
         data << (uint8_t)glyph.cluster;
         data << (uint8_t)glyphMask;        
@@ -413,7 +322,7 @@ void GenerateLayout::generateLayoutBinary(int lineWidth, int scale, BinaryFormat
 
   // Generate both buffers before replacing any output. V4 reads the live
   // parameterized GlyphVis paths; v3 retains its interpolation masters/axes.
-  QByteArray interpolated, wholeGlyphs;
+  QByteArray interpolated, wholeGlyphs, wholeMetadata;
   if (format != BinaryFormat::WholeGlyphs) {
     interpolated.append("DKLY", 4);
     interpolated << (uint16_t)3;
@@ -421,10 +330,21 @@ void GenerateLayout::generateLayoutBinary(int lineWidth, int scale, BinaryFormat
     generateBinaryPages(layoutPages, interpolated, lineWidth, scale);
   }
   if (format != BinaryFormat::Interpolated) {
-    wholeGlyphs.append("DKLY", 4);
-    wholeGlyphs << (uint16_t)4;
-    const auto variants = generateWholeGlyphs(*m_otlayout, layoutPages, wholeGlyphs);
-    generateBinaryPages(layoutPages, wholeGlyphs, lineWidth, scale, &variants);
+    const auto bytes = digitalkhatt::wholeGlyphLayoutBinary(*m_otlayout, layoutPages);
+    wholeGlyphs.append(reinterpret_cast<const char*>(bytes.data()), static_cast<int>(bytes.size()));
+    QJsonArray texts, baselines;
+    for (size_t p=0;p<layoutPages.pages.size();++p) {
+      QJsonArray pageTexts, pageBaselines;
+      for (size_t l=0;l<layoutPages.pages[p].size();++l) {
+        pageTexts.append(QString::fromStdU16String(layoutPages.originalPages[p][l]));
+        pageBaselines.append(-layoutPages.pages[p][l].ystartposition);
+      }
+      texts.append(pageTexts);baselines.append(pageBaselines);
+    }
+    QJsonObject names;
+    for (const auto& [code,name]:m_otlayout->glyphNamePerCode)
+      names.insert(QString::number(code),QString::fromStdString(name));
+    wholeMetadata=QJsonDocument(QJsonObject{{"pages",texts},{"baselines",baselines},{"glyphNames",names}}).toJson();
   }
   const auto save = [](const QString& name, const char* bytes, qint64 size) {
     QSaveFile file(name);
@@ -435,5 +355,6 @@ void GenerateLayout::generateLayoutBinary(int lineWidth, int scale, BinaryFormat
   if (format != BinaryFormat::WholeGlyphs) save(baseName + ".bin", interpolated.constData(), interpolated.size());
   if (format != BinaryFormat::Interpolated) {
     save(baseName + ".variants.bin", wholeGlyphs.constData(), wholeGlyphs.size());
+    save(baseName + ".variants.bin.json", wholeMetadata.constData(), wholeMetadata.size());
   }
 }

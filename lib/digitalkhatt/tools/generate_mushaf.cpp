@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cctype>
 #include <cmath>
@@ -6,6 +7,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -21,6 +23,8 @@
 #include "Layout/MushafRunOptions.h"
 #include "Layout/PlacementPipeline.h"
 #include "digitalkhatt/layout/ViolationReportContext.h"
+#include "digitalkhatt/layout/CollisionReport.h"
+#include "digitalkhatt/layout/WholeGlyphLayout.h"
 #include "digitalkhatt/pdf/MushafPdfWriter.h"
 #include "digitalkhatt/pdf/ViolationReportWriter.h"
 
@@ -186,7 +190,34 @@ struct RunManifest {
   std::map<std::string,std::string> sources;
   Statistics statistics;
   double seconds=0;
+  double placementSeconds=0;
 };
+struct BinaryMetadata {
+  std::vector<std::vector<std::string>> pages;
+  std::vector<std::vector<int>> baselines;
+  std::map<int,std::string> glyphNames;
+};
+// Optional, bounded-memory placement export for comparing solver changes.
+// Shaped inputs are kept separate from final rounded renderer offsets.
+struct PlacementGlyph {
+  int index, base, line, word, cluster, codepoint;
+  std::string name, text;
+  bool mark;
+  double baseX, baseY, dx, dy, xscale, fontSize;
+  std::array<int,4> shaped; // x/y offsets, x/y advances
+  std::array<int,2> final;
+  std::vector<double> parameters;
+};
+struct PlacementRecord { int page; std::vector<PlacementGlyph> glyphs; };
+struct ReviewGlyph {
+  int index, base, line, word;
+  std::string name, text;
+  bool mark;
+  std::array<double,4> box;
+  std::vector<std::vector<std::array<double,2>>> polygons;
+};
+struct ReviewWord { int page, line, word; std::vector<ReviewGlyph> glyphs; };
+struct ReviewDocument { std::vector<ReviewWord> words; };
 Report::GlyphRef glyphRef(const GlyphInstance& g,const std::vector<TextString>& text) {
   Report::GlyphRef result{&g.worldPolys,g.glyphName,g.globalIndex,g.isMark&&g.prevBase?g.prevBase->globalIndex:-1,g.lineIndex+1,g.dx,g.dy};
   if (g.glyphLayout && g.lineIndex>=0 && g.lineIndex<static_cast<int>(text.size())) {
@@ -199,6 +230,53 @@ Report::GlyphRef glyphRef(const GlyphInstance& g,const std::vector<TextString>& 
       while (end<line.size() && line[end]!=u' ') ++end;
       result.wordText=utf8(TextView(line).substr(begin,end-begin));
     }
+  }
+  return result;
+}
+PlacementRecord placementRecord(int page, const PlacementPage& solved,
+    const std::vector<LineLayoutInfo>& shaped, const std::vector<TextString>& text) {
+  PlacementRecord result{page,{}};
+  for (const auto& row:solved.glyphs) for (const auto& g:row) {
+    const auto ref=glyphRef(g,text);
+    const auto& line=shaped[g.lineIndex];
+    const auto& input=line.glyphs[g.glyphIndex];
+    PlacementGlyph record{g.globalIndex,ref.baseGlobalIndex,ref.lineNumber,ref.wordNumber,
+        input.cluster,input.codepoint,g.glyphName,ref.wordText,g.isMark,
+        g.baseX,g.baseY,g.dx,g.dy,line.type==LineType::Line?line.xscale:1.0,line.fontSize,
+        {input.x_offset,input.y_offset,input.x_advance,input.y_advance},
+        {g.glyphLayout->x_offset,g.glyphLayout->y_offset},{}};
+    for (GlyphAxisId axis=0;axis<input.parameters.size();++axis)
+      record.parameters.push_back(input.parameters.value(axis));
+    result.glyphs.push_back(std::move(record));
+  }
+  return result;
+}
+ReviewWord reviewWord(const std::array<int,3>& key, const PlacementPage& solved,
+                     const std::vector<TextString>& text) {
+  const auto [page,line,word]=key;
+  ReviewWord result{page,line,word,{}};
+  double left=std::numeric_limits<double>::infinity(),right=-left;
+  for (const auto& row:solved.glyphs) for (const auto& g:row) {
+    const auto ref=glyphRef(g,text);
+    if (ref.lineNumber!=line || ref.wordNumber!=word || isCollisionSpace(g.glyphName)) continue;
+    const auto box=solved.reportGeometry(g).boundingAABB();
+    left=std::min(left,box.minx); right=std::max(right,box.maxx);
+  }
+  if (!std::isfinite(left)) throw std::runtime_error("Review word not found: "+std::to_string(page)+":"+std::to_string(line)+":"+std::to_string(word));
+  for (const auto& row:solved.glyphs) for (const auto& g:row) {
+    if (std::abs(g.lineIndex+1-line)>1 || isCollisionSpace(g.glyphName)) continue;
+    const auto& geometry=solved.reportGeometry(g);
+    if (geometry.empty()) continue;
+    const auto box=geometry.boundingAABB();
+    if (box.maxx<left-400 || box.minx>right+400) continue;
+    const auto ref=glyphRef(g,text);
+    ReviewGlyph preview{g.globalIndex,ref.baseGlobalIndex,ref.lineNumber,ref.wordNumber,
+        g.glyphName,ref.wordText,g.isMark,{box.minx,box.miny,box.maxx,box.maxy},{}};
+    for (const auto& polygon:geometry.polys()) {
+      auto& points=preview.polygons.emplace_back();
+      for (const auto& point:polygon) points.push_back({point.x,point.y});
+    }
+    result.glyphs.push_back(std::move(preview));
   }
   return result;
 }
@@ -253,6 +331,9 @@ void usage() {
       "  --no-notice               Omit the GUI notice page\n"
       "  --no-pdf                  Skip the Mushaf PDF for parameter experiments\n"
       "  --write-config PATH       Also write resolved settings to PATH\n"
+      "  --placement-data PATH     Stream all shaped/final placements as JSONL\n"
+      "  --layout-binary PATH      Export final whole-glyph DKLY v4 and text sidecar (first page must be 1)\n"
+      "  --review-words-file PATH  JSON array of [page,line,word] previews (requires --report, collision gap mode)\n"
       "  --help                    Show help\n";
 }
 }  // namespace
@@ -265,7 +346,7 @@ int main(int argc,char** argv) {
     options.database=DIGITALKHATT_QURAN_DATABASE;
     options.resources=DIGITALKHATT_METAFONT_RESOURCES;
     options.pdfResources=DIGITALKHATT_PDF_RESOURCES;
-    fs::path output="mushaf.pdf", extraConfig;
+    fs::path output="mushaf.pdf", extraConfig, placementData, reviewWordsFile, layoutBinary;
     // Config is the base; command-line options override it regardless of order.
     for (int i=1;i<argc;++i) if (std::string_view(argv[i])=="--config") {
       if (++i>=argc) throw std::runtime_error("Missing --config value"); readJson(options,argv[i]);
@@ -276,6 +357,7 @@ int main(int argc,char** argv) {
       if (arg=="--help" || arg=="-h") { usage(); return 0; }
       else if (arg=="--config") value();
       else if (arg=="--font") options.font=value();
+      else if (arg=="--layout-binary") layoutBinary=value();
       else if (arg=="--output" || arg=="-o") output=value();
       else if (arg=="--layout") options.layout=value();
       else if (arg=="--justifier") options.justifier=value();
@@ -310,6 +392,8 @@ int main(int argc,char** argv) {
       else if (arg=="--disable-lookup") options.disabledLookups.push_back(value());
       else if (arg=="--xpbd-config") readJson(options.xpbd,value());
       else if (arg=="--write-config") extraConfig=value();
+      else if (arg=="--placement-data") placementData=value();
+      else if (arg=="--review-words-file") reviewWordsFile=value();
       else if (arg=="--force") options.force=true;
       else if (arg=="--no-force") options.force=false;
       else if (arg=="--report") options.report=true;
@@ -369,10 +453,30 @@ int main(int argc,char** argv) {
     const fs::path project=options.font;
     if (fs::path(options.features).is_relative()) options.features=(project.parent_path()/options.features).string();
     options.xpbd.toggles.reportViolations=options.report;
+    std::set<std::array<int,3>> reviewWords;
+    if (!reviewWordsFile.empty()) {
+      if (!options.report || !options.xpbd.toggles.reportGenericGap || !options.xpbd.reportGenericGapCollisionsOnly)
+        throw std::runtime_error("Word previews require --report --report-generic-gap --report-gap-mode collisions");
+      std::vector<std::array<int,3>> requested; readJson(requested,reviewWordsFile);
+      for (const auto& key:requested) {
+        if (key[0]<1 || key[1]<1 || key[2]<1) throw std::runtime_error("Invalid review word coordinates");
+        reviewWords.insert(key);
+      }
+    }
     const auto pages=loadCorpus(options);
     if (!options.lastPage) options.lastPage=static_cast<int>(pages.size());
     if (options.firstPage<1 || options.lastPage<options.firstPage || options.lastPage>static_cast<int>(pages.size())) throw std::runtime_error("Invalid page range");
+    if (!layoutBinary.empty() && options.firstPage!=1) throw std::runtime_error("Binary export must start at page 1");
+    for (const auto& key:reviewWords) if (key[0]<options.firstPage || key[0]>options.lastPage)
+      throw std::runtime_error("Review word is outside the selected page range");
     output=fs::absolute(output); fs::create_directories(output.parent_path());
+    std::ofstream placements;
+    if (!placementData.empty()) {
+      placementData=fs::absolute(placementData); fs::create_directories(placementData.parent_path());
+      placements.open(placementData);
+      if (!placements) throw std::runtime_error("Cannot write "+placementData.string());
+    }
+    ReviewDocument previews;
     const auto sidecar=[&](std::string_view suffix) { return output.parent_path()/(output.stem().string()+std::string(suffix)); };
     writeJson(options,sidecar(".settings.json")); if (!extraConfig.empty()) writeJson(options,extraConfig);
     RunManifest manifest; manifest.options=options;
@@ -429,6 +533,8 @@ int main(int argc,char** argv) {
         "BaseVicinity reporting tolerance (% of mark width): marks "+std::to_string(options.xpbd.baseVicinityMarkTolerancePercent)+"; dots "+std::to_string(options.xpbd.baseVicinityDotTolerancePercent),
         "Waqf allowed left/right drift (% of waqf width): "+std::to_string(options.xpbd.waqfLeftDriftTolerancePercent)+"/"+std::to_string(options.xpbd.waqfRightDriftTolerancePercent),
         "Waqf previous-baseline margin (% of line spacing): "+std::to_string(options.xpbd.waqfPreviousLineMarginPercent)+"; solver bound residuals: "+(options.xpbd.toggles.reportWaqfBounds?"on":"off")};
+    LayoutPages binaryPages;
+    BinaryMetadata binaryMetadata;
     bool newFace=true; int surah=0;
     for (int p=1;p<=options.lastPage;++p) {
       const auto text=splitMushafLines(pages[p-1]);
@@ -439,7 +545,17 @@ int main(int argc,char** argv) {
       auto shaped=layout.justifyPage(scale,width,input,newFace,options.tajweed,HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES,just,options.layout);
       newFace=false; finishMushafPage(shaped,text,p);
       if (shaped.size()!=text.size()) throw std::runtime_error("Wrong line count on page "+std::to_string(p));
+      const auto inputPlacements=placementData.empty()?std::vector<LineLayoutInfo>{}:shaped;
+      const auto placementStarted=std::chrono::steady_clock::now();
       auto solved=placement.solve(shaped,options.xpbd,options.force,options.report);
+      manifest.placementSeconds+=std::chrono::duration<double>(std::chrono::steady_clock::now()-placementStarted).count();
+      if (placements.is_open()) {
+        std::string data;
+        if (glz::write_json(placementRecord(p,solved,inputPlacements,text),data)) throw std::runtime_error("Cannot serialize placements");
+        placements << data << '\n';
+        if (!placements) throw std::runtime_error("Cannot write placement data");
+      }
+      for (const auto& key:reviewWords) if (key[0]==p) previews.words.push_back(reviewWord(key,solved,text));
       auto& statistics=manifest.statistics;
       ++statistics.pages; statistics.lines+=shaped.size();
       for (const auto& line : shaped) {
@@ -470,9 +586,35 @@ int main(int argc,char** argv) {
         if (!report.appendPage(page)) throw std::runtime_error("Cannot write violation page "+std::to_string(p));
       }
       if (mushaf) mushaf->appendPage(shaped,text,p,surahBefore);
-      std::cout << "Page " << p << '/' << options.lastPage << ": " << shaped.size() << " lines, " << solved.violations.size() << " findings\n";
+      if (!layoutBinary.empty()) {
+        std::vector<std::string> labels;std::vector<int> baselines;
+        for (size_t l=0;l<shaped.size();++l) {
+          labels.push_back(utf8(text[l]));baselines.push_back(-shaped[l].ystartposition);
+        }
+        binaryMetadata.pages.push_back(std::move(labels));
+        binaryMetadata.baselines.push_back(std::move(baselines));
+        binaryPages.pages.push_back(std::move(shaped));binaryPages.originalPages.push_back(text);
+      }
+      std::cout << "Page " << p << '/' << options.lastPage << ": " << text.size() << " lines, " << solved.violations.size() << " findings\n";
     }
     if (mushaf) mushaf->finish();
+    if (!layoutBinary.empty()) {
+      layoutBinary=fs::absolute(layoutBinary);fs::create_directories(layoutBinary.parent_path());
+      const auto bytes=wholeGlyphLayoutBinary(layout,binaryPages);
+      const fs::path temporary=layoutBinary.string()+".tmp";
+      std::ofstream file(temporary,std::ios::binary);
+      file.write(reinterpret_cast<const char*>(bytes.data()),bytes.size());file.close();
+      if (!file) throw std::runtime_error("Cannot write binary layout");
+      fs::rename(temporary,layoutBinary);
+      for (const auto& [code,name]:layout.glyphNamePerCode) binaryMetadata.glyphNames.emplace(code,name);
+      writeJson(binaryMetadata,layoutBinary.string()+".json");
+      std::cout << "Binary layout: " << layoutBinary << '\n';
+    }
+    if (placements.is_open()) {
+      placements.close();
+      if (!placements) throw std::runtime_error("Cannot finalize placement data");
+    }
+    if (!reviewWordsFile.empty()) writeJson(previews,sidecar(".review.json"));
     if (options.report) {
       if (!report.finish()) throw std::runtime_error("Cannot finalize violation report");
       auto summary=report.summaryEntries();

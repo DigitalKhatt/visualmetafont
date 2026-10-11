@@ -8,18 +8,24 @@ The GUI writes `<font>Layout.variants.bin` (DKLY v4) and, when selected,
 `<font>Layout.bin` (DKLY v3) in the font project's `output/` directory.
 Keep the intended justification parameters, Force, Tajweed and line spacing.
 
-V4 generation is implemented in the GUI's `generateLayoutBinary.cpp`. For each
+V4 generation is implemented in the shared Qt-free `WholeGlyphLayout.cpp`, called
+by the GUI's `generateLayoutBinary.cpp` and the native Mushaf CLI. For each
 distinct body placement's glyph code and complete parameter vector, it obtains
 `OtLayout::getGlyph(placement)` and writes the resulting `GlyphVis::mpPath()`
 contours directly. Values are converted from MetaPost coordinates to float32
 without intermediate fixed-point rounding. Additional axes are included in
 variant identity too. No interpolation or Python is involved.
 
-V3 and v4 share the placement/line-metadata writer. Surah headings use ID zero
+V3 and v4 preserve the same placement/line-metadata fields. Surah headings use ID zero
 in v4 and the app's separate heading font; body placements use nonzero IDs.
 The native loader accepts both formats. Copy the selected v4 file to both app
 assets under the existing `oldmadinaLayout.bin` names, then rebuild/install.
 Glyph caching remains enabled for all glyphs by default.
+
+The GUI also writes `<font>Layout.variants.bin.json` with source text, glyph names
+and line baselines for word-level comparisons. The native CLI's `--layout-binary
+PATH` writes the same v4 format with a `PATH.json` sidecar. See
+`lib/digitalkhatt/tools/compare_layout_binaries.md` for reviewing two exports.
 
 ## Standalone conversion (baked interpolation)
 

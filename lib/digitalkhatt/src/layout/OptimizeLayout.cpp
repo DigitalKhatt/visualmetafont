@@ -14,6 +14,7 @@
 #include "digitalkhatt/layout/PlacementAudit.h"
 #include "digitalkhatt/layout/SolverContext.h"
 #include "digitalkhatt/layout/SweepBroadphase.h"
+#include "digitalkhatt/layout/TopMarkStack.h"
 #include "digitalkhatt/layout/XPBDConstraint.h"
 #include "digitalkhatt/layout/constraints/BaseVicinityConstraint.h"
 #include "digitalkhatt/layout/constraints/BowlClusterConstraint.h"
@@ -77,86 +78,21 @@ void initGlyphMobilities(std::vector<std::vector<GlyphInstance>>& pageGlyphs) {
 
 namespace {
 
-// Explicit, hand-authored rules for which top marks are allowed to stack
-// directly on one another — analogous to an OpenType contextual rule,
-// rather than a generic "chain whatever shares a base" heuristic (which
-// stacked marks that were never meant to relate to each other).
-//
-// Each row names both sides of the relationship directly: `aboveNames` is
-// the mark being positioned (further from the base), `belowNames` is the
-// mark-family it attaches beneath. Hash sets rather than vectors, since
-// every row gets membership-tested against every mark on a base.
-//
-// offsetX is a plain per-row number for now (same status as minGap) -- once
-// a real formula for optical alignment (e.g. why fatha sits slightly left
-// of shadda's center) is worked out, this is the field that becomes a
-// named, pluggable function instead of a constant.
-struct StackSlot {
-  std::unordered_set<std::string> aboveNames;
-  std::unordered_set<std::string> belowNames;
-  double offsetX = 0.0;  // target centerX(below) - centerX(above)
-  double minGap = 40.0;
-  double gapCompliance = 0.1;
-  double xAlignCompliance = 0.2;
-};
-using StackTable = std::vector<StackSlot>;
-
-// "open"/"not open" fathatan and dammatan are read here as the plain glyph
-// (fathatan/dammatan) vs. the idgham-assimilated glyph
-// (fathatanidgham/dammatanidgham) -- the only two variants this font has.
-const StackTable& topStackTable() {
-  static const StackTable table = {
-      {{"shadda"}, {"onedotup", "twodotsup", "three_dots"}},
-      {{"fatha", "fathatanidgham", "fathatan"}, {"shadda"}, 0, 0},
-      {{"damma", "dammatanidgham", "dammatan"}, {"shadda"}, 30, 0},
-      {{"fatha", "fathatanidgham", "fathatan", "damma", "dammatanidgham", "dammatan"}, {"hamzaabove", "hamzaabove.joined"}, 30, 0},
-      {{"fatha", "fathatanidgham", "fathatan", "damma", "dammatanidgham", "dammatan"}, {"onedotup", "twodotsup", "three_dots"}, 30, 10},
-      {{"maddahabove"}, {"smallalef.isol", "smallalef.replacement", "smallalef.joined"}, 30, 0}};
-  return table;
-}
-
-GlyphInstance* findMember(const std::vector<GlyphInstance*>& group,
-                          const std::unordered_set<std::string>& names) {
-  for (GlyphInstance* g : group) {
-    if (names.contains(g->glyphName)) return g;
-  }
-  return nullptr;
-}
-
-// Whether some other mark in the group sits (vertically) between `below`
-// and `above` -- if so, they aren't actually adjacent in this base's stack,
-// and a rule matching them directly must not fire (e.g. fatha must not
-// stack directly on dot-above when shadda is sitting between them).
-bool hasMarkBetween(const std::vector<GlyphInstance*>& group,
-                    const GlyphInstance* below, const GlyphInstance* above) {
-  const double belowY = boxCenterY(*below);
-  const double aboveY = boxCenterY(*above);
-  for (GlyphInstance* m : group) {
-    if (m == below || m == above) continue;
-    const double y = boxCenterY(*m);
-    if (y > belowY && y < aboveY) return true;
-  }
-  return false;
-}
-
-void wireStackTable(const std::vector<GlyphInstance*>& group, const StackTable& table,
+void wireStackTable(const std::vector<GlyphInstance*>& group,
                     const OptParams& P,
                     std::vector<std::unique_ptr<XPBDConstraint>>& xpbdConstraints,
                     std::set<std::pair<int, int>>& excludedFromGenericGap) {
-  for (const auto& rule : table) {
-    GlyphInstance* above = findMember(group, rule.aboveNames);
-    GlyphInstance* below = findMember(group, rule.belowNames);
-    if (above && below && !hasMarkBetween(group, below, above)) {
-      xpbdConstraints.push_back(std::make_unique<StackOrderConstraint>(
-          *below, *above, /*isAbove=*/true,
-          rule.minGap, P.compliance.stackOrderGap, P.compliance.stackOrderXAlign, rule.offsetX));
-      // StackOrderConstraint already enforces the correct (often 0, for an
-      // intentional tight stack) gap for this pair every iteration; keep the
-      // blunt generic broadphase minGap from also fighting over it.
-      excludedFromGenericGap.insert(
-          {std::min(below->globalIndex, above->globalIndex),
-           std::max(below->globalIndex, above->globalIndex)});
-    }
+  for (const auto& rule : buildTopMarkStackLinks(group)) {
+    GlyphInstance* above = rule.outer;
+    GlyphInstance* below = rule.inner;
+    xpbdConstraints.push_back(std::make_unique<StackOrderConstraint>(
+        *below, *above, /*isAbove=*/true,
+        rule.minGap, P.compliance.stackOrderGap, P.compliance.stackOrderXAlign, rule.offsetX));
+    // The authored stack gap replaces generic clearance only for this direct
+    // pair. Contacts with every other mark remain active.
+    excludedFromGenericGap.insert(
+        {std::min(below->globalIndex, above->globalIndex),
+         std::max(below->globalIndex, above->globalIndex)});
   }
 }
 
@@ -299,6 +235,11 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
     if (inBowl) {
       bowlMarkGroups[mark.prevBase].push_back(&mark);
     } else {
+      // The original glyph indices also account for intervening glyphs that
+      // are not in this group, so no special hamza membership is needed.
+      if (isAboveMark)
+        aboveStackGroups[mark.prevBase].push_back(&mark);
+
       // ---- 1) Generic hard stay-above/stay-below rail ----
       if (isAboveMark) {
         if (P.toggles.hardStayAboveBelow) {
@@ -309,7 +250,6 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
           hardConstraints.push_back(std::make_unique<HardStayAboveConstraint>(
               mark, P.compliance.hardStayAbove, /*minGapToBase=*/0.0, minDistFromBaseline, /*useBaseTop=*/false, true));
         }
-        aboveStackGroups[mark.prevBase].push_back(&mark);
       } else if (isBelowMark) {
         // A bowl-base below-mark would have hit the manuallyPositioned
         // continue above, so isBowlBase is never true here.
@@ -432,7 +372,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
   // ---- 4) Explicit, case-by-case top-mark stacking ----
   if (P.toggles.stackOrder) {
     for (auto& [base, group] : aboveStackGroups) {
-      wireStackTable(group, topStackTable(), P, xpbdConstraints, solverContext.excludedFromGenericGap);
+      wireStackTable(group, P, xpbdConstraints, solverContext.excludedFromGenericGap);
       // Any combination of top marks not covered by a table row is left
       // unstacked until a rule for it is defined.
     }

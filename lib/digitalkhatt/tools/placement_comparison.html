@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mark placement comparison</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#252a33;background:#f4f5f7;--grid:60%;--image:220px}*{box-sizing:border-box}body{margin:0}header{padding:22px 3vw 14px;background:#fff;border-bottom:1px solid #dbe0e6}h1{font-size:24px;margin:0 0 8px}p{margin:7px 0;color:#56606e;font-size:14px}nav{display:flex;gap:16px;flex-wrap:wrap;font-size:13px}a{color:#275aa9}#controls{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 3vw;background:#fffffff0;border-bottom:1px solid #dbe0e6;backdrop-filter:blur(6px)}label{display:flex;align-items:center;gap:7px;font-size:12px}input[type=search]{min-width:210px;padding:9px;border:1px solid #ccd3dc;border-radius:6px}select,button{padding:7px;border:1px solid #ccd3dc;border-radius:6px;background:white;color:inherit;cursor:pointer}input[type=range]{width:110px}input[type=number]{width:65px;padding:7px;border:1px solid #ccd3dc;border-radius:6px}#status{font-size:12px;color:#5b6676}#grid{width:var(--grid);max-width:96%;margin:20px auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));gap:12px}.case{position:relative;cursor:pointer;border:1px solid #d8dee6;border-radius:9px;background:white;overflow:hidden;padding:6px}.case:hover{border-color:#6591c5;box-shadow:0 3px 14px #17325416}.case:focus-visible{outline:3px solid #5d94d5}.case.featured{border-color:#58a593}.pair{display:grid;grid-template-columns:1fr 1fr;gap:5px}.pair figure{margin:0;min-width:0}.pair figcaption{text-align:center;font-size:10px;color:#87909c;margin:2px}.pair svg{display:block;width:100%;height:var(--image)}.case .loc{position:absolute;bottom:5px;left:10px;font-size:9px;color:#8a939f;pointer-events:none}.empty{text-align:center;padding:40px;grid-column:1/-1}#pager{display:flex;align-items:center;justify-content:center;gap:16px;padding:10px 0 30px;font-size:12px}dialog{width:min(1200px,95vw);max-height:94vh;border:1px solid #bcc7d3;border-radius:12px;padding:22px;box-shadow:0 15px 60px #0003}dialog::backdrop{background:#14203280}dialog h2{margin:0;font-size:19px}.dialog-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.dialog-tools{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:15px 0}.large svg{height:350px}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:15px}th,td{text-align:left;padding:7px;border-bottom:1px solid #e2e6eb}th{color:#657282}#word{font-size:24px;margin:12px 0;text-align:right}details{margin-top:15px;font-size:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere}#legend{font-size:12px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:#bb5360}.dot.blue{background:#297cac}.muted{color:#87919e}@media(max-width:800px){#grid{width:94%!important}.large svg{height:260px}#controls{position:static}.dialog-head h2{font-size:16px}}
+</style></head><body>
+<header><h1>Mark placement comparison</h1><p id="summary"></p><p id="proof"></p><p id="description">The data contains every changed final, rounded glyph offset. The default view hides movements below 30 font units and keeps new or worsened findings visible. Both runs use the same shaped inputs and font snapshot.</p>
+<nav><a href="before.pdf">Before Mushaf</a><a href="after.pdf">After Mushaf</a><a href="before_violations.html">Before findings</a><a href="after_violations.html">After findings</a><a href="changes.csv">All movements (CSV)</a><a href="summary.json">Run settings and counts</a></nav></header>
+<section id="controls"><input id="search" type="search" aria-label="Filter changes" placeholder="Page, Arabic word, glyph…"><label title="Minimum maximum glyph movement per word. 30 font units is about 0.45 points in this Mushaf.">Minimum move <input id="minimum" type="number" min="0" step="1" value="30"> units</label><button id="exact">All exact differences</button><label title="Also show words with a new reported finding or severity increase above one unit, even below the movement threshold."><input id="regressions" type="checkbox" checked>Keep new/worse findings</label><label id="familyControl">Rule family <select id="family"><option value="all">All</option><option value="hamza">Hamza</option><option value="maddah">Small-alef / maddah</option><option value="dots">Dots / shadda</option><option value="neighbor">Neighbor effects</option></select></label><label>Sort <select id="sort"><option value="location">Page / line / word</option><option value="movement">Largest movement</option></select></label><label>Cases <select id="limit"><option value="0">All</option><option>24</option><option>48</option><option>96</option><option>192</option></select></label><label>Grid width <input id="width" type="range" min="40" max="160" value="100"><output id="widthValue">100%</output></label><label>Image size <input id="size" type="range" min="40" max="180" value="100"><output id="sizeValue">100%</output></label><span id="status"></span></section>
+<main id="grid"></main><footer id="pager"><button id="previous">Previous</button><span id="pageStatus"></span><button id="next">Next</button></footer>
+<dialog id="detail"><div class="dialog-head"><h2 id="title"></h2><button id="close">Close</button></div><div id="word" dir="rtl"></div><div class="dialog-tools"><span id="legend"><span class="dot"></span>Changed before <span class="dot blue"></span>Changed after <span class="muted">• Nearby ink in gray</span></span><label><input id="context" type="checkbox">Show neighboring lines</label><span><button id="prevCase">← Previous</button> <button id="nextCase">Next →</button></span></div><div id="large" class="large"></div><p id="links"></p><div id="table"></div><details id="stackDetail"><summary>Changed constraint links</summary><div id="stackLinks"></div></details><details id="findingsDetail"><summary>Reported findings in this word (severity ≥ 1)</summary><div id="findings"></div></details><details><summary>Comparison settings</summary><pre id="settings"></pre></details></dialog>
+<script id="data" type="application/json">/*PLACEMENT_DATA*/</script>
+<script>
+'use strict';
+const data=JSON.parse(document.getElementById('data').textContent), $=id=>document.getElementById(id), ns='http://www.w3.org/2000/svg';
+let filtered=data.cases, page=0, current=null, observer=null;
+const fmt=v=>Number(v).toFixed(2), el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
+$('summary').textContent=`${data.summary.changedWords.toLocaleString()} changed words · ${data.summary.changedGlyphs.toLocaleString()} changed glyphs · ${data.summary.pages} pages reviewed`;
+$('settings').textContent=JSON.stringify(data.summary.configuration,null,2);
+const verified=['before','after'].every(side=>data.summary.repeatability?.[side]?.verified);
+$('proof').textContent=verified?'Repeatability verified: independent runs produce byte-identical placement exports.':'Repeatability has not been verified for this comparison.';
+$('familyControl').hidden=!data.summary.attribution;
+$('findingsDetail').hidden=!!data.summary.binaryComparison;
+if(data.summary.binaryComparison){$('description').textContent='Compares final DKLY v4 cubic outlines, positions, scales and colors. Variant IDs are ignored. Outline and glyph-sequence changes remain visible; small position changes use the movement filter. Surah heading outlines and solver diagnostics are not contained in the binary.';if(!data.summary.configuration.wordLabels)$('description').textContent+=' Without text sidecars, cases cover whole lines.';for(const a of document.querySelectorAll('nav a'))if(a.href.includes('_violations.html')||a.href.endsWith('.pdf'))a.hidden=true;}
+function bounds(c,context=false){
+ const boxes=[...c.before,...c.after].filter(g=>context || (g.line===c.line&&g.word===c.word)).map(g=>g.box);
+ const b=[Math.min(...boxes.map(g=>g[0])),Math.min(...boxes.map(g=>g[1])),Math.max(...boxes.map(g=>g[2])),Math.max(...boxes.map(g=>g[3]))];
+ const pad=60;return [b[0]-pad,b[1]-pad,b[2]+pad,b[3]+pad];
+}
+function svg(c,side,box){
+ const e=document.createElementNS(ns,'svg');e.setAttribute('viewBox',`${box[0]} ${-box[3]} ${box[2]-box[0]} ${box[3]-box[1]}`);e.setAttribute('aria-label',`${side} page ${c.page} line ${c.line} word ${c.word}`);
+ const changed=new Set(c.changedIndices??c.changes.map(g=>g.index));
+ for(const g of c[side]){
+  const p=document.createElementNS(ns,'path');
+  p.setAttribute('d',g.contours?g.contours.map(contour=>`M${fmt(contour[0][0])},${fmt(-contour[0][1])} `+contour.slice(1).map(segment=>'C'+segment.map((v,i)=>fmt(i%2?-v:v)).join(',')).join(' ')+'Z').join(' '):g.polygons.map(poly=>poly.map((pt,i)=>`${i?'L':'M'}${fmt(pt[0])},${fmt(-pt[1])}`).join(' ')+'Z').join(' '));
+  const own=g.line===c.line&&g.word===c.word;
+  p.setAttribute('fill',changed.has(g.index)?(side==='before'?'#bb5360':'#297cac'):(own?'#252a33':'#bcc4ce'));
+  p.setAttribute('fill-rule','nonzero');
+  const title=document.createElementNS(ns,'title');title.textContent=`${g.name} · Line ${g.line}, word ${g.word}`;p.append(title);e.append(p);
+ }return e;
+}
+function pair(c,context=false){const p=el('div');p.className='pair';const b=bounds(c,context);for(const side of ['before','after']){const f=el('figure');f.append(el('figcaption',side==='before'?'Before':'After'),svg(c,side,b));p.append(f)}return p}
+function render(){
+ if(observer)observer.disconnect();
+ observer='IntersectionObserver' in window?new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting){const card=entry.target;card.prepend(pair(card.caseData));card.querySelector('.placeholder').remove();observer.unobserve(card)}},{rootMargin:'600px'}):null;
+ const limit=Number($('limit').value),max=Math.max(1,limit?Math.ceil(filtered.length/limit):1);page=Math.min(page,max-1);
+ $('status').textContent=`${filtered.length.toLocaleString()} / ${data.cases.length.toLocaleString()} words`;
+ $('pageStatus').textContent=`${page+1} / ${max}`;$('previous').disabled=page===0;$('next').disabled=page>=max-1;$('pager').hidden=!limit;
+ const fragment=document.createDocumentFragment(),shown=limit?filtered.slice(page*limit,(page+1)*limit):filtered;
+ for(const c of shown){const card=el('button');card.type='button';card.className='case'+(c.page===552&&c.line===5&&c.word===3?' featured':'');card.title=`Page ${c.page} · Line ${c.line} · Word ${c.word}\n${c.text}\n${c.changes.map(g=>g.name).join(', ')}\nMaximum movement ${fmt(c.maximumMovement)} font units. Click for details.`;card.setAttribute('aria-label',card.title);if(observer){const placeholder=el('div');placeholder.className='placeholder';placeholder.style.height='calc(var(--image) + 20px)';card.append(placeholder);card.caseData=c;observer.observe(card)}else card.append(pair(c));const loc=el('span',`${c.page} · ${c.line} · ${c.word}`);loc.className='loc';card.append(loc);card.onclick=()=>open(c);fragment.append(card)}
+ if(!shown.length){const e=el('div','No matching changes.');e.className='empty';fragment.append(e)}$('grid').replaceChildren(fragment);
+}
+function familyMatches(c){
+ const family=$('family').value;if(family==='all')return true;
+ if(family==='neighbor')return c.attribution?.scope==='neighbor-effect';
+ const names=(c.attribution?.relationships??[]).flatMap(r=>[...r.removed,...r.added].flatMap(link=>[link.parent,link.child]));
+ return names.some(n=>family==='hamza'?n.startsWith('hamzaabove'):family==='maddah'?(n.startsWith('maddah')||n.startsWith('smallalef')):(n.includes('dot')||n==='three_dots'||n.startsWith('shadda')));
+}
+function filter(){const q=$('search').value.trim().toLowerCase(),minimum=Math.max(0,Number($('minimum').value)||0);
+ filtered=data.cases.filter(c=>(c.outlineChanged||c.structureChanged||c.maximumMovement>=minimum||($('regressions').checked&&c.regression))&&familyMatches(c)&&`${c.page} ${c.line} ${c.word} ${c.text} ${c.changes.map(g=>g.name).join(' ')}`.toLowerCase().includes(q));
+ if($('sort').value==='movement')filtered.sort((a,b)=>b.maximumMovement-a.maximumMovement);page=0;render();
+}
+function open(c){current=c;$('title').textContent=`Page ${c.page} · Line ${c.line} · Word ${c.word}`;$('word').textContent=c.text;renderDetail();if(!$('detail').open)$('detail').showModal()}
+function renderDetail(){const c=current;$('large').replaceChildren(pair(c,$('context').checked));
+ const table=el('table'),head=el('tr');for(const h of ['Glyph',data.summary.binaryComparison?'Source cluster':'Owner index','Before x / y','After x / y','Δ X / Y (font units)'])head.append(el('th',h));table.append(head);
+ for(const g of c.changes){const row=el('tr');for(const v of [g.kind?`${g.name} (${g.kind})`:g.name,data.summary.binaryComparison?g.cluster:g.base,g.before?.join(' / ')??'Absent',g.after?.join(' / ')??'Absent',`${fmt(g.x)} / ${fmt(g.y)}`])row.append(el('td',v));table.append(row)}$('table').replaceChildren(table);
+ const reports=el('div');reports.className='pair';for(const side of ['before','after']){const section=el('section');section.append(el('h3',side==='before'?'Before':'After'));const rows=c.findings?.[side]??[];if(!rows.length)section.append(el('p','No findings at this reporting threshold.'));for(const r of rows)section.append(el('p',`${r.type} · ${fmt(r.severity)}: ${r.detail}`));reports.append(section)}$('findings').replaceChildren(reports);
+ $('stackDetail').hidden=!c.attribution;
+ const stack=el('div');if(c.attribution?.scope==='neighbor-effect')stack.append(el('p','This word has no changed stack links. Its small displacement results from interaction with other marks on the page.'));
+ for(const relation of c.attribution?.relationships??[]){for(const kind of ['removed','added'])for(const link of relation[kind])stack.append(el('p',`${kind==='removed'?'Removed':'Added'}: ${link.parent} [${link.inner}] → ${link.child} [${link.outer}]`))}$('stackLinks').replaceChildren(stack);
+ const links=[];if(!data.summary.binaryComparison)for(const side of ['before','after']){const a=el('a',`${side==='before'?'Before':'After'} PDF · page ${c.page}`);a.href=`${side}.pdf#page=${c.page}`;a.target='_blank';links.push(a,document.createTextNode('  '))}$('links').replaceChildren(...links);
+ const i=filtered.indexOf(c);$('prevCase').disabled=i<=0;$('nextCase').disabled=i<0||i>=filtered.length-1;
+}
+function step(n){const i=filtered.indexOf(current)+n;if(i>=0&&i<filtered.length)open(filtered[i])}
+$('minimum').oninput=filter;$('regressions').onchange=filter;$('family').onchange=filter;$('exact').onclick=()=>{$('minimum').value='0';filter()};$('search').oninput=filter;$('sort').onchange=filter;$('limit').onchange=()=>{page=0;render()};$('previous').onclick=()=>{page--;render()};$('next').onclick=()=>{page++;render()};
+$('width').oninput=()=>{const v=Number($('width').value);document.documentElement.style.setProperty('--grid',`${.6*v}%`);$('widthValue').textContent=`${v}%`};
+$('size').oninput=()=>{const v=Number($('size').value);document.documentElement.style.setProperty('--image',`${2.2*v}px`);$('sizeValue').textContent=`${v}%`};
+$('close').onclick=()=>$('detail').close();$('context').onchange=renderDetail;$('prevCase').onclick=()=>step(-1);$('nextCase').onclick=()=>step(1);
+$('detail').addEventListener('click',e=>{if(e.target===$('detail')){const r=$('detail').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('detail').close()}});
+document.addEventListener('keydown',e=>{if($('detail').open&&e.target.tagName!=='INPUT'){if(e.key==='ArrowLeft')step(-1);if(e.key==='ArrowRight')step(1)}});
+filter();
+</script></body></html>

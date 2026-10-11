@@ -151,6 +151,7 @@ add_library(digitalkhatt_layout
   src/layout/CollisionReport.cpp
   src/layout/MarkClassifier.cpp
   src/layout/OptimizeLayout.cpp
+  src/layout/TopMarkStack.cpp
   src/layout/PlacementAudit.cpp
   src/layout/constraints/YlaneConstraint.cpp
   src/layout/constraints/HorizontalOrderConstraint.cpp
@@ -177,6 +178,9 @@ if(BUILD_TESTING)
   add_executable(digitalkhatt_test_placement_safety tests/layout/PlacementSafetyTest.cpp)
   target_link_libraries(digitalkhatt_test_placement_safety PRIVATE digitalkhatt_layout)
   add_test(NAME digitalkhatt.placement_safety COMMAND digitalkhatt_test_placement_safety)
+  add_executable(digitalkhatt_test_top_mark_stack tests/layout/TopMarkStackTest.cpp)
+  target_link_libraries(digitalkhatt_test_top_mark_stack PRIVATE digitalkhatt_layout)
+  add_test(NAME digitalkhatt.top_mark_stack COMMAND digitalkhatt_test_top_mark_stack)
   add_executable(digitalkhatt_test_waqf_escape tests/layout/WaqfEscapeTest.cpp)
   target_link_libraries(digitalkhatt_test_waqf_escape PRIVATE digitalkhatt_layout)
   add_test(NAME digitalkhatt.waqf_escape COMMAND digitalkhatt_test_waqf_escape)
@@ -279,8 +283,13 @@ set_target_properties(digitalkhatt_otlayout PROPERTIES
   WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
 
+add_library(digitalkhatt_layout_export STATIC src/otlayout/Layout/WholeGlyphLayout.cpp)
+target_include_directories(digitalkhatt_layout_export PUBLIC include)
+target_link_libraries(digitalkhatt_layout_export PUBLIC digitalkhatt::otlayout)
+
 if(NOT EMSCRIPTEN)
   find_library(DIGITALKHATT_SQLITE3_LIBRARY NAMES sqlite3 REQUIRED)
+
 
   add_library(digitalkhatt_pdf src/pdf/ViolationReportWriter.cpp src/pdf/ViolationReportWeb.cpp src/pdf/MushafPdfWriter.cpp)
   add_library(digitalkhatt::pdf ALIAS digitalkhatt_pdf)
@@ -289,7 +298,7 @@ if(NOT EMSCRIPTEN)
   target_link_libraries(digitalkhatt_pdf PUBLIC digitalkhatt::otlayout PDFHummus::PDFWriter)
 
   add_executable(digitalkhatt_generate_mushaf tools/generate_mushaf.cpp)
-  target_link_libraries(digitalkhatt_generate_mushaf PRIVATE digitalkhatt::pdf ${DIGITALKHATT_SQLITE3_LIBRARY})
+  target_link_libraries(digitalkhatt_generate_mushaf PRIVATE digitalkhatt::pdf digitalkhatt_layout_export ${DIGITALKHATT_SQLITE3_LIBRARY})
   target_compile_definitions(digitalkhatt_generate_mushaf PRIVATE
     DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/metafont"
     DIGITALKHATT_QURAN_DATABASE="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/quran-data.sqlite"
