@@ -6,6 +6,7 @@
 #include "digitalkhatt/layout/ConstraintDiagnostics.h"
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
 #include "digitalkhatt/layout/OptParams.h"
+#include "digitalkhatt/layout/SolverContext.h"
 #include "digitalkhatt/layout/constraints/WaqfPlacementConstraint.h"
 
 namespace digitalkhatt::layout {
@@ -32,6 +33,12 @@ void WaqfEscapeConstraint::project(SolverContext& context, double dt) {
 
   double smallestGap = std::numeric_limits<double>::infinity();
   double desiredGap = std::numeric_limits<double>::infinity();
+  bool squeezedByOwnStack = false;
+  const auto estimate = [&](const WaqfEscapeContact& c) {
+    const geometry::Vec2 relative{waqf.dx - c.obstacle->dx,
+                                 waqf.dy - c.obstacle->dy};
+    return c.gap + geometry::dot(c.normal, relative - c.relativeShift);
+  };
   // The previous pass's pairs were sampled at different points in that pass.
   // Account for subsequent translations using their existing contact normals.
   // These estimates only trigger a preference; they never certify clearance.
@@ -40,15 +47,21 @@ void WaqfEscapeConstraint::project(SolverContext& context, double dt) {
     // feature and separation direction while the waqf is trapped. Identify
     // upper obstacles by their owning line, rather than the current normal.
     if (upper.obstacle->lineIndex >= waqf.lineIndex) continue;
-    const auto estimate = [&](const WaqfEscapeContact& c) {
-      const geometry::Vec2 relative{waqf.dx - c.obstacle->dx,
-                                   waqf.dy - c.obstacle->dy};
-      return c.gap + geometry::dot(c.normal, relative - c.relativeShift);
-    };
     const double upperGap = estimate(upper);
     if (upperGap >= 0.9 * upper.desiredGap) continue;
     desiredGap = std::min(desiredGap, upper.desiredGap);
     smallestGap = std::min(smallestGap, upperGap);
+    // Opposing contacts from the upper line and the owning top stack already
+    // identify a squeeze. Waiting for stalled progress lets normal alignment
+    // pull the waqf back across the upper outline and select a rightward exit.
+    for (const auto& lower : contacts) {
+      if (lower.obstacle->lineIndex != waqf.lineIndex ||
+          lower.obstacle->prevBase != base || !lower.obstacle->isTopMark ||
+          context.isWaqf(*lower.obstacle)) continue;
+      if (estimate(lower) < 0.9 * lower.desiredGap &&
+          geometry::dot(upper.normal, lower.normal) < -0.5)
+        squeezedByOwnStack = true;
+    }
   }
 
   const double threshold = std::max(0.0, params.waqfEscapeMinGap);
@@ -68,7 +81,8 @@ void WaqfEscapeConstraint::project(SolverContext& context, double dt) {
   const double downStep = (bounds.maxy - bounds.miny) *
       std::clamp(params.waqfEscapeDownStepPercent, 0.0, 100.0) / 100.0;
   const double currentOffset = bounds.minx - baseLeft;
-  if (tight && (active || stalledIterations >= 3) && (step > 0.0 || downStep > 0.0)) {
+  if (tight && (active || squeezedByOwnStack || stalledIterations >= 3) &&
+      (step > 0.0 || downStep > 0.0)) {
     if (!active) {
       targetOffset = currentOffset;
       targetBottomOffset = bounds.miny - waqf.lineY;

@@ -108,8 +108,12 @@ GJK queries, placement searches, contact sweeps or solver iterations.
 
 The preference activates when a previous-line obstacle remains too close to the
 waqf and its estimated clearance stays below 10 font units with less than 10%
-of the desired gap improvement for three iterations. An opposing lower mark
-is not required. The obstacle's owning line identifies it as an upper obstacle;
+of the desired gap improvement for three iterations. If that tight upper contact
+opposes a still-crowded contact with an ordinary top mark attached to the same
+base (contact normals more than 120 degrees apart), escape activates immediately.
+This recognizes a squeeze before normal alignment pulls the waqf back and the
+contacts select a rightward exit. An opposing lower mark is not required for the
+three-iteration fallback. The obstacle's owning line identifies it as an upper obstacle;
 an alternating separation normal must not reset a persistent squeeze.
 Contact estimates account for translations after sampling;
 they trigger the preference but do not certify final clearance. Final collision
@@ -132,8 +136,8 @@ Targets stop advancing once trigger clearance is reached and hold for the remain
 inactive when its target is already satisfied. Contacts can move the glyph
 farther left than its preferred target; association reporting remains active.
 
-GUI controls: **Trigger gap**, **Step (% width)**, **Down step (% height)** and
-**Max left (% width)**. JSON stores `toggles.waqfEscape`, `waqfEscapeMinGap`,
+GUI controls: **Trigger clearance**, **Left step**, **Down step** and
+**Maximum left target offset** in Placement / Waqf placement. JSON stores `toggles.waqfEscape`, `waqfEscapeMinGap`,
 `waqfEscapeStepPercent`, `waqfEscapeDownStepPercent` and
 `waqfEscapeMaxLeftPercent` under `xpbd`. CLI flags are `--waqf-escape` /
 `--no-waqf-escape`, `--waqf-escape-min-gap N`, `--waqf-escape-step N`,

@@ -21,7 +21,8 @@ struct WaqfEscapeContact {
   double desiredGap;
 };
 
-// Conditional left/down preferences triggered by persistent previous-line contacts.
+// Conditional left/down preferences triggered by stalled previous-line contacts
+// or opposing contacts from that line and the mark's owning top stack.
 // Ordinary contacts and the owning placement's visibility/top rail remain active.
 struct WaqfEscapeConstraint : XPBDConstraint {
   WaqfPlacementConstraint& placement;

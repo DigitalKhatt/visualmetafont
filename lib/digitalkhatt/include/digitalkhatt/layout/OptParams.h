@@ -10,7 +10,7 @@ namespace digitalkhatt::layout {
 struct ConstraintToggles {
   bool ylane = true;
   bool waqfPlacement = true;
-  bool waqfEscape = true;         // conditional left preference for a stalled squeeze
+  bool waqfEscape = true;         // conditional left/down preference for a squeeze
   bool hardStayAboveBelow = false;  // both stay-above/stay-below rails
   bool squeezeCenter = false;
   bool stackOrder = true;

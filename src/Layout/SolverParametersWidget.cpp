@@ -256,14 +256,14 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
       "toggle.waqfEscape", toggles.waqfEscape, this, changed);
   addDoubleRow(escape.form, tr("Trigger clearance"), settings, "waqfEscapeMinGap", m_params.waqfEscapeMinGap,
       0.0, 1000.0, 1.0, 2, this, changed,
-      tr("Estimated clearance to glyphs on an earlier line must remain below this value with stalled progress before escape starts."), units);
+      tr("Escape starts below this estimated clearance when progress stalls, or immediately when an earlier-line contact opposes contact with the owning top stack."), units);
   addDoubleRow(escape.form, tr("Left step"), settings, "waqfEscapeStepPercent", m_params.waqfEscapeStepPercent,
       0.0, 100.0, 1.0, 2, this, changed, tr("Target advance per iteration, as a percentage of waqf width."), percent);
   addDoubleRow(escape.form, tr("Down step"), settings, "waqfEscapeDownStepPercent", m_params.waqfEscapeDownStepPercent,
       0.0, 100.0, 1.0, 2, this, changed, tr("Target advance per iteration, as a percentage of waqf height."), percent);
   addDoubleRow(escape.form, tr("Maximum left target offset"), settings, "waqfEscapeMaxLeftPercent", m_params.waqfEscapeMaxLeftPercent,
       0.0, 1000.0, 5.0, 2, this, changed, tr("Cap on the escape target's left offset from the owning base, as a percentage of waqf width."), percent);
-  escape.box->setToolTip(tr("A soft escape preference for persistent contact with an earlier line. Requires waqf placement and collision avoidance to be enabled."));
+  escape.box->setToolTip(tr("A soft escape preference for a stalled contact or squeeze against an earlier line. Requires waqf placement and collision avoidance to be enabled."));
   const auto updateEscape = [escape, waqfPlacement, gaps]() {
     escape.box->setEnabled(waqfPlacement.box->isChecked() && gaps.box->isChecked());
   };
