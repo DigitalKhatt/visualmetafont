@@ -778,14 +778,18 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
   // in candidates and traces so native shrinking ranges remain decreasing.
   const double direction = justInfo.desiredWidth >= justInfo.textLineWidth ? 1 : -1;
   const auto remaining = [&] { return direction * (justInfo.desiredWidth - justInfo.textLineWidth); };
+  std::vector<JustificationCandidate> candidates;
+  bool refreshCandidates = true;
 
   while (remaining() > 0.000001) {
     ++pass;
-    auto candidates = collectDeclPolicyStageCandidates(lineTextInfo, justInfo, phases);
-    std::stable_sort(candidates.begin(), candidates.end(), [](const auto& left, const auto& right) {
-      if (left.priorityBand != right.priorityBand) return left.priorityBand < right.priorityBand;
-      return left.weight > right.weight;
-    });
+    if (refreshCandidates) {
+      candidates = collectDeclPolicyStageCandidates(lineTextInfo, justInfo, phases);
+      std::stable_sort(candidates.begin(), candidates.end(), [](const auto& left, const auto& right) {
+        if (left.priorityBand != right.priorityBand) return left.priorityBand < right.priorityBand;
+        return left.weight > right.weight;
+      });
+    }
 
     int activeBand = -1;
     std::vector<const JustificationCandidate*> accepted;
@@ -843,7 +847,7 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
         reject("site_conflict");
         continue;
       }
-      if (!measureCandidate(lineTextInfo, justInfo, candidate, candidateWidth)) {
+      if ((!candidate.minimumWidthDelta || !candidate.maximumWidthDelta) && !measureCandidate(lineTextInfo, justInfo, candidate, candidateWidth)) {
         reject("unmeasured_width");
         continue;
       }
@@ -874,6 +878,7 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
     std::vector<double> allocations;
     distributeCandidateWidth(accepted, std::max(0.0, availableWidth - mandatoryWidth - candidateWidthReserve), allocations, direction);
     bool changed = false;
+    bool blockedNewCandidate = false;
     for (std::size_t index = 0; index < accepted.size(); ++index) {
       const auto& candidate = *accepted[index];
       const auto capacity = direction * (*candidate.maximumWidthDelta - *candidate.minimumWidthDelta);
@@ -887,7 +892,7 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
         const auto reason = result == FixedSlotActionResult::Overflow ? "commit_overflow" : result == FixedSlotActionResult::Forbidden ? "commit_forbidden"
                                                                                                                                        : "commit_no_change";
         traceCandidateDecision(justInfo, phases, candidate, pass, "rejected", reason, remaining(), ratio, parameterQuantization);
-        blocked.insert(key);
+        blockedNewCandidate = blocked.insert(key).second || blockedNewCandidate;
         continue;
       }
       traceCandidateDecision(justInfo, phases, candidate, pass, "applied", "accepted", remaining(), ratio, parameterQuantization);
@@ -901,7 +906,12 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
       recordCandidate(selection, candidate, justInfo.declPolicyState.recordsByWord[candidate.wordIndex]);
       justInfo.declPolicyState.currentGlyphs.clear();
     }
-    if (!changed) break;
+    // Failed commits release tentative width and records. Reselect before
+    // falling back; every unchanged retry excludes at least one new candidate.
+    if (!changed && !blockedNewCandidate) break;
+    // With no committed change, recognition, scores and measured endpoints
+    // remain valid. Rebuild them only after a successful commit.
+    refreshCandidates = changed;
   }
   return false;
 }
