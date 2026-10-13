@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include "digitalkhatt/core/digitalkahtt_types.h"
@@ -35,6 +36,12 @@ struct GlyphInstance {
   bool isMark = false;
 
   bool isTopMark = false;
+  // Authored horizontal GPOS placement for a deformed mark is a stack target,
+  // not a request to recenter its enlarged bounding box over a dot.
+  bool preserveGposHorizontal = false;
+  // Font-authored lowest-ink floor, scaled to world units by the placement adapter.
+  std::optional<double> baselineClearance;
+  double justificationAddedLeftTatweel = 0;
 
   geometry::GeometrySet worldPolys;  // rebuilt after an offset changes
 

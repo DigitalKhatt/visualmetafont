@@ -4,6 +4,8 @@
 #include <digitalkhatt/justify/declpolicy/JustificationStagingBackend.h>
 #include <digitalkhatt/justify/declpolicy/DeclPolicyJustifier.h>
 #include <digitalkhatt/justify/declpolicy/JustificationCatalog.h>
+#include <digitalkhatt/justify/declpolicy/DependentMarkWidth.h>
+#include "../../src/otlayout/Layout/GlyphInstanceStore.h"
 
 #include <array>
 #include <cstdint>
@@ -155,6 +157,27 @@ int main() {
   const std::vector<std::uint64_t> input{a, b, c, a, 0, b};
   const auto matches = dfa.match(input);
   bool ok = true;
+  {
+    GlyphInstanceStore store;
+    GlyphInstanceState baseline;
+    baseline.parameters.lefttatweel = 0.5;
+    baseline.parameters.set(9, 3);
+    const auto baselineId = store.intern(baseline);
+    auto justified = baseline;
+    justified.parameters.lefttatweel = 1.25;
+    const auto withoutBaseline = store.intern(justified);
+    justified.justificationBaseline = baselineId;
+    const auto justifiedId = store.intern(justified);
+    ok &= expect(justifiedId != withoutBaseline && store.intern(justified) == justifiedId, "mark justification provenance participates in immutable instance identity");
+    const auto saved = store.get(*store.get(justifiedId).justificationBaseline);
+    ok &= expect(saved.parameters.lefttatweel == 0.5 && saved.parameters.value(9) == 3, "justification baselines reuse immutable records and retain dynamic axes");
+    justified.justificationBaseline = 0;
+    ok &= expect(store.get(store.intern(justified)).justificationBaseline == 0, "neutral baseline ID zero is present, not missing provenance");
+    justified.justificationBaseline = 999999;
+    bool rejected = false;
+    try { store.intern(justified); } catch (const std::invalid_argument&) { rejected = true; }
+    ok &= expect(rejected, "mark baseline references must already exist in the instance store");
+  }
   {
     digitalkhatt::GlyphAxisRegistry axes;
     const auto extra = axes.add("penAngle", 17);
@@ -1042,6 +1065,48 @@ int main() {
   }
 
   const auto alternate = compileJustificationCatalog(alternateSource);
+  {
+    auto substitutionSource = alternateSource;
+    substitutionSource.attachments[0].substitution = DfaAttachmentSubstitutionSource{"fatha.stretched", "lefttatweel", 0, "fatha"};
+    const auto substitutionCatalog = compileJustificationCatalog(substitutionSource);
+    const auto resolve = [](std::string_view name) -> std::optional<std::uint32_t> {
+      if (name == "fatha") return 10;
+      if (name == "fatha.stretched") return 11;
+      return std::nullopt;
+    };
+    const auto substitutions = resolveAttachmentSubstitutions(substitutionCatalog, resolve);
+    ok &= expect(substitutions.size() == 1 && substitutions[0].axis == digitalkhatt::LeftTatweelAxis && substitutions[0].attachment == 0, "attachment substitution resolves its native axis and font-local glyph IDs");
+    for (double value : {-1.0, 0.0, 0.8}) {
+      GlyphParameters parameters;
+      parameters.lefttatweel = value;
+      parameters.third = 4;
+      ok &= expect(substitutions[0].matches(10) && substitutions[0].matches(11) && !substitutions[0].matches(12) && substitutions[0].select(parameters) == (value > 0 ? 11 : 10) && parameters.third == 4,
+                   "attachment identity selection is reversible, leaves other axes intact, and ignores other glyph families");
+    }
+    for (int invalid = 0; invalid < 4; ++invalid) {
+      auto bad = substitutionSource;
+      auto& rule = *bad.attachments[0].substitution;
+      if (invalid == 0) rule.axis = "cv01";
+      if (invalid == 1) rule.threshold = std::numeric_limits<double>::infinity();
+      if (invalid == 2) rule.glyph = rule.otherwiseGlyph;
+      if (invalid == 3) rule.otherwiseGlyph.clear();
+      bool rejected = false;
+      try { (void)compileJustificationCatalog(bad); }
+      catch (const std::invalid_argument&) { rejected = true; }
+      ok &= expect(rejected, "attachment substitutions reject features as axes, nonfinite thresholds, empty names and identical identities");
+    }
+    bool rejectedMissing = false;
+    try { (void)resolveAttachmentSubstitutions(substitutionCatalog, [](std::string_view) -> std::optional<std::uint32_t> { return std::nullopt; }); }
+    catch (const std::invalid_argument&) { rejectedMissing = true; }
+    ok &= expect(rejectedMissing, "attachment substitution fails before shaping if a declared font glyph is absent");
+    auto overlapping = substitutionCatalog;
+    overlapping.attachments.push_back(overlapping.attachments[0]);
+    overlapping.attachments.back().name = "OtherAttachment";
+    bool rejectedOverlap = false;
+    try { (void)resolveAttachmentSubstitutions(overlapping, resolve); }
+    catch (const std::invalid_argument&) { rejectedOverlap = true; }
+    ok &= expect(rejectedOverlap, "overlapping substitution families cannot silently depend on attachment order");
+  }
   ok &= expect(alternate.actionDefinitions.size() == 1 &&
                    alternate.attachments.size() == 1 &&
                    alternate.actions[0].definition == 0,
@@ -1308,6 +1373,147 @@ int main() {
     rejectedEmptyFind = true;
   }
   ok &= expect(rejectedEmptyFind, "an attachment that finds nothing is rejected");
+
+  {
+    auto response = attachmentSource({.name = "Fatha", .within = 2, .find = {0x064E}, .widthAxis = "lefttatweel", .gain = 1.0 / 3, .maximumWidth = 1614.06});
+    const auto catalog = compileJustificationCatalog(response);
+    ok &= expect(catalog.attachments[0].widthAxis == digitalkhatt::LeftTatweelAxis && catalog.attachments[0].gain == 1.0 / 3, "dependent mark width response compiles independently of actions");
+    for (const auto scope : {"stretch", "shrink", "both"}) {
+      response.attachments[0].during = scope;
+      const auto scoped = compileJustificationCatalog(response).attachments[0];
+      ok &= expect(scoped.appliesDuring(LineJustificationOperation::Stretch) == (std::string_view(scope) != "shrink") && scoped.appliesDuring(LineJustificationOperation::Shrink) == (std::string_view(scope) != "stretch") && scoped.appliesDuring(LineJustificationOperation::None) == (std::string_view(scope) == "both"), "attachment scope filters the selected line recipe, including exact-fit lines");
+    }
+    response.attachments[0].during = "unknown";
+    bool badScope = false;
+    try { (void)compileJustificationCatalog(response); } catch (const std::invalid_argument&) { badScope = true; }
+    ok &= expect(badScope, "unknown attachment scope is rejected");
+    response.attachments[0].during = "both";
+    response.attachments[0].excludeMarkGlyphSetRef = 5;
+    auto blockedCatalog = compileJustificationCatalog(response);
+    resolveJustificationGlyphSets(blockedCatalog, [](int) { return std::vector<std::string>{"smallalef.joined", "smallalef", "smallalef"}; });
+    ok &= expect(blockedCatalog.attachments[0].excludeMarkGlyphNames == std::vector<std::string>{"smallalef", "smallalef.joined"}, "excluded marks use the font-resolved glyph set rather than hard-coded runtime names");
+    response.attachments[0].excludeMarkGlyphSetRef = -1;
+    response.attachments[0].widthAxis = "cv01";
+    bool rejected = false;
+    try { (void)compileJustificationCatalog(response); } catch (const std::invalid_argument&) { rejected = true; }
+    ok &= expect(rejected, "dependent mark deformation requires a native axis");
+    response.attachments[0].widthAxis = "lefttatweel";
+    response.attachments[0].growthAxes = {"lefttatweel", "righttatweel"};
+    const auto axisCatalog = compileJustificationCatalog(response);
+    ok &= expect(axisCatalog.attachments[0].growthAxes == std::vector<digitalkhatt::GlyphAxisId>{digitalkhatt::LeftTatweelAxis, digitalkhatt::RightTatweelAxis}, "default mark growth axes compile independently of GPOS positioning");
+    for (const auto badAxes : {std::vector<std::string>{"unknown"}, std::vector<std::string>{"cv01_lefttatweel"}, std::vector<std::string>{"lefttatweel", "lefttatweel"}}) {
+      response.attachments[0].growthAxes = badAxes;
+      rejected = false;
+      try { (void)compileJustificationCatalog(response); } catch (const std::invalid_argument&) { rejected = true; }
+      ok &= expect(rejected, "unknown, feature-query and duplicate mark growth axes are rejected");
+    }
+    response.attachments[0].growthAxes = {"lefttatweel", "righttatweel"};
+    response.attachments[0].alignment = "right";
+    rejected = false;
+    try { (void)compileJustificationCatalog(response); } catch (const std::invalid_argument&) { rejected = true; }
+    ok &= expect(rejected, "legacy attachment alignment is rejected rather than silently ignored");
+    response.attachments[0].alignment = "unchanged";
+    const auto physicalWidth = [](const digitalkhatt::GlyphParameters& p) -> std::optional<double> { return 100 + 10 * p.lefttatweel + 20 * p.righttatweel + 100 * p.third + 5 * p.lefttatweel * p.righttatweel; };
+    const std::array<digitalkhatt::GlyphAxisId, 2> joiningAxes{digitalkhatt::LeftTatweelAxis, digitalkhatt::RightTatweelAxis};
+    const digitalkhatt::GlyphParameters joined{.lefttatweel = 2, .righttatweel = 3, .third = 4};
+    ok &= expect(dependentMarkAxisWidthGrowth(joined, joiningAxes, physicalWidth) == 110, "physical axis growth includes both tatweels and their interaction but excludes body growth");
+    const std::array<digitalkhatt::GlyphAxisId, 1> leftOnly{digitalkhatt::LeftTatweelAxis};
+    ok &= expect(dependentMarkAxisWidthGrowth(joined, leftOnly, physicalWidth) == 50, "unselected axes remain at their accepted values in the width reference");
+    unsigned growthProbes = 0;
+    const auto countedWidth = [&](const auto& p) { ++growthProbes; return physicalWidth(p); };
+    ok &= expect(dependentMarkAxisWidthGrowth({.third = 4}, joiningAxes, countedWidth) == 0 && growthProbes == 0, "body-only changes do not expand the default mark or probe geometry");
+    ok &= expect(dependentMarkAxisWidthGrowth({.lefttatweel = -2}, joiningAxes, physicalWidth) == 0, "shrinking axes never produce negative mark growth");
+    const auto missingWidth = [](const auto&) -> std::optional<double> { return std::nullopt; };
+    const auto invalidWidth = [](const auto&) -> std::optional<double> { return std::numeric_limits<double>::quiet_NaN(); };
+    ok &= expect(!dependentMarkAxisWidthGrowth(joined, joiningAxes, missingWidth) && !dependentMarkAxisWidthGrowth(joined, joiningAxes, invalidWidth), "missing or nonfinite geometry safely declines selected-axis growth");
+    const digitalkhatt::GlyphParameters neighbor{.lefttatweel = 1, .righttatweel = 4, .third = 5};
+    ok &= expect(dependentMarkConnectionWidthGrowth(joined, digitalkhatt::LeftTatweelAxis, &neighbor, digitalkhatt::RightTatweelAxis, physicalWidth, physicalWidth) == 150, "one connection sums current outgoing and next incoming physical width, retaining other axes");
+    growthProbes = 0;
+    ok &= expect(dependentMarkConnectionWidthGrowth({.righttatweel = 4}, digitalkhatt::LeftTatweelAxis, &neighbor, digitalkhatt::RightTatweelAxis, countedWidth, countedWidth) == 0 && growthProbes == 0, "incoming-only deformation never stretches the left glyph's own mark or borrows another connection");
+    ok &= expect(dependentMarkConnectionWidthGrowth(joined, digitalkhatt::LeftTatweelAxis, nullptr, digitalkhatt::RightTatweelAxis, physicalWidth, missingWidth) == 50, "a word boundary contributes no neighbor width");
+    ok &= expect(!dependentMarkConnectionWidthGrowth(joined, digitalkhatt::LeftTatweelAxis, &neighbor, digitalkhatt::RightTatweelAxis, physicalWidth, missingWidth), "missing neighbor geometry safely declines the connection response");
+    const digitalkhatt::GlyphParameters contextualCurrent{.lefttatweel = 1, .righttatweel = 3}, contextualNext{.righttatweel = 2};
+    ok &= expect(dependentMarkConnectionWidthGrowth(joined, digitalkhatt::LeftTatweelAxis, &neighbor, digitalkhatt::RightTatweelAxis, physicalWidth, physicalWidth, contextualCurrent, &contextualNext) == 75, "connection width excludes contextual GSUB tatweels on both glyphs and retains current body axes");
+    growthProbes = 0;
+    ok &= expect(dependentMarkConnectionWidthGrowth(joined, digitalkhatt::LeftTatweelAxis, &neighbor, digitalkhatt::RightTatweelAxis, countedWidth, countedWidth, joined, &neighbor) == 0 && growthProbes == 0, "context-only tatweel does not trigger Fatha stretching or geometry probes");
+    ok &= expect(dependentMarkAxisWidthGrowth(joined, leftOnly, physicalWidth, contextualCurrent) == 25, "selected-axis growth resets to the shaped baseline instead of zero");
+    ok &= expect(dependentMarkConnectionWidthGrowth(joined, digitalkhatt::LeftTatweelAxis, &neighbor, digitalkhatt::RightTatweelAxis, physicalWidth, physicalWidth, contextualCurrent, &neighbor) == 25, "unchanged contextual incoming deformation contributes zero");
+    const digitalkhatt::GlyphParameters partialCompensation{.righttatweel = 4.5}, fullCompensation{.righttatweel = 6};
+    ok &= expect(dependentMarkConnectionWidthGrowth(joined, digitalkhatt::LeftTatweelAxis, &neighbor, digitalkhatt::RightTatweelAxis, physicalWidth, physicalWidth, contextualCurrent, &partialCompensation) == 12.5, "incoming contraction offsets outgoing growth before charging Fatha width");
+    ok &= expect(dependentMarkConnectionWidthGrowth(joined, digitalkhatt::LeftTatweelAxis, &neighbor, digitalkhatt::RightTatweelAxis, physicalWidth, physicalWidth, contextualCurrent, &fullCompensation) == 0, "a net-shortened connection never stretches its Fatha");
+    ok &= expect(dependentMarkConnectionWidthGrowth({.lefttatweel = 0.5}, digitalkhatt::LeftTatweelAxis, &neighbor, digitalkhatt::RightTatweelAxis, physicalWidth, physicalWidth, contextualCurrent, &contextualNext) == 0, "shrinking below the contextual outgoing baseline does not claim a kashida");
+    auto connection = response;
+    connection.attachments[0].growthAxes.clear();
+    connection.attachments[0].growthConnection = {"lefttatweel", "righttatweel"};
+    const auto compiledConnection = compileJustificationCatalog(connection).attachments[0];
+    ok &= expect(compiledConnection.growthConnection == std::vector<digitalkhatt::GlyphAxisId>{digitalkhatt::LeftTatweelAxis, digitalkhatt::RightTatweelAxis}, "connection axes compile in current/next order");
+    for (const auto badAxes : {std::vector<std::string>{"lefttatweel"}, std::vector<std::string>{"lefttatweel", "righttatweel", "third"}, std::vector<std::string>{"lefttatweel", "unknown"}}) {
+      connection.attachments[0].growthConnection = badAxes;
+      rejected = false;
+      try { (void)compileJustificationCatalog(connection); } catch (const std::invalid_argument&) { rejected = true; }
+      ok &= expect(rejected, "connection response requires exactly two registered axes");
+    }
+    connection.attachments[0].growthConnection = {"lefttatweel", "righttatweel"};
+    connection.attachments[0].growthAxes = {"lefttatweel"};
+    rejected = false;
+    try { (void)compileJustificationCatalog(connection); } catch (const std::invalid_argument&) { rejected = true; }
+    ok &= expect(rejected, "same-glyph growth_axes and cross-glyph growth_connection cannot be mixed");
+    unsigned probes = 0;
+    const auto linear = [&](double value) -> std::optional<double> { ++probes; return 250 + 137 * value; };
+    const auto value = dependentMarkWidthParameter(250 + 137 * 2.4, 10, 16, linear);
+    ok &= expect(value == 2.375 && probes <= 4, "linear mark width inversion uses a secant and a bounded grid neighbour");
+    ok &= expect(dependentMarkWidthParameter(250, 10, 16, linear) == 0 && dependentMarkWidthParameter(2000, 10, 16, linear) == 10, "dependent width clamps at the natural and maximum shapes");
+    const auto curved = [](double value) -> std::optional<double> { return 250 + 10 * value * value; };
+    ok &= expect(dependentMarkWidthParameter(250 + 10 * 2.4 * 2.4, 10, 16, curved) == 2.375, "nonlinear monotone mark profiles are inverted on the same grid");
+    const auto absent = [](double) -> std::optional<double> { return std::nullopt; };
+    ok &= expect(!dependentMarkWidthParameter(500, 10, 16, absent) && !dependentMarkWidthParameter(500, 10, 0, linear), "missing geometry and invalid grids decline the response safely");
+    ok &= expect(dependentMarkWidthParameter(260, 0.01, 16, linear) == 0.01, "sub-grid maximum endpoints remain usable");
+    response.attachments[0].widthAxis = "lefttatweel";
+    response.attachments[0].responses = {{.glyphSetRef = 2, .mode = "keep"}, {.glyphSetRef = 3, .mode = "width_ratio", .ratio = 0.6}, {.glyphSetRef = 4, .mode = "growth_ratio", .ratio = 0.5}};
+    auto specific = compileJustificationCatalog(response);
+    resolveJustificationGlyphSets(specific, [](int reference) { return std::vector<std::string>{reference == 2 ? "kaf.init.ii" : reference == 3 ? "noon.fina.expa" : "lam.isol.expa"}; });
+    const auto& profiles = specific.attachments[0].responses;
+    ok &= expect(profiles[0].mode == MarkResponseMode::Keep && profiles[1].mode == MarkResponseMode::WidthRatio && profiles[1].ratio == 0.6 && profiles[2].mode == MarkResponseMode::GrowthRatio, "per-base width responses compile without positioning instructions");
+    response.attachments[0].responses[1].alignment = "center";
+    rejected = false;
+    try { (void)compileJustificationCatalog(response); } catch (const std::invalid_argument&) { rejected = true; }
+    ok &= expect(rejected, "legacy response alignment is rejected with a GPOS migration error");
+    response.attachments[0].responses[1].alignment = "unchanged";
+    for (const auto invalid : {0.0, 0.15, -1.0, std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN()}) {
+      response.attachments[0].responses[1].lowerGrowth = invalid;
+      rejected = false;
+      try { (void)compileJustificationCatalog(response); } catch (const std::invalid_argument&) { rejected = true; }
+      ok &= expect(rejected, "invalid downward mark growth is rejected at font load");
+    }
+    response.attachments[0].responses[1].lowerGrowth.reset();
+    response.attachments[0].responses[0].lowerGrowth = 1.0 / 7;
+    rejected = false;
+    try { (void)compileJustificationCatalog(response); } catch (const std::invalid_argument&) { rejected = true; }
+    ok &= expect(rejected, "keep responses cannot also reposition marks");
+    auto direct = attachmentSource({.name = "Fatha", .within = 2, .find = {0x064E}});
+    direct.attachments[0].responses = {{.glyphNames = {"kaf.init.ii", "kaf.medi.ii"}, .mode = "parameter", .parameterAxis = "lefttatweel", .parameterValue = 1.875}};
+    const auto parameterResponse = compileJustificationCatalog(direct).attachments[0].responses[0];
+    ok &= expect(parameterResponse.mode == MarkResponseMode::Parameter && parameterResponse.parameterAxis == digitalkhatt::LeftTatweelAxis && parameterResponse.parameterValue == 1.875, "direct mark parameters compile without a base-width response or inversion");
+    for (const auto value : {0.0, -1.0, 1.8723}) {
+      direct.attachments[0].responses[0].parameterValue = value;
+      ok &= expect(compileJustificationCatalog(direct).attachments[0].responses[0].parameterValue == value, "direct mark assignment preserves zero, negative and off-grid values exactly");
+    }
+    for (const auto axis : {"cv01", "cv01_lefttatweel", "lefttatweel_delta", "unknown"}) {
+      direct.attachments[0].responses[0].parameterAxis = axis;
+      rejected = false;
+      try { (void)compileJustificationCatalog(direct); } catch (const std::invalid_argument&) { rejected = true; }
+      ok &= expect(rejected, "direct mark assignment requires an actual registered axis, not a feature query or delta");
+    }
+    direct.attachments[0].responses[0].parameterAxis = "third";
+    direct.attachments[0].responses[0].parameterValue = 2;
+    ok &= expect(compileJustificationCatalog(direct).attachments[0].responses[0].parameterAxis == digitalkhatt::ThirdAxis, "direct mark responses are not hard-coded to tatweel axes");
+    for (const auto invalid : {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN()}) {
+      direct.attachments[0].responses[0].parameterValue = invalid;
+      rejected = false;
+      try { (void)compileJustificationCatalog(direct); } catch (const std::invalid_argument&) { rejected = true; }
+      ok &= expect(rejected, "nonfinite direct mark values are rejected at font load");
+    }
+  }
 
   auto glyphAttachment = compileJustificationCatalog(attachmentSource(
       {.name = "Fatha", .within = 2, .skipGlyphSetRef = 1, .findGlyphSetRef = 0}));

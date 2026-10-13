@@ -123,6 +123,10 @@
 %type <std::vector<digitalkhatt::justify::DfaRuleSource>> justdfa_rules;
 %type <digitalkhatt::justify::DfaAttachmentSource> justdfa_attachment justdfa_attachment_body;
 %type <std::vector<digitalkhatt::justify::DfaAttachmentSource>> justdfa_attachments justdfa_attachments_block;
+%type <digitalkhatt::justify::DfaMarkResponseSource> justdfa_mark_response;
+%type <std::vector<digitalkhatt::justify::DfaMarkResponseSource>> justdfa_mark_responses;
+%type <std::optional<double>> justdfa_mark_vertical;
+%type <std::vector<std::string>> justdfa_growth_axes;
 %type <digitalkhatt::justify::DfaActionsBlockSource> justdfa_actions_block;
 %type <digitalkhatt::justify::DfaActionDefSource> justdfa_action_def;
 %type <std::vector<digitalkhatt::justify::DfaEffectSource>> justdfa_effects;
@@ -856,10 +860,106 @@ justdfa_attachments
 justdfa_attachment
 	: ATTACHMENT identifier[name] justdfa_attachment_body[body] ';'
 	  { $$ = std::move($body); $$.name = $name; }
+	| ATTACHMENT identifier[name] justdfa_attachment_body[body] '{' justdfa_mark_responses[responses] '}' ';'
+	  { $$ = std::move($body); $$.name = $name; $$.responses = std::move($responses); }
+	;
+
+justdfa_mark_responses
+	: { $$ = {}; }
+	| justdfa_mark_responses justdfa_mark_response { $$ = std::move($1); $$.push_back(std::move($2)); }
+	;
+
+justdfa_mark_response
+	: identifier[on] GLYPHS glyphset[set] identifier[mode] ';'
+	  {
+		if ($on != "on" || $mode != "keep") { error(yyla.location, "Expected 'on glyphs [...] keep;'"); YYERROR; }
+		driver.context.justificationGlyphSets.emplace_back($set);
+		$$.glyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.mode = $mode;
+	  }
+	| identifier[on] GLYPHS glyphset[set] identifier[mode] doubleorint[ratio] ';'
+	  {
+		if ($on != "on") { error(yyla.location, "Expected 'on glyphs [...] <response> <ratio>;'"); YYERROR; }
+		driver.context.justificationGlyphSets.emplace_back($set);
+		$$.glyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.mode = $mode; $$.ratio = $ratio;
+	  }
+	| identifier[on] GLYPHS glyphset[set] identifier[mode] identifier[axis] doubleorint[value] ';'
+	  {
+		if ($on != "on" || $mode != "parameter") { error(yyla.location, "Expected 'on glyphs [...] parameter <axis> <value>;'"); YYERROR; }
+		driver.context.justificationGlyphSets.emplace_back($set);
+		$$.glyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.mode = $mode; $$.parameterAxis = $axis; $$.parameterValue = $value;
+	  }
+	| identifier[on] GLYPHS glyphset[set] identifier[mode] doubleorint[ratio] identifier[align] identifier[alignment] justdfa_mark_vertical[vertical] ';'
+	  {
+		if ($on != "on" || $align != "align") { error(yyla.location, "Expected 'on glyphs [...] ... align ...;'"); YYERROR; }
+		driver.context.justificationGlyphSets.emplace_back($set);
+		$$.glyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.mode = $mode; $$.ratio = $ratio; $$.alignment = $alignment;
+		$$.lowerGrowth = $vertical;
+	  }
+	| identifier[on] GLYPHS glyphset[set] identifier[mode] identifier[axis] doubleorint[value] identifier[align] identifier[alignment] justdfa_mark_vertical[vertical] ';'
+	  {
+		if ($on != "on" || $mode != "parameter" || $align != "align") { error(yyla.location, "Expected 'on glyphs [...] parameter <axis> <value> align ...;'"); YYERROR; }
+		driver.context.justificationGlyphSets.emplace_back($set);
+		$$.glyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.mode = $mode; $$.parameterAxis = $axis; $$.parameterValue = $value;
+		$$.alignment = $alignment; $$.lowerGrowth = $vertical;
+	  }
+	;
+
+justdfa_mark_vertical
+	: { $$ = std::nullopt; }
+	| identifier[property] doubleorint[ratio]
+	  {
+		if ($property != "lower_growth") { error(yyla.location, "Expected 'lower_growth <ratio>'"); YYERROR; }
+		$$ = $ratio;
+	  }
 	;
 
 justdfa_attachment_body
 	: { $$ = {}; }
+	| justdfa_attachment_body SUBSTITUTE identifier[glyph] WHEN identifier[axis] '>' doubleorint[threshold] identifier[keyword] identifier[otherwise]
+	  {
+		if ($keyword != "otherwise" || $1.substitution) { error(yyla.location, "Expected one 'substitute <glyph> when <axis> > <value> otherwise <glyph>' declaration"); YYERROR; }
+		$$ = std::move($1);
+		$$.substitution = digitalkhatt::justify::DfaAttachmentSubstitutionSource{$glyph, $axis, $threshold, $otherwise};
+	  }
+	| justdfa_attachment_body identifier[property] STRETCH
+	  {
+		$$ = std::move($1);
+		if ($property != "during") { error(yyla.location, "Expected 'during stretch'"); YYERROR; }
+		$$.during = "stretch";
+	  }
+	| justdfa_attachment_body identifier[property] SHRINK
+	  {
+		$$ = std::move($1);
+		if ($property != "during") { error(yyla.location, "Expected 'during shrink'"); YYERROR; }
+		$$.during = "shrink";
+	  }
+	| justdfa_attachment_body identifier[property] identifier[value]
+	  {
+		$$ = std::move($1);
+		if ($property == "width_axis") $$.widthAxis = $value;
+		else if ($property == "align") $$.alignment = $value;
+		else if ($property == "during") $$.during = $value;
+		else { error(yyla.location, "Unknown justification attachment axis property '" + $property + "'"); YYERROR; }
+	  }
+	| justdfa_attachment_body identifier[property] '[' justdfa_growth_axes[axes] ']'
+	  {
+		$$ = std::move($1);
+		if ($property == "growth_axes") $$.growthAxes = std::move($axes);
+		else if ($property == "growth_connection") $$.growthConnection = std::move($axes);
+		else { error(yyla.location, "Expected 'growth_axes [...]' or 'growth_connection [<current-axis> <next-axis>]'"); YYERROR; }
+	  }
+	| justdfa_attachment_body identifier[property] DOUBLE_LITERAL[value]
+	  {
+		$$ = std::move($1);
+		if ($property == "gain") $$.gain = $value;
+		else if ($property == "max_width") $$.maximumWidth = $value;
+		else { error(yyla.location, "Unknown justification attachment numeric property '" + $property + "'"); YYERROR; }
+	  }
 	| justdfa_attachment_body identifier[property] '[' character_list[characters] ']'
 	  {
 		$$ = std::move($1);
@@ -879,6 +979,7 @@ justdfa_attachment_body
 		const int reference = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
 		if ($property == "find") $$.findGlyphSetRef = reference;
 		else if ($property == "skip") $$.skipGlyphSetRef = reference;
+		else if ($property == "exclude_marks") $$.excludeMarkGlyphSetRef = reference;
 		else {
 			error(yyla.location, "Unknown justification attachment glyph property '" + $property + "'");
 			YYERROR;
@@ -888,11 +989,19 @@ justdfa_attachment_body
 	  {
 		$$ = std::move($1);
 		if ($property == "within") $$.within = $count;
+		else if ($property == "gain") $$.gain = $count;
+		else if ($property == "max_width") $$.maximumWidth = $count;
+		else if ($property == "grid" && $count > 0) $$.widthGrid = $count;
 		else {
 			error(yyla.location, "Unknown justification attachment count property '" + $property + "'");
 			YYERROR;
 		}
 	  }
+	;
+
+justdfa_growth_axes
+	: identifier { $$ = {$1}; }
+	| justdfa_growth_axes identifier { $$ = std::move($1); $$.push_back(std::move($2)); }
 	;
 
 justdfa_actions_block

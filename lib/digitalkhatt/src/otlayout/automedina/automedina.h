@@ -20,6 +20,7 @@
 #pragma once
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -75,6 +76,12 @@ class Automedina {
     return func;
   }
   virtual void generateSubstEquivGlyphs() {}
+  // Font-owned group anchor. Return resolved glyph coordinates, without GUI bias.
+  virtual std::optional<Point> getAnchor(const GlyphVis&, const MarkBaseSubtable&, std::string_view, const GlyphParameters&) const { return std::nullopt; }
+  virtual void prepareAnchorResolution() {}
+  virtual bool preserveMarkGposHorizontal(hb_codepoint_t, const GlyphParameters&) const { return false; }
+  // Optional design-unit floor for the mark's lowest ink above the line baseline.
+  virtual std::optional<double> markBaselineClearance(hb_codepoint_t, const GlyphParameters&) const { return std::nullopt; }
 
   std::map<std::string, std::string> addedGlyphs;
 

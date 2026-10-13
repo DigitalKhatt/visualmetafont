@@ -224,6 +224,7 @@ struct PlacementGlyph {
   std::array<int,4> shaped; // x/y offsets, x/y advances
   std::array<int,2> final;
   std::vector<double> parameters;
+  double justificationAddedLeftTatweel = 0;
 };
 struct PlacementRecord { int page; std::vector<PlacementGlyph> glyphs; };
 struct ReviewGlyph {
@@ -264,6 +265,7 @@ PlacementRecord placementRecord(int page, const PlacementPage& solved,
         {g.glyphLayout->x_offset,g.glyphLayout->y_offset},{}};
     for (GlyphAxisId axis=0;axis<input.parameters.size();++axis)
       record.parameters.push_back(input.parameters.value(axis));
+    record.justificationAddedLeftTatweel = input.justificationAddedLeftTatweel;
     result.glyphs.push_back(std::move(record));
   }
   return result;

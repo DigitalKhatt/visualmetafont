@@ -24,6 +24,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -112,6 +113,7 @@ struct Subtable {
   Lookup* getLookup() {
     return m_lookup;
   }
+  const Lookup* getLookup() const { return m_lookup; }
 
   void markDirty() noexcept {
     isDirty = true;

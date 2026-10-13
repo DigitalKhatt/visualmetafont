@@ -121,6 +121,39 @@ struct JustificationAction {
   bool operator==(const JustificationAction&) const = default;
 };
 
+enum class MarkResponseMode { Keep, WidthRatio, GrowthRatio, Parameter };
+struct JustMarkResponse {
+  int glyphSetRef = -1;
+  std::vector<std::string> glyphNames;
+  MarkResponseMode mode = MarkResponseMode::Keep;
+  double ratio = 0;
+  GlyphAxisId parameterAxis = NoGlyphAxis;
+  double parameterValue = 0;
+  bool operator==(const JustMarkResponse&) const = default;
+};
+
+enum class LineJustificationOperation { None, Stretch, Shrink };
+enum class AttachmentDuring { Both, Stretch, Shrink };
+
+struct JustAttachmentSubstitution {
+  std::string glyph;
+  GlyphAxisId axis = NoGlyphAxis;
+  double threshold = 0;
+  std::string otherwiseGlyph;
+  bool operator==(const JustAttachmentSubstitution&) const = default;
+};
+
+// Font-bound, read-only attachment data. No font-specific buffer callback.
+struct ResolvedAttachmentSubstitution {
+  JustAttachmentId attachment;
+  GlyphAxisId axis;
+  double threshold;
+  std::uint32_t glyph;
+  std::uint32_t otherwiseGlyph;
+  bool matches(std::uint32_t code) const { return code == glyph || code == otherwiseGlyph; }
+  std::uint32_t select(const GlyphParameters& parameters) const { return parameters.value(axis) > threshold ? glyph : otherwiseGlyph; }
+};
+
 struct JustAttachment {
   std::string name;
   int within = 1;
@@ -131,6 +164,20 @@ struct JustAttachment {
   // Sorted; empty when that side matches characters rather than glyphs.
   std::vector<std::string> skipGlyphNames;
   std::vector<std::string> findGlyphNames;
+  GlyphAxisId widthAxis = NoGlyphAxis;
+  double gain = 0;
+  double maximumWidth = 0;
+  unsigned widthGrid = 16;
+  std::vector<JustMarkResponse> responses;
+  std::vector<GlyphAxisId> growthAxes;
+  std::vector<GlyphAxisId> growthConnection;
+  AttachmentDuring during = AttachmentDuring::Both;
+  int excludeMarkGlyphSetRef = -1;
+  std::vector<std::string> excludeMarkGlyphNames;
+  std::optional<JustAttachmentSubstitution> substitution;
+  bool appliesDuring(LineJustificationOperation operation) const {
+    return during == AttachmentDuring::Both || (during == AttachmentDuring::Stretch && operation == LineJustificationOperation::Stretch) || (during == AttachmentDuring::Shrink && operation == LineJustificationOperation::Shrink);
+  }
   bool matchesSkipGlyphs() const { return !skipGlyphNames.empty(); }
   bool matchesFindGlyphs() const { return !findGlyphNames.empty(); }
   bool operator==(const JustAttachment&) const = default;
@@ -341,5 +388,8 @@ using JustificationGlyphSetResolver =
 // exactly what the shaping comparison tool does.
 void resolveJustificationGlyphSets(CompiledJustificationCatalog& catalog,
                                    const JustificationGlyphSetResolver& resolve);
+
+using AttachmentGlyphResolver = std::function<std::optional<std::uint32_t>(std::string_view)>;
+std::vector<ResolvedAttachmentSubstitution> resolveAttachmentSubstitutions(const CompiledJustificationCatalog& catalog, const AttachmentGlyphResolver& resolve);
 
 }  // namespace digitalkhatt::justify

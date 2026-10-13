@@ -46,6 +46,27 @@ struct DfaRuleSource {
 // set, never both.  The two scan different domains: characters are what the
 // line holds, glyphs are what shaping produced from it.  They coincide for a
 // plain mark and diverge wherever GSUB does anything interesting.
+struct DfaMarkResponseSource {
+  int glyphSetRef = -1;
+  std::vector<std::string> glyphNames;
+  std::string mode = "keep";  // keep | width_ratio | growth_ratio | parameter
+  double ratio = 0;
+  // Legacy syntax retained only to report an explicit GPOS migration error.
+  std::string alignment = "unchanged";
+  std::optional<double> lowerGrowth;
+  std::string parameterAxis;
+  double parameterValue = 0;
+  bool operator==(const DfaMarkResponseSource&) const = default;
+};
+
+struct DfaAttachmentSubstitutionSource {
+  std::string glyph;
+  std::string axis;
+  double threshold = 0;
+  std::string otherwiseGlyph;
+  bool operator==(const DfaAttachmentSubstitutionSource&) const = default;
+};
+
 struct DfaAttachmentSource {
   std::string name;
   int within = 1;
@@ -57,6 +78,24 @@ struct DfaAttachmentSource {
   // Sorted glyph names the sets expanded to.
   std::vector<std::string> skipGlyphNames;
   std::vector<std::string> findGlyphNames;
+  // Optional dependent deformation: natural mark width + gain * base growth,
+  // in unscaled font design units. Applied after native actions, before GPOS.
+  std::string widthAxis;
+  double gain = 0;
+  double maximumWidth = 0;
+  unsigned widthGrid = 16;
+  std::vector<DfaMarkResponseSource> responses;
+  // Default response only: isolate growth from these base axes, retaining
+  // all other parameters and the current glyph identity in the reference.
+  std::vector<std::string> growthAxes;
+  std::string alignment = "unchanged";
+  // Current glyph's outgoing axis + next glyph's incoming axis. Only the
+  // current glyph owns the response; the neighbor's mark is not updated.
+  std::vector<std::string> growthConnection;
+  std::string during = "both";
+  int excludeMarkGlyphSetRef = -1;
+  std::vector<std::string> excludeMarkGlyphNames;
+  std::optional<DfaAttachmentSubstitutionSource> substitution;
   bool operator==(const DfaAttachmentSource&) const = default;
 };
 

@@ -319,7 +319,10 @@ class OtLayout {
   std::unordered_map<GlyphParameters, GlyphVis*>& getSubstEquivGlyphs(int glyphCode);
   hb_position_t gethHorizontalAdvance(hb_font_t* hbFont, hb_codepoint_t glyph, GlyphParameters parameters, void* userData);
   // Native state in design units plus external lookup-coordinate offsets.
-  void setGlyphParameters(hb_glyph_info_t& info, const GlyphParameters& parameters);
+  void setGlyphParameters(hb_glyph_info_t& info, const GlyphParameters& parameters, const GlyphParameters* justificationBaseline = nullptr);
+  double glyphJustificationDelta(const hb_glyph_info_t& info, digitalkhatt::GlyphAxisId axis) const;
+  bool preserveMarkGposHorizontal(hb_codepoint_t mark, const GlyphParameters& parameters) const;
+  std::optional<double> markBaselineClearance(hb_codepoint_t mark, const GlyphParameters& parameters) const;
   GlyphParameters glyphParameters(const hb_glyph_info_t& info);
   GlyphParameters glyphParameters(hb_codepoint_t glyph, std::uint32_t instanceId);
   GlyphInstanceState glyphInstanceState(const hb_glyph_info_t& info);
@@ -327,6 +330,8 @@ class OtLayout {
   void clearAlternates();
 
   bool parseCppLookup(const std::string& lookupName);
+  void prepareAnchorResolution();
+  std::optional<Point> getAnchor(const GlyphVis& glyph, const MarkBaseSubtable& subtable, std::string_view className, const GlyphParameters& parameters) const;
 
   digitalkhatt::ByteBuffer getCmap();
   mp_graphic_object* copyEdgeBody(mp_graphic_object* source) const;

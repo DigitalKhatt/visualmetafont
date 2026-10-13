@@ -43,7 +43,7 @@ struct GlyphParameterAssignment {
 hb_buffer_t* shape(TextString text, hb_font_t* font,
                    std::vector<hb_feature_t> features,
                    const FeatureJustificationLayout* layout = nullptr,
-                   const std::vector<GlyphParameterAssignment>& parameters = {});
+                   const std::vector<GlyphParameterAssignment>& parameters = {}, bool dependentMarks = true, LineJustificationOperation operation = LineJustificationOperation::None);
 // Disables mark/mkmk for width measurement and glyph recognition. The returned
 // buffer retains shaped glyphs and advances, but not final mark positioning.
 hb_buffer_t* shapeForMeasurement(TextString text, hb_font_t* font, std::vector<hb_feature_t> features, const FeatureJustificationLayout* layout = nullptr, const std::vector<GlyphParameterAssignment>& parameters = {});

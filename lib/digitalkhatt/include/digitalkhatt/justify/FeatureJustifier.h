@@ -39,9 +39,19 @@ class FeatureJustificationLayout {
   }
   // Static OTF providers intentionally decline native parameter actions.
   virtual bool supportsGlyphParameters() const { return false; }
+  virtual bool dependentMarkStretchingEnabled() const { return false; }
+  virtual std::span<const ResolvedAttachmentSubstitution> attachmentSubstitutions() const { return {}; }
+  // Ink/advance design width before font scaling. Marks have zero shaping
+  // advance; their deformation must be measured using their actual outline.
+  virtual std::optional<double> glyphDesignWidth(hb_codepoint_t, const GlyphParameters&) const { return std::nullopt; }
+  virtual std::optional<double> glyphInkWidth(hb_codepoint_t code, const GlyphParameters& parameters) const { return glyphDesignWidth(code, parameters); }
   // Missing capability excludes a site from non-substituting baseline spacing.
   virtual std::optional<double> glyphParameterMaximum(hb_codepoint_t, GlyphAxisId) const { return std::nullopt; }
   virtual bool setGlyphParameter(hb_glyph_info_t&, GlyphAxisId, double) const { return false; }
+  // The baseline precedes native justification, so contextual GSUB extensions
+  // never contribute to dependent-mark placement gaps.
+  virtual bool setAttachmentParameter(hb_glyph_info_t& glyph, GlyphAxisId axis, double value, const GlyphParameters&) const { return setGlyphParameter(glyph, axis, value); }
+  virtual double glyphJustificationDelta(const hb_glyph_info_t&, GlyphAxisId) const { return 0; }
   void setGlyphParameter(GlyphLayoutInfo& glyph, GlyphAxisId axis, double value) const {
     glyph.parameters.set(axis, value);
   }

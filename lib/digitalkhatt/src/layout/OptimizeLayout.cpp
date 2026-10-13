@@ -87,7 +87,7 @@ void wireStackTable(const std::vector<GlyphInstance*>& group,
     GlyphInstance* below = rule.inner;
     xpbdConstraints.push_back(std::make_unique<StackOrderConstraint>(
         *below, *above, /*isAbove=*/true,
-        rule.minGap, P.compliance.stackOrderGap, P.compliance.stackOrderXAlign, rule.offsetX));
+        rule.minGap, P.compliance.stackOrderGap, P.compliance.stackOrderXAlign, rule.offsetX, rule.outlineClearance, rule.preferredGap));
     // The authored stack gap replaces generic clearance only for this direct
     // pair. Contacts with every other mark remain active.
     excludedFromGenericGap.insert(
@@ -242,7 +242,11 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
 
       // ---- 1) Generic hard stay-above/stay-below rail ----
       if (isAboveMark) {
-        if (P.toggles.hardStayAboveBelow) {
+        if (mark.baselineClearance) {
+          // A font-local floor protects the low tail even outside its owner's
+          // ink footprint. Do not use the generic OR-with-base-top exception.
+          hardConstraints.push_back(std::make_unique<HardStayAboveConstraint>(mark, P.compliance.hardStayAbove, 0.0, *mark.baselineClearance, false, false));
+        } else if (P.toggles.hardStayAboveBelow) {
           auto minDistFromBaseline = 100.0;
           if (mark.prevBase != nullptr && mark.prevBase->glyphName == "yehshape.fina.ii" && mark.glyphName == "smallalef.replacement") {
             minDistFromBaseline = 0;
@@ -262,7 +266,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
       }
 
       // ---- 3) Structural squeeze centering (no glyph-name matching) ----
-      if (P.toggles.squeezeCenter) {
+      if (P.toggles.squeezeCenter && !mark.preserveGposHorizontal) {
         std::vector<GlyphInstance*> obstacles;
         obstacles.push_back(mark.prevBase);
         if (mark.prevBase->prevBase != nullptr) obstacles.push_back(mark.prevBase->prevBase);
@@ -283,7 +287,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
       }
 
       // ---- 5) Base-vicinity leash (ownership ambiguity) ----
-      if (P.toggles.baseVicinity) {
+      if (P.toggles.baseVicinity && !mark.preserveGposHorizontal) {
         const MarkRole role = classifyMark(mark);
         const auto bounds = mark.worldPolys.boundingAABB();
         const double width = bounds.maxx - bounds.minx;

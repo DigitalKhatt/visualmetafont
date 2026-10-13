@@ -20,6 +20,9 @@ struct GlyphProvenance {
 
 struct GlyphInstanceState {
   GlyphParameters parameters;
+  // Only dependent marks need a justification reference. Reuse an immutable
+  // parameter record rather than duplicating a dynamic parameter vector.
+  std::optional<std::uint32_t> justificationBaseline;
   // Existing lookup coordinates are kept in their original domain until read
   // with the current glyph. In normalized mode GSUB can change their scale.
   double lookupLeft = 0;
@@ -36,6 +39,8 @@ class GlyphInstanceStore {
       add(digitalkhatt::hashGlyphParameters(state.parameters));
       add(std::hash<double>{}(state.lookupLeft));
       add(std::hash<double>{}(state.lookupRight));
+      add(state.justificationBaseline.has_value());
+      if (state.justificationBaseline) add(*state.justificationBaseline);
       const auto& provenance = state.positioning;
       add(provenance.has_value());
       if (provenance) { add(provenance->lookup_index); add(provenance->subtable_index); add(provenance->base_codepoint); }
@@ -45,6 +50,7 @@ class GlyphInstanceStore {
 
  public:
   std::uint32_t intern(const GlyphInstanceState& state) {
+    if (state.justificationBaseline && *state.justificationBaseline >= values.size()) throw std::invalid_argument("Invalid justification baseline");
     for (digitalkhatt::GlyphAxisId axis = 0; axis < state.parameters.size(); ++axis)
       if (!std::isfinite(state.parameters.value(axis))) throw std::invalid_argument("Nonfinite glyph parameter");
     for (double axis : {state.lookupLeft, state.lookupRight}) {

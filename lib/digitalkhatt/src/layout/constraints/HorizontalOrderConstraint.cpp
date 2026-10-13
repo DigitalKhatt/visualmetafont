@@ -9,6 +9,33 @@
 using namespace geometry;
 
 namespace digitalkhatt::layout {
+namespace {
+
+constexpr double kStretchedFathaJoinedGap = 100.0;
+
+enum class FixedFatha { None,
+                        A,
+                        B };
+
+FixedFatha fixedFathaForJoinedPair(const GlyphInstance& a, const GlyphInstance& b) {
+  const auto stretchedFatha = [](const GlyphInstance& glyph) {
+    return glyph.preserveGposHorizontal && glyph.glyphName == "fatha.stretched";
+  };
+  const auto joined = [](const GlyphInstance& glyph) {
+    return glyph.glyphName == "smallalef.joined" || glyph.glyphName == "hamzaabove.joined";
+  };
+  if (stretchedFatha(a) && joined(b)) return FixedFatha::A;
+  if (joined(a) && stretchedFatha(b)) return FixedFatha::B;
+  return FixedFatha::None;
+}
+
+double stretchedFathaJoinedGap(const GlyphInstance& a, const GlyphInstance& b, FixedFatha fixedFatha) {
+  const auto& fatha = fixedFatha == FixedFatha::A ? a : b;
+  const double added = fatha.justificationAddedLeftTatweel;
+  return added > 0 ? kStretchedFathaJoinedGap * std::min(1.0, added) : 0;
+}
+
+}  // namespace
 
 // Signed anti-misassociation residual, measured on the ink box.
 //
@@ -23,9 +50,12 @@ namespace digitalkhatt::layout {
 // The bbox terms are constant w.r.t. dx, so the gradient is unchanged.
 static double horizontalOrderResidual(const GlyphInstance& markA,
                                       const GlyphInstance& markB,
-                                      double selfKeep, double crossKeep) {
+                                      double selfKeep, double crossKeep, FixedFatha fixedFatha) {
   const auto a = markA.worldPolys.boundingAABB();
   const auto b = markB.worldPolys.boundingAABB();
+  // Preserve semantic right-to-left order, with a physical gap instead of
+  // exposed-width fractions for this pair. No vertical clearance is implied.
+  if (fixedFatha != FixedFatha::None) return b.maxx + stretchedFathaJoinedGap(markA, markB, fixedFatha) - a.minx;
   const double wA = a.maxx - a.minx;
   const double wB = b.maxx - b.minx;
 
@@ -41,11 +71,14 @@ static double horizontalOrderResidual(const GlyphInstance& markA,
 }
 
 void HorizontalOrderConstraint::project(SolverContext& solverContext, double dt) {
-  const double wAinv = markA.mobility;
-  const double wBinv = markB.mobility;
+  const auto fixedFatha = fixedFathaForJoinedPair(markA, markB);
+  // Constraint-local mobility only: do not freeze Fatha for collision, lane,
+  // stacking or any other projection.
+  const double wAinv = fixedFatha == FixedFatha::A ? 0.0 : markA.mobility;
+  const double wBinv = fixedFatha == FixedFatha::B ? 0.0 : markB.mobility;
   if (wAinv + wBinv == 0.0) return;
 
-  double C = horizontalOrderResidual(markA, markB, selfKeep, crossKeep);
+  double C = horizontalOrderResidual(markA, markB, selfKeep, crossKeep, fixedFatha);
 
   // Gradients
   Vec2 nA = {-1.0, 0.0};
@@ -79,7 +112,8 @@ void HorizontalOrderConstraint::project(SolverContext& solverContext, double dt)
 
 void HorizontalOrderConstraint::reportViolations(
     SolverContext&, std::vector<ConstraintViolation>& out) const {
-  const double C = horizontalOrderResidual(markA, markB, selfKeep, crossKeep);
+  const auto fixedFatha = fixedFathaForJoinedPair(markA, markB);
+  const double C = horizontalOrderResidual(markA, markB, selfKeep, crossKeep, fixedFatha);
   if (C <= 0.0) return;  // correctly ordered
 
   ConstraintViolation v;
@@ -89,6 +123,7 @@ void HorizontalOrderConstraint::reportViolations(
   v.severity = C;
   v.glyphA = markA.globalIndex;
   v.glyphB = markB.globalIndex;
+  if (fixedFatha != FixedFatha::None) v.detail = "Stretched Fatha/joined mark horizontal gap (" + std::to_string(stretchedFathaJoinedGap(markA, markB, fixedFatha)) + "); Fatha fixed for ordering";
   // Marker: a segment connecting the two out-of-order marks' box centers.
   v.markerCount = 2;
   v.marker[0] = {boxCenterX(markA), boxCenterY(markA)};

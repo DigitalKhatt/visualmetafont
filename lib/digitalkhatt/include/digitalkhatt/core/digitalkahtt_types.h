@@ -44,6 +44,8 @@ struct GlyphLayoutInfo {
   unsigned int lookup_index;
   unsigned int subtable_index;
   GlyphParameters parameters;
+  // Derived placement metadata, not a glyph axis or a HarfBuzz buffer field.
+  double justificationAddedLeftTatweel = 0;
   uint32_t base_codepoint;
   bool beginsajda;
   bool endsajda;

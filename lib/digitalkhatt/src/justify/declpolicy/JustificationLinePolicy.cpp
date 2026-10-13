@@ -57,6 +57,7 @@ runtime::JustResultByLine executeLineJustificationPolicy(std::span<const LinePol
   result.xScale = 1;
   result.simpleSpacing = result.ayaSpacing = metrics.spaceWidth;
   const bool stretching = metrics.currentWidth < metrics.targetWidth;
+  result.operation = stretching ? LineJustificationOperation::Stretch : metrics.currentWidth > metrics.targetWidth ? LineJustificationOperation::Shrink : LineJustificationOperation::None;
   const std::span<const LinePolicyStep> steps = stretching ? stretchSteps : shrinkSteps;
   const auto spaceCount = metrics.simpleSpaces + metrics.ayaSpaces;
   const auto scale = [&] { result.xScale = metrics.currentWidth != 0 ? metrics.targetWidth / metrics.currentWidth : 1; };

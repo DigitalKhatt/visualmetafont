@@ -2073,7 +2073,7 @@ void MarkBaseSubtable::readParameters(const ParameterJsonObject& json) {
 Point MarkBaseSubtable::getBaseAnchor(std::string baseGlyphName, std::string className, GlyphParameters parameters) {
   Point coordinate;
 
-  auto markClass = classes[className];
+  auto& markClass = classes[className];
 
   if (markClass.baseparameters.contains(baseGlyphName)) {
     coordinate = markClass.baseparameters[baseGlyphName];
@@ -2093,6 +2093,10 @@ Point MarkBaseSubtable::getBaseAnchor(std::string baseGlyphName, std::string cla
       const std::string anchorName = m_lookup->name;
       if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
         coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
+      } else if (const auto anchor = m_layout->getAnchor(*curr, *this, className, parameters)) {
+        // Use the font-resolved group anchor when available.
+        // Otherwise continue to the existing base-anchor fallback.
+        coordinate += *anchor;
       } else if (markClass.basefunction) {
         coordinate = markClass.basefunction(baseGlyphName, className, coordinate, parameters);
       } else if (markClass.baseanchors.contains(baseGlyphName)) {

@@ -198,11 +198,11 @@ GlyphVis::GlyphVis(OtLayout* otLayout, const mp_edge_object* edge) {
   }
 }
 
-bool GlyphVis::conatinsAnchor(const std::string& name, AnchorType type) {
+bool GlyphVis::conatinsAnchor(const std::string& name, AnchorType type) const {
   return anchors.contains({name, type});
 }
 
-Point GlyphVis::getAnchor(const std::string& name, AnchorType type) {
+Point GlyphVis::getAnchor(const std::string& name, AnchorType type) const {
   const auto anchor = anchors.find({name, type});
   return anchor != anchors.end() ? anchor->second.anchor : Point{};
 }

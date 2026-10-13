@@ -206,6 +206,8 @@ void resolveJustificationGlyphSets(
         expandGlyphSet(resolve, fact.glyphSetRef, "justification fact " + fact.name);
   }
   for (auto& attachment : catalog.attachments) {
+    for (auto& response : attachment.responses)
+      if (response.glyphSetRef >= 0) response.glyphNames = expandGlyphSet(resolve, response.glyphSetRef, "mark response on " + attachment.name);
     if (attachment.findGlyphSetRef >= 0) {
       attachment.findGlyphNames =
           expandGlyphSet(resolve, attachment.findGlyphSetRef,
@@ -216,7 +218,23 @@ void resolveJustificationGlyphSets(
           expandGlyphSet(resolve, attachment.skipGlyphSetRef,
                          "justification attachment " + attachment.name);
     }
+    if (attachment.excludeMarkGlyphSetRef >= 0) attachment.excludeMarkGlyphNames = expandGlyphSet(resolve, attachment.excludeMarkGlyphSetRef, "excluded marks on " + attachment.name);
   }
+}
+
+std::vector<ResolvedAttachmentSubstitution> resolveAttachmentSubstitutions(const CompiledJustificationCatalog& catalog, const AttachmentGlyphResolver& resolve) {
+  std::vector<ResolvedAttachmentSubstitution> result;
+  for (std::size_t index = 0; index < catalog.attachments.size(); ++index) {
+    const auto& attachment = catalog.attachments[index];
+    if (!attachment.substitution) continue;
+    const auto& substitution = *attachment.substitution;
+    const auto glyph = resolve(substitution.glyph), otherwiseGlyph = resolve(substitution.otherwiseGlyph);
+    if (!glyph || !otherwiseGlyph || *glyph == *otherwiseGlyph) throw std::invalid_argument("attachment substitution requires two distinct font glyphs: " + attachment.name);
+    for (const auto& previous : result)
+      if (previous.matches(*glyph) || previous.matches(*otherwiseGlyph)) throw std::invalid_argument("overlapping attachment substitution families: " + attachment.name);
+    result.push_back({static_cast<JustAttachmentId>(index), substitution.axis, substitution.threshold, *glyph, *otherwiseGlyph});
+  }
+  return result;
 }
 
 CompiledJustificationCatalog compileJustificationCatalog(
@@ -323,12 +341,73 @@ CompiledJustificationCatalog compileJustificationCatalog(
       throw std::invalid_argument("duplicate justification attachment " +
                                   attachment.name);
     }
+    const auto widthAxis = attachment.widthAxis.empty() ? NoGlyphAxis : decl::parameterAttributeAxis(axes, attachment.widthAxis);
+    if (!attachment.widthAxis.empty() && (widthAxis == NoGlyphAxis || !std::isfinite(attachment.gain) || attachment.gain <= 0 || !std::isfinite(attachment.maximumWidth) || attachment.maximumWidth <= 0 || attachment.widthGrid == 0 || attachment.widthGrid > 256))
+      throw std::invalid_argument("invalid dependent width response on attachment " + attachment.name);
+    if (attachment.widthAxis.empty() && (attachment.gain != 0 || attachment.maximumWidth != 0))
+      throw std::invalid_argument("attachment width response requires width_axis: " + attachment.name);
+    if (widthAxis == NoGlyphAxis && (!attachment.growthAxes.empty() || !attachment.growthConnection.empty() || attachment.alignment != "unchanged")) throw std::invalid_argument("default mark growth/alignment requires width_axis: " + attachment.name);
+    if (!attachment.growthConnection.empty() && (!attachment.growthAxes.empty() || attachment.growthConnection.size() != 2)) throw std::invalid_argument("growth_connection requires exactly two axes and cannot be combined with growth_axes: " + attachment.name);
     result.attachments.push_back({.name = attachment.name,
                                   .within = attachment.within,
                                   .skip = attachment.skip,
                                   .find = attachment.find,
                                   .skipGlyphSetRef = attachment.skipGlyphSetRef,
-                                  .findGlyphSetRef = attachment.findGlyphSetRef});
+                                  .findGlyphSetRef = attachment.findGlyphSetRef,
+                                  .skipGlyphNames = attachment.skipGlyphNames,
+                                  .findGlyphNames = attachment.findGlyphNames,
+                                  .widthAxis = widthAxis,
+                                  .gain = attachment.gain,
+                                  .maximumWidth = attachment.maximumWidth,
+                                  .widthGrid = attachment.widthGrid});
+    auto& compiledAttachment = result.attachments.back();
+    if (attachment.substitution) {
+      const auto& substitution = *attachment.substitution;
+      const auto axis = axes.find(substitution.axis);
+      if (axis == NoGlyphAxis || !std::isfinite(substitution.threshold) || substitution.glyph.empty() || substitution.otherwiseGlyph.empty() || substitution.glyph == substitution.otherwiseGlyph)
+        throw std::invalid_argument("invalid parameter-dependent attachment substitution: " + attachment.name);
+      compiledAttachment.substitution = JustAttachmentSubstitution{substitution.glyph, axis, substitution.threshold, substitution.otherwiseGlyph};
+    }
+    if (attachment.during == "stretch") compiledAttachment.during = AttachmentDuring::Stretch;
+    else if (attachment.during == "shrink") compiledAttachment.during = AttachmentDuring::Shrink;
+    else if (attachment.during != "both") throw std::invalid_argument("unknown attachment operation " + attachment.during);
+    compiledAttachment.excludeMarkGlyphSetRef = attachment.excludeMarkGlyphSetRef;
+    compiledAttachment.excludeMarkGlyphNames = attachment.excludeMarkGlyphNames;
+    std::sort(compiledAttachment.excludeMarkGlyphNames.begin(), compiledAttachment.excludeMarkGlyphNames.end());
+    std::erase_if(compiledAttachment.excludeMarkGlyphNames, [](const auto& name) { return name.empty(); });
+    compiledAttachment.excludeMarkGlyphNames.erase(std::unique(compiledAttachment.excludeMarkGlyphNames.begin(), compiledAttachment.excludeMarkGlyphNames.end()), compiledAttachment.excludeMarkGlyphNames.end());
+    for (const auto& name : attachment.growthAxes) {
+      const auto axis = axes.find(name);
+      if (axis == NoGlyphAxis || std::find(compiledAttachment.growthAxes.begin(), compiledAttachment.growthAxes.end(), axis) != compiledAttachment.growthAxes.end()) throw std::invalid_argument("unknown or duplicate mark growth axis " + name);
+      compiledAttachment.growthAxes.push_back(axis);
+    }
+    for (const auto& name : attachment.growthConnection) {
+      const auto axis = axes.find(name);
+      if (axis == NoGlyphAxis) throw std::invalid_argument("unknown mark connection axis " + name);
+      compiledAttachment.growthConnection.push_back(axis);
+    }
+    if (attachment.alignment != "unchanged") throw std::invalid_argument("attachment positioning belongs in font GPOS anchors, not align: " + attachment.name);
+    for (const auto& response : attachment.responses) {
+      if (response.glyphSetRef < 0 && response.glyphNames.empty()) throw std::invalid_argument("mark response requires base glyphs: " + attachment.name);
+      JustMarkResponse compiled{.glyphSetRef = response.glyphSetRef, .glyphNames = response.glyphNames};
+      if (response.mode == "keep") compiled.mode = MarkResponseMode::Keep;
+      else if (response.mode == "width_ratio") compiled.mode = MarkResponseMode::WidthRatio;
+      else if (response.mode == "growth_ratio") compiled.mode = MarkResponseMode::GrowthRatio;
+      else if (response.mode == "parameter") compiled.mode = MarkResponseMode::Parameter;
+      else throw std::invalid_argument("unknown mark response mode " + response.mode);
+      if (compiled.mode == MarkResponseMode::WidthRatio || compiled.mode == MarkResponseMode::GrowthRatio) {
+        if (widthAxis == NoGlyphAxis) throw std::invalid_argument("mark width response requires width_axis: " + attachment.name);
+        if (!std::isfinite(response.ratio) || response.ratio <= 0) throw std::invalid_argument("mark response ratio must be positive");
+      }
+      if (compiled.mode == MarkResponseMode::Parameter) {
+        compiled.parameterAxis = axes.find(response.parameterAxis);
+        if (compiled.parameterAxis == NoGlyphAxis || !std::isfinite(response.parameterValue)) throw std::invalid_argument("mark parameter response requires a native axis and a finite value: " + attachment.name);
+        compiled.parameterValue = response.parameterValue;
+      }
+      compiled.ratio = response.ratio;
+      if (response.alignment != "unchanged" || response.lowerGrowth) throw std::invalid_argument("attachment positioning belongs in font GPOS anchors, not align/lower_growth: " + attachment.name);
+      result.attachments.back().responses.push_back(std::move(compiled));
+    }
   }
 
   // Action definitions ------------------------------------------------------

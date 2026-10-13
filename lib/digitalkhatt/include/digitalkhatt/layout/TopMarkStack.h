@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <vector>
 #include "digitalkhatt/layout/GlyphInstance.h"
 
@@ -10,6 +11,8 @@ struct TopMarkStackLink {
   GlyphInstance* outer;
   double offsetX;
   double minGap;
+  bool outlineClearance = false;
+  std::optional<double> preferredGap;
 };
 
 // Apply authored rules only to marks of the same base with consecutive original

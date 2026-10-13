@@ -98,6 +98,11 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
       g.isMark = marks.contains(name);
       g.isTopMark = top.contains(name) || dots.contains(name) || waqf.contains(name);
       g.glyphName = name;
+      g.preserveGposHorizontal = layout_.preserveMarkGposHorizontal(positioned.codepoint, positioned.parameters);
+      if (g.isMark) {
+        if (const auto clearance = layout_.markBaselineClearance(positioned.codepoint, positioned.parameters)) g.baselineClearance = *clearance * line.fontSize;
+      }
+      g.justificationAddedLeftTatweel = positioned.justificationAddedLeftTatweel;
       g.lineIndex = l; g.glyphIndex = i;
       g.lineY = y;
       g.baseX = x + positioned.x_offset * xscale;

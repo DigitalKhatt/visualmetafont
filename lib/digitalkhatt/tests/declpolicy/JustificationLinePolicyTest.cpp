@@ -95,6 +95,13 @@ int main() {
   const auto policy = compileLineJustificationPolicy(fixture());
   Backend backend;
   bool ok = true;
+  const std::vector<LinePolicyStep> scaleOnly{compileLinePolicyStep({.operation = "scale"}, false)};
+  auto scopedResult = executeLineJustificationPolicy({}, scaleOnly, {1000, 1200, 100, 0, 0}, backend);
+  ok &= expect(scopedResult.operation == LineJustificationOperation::Shrink, "shrink recipe is recorded even without a glyph-action stage");
+  scopedResult = executeLineJustificationPolicy({}, {}, {1200, 1000, 100, 0, 0}, backend);
+  ok &= expect(scopedResult.operation == LineJustificationOperation::Stretch, "stretch recipe is retained even if no stage changes the glyphs");
+  scopedResult = executeLineJustificationPolicy({}, {}, {1000, 1000, 100, 0, 0}, backend);
+  ok &= expect(scopedResult.operation == LineJustificationOperation::None, "exact-fit lines have no stretch or shrink operation");
   ok &= expect(near(quantizeProportionalParameter(3.141, 0, 20, 16), 3.125), "default proportional grid rounds expansion downward to a sixteenth");
   ok &= expect(near(quantizeProportionalParameter(3.141, 0, 20, 0), 3.141), "zero subdivisions disable proportional quantization");
   ok &= expect(near(quantizeProportionalParameter(3.141, 3.13, 20, 16), 3.13), "quantization never crosses the accepted minimum endpoint");

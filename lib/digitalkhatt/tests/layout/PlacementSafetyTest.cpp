@@ -13,6 +13,7 @@
 #include "digitalkhatt/layout/SolverContext.h"
 #include "digitalkhatt/layout/ViolationReportContext.h"
 #include "digitalkhatt/layout/constraints/HorizontalOrderConstraint.h"
+#include "digitalkhatt/layout/constraints/YlaneConstraint.h"
 
 using namespace digitalkhatt::layout;
 
@@ -79,6 +80,7 @@ OptParams quiet() {
   t.ylane = t.waqfPlacement = t.hardStayAboveBelow = t.stackOrder = false;
   t.baseVicinity = t.horizontalOrder = t.matchMarkPosition = t.genericGapConstraint = false;
   t.reportGenericGap = false;
+  t.reportPlacementAudit = true;  // These safety tests explicitly inspect audit findings.
   return p;
 }
 
@@ -184,6 +186,67 @@ void worldBoundsAndAppliedOffsets() {
   require(a.iterationMaxMovementSquared >= 100, "Opposing corrections must not appear converged just because net movement is zero");
 }
 
+void stretchedFathaJoinedHorizontalGap() {
+  for (const auto* fathaName : {"fatha.stretched"}) {
+    for (const auto* joinedName : {"smallalef.joined", "hamzaabove.joined"}) {
+      for (bool fathaIsA : {true, false}) {
+        for (double added : {0.0, 0.0625, 0.125, 0.5, 1.0, 2.0}) {
+          Fixture f;
+          f.classes["marks"].insert(fathaName);
+          f.classes["marks"].insert(joinedName);
+          auto& a = f.add(fathaIsA ? fathaName : joinedName, 100, 100, fathaIsA ? 200 : 20, 20);
+          auto& b = f.add(fathaIsA ? joinedName : fathaName, 90, 100, fathaIsA ? 20 : 200, 20);
+          auto& fatha = fathaIsA ? a : b;
+          auto& joined = fathaIsA ? b : a;
+          fatha.preserveGposHorizontal = true;
+          fatha.justificationAddedLeftTatweel = added;
+          SolverContext context(f.page, f.classes);
+          HorizontalOrderConstraint constraint(a, b, 0.8, 0.0, 0.0);
+          const double gap = std::min(100.0, 100 * added);
+          const double deficit = b.worldPolys.boundingAABB().maxx + gap - a.worldPolys.boundingAABB().minx;
+          std::vector<ConstraintViolation> violations;
+          constraint.reportViolations(context, violations);
+          require(violations.size() == 1 && std::abs(violations[0].severity - deficit) < 1e-9, "Joined/Fatha report must measure the same scaled horizontal gap as projection");
+          constraint.project(context, 1);
+          require(fatha.dx == 0 && fatha.dy == 0 && joined.dy == 0, "Only the joined mark may move horizontally for this pair");
+          require(std::abs(joined.dx - (fathaIsA ? -deficit : deficit)) < 1e-9, "Joined mark must move in semantic ownership order on either side of Fatha");
+          require(fatha.mobility == 1 && joined.mobility == 1, "Ordering must not change global glyph mobilities");
+          require(std::abs(a.worldPolys.boundingAABB().minx - b.worldPolys.boundingAABB().maxx - gap) < 1e-9, "Projection must establish the justification-dependent edge-to-edge gap");
+          violations.clear();
+          constraint.reportViolations(context, violations);
+          require(violations.empty(), "Satisfied scaled gap must not report a violation");
+          const double solvedX = joined.dx;
+          constraint.project(context, 1);
+          require(fatha.dx == 0 && joined.dx == solvedX, "An already satisfied pair must not keep drifting");
+
+          joined.mobility = 0;
+          joined.dx = 0;
+          buildWorldPolys(joined);
+          constraint.project(context, 1);
+          require(fatha.dx == 0 && joined.dx == 0, "Rigid joined marks must not cause the ordering constraint to move Fatha instead");
+          violations.clear();
+          constraint.reportViolations(context, violations);
+          require(violations.size() == 1, "An infeasible rigid pair must retain its gap diagnostic");
+        }
+      }
+    }
+  }
+
+  // Even a contextual positive-width Fatha keeps the ordinary rule. Its
+  // legacy preserve flag must not turn it into a justification-stretched mark.
+  for (const auto* neighbor : {"smallalef.joined", "hamzaabove.joined", "shadda"}) {
+    Fixture f;
+    f.classes["marks"].insert(neighbor);
+    auto& a = f.add("fatha", 100, 100, 40, 20);
+    auto& b = f.add(neighbor, 90, 100, 40, 20);
+    a.preserveGposHorizontal = true;
+    SolverContext context(f.page, f.classes);
+    HorizontalOrderConstraint constraint(a, b, 0.8, 0.0, 0.0);
+    constraint.project(context, 1);
+    require(std::abs(a.dx - 11) < 1e-9 && std::abs(b.dx + 11) < 1e-9, "Ordinary pairs must retain the existing width-fraction rule and both mobilities");
+  }
+}
+
 void gapReportingAndKeys() {
   Fixture f;
   auto& a = f.add("fatha", 0, 100, 20, 20);
@@ -208,10 +271,11 @@ void gapReportingAndKeys() {
   clearance.add("base", 0, 0, 20, 20);
   clearance.add("fatha", 0, 25, 20, 20);
   auto p = quiet();
-  p.toggles.reportGenericGap = OptParams{}.toggles.reportGenericGap;
+  p.toggles.reportGenericGap = true;
+  p.reportGenericGapCollisionsOnly = false;
   v.clear();
   optimizePage(clearance.page, clearance.classes, p, &v);
-  require(contains(v, ViolationType::GenericGap), "Default report must include positive clearance violations, even with gap forces off");
+  require(contains(v, ViolationType::GenericGap), "An explicit clearance report must include positive violations, even with gap forces off");
 }
 
 void completeConstraintCoverageAndConvergence() {
@@ -253,6 +317,132 @@ void completeConstraintCoverageAndConvergence() {
   optimizePage(lane.page, lane.classes, p, &v);
   require(!contains(v, ViolationType::Ylane), "Soft targets must remain distinct from hard safety failures");
 }
+void stretchedMarksRetainCollisionSafety() {
+  Fixture f;
+  f.add("base", 0, 0, 100, 100);
+  auto& mark = f.add("fatha", -500, 20, 200, 40);
+  mark.preserveGposHorizontal = true;
+  f.add("neighbor", -450, 0, 100, 100);
+  auto p = quiet();
+  p.toggles.squeezeCenter = p.toggles.baseVicinity = true;
+  p.toggles.reportGenericGap = true;
+  p.reportGenericGapCollisionsOnly = false;
+  std::vector<ConstraintViolation> v;
+  optimizePage(f.page, f.classes, p, &v);
+  require(!contains(v, ViolationType::BaseVicinity) && !contains(v, ViolationType::SqueezeCenter), "Authored stretched-mark placement must not receive generic centering/leash constraints");
+  require(contains(v, ViolationType::GenericGap), "A stretched mark must still participate in collision safety");
+  mark.preserveGposHorizontal = false;
+  v.clear();
+  optimizePage(f.page, f.classes, p, &v);
+  require(contains(v, ViolationType::BaseVicinity), "Ordinary marks must retain their base-vicinity constraint");
+}
+
+void stretchedFathaBandRespectsAuthoredHeight() {
+  for (const auto& [name, preserve] : {std::pair{"fatha", false}, std::pair{"fatha", true}, std::pair{"fatha.stretched", false}, std::pair{"fatha.stretched", true}}) {
+    Fixture f;
+    f.classes["marks"].insert(name);
+    f.classes["topmarks"].insert(name);
+    auto& base = f.add("base", 0, -1000, 100, 100);
+    base.lineY = -1000;
+    auto& mark = f.add(name, 20, -720, 400, 40);
+    mark.preserveGposHorizontal = preserve;
+    SolverContext context(f.page, f.classes);
+    YlaneConstraint lane(mark, 0, 600);
+    const bool stretched = std::string_view(name) == "fatha.stretched" && preserve;
+    require(lane.laneHeight == (stretched ? 300 : 600), "Only justification-stretched Fatha may use its authored GPOS band floor");
+    std::vector<ConstraintViolation> violations;
+    lane.reportViolations(context, violations);
+    require(contains(violations, ViolationType::Ylane) != stretched, "Lane reporting must use the same adjusted floor as projection");
+    lane.project(context, 1);
+    require(std::abs(mark.dy - (stretched ? 0 : 300)) < 1e-9, "Long stretched Fatha must not be lifted to the ordinary high band");
+    if (!stretched) continue;
+
+    mark.dy = -50;
+    buildWorldPolys(mark);
+    lane.project(context, 1);
+    require(std::abs(mark.dy) < 1e-9, "The adjusted lane must still restore a mark pushed below its authored floor");
+    mark.dy = 80;
+    buildWorldPolys(mark);
+    lane.project(context, 1);
+    require(mark.dy == 80, "The adjusted lane must never pull a raised mark down");
+    YlaneConstraint repeated(mark, 0, 600);
+    require(repeated.laneHeight == 300, "Rebuilding constraints must not adopt previous solver displacement as the authored floor");
+    mark.baseY = -120;
+    mark.dy = 0;
+    buildWorldPolys(mark);
+    YlaneConstraint alreadyHigh(mark, 0, 600);
+    require(alreadyHigh.laneHeight == 600, "Stretched Fatha already above the ordinary band must retain its existing floor");
+    alreadyHigh.project(context, 1);
+    require(mark.dy == 0, "Already-high stretched Fatha must not be moved downward");
+  }
+
+  Fixture wired;
+  wired.classes["marks"].insert("fatha.stretched");
+  wired.classes["topmarks"].insert("fatha.stretched");
+  wired.add("base", 0, 0, 100, 100);
+  auto& mark = wired.add("fatha.stretched", 20, 280, 400, 40);
+  mark.preserveGposHorizontal = true;
+  auto p = quiet();
+  p.maxIters = 20;
+  p.toggles.ylane = true;
+  p.toggles.reportSoftResiduals = true;
+  p.compliance.ylane = 0;
+  std::vector<ConstraintViolation> violations;
+  optimizePage(wired.page, wired.classes, p, &violations);
+  require(mark.dy == 0 && !contains(violations, ViolationType::Ylane), "Per-base lane wiring must respect the stretched Fatha's original height");
+
+  mark.baseY = 20;
+  buildWorldPolys(mark);
+  p.toggles.hardStayAboveBelow = true;
+  violations.clear();
+  optimizePage(wired.page, wired.classes, p, &violations);
+  require(boxBottomY(mark) >= 100 - 1e-3 && !contains(violations, ViolationType::HardStayAbove), "Relaxing the decorative high band must not weaken the hard baseline safety rail");
+}
+void fontAuthoredBaselineClearance() {
+  for (const double minimum : {50.0, 100.0, 200.0}) {
+    Fixture f;
+    f.classes["marks"].insert("fatha.stretched");
+    f.classes["topmarks"].insert("fatha.stretched");
+    auto& base = f.add("base", 0, -100, 100, 10);
+    base.lineY = -250;
+    auto& mark = f.add("fatha.stretched", -300, -270, 400, 40);
+    mark.lineY = -250;
+    mark.preserveGposHorizontal = true;
+    mark.baselineClearance = minimum;
+    auto p = quiet();
+    p.maxIters = 20;
+    p.minViolationSeverity = 0.001;
+    std::vector<ConstraintViolation> violations;
+    optimizePage(f.page, f.classes, p, &violations);
+    require(boxBottomY(mark) >= base.lineY + minimum - 1e-3, "Font-authored floor must protect the lowest tip relative to the line baseline, even outside the base footprint");
+    require(mark.dx == 0 && base.dy == 0 && !contains(violations, ViolationType::HardStayAbove), "Baseline floor must not recenter Fatha, move the base or leave an unresolved bound");
+    const double solvedY = mark.dy;
+    optimizePage(f.page, f.classes, p, &violations);
+    require(std::abs(mark.dy - solvedY) < 1e-3, "Repeated optimization must not accumulate baseline lift");
+  }
+  Fixture ordinary;
+  ordinary.add("base", 0, 0);
+  auto& untouched = ordinary.add("fatha", 0, 0);
+  auto p = quiet();
+  p.maxIters = 20;
+  std::vector<ConstraintViolation> violations;
+  optimizePage(ordinary.page, ordinary.classes, p, &violations);
+  require(untouched.dy == 0, "Absent font metadata must leave ordinary marks and other fonts unchanged");
+
+  Fixture interaction;
+  interaction.classes["marks"].insert("fatha.stretched");
+  interaction.classes["topmarks"].insert("fatha.stretched");
+  interaction.add("base", 0, 0, 100, 20);
+  interaction.add("shadda", 0, 0, 20, 20);
+  auto& stretched = interaction.add("fatha.stretched", 0, 90, 200, 20);
+  stretched.preserveGposHorizontal = true;
+  stretched.baselineClearance = 200;
+  p.toggles.stackOrder = true;
+  p.toggles.reportSoftResiduals = true;
+  violations.clear();
+  optimizePage(interaction.page, interaction.classes, p, &violations);
+  require(boxBottomY(stretched) >= 200 - 1e-3 && !contains(violations, ViolationType::HardStayAbove) && !contains(violations, ViolationType::StackOrderGap), "Baseline safety must win over a lower preferred Shadda gap without weakening either hard bound");
+}
 }  // namespace
 
 int main() {
@@ -261,8 +451,12 @@ int main() {
     independentSideAndOwnerChecks();
     ownershipAndReportContext();
     worldBoundsAndAppliedOffsets();
+    stretchedFathaJoinedHorizontalGap();
     gapReportingAndKeys();
     completeConstraintCoverageAndConvergence();
+    stretchedMarksRetainCollisionSafety();
+    stretchedFathaBandRespectsAuthoredHeight();
+    fontAuthoredBaselineClearance();
     std::cout << "XPBD placement safety regressions passed\n";
   } catch (const std::exception& e) {
     std::cerr << e.what() << '\n';

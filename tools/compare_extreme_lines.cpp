@@ -24,8 +24,6 @@
 #include <png.h>
 
 #include <digitalkhatt.h>
-#include <digitalkhatt/layout/ClassMap.h>
-#include <digitalkhatt/layout/OptimizeLayout.h>
 #include <digitalkhatt/layout/OptParams.h>
 
 #include "AbstractContentContext.h"
@@ -37,6 +35,7 @@
 #include "PageContentContext.h"
 #include "Layout/GlyphVis.h"
 #include "Layout/OtLayout.h"
+#include "Layout/PlacementPipeline.h"
 #include "MPFont.h"
 #include "qurantext/quran.h"
 
@@ -1115,109 +1114,10 @@ bool drawSegmentedLine(PageContentContext* context,
   return true;
 }
 
-void applyForceLayout(OtLayout& layout, std::vector<LineLayoutInfo>& page,
-                      double scale) {
-  using digitalkhatt::layout::GlyphInstance;
-  using geometry::buildConvexPartsFromCubics;
-  using geometry::buildPolyFromCubics;
-  using geometry::CUBIC_FLATNESS_TOLERANCE;
-  using geometry::GeometrySet;
-  using geometry::getGlyphCubic;
-
-  std::unordered_map<GlyphVis*, GeometrySet> glyphToPolys;
-  const auto& classes = layout.glyphClasses();
-  const auto& marks =
-      digitalkhatt::layout::classesOrEmpty(classes, "marks");
-  const auto& topmarks =
-      digitalkhatt::layout::classesOrEmpty(classes, "topmarks");
-  const auto& waqfmarks =
-      digitalkhatt::layout::classesOrEmpty(classes, "waqfmarks");
-  const auto& topdotmarks =
-      digitalkhatt::layout::classesOrEmpty(classes, "topdotmarks");
-  auto isTopMark = [&](const std::string& name) {
-    return topmarks.contains(name) || waqfmarks.contains(name) ||
-           topdotmarks.contains(name);
-  };
-
-  std::vector<std::vector<GlyphInstance>> pageGlyphs;
-  pageGlyphs.reserve(page.size());
-  for (int lineIndex = 0; lineIndex < static_cast<int>(page.size());
-       ++lineIndex) {
-    auto& line = page[lineIndex];
-    auto& lineGlyphs = pageGlyphs.emplace_back();
-    lineGlyphs.reserve(line.glyphs.size());
-    const double xScale = line.fontSize * line.xscale;
-    const double yScale = line.fontSize;
-    double currentX = -line.xstartposition;
-    const double currentY =
-        -(line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY));
-    GlyphInstance* currentBase = nullptr;
-    GlyphInstance* previousBase = nullptr;
-
-    for (int glyphIndex = 0;
-         glyphIndex < static_cast<int>(line.glyphs.size()); ++glyphIndex) {
-      auto& positioned = line.glyphs[glyphIndex];
-      const auto name = layout.glyphNamePerCode.find(positioned.codepoint);
-      if (name == layout.glyphNamePerCode.end())
-        throw std::runtime_error("Force layout found an unnamed glyph");
-      auto* glyph = layout.getGlyph(positioned);
-      if (!glyph)
-        throw std::runtime_error("Force layout could not load glyph " +
-                                 name->second);
-      auto geometry = glyphToPolys.find(glyph);
-      if (geometry == glyphToPolys.end()) {
-        auto polygons = marks.contains(name->second)
-                            ? buildPolyFromCubics(
-                                  getGlyphCubic(glyph->copiedPath),
-                                  CUBIC_FLATNESS_TOLERANCE)
-                            : buildConvexPartsFromCubics(
-                                  getGlyphCubic(glyph->copiedPath),
-                                  CUBIC_FLATNESS_TOLERANCE);
-        geometry =
-            glyphToPolys.emplace(glyph, polygons.scaled(scale, scale)).first;
-      }
-
-      currentX -= positioned.x_advance * line.xscale;
-      auto& instance = lineGlyphs.emplace_back();
-      instance.isMark = marks.contains(name->second);
-      instance.isTopMark = isTopMark(name->second);
-      instance.lineY = currentY;
-      instance.baseX = currentX + positioned.x_offset * line.xscale;
-      instance.baseY = currentY + positioned.y_offset;
-      instance.glyphLayout = &positioned;
-      instance.metrics =
-          {glyph->width, glyph->height, glyph->bbox.llx, glyph->bbox.urx};
-      instance.glyphName = name->second;
-      instance.lineIndex = lineIndex;
-      instance.glyphIndex = glyphIndex;
-      if (xScale == 1 && yScale == 1)
-        instance.geom = &geometry->second;
-      else
-        instance.geomScaled = geometry->second.scaled(xScale, yScale);
-      instance.prevBase = currentBase;
-      if (!instance.isMark) {
-        previousBase = currentBase;
-        currentBase = &instance;
-        if (previousBase) previousBase->nextBase = currentBase;
-      }
-    }
-  }
-
-  auto solverClasses = classes;
-  if (!solverClasses.contains("bowlbases"))
-    solverClasses["bowlbases"] = {"hah.isol", "hah.fina", "ain.fina"};
+void applyForceLayout(OtLayout& layout, std::vector<LineLayoutInfo>& page, double scale) {
+  digitalkhatt::layout::PlacementPipeline pipeline(layout, scale);
   const digitalkhatt::layout::OptParams parameters;
-  digitalkhatt::layout::optimizePage(pageGlyphs, solverClasses, parameters);
-  for (int lineIndex = 0; lineIndex < static_cast<int>(page.size());
-       ++lineIndex) {
-    for (int glyphIndex = 0;
-         glyphIndex < static_cast<int>(page[lineIndex].glyphs.size());
-         ++glyphIndex) {
-      auto& positioned = page[lineIndex].glyphs[glyphIndex];
-      const auto& solved = pageGlyphs[lineIndex][glyphIndex];
-      digitalkhatt::layout::applySolvedGlyphOffsets(positioned, solved, page[lineIndex].xscale);
-    }
-  }
+  (void)pipeline.solve(page, parameters, true, false);
 }
 
 using JustifiedPages = std::map<int, std::vector<LineLayoutInfo>>;

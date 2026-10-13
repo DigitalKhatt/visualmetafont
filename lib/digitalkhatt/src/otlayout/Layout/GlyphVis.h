@@ -121,9 +121,9 @@ class GlyphVis {
 
   GlyphVis* getAlternate(GlyphParameters parameters);
 
-  Point getAnchor(const std::string& name, AnchorType type);
+  Point getAnchor(const std::string& name, AnchorType type) const;
 
-  bool conatinsAnchor(const std::string& name, AnchorType type);
+  bool conatinsAnchor(const std::string& name, AnchorType type) const;
   bool expanded = false;
   bool isAlternate = false;
 

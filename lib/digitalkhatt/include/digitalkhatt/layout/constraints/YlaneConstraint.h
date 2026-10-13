@@ -17,16 +17,13 @@ namespace digitalkhatt::layout {
 // One YlaneConstraint is created per base, on the anchor (bottom-most band
 // participant of that base's above-group); stacked members ride above the
 // anchor through StackOrderConstraint.
+// A GPOS-preserving stretched Fatha uses the lower of the flat band and its
+// original authored height: its long tail must not undo deliberate lowering.
 struct YlaneConstraint : XPBDConstraint {
   double laneHeight = 0.0;  // target band height above the baseline
   GlyphInstance& mark;      // the anchor mark this lane pins
 
-  YlaneConstraint(GlyphInstance& mark, double comp, double laneHeight)
-      : mark{mark} {
-    compliance = comp;
-    this->laneHeight = laneHeight;
-    reportEnabled = true;
-  }
+  YlaneConstraint(GlyphInstance& mark, double comp, double laneHeight);
 
   void project(SolverContext& solverContext, double dt) override;
   void reportViolations(SolverContext& solverContext,

@@ -11,6 +11,8 @@ struct HorizontalOrderConstraint : XPBDConstraint {
   GlyphInstance& markA;  // belongs to the preceding (right) owner
   GlyphInstance& markB;  // belongs to the following (left) owner
   // Anti-misassociation thresholds, measured on the ink box.
+  // Exception: stretched Fatha versus joined small Alef/Hamza uses
+  // min(100, 100 * justification-added lefttatweel), with zero Fatha mobility.
   double selfKeep;   // fraction of a mark's OWN ink that must stay exposed
   double crossKeep;  // exposed protrusion must exceed this fraction of the NEIGHBOR's ink
 

@@ -23,7 +23,22 @@ double bandRefFrac(const std::string& name) {
   return 0.5;                                   // fatha, sukun, shadda, default
 }
 
+double bandReferenceY(const GlyphInstance& mark) {
+  return boxBottomY(mark) + bandRefFrac(mark.glyphName) * boxHeight(mark);
+}
+
 }  // namespace
+
+YlaneConstraint::YlaneConstraint(GlyphInstance& glyph, double comp, double height) : laneHeight(height), mark(glyph) {
+  compliance = comp;
+  reportEnabled = true;
+  if (mark.preserveGposHorizontal && mark.glyphName == "fatha.stretched") {
+    const double baseline = mark.prevBase ? mark.prevBase->lineY : mark.lineY;
+    // Remove earlier solver displacement when this page is solved again.
+    // This is a local up-only floor, not a force pulling the mark downward.
+    laneHeight = std::min(laneHeight, bandReferenceY(mark) - mark.dy - baseline);
+  }
+}
 
 void YlaneConstraint::project(SolverContext& solverContext, double dt) {
   const double w = mark.mobility;
@@ -34,8 +49,7 @@ void YlaneConstraint::project(SolverContext& solverContext, double dt) {
   const double baseline = mark.prevBase ? mark.prevBase->lineY : mark.lineY;
 
   // Real world-geometry reference point (NOT design metrics).
-  const double yRef =
-      boxBottomY(mark) + bandRefFrac(mark.glyphName) * boxHeight(mark);
+  const double yRef = bandReferenceY(mark);
 
   double yTarget = baseline + laneHeight;
   // --- PHASE 2 HOOK (disabled in phase 1) ---------------------------------
@@ -80,8 +94,7 @@ void YlaneConstraint::project(SolverContext& solverContext, double dt) {
 void YlaneConstraint::reportViolations(
     SolverContext&, std::vector<ConstraintViolation>& out) const {
   const double baseline = mark.prevBase ? mark.prevBase->lineY : mark.lineY;
-  const double yRef =
-      boxBottomY(mark) + bandRefFrac(mark.glyphName) * boxHeight(mark);
+  const double yRef = bandReferenceY(mark);
   const double yTarget = baseline + laneHeight;
 
   const double C = yRef - yTarget;  // violation when C < 0 (below the band)

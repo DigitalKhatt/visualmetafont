@@ -296,12 +296,33 @@ hb_position_t OtLayout::gethHorizontalAdvance(hb_font_t* hbFont, hb_codepoint_t 
   return getGlyphHorizontalAdvance(hbFont, this, glyph, parameters, userData);
 }
 
-void OtLayout::setGlyphParameters(hb_glyph_info_t& info, const GlyphParameters& parameters) {
+void OtLayout::setGlyphParameters(hb_glyph_info_t& info, const GlyphParameters& parameters, const GlyphParameters* justificationBaseline) {
   auto state = instanceStore.get(info.instance_id);
+  if (justificationBaseline && !state.justificationBaseline) {
+    GlyphInstanceState baseline;
+    baseline.parameters = *justificationBaseline;
+    state.justificationBaseline = instanceStore.intern(baseline);
+  }
   state.parameters = parameters;
   state.lookupLeft = state.lookupRight = 0;
   info.instance_id = instanceStore.intern(state);
 }
+
+double OtLayout::glyphJustificationDelta(const hb_glyph_info_t& info, digitalkhatt::GlyphAxisId axis) const {
+  const auto state = instanceStore.get(info.instance_id);
+  if (!state.justificationBaseline) return 0;
+  return state.parameters.value(axis) - instanceStore.get(*state.justificationBaseline).parameters.value(axis);
+}
+
+
+bool OtLayout::preserveMarkGposHorizontal(hb_codepoint_t mark, const GlyphParameters& parameters) const {
+  return automedina && automedina->preserveMarkGposHorizontal(mark, parameters);
+}
+
+std::optional<double> OtLayout::markBaselineClearance(hb_codepoint_t mark, const GlyphParameters& parameters) const {
+  return automedina ? automedina->markBaselineClearance(mark, parameters) : std::nullopt;
+}
+
 
 GlyphParameters OtLayout::glyphParameters(hb_codepoint_t glyph, std::uint32_t instanceId) {
   const auto state = instanceStore.get(instanceId);
@@ -329,6 +350,8 @@ hb_bool_t OtLayout::glyphInstanceCallback(hb_font_t*, hb_glyph_instance_operatio
   switch (operation) {
     case HB_INSTANCE_READ_TATWEELS: {
       auto& value = *static_cast<hb_glyph_tatweels_t*>(payload);
+      // A neutral dot/Shadda reference still needs live GPOS callbacks;
+      // the static anchor cannot observe its actual parent attachment.
       value = {state.lookupLeft, state.lookupRight, !state.parameters.isDefault()};
       return true;
     }
@@ -1388,6 +1411,8 @@ void OtLayout::parseFeatureFile(std::string fileName) {
         });
   }
 
+  prepareAnchorResolution();
+
   if (face != nullptr) {
     hb_face_destroy(face);
     face = nullptr;
@@ -1400,6 +1425,14 @@ bool OtLayout::parseCppLookup(const std::string& lookupName) {
     return true;
   }
   return false;
+}
+
+void OtLayout::prepareAnchorResolution() {
+  if (automedina) automedina->prepareAnchorResolution();
+}
+
+std::optional<Point> OtLayout::getAnchor(const GlyphVis& glyph, const MarkBaseSubtable& subtable, std::string_view className, const GlyphParameters& parameters) const {
+  return automedina ? automedina->getAnchor(glyph, subtable, className, parameters) : std::nullopt;
 }
 void OtLayout::saveParameters(ParameterJsonObject& json) const {
   for (auto lookup : lookups) {
