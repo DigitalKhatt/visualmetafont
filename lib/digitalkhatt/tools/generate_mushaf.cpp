@@ -315,6 +315,8 @@ void usage() {
       "  --force / --no-force       Enable/disable XPBD (default matches GUI: off)\n"
       "  --report / --no-report     Generate PDFs, CSV and offline web viewer\n"
       "  --xpbd-config PATH         Partial/full OptParams JSON\n"
+      "  --same-word-gap N          Generic intra-word target clearance (default 80)\n"
+      "  --different-word-gap N     Inter-word / inter-line target clearance (default 80)\n"
       "  --soft-targets             Include optional soft residuals\n"
       "  --waqf-escape / --no-waqf-escape  Conditional left escape (default on)\n"
       "  --waqf-escape-min-gap N     Escape trigger/stop clearance (default 10)\n"
@@ -411,6 +413,8 @@ int main(int argc,char** argv) {
       else if (arg=="--pdf-resources") options.pdfResources=value();
       else if (arg=="--disable-lookup") options.disabledLookups.push_back(value());
       else if (arg=="--xpbd-config") readJson(options.xpbd,value(),&legacyPadding);
+      else if (arg=="--same-word-gap") options.xpbd.sameWordGap=std::stod(value());
+      else if (arg=="--different-word-gap") options.xpbd.differentWordGap=std::stod(value());
       else if (arg=="--write-config") extraConfig=value();
       else if (arg=="--placement-data") placementData=value();
       else if (arg=="--review-words-file") reviewWordsFile=value();
@@ -449,6 +453,8 @@ int main(int argc,char** argv) {
     if (options.layout=="v4" || options.layout=="v4_layout") options.layout="qpc_v4_layout";
     if (options.xpbd.reportMaxFindings<0 || options.xpbd.maxIters<0 || options.xpbd.maxIters>10000 ||
         !std::isfinite(options.xpbd.broadphasePadding) || options.xpbd.broadphasePadding<0 ||
+        !std::isfinite(options.xpbd.sameWordGap) || options.xpbd.sameWordGap<0 || options.xpbd.sameWordGap>1000 ||
+        !std::isfinite(options.xpbd.differentWordGap) || options.xpbd.differentWordGap<0 || options.xpbd.differentWordGap>1000 ||
         !std::isfinite(options.xpbd.collisionReportMinGap) || options.xpbd.collisionReportMinGap<0 || options.xpbd.collisionReportMinGap>1000 ||
         !std::isfinite(options.xpbd.minViolationSeverity) || options.xpbd.minViolationSeverity<0 ||
         !std::isfinite(options.xpbd.baseVicinityMarkTolerancePercent) || options.xpbd.baseVicinityMarkTolerancePercent<0 || options.xpbd.baseVicinityMarkTolerancePercent>100 ||

@@ -7,6 +7,8 @@
 
 namespace digitalkhatt::layout {
 
+struct OptParams;
+
 // Detects and resolves a mark squeezed horizontally between two base
 // glyphs, with no glyph-name matching involved: every iteration it checks
 // whether the mark's min-gap is simultaneously violated against an obstacle
@@ -24,11 +26,13 @@ struct SqueezeCenterConstraint : XPBDConstraint {
   };
 
   GlyphInstance& mark;
+  const OptParams& params;
   std::vector<ObstacleState> obstacles;
   double centerCompliance;
   double lambdaCenter = 0.0;  // soft midpoint-equality
 
   SqueezeCenterConstraint(GlyphInstance& mark_,
+                          const OptParams& params_,
                           const std::vector<GlyphInstance*>& obstacles_,
                           double centerCompliance_ = 0.3);
 

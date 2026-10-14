@@ -51,6 +51,9 @@ struct GlyphInstance {
   int lineIndex = 0;
   int glyphIndex = 0;
   int globalIndex = 0;
+  // Page-local semantic word identity, assigned from spaces and line boundaries
+  // before solving. -1 denotes whitespace or unknown ownership.
+  int wordIndex = -1;
   GlyphInstance* prevBase = nullptr;
   GlyphInstance* nextBase = nullptr;
   double mobility = 0.0;  // 0 = rigid, 1 = very movable

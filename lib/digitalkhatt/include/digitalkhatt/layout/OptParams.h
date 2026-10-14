@@ -65,8 +65,13 @@ struct ConstraintCompliance {
 };
 
 struct OptParams {
-  // Expand each ink bounding box when finding potential contact pairs.
-  // Search coverage only: this does not set clearance or limit movement.
+  // Generic target clearances in solver world/font units. Dedicated stack
+  // constraints and the 40/10-unit attachment exceptions keep their own gaps.
+  double sameWordGap = 80.0;
+  double differentWordGap = 80.0;  // includes glyphs on different lines
+
+  // Minimum expansion of each ink box when finding potential contact pairs.
+  // The search also covers half the largest configured target gap.
   double broadphasePadding = 140.0;  // font units
 
   int maxIters = 20;

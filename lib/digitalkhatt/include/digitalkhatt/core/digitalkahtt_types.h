@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -62,6 +63,9 @@ struct LineLayoutInfo {
   int currentLineWidth;
   double fontSize;
   double xscale = 1;
+  // Native justification's planned width at this font size, before final
+  // per-glyph integer rounding and horizontal page fitting. Diagnostic only.
+  std::optional<double> plannedLineWidth;
 };
 
 enum class LineJustification {

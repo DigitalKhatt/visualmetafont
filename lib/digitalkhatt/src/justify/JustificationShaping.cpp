@@ -582,6 +582,7 @@ LineLayoutInfo shapeLine(FeatureJustificationLayout& layout, int lineWidth, int 
 
   lineLayout.desiredLineWidth = lineWidth;
   lineLayout.currentLineWidth = currentlineWidth;
+  if (justResult.nativeWidth) lineLayout.plannedLineWidth = *justResult.nativeWidth * emScale;
 
   lineLayout.overfull = lineWidth != 0 ? currentlineWidth - lineWidth : 0;
 

@@ -44,6 +44,7 @@
 // #include <QGLWidget>
 
 #include <algorithm>
+#include <limits>
 #include <vector>
 
 #include "GlyphItem.h"
@@ -2484,7 +2485,7 @@ void LayoutWindow::createDockWindows() {
   viewMenu->addAction(solverTuningDock->toggleViewAction());
 
   auto action = new QAction(tr("Calculate minimum size"), this);
-  action->setStatusTip(tr("Calculate minimum size"));
+  action->setStatusTip(tr("Report native justification overflow separately from rendered rounding differences"));
   connect(action, &QAction::triggered, this,
           &LayoutWindow::calculateMinimumSize);
 
@@ -3295,90 +3296,81 @@ void LayoutWindow::findOverflows(bool overfull) {
 void LayoutWindow::calculateMinimumSize() {
   loadLookupFile("features.fea");
 
-  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  const int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  const double scale = OtLayout::EMSCALE;
+  const double emScale = (1 << OtLayout::SCALEBY) * scale;
 
   struct Line {
     int pageNumber;
     int lineNumber;
     double overflow;
+    double fitRatio;
+    double renderedOverflow;
   };
 
-  QMap<double, QVector<Line>> alloverflows;
+  QVector<Line> overflows, roundingResiduals;
+  const auto just = getJustOption();
+  for (int pagenum = 0; pagenum < currentQuranText.size(); pagenum++) {
+    const auto lines = currentQuranText[pagenum].split(char(10), Qt::SkipEmptyParts);
+    const auto page = m_otlayout->justifyPage(
+        emScale, lineWidth, lineWidth, toStdStrings(lines),
+        LineJustification::Distribute, false, tajweedEnabled,
+        HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS, just,
+        mushafLayouts->currentText().toStdString());
 
-  double scale = OtLayout::EMSCALE;
-
-  float maxOverflow = 0;
-
-  bool cont = true;
-
-  while (cont) {
-    double emScale = (1 << OtLayout::SCALEBY) * scale;
-
-    QVector<Line> overflows;
-
-    for (int pagenum = 0; pagenum < currentQuranText.size(); pagenum++) {
-      QString textt = currentQuranText[pagenum];
-
-      auto lines = textt.split(char(10), Qt::SkipEmptyParts);
-
-      auto page = m_otlayout->justifyPage(
-          emScale, lineWidth, lineWidth, toStdStrings(lines), LineJustification::Distribute,
-          false, tajweedEnabled,
-          HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS,
-          getJustOption(),
-          mushafLayouts->currentText().toStdString());
-
-      // auto page = m_otlayout->justifyPage(emScale, lineWidth, lineWidth,
-      // lines, LineJustification::Distribute, false, true);
-
-      for (int linenum = 0; linenum < lines.length(); linenum++) {
-        auto line = page[linenum];
-
-        if (line.overfull > 0) {
-          overflows.append({pagenum + 1, linenum + 1, line.overfull / emScale});
-          maxOverflow = std::max(maxOverflow, line.overfull);
-        }
-      }
-    }
-    /*
-    if (overflows.count() > 0) {
-      alloverflows[scale] = overflows;
-      scale = scale * lineWidth / (maxOverflow + lineWidth);
-    }
-    else {
-      cont = false;
-    }*/
-    alloverflows[scale] = overflows;
-    cont = false;
-  }
-
-  auto path = m_font->filePath();
-  QFileInfo fileInfo = QFileInfo(path);
-  QString fileName = fileInfo.path() + "/output/overflows.csv";
-
-  if (applyJustification) {
-    fileName = fileInfo.path() + "/output/overflows_with_just.csv";
-  }
-
-  QFile file(fileName);
-  file.open(QIODevice::WriteOnly | QIODevice::Text);
-  QTextStream out(&file);  // we will serialize the data into the file
-  out.setCodec("ISO 8859-1");
-  // out.setEncoding(QStringConverter::Latin1);
-
-  for (auto key : alloverflows.keys()) {
-    auto overflow = alloverflows.value(key);
-    std::sort(
-        overflow.begin(), overflow.end(),
-        [](const Line& a, const Line& b) { return a.overflow > b.overflow; });
-    for (auto line : overflow) {
-      out << key << "," << line.pageNumber << "," << line.lineNumber << ","
-          << std::ceil(line.overflow) << ","
-          << lineWidth / (line.overflow + lineWidth) << "\n";
+    for (int linenum = 0; linenum < static_cast<int>(page.size()); linenum++) {
+      const auto& line = page[linenum];
+      if (line.desiredLineWidth <= 0) continue;
+      const double plannedWidth = line.plannedLineWidth.value_or(
+          line.desiredLineWidth + static_cast<double>(line.overfull));
+      const double remaining = plannedWidth - line.desiredLineWidth;
+      // Ignore floating-point cancellation at a fitted target, not genuine
+      // small overflow. The allowance is about 1e-10 units for normal lines.
+      const double epsilon = 64 * std::numeric_limits<double>::epsilon() *
+          std::max({1.0, std::abs(plannedWidth), static_cast<double>(line.desiredLineWidth)});
+      if (remaining <= epsilon && line.overfull <= 0) continue;
+      const Line result{pagenum + 1, linenum + 1,
+          std::max(0.0, remaining) / emScale,
+          remaining > epsilon ? line.desiredLineWidth / plannedWidth : 1.0,
+          line.overfull / emScale};
+      if (remaining > epsilon) overflows.append(result);
+      else roundingResiduals.append(result);
     }
   }
 
-  file.close();
+  const QString outputDir = QFileInfo(m_font->filePath()).path() + "/output";
+  QDir().mkpath(outputDir);
+  const QString stem = applyJustification ? "overflows_with_just" : "overflows";
+  const auto write = [&](QVector<Line>& rows, const QString& fileName, bool rounding) {
+    std::sort(rows.begin(), rows.end(),
+        [rounding](const Line& a, const Line& b) {
+          return rounding ? a.renderedOverflow > b.renderedOverflow : a.overflow > b.overflow;
+        });
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+      qWarning() << "Cannot write minimum-size report:" << fileName << file.errorString();
+      return false;
+    }
+    QTextStream out(&file);
+    out.setCodec("ISO 8859-1");
+    out.setRealNumberPrecision(12);
+    if (rounding) out << "font_size_ratio,page,line,native_overflow_font_units,additional_fit_ratio,rendered_overflow_font_units\n";
+    for (const auto& line : rows) {
+      // Keep the original five main-report columns, with fractional overflow
+      // and a fit ratio computed entirely in the measured coordinate system.
+      out << scale << "," << line.pageNumber << "," << line.lineNumber << ","
+          << line.overflow << "," << line.fitRatio;
+      if (rounding) out << "," << line.renderedOverflow;
+      out << "\n";
+    }
+    out.flush();
+    return out.status() == QTextStream::Ok;
+  };
+  const QString fileName = outputDir + "/" + stem + ".csv";
+  if (!write(overflows, fileName, false) ||
+      !write(roundingResiduals, outputDir + "/" + stem + "_rounding.csv", true)) return;
+  statusBar()->showMessage(tr("Minimum size: %1 overflow lines, %2 rendered residuals after native fitting. Saved %3")
+      .arg(overflows.size()).arg(roundingResiduals.size()).arg(fileName), 15000);
 }
 
 void LayoutWindow::setQuranText(int type) {

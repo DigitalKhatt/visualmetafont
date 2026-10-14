@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "digitalkhatt/layout/GapConstraint.h"
+#include "digitalkhatt/layout/CollisionReport.h"
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
 #include "digitalkhatt/layout/MarkClassifier.h"
 #include "digitalkhatt/layout/PlacementAudit.h"
@@ -113,12 +114,17 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
   SolverContext solverContext{pageGlyphs, classes};
 
   std::vector<std::reference_wrapper<GlyphInstance>> glyphs;
+  int word = 0;
   for (auto& lineGlyphs : pageGlyphs) {
     for (auto& g : lineGlyphs) {
+      const bool space = isCollisionSpace(g.glyphName);
+      g.wordIndex = space ? -1 : word;
+      if (space) ++word;
       g.globalIndex = static_cast<int>(glyphs.size());
       buildWorldPolys(g);
       glyphs.push_back(g);
     }
+    ++word;  // a new line cannot continue the preceding line's word identity
   }
 
   std::unordered_set<const GlyphInstance*> validBases;
@@ -282,7 +288,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
             solverContext.excludedFromGenericGap.insert(
                 {std::min(markIndex, obstacleIndex), std::max(markIndex, obstacleIndex)});
           }
-          xpbdConstraints.push_back(std::make_unique<SqueezeCenterConstraint>(mark, obstacles, P.compliance.squeezeCenter));
+          xpbdConstraints.push_back(std::make_unique<SqueezeCenterConstraint>(mark, P, obstacles, P.compliance.squeezeCenter));
         }
       }
 
@@ -447,7 +453,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
         GlyphInstance& glyphA = glyphs[pair.first];
         GlyphInstance& glyphB = glyphs[pair.second];
         if (!solverContext.isGapExcluded(pair)) {
-          solveGapConstraint(solverContext, glyphA, glyphB, dt, maxPenetration);
+          solveGapConstraint(solverContext, glyphA, glyphB, P, dt, maxPenetration);
         }
       }
     }

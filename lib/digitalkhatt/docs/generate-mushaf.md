@@ -99,6 +99,29 @@ allow more free movement. This solver parameter is independent of the
 horizontal drift reporting tolerances below. Optional soft-target reporting
 measures only the excess outside the band.
 
+## GUI minimum-size overflow report
+
+Choose **No style** in page fitting, then **Calculate minimum size**, to inspect
+overflow remaining after native justification. The diagnostic uses the native
+justifier's planned width before final scaled glyph advances are rounded to
+integers. Feature choices and editor/Mushaf rendering are unaffected.
+
+The main `output/overflows_with_just.csv` (or `overflows.csv` without justification)
+keeps its five columns: selected font size ratio, page, line, fractional overflow
+in unscaled font units, and additional fit ratio. Overflow is no longer rounded
+up to a whole unit. The fit ratio uses the measured target and width in the same
+coordinate system, including when the selected font size is 0.95.
+
+If native justification reaches the target but the rendered integer advances
+still show overflow, that line goes into `overflows_with_just_rounding.csv`
+(or `overflows_rounding.csv`). This companion file includes native and rendered
+overflow separately. Such rows describe rounding or differences between the
+native model and final shaping, not a confirmed need for more native shrinking.
+Only double-precision cancellation noise (about 1e-10 font units) is forgiven
+in the native measurement; small genuine native overflow remains reportable.
+The status bar shows both counts. Engines and test paths without a final native
+width measurement use the existing rendered-width fallback.
+
 ## Conditional waqf left/down escape
 
 **Waqf left/down escape** is a separate XPBD preference, enabled by default
@@ -377,10 +400,35 @@ it is not proof of actual filled-ink intersection. Intentional pair exclusions
 and manual bowl placements follow the solver policy. These checks are not a proof
 of linguistic ownership or a replacement for a human Mushaf proofread.
 
-`broadphasePadding` controls how far each glyph's bounding box is expanded when
-finding candidate contacts. The default is 140 font units. This is search
-coverage, not a minimum gap or a displacement limit. The actual generic gap
-target is currently 80 units, with named 40/10-unit exceptions.
+`sameWordGap` and `differentWordGap` tune the generic XPBD target clearance in
+solver font/world units. Both default to 80. Different-word clearance also
+applies between lines. Word identity is assigned once per page from glyph order,
+spaces (including space variants), and line boundaries; moving a mark never
+changes its word. The 40-unit own-alef attachment and 10-unit kasra/iqlab pair
+exceptions retain their gaps. Dedicated stack constraints retain their authored
+gaps. Base glyphs remain fixed, so a larger value requests more clearance from
+movable marks; compliance and conflicting constraints can leave a residual.
+Raising a target above 80 retains ordinary contact stiffness; the smaller
+attachment gaps keep their historical stronger contacts.
+Zero requests no extra clearance while retaining intersection resolution.
+
+GUI: **Placement / Collision avoidance / Resolve gaps and collisions**, then
+**Same-word gap** and **Different-word gap**. For example, keep the former at 80
+and set the latter to 120 to request more spacing between words.
+
+```sh
+digitalkhatt_generate_mushaf --config mushaf.settings.json --force \
+  --same-word-gap 80 --different-word-gap 120 -o mushaf.pdf
+```
+
+The corresponding JSON values are stored under `xpbd`. Solver-proxy gap reports
+use the same pair-specific targets. Save Collision clearance remains a separate
+reporting setting.
+
+`broadphasePadding` sets the minimum expansion of each glyph's bounding box for
+candidate search, defaulting to 140 font units. Effective expansion is at least
+half the largest target gap (including the fixed 40-unit exception), so raising
+the different-word gap cannot put relevant pairs outside the search horizon.
 
 The GUI Solver Tuning panel has three tabs:
 

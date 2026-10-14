@@ -143,8 +143,8 @@ semantic audit metadata instead, and retain the existing shaping classes.
    former gap/maximum-shift fields with `broadphasePadding`, migrates their
    original combined value, and removes inactive strength/overshoot/return
    controls. Placement, reporting and advanced search settings have separate
-   tabs. The effective generic gap target remains 80 with named 40/10-unit
-   exceptions; making these targets configurable remains a separate change.
+   tabs. Same-word and different-word generic gap targets are configurable
+   (both default to 80), with the named 40/10-unit attachment exceptions retained.
 4. **Separate collisions from preferences.** Make actual ink contact the first
    report category. Label desired clearance and compliant placement residuals
    explicitly; thousands of hard-colored clearance rows currently obscure the

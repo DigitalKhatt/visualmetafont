@@ -26,8 +26,11 @@ std::pair<double, double> gapMobilities(const SolverContext& context,
 }
 
 double effectiveGapCompliance(const GlyphInstance& A, const GlyphInstance& B, double gmin) {
+  if (gmin <= 0.0) return 0.0;  // zero clearance still resolves intersections
   const double baseCompliance = gapCompliance(A, B);
-  const double normGmin = 80.0 / gmin;
+  // Preserve the stronger historical 40/10-unit attachment contacts, while
+  // larger tuned targets retain ordinary stiffness instead of becoming softer.
+  const double normGmin = 80.0 / std::min(gmin, 80.0);
   return baseCompliance / (normGmin * normGmin);
 }
 
@@ -38,7 +41,10 @@ double expectedComplianceResidual(double initialC, double compliance, double w, 
   return initialC * alpha / denom;
 }
 
-double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B) {
+double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptParams& P) {
+  if (A.lineIndex != B.lineIndex ||
+      (A.wordIndex >= 0 && B.wordIndex >= 0 && A.wordIndex != B.wordIndex))
+    return P.differentWordGap;
   if (A.glyphName.starts_with("alef") &&
       B.prevBase == &A &&
       (B.glyphName.starts_with("hamza") ||
@@ -51,12 +57,13 @@ double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B) {
   if (isSLMKasra)
     return 10;
   else
-    return 80;
+    return P.sameWordGap;
 }
 
 void solveGapConstraint(SolverContext& solverContext,
                         GlyphInstance& A,
                         GlyphInstance& B,
+                        const OptParams& P,
                         double dt,
                         double& maxPenetration) {
   // Decide desired min gap.
@@ -71,7 +78,7 @@ void solveGapConstraint(SolverContext& solverContext,
     return;
   }
 
-  const double gmin = chooseMinGap(A, B);
+  const double gmin = chooseMinGap(A, B, P);
   double compliance = effectiveGapCompliance(A, B, gmin);
 
   auto dr = getDistance(A.worldPolys, B.worldPolys, gmin);
@@ -163,7 +170,7 @@ void collectGapViolations(
     GlyphInstance& B = glyphs[pr.second];
     if (!(A.isMark || B.isMark)) continue;  // mirror solveGapConstraint's filter
 
-    const double gmin = chooseMinGap(A, B);
+    const double gmin = chooseMinGap(A, B, P);
     auto dr = geometry::getDistance(A.worldPolys, B.worldPolys, gmin);
     if (!std::isfinite(dr.contact.depth_or_gap)) continue;
 

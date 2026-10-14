@@ -26,7 +26,10 @@ struct SweepBroadphase {
 
   SweepBroadphase(const std::vector<std::reference_wrapper<GlyphInstance>>& glyphs,
                   const OptParams& P) {
-    const double pad = P.broadphasePadding;
+    // Each box supplies half the requested clearance; a larger tuned gap
+    // must not disappear outside the candidate horizon.
+    const double pad = std::max(P.broadphasePadding,
+        0.5 * std::max({P.sameWordGap, P.differentWordGap, 40.0}));
 
     boxes.reserve(glyphs.size());
     for (int idx = 0; idx < static_cast<int>(glyphs.size()); ++idx) {

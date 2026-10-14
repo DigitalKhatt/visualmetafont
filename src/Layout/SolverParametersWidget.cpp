@@ -209,7 +209,13 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   auto* collisionPage = addSection(constraints, tr("Collision avoidance"));
   auto gaps = addConstraint(collisionPage, tr("Resolve gaps and collisions"), settings,
       "toggle.genericGapConstraint", toggles.genericGapConstraint, this, changed);
-  auto* gapRules = new QLabel(tr("Clearance uses glyph-pair rules: 80 units normally, 40 for selected marks on alef, and 10 for the kasra / iqlab meem pair."), gaps.box);
+  addDoubleRow(gaps.form, tr("Same-word gap"), settings, "sameWordGap", m_params.sameWordGap,
+      0.0, 1000.0, 5.0, 1, this, changed,
+      tr("Generic target clearance within one word. Dedicated stacks and the 40 / 10-unit attachment exceptions use their own gaps. Zero requests no extra clearance."), units);
+  addDoubleRow(gaps.form, tr("Different-word gap"), settings, "differentWordGap", m_params.differentWordGap,
+      0.0, 1000.0, 5.0, 1, this, changed,
+      tr("Target clearance between glyphs of different words, including different lines. Word identity follows spaces in the glyph sequence, not mark positions. XPBD compliance can leave a residual."), units);
+  auto* gapRules = new QLabel(tr("Attachment exceptions: 40 units for selected marks on their alef, and 10 for the kasra / iqlab meem pair. Base glyphs remain fixed; gap forces act on marks."), gaps.box);
   gapRules->setWordWrap(true);
   gaps.form->addRow(gapRules);
   addNote(collisionPage, tr("Save Collision clearance is a separate reporting setting in the Reports tab."));
@@ -366,9 +372,9 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   auto* searchForm = makeForm(search);
   addDoubleRow(searchForm, tr("Bounding-box padding"), settings, "broadphasePadding", m_params.broadphasePadding,
       0.0, 10000.0, 1.0, 1, this, changed,
-      tr("Expand each glyph's bounding box to find potential contacts. This controls search coverage, not minimum clearance or maximum movement."), units);
+      tr("Minimum expansion of each glyph's bounding box for contact search. The effective padding is also at least half the largest target gap."), units);
   static_cast<QVBoxLayout*>(advanced->layout())->addWidget(search);
-  addNote(advanced, tr("Small padding can miss contacts; larger padding increases candidate checks. The default is 140 units."));
+  addNote(advanced, tr("Search coverage expands automatically for configured gap targets. Extra padding increases candidate checks. The default minimum padding is 140 units."));
   static_cast<QVBoxLayout*>(advanced->layout())->addStretch(1);
   const QString tabKey = settingKey("ui.currentTab");
   tabs->setCurrentIndex(std::clamp(settings.value(tabKey, 0).toInt(), 0, tabs->count() - 1));
