@@ -461,7 +461,7 @@ map<int, vector<TextFontFeatures>> resolvedJustificationFeatures(const JustInfo&
 }
 
 LineLayoutInfo shapeLine(FeatureJustificationLayout& layout, int lineWidth, int pageWidth,
-                         const LineTextInfo& lineTextInfo, const JustResultByLine& justResult, bool tajweedColor, double emScale, hb_font_t* font,
+                         const LineTextInfo& lineTextInfo, const JustResultByLine& justResult, bool tajweedColor, double fontScale, hb_font_t* font,
                          LineJustification justification, int& currentyPos, digitalkhatt::TajweedMap& tajweedResult) {
   vector<hb_feature_t> features{};
   vector<GlyphParameterAssignment> parameters;
@@ -556,19 +556,19 @@ LineLayoutInfo shapeLine(FeatureJustificationLayout& layout, int lineWidth, int 
       auto space = lineTextInfo.spaces.find(glyphLayout.cluster);
 
       if (space != lineTextInfo.spaces.end()) {
-        if (space->second == SpaceType::Aya) {
-          glyphLayout.x_advance = justResult.ayaSpacing * emScale;
-        } else if (space->second == SpaceType::Simple) {
-          glyphLayout.x_advance = justResult.simpleSpacing * emScale;
-        }
+        const double spacing = space->second == SpaceType::Aya
+            ? justResult.ayaSpacing : justResult.simpleSpacing;
+        const double scaled = spacing + spaceAdjustmentRemainder;
+        glyphLayout.x_advance = static_cast<int>(std::floor(scaled));
+        spaceAdjustmentRemainder = scaled - glyphLayout.x_advance;
       }
     } else if (justResult.addedSpaceAfterShrink != 0) {
       auto space = lineTextInfo.spaces.find(glyphLayout.cluster);
 
       if (space != lineTextInfo.spaces.end() && glyphLayout.cluster != lastAdjustedSpaceCluster) {
-        // Share the gap equally, carrying fractional units across spaces.
-        const double scaled = justResult.addedSpaceAfterShrink * emScale + spaceAdjustmentRemainder;
-        const int added = static_cast<int>(std::round(scaled));
+        // Carry fractional font units without filling beyond the target.
+        const double scaled = justResult.addedSpaceAfterShrink + spaceAdjustmentRemainder;
+        const int added = static_cast<int>(std::floor(scaled));
         spaceAdjustmentRemainder = scaled - added;
         glyphLayout.x_advance += added;
         lastAdjustedSpaceCluster = glyphLayout.cluster;
@@ -583,16 +583,15 @@ LineLayoutInfo shapeLine(FeatureJustificationLayout& layout, int lineWidth, int 
   lineLayout.desiredLineWidth = lineWidth;
   lineLayout.currentLineWidth = currentlineWidth;
 
-  lineLayout.overfull = lineWidth != 0 ? currentlineWidth - lineWidth : 0;
-
   if (justification == LineJustification::Distribute) {
     lineLayout.xstartposition = 0;
   } else {
-    lineLayout.xstartposition = (pageWidth - currentlineWidth) / 2;
+    lineLayout.xstartposition = static_cast<int>((pageWidth - currentlineWidth * fontScale) / 2);
   }
 
   lineLayout.ystartposition = currentyPos;
-  lineLayout.fontSize = emScale;
+  lineLayout.fontSize = fontScale;
+  lineLayout.overfull = lineLayout.renderedOverflow();
 
   currentyPos = currentyPos + (layout.interLineSpacing() << layout.scaleBy());
 

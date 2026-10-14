@@ -21,8 +21,8 @@ void PlacementPipeline::collectCollisions(const std::vector<LineLayoutInfo>& pag
   glyphs.reserve(count);
   for (std::size_t l = 0; l < page.size(); ++l) {
     const auto& line = page[l];
-    // Match Save Collision's integer placement after solved offsets are rounded.
-    int x = -line.xstartposition;
+    // Apply the line transform after solved offsets are rounded in font units.
+    double x = -line.xstartposition;
     const int y = -(line.ystartposition - (layout_.topSpace() << OtLayout::SCALEBY));
     int word = 0;
     for (const auto& g : result.glyphs[l]) {
@@ -32,11 +32,11 @@ void PlacementPipeline::collectCollisions(const std::vector<LineLayoutInfo>& pag
       if (found == collisionGeometry_.end())
         found = collisionGeometry_.emplace(outline, geometry::buildConvexPartsFromCubics(
             geometry::getGlyphCubic(outline->copiedPath), geometry::CUBIC_FLATNESS_TOLERANCE)).first;
-      x -= positioned.x_advance * line.xscale;
-      const int px = x + positioned.x_offset * line.xscale;
-      const int py = y + positioned.y_offset;
+      x -= positioned.x_advance * line.horizontalScale();
+      const double px = x + positioned.x_offset * line.horizontalScale();
+      const double py = y + positioned.y_offset * line.fontSize;
       auto& geometry = result.collisionGeometry.emplace_back(found->second.scaleTranslate(
-          line.fontSize * line.xscale, line.fontSize, px, py));
+          line.horizontalScale(), line.fontSize, px, py));
       glyphs.push_back({&geometry, g.glyphName, g.lineIndex, word, g.isMark, line.fontSize});
       if (isCollisionSpace(g.glyphName)) ++word;
     }
@@ -75,7 +75,7 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
     // The Mushaf exporter draws surah icons and their frame, rather than the
     // shaped header glyphs. They must not participate in placement forces.
     if (line.type == LineType::Sura) continue;
-    const double xscale = line.type == LineType::Line ? line.xscale : 1.0;
+    const double xscale = line.horizontalScale();
     glyphs.reserve(line.glyphs.size());
     double x = -line.xstartposition;
     const double y = -(line.ystartposition - (layout_.topSpace() << OtLayout::SCALEBY));
@@ -106,10 +106,10 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
       g.lineIndex = l; g.glyphIndex = i;
       g.lineY = y;
       g.baseX = x + positioned.x_offset * xscale;
-      g.baseY = y + positioned.y_offset;
+      g.baseY = y + positioned.y_offset * line.fontSize;
       g.glyphLayout = &positioned;
       g.metrics = {outline->width, outline->height, outline->bbox.llx, outline->bbox.urx};
-      g.geomScaled = geom->second.scaled(line.fontSize * xscale, line.fontSize);
+      g.geomScaled = geom->second.scaled(xscale, line.fontSize);
       g.prevBase = base;
       if (!g.isMark) {
         if (base) base->nextBase = &g;
@@ -131,7 +131,7 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
     for (size_t l = 0; l < page.size(); ++l)
       for (size_t i = 0; i < result.glyphs[l].size(); ++i)
         applySolvedGlyphOffsets(page[l].glyphs[i], result.glyphs[l][i],
-            page[l].type == LineType::Line ? page[l].xscale : 1.0);
+            page[l].horizontalScale(), page[l].fontSize);
   }
   if (collisionReport) collectCollisions(page, result, params.collisionReportMinGap, result.violations);
   if (report) {

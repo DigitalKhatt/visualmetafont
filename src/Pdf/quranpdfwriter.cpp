@@ -709,7 +709,7 @@ void QuranPdfWriter::generateQuranPages(LayoutPageList pages, int lineWidth, Ori
       hb_position_t currentxPos = (lineWidth) + margin - line.xstartposition;
       hb_position_t currentyPos = line.ystartposition;
 
-      qreal pixelSize = 1000 * line.fontSize;
+      qreal pixelSize = 1000;
 
       int end = -1;
 
@@ -798,15 +798,18 @@ void QuranPdfWriter::generateQuranPages(LayoutPageList pages, int lineWidth, Ori
 
           continue;
         } else {
-          *d_ep->currentPage << "1 0 0 -1 " << lastPos.x() << lastPos.y() << "Tm\n";
+          *d_ep->currentPage << line.horizontalScale() << " 0 0 " << -line.fontSize << lastPos.x() << lastPos.y() << "Tm\n";
         }
       } else if (line.type == LineType::Bism) {
-        *d_ep->currentPage << "1 0 0 -1 " << lastPos.x() << lastPos.y() << "Tm\n";
+        *d_ep->currentPage << line.horizontalScale() << " 0 0 " << -line.fontSize << lastPos.x() << lastPos.y() << "Tm\n";
       } else {
-        //*d_ep->currentPage << "1 0 0 -1 " << lastPos.x() << lastPos.y() << "Tm\n";
-        *d_ep->currentPage << line.xscale << " 0 0 -1 " << lastPos.x() << lastPos.y() << "Tm\n";
+        //*d_ep->currentPage << line.horizontalScale() << " 0 0 " << -line.fontSize << lastPos.x() << lastPos.y() << "Tm\n";
+        *d_ep->currentPage << line.horizontalScale() << " 0 0 " << -line.fontSize << lastPos.x() << lastPos.y() << "Tm\n";
       }
 
+      const QPoint lineOrigin = lastPos;
+      currentxPos = currentyPos = 0;
+      lastPos = QPoint();
       *d_ep->currentPage << "/P << /MCID " << MCID << ">>\nBDC\n";
 
       for (int i = 0; i < line.glyphs.size(); i++) {
@@ -881,9 +884,9 @@ void QuranPdfWriter::generateQuranPages(LayoutPageList pages, int lineWidth, Ori
         pos.setY(currentyPos - (line.glyphs[i].y_offset));
 
         if (line.glyphs[i].beginsajda) {
-          beginsajda = {lastPos.x(), currentyPos};
+          beginsajda = {static_cast<int>(lineOrigin.x() + lastPos.x() * line.horizontalScale()), lineOrigin.y()};
         } else if (line.glyphs[i].endsajda) {
-          endsajda = {pos.x(), currentyPos};
+          endsajda = {static_cast<int>(lineOrigin.x() + pos.x() * line.horizontalScale()), lineOrigin.y()};
         }
 
         // if (line.glyphs[i].codepoint != 32) {

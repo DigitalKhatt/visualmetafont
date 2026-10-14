@@ -152,9 +152,10 @@ measures only the excess outside the band.
 ## GUI minimum-size overflow report
 
 Choose **No style** in page fitting, then **Calculate minimum size**, to inspect
-overflow remaining after justification. The diagnostic uses the existing
-rendered integer-advance width. It requires no extra justifier measurements
-or metadata.
+overflow remaining after justification. Shaping and justification both use a
+scale-1 HarfBuzz font. The diagnostic multiplies the final integer advance sum
+by `line.fontSize * line.xscale` and subtracts the page-space target after fitting.
+It requires no extra justifier measurements or accepted-width field.
 
 The main `output/overflows_with_just.csv` (or `overflows.csv` without justification)
 keeps its five columns: selected font size ratio, page, line, fractional overflow
@@ -162,9 +163,35 @@ in unscaled font units, and additional fit ratio. Overflow is no longer rounded
 up to a whole unit. The fit ratio uses the measured target and width in the same
 coordinate system, including when the selected font size is 0.95.
 
-Every positive rendered overflow is included, including small rounding
-residuals. There is one CSV; rounding residuals are not classified separately.
-The status bar shows the number of overflow lines.
+Every positive overflow is included. Applying a font size such as 0.95 does
+not round each advance a second time. Fractional space filling carries its
+remainder across spaces and rounds down so it cannot exceed its budget.
+Only floating-point arithmetic noise around zero is discarded. There is one
+CSV; the status bar shows the number of overflow lines. With X-scale fitting,
+a line that fits after its transform is not reported as overflowing. Select
+**No style** to inspect overflow before horizontal fitting.
+
+## Line coordinates and exported layouts
+
+All page-justification engines shape at scale 1. Glyph outlines, advances and
+attachment offsets remain in font units. `currentLineWidth` is their unscaled
+advance sum; `desiredLineWidth`, the line origin and the baseline are page units.
+`line.fontSize` and `line.xscale` are applied when placing the complete line:
+
+```text
+horizontal scale = fontSize * xscale
+vertical scale   = fontSize
+```
+
+The origin and baseline are translated before this transform, so changing font
+size does not move page margins or scale line spacing. Surah titles retain their
+separate icon treatment. GUI, PDF, collision reports and Tarteel use this rule.
+XPBD builds geometry in page coordinates, then divides solved X/Y corrections
+by the corresponding line scales before storing font-unit integer offsets.
+
+The JSON and DKLY exporters write these native coordinates directly. Regenerate
+layouts after this coordinate change; old scaled-coordinate exports are not a
+compatibility target. The binary fields and DKLY version numbers are unchanged.
 
 ## Conditional waqf left/down escape
 

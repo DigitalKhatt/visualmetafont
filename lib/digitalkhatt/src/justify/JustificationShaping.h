@@ -59,10 +59,11 @@ double getWordWidth(
 
 std::map<int, std::vector<TextFontFeatures>> resolvedJustificationFeatures(const JustInfo& info);
 
+// font must use scale 1; fontScale is the whole-line rendering transform.
 LineLayoutInfo shapeLine(FeatureJustificationLayout& layout, int lineWidth,
                          int pageWidth, const LineTextInfo& lineTextInfo,
                          const JustResultByLine& justResult, bool tajweedColor,
-                         double emScale, hb_font_t* font,
+                         double fontScale, hb_font_t* font,
                          LineJustification justification, int& currentyPos,
                          digitalkhatt::TajweedMap& tajweedResult);
 

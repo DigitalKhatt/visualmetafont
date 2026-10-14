@@ -72,7 +72,7 @@ void buildWorldPolys(GlyphInstance& g);
 inline void updateWorldPolys(GlyphInstance& g) {
   if (g.dx != g.lastBuiltDx || g.dy != g.lastBuiltDy) buildWorldPolys(g);
 }
-// Solver deltas are in world space; rendered x offsets are scaled by line.xscale.
-void applySolvedGlyphOffsets(GlyphLayoutInfo& layout, const GlyphInstance& g, double horizontalScale);
+// Convert page-space solver deltas back through the complete line transform.
+void applySolvedGlyphOffsets(GlyphLayoutInfo& layout, const GlyphInstance& g, double horizontalScale, double verticalScale = 1.0);
 
 }  // namespace digitalkhatt::layout

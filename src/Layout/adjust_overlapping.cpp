@@ -187,7 +187,7 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
       }
       lineInfo.fontSize = emScale;
       lineInfo.ystartposition = 27400 + 200 << OtLayout::SCALEBY;
-      lineInfo.xstartposition = (lineWidth - totalwidth) / 2;
+      lineInfo.xstartposition = static_cast<int>((lineWidth - totalwidth * emScale) / 2);
 
       auto& curpage = newpages.back();
 
@@ -250,7 +250,7 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
     for (int l = 0; l < page.size(); l++) {
       auto& line = page[l];
 
-      int currentxPos = -line.xstartposition;
+      double currentxPos = -line.xstartposition;
       int currentyPos =
           line.ystartposition - (m_otlayout->topSpace() << OtLayout::SCALEBY);
 
@@ -260,9 +260,9 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
         auto& glyphLayout = line.glyphs[g];
 
         const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
-        currentxPos -= glyphLayout.x_advance * line.xscale;
-        QPoint pos(currentxPos + (glyphLayout.x_offset * line.xscale),
-                   currentyPos - (glyphLayout.y_offset));
+        currentxPos -= glyphLayout.x_advance * line.horizontalScale();
+        QPoint pos(currentxPos + (glyphLayout.x_offset * line.horizontalScale()),
+                   currentyPos - (glyphLayout.y_offset * line.fontSize));
 
         linePositions.append(QPoint{pos.x(), pos.y()});
       }

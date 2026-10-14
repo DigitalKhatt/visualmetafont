@@ -988,8 +988,7 @@ std::vector<LineLayoutInfo> FeatureJustifier::justifyPage(
     const std::string& mushafLayout) const {
   vector<LineLayoutInfo> page;
 
-  hb_font_t* defaultShapefont = layout_.createFont(emScale, newFace);
-  hb_font_t* justifyFont = layout_.createFont(1, false);
+  hb_font_t* justifyFont = layout_.createFont(1, newFace);
 
   vector<LineTextInfo> linesTextInfo;
   vector<double> fontSizeRatios;
@@ -1087,28 +1086,22 @@ std::vector<LineLayoutInfo> FeatureJustifier::justifyPage(
       justResultByLine = justifyLine(lineTextInfo, justifyFont, fontSizeLineWidthRatio * fontRatio, spaceWidth, justOption, layout_);
     }
 
-    hb_font_t* shapeFont = defaultShapefont;
-    auto newEmScale = emScale;
+    hb_font_t* shapeFont = justifyFont;
+    auto lineFontScale = emScale;
     auto newFont = false;
     if (fontRatio != 1) {
-      newFont = true;
-      newEmScale = emScale * fontRatio;
-      shapeFont = layout_.createFont(newEmScale, false);
+      lineFontScale = emScale * fontRatio;
     } else if (justOption.justStyle == JustStyle::FontSize && justResultByLine.xScale != 1) {
-      newFont = true;
-      newEmScale = emScale * justResultByLine.xScale;
+      lineFontScale = emScale * justResultByLine.xScale;
       justResultByLine.xScale = 1;
-      shapeFont = layout_.createFont(newEmScale, false);
     }
     if (justResultByLine.sclxAxis != 0) {
-      if (!newFont) {
-        newFont = true;
-        shapeFont = layout_.createFont(emScale, false);
-      }
+      newFont = true;
+      shapeFont = layout_.createFont(1, false);
       hb_font_set_variation(shapeFont, HB_TAG('S', 'C', 'L', 'X'), justResultByLine.sclxAxis);
     }
 
-    auto lineLayoutInfo = shapeLine(layout_, line.width, pageWidth, lineTextInfo, justResultByLine, tajweedColor, newEmScale, shapeFont, line.lineJustification, currentyPos, tajweedResults[lineIdx]);
+    auto lineLayoutInfo = shapeLine(layout_, line.width, pageWidth, lineTextInfo, justResultByLine, tajweedColor, lineFontScale, shapeFont, line.lineJustification, currentyPos, tajweedResults[lineIdx]);
     lineLayoutInfo.type = line.lineType;
 
     if (newFont) {
@@ -1126,10 +1119,10 @@ std::vector<LineLayoutInfo> FeatureJustifier::justifyPage(
       }
     }
 
+    lineLayoutInfo.overfull = lineLayoutInfo.renderedOverflow();
     page.push_back(lineLayoutInfo);
   }
 
-  hb_font_destroy(defaultShapefont);
   hb_font_destroy(justifyFont);
 
   return page;

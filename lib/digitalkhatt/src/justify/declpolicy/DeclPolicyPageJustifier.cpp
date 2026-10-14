@@ -156,8 +156,7 @@ JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t* font, 
 
 std::vector<LineLayoutInfo> DeclPolicyPageJustifier::justifyPage(double emScale, int pageWidth, const std::vector<LineToJustify>& lines, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t clusterLevel, JustOption justOption, const std::string& mushafLayout) const {
   using FontOwner = std::unique_ptr<hb_font_t, decltype(&hb_font_destroy)>;
-  FontOwner defaultShapeFont(layout_.createFont(emScale, newFace), hb_font_destroy);
-  FontOwner justifyFont(layout_.createFont(1, false), hb_font_destroy);
+  FontOwner justifyFont(layout_.createFont(1, newFace), hb_font_destroy);
   const auto* catalog = layout_.justificationCatalog();
   if (!catalog || !catalog->pagePolicy) throw std::runtime_error("declarative-policy page justification requires pagepolicy in table(justdfa)");
   const auto& policy = *catalog->pagePolicy;
@@ -201,17 +200,18 @@ std::vector<LineLayoutInfo> DeclPolicyPageJustifier::justifyPage(double emScale,
     }
     for (const auto& tag : treatment.features) result.globalFeatures.push_back({tag, 1});
 
-    const double newEmScale = decl::pageLineEmScale(render, emScale, fontRatio, result);
+    const double lineFontScale = decl::pageLineEmScale(render, emScale, fontRatio, result);
     FontOwner ownedShapeFont(nullptr, hb_font_destroy);
-    auto* shapeFont = defaultShapeFont.get();
-    if (fontRatio != 1 || newEmScale != emScale || result.sclxAxis != 0) {
-      ownedShapeFont.reset(layout_.createFont(newEmScale, false));
+    auto* shapeFont = justifyFont.get();
+    if (result.sclxAxis != 0) {
+      ownedShapeFont.reset(layout_.createFont(1, false));
       shapeFont = ownedShapeFont.get();
     }
     if (result.sclxAxis != 0) hb_font_set_variation(shapeFont, HB_TAG('S', 'C', 'L', 'X'), result.sclxAxis);
-    auto lineLayout = shapeLine(layout_, line.width, pageWidth, lineTextInfo, result, tajweedColor, newEmScale, shapeFont, line.lineJustification, currentyPos, tajweedResults[index]);
+    auto lineLayout = shapeLine(layout_, line.width, pageWidth, lineTextInfo, result, tajweedColor, lineFontScale, shapeFont, line.lineJustification, currentyPos, tajweedResults[index]);
     lineLayout.type = line.lineType;
     decl::finishPageLine(render, result, lineLayout);
+    lineLayout.overfull = lineLayout.renderedOverflow();
     page.push_back(std::move(lineLayout));
   }
   return page;

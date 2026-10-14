@@ -945,7 +945,7 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
     ///
     painter.save();
     painter.translate(xStartRightToLeft, yPos);
-    painter.scale(unitsToPt * line.xscale, -unitsToPt);
+    painter.scale(unitsToPt * line.horizontalScale(), -unitsToPt * line.fontSize);
     int currentxPos = 0;
 
     for (auto& glyphLayout : line.glyphs) {
@@ -959,7 +959,6 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
       if (!glyphPath.isEmpty()) {
         painter.save();
         painter.translate((double)gx, (double)gy);
-        painter.scale(line.fontSize, line.fontSize);
         painter.drawPath(glyphPath);
         painter.restore();
       }
@@ -977,7 +976,7 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
       for (auto& line : page) {
         painter.save();
         painter.translate(xStartRightToLeft, yPos);
-        painter.scale(unitsToPt * line.xscale, -unitsToPt);
+        painter.scale(unitsToPt * line.horizontalScale(), -unitsToPt * line.fontSize);
         int currentxPos = 0;
 
         for (auto& glyphLayout : line.glyphs) {

@@ -1126,7 +1126,7 @@ void LayoutWindow::checkOffMarks() {
     for (int l = 0; l < page.size(); l++) {
       auto& line = page[l];
 
-      int currentxPos = -line.xstartposition;
+      double currentxPos = -line.xstartposition;
       int currentyPos =
           line.ystartposition - (m_otlayout->topSpace() << OtLayout::SCALEBY);
 
@@ -1137,9 +1137,9 @@ void LayoutWindow::checkOffMarks() {
 
         const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
 
-        currentxPos -= glyphLayout.x_advance * line.xscale;
-        QPoint pos(currentxPos + (glyphLayout.x_offset * line.xscale),
-                   currentyPos - (glyphLayout.y_offset));
+        currentxPos -= glyphLayout.x_advance * line.horizontalScale();
+        QPoint pos(currentxPos + (glyphLayout.x_offset * line.horizontalScale()),
+                   currentyPos - (glyphLayout.y_offset * line.fontSize));
 
         linePositions.append(QPoint{pos.x(), pos.y()});
       }
@@ -3183,7 +3183,7 @@ void LayoutWindow::findOverflows(bool overfull) {
       auto& line = page[linenum];
 
       if (line.type == LineType::Line) {
-        auto textWidthRatio = (float)line.desiredLineWidth / (float)line.currentLineWidth;
+        auto textWidthRatio = line.desiredLineWidth / line.renderedWidth();
         if (textWidthRatio < minmax.minRatio) {
           minmax.minRatio = textWidthRatio;
           minmax.minLine = linenum + 1;
@@ -3522,7 +3522,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
     double currentxPos = -line.xstartposition;
     double currentyPos =
         line.ystartposition - (m_otlayout->topSpace() << OtLayout::SCALEBY);
-    double xScale = line.fontSize * line.xscale;
+    double xScale = line.horizontalScale();
     double yScale = line.fontSize * -1;
     for (auto& glyphLayout : line.glyphs) {
       const auto& glyphName = m_otlayout->glyphNamePerCode[glyphLayout.codepoint];
@@ -3570,9 +3570,9 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
             }
           }
 
-          currentxPos -= glyphLayout.x_advance * line.xscale;
-          QPoint pos(currentxPos + (glyphLayout.x_offset * line.xscale),
-                     currentyPos - (glyphLayout.y_offset));
+          currentxPos -= glyphLayout.x_advance * line.horizontalScale();
+          QPointF pos(currentxPos + glyphLayout.x_offset * line.horizontalScale(),
+                      currentyPos - glyphLayout.y_offset * line.fontSize);
           glyphItem->setPos(pos);
         }
       }

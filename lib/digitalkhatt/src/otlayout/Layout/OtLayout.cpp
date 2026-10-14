@@ -2177,155 +2177,80 @@ std::vector<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth,
   }
 
   std::vector<LineLayoutInfo> page;
-
-  hb_buffer_t* buffer = buffer = hb_buffer_create();
-  hb_font_t* shapefont = this->createFont(emScale, newFace);
-
+  hb_buffer_t* buffer = hb_buffer_create();
+  hb_font_t* shapefont = createFont(1, newFace);
   int currentyPos = topSpace() << OtLayout::SCALEBY;
 
-  hb_segment_properties_t savedprops;
-  savedprops.direction = HB_DIRECTION_RTL;
-  savedprops.script = HB_SCRIPT_ARABIC;
-  savedprops.language = hb_language_from_string("ar", strlen("ar"));
+  hb_segment_properties_t props{};
+  props.direction = HB_DIRECTION_RTL;
+  props.script = HB_SCRIPT_ARABIC;
+  props.language = hb_language_from_string("ar", -1);
 
-  savedprops.reserved1 = 0;
-  savedprops.reserved2 = 0;
-
-  auto initializeBuffer = [&](hb_buffer_t* buffer, hb_segment_properties_t* savedprops, const LineToJustify& line) {
+  for (const auto& line : lines) {
+    const int nativeTarget = static_cast<int>(line.width / emScale);
     hb_buffer_clear_contents(buffer);
-    hb_buffer_set_segment_properties(buffer, savedprops);
+    hb_buffer_set_segment_properties(buffer, &props);
     hb_buffer_set_cluster_level(buffer, cluster_level);
-    auto newLine = line.text;  // QString("\n") + line + QString("\n");
-    auto lineLength = static_cast<int>(newLine.size());
-    hb_buffer_add_utf16(buffer, reinterpret_cast<const uint16_t*>(newLine.c_str()), lineLength, 0, lineLength);
-  };
-
-  hb_font_t* currentFont = nullptr;
-
-  for (auto& line : lines) {
-    bool first = true;
-    bool overfull = false;
-    currentFont = shapefont;
-    double fontSize = emScale;
-    auto lineWidth = line.width;
-    auto justification = line.lineJustification;
-
-    unsigned int glyph_count;
-
-    while (first || overfull) {
-      first = false;
-
-      initializeBuffer(buffer, &savedprops, line);
+    hb_buffer_add_utf16(buffer, reinterpret_cast<const uint16_t*>(line.text.data()),
+        static_cast<int>(line.text.size()), 0, static_cast<int>(line.text.size()));
 #ifndef HB_NO_JUSTIFICATION
-      buffer->useCallback = !useNormAxisValues;
+    buffer->useCallback = !useNormAxisValues;
 #endif
-      if (justType == JustType::HarfBuzz || justType == JustType::None) {
-        jutifyLine(currentFont, buffer, lineWidth, tajweedColor);
-      } else {
-        jutifyLine_old(currentFont, buffer, lineWidth, fontSize, tajweedColor);
-      }
+    if (justType == JustType::HarfBuzz || justType == JustType::None)
+      jutifyLine(shapefont, buffer, nativeTarget, tajweedColor);
+    else
+      jutifyLine_old(shapefont, buffer, nativeTarget, 1, tajweedColor);
 
-      hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
-      hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(buffer, &glyph_count);
-      std::vector<std::uint32_t> spaces;
-      int currentlineWidth = 0;
-      int spaceWidth = 0;
-
-      LineLayoutInfo lineLayout;
-
-      for (int i = glyph_count - 1; i >= 0; i--) {
-        GlyphLayoutInfo glyphLayout;
-
-        const auto provenance = currentFont->glyph_positioning(glyph_info[i]);
-        glyphLayout.codepoint = glyph_info[i].codepoint;
-        glyphLayout.parameters = glyphParameters(glyph_info[i]);
-        glyphLayout.cluster = glyph_info[i].cluster;
-        glyphLayout.x_advance = glyph_pos[i].x_advance;
-        glyphLayout.y_advance = glyph_pos[i].y_advance;
-        glyphLayout.x_offset = glyph_pos[i].x_offset;
-        glyphLayout.y_offset = glyph_pos[i].y_offset;
-        glyphLayout.lookup_index = provenance.lookup_index;
-        glyphLayout.color = provenance.lookup_index >= this->tajweedcolorindex ? provenance.base_codepoint : 0;
-        glyphLayout.subtable_index = provenance.subtable_index;
-        glyphLayout.base_codepoint = provenance.base_codepoint;
-
-        glyphLayout.beginsajda = false;
-        glyphLayout.endsajda = false;
-
-        currentlineWidth += glyphLayout.x_advance;
-
-        if (glyphLayout.codepoint == 32) {
-          spaces.push_back(lineLayout.glyphs.size());
-          spaceWidth += glyphLayout.x_advance;
-        }
-
-        lineLayout.glyphs.push_back(glyphLayout);
-      }
-
-      lineLayout.currentLineWidth = currentlineWidth;
-      lineLayout.desiredLineWidth = lineWidth;
-
-      lineLayout.overfull = lineWidth != 0 ? currentlineWidth - lineWidth : 0;
-
-      const int minSpace = OtLayout::MINSPACEWIDTH * fontSize;
-
-      if (lineWidth != 0 && spaces.size() != 0 && applyJustification) {
-        if (lineLayout.overfull < 0) {
-          double spaceAdded = -lineLayout.overfull / spaces.size();
-          for (auto index : spaces) {
-            lineLayout.glyphs[index].x_advance += spaceAdded;
-            // lineLayout.overfull += spaceAdded;
-          }
-          lineLayout.overfull = 0;
-          currentlineWidth = lineWidth;
-        } else if (lineLayout.overfull > 0) {
-          /*double spaceRemoved = lineLayout.overfull / spaces.size();
-          for (auto index : spaces) {
-            auto newSpace = lineLayout.glyphs[index].x_advance - spaceRemoved;
-            if (newSpace > minSpace) {
-             lineLayout.glyphs[index].x_advance = newSpace;
-              lineLayout.overfull -= spaceRemoved;
-            }
-          }*/
-        }
-      }
-
-      if (justification == LineJustification::Distribute) {
-        lineLayout.xstartposition = 0;
-      } else {
-        lineLayout.xstartposition = (pageWidth - currentlineWidth) / 2;
-      }
-
-      lineLayout.ystartposition = currentyPos;
-      lineLayout.fontSize = fontSize;
-
-      if (overfull) {
-        hb_font_destroy(currentFont);
-        overfull = false;
-      } else if (justStyle == JustStyle::FontSize) {
-        if (lineLayout.overfull > 0) {
-          double ratio = (double)lineWidth / currentlineWidth;
-          if (ratio > 0.01) {
-            fontSize = emScale * ratio;
-            currentFont = this->createFont(fontSize, false);
-            overfull = true;
-            continue;
-          }
-        }
-      } else if (justStyle == JustStyle::XScale) {
-        // if (lineLayout.overfull > 0) {
-        double ratio = (double)lineWidth / currentlineWidth;
-        lineLayout.xscale = ratio;
-        //}
-      }
-      currentyPos = currentyPos + (interLineSpacing() << OtLayout::SCALEBY);
-
-      lineLayout.type = line.lineType;
-
-      page.push_back(lineLayout);
+    unsigned count = 0;
+    const auto* infos = hb_buffer_get_glyph_infos(buffer, &count);
+    const auto* positions = hb_buffer_get_glyph_positions(buffer, &count);
+    LineLayoutInfo result;
+    std::vector<std::size_t> spaces;
+    int width = 0;
+    for (int i = static_cast<int>(count) - 1; i >= 0; --i) {
+      GlyphLayoutInfo glyph{};
+      const auto provenance = shapefont->glyph_positioning(infos[i]);
+      glyph.codepoint = infos[i].codepoint;
+      glyph.parameters = glyphParameters(infos[i]);
+      glyph.cluster = infos[i].cluster;
+      glyph.x_advance = positions[i].x_advance;
+      glyph.y_advance = positions[i].y_advance;
+      glyph.x_offset = positions[i].x_offset;
+      glyph.y_offset = positions[i].y_offset;
+      glyph.lookup_index = provenance.lookup_index;
+      glyph.subtable_index = provenance.subtable_index;
+      glyph.base_codepoint = provenance.base_codepoint;
+      glyph.color = provenance.lookup_index >= tajweedcolorindex ? provenance.base_codepoint : 0;
+      width += glyph.x_advance;
+      if (glyph.codepoint == 32) spaces.push_back(result.glyphs.size());
+      result.glyphs.push_back(std::move(glyph));
     }
+    if (line.width != 0 && applyJustification && !spaces.empty() && width < nativeTarget) {
+      const int remaining = nativeTarget - width;
+      const int count = static_cast<int>(spaces.size());
+      for (int i = 0; i < count; ++i)
+        result.glyphs[spaces[i]].x_advance += remaining / count + (i < remaining % count);
+      width = nativeTarget;
+    }
+    result.type = line.lineType;
+    result.fontSize = emScale;
+    result.currentLineWidth = width;
+    result.desiredLineWidth = line.width;
+    result.overfull = result.renderedOverflow();
+    if (width > 0 && line.width != 0) {
+      if (justStyle == JustStyle::FontSize && result.overfull > 0) {
+        result.fontSize = static_cast<double>(line.width) / width;
+      } else if (justStyle == JustStyle::XScale) {
+        result.xscale = line.width / (width * result.fontSize);
+      }
+    }
+    result.overfull = result.renderedOverflow();
+    result.xstartposition = line.lineJustification == LineJustification::Distribute
+        ? 0 : static_cast<int>((pageWidth - result.renderedWidth()) / 2);
+    result.ystartposition = currentyPos;
+    currentyPos += interLineSpacing() << OtLayout::SCALEBY;
+    page.push_back(std::move(result));
   }
-
   hb_font_destroy(shapefont);
   hb_buffer_destroy(buffer);
 

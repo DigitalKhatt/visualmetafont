@@ -22,11 +22,12 @@ void buildWorldPolys(GlyphInstance& g) {
   g.worldPolys = local.translate(ox, oy);
 }
 
-void applySolvedGlyphOffsets(GlyphLayoutInfo& layout, const GlyphInstance& g, double horizontalScale) {
+void applySolvedGlyphOffsets(GlyphLayoutInfo& layout, const GlyphInstance& g, double horizontalScale, double verticalScale) {
   if (!(horizontalScale > 0.0) || !std::isfinite(horizontalScale) ||
+      !(verticalScale > 0.0) || !std::isfinite(verticalScale) ||
       !std::isfinite(g.dx) || !std::isfinite(g.dy)) return;
   const double x = std::round(layout.x_offset + g.dx / horizontalScale);
-  const double y = std::round(layout.y_offset + g.dy);
+  const double y = std::round(layout.y_offset + g.dy / verticalScale);
   const auto fits = [](double value) {
     return std::isfinite(value) && value >= std::numeric_limits<int>::min() &&
         value <= std::numeric_limits<int>::max();

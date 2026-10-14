@@ -2,7 +2,9 @@
 #include "GlyphParameters.h"
 
 #include <cstdint>
+#include <cmath>
 #include <functional>
+#include <limits>
 #include <map>
 #include <string>
 #include <string_view>
@@ -33,6 +35,7 @@ enum class LineType {
   Bism = 2
 };
 
+// Glyph advances and offsets are unscaled font units.
 struct GlyphLayoutInfo {
   int advance;
   int x_offset;
@@ -54,14 +57,23 @@ struct GlyphLayoutInfo {
 
 struct LineLayoutInfo {
   std::vector<GlyphLayoutInfo> glyphs;
-  int xstartposition;
-  int ystartposition;
+  int xstartposition; // Page-space offset from the right text edge.
+  int ystartposition; // Page-space baseline.
   LineType type = LineType::Line;
-  float overfull;
-  int desiredLineWidth;
-  int currentLineWidth;
-  double fontSize;
+  float overfull; // Final rendered width minus the page-space target.
+  int desiredLineWidth; // Page-space target width.
+  int currentLineWidth; // Sum of unscaled glyph advances.
+  double fontSize; // Whole-line uniform transform; never applied during shaping.
   double xscale = 1;
+  double horizontalScale() const { return fontSize * (type == LineType::Line ? xscale : 1.0); }
+  double renderedWidth() const { return currentLineWidth * horizontalScale(); }
+  double renderedOverflow() const {
+    if (desiredLineWidth == 0) return 0;
+    const double residual = renderedWidth() - desiredLineWidth;
+    // Exact fitting can leave arithmetic noise after multiplying the scales.
+    const double epsilon = 8 * std::numeric_limits<double>::epsilon() * std::abs(double(desiredLineWidth));
+    return std::abs(residual) <= epsilon ? 0 : residual;
+  }
 };
 
 enum class LineJustification {

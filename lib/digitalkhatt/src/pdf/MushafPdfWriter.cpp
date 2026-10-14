@@ -364,8 +364,9 @@ struct MushafPdfWriter::Impl {
         newBookmarks.emplace_back(text.at(l)+u" ( "+TextString(number.begin(),number.end())+u" )",frameY);
         continue;
       }
-      const double lineScale = line.type==LineType::Line ? line.xscale : 1.0;
-      double x=options.textWidth+(options.margin<<OtLayout::SCALEBY)-line.xstartposition;
+      const double lineScale = line.horizontalScale();
+      const double right=options.textWidth+(options.margin<<OtLayout::SCALEBY)-line.xstartposition;
+      double x=right;
       const double baseline=height-insetTop-line.ystartposition*unit;
       searchableLine(text.at(l),
           (x-line.currentLineWidth*lineScale)*unit, baseline,
@@ -375,24 +376,24 @@ struct MushafPdfWriter::Impl {
         x -= positioned.x_advance;
         auto* g=layout.getGlyph(positioned);
         const double placedX=x+positioned.x_offset;
+        const double renderedX=right+(placedX-right)*lineScale;
         if (positioned.beginsajda) { sajdaX=priorX; sajdaY=baseline; sajdaBegun=true; }
         if (positioned.endsajda && sajdaBegun) {
           const double begin=sajdaY==baseline ? sajdaX : options.textWidth+(options.margin<<OtLayout::SCALEBY)-line.xstartposition;
           std::ostringstream commands; commands << "q\n0 0 0 RG\n" << (50<<OtLayout::SCALEBY)*unit << " w\n"
               << begin*unit << ' ' << baseline+(1100<<OtLayout::SCALEBY)*unit << " m\n"
-              << placedX*unit << ' ' << baseline+(1100<<OtLayout::SCALEBY)*unit << " l\nS\nQ\n";
+              << renderedX*unit << ' ' << baseline+(1100<<OtLayout::SCALEBY)*unit << " l\nS\nQ\n";
           ctx->WriteFreeCode(commands.str()); sajdaBegun=false;
         }
-        priorX=placedX;
+        priorX=renderedX;
         std::ostringstream color;
         if (positioned.color) {
           const unsigned c=positioned.color;
           color << ((c>>24)&255)/255.0 << ' ' << ((c>>16)&255)/255.0 << ' ' << ((c>>8)&255)/255.0 << " rg\n";
         } else color << "0 0 0 rg\n";
         ctx->WriteFreeCode(color.str());
-        const double right=options.textWidth+(options.margin<<OtLayout::SCALEBY)-line.xstartposition;
-        drawForm(ctx,pdfPage,forms.at(g),unit*line.fontSize*lineScale,unit*line.fontSize,
-            (right+(placedX-right)*lineScale)*unit,baseline+positioned.y_offset*unit);
+        drawForm(ctx,pdfPage,forms.at(g),unit*lineScale,unit*line.fontSize,
+            renderedX*unit,baseline+positioned.y_offset*line.fontSize*unit);
       }
     }
     writer.EndPageContentContext(ctx);

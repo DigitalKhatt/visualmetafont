@@ -55,8 +55,8 @@ def compare(before, after):
             key = (a['page'], old['line'], old['word'])
             if key not in cases:
                 cases[key] = dict(page=key[0], line=key[1], word=key[2], text=old['text'], changes=[])
-            shift_x = (new['final'][0]-old['final'][0])*old['xscale']
-            shift_y = new['final'][1]-old['final'][1]
+            shift_x = (new['final'][0]-old['final'][0])*old['xscale']*old['fontSize']
+            shift_y = (new['final'][1]-old['final'][1])*old['fontSize']
             cases[key]['changes'].append(dict(index=old['index'], name=old['name'], base=old['base'],
                 before=old['final'], after=new['final'], x=shift_x, y=shift_y,
                 distance=math.hypot(shift_x, shift_y)))

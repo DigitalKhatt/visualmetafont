@@ -837,9 +837,10 @@ unsigned long QuranPdfWriterPdfHummus::createSurahFrameFormXObject() {
   double frameHeight = frameWidth * (26.0 / 239);
   if (m_options.pageLayout) {
     const double textWidthPts = pageWidthPts * m_options.pageLayout->textWidth() / m_options.pageLayout->pageWidth;
-    frameWidth = textWidthPts * 256 / 239;
-    marginPts = pageWidthPts * m_options.pageLayout->leftMargin / m_options.pageLayout->pageWidth - frameWidth * 8.5 / 256;
-    frameHeight = frameWidth * 26 / 256;
+    // The SVG fills its render bounds; align them directly with the text area.
+    frameWidth = textWidthPts;
+    marginPts = pageWidthPts * m_options.pageLayout->leftMargin / m_options.pageLayout->pageWidth;
+    frameHeight = textWidthPts * 26 / 239;
   }
 
   QPageSize pageSize{{pageWidthPts, frameHeight}, QPageSize::Point, "MedianQuranBook"};
@@ -1248,7 +1249,7 @@ bool QuranPdfWriterPdfHummus::generateQuranPages(LayoutPageList pages,
 
       hb_position_t currentxPos = lineWidth + margin - line.xstartposition;
       hb_position_t currentyPos = line.ystartposition;
-      qreal pixelSize = 1000 * line.fontSize;
+      qreal pixelSize = 1000;
       QPoint lastPos{currentxPos, currentyPos};
       int end = -1;
       int MCID = 0;
@@ -1310,13 +1311,16 @@ bool QuranPdfWriterPdfHummus::generateQuranPages(LayoutPageList pages,
           continue;
         }
 
-        raw(ctx, "1 0 0 -1 " + std::to_string(lastPos.x()) + " " + std::to_string(lastPos.y()) + " Tm\n");
+        raw(ctx, num(line.horizontalScale()) + " 0 0 " + num(-line.fontSize) + " " + std::to_string(lastPos.x()) + " " + std::to_string(lastPos.y()) + " Tm\n");
       } else if (line.type == LineType::Bism) {
-        raw(ctx, "1 0 0 -1 " + std::to_string(lastPos.x()) + " " + std::to_string(lastPos.y()) + " Tm\n");
+        raw(ctx, num(line.horizontalScale()) + " 0 0 " + num(-line.fontSize) + " " + std::to_string(lastPos.x()) + " " + std::to_string(lastPos.y()) + " Tm\n");
       } else {
-        raw(ctx, std::to_string(line.xscale) + " 0 0 -1 " + std::to_string(lastPos.x()) + " " + std::to_string(lastPos.y()) + " Tm\n");
+        raw(ctx, num(line.horizontalScale()) + " 0 0 " + num(-line.fontSize) + " " + std::to_string(lastPos.x()) + " " + std::to_string(lastPos.y()) + " Tm\n");
       }
 
+      const QPoint lineOrigin = lastPos;
+      currentxPos = currentyPos = 0;
+      lastPos = QPoint();
       raw(ctx, "/P << /MCID " + std::to_string(MCID) + " >>\nBDC\n");
 
       for (int i = 0; i < line.glyphs.size(); ++i) {
@@ -1373,9 +1377,9 @@ bool QuranPdfWriterPdfHummus::generateQuranPages(LayoutPageList pages,
         pos.setY(currentyPos - line.glyphs[i].y_offset);
 
         if (line.glyphs[i].beginsajda)
-          beginsajda = {lastPos.x(), currentyPos};
+          beginsajda = {static_cast<int>(lineOrigin.x() + lastPos.x() * line.horizontalScale()), lineOrigin.y()};
         else if (line.glyphs[i].endsajda)
-          endsajda = {pos.x(), currentyPos};
+          endsajda = {static_cast<int>(lineOrigin.x() + pos.x() * line.horizontalScale()), lineOrigin.y()};
 
         QPoint diff = pos - lastPos;
         lastPos = pos;

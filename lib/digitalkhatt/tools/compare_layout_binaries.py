@@ -117,8 +117,8 @@ def resolve(document, meta, spacing):
             y = meta['baselines'][p][l] if meta else -(l * spacing)
             x = -line['x']; scale_x = line['xscale'] * line['fontSize']; scale_y = line['fontSize']
             for i, placement in enumerate(line['glyphs']):
-                x -= placement['advance'] * line['xscale']
-                origin = (x + placement['dx'] * line['xscale'], y + placement['dy'])
+                x -= placement['advance'] * scale_x
+                origin = (x + placement['dx'] * scale_x, y + placement['dy'] * scale_y)
                 code, outline = document['variants'][placement['variant']]
                 word = mapping[placement['cluster']] if mapping is not None else 0
                 if mapping is not None and word == 0:

@@ -278,21 +278,24 @@ void ExportToHTML::generateQuranPagesOld(LayoutPageList pages, int lineWidth, Or
         //*d_ep->currentPage << "BT\n";
         //*d_ep->currentPage << "0.8 0 0 -0.8 " << lastPos.x() - (400 << OtLayout::SCALEBY) << lastPos.y() << "Tm\n";
 
-        out << "\tctx.transform(" << 0.8 << ",0,0," << -0.8 << "," << (lastPos.x() - (400 << OtLayout::SCALEBY)) << "," << lastPos.y() << ");\n";
+        out << "\tctx.transform(" << 0.8 * line.horizontalScale() << ",0,0," << -0.8 * line.fontSize << "," << (lastPos.x() - (400 << OtLayout::SCALEBY)) << "," << lastPos.y() << ");\n";
 
       }
       else if (line.type == LineType::Bism) {
 
-        out << "\tctx.transform(" << 0.8 << ",0,0," << -0.8 << "," << (lastPos.x() - (600 << OtLayout::SCALEBY)) << "," << (lastPos.y() - (200 << OtLayout::SCALEBY)) << ");\n";
+        out << "\tctx.transform(" << 0.8 * line.horizontalScale() << ",0,0," << -0.8 * line.fontSize << "," << (lastPos.x() - (600 << OtLayout::SCALEBY)) << "," << (lastPos.y() - (200 << OtLayout::SCALEBY)) << ");\n";
 
         //*d_ep->currentPage << "0.8 0 0 -0.8 " << lastPos.x() - (600 << OtLayout::SCALEBY) << lastPos.y() - (200 << OtLayout::SCALEBY) << "Tm\n";
       }
       else {
         //*d_ep->currentPage << "1 0 0 -1 " << lastPos.x() << lastPos.y() << "Tm\n";
         //out << "\tctx.translate(" << lastPos.x() << "," << lastPos.y() << ");\n";
-        out << "\tctx.transform(" << 1 << ",0,0," << -1 << "," << lastPos.x() << "," << lastPos.y() << ");\n";
+        out << "\tctx.transform(" << line.horizontalScale() << ",0,0," << -line.fontSize << "," << lastPos.x() << "," << lastPos.y() << ");\n";
       }
 
+      const QPoint lineOrigin = lastPos;
+      currentxPos = currentyPos = 0;
+      lastPos = QPoint();
       //*d_ep->currentPage << "/P << /MCID " << MCID << ">>\nBDC\n";
 
       for (int i = 0; i < line.glyphs.size(); i++) {
@@ -352,10 +355,10 @@ void ExportToHTML::generateQuranPagesOld(LayoutPageList pages, int lineWidth, Or
         pos.setY(currentyPos - (line.glyphs[i].y_offset));
 
         if (line.glyphs[i].beginsajda) {
-          beginsajda = { lastPos.x(),currentyPos };
+          beginsajda = {static_cast<int>(lineOrigin.x() + lastPos.x() * line.horizontalScale()), lineOrigin.y()};
         }
         else if (line.glyphs[i].endsajda) {
-          endsajda = { pos.x(),currentyPos };
+          endsajda = {static_cast<int>(lineOrigin.x() + pos.x() * line.horizontalScale()), lineOrigin.y()};
         }
 
         QPoint diff = pos - lastPos;
@@ -364,7 +367,6 @@ void ExportToHTML::generateQuranPagesOld(LayoutPageList pages, int lineWidth, Or
         out << "\tctx.translate(" << diff.x() << "," << -diff.y() << ");\n";
         //draw glyph
         out << "\tctx.save();\n";
-        out << "\tctx.scale(" << scale << "," << scale << ");\n";
         out << "\tglyphs['" << QString::fromStdString(m_otlayout->glyphNamePerCode[line.glyphs[i].codepoint]) << "'](ctx);\n";
         out << "\tctx.restore();\n";
         //}
