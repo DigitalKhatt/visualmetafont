@@ -92,7 +92,17 @@ QuranPdfWriterPdfHummus::QuranPdfWriterPdfHummus(const Options& options,
                                                  OtLayout* otlayout,
                                                  QObject* parent)
     : QObject(parent), m_options(options), m_otlayout(otlayout) {
-  pageSizePts = m_options.pageSize.rectPoints().size();
+  if (m_options.pageLayout) {
+    m_options.pageLayout->matchBottomMarginToHeight();
+    m_options.pageLayout->matchPaperAspectRatio();
+    m_options.pageLayout->validate();
+    m_options.pageSize = QPageSize(QSizeF(m_options.pageLayout->paperWidthMM,
+        m_options.pageLayout->paperHeightMM), QPageSize::Millimeter, "Mushaf");
+    pageSizePts = QSizeF(m_options.pageLayout->paperWidthMM * 72 / 25.4,
+                         m_options.pageLayout->paperHeightMM * 72 / 25.4);
+  } else {
+    pageSizePts = m_options.pageSize.rectPoints().size();
+  }
   resolution = options.dpi;
   pageSizePxs = m_options.pageSize.rectPixels(resolution).size();
   this->m_surahNumberToUnicode = loadSurahNumberToUnicode(":/fonts/surahCodes.json");
@@ -825,6 +835,12 @@ unsigned long QuranPdfWriterPdfHummus::createSurahFrameFormXObject() {
   double marginPts = pageWidthPts * (8.5 / 256.0);
   double frameWidth = pageWidthPts - 2 * marginPts;
   double frameHeight = frameWidth * (26.0 / 239);
+  if (m_options.pageLayout) {
+    const double textWidthPts = pageWidthPts * m_options.pageLayout->textWidth() / m_options.pageLayout->pageWidth;
+    frameWidth = textWidthPts * 256 / 239;
+    marginPts = pageWidthPts * m_options.pageLayout->leftMargin / m_options.pageLayout->pageWidth - frameWidth * 8.5 / 256;
+    frameHeight = frameWidth * 26 / 256;
+  }
 
   QPageSize pageSize{{pageWidthPts, frameHeight}, QPageSize::Point, "MedianQuranBook"};
   double scale = 4800.0 / 72;
@@ -1042,7 +1058,7 @@ bool QuranPdfWriterPdfHummus::writeNoticePage() {
     return -1;
   }
 
-  QSize pageSizePts = this->pageSizePts;
+  const QSizeF pageSizePts = this->pageSizePts;
   //.transposed();
 
   PDFPage* page = new PDFPage();
@@ -1160,6 +1176,25 @@ bool QuranPdfWriterPdfHummus::generateQuranPages(LayoutPageList pages,
     qWarning() << "QuranPdfWriterPdfHummus: m_otlayout is null";
     return false;
   }
+  double unit = 72.0 / resolution, insetX = 0, insetTop = 0;
+  if (m_options.pageLayout) {
+    const auto& geometry = *m_options.pageLayout;
+    geometry.validate();
+    const double factor = 1 << OtLayout::SCALEBY;
+    unit = std::min(pageSizePts.width() / (geometry.pageWidth * factor),
+                    pageSizePts.height() / (geometry.pageHeight * factor));
+    insetX = (pageSizePts.width() - geometry.pageWidth * factor * unit) / 2;
+    insetTop = (pageSizePts.height() - geometry.pageHeight * factor * unit) / 2;
+    lineWidth = geometry.textWidth() << OtLayout::SCALEBY;
+    margin = geometry.leftMargin << OtLayout::SCALEBY;
+    const int lastBaseline = (geometry.pageHeight - geometry.bottomMargin) << OtLayout::SCALEBY;
+    for (const auto& page : pages) for (const auto& line : page) {
+      if (line.ystartposition > lastBaseline) {
+        qWarning() << "Mushaf page exceeds the configured bottom margin; adjust page height or line spacing";
+        return false;
+      }
+    }
+  }
   if (!startPdf()) return false;
 
   seedSpecialGlyphs();
@@ -1194,8 +1229,7 @@ bool QuranPdfWriterPdfHummus::generateQuranPages(LayoutPageList pages,
 
     PageContentContext* ctx = m_writer.StartPageContentContext(pdfPage);
 
-    qreal lscale = 72. / resolution;
-    ctx->cm(lscale, 0, 0, -lscale, 0, pageSizePts.height());
+    ctx->cm(unit, 0, 0, -unit, insetX, pageSizePts.height() - insetTop);
 
     const auto page = pages.at(p);
     const auto originalPage = originalText.at(p);
@@ -1223,12 +1257,15 @@ bool QuranPdfWriterPdfHummus::generateQuranPages(LayoutPageList pages,
         suraNumber++;
         int ayaFrameyPos = currentyPos - (1100 << OtLayout::SCALEBY);
         raw(ctx, "ET\nq\n");
-        ctx->cm(4800.0 / 72, 0, 0, 4800.0 / 72, 0, ayaFrameyPos);
+        const double frameScale = m_options.pageLayout
+            ? (m_options.pageLayout->pageWidth << OtLayout::SCALEBY) / double(pageSizePts.width())
+            : 4800.0 / 72;
+        ctx->cm(frameScale, 0, 0, frameScale, 0, ayaFrameyPos);
         QString frameName = ensureFormResource(pdfPage, suraFrameObjectId);
         raw(ctx, "/" + toUtf8(frameName) + " Do\nQ\nBT\n");
 
         double outlineDestX = 0;
-        double outlineDestY = pageSizePts.height() - (72.0 / resolution) * ayaFrameyPos;
+        double outlineDestY = pageSizePts.height() - insetTop - unit * ayaFrameyPos;
 
         m_outlineItems.append(PdfOutlineItem{QString("%1 (%2)").arg(originalLine).arg(suraNumber),
                                              pageIds.size(),
@@ -1247,7 +1284,9 @@ bool QuranPdfWriterPdfHummus::generateQuranPages(LayoutPageList pages,
           int surahWordWidth = (m_surahs.size() > 3 ? m_surahs[3].path.boundingRect().width() : 0) * sc;
           int surahNameWidth = (encoding >= 0 && encoding < m_surahs.size() ? m_surahs[encoding].path.boundingRect().width() : 0) * sc;
           int spaceBetween = 100;
-          int startX = (17000 - (surahNameWidth + spaceBetween + surahWordWidth)) / 2;
+          int startX = m_options.pageLayout
+              ? margin + (lineWidth - (surahNameWidth + spaceBetween + surahWordWidth)) / 2
+              : (17000 - (surahNameWidth + spaceBetween + surahWordWidth)) / 2;
 
           raw(ctx, "1 0 0 1 0 " + std::to_string(lastPos.y() - 300) + " Tm\n");
           raw(ctx, "/" + toUtf8(fName) + " " + std::to_string(fontSize) + " Tf\n");
@@ -1263,7 +1302,8 @@ bool QuranPdfWriterPdfHummus::generateQuranPages(LayoutPageList pages,
           int fontSize = (encoding == 0 || encoding == 1) ? 700 : 600;
           double sc = fontSize / 1000.0;
           int surahNameWidth = (encoding >= 0 && encoding < m_surahs.size() ? m_surahs[encoding].path.boundingRect().width() : 0) * sc;
-          int startX = (17000 - surahNameWidth) / 2;
+          int startX = m_options.pageLayout ? margin + (lineWidth - surahNameWidth) / 2
+                                           : (17000 - surahNameWidth) / 2;
           raw(ctx, "1 0 0 1 0 " + std::to_string(lastPos.y() - 300) + " Tm\n");
           raw(ctx, "/" + toUtf8(fName) + " " + std::to_string(fontSize) + " Tf\n");
           raw(ctx, std::to_string(startX) + " 0 Td <" + pdfHexByte((unsigned char)encoding) + "> Tj\n");

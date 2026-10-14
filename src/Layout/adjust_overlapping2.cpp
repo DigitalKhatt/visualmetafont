@@ -502,7 +502,7 @@ void LayoutWindow::adjustOverlapping2(LayoutPageList& pages,
       auto yScale = line.fontSize;
 
       int currentxPos = -line.xstartposition;
-      int currentyPos = line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
+      int currentyPos = line.ystartposition - (m_otlayout->topSpace() << OtLayout::SCALEBY);
       currentyPos = currentyPos * -1;
 
       geometrySets.emplace_back(std::vector<GlyphInfo>());

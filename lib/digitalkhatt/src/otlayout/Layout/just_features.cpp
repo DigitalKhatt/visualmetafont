@@ -29,7 +29,7 @@ class QtOtLayoutFontProvider final : public digitalkhatt::justify::FeatureJustif
     return layout_.createFont(scale, newFace);
   }
   int scaleBy() const override { return OtLayout::SCALEBY; }
-  int topSpace() const override { return OtLayout::TopSpace; }
+  int topSpace() const override { return layout_.topSpace(); }
   int interLineSpacing() const override { return layout_.interLineSpacing(); }
   std::string glyphName(hb_font_t*, hb_codepoint_t glyph) const override {
     const auto found = layout_.glyphNamePerCode.find(glyph);

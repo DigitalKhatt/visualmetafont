@@ -51,7 +51,7 @@ build/mushaf-cli/visualmetafont/lib/digitalkhatt/digitalkhatt_generate_mushaf \
 
 The editor's Generate Mushaf action now writes
 `<font directory>/output/mushaf.settings.json`. It includes the selected font,
-layout, engine, style, shrink policy, line spacing, font scale, Tajweed/Force
+layout, engine, style, shrink policy, page geometry, paper size, line spacing, font scale, Tajweed/Force
 switches, disabled lookups and all solver parameters. Use that snapshot:
 
 ```sh
@@ -65,6 +65,56 @@ library defaults; it does not read Qt preferences. Saved GUI preferences can
 therefore differ from fresh defaults. The old separate collision-adjustment
 checkbox (`adjustOverlapping2`) is not part of this XPBD command; leave that
 legacy pass disabled for reproducible GUI/CLI comparisons.
+
+### Page layout
+
+Open **Settings → Page layout…** (also on the justification toolbar). Page width,
+height, left/right margins, top/first baseline, bottom margin and line spacing
+are in font units. The top value is the first baseline's distance from the page
+top, not a limit on mark ink. The calculated text width is page width minus the
+left and right margins. PDF paper width and height are in mm and linked to the
+page geometry's aspect ratio. Changing either paper dimension updates the
+other; changing page geometry retains paper width and recalculates height.
+The displayed dimensions use two decimals; the stored dimensions retain full
+precision so display rounding does not change the ratio.
+**OK** saves the values across launches and refreshes the preview; **Cancel**
+does not save, and **Restore defaults** restores the original geometry values.
+The existing saved line-spacing preference is retained.
+
+Page height and bottom margin are linked for a standard 15-line page:
+`pageHeight = topSpace + 14 * lineSpacing + bottomMargin`. Editing height updates
+the bottom margin; editing the bottom margin updates height (and hence PDF
+paper height). Changing the first baseline or line spacing retains page height
+and recalculates the remaining bottom margin. If the final baseline would fall
+below the page, the dialog raises page height to that baseline with zero bottom
+margin. Saved/JSON geometry uses page height to derive bottom margin. For CLI
+overrides, `--bottom-margin` determines height using the final top/spacing values;
+if both `--page-height` and `--bottom-margin` are supplied, the last one chooses
+which value determines the other.
+
+The corpus keeps its prescribed lines per page. The dialog shows the last
+baseline of a 15-line page and requires it to fit above the bottom margin;
+change spacing or page height to make it fit. PDF generation also checks actual
+baseline positions, including the first two pages' special spacing. The bottom
+margin bounds baselines, not ink: marks can extend below the final baseline.
+
+Generate Mushaf, layout export, collision review and minimum-size reports use
+the configured text width and baseline positions. Both GUI and native Mushaf
+PDF writers use the same aspect ratio as the logical page, preserving glyph
+proportions without extra borders from mismatched paper geometry. The preview
+frame reflects the configured page width and height, with only left/right
+margin guides spanning the full page height. Layout geometry is reapplied when
+the preview scene is recreated. The preview and PDF use the same horizontal
+margins (the old PDF-only 400-unit margin is replaced by the configured margin).
+Changing paper size alone changes printed scale, not shaping or XPBD placement.
+
+The GUI snapshot includes `pageLayout`. It is authoritative over the legacy
+flat `textWidth`, `lineSpacing`, `pageWidthMM` and `pageHeightMM` snapshot values.
+CLI arguments override it: `--page-width`, `--page-height`, `--left-margin`,
+`--right-margin`, `--top-space`, `--bottom-margin`, `--line-spacing`,
+`--paper-width-mm`, and `--paper-height-mm`. `--text-width` changes page width
+while retaining the margins. Old snapshots without `pageLayout` retain the
+legacy PDF sizing and margin behavior.
 
 ## Waqf height target
 
@@ -102,9 +152,9 @@ measures only the excess outside the band.
 ## GUI minimum-size overflow report
 
 Choose **No style** in page fitting, then **Calculate minimum size**, to inspect
-overflow remaining after native justification. The diagnostic uses the native
-justifier's planned width before final scaled glyph advances are rounded to
-integers. Feature choices and editor/Mushaf rendering are unaffected.
+overflow remaining after justification. The diagnostic uses the existing
+rendered integer-advance width. It requires no extra justifier measurements
+or metadata.
 
 The main `output/overflows_with_just.csv` (or `overflows.csv` without justification)
 keeps its five columns: selected font size ratio, page, line, fractional overflow
@@ -112,15 +162,9 @@ in unscaled font units, and additional fit ratio. Overflow is no longer rounded
 up to a whole unit. The fit ratio uses the measured target and width in the same
 coordinate system, including when the selected font size is 0.95.
 
-If native justification reaches the target but the rendered integer advances
-still show overflow, that line goes into `overflows_with_just_rounding.csv`
-(or `overflows_rounding.csv`). This companion file includes native and rendered
-overflow separately. Such rows describe rounding or differences between the
-native model and final shaping, not a confirmed need for more native shrinking.
-Only double-precision cancellation noise (about 1e-10 font units) is forgiven
-in the native measurement; small genuine native overflow remains reportable.
-The status bar shows both counts. Engines and test paths without a final native
-width measurement use the existing rendered-width fallback.
+Every positive rendered overflow is included, including small rounding
+residuals. There is one CSV; rounding residuals are not classified separately.
+The status bar shows the number of overflow lines.
 
 ## Conditional waqf left/down escape
 

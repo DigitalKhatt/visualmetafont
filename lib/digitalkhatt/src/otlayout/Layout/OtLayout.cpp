@@ -2181,7 +2181,7 @@ std::vector<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth,
   hb_buffer_t* buffer = buffer = hb_buffer_create();
   hb_font_t* shapefont = this->createFont(emScale, newFace);
 
-  int currentyPos = TopSpace << OtLayout::SCALEBY;
+  int currentyPos = topSpace() << OtLayout::SCALEBY;
 
   hb_segment_properties_t savedprops;
   savedprops.direction = HB_DIRECTION_RTL;
@@ -2983,7 +2983,7 @@ LayoutPages OtLayout::pageBreak(std::vector<digitalkhatt::TextString> textPages,
   int nbbeginsajda = 0;
   int nbendsajda = 0;
 
-  int lastLinePos = (OtLayout::TopSpace + interLineSpacing() * 14) << OtLayout::SCALEBY;
+  int lastLinePos = (topSpace() + interLineSpacing() * 14) << OtLayout::SCALEBY;
 
   int currentyPos = lastLinePos;
 
@@ -3141,7 +3141,7 @@ LayoutPages OtLayout::pageBreak(std::vector<digitalkhatt::TextString> textPages,
     const auto text = textPages[pageNumber];
     const auto lines = splitLines(text);
 
-    int beginsura = (OtLayout::TopSpace + (interLineSpacing() * 3)) << OtLayout::SCALEBY;
+    int beginsura = (topSpace() + (interLineSpacing() * 3)) << OtLayout::SCALEBY;
 
     int pageWidth = lineWidth;
     int newLineWidth = 0;
@@ -3172,7 +3172,7 @@ LayoutPages OtLayout::pageBreak(std::vector<digitalkhatt::TextString> textPages,
 
       if (lineIndex == 0) {
         lineResult.type = LineType::Sura;
-        lineResult.ystartposition = (OtLayout::TopSpace + (interLineSpacing() * 1)) << OtLayout::SCALEBY;
+        lineResult.ystartposition = (topSpace() + (interLineSpacing() * 1)) << OtLayout::SCALEBY;
       } else {
         lineResult.ystartposition = beginsura;
         beginsura += interLineSpacing() << OtLayout::SCALEBY;

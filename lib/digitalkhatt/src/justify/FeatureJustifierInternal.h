@@ -106,8 +106,6 @@ struct JustResultByLine {
   // Chosen recipe, independent of later widths and spacing adjustments.
   LineJustificationOperation operation = LineJustificationOperation::None;
   double addedSpaceAfterShrink = 0.0;
-  // Final native width, including spacing, before scaled integer shaping.
-  std::optional<double> nativeWidth;
 };
 
 struct JustInfo {

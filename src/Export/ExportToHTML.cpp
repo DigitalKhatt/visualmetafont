@@ -254,7 +254,7 @@ void ExportToHTML::generateQuranPagesOld(LayoutPageList pages, int lineWidth, Or
       if (line.type == LineType::Sura) {
 
         //int pageId = d_ep->pages.constLast();
-        int height = (OtLayout::TopSpace << OtLayout::SCALEBY);
+        int height = (m_otlayout->topSpace() << OtLayout::SCALEBY);
 
 
         int ayaFrameyPos = currentyPos - 3 * height / 5;

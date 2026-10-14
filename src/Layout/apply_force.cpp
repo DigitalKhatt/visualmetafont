@@ -262,7 +262,7 @@ void LayoutWindow::applyDirectedForceLayout(LayoutPageList& pages, OriginalPageL
       auto& line = page[l];
 
       int currentxPos = -line.xstartposition;
-      int currentyPos = line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
+      int currentyPos = line.ystartposition - (m_otlayout->topSpace() << OtLayout::SCALEBY);
 
       QList<QPoint> linePositions;
 

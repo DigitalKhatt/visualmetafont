@@ -23,7 +23,7 @@ void PlacementPipeline::collectCollisions(const std::vector<LineLayoutInfo>& pag
     const auto& line = page[l];
     // Match Save Collision's integer placement after solved offsets are rounded.
     int x = -line.xstartposition;
-    const int y = -(line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY));
+    const int y = -(line.ystartposition - (layout_.topSpace() << OtLayout::SCALEBY));
     int word = 0;
     for (const auto& g : result.glyphs[l]) {
       const auto& positioned = line.glyphs[g.glyphIndex];
@@ -78,7 +78,7 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
     const double xscale = line.type == LineType::Line ? line.xscale : 1.0;
     glyphs.reserve(line.glyphs.size());
     double x = -line.xstartposition;
-    const double y = -(line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY));
+    const double y = -(line.ystartposition - (layout_.topSpace() << OtLayout::SCALEBY));
     GlyphInstance* base = nullptr;
     for (int i = 0; i < static_cast<int>(line.glyphs.size()); ++i) {
       auto& positioned = line.glyphs[i];

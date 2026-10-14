@@ -31,9 +31,24 @@ GraphicsSceneAdjustment::GraphicsSceneAdjustment(bool isDrawBackground, bool isD
 GraphicsSceneAdjustment::~GraphicsSceneAdjustment() {
 }
 
+QRectF GraphicsSceneAdjustment::pageRect() const {
+  const double scale = 1 << OtLayout::SCALEBY;
+  return QRectF((-layout_.pageWidth + layout_.rightMargin) * scale,
+      -layout_.topSpace * scale, layout_.pageWidth * scale, layout_.pageHeight * scale);
+}
+
+void GraphicsSceneAdjustment::setPageLayout(const digitalkhatt::PageLayout& layout) {
+  layout_ = layout;
+  const double border = 20 * (1 << OtLayout::SCALEBY);
+  setSceneRect(pageRect().united(itemsBoundingRect()).adjusted(-border, -border, border, border));
+  invalidate(sceneRect(), QGraphicsScene::BackgroundLayer);
+  update();
+}
+
 void GraphicsSceneAdjustment::drawBackground(QPainter* painter, const QRectF& rect) {
   // painter->setBrush(Qt::black);
   if (isDrawBackground) {
+    painter->save();
     if (!isDark) {
       painter->setPen(QPen(Qt::black, 20 << OtLayout::SCALEBY));
     } else {
@@ -46,7 +61,9 @@ void GraphicsSceneAdjustment::drawBackground(QPainter* painter, const QRectF& re
       painter->setBrush(Qt::black);
     }
 
-    painter->drawRect(-OtLayout::FrameWidth + OtLayout::Margin << OtLayout::SCALEBY, -OtLayout::TopSpace << OtLayout::SCALEBY, OtLayout::FrameWidth << OtLayout::SCALEBY, OtLayout::FrameHeight << OtLayout::SCALEBY);
+    const double scale = 1 << OtLayout::SCALEBY;
+    const QRectF page = pageRect();
+    painter->drawRect(page);
 
     if (!isDark) {
       painter->setPen(QPen(Qt::darkGray, 20 << OtLayout::SCALEBY));
@@ -54,6 +71,10 @@ void GraphicsSceneAdjustment::drawBackground(QPainter* painter, const QRectF& re
       painter->setPen(QPen(Qt::white, 20 << OtLayout::SCALEBY));
     }
 
-    painter->drawLine(-OtLayout::FrameWidth + 2 * OtLayout::Margin << OtLayout::SCALEBY, -OtLayout::TopSpace << OtLayout::SCALEBY, -OtLayout::FrameWidth + 2 * OtLayout::Margin << OtLayout::SCALEBY, OtLayout::FrameHeight - OtLayout::TopSpace << OtLayout::SCALEBY);
+    painter->setBrush(Qt::NoBrush);
+    painter->drawLine(QPointF(-layout_.textWidth() * scale, page.top()),
+                      QPointF(-layout_.textWidth() * scale, page.bottom()));
+    painter->drawLine(QPointF(0, page.top()), QPointF(0, page.bottom()));
+    painter->restore();
   }
 }

@@ -22,6 +22,8 @@ struct MushafRunOptions {
   int textWidth = OtLayout::TextWidth;
   double emScale = 1.0;
   double pageWidthMM = 90.2, pageHeightMM = 144.5;
+  // Absent in legacy snapshots. When present, this is the authoritative layout.
+  std::optional<PageLayout> pageLayout;
   bool force = false, tajweed = false, notice = true;
   bool report = false, pdf = true;
   int firstPage = 1, lastPage = 0;

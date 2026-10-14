@@ -252,7 +252,7 @@ void LayoutWindow::adjustOverlapping(LayoutPageList& pages,
 
       int currentxPos = -line.xstartposition;
       int currentyPos =
-          line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
+          line.ystartposition - (m_otlayout->topSpace() << OtLayout::SCALEBY);
 
       QList<QPoint> linePositions;
 

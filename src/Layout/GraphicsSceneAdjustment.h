@@ -20,6 +20,7 @@
 #pragma once
 
 #include <QGraphicsScene>
+#include <digitalkhatt/core/PageLayout.h>
 
 class GraphicsSceneAdjustment : public QGraphicsScene {
   Q_OBJECT
@@ -28,8 +29,11 @@ class GraphicsSceneAdjustment : public QGraphicsScene {
   GraphicsSceneAdjustment(bool isDrawBackground, bool isDark, QObject* parent);
   ~GraphicsSceneAdjustment();
   void drawBackground(QPainter* painter, const QRectF& rect) override;
+  void setPageLayout(const digitalkhatt::PageLayout& layout);
+  QRectF pageRect() const;
 
  private:
   bool isDrawBackground;
   bool isDark;
+  digitalkhatt::PageLayout layout_;
 };

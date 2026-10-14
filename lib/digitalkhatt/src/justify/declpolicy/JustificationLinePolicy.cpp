@@ -58,7 +58,6 @@ runtime::JustResultByLine executeLineJustificationPolicy(std::span<const LinePol
   result.operation = stretching ? LineJustificationOperation::Stretch : metrics.currentWidth > metrics.targetWidth ? LineJustificationOperation::Shrink : LineJustificationOperation::None;
   const std::span<const LinePolicyStep> steps = stretching ? stretchSteps : shrinkSteps;
   bool shrinkFeaturesFinished = false;
-  bool unmeasuredFeatures = false;
   const auto spaceCount = metrics.simpleSpaces + metrics.ayaSpaces;
   const auto scale = [&] { result.xScale = metrics.currentWidth != 0 ? metrics.targetWidth / metrics.currentWidth : 1; };
   const auto fill = [&] {
@@ -101,7 +100,6 @@ runtime::JustResultByLine executeLineJustificationPolicy(std::span<const LinePol
       case LineStepOp::AllFeatures:
         for (const auto& tag : step.features) result.globalFeatures.push_back({tag, 1});
         result.isShrink = true;
-        unmeasuredFeatures = true;
         break;
       case LineStepOp::FitFeatures: {
         if (stretching) {
@@ -160,7 +158,6 @@ runtime::JustResultByLine executeLineJustificationPolicy(std::span<const LinePol
         break;
     }
   }
-  if (!unmeasuredFeatures) result.nativeWidth = metrics.currentWidth;
   return result;
 }
 

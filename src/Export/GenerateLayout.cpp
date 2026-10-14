@@ -291,7 +291,7 @@ void GenerateLayout::generateLayoutJson(int lineWidth, int scale) {
                      : QCborValue::fromJsonValue(quranObject).toCbor());
 }
 void GenerateLayout::generateSuraLocations(QJsonArray& surasArray) {
-  int height = OtLayout::TopSpace << OtLayout::SCALEBY;
+  int height = m_otlayout->topSpace() << OtLayout::SCALEBY;
 
   int suraNumber = 1;
 

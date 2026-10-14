@@ -21,6 +21,7 @@
 #define OTLAYOUT_H
 
 #include "digitalkhatt/core/ByteBuffer.h"
+#include "digitalkhatt/core/PageLayout.h"
 #include <filesystem>
 #include <iostream>
 #include <concepts>
@@ -182,22 +183,32 @@ class OtLayout {
   friend class ToOpenType;
 
  public:
-  constexpr static int FrameHeight = 27400;
-  constexpr static int FrameWidth = 17000;
-  constexpr static int DefaultInterLineSpacing = 1800;
+  // Default geometry for legacy consumers. Live layout uses pageLayout().
+  constexpr static int FrameHeight = digitalkhatt::PageLayout{}.pageHeight;
+  constexpr static int FrameWidth = digitalkhatt::PageLayout{}.pageWidth;
+  constexpr static int DefaultInterLineSpacing = digitalkhatt::PageLayout{}.lineSpacing;
 
   // Baseline distance in unscaled font units (1000 units = 1 em). Set before
   // justification/optimization so collision handling sees the final spacing.
-  int interLineSpacing() const { return interLineSpacing_; }
-  void setInterLineSpacing(int units) {
-    if (units <= 0 || units > FrameHeight)
-      throw std::invalid_argument("Line spacing must be between 1 and FrameHeight font units");
-    interLineSpacing_ = units;
+  const digitalkhatt::PageLayout& pageLayout() const { return pageLayout_; }
+  void setPageLayout(const digitalkhatt::PageLayout& value) {
+    auto layout = value;
+    layout.matchBottomMarginToHeight();
+    layout.matchPaperAspectRatio();
+    layout.validate();
+    pageLayout_ = layout;
   }
-  constexpr static int TopSpace = 1450;  // 1600
-  constexpr static int Margin = 300;
-  // 15500 for oldMadinah
-  constexpr static int TextWidth = FrameWidth - (2 * Margin);
+  int textWidth() const { return pageLayout_.textWidth(); }
+  int topSpace() const { return pageLayout_.topSpace; }
+  int interLineSpacing() const { return pageLayout_.lineSpacing; }
+  void setInterLineSpacing(int units) {
+    auto value = pageLayout_;
+    value.lineSpacing = units;
+    setPageLayout(value);
+  }
+  constexpr static int TopSpace = digitalkhatt::PageLayout{}.topSpace;
+  constexpr static int Margin = digitalkhatt::PageLayout{}.leftMargin;
+  constexpr static int TextWidth = FrameWidth - digitalkhatt::PageLayout{}.leftMargin - digitalkhatt::PageLayout{}.rightMargin;
 
   enum GDEFClasses {
     BaseGlyph = 1,
@@ -421,7 +432,7 @@ class OtLayout {
   std::vector<Lookup*> tables;
 
   FSMDriver fsmDriver;
-  int interLineSpacing_ = DefaultInterLineSpacing;
+  digitalkhatt::PageLayout pageLayout_;
 
   // std::unordered_map<DefaultDelta, int> defaultDeltaSets;
 };

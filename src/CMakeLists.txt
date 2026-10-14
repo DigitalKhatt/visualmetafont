@@ -122,6 +122,8 @@ set(LayoutWindow
   Layout/LayoutWindow.cpp
   Layout/apply_force.cpp
   Layout/LookupEdit.cpp
+  Layout/PageLayoutDialog.cpp
+  Layout/PageLayoutDialog.h
   Layout/SolverParametersWidget.cpp
   Layout/FlowLayout.h
   Layout/FlowLayout.cpp

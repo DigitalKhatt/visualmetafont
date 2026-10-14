@@ -65,6 +65,7 @@ class QuranPdfWriterPdfHummus : public QObject {
 
     int dpi = 4800;
     QPageSize pageSize;
+    std::optional<digitalkhatt::PageLayout> pageLayout;
 
     double userUnitScale = 1.0;  // keep old Qt high-res coordinates
 
@@ -194,7 +195,7 @@ class QuranPdfWriterPdfHummus : public QObject {
   QMap<QString, unsigned long> m_xobjects;
 
   QString m_generationDate;
-  QSize pageSizePts;
+  QSizeF pageSizePts;
   QSize pageSizePxs;
   int resolution;
   QVector<PdfOutlineItem> m_outlineItems;

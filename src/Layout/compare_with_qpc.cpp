@@ -500,10 +500,10 @@ void LayoutWindow::compareQPCWithAnalyzer() {
 
   double unitsToPt = isImage && printQPC && printAnalyzer ? 0.5 : 1;
 
-  int pageWpx = (OtLayout::FrameWidth + overflowMargin) * unitsToPt;
-  int pageHpx = 2 * OtLayout::FrameHeight * unitsToPt;
-  double yPos = OtLayout::TopSpace * unitsToPt;
-  double xMargin = OtLayout::Margin * unitsToPt;
+  int pageWpx = (m_otlayout->pageLayout().pageWidth + overflowMargin) * unitsToPt;
+  int pageHpx = 2 * m_otlayout->pageLayout().pageHeight * unitsToPt;
+  double yPos = m_otlayout->topSpace() * unitsToPt;
+  double xMargin = m_otlayout->pageLayout().rightMargin * unitsToPt;
   double interLine = m_otlayout->interLineSpacing() * unitsToPt;
   double dpi = 300.0;
 
@@ -784,7 +784,7 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
 
   QList<LineLayoutInfo> page;
 
-  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
 
   {
     double emScale = OtLayout::EMSCALE;
@@ -837,10 +837,10 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
 
   double unitsToPt = isImage ? 0.5 : 1;
 
-  int pageWpx = (OtLayout::FrameWidth + overflowMargin) * unitsToPt;
-  int pageHpx = 2 * OtLayout::FrameHeight * unitsToPt;
-  double yPos = OtLayout::TopSpace * unitsToPt;
-  double xMargin = OtLayout::Margin * unitsToPt;
+  int pageWpx = (m_otlayout->pageLayout().pageWidth + overflowMargin) * unitsToPt;
+  int pageHpx = 2 * m_otlayout->pageLayout().pageHeight * unitsToPt;
+  double yPos = m_otlayout->topSpace() * unitsToPt;
+  double xMargin = m_otlayout->pageLayout().rightMargin * unitsToPt;
   double interLine = m_otlayout->interLineSpacing() * unitsToPt;
   double dpi = 300.0;
 
@@ -971,7 +971,7 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
     if (!IsImage) {
       pdf.newPage();
 
-      yPos = OtLayout::TopSpace;
+      yPos = m_otlayout->topSpace();
     }
 
       for (auto& line : page) {

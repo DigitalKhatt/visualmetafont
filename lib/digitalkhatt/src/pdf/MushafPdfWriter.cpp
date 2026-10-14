@@ -142,7 +142,7 @@ struct MushafPdfWriter::Impl {
   Options options;
   PDFWriter writer;
   bool started = false;
-  double width, height, unit;
+  double width, height, unit, insetX = 0, insetTop = 0;
   ObjectIDType frame = 0;
   ObjectIDType searchFont = 0;
   struct Form { ObjectIDType id = 0; double width = 0; };
@@ -159,7 +159,22 @@ struct MushafPdfWriter::Impl {
 
   Impl(OtLayout& l, const Options& o) : layout(l), options(o),
       width(std::round(o.pageWidthMM * 72 / 25.4)), height(std::round(o.pageHeightMM * 72 / 25.4)),
-      unit(72.0 / (4800 * (1 << OtLayout::SCALEBY))) {}
+      unit(72.0 / (4800 * (1 << OtLayout::SCALEBY))) {
+    if (options.pageLayout) {
+      options.pageLayout->matchBottomMarginToHeight();
+      options.pageLayout->matchPaperAspectRatio();
+      const auto& geometry = *options.pageLayout;
+      geometry.validate();
+      width = geometry.paperWidthMM * 72 / 25.4;
+      height = geometry.paperHeightMM * 72 / 25.4;
+      const double factor = 1 << OtLayout::SCALEBY;
+      unit = std::min(width / (geometry.pageWidth * factor), height / (geometry.pageHeight * factor));
+      insetX = (width - geometry.pageWidth * factor * unit) / 2;
+      insetTop = (height - geometry.pageHeight * factor * unit) / 2;
+      options.textWidth = geometry.textWidth() << OtLayout::SCALEBY;
+      options.margin = geometry.leftMargin;
+    }
+  }
   ~Impl() {
     if (iconFont) hb_font_destroy(iconFont);
     if (iconFace) hb_face_destroy(iconFace);
@@ -297,6 +312,14 @@ struct MushafPdfWriter::Impl {
   void append(const std::vector<LineLayoutInfo>& page, const std::vector<TextString>& text,
       int pageNumber, int surahBeforePage) {
     require(started,"Mushaf writer is not open");
+    if (options.pageLayout) {
+      const auto& geometry = *options.pageLayout;
+      const int lastBaseline = (geometry.pageHeight - geometry.bottomMargin) << OtLayout::SCALEBY;
+      for (const auto& line : page)
+        if (line.ystartposition > lastBaseline)
+          throw std::runtime_error("Page " + std::to_string(pageNumber) +
+              " exceeds the bottom margin; increase page height or reduce line spacing");
+    }
     if (firstMushafPage==1 && pageNumber>1 && bookmarks.size()<=1) firstMushafPage=pageNumber;
     // Materialize form streams before opening the page stream.
     for (const auto& line : page) for (const auto& g : line.glyphs) glyph(*layout.getGlyph(g));
@@ -304,6 +327,7 @@ struct MushafPdfWriter::Impl {
     for (const auto& line : page) if (line.type==LineType::Sura) { icon(surahCodes.at(std::to_string(++surah))); icon(0xe903); }
     auto* pdfPage = new PDFPage(); pdfPage->SetMediaBox(PDFRectangle(0,0,width,height));
     auto* ctx = writer.StartPageContentContext(pdfPage);
+    ctx->cm(1,0,0,1,insetX,0);
     const auto searchName = pdfPage->GetResourcesDictionary().AddFontMapping(searchFont);
     const auto searchableLine = [&](TextView source, double x, double y, double span) {
       std::ostringstream code;
@@ -318,12 +342,21 @@ struct MushafPdfWriter::Impl {
     for (size_t l=0; l<page.size(); ++l) {
       const auto& line=page[l];
       if (line.type==LineType::Sura) {
-        const double frameY = height-(line.ystartposition-(1100<<OtLayout::SCALEBY))*unit;
-        drawForm(ctx,pdfPage,{frame,256},width/256,-width/256,0,frameY);
+        const double frameY = height-insetTop-(line.ystartposition-(1100<<OtLayout::SCALEBY))*unit;
+        double frameWidth = width, frameX = 0;
+        if (options.pageLayout) {
+          // The SVG's visible frame spans 239 of its 256 units.
+          frameWidth = options.textWidth * unit * 256 / 239;
+          frameX = (options.margin << OtLayout::SCALEBY) * unit - frameWidth * 8.5 / 256;
+        }
+        drawForm(ctx,pdfPage,{frame,256},frameWidth/256,-frameWidth/256,frameX,frameY);
         const auto name = icons.at(surahCodes.at(std::to_string(++surah))), word = icons.at(0xe903);
         const double s=1.1;
-        const double x=static_cast<int>((17000-(static_cast<int>(name.width*s)+100+static_cast<int>(word.width*s)))/2);
-        const double y=height-(line.ystartposition-300)*unit;
+        const double titleWidth = static_cast<int>(name.width*s)+100+static_cast<int>(word.width*s);
+        const double x = options.pageLayout
+            ? (options.margin << OtLayout::SCALEBY) + (options.textWidth-titleWidth)/2
+            : static_cast<int>((17000-titleWidth)/2);
+        const double y=height-insetTop-(line.ystartposition-300)*unit;
         drawForm(ctx,pdfPage,name,unit*s,unit*s,x*unit,y);
         drawForm(ctx,pdfPage,word,unit*s,unit*s,(x+static_cast<int>(name.width*s)+100)*unit,y);
         searchableLine(text.at(l), x*unit, y, (name.width+word.width)*s*unit);
@@ -333,7 +366,7 @@ struct MushafPdfWriter::Impl {
       }
       const double lineScale = line.type==LineType::Line ? line.xscale : 1.0;
       double x=options.textWidth+(options.margin<<OtLayout::SCALEBY)-line.xstartposition;
-      const double baseline=height-line.ystartposition*unit;
+      const double baseline=height-insetTop-line.ystartposition*unit;
       searchableLine(text.at(l),
           (x-line.currentLineWidth*lineScale)*unit, baseline,
           line.currentLineWidth*lineScale*unit);

@@ -38,6 +38,7 @@
 #include "GraphicsSceneAdjustment.h"
 #include "GraphicsViewAdjustment.h"
 #include "SolverParametersWidget.h"
+#include "PageLayoutDialog.h"
 #include "font.hpp"
 #include "glyph.hpp"
 #include "qurantext/quran.h"
@@ -235,6 +236,16 @@ LayoutWindow::LayoutWindow(Font* font, QWidget* parent, Qt::WindowFlags flags)
   layoutDatabase();
 
   integerSpinBox->setValue(3);
+}
+
+void LayoutWindow::editPageLayout() {
+  PageLayoutDialog dialog(m_otlayout->pageLayout(), this);
+  if (dialog.exec() != QDialog::Accepted) return;
+  const auto layout = dialog.pageLayout();
+  savePageLayoutSettings(layout);
+  m_otlayout->setPageLayout(layout);
+  m_graphicsScene->setPageLayout(layout);
+  executeRunText(true, 1);
 }
 
 LayoutWindow::~LayoutWindow() {}
@@ -663,30 +674,9 @@ void LayoutWindow::createActions() {
   justCombo->addItem("Declarative policy", qVariantFromValue(JustType::DeclPolicy));
 
   QSettings settings;
-  jutifyToolbar->addWidget(new QLabel(tr("Line spacing:")));
-  interLineSpacingSpinBox = new QSpinBox;
-  interLineSpacingSpinBox->setRange(1, OtLayout::FrameHeight);
-  interLineSpacingSpinBox->setSingleStep(1);
-  interLineSpacingSpinBox->setKeyboardTracking(false);
-  interLineSpacingSpinBox->setSuffix(tr(" units"));
-  interLineSpacingSpinBox->setToolTip(tr(
-      "Baseline distance in font units (1000 units = 1 em). "
-      "Used by preview, PDF and layout generation, including Force collision handling."));
-  const int savedLineSpacing = settings.value("Layout/InterLineSpacing",
-                                              OtLayout::DefaultInterLineSpacing)
-                                   .toInt();
-  interLineSpacingSpinBox->setValue(savedLineSpacing > 0 && savedLineSpacing <= OtLayout::FrameHeight
-                                        ? savedLineSpacing
-                                        : OtLayout::DefaultInterLineSpacing);
-  jutifyToolbar->addWidget(interLineSpacingSpinBox);
+  auto* pageLayoutAction = jutifyToolbar->addAction(tr("Page layout…"));
+  connect(pageLayoutAction, &QAction::triggered, this, &LayoutWindow::editPageLayout);
   jutifyToolbar->addWidget(justCombo);
-  connect(interLineSpacingSpinBox, qOverload<int>(&QSpinBox::valueChanged),
-          [this](int units) {
-            m_otlayout->setInterLineSpacing(units);
-            QSettings settings;
-            settings.setValue("Layout/InterLineSpacing", units);
-            executeRunText(true, 1);
-          });
 
   QString lastJust = settings.value("LastJust").value<QString>();
   if (!lastJust.isEmpty()) {
@@ -812,6 +802,7 @@ void LayoutWindow::createActions() {
   fileToolBar->addWidget(toggleButton);
 
   settingsMenu = menuBar()->addMenu(tr("&Settings"));
+  settingsMenu->addAction(pageLayoutAction);
 
   QAction* enableTajweed =
       settingsMenu->addAction(tr("&Enable Tajweed"), this, [&](bool checked) {
@@ -872,7 +863,7 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended,
 
   OtLayout layout =
       OtLayout(&m_font->mpFont(), extended, extended ? true : generateVariableOpenType);
-  layout.setInterLineSpacing(m_otlayout->interLineSpacing());
+  layout.setPageLayout(m_otlayout->pageLayout());
 
   // allFeatures is still empty here: GenerateFile parses the feature file
   // later. Read disabled lookup names directly so this does not depend on
@@ -1057,7 +1048,7 @@ bool LayoutWindow::generateOpenType() {
       fileInfo.path() + "/output/" + fileInfo.completeBaseName() + "-cff1.otf";
 
   OtLayout layout = OtLayout(&m_font->mpFont(), false, true);
-  layout.setInterLineSpacing(m_otlayout->interLineSpacing());
+  layout.setPageLayout(m_otlayout->pageLayout());
   layout.useNormAxisValues = true;
   layout.toOpenType->isCff2 = false;
 
@@ -1100,7 +1091,7 @@ struct hash<BaseMarkPair> {
 void LayoutWindow::checkOffMarks() {
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
-  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
 
   auto result = shapeMushaf(scale, lineWidth, m_otlayout,
                             HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
@@ -1137,7 +1128,7 @@ void LayoutWindow::checkOffMarks() {
 
       int currentxPos = -line.xstartposition;
       int currentyPos =
-          line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
+          line.ystartposition - (m_otlayout->topSpace() << OtLayout::SCALEBY);
 
       QList<QPoint> linePositions;
 
@@ -1423,7 +1414,7 @@ bool LayoutWindow::exportpdf() {
 
   auto lines = textt.split(char(10), Qt::SkipEmptyParts);
 
-  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
   ;
 
   auto page = m_otlayout->justifyPage(
@@ -1580,7 +1571,7 @@ bool LayoutWindow::generateLayoutInfo() {
 
   try {
     const double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
-    const int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+    const int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
     auto result = shapeMushaf(scale, lineWidth, m_otlayout,
                               HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
     if (this->applyForce) {
@@ -1606,7 +1597,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
   QFileInfo fileInfo = QFileInfo(path);
 
   OtLayout layout = OtLayout(&m_font->mpFont(), true, true);
-  layout.setInterLineSpacing(m_otlayout->interLineSpacing());
+  layout.setPageLayout(m_otlayout->pageLayout());
 
   std::map<std::uint16_t, std::vector<std::uint16_t>> cv01feature;
 
@@ -1617,7 +1608,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
   int calScale = 1 << OtLayout::SCALEBY;
 
   int scale = calScale * OtLayout::EMSCALE;
-  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
   ;
 
   auto result = shapeMushaf(scale, lineWidth, &layout,
@@ -2123,7 +2114,7 @@ bool LayoutWindow::generateMadinaVARHTML() {
 void LayoutWindow::saveCollision() {
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
-  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
 
   auto t1 = std::chrono::high_resolution_clock::now();
   auto result = shapeMushaf(scale, lineWidth, m_otlayout,
@@ -2156,7 +2147,7 @@ void LayoutWindow::saveCollision() {
 bool LayoutWindow::generateMushaf(bool isHTML) {
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
-  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
 
   hb_buffer_cluster_level_t cluster_level =
       HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES;
@@ -2190,7 +2181,11 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
     settings.justifier = digitalkhatt::justifierName(just.justType);
     settings.style = digitalkhatt::styleName(just.justStyle);
     settings.shrink = digitalkhatt::shrinkName(just.shrinkType);
+    settings.pageLayout = m_otlayout->pageLayout();
     settings.lineSpacing = m_otlayout->interLineSpacing();
+    settings.textWidth = m_otlayout->textWidth();
+    settings.pageWidthMM = m_otlayout->pageLayout().paperWidthMM;
+    settings.pageHeightMM = m_otlayout->pageLayout().paperHeightMM;
     settings.emScale = OtLayout::EMSCALE;
     settings.force = applyForce;
     settings.tajweed = tajweedEnabled;
@@ -2212,28 +2207,18 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
         qWarning() << "Cannot save Mushaf command-line settings:" << snapshot.errorString();
     } else
       qWarning() << "Cannot serialize Mushaf command-line settings";
-    auto res = 4800 << OtLayout::SCALEBY;
-    QPageSize pageSize{{90.2, 144.5}, QPageSize::Millimeter, "MedianQuranBook"};
-    QPageLayout pageLayout{pageSize, QPageLayout::Portrait,
-                           QMarginsF(0, 0, 0, 0)};
 #if defined(ENABLE_PDF_GENERATION)
-
-    QString outputFileName = fileInfo.path() + "/output/mushaf_qpdf.pdf";
-
-    /*QuranPdfWriter quranWriter(outputFileName, m_otlayout);
-    quranWriter.setPageLayout(pageLayout);
-    quranWriter.setResolution(4800 << OtLayout::SCALEBY);
-
-    quranWriter.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);*/
-
-    outputFileName = fileInfo.path() + "/output/mushaf.pdf";
-
     QuranPdfWriterPdfHummus::Options opts;
-    opts.outputPath = outputFileName;
-    opts.pageSize = pageSize;
+    opts.outputPath = fileInfo.path() + "/output/mushaf.pdf";
+    opts.pageLayout = m_otlayout->pageLayout();
     opts.addNoticePage = true;
     QuranPdfWriterPdfHummus writer(opts, m_otlayout);
-    writer.generateQuranPages(result.pages, lineWidth, result.originalPages, scale);
+    if (!writer.generateQuranPages(result.pages, lineWidth, result.originalPages, scale,
+        m_otlayout->pageLayout().leftMargin << OtLayout::SCALEBY)) {
+      QMessageBox::critical(this, tr("Mushaf export failed"), tr("Could not generate the PDF. "
+          "Check the page layout, including the bottom margin, and the application log."));
+      return false;
+    }
 
 #endif
   } else {
@@ -2272,7 +2257,7 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
   loadLookupFile("features.fea");
 
   int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
-  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
 
   QString quran;
 
@@ -2330,20 +2315,19 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
                       true);
   }
 
-  QPageSize pageSize{{90.2, 144.5}, QPageSize::Millimeter, "MedianQuranBook"};
-  QPageLayout pageLayout{pageSize, QPageLayout::Portrait,
-                         QMarginsF(0, 0, 0, 0)};
-
 #if defined(ENABLE_PDF_GENERATION)
-  auto path = m_font->filePath();
-  QFileInfo fileInfo = QFileInfo(path);
-  QString outputFileName = fileInfo.path() + "/output/allquran.pdf";
-  QuranPdfWriter quranWriter(outputFileName, m_otlayout);
-  quranWriter.setPageLayout(pageLayout);
-  quranWriter.setResolution(4800 << OtLayout::SCALEBY);
-
-  quranWriter.generateQuranPages(pages.pages, lineWidth, pages.originalPages,
-                                 scale);
+  const QFileInfo fileInfo(m_font->filePath());
+  QuranPdfWriterPdfHummus::Options options;
+  options.outputPath = fileInfo.path() + "/output/allquran.pdf";
+  options.pageLayout = m_otlayout->pageLayout();
+  options.addNoticePage = false;
+  QuranPdfWriterPdfHummus writer(options, m_otlayout);
+  if (!writer.generateQuranPages(pages.pages, lineWidth, pages.originalPages, scale,
+      m_otlayout->pageLayout().leftMargin << OtLayout::SCALEBY)) {
+    QMessageBox::critical(this, tr("Mushaf export failed"), tr("Could not generate the PDF. "
+        "Check the page layout, including the bottom margin, and the application log."));
+    return false;
+  }
 
 #endif
   return true;
@@ -2485,7 +2469,7 @@ void LayoutWindow::createDockWindows() {
   viewMenu->addAction(solverTuningDock->toggleViewAction());
 
   auto action = new QAction(tr("Calculate minimum size"), this);
-  action->setStatusTip(tr("Report native justification overflow separately from rendered rounding differences"));
+  action->setStatusTip(tr("Report rendered overflow and the required fit ratio"));
   connect(action, &QAction::triggered, this,
           &LayoutWindow::calculateMinimumSize);
 
@@ -2573,7 +2557,8 @@ void LayoutWindow::createDockWindows() {
   otherMenu->addAction(action);
 
   m_otlayout = new OtLayout(&m_font->mpFont(), true, true);
-  m_otlayout->setInterLineSpacing(interLineSpacingSpinBox->value());
+  m_otlayout->setPageLayout(loadPageLayoutSettings());
+  m_graphicsScene->setPageLayout(m_otlayout->pageLayout());
   m_otlayout->useNormAxisValues = false;
   m_otlayout->setExtended(true);
   m_otlayout->applyJustification = applyJustification;
@@ -2635,8 +2620,8 @@ void LayoutWindow::createDockWindows() {
 
 void LayoutWindow::serializeTexPages() {
   int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
-  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
-  int topSpace = OtLayout::TextWidth << OtLayout::SCALEBY;
+  int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
+  int topSpace = m_otlayout->textWidth() << OtLayout::SCALEBY;
 
   std::vector<digitalkhatt::TextString> textPages;
 
@@ -2655,7 +2640,7 @@ void LayoutWindow::serializeTexPages() {
 
   QList<SuraLocation> locations;
 
-  int height = OtLayout::TopSpace << OtLayout::SCALEBY;
+  int height = m_otlayout->topSpace() << OtLayout::SCALEBY;
 
   int suraNumber = 1;
 
@@ -3051,13 +3036,13 @@ void LayoutWindow::compareIndopakFonts() {
 
 void LayoutWindow::serializeMedinaPages() {
   int scale = (1 << OtLayout::SCALEBY) * 0.85;
-  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
 
   auto result = shapeMushaf(scale, lineWidth, m_otlayout);
 
   QList<SuraLocation> locations;
 
-  int height = OtLayout::TopSpace << OtLayout::SCALEBY;
+  int height = m_otlayout->topSpace() << OtLayout::SCALEBY;
 
   int suraNumber = 1;
 
@@ -3140,7 +3125,7 @@ void LayoutWindow::testKasheda() {
 void LayoutWindow::findOverflows(bool overfull) {
   double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
 
-  int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
 
   hb_buffer_cluster_level_t cluster_level =
       HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS;
@@ -3296,7 +3281,7 @@ void LayoutWindow::findOverflows(bool overfull) {
 void LayoutWindow::calculateMinimumSize() {
   loadLookupFile("features.fea");
 
-  const int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  const int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
   const double scale = OtLayout::EMSCALE;
   const double emScale = (1 << OtLayout::SCALEBY) * scale;
 
@@ -3305,10 +3290,9 @@ void LayoutWindow::calculateMinimumSize() {
     int lineNumber;
     double overflow;
     double fitRatio;
-    double renderedOverflow;
   };
 
-  QVector<Line> overflows, roundingResiduals;
+  QVector<Line> overflows;
   const auto just = getJustOption();
   for (int pagenum = 0; pagenum < currentQuranText.size(); pagenum++) {
     const auto lines = currentQuranText[pagenum].split(char(10), Qt::SkipEmptyParts);
@@ -3320,57 +3304,35 @@ void LayoutWindow::calculateMinimumSize() {
 
     for (int linenum = 0; linenum < static_cast<int>(page.size()); linenum++) {
       const auto& line = page[linenum];
-      if (line.desiredLineWidth <= 0) continue;
-      const double plannedWidth = line.plannedLineWidth.value_or(
-          line.desiredLineWidth + static_cast<double>(line.overfull));
-      const double remaining = plannedWidth - line.desiredLineWidth;
-      // Ignore floating-point cancellation at a fitted target, not genuine
-      // small overflow. The allowance is about 1e-10 units for normal lines.
-      const double epsilon = 64 * std::numeric_limits<double>::epsilon() *
-          std::max({1.0, std::abs(plannedWidth), static_cast<double>(line.desiredLineWidth)});
-      if (remaining <= epsilon && line.overfull <= 0) continue;
-      const Line result{pagenum + 1, linenum + 1,
-          std::max(0.0, remaining) / emScale,
-          remaining > epsilon ? line.desiredLineWidth / plannedWidth : 1.0,
-          line.overfull / emScale};
-      if (remaining > epsilon) overflows.append(result);
-      else roundingResiduals.append(result);
+      if (line.overfull <= 0 || line.desiredLineWidth <= 0) continue;
+      overflows.append({pagenum + 1, linenum + 1, line.overfull / emScale,
+          static_cast<double>(line.desiredLineWidth) /
+              (line.desiredLineWidth + static_cast<double>(line.overfull))});
     }
   }
 
   const QString outputDir = QFileInfo(m_font->filePath()).path() + "/output";
   QDir().mkpath(outputDir);
   const QString stem = applyJustification ? "overflows_with_just" : "overflows";
-  const auto write = [&](QVector<Line>& rows, const QString& fileName, bool rounding) {
-    std::sort(rows.begin(), rows.end(),
-        [rounding](const Line& a, const Line& b) {
-          return rounding ? a.renderedOverflow > b.renderedOverflow : a.overflow > b.overflow;
-        });
-    QFile file(fileName);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-      qWarning() << "Cannot write minimum-size report:" << fileName << file.errorString();
-      return false;
-    }
-    QTextStream out(&file);
-    out.setCodec("ISO 8859-1");
-    out.setRealNumberPrecision(12);
-    if (rounding) out << "font_size_ratio,page,line,native_overflow_font_units,additional_fit_ratio,rendered_overflow_font_units\n";
-    for (const auto& line : rows) {
-      // Keep the original five main-report columns, with fractional overflow
-      // and a fit ratio computed entirely in the measured coordinate system.
-      out << scale << "," << line.pageNumber << "," << line.lineNumber << ","
-          << line.overflow << "," << line.fitRatio;
-      if (rounding) out << "," << line.renderedOverflow;
-      out << "\n";
-    }
-    out.flush();
-    return out.status() == QTextStream::Ok;
-  };
   const QString fileName = outputDir + "/" + stem + ".csv";
-  if (!write(overflows, fileName, false) ||
-      !write(roundingResiduals, outputDir + "/" + stem + "_rounding.csv", true)) return;
-  statusBar()->showMessage(tr("Minimum size: %1 overflow lines, %2 rendered residuals after native fitting. Saved %3")
-      .arg(overflows.size()).arg(roundingResiduals.size()).arg(fileName), 15000);
+  std::sort(overflows.begin(), overflows.end(),
+      [](const Line& a, const Line& b) { return a.overflow > b.overflow; });
+  QFile file(fileName);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    qWarning() << "Cannot write minimum-size report:" << fileName << file.errorString();
+    return;
+  }
+  QTextStream out(&file);
+  out.setCodec("ISO 8859-1");
+  out.setRealNumberPrecision(12);
+  for (const auto& line : overflows) {
+    out << scale << "," << line.pageNumber << "," << line.lineNumber << ","
+        << line.overflow << "," << line.fitRatio << "\n";
+  }
+  out.flush();
+  if (out.status() != QTextStream::Ok) return;
+  statusBar()->showMessage(tr("Minimum size: %1 overflow lines. Saved %2")
+      .arg(overflows.size()).arg(fileName), 15000);
 }
 
 void LayoutWindow::setQuranText(int type) {
@@ -3384,7 +3346,7 @@ void LayoutWindow::setQuranText(int type) {
     loadLookupFile("features.fea");
 
     int scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
-    int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+    int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
 
     std::vector<digitalkhatt::TextString> textPages;
 
@@ -3499,7 +3461,7 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
 
   QString textt = textEdit->toPlainText();
 
-  const int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  const int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
 
   QStringList lines;
   if (applyTeXAlgo) {
@@ -3556,9 +3518,10 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
   // const auto& glyphName = m_otlayout->glyphNamePerCode[57357];
 
   for (auto line : page) {
-    double currentxPos = line.xstartposition;
+    // The preview's RTL text edge is x=0; use the same inward offset as PDF.
+    double currentxPos = -line.xstartposition;
     double currentyPos =
-        line.ystartposition - (OtLayout::TopSpace << OtLayout::SCALEBY);
+        line.ystartposition - (m_otlayout->topSpace() << OtLayout::SCALEBY);
     double xScale = line.fontSize * line.xscale;
     double yScale = line.fontSize * -1;
     for (auto& glyphLayout : line.glyphs) {
@@ -3618,6 +3581,8 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
 
   // m_otlayout->clearAlternates();
 
+  // Refresh recreates the scene; restore geometry after placing its glyphs.
+  m_graphicsScene->setPageLayout(m_otlayout->pageLayout());
   if (refresh) {
     m_graphicsView->setScene(m_graphicsScene);
   }
@@ -3629,7 +3594,7 @@ void LayoutWindow::simpleAdjustPage(hb_buffer_t* buffer) {
   uint glyph_count;
 
   const int minSpace = OtLayout::MINSPACEWIDTH << OtLayout::SCALEBY;
-  const int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  const int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
 
   hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
   hb_glyph_position_t* glyph_pos =
@@ -3664,7 +3629,7 @@ void LayoutWindow::adjustPage(QString text, hb_font_t* shapeFont,
   uint glyph_count;
 
   const int minSpace = OtLayout::MINSPACEWIDTH << OtLayout::SCALEBY;
-  const int lineWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
+  const int lineWidth = m_otlayout->textWidth() << OtLayout::SCALEBY;
 
   hb_glyph_info_t* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
   hb_glyph_position_t* glyph_pos =

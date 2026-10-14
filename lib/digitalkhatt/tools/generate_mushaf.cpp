@@ -340,6 +340,11 @@ void usage() {
       "  --only-changed / --all-findings  New/worsened plus structural, or all eligible findings\n"
       "  --line-spacing N           Baseline distance in font units\n"
       "  --text-width N             Text width in font units\n"
+      "  --page-width / --page-height N  Page geometry in font units\n"
+      "  --left-margin / --right-margin N  Horizontal margins in font units\n"
+      "  --top-space N              First baseline from page top, font units\n"
+      "  --bottom-margin N          Reserved space below final baseline, font units\n"
+      "  --paper-width-mm / --paper-height-mm N  PDF paper size in millimeters\n"
       "  --em-scale N               GUI font size percentage / 100\n"
       "  --tajweed / --no-tajweed   Tajweed coloring\n"
       "  --disable-lookup NAME      Disable a lookup; repeatable\n"
@@ -369,10 +374,23 @@ int main(int argc,char** argv) {
     options.resources=DIGITALKHATT_METAFONT_RESOURCES;
     options.pdfResources=DIGITALKHATT_PDF_RESOURCES;
     fs::path output="mushaf.pdf", extraConfig, placementData, reviewWordsFile, layoutBinary;
+    bool bottomMarginControlsHeight = false;
+    std::optional<double> paperHeightOverride;
     // Config is the base; command-line options override it regardless of order.
     for (int i=1;i<argc;++i) if (std::string_view(argv[i])=="--config") {
       if (++i>=argc) throw std::runtime_error("Missing --config value"); readJson(options,argv[i],&legacyPadding);
     }
+    const auto pageGeometry = [&]() -> digitalkhatt::PageLayout& {
+      if (!options.pageLayout) {
+        options.pageLayout.emplace();
+        auto& geometry = *options.pageLayout;
+        geometry.pageWidth = options.textWidth + geometry.leftMargin + geometry.rightMargin;
+        geometry.lineSpacing = options.lineSpacing;
+        geometry.paperWidthMM = options.pageWidthMM;
+        geometry.paperHeightMM = options.pageHeightMM;
+      }
+      return *options.pageLayout;
+    };
     for (int i=1;i<argc;++i) {
       const std::string arg=argv[i];
       const auto value=[&]() -> std::string { if (++i>=argc) throw std::runtime_error("Missing value for "+arg); return argv[i]; };
@@ -387,8 +405,34 @@ int main(int argc,char** argv) {
       else if (arg=="--shrink") options.shrink=value();
       else if (arg=="--stretch-policy") options.stretchPolicy=value();
       else if (arg=="--shrink-policy") options.shrinkPolicy=value();
-      else if (arg=="--line-spacing") options.lineSpacing=std::stoi(value());
-      else if (arg=="--text-width") options.textWidth=std::stoi(value());
+      else if (arg=="--line-spacing") {
+        options.lineSpacing=std::stoi(value());
+        if (options.pageLayout) options.pageLayout->lineSpacing=options.lineSpacing;
+      }
+      else if (arg=="--text-width") {
+        options.textWidth=std::stoi(value());
+        if (options.pageLayout) options.pageLayout->pageWidth=options.textWidth+options.pageLayout->leftMargin+options.pageLayout->rightMargin;
+      }
+      else if (arg=="--page-width") pageGeometry().pageWidth=std::stoi(value());
+      else if (arg=="--page-height") {
+        pageGeometry().pageHeight=std::stoi(value());
+        bottomMarginControlsHeight=false;
+      }
+      else if (arg=="--left-margin") pageGeometry().leftMargin=std::stoi(value());
+      else if (arg=="--right-margin") pageGeometry().rightMargin=std::stoi(value());
+      else if (arg=="--top-space") pageGeometry().topSpace=std::stoi(value());
+      else if (arg=="--bottom-margin") {
+        pageGeometry().bottomMargin=std::stoi(value());
+        bottomMarginControlsHeight=true;
+      }
+      else if (arg=="--paper-width-mm") {
+        pageGeometry().setPaperWidthMM(std::stod(value()));
+        paperHeightOverride.reset();
+      }
+      else if (arg=="--paper-height-mm") {
+        pageGeometry();
+        paperHeightOverride=std::stod(value());
+      }
       else if (arg=="--em-scale") options.emScale=std::stod(value());
       else if (arg=="--summary-limit" || arg=="--report-limit") options.xpbd.reportMaxFindings=std::stoi(value());
       else if (arg=="--report-sort") options.xpbd.reportSort=value();
@@ -469,6 +513,17 @@ int main(int argc,char** argv) {
         !std::isfinite(options.xpbd.waqfEscapeMaxLeftPercent) || options.xpbd.waqfEscapeMaxLeftPercent<0 || options.xpbd.waqfEscapeMaxLeftPercent>1000 ||
         !std::isfinite(options.emScale) || options.emScale<=0 || options.emScale>5 ||
         options.textWidth<1 || options.textWidth>100000) throw std::runtime_error("Invalid numeric option");
+    if (options.pageLayout) {
+      if (bottomMarginControlsHeight) options.pageLayout->setBottomMargin(options.pageLayout->bottomMargin);
+      options.pageLayout->matchBottomMarginToHeight();
+      if (paperHeightOverride) options.pageLayout->setPaperHeightMM(*paperHeightOverride);
+      else options.pageLayout->matchPaperAspectRatio();
+      options.pageLayout->validate();
+      options.lineSpacing = options.pageLayout->lineSpacing;
+      options.textWidth = options.pageLayout->textWidth();
+      options.pageWidthMM = options.pageLayout->paperWidthMM;
+      options.pageHeightMM = options.pageLayout->paperHeightMM;
+    }
     if (options.xpbd.reportSort != "severity" && options.xpbd.reportSort != "priority")
       throw std::runtime_error("--report-sort must be severity or priority");
     options.summaryLimit=options.xpbd.reportMaxFindings;
@@ -523,7 +578,8 @@ int main(int argc,char** argv) {
     const auto started=std::chrono::steady_clock::now();
     MPFont font; initializeFont(font,project,options.resources);
     OtLayout layout(&font,true,true); layout.useNormAxisValues=false;
-    layout.setInterLineSpacing(options.lineSpacing);
+    if (options.pageLayout) layout.setPageLayout(*options.pageLayout);
+    else layout.setInterLineSpacing(options.lineSpacing);
     for (const auto& name:options.disabledLookups) layout.setLookupDisabled(name,true);
     layout.loadLookupFile(options.features);
     const auto engine=parseJustifier(options.justifier);
@@ -545,6 +601,7 @@ int main(int argc,char** argv) {
     if (options.pdf) {
       digitalkhatt::pdf::MushafPdfWriter::Options pdfOptions;
       pdfOptions.output=output; pdfOptions.resources=options.pdfResources; pdfOptions.notice=options.notice;
+      pdfOptions.pageLayout=options.pageLayout;
       pdfOptions.pageWidthMM=options.pageWidthMM; pdfOptions.pageHeightMM=options.pageHeightMM; pdfOptions.textWidth=width;
       mushaf=std::make_unique<digitalkhatt::pdf::MushafPdfWriter>(layout,pdfOptions); mushaf->start();
     }

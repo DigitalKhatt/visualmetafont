@@ -103,6 +103,7 @@ class LayoutWindow : public QMainWindow {
   void resizeEvent(QResizeEvent* event) override;
 
  private slots:
+  void editPageLayout();
   void calculateMinimumSize();
   void findOverflows(bool overfull);
   void testKasheda();
@@ -212,7 +213,6 @@ class LayoutWindow : public QMainWindow {
   QSpinBox* integerSpinBox;
   QLabel* suraName;
   QSpinBox* fontSizeSpinBox;
-  QSpinBox* interLineSpacingSpinBox;
   QTreeWidget* lokkupTreeWidget;
 
   QList<QString> currentQuranText;

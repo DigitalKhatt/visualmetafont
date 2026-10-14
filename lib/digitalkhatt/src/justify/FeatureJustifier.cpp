@@ -976,13 +976,6 @@ static JustResultByLine justifyLine(const LineTextInfo& lineTextInfo, hb_font_t*
   }
   result.fontFeatures = justInfo.fontFeatures;
 
-  // The normal feature path fills an undershoot using word spaces. Test-all
-  // and SCLX paths do not maintain a final native measurement: leave those
-  // diagnostics to the rendered-width fallback.
-  if (justOption.shrinkType != ShrinkType::Test && justOption.justStyle != JustStyle::SCLX)
-    result.nativeWidth = currentLineWidth < desiredWidth && !lineTextInfo.spaces.empty()
-        ? desiredWidth : currentLineWidth;
-
   return result;
 }
 

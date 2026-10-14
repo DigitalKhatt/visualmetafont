@@ -15,6 +15,7 @@ class MushafPdfWriter {
     double pageWidthMM = 90.2, pageHeightMM = 144.5;
     int textWidth = OtLayout::TextWidth;
     int margin = 400;
+    std::optional<digitalkhatt::PageLayout> pageLayout;
     bool notice = true;
     std::string title = "The Noble Quran";
   };
