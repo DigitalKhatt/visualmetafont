@@ -562,21 +562,16 @@ LineLayoutInfo shapeLine(FeatureJustificationLayout& layout, int lineWidth, int 
           glyphLayout.x_advance = justResult.simpleSpacing * emScale;
         }
       }
-    } else if (justResult.addedSpaceAfterShrink != 0 || !justResult.spaceAdvanceAdjustments.empty()) {
+    } else if (justResult.addedSpaceAfterShrink != 0) {
       auto space = lineTextInfo.spaces.find(glyphLayout.cluster);
 
-      if (space != lineTextInfo.spaces.end()) {
-        glyphLayout.x_advance += justResult.addedSpaceAfterShrink * emScale;
-        const auto adjustment = justResult.spaceAdvanceAdjustments.find(glyphLayout.cluster);
-        if (adjustment != justResult.spaceAdvanceAdjustments.end() && glyphLayout.cluster != lastAdjustedSpaceCluster) {
-          // Carry fractional units across spaces instead of losing one
-          // fraction per space when converting to integer advances.
-          const double scaled = adjustment->second * emScale + spaceAdjustmentRemainder;
-          const int added = static_cast<int>(std::round(scaled));
-          spaceAdjustmentRemainder = scaled - added;
-          glyphLayout.x_advance += added;
-          lastAdjustedSpaceCluster = glyphLayout.cluster;
-        }
+      if (space != lineTextInfo.spaces.end() && glyphLayout.cluster != lastAdjustedSpaceCluster) {
+        // Share the gap equally, carrying fractional units across spaces.
+        const double scaled = justResult.addedSpaceAfterShrink * emScale + spaceAdjustmentRemainder;
+        const int added = static_cast<int>(std::round(scaled));
+        spaceAdjustmentRemainder = scaled - added;
+        glyphLayout.x_advance += added;
+        lastAdjustedSpaceCluster = glyphLayout.cluster;
       }
     }
 

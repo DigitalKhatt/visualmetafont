@@ -151,13 +151,32 @@ int main() {
   backend.widths = {1100, 900, 700};
   result = execute({750, 1000, 100, 1, 1}, backend);
   ok &= expect(backend.trials.size() == 3 && backend.trials.back().size() == 2 && backend.trials.back()[0].name == "t002", "shrink trials start from only accepted features");
-  ok &= expect(result.globalFeatures.size() == 1 && result.globalFeatures[0].name == "t002", "non-reducing and excessive shrink steps are rejected");
-  ok &= expect(result.isShrink && result.addedSpaceAfterShrink == 0 && near(result.xScale, 750.0 / 900), "balance scales remaining excess width without increasing spaces");
+  ok &= expect(result.globalFeatures.size() == 2 && result.globalFeatures[0].name == "t002" && result.globalFeatures[1].name == "t003", "reject non-reducing steps but accept the first undershoot");
+  ok &= expect(result.isShrink && near(result.addedSpaceAfterShrink, 25) && result.xScale == 1 && result.simpleSpacing == 100, "balance distributes undershoot equally on top of shaped spaces");
 
   backend = {};
   backend.widths = {900, 975, 950};
   result = execute({950, 1000, 100, 1, 1}, backend);
-  ok &= expect(backend.trials.size() == 3 && result.globalFeatures.size() == 2 && result.globalFeatures[0].name == "t002" && result.globalFeatures[1].name == "t003" && result.xScale == 1, "skip an excessive shrink step and stop when later features reach the target");
+  ok &= expect(backend.trials.size() == 1 && result.globalFeatures.size() == 1 && result.globalFeatures[0].name == "t001" && near(result.addedSpaceAfterShrink, 25) && result.xScale == 1, "stop immediately after accepting an undershooting feature");
+  const std::vector<LinePolicyStep> undershootShrink{
+      compileLinePolicyStep({"fit_features", {}, {"t001", "t002"}}, false),
+      compileLinePolicyStep({.operation = "stage", .stage = "Fallback"}, false),
+      compileLinePolicyStep({"fit_features", {}, {"t003"}}, false),
+      compileLinePolicyStep({"all_features", {}, {"t004"}}, false),
+      compileLinePolicyStep({"fit_sclx", {100}, {}}, false),
+      compileLinePolicyStep({.operation = "balance"}, false)};
+  backend = {};
+  backend.widths = {900};
+  result = executeWith(stretch, undershootShrink, {950, 1000, 100, 2, 1}, backend);
+  ok &= expect(backend.trials.size() == 1 && backend.glyphCalls == 0 && backend.axisValue == 0 && result.globalFeatures.size() == 1 && near(result.addedSpaceAfterShrink, 50.0 / 3) && result.xScale == 1, "skip all later shrink operations, then balance simple and aya spaces equally");
+  backend = {};
+  backend.widths = {900};
+  result = executeWith(stretch, undershootShrink, {950, 1000, 100, 0, 0}, backend);
+  ok &= expect(backend.trials.size() == 1 && backend.glyphCalls == 0 && result.addedSpaceAfterShrink == 0 && near(result.xScale, 950.0 / 900), "undershoot without spaces uses finite balance scaling");
+  backend = {};
+  backend.widths = {950};
+  result = executeWith(stretch, undershootShrink, {950, 1000, 100, 2, 1}, backend);
+  ok &= expect(backend.trials.size() == 1 && backend.glyphCalls == 0 && result.addedSpaceAfterShrink == 0 && result.xScale == 1, "exact-fitting feature stops shrinking without adding space");
   backend = {};
   backend.widths = {950, 900, 850};
   result = execute({800, 1000, 100, 1, 1}, backend);
@@ -210,6 +229,7 @@ int main() {
   ok &= expect(rejectsShrinkStep([](auto& s) { s.features = {"t001", "t001"}; }), "reject repeated feature");
   ok &= expect(rejectsShrinkStep([](auto& s) { s.features.clear(); }), "reject empty feature sequence");
   ok &= expect(rejectsShrinkStep([](auto& s) { s.operation = "glyph_actions"; }), "reject removed legacy glyph_actions primitive");
+  ok &= expect(rejectsShrinkStep([](auto& s) { s = {.operation = "reduce_spaces", .arguments = {0.95}}; }), "reject removed reduce_spaces primitive");
   ok &= expect(rejectsStretchStep([](auto& s) { s.operation = "typo"; }), "reject unknown stretch operation");
   auto missingStretch = fixture();
   missingStretch.stretchPolicy.clear();

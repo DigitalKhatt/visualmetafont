@@ -103,12 +103,9 @@ struct JustResultByLine {
   double ayaSpacing;
   double xScale;
   bool isShrink = false;
-  // Chosen recipe, independent of later widths and spacing-restoration flags.
+  // Chosen recipe, independent of later widths and spacing adjustments.
   LineJustificationOperation operation = LineJustificationOperation::None;
   double addedSpaceAfterShrink = 0.0;
-  // Signed per-space advance adjustments in the measurement em, by cluster.
-  // Restoration adds width; final bounded space reduction removes width.
-  std::map<int, double> spaceAdvanceAdjustments = {};
 };
 
 struct JustInfo {

@@ -33,12 +33,12 @@ The default output is `mushaf.pdf` in the working directory. Force defaults to
 off, as in the editor, so positions remain the justified shaping output.
 Use `--force` to apply XPBD. Reports are optional and independent of Force.
 
-Old Madina's declarative `standard` shrink policy first tries native features,
-then reduces any remaining overflow using `reduce_spaces 0.95;` in
-`oldmadinafont/features.fea`. Change that ratio to configure the minimum space
-advance relative to its original width (`1` disables the extra reduction).
-The GUI and CLI use this same recipe. XPBD receives the adjusted spacing when
-Force is enabled; No Style still leaves any remaining overflow unscaled.
+Old Madina's declarative `standard` shrink policy tries features in order,
+accepting the first undershoot and stopping further shrink trials. Final
+`balance;` in `oldmadinafont/features.fea` distributes the created gap equally
+among shaped spaces. The GUI and CLI use this same recipe. XPBD receives the
+adjusted spacing when Force is enabled; No Style still leaves any remaining
+overflow unscaled.
 
 ```sh
 build/mushaf-cli/visualmetafont/lib/digitalkhatt/digitalkhatt_generate_mushaf \

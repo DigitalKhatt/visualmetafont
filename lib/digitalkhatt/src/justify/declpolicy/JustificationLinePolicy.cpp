@@ -23,7 +23,6 @@ LinePolicyStep compileLinePolicyStep(const DfaLineStepSource& step, bool stretch
       {"fill_spaces", LineStepOp::FillSpaces, 0, false, true, false},
       {"fit_features", LineStepOp::FitFeatures, 0, true, true, true},
       {"all_features", LineStepOp::AllFeatures, 0, true, false, true},
-      {"reduce_spaces", LineStepOp::ReduceSpaces, 1, false, false, true},
       {"fit_sclx", LineStepOp::FitSclx, 1, false, false, true},
       {"balance", LineStepOp::Balance, 0, false, false, true},
       {"scale", LineStepOp::Scale, 0, false, false, true},
@@ -34,8 +33,7 @@ LinePolicyStep compileLinePolicyStep(const DfaLineStepSource& step, bool stretch
   if (step.arguments.size() != operation->arguments || operation->features != !step.features.empty()) throw std::invalid_argument("invalid linepolicy arguments for " + step.operation);
   if ((operation->code == LineStepOp::Stage) != !step.stage.empty()) throw std::invalid_argument("invalid stage reference in " + step.operation);
   for (double value : step.arguments) {
-    if (!std::isfinite(value) || value < 0 || (operation->code == LineStepOp::FitSclx && value == 0) ||
-        (operation->code == LineStepOp::ReduceSpaces && (value <= 0 || value > 1))) throw std::invalid_argument("invalid linepolicy numeric argument for " + step.operation);
+    if (!std::isfinite(value) || value < 0 || (operation->code == LineStepOp::FitSclx && value == 0)) throw std::invalid_argument("invalid linepolicy numeric argument for " + step.operation);
   }
   std::set<std::string> tags;
   for (const auto& tag : step.features) {
@@ -59,6 +57,7 @@ runtime::JustResultByLine executeLineJustificationPolicy(std::span<const LinePol
   const bool stretching = metrics.currentWidth < metrics.targetWidth;
   result.operation = stretching ? LineJustificationOperation::Stretch : metrics.currentWidth > metrics.targetWidth ? LineJustificationOperation::Shrink : LineJustificationOperation::None;
   const std::span<const LinePolicyStep> steps = stretching ? stretchSteps : shrinkSteps;
+  bool shrinkFeaturesFinished = false;
   const auto spaceCount = metrics.simpleSpaces + metrics.ayaSpaces;
   const auto scale = [&] { result.xScale = metrics.currentWidth != 0 ? metrics.targetWidth / metrics.currentWidth : 1; };
   const auto fill = [&] {
@@ -77,6 +76,7 @@ runtime::JustResultByLine executeLineJustificationPolicy(std::span<const LinePol
     metrics.currentWidth = metrics.targetWidth;
   };
   for (const auto& step : steps) {
+    if (shrinkFeaturesFinished && step.operation != LineStepOp::Balance) continue;
     switch (step.operation) {
       case LineStepOp::CapSpaces: {
         const double simple = std::max(step.arguments[0] - result.simpleSpacing, 0.0);
@@ -118,31 +118,22 @@ runtime::JustResultByLine executeLineJustificationPolicy(std::span<const LinePol
           }
           break;
         }
-        // An undershooting feature may still fit by restoring spaces it
-        // narrowed, without widening them beyond their initial advances.
-        // Rejected steps cannot affect subsequent measurements or shaping.
+        // Accept each reducing feature, including the first undershoot.
+        // Stop shrinking at the target; final balance fills any created gap.
         for (const auto& tag : step.features) {
           if (metrics.currentWidth <= metrics.targetWidth) break;
           auto features = result.globalFeatures;
           features.push_back({tag, 1});
           const double width = backend.measure(features, result.globalFeatures, metrics.currentWidth);
           if (!(width < metrics.currentWidth)) continue;
-          const bool undershoot = width < metrics.targetWidth;
-          if (undershoot && !backend.restoreShrunkSpaces(
-                  features, metrics.targetWidth - width, result.spaceAdvanceAdjustments)) continue;
-          metrics.currentWidth = undershoot ? metrics.targetWidth : width;
+          metrics.currentWidth = width;
           result.globalFeatures.push_back({tag, 1});
+          shrinkFeaturesFinished = metrics.currentWidth <= metrics.targetWidth;
+          if (shrinkFeaturesFinished) break;
         }
         result.isShrink = true;
         break;
       }
-      case LineStepOp::ReduceSpaces:
-        if (metrics.currentWidth > metrics.targetWidth) {
-          metrics.currentWidth -= backend.reduceSpaces(result.globalFeatures,
-              metrics.currentWidth - metrics.targetWidth, step.arguments[0], result.spaceAdvanceAdjustments);
-          result.isShrink = true;
-        }
-        break;
       case LineStepOp::FitSclx: {
         if (metrics.currentWidth == 0) break;
         const float ratio = metrics.targetWidth / metrics.currentWidth;

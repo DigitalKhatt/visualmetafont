@@ -535,7 +535,6 @@ stretchpolicy fixed_steps {
 
 shrinkpolicy standard {
   fit_features [sk01 sk02 sk03 sk04 sk05 sk06 sk07 sk08 sk09 sk10 sk11 sk12 sk13 sk14 sk15 sk16 sk17 sk18 sk19 sk20];
-  reduce_spaces 0.95;
   balance;
 }
 
@@ -563,34 +562,19 @@ index for tests and comparison tools. `ShrinkType` is not consulted by
   line without spaces it uses horizontal scaling instead of dividing by zero.
 - `fit_features [...]` tries the named features in written order, stopping
   at the target width. Stretch steps must increase width without exceeding
-  the target. Shrink steps must reduce width. A step falling below the target
-  can be accepted when the excess shrink fits within space-restoration capacity:
-  only spaces narrowed by the selected features receive an addition, shared
-  in proportion to that narrowing and capped at their original advances.
-  An undershooting step without sufficient capacity is rejected.
+  the target. Shrink steps must reduce width. The first step reaching or
+  falling below the target is accepted and stops further shrink trials.
+  End the shrink recipe with `balance` to distribute any created gap equally
+  among all spaces, without a restoration-capacity limit.
   Each trial starts from the accepted feature set. Rejected steps are absent
-  from both subsequent measurements and final shaping. This allows native
-  space-shrink features to fit a line without horizontal scaling or spaces
-  wider than before shrinking.
+  from both subsequent measurements and final shaping.
 - `all_features [...]` stages the complete list without measurement (`Test`).
-- `reduce_spaces minimum_ratio` reduces remaining overflow after native
-  shrink features. The ratio must be greater than zero and at most one;
-  `0.95` allows spaces to fall to 95% of their original, pre-shrink advances.
-  Reduction is shared in proportion to each space's remaining capacity and
-  stops at the target or the configured floor. Spaces already narrower than
-  the floor because of font features are not reduced further. Simple and aya
-  spaces are both eligible. Put this step before `balance`; use `1` or omit
-  it to disable additional reduction. Per-space adjustments are scaled and
-  rounded with a carried remainder during final shaping.
-  No Style leaves any overflow beyond this capacity visible; a style that
-  enables x-scaling can apply the residual scale computed by `balance`.
-  XPBD runs on the resulting layout when Force is enabled, so it sees any
-  collisions introduced by tighter spacing. Its existing constraints still
-  determine whether a collision can be resolved.
 - `balance` fills undershoot with spacing or scales remaining overshoot.
   After feature shrinking, spacing is added to the shaped space advances;
   it does not replace the shrink features' own space adjustments. The added
-  spacing is converted from the measurement em to the final font scale.
+  spacing is converted from the measurement em to the final font scale and
+  rounded with a carried remainder across spaces. No Style leaves remaining
+  overshoot unscaled; a fitting style can apply the residual scale.
 - `fit_sclx base` measures SCLX at `base * target / width` and retains the axis
   only if it reduces width; horizontal scaling fits the residual. This
   primitive still uses the existing SCLX result field, not a generic axis map.
@@ -620,7 +604,7 @@ stage uses the remaining first-level opportunities before offering the second
 level at sites already compressed. Initial/medial forms have weight 3 and
 other forms weight 1, with occurrence decay 0.95 and a longer-subword bonus
 0.2. These are initial tunable values, not a claim of an optimal visual balance.
-Contextual feature fallbacks, `reduce_spaces 0.95`, and `balance` remain
+Contextual feature fallbacks and final `balance` remain
 declared in each recipe. The current recipes omit `sk12` and `sk13`.
 Font-size policy and stretch recipes are unchanged.
 
