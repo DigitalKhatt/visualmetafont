@@ -238,7 +238,7 @@ static QMap<int, int> colorToTajweedEnum = {
   {0x00ADEFFF,4}, {0xC38A08FF,5}, {0xF47216FF,6},
   {0xEC008CFF,7}, {0x8C0000FF,8}
 };
-static void generateBinaryPages(LayoutPages& layoutPages, QByteArray& data, int lineWidth, int scale) {
+static void generateBinaryPages(LayoutPages& layoutPages, QByteArray& data, int rightMargin) {
 
   data << (uint16_t)layoutPages.pages.size();
   int surahIndex = 0;
@@ -300,7 +300,10 @@ static void generateBinaryPages(LayoutPages& layoutPages, QByteArray& data, int 
 
       }
       data << (uint8_t)line.type;
-      data << (int16_t)line.xstartposition;
+      const int pageEdgeOffset = rightMargin + line.xstartposition;
+      if (pageEdgeOffset < std::numeric_limits<int16_t>::min() || pageEdgeOffset > std::numeric_limits<int16_t>::max())
+        throw std::runtime_error("DKLY line offset exceeds int16");
+      data << (int16_t)pageEdgeOffset;
       data << (uint32_t)getFixed(line.xscale);
       data << (uint32_t)getFixed(line.fontSize);
       data << (uint16_t)(lineText.size());
@@ -326,8 +329,10 @@ void GenerateLayout::generateLayoutBinary(int lineWidth, int scale, BinaryFormat
   if (format != BinaryFormat::WholeGlyphs) {
     interpolated.append("DKLY", 4);
     interpolated << (uint16_t)3;
+    interpolated << (uint32_t)(m_otlayout->pageLayout().pageWidth << OtLayout::SCALEBY);
+    interpolated << (uint32_t)(m_otlayout->interLineSpacing() << OtLayout::SCALEBY);
     generateBinaryGlyphs(*m_otlayout, interpolated);
-    generateBinaryPages(layoutPages, interpolated, lineWidth, scale);
+    generateBinaryPages(layoutPages, interpolated, m_otlayout->pageLayout().rightMargin << OtLayout::SCALEBY);
   }
   if (format != BinaryFormat::Interpolated) {
     const auto bytes = digitalkhatt::wholeGlyphLayoutBinary(*m_otlayout, layoutPages);

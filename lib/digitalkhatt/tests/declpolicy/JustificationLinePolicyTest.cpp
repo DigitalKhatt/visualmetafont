@@ -22,11 +22,15 @@ struct Backend final : LineJustificationBackend {
   int glyphCalls = 0;
   float axisValue = 0;
   double axisWidth = 850;
+  std::vector<std::pair<std::string, StageContinuation>> continuations;
+  std::vector<bool> retainedStages;
   double measure(const std::vector<TextFontFeatures>& features, const std::vector<TextFontFeatures>&, double) override {
     trials.push_back(features);
     return widths.at(trials.size() - 1);
   }
-  double applyStage(std::span<const PolicyPhase>, const std::vector<TextFontFeatures>&, double width) override {
+  double applyStage(const LinePolicyStep& step, const std::vector<TextFontFeatures>&, double width, bool retain) override {
+    continuations.emplace_back(step.stage, step.continuation);
+    retainedStages.push_back(retain);
     ++glyphCalls;
     glyphInput = width;
     return width + glyphGain;
@@ -108,6 +112,19 @@ int main() {
   ok &= expect(near(quantizeProportionalParameter(-0.141, 0, -0.2, 100), -0.14), "decreasing shrink ranges round toward the uncompressed endpoint");
   const auto stretch = stretchFixture();
   const auto standardShrink = standardShrinkFixture();
+  const std::vector<LinePolicyStep> repeatedStage{
+      compileLinePolicyStep({.operation = "stage", .stage = "Preferred"}, true),
+      compileLinePolicyStep({.operation = "stage", .stage = "Preferred", .continuation = "by", .continuationLimit = 1}, true),
+      compileLinePolicyStep({.operation = "stage", .stage = "Preferred", .continuation = "to", .continuationLimit = 9}, true),
+      compileLinePolicyStep({.operation = "stage", .stage = "Preferred", .continuation = "maximum"}, true)};
+  backend = {};
+  (void)executeLineJustificationPolicy(repeatedStage, {}, {3000, 1000, 100, 0, 0}, backend);
+  ok &= expect(backend.continuations == std::vector<std::pair<std::string, StageContinuation>>{{"Preferred", {}}, {"Preferred", {StageContinuation::Mode::By, 1}}, {"Preferred", {StageContinuation::Mode::To, 9}}, {"Preferred", {StageContinuation::Mode::Maximum, 0}}} && backend.glyphCalls == 4 && backend.glyphInput == 1600, "stage invocations preserve identity, continuation mode, limit and current width");
+  ok &= expect(backend.retainedStages == std::vector<bool>(4, true), "ordinary stages retain accepted sites when the recipe later continues them");
+  backend = {};
+  (void)executeLineJustificationPolicy(std::span(repeatedStage).first(1), {}, {3000, 1000, 100, 0, 0}, backend);
+  ok &= expect(backend.retainedStages == std::vector<bool>{false}, "recipes without continuation avoid retaining stage state");
+  backend = {};
   const auto executeWith = [](std::span<const LinePolicyStep> stretchSteps, std::span<const LinePolicyStep> shrinkSteps, LineJustificationMetrics metrics, LineJustificationBackend& selectedBackend) { return executeLineJustificationPolicy(stretchSteps, shrinkSteps, metrics, selectedBackend); };
   const auto execute = [&](LineJustificationMetrics metrics, LineJustificationBackend& selectedBackend) { return executeWith(stretch, standardShrink, metrics, selectedBackend); };
   auto result = execute({1800, 1000, 100, 1, 1}, backend);
@@ -229,6 +246,13 @@ int main() {
   ok &= expect(rejectsShrinkStep([](auto& s) { s.features = {"t001", "t001"}; }), "reject repeated feature");
   ok &= expect(rejectsShrinkStep([](auto& s) { s.features.clear(); }), "reject empty feature sequence");
   ok &= expect(rejectsShrinkStep([](auto& s) { s.operation = "glyph_actions"; }), "reject removed legacy glyph_actions primitive");
+  ok &= expect(rejectsShrinkStep([](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuation = "by", .continuationLimit = 1}; }), "reject shrink stage continuation");
+  ok &= expect(rejectsStretchStep([](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuation = "by", .continuationLimit = -1}; }), "reject negative continuation limits");
+  ok &= expect(rejectsStretchStep([](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuation = "to", .continuationLimit = std::numeric_limits<double>::infinity()}; }), "reject non-finite continuation limits");
+  ok &= expect(rejectsStretchStep([](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuation = "by", .continuationLimit = 0}; }), "reject zero relative continuation");
+  ok &= expect(rejectsStretchStep([](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuation = "increment", .continuationLimit = 1}; }), "reject replaced increment spelling");
+  ok &= expect(rejectsStretchStep([](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuation = "maximum", .continuationLimit = 1}; }), "bare continuation takes no numeric limit");
+  ok &= expect(rejectsStretchStep([](auto& s) { s = {.operation = "fill_spaces", .continuation = "maximum"}; }), "reject continuation on non-stage operations");
   ok &= expect(rejectsShrinkStep([](auto& s) { s = {.operation = "reduce_spaces", .arguments = {0.95}}; }), "reject removed reduce_spaces primitive");
   ok &= expect(rejectsStretchStep([](auto& s) { s.operation = "typo"; }), "reject unknown stretch operation");
   auto missingStretch = fixture();

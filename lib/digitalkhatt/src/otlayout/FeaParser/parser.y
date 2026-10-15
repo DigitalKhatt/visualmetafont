@@ -39,6 +39,7 @@
 
 
 #include "scanner.h"
+#include <cmath>
 
 /* this "connects" the bison parser in the driver to the flex scanner class
  * object. it defines the yylex() function call to pull the next token from the
@@ -64,8 +65,8 @@
 %token LOOKUPFLAG RightToLeft IgnoreBaseGlyphs IgnoreLigatures IgnoreMarks MarkAttachmentType UseMarkFilteringSet
 %token TABLE ENDTABLE PASS ENDPASS ANY STRETCH SHRINK END STEP AFTERGSUB
 %token STRETCHPOLICY SHRINKPOLICY STAGES STAGE QUANTIZE
-%token JUSTDFA FACTS RULES ACTIONS SELECTIONS FACT RULE BIND SELECTION CHOOSE TRAVERSAL PHASE GLYPHS
-%token ATTACHMENTS ATTACHMENT FORBID UPDATE REPLACE ISFACT AND OR NOT WHEN CLEAR HAS VARY
+%token JUSTDFA FACTS ACTIONS PATTERNS PATTERN OPPORTUNITIES OPPORTUNITY MATCH PREPARE RANGE SELECTIONS FACT SELECTION CHOOSE TRAVERSAL PHASE GLYPHS
+%token ATTACHMENTS ATTACHMENT FORBID UPDATE REPLACE ISFACT AND OR NOT WHEN CLEAR HAS
 %token LINEPOLICY PAGEPOLICY
 %token INCLUDE IF ELIF ELSE ENDIF
 
@@ -114,22 +115,25 @@
 %type <std::vector<int>> character_list;
 %type <std::vector<std::string>> identifier_list;
 %type <digitalkhatt::justify::DfaFactSource> justdfa_fact justdfa_fact_body;
-%type <digitalkhatt::justify::DfaRuleSource> justdfa_rule;
-%type <digitalkhatt::justify::DfaActionSource> justdfa_action;
+%type <digitalkhatt::justify::DfaOpportunitySource> justdfa_opportunity justdfa_opportunity_match;
+%type <digitalkhatt::justify::DfaPatternSource> justdfa_pattern;
+%type <std::vector<digitalkhatt::justify::DfaPatternSource>> justdfa_patterns justdfa_pattern_list;
+%type <std::vector<digitalkhatt::justify::DfaOpportunitySource>> justdfa_opportunities;
+%type <std::vector<digitalkhatt::justify::DfaOpportunitySlotSource>> justdfa_match_slots;
+%type <digitalkhatt::justify::DfaRangeSource> justdfa_range_options;
 %type <digitalkhatt::justify::DfaSelectionSource> justdfa_selection justdfa_selection_body;
 %type <digitalkhatt::justify::DfaChoiceSource> justdfa_choice_options;
 %type <digitalkhatt::justify::DfaPhaseSource> justdfa_phase justdfa_phase_options;
 %type <std::vector<digitalkhatt::justify::DfaFactSource>> justdfa_facts;
-%type <std::vector<digitalkhatt::justify::DfaRuleSource>> justdfa_rules;
 %type <digitalkhatt::justify::DfaAttachmentSource> justdfa_attachment justdfa_attachment_body;
 %type <std::vector<digitalkhatt::justify::DfaAttachmentSource>> justdfa_attachments justdfa_attachments_block;
 %type <digitalkhatt::justify::DfaMarkResponseSource> justdfa_mark_response;
 %type <std::vector<digitalkhatt::justify::DfaMarkResponseSource>> justdfa_mark_responses;
 %type <std::optional<double>> justdfa_mark_vertical;
 %type <std::vector<std::string>> justdfa_growth_axes;
-%type <digitalkhatt::justify::DfaActionsBlockSource> justdfa_actions_block;
+%type <std::vector<digitalkhatt::justify::DfaActionDefSource>> justdfa_actions_block justdfa_named_actions;
 %type <digitalkhatt::justify::DfaActionDefSource> justdfa_action_def;
-%type <std::vector<digitalkhatt::justify::DfaEffectSource>> justdfa_effects;
+%type <std::vector<digitalkhatt::justify::DfaEffectSource>> justdfa_effects justdfa_action_body justdfa_range;
 %type <digitalkhatt::justify::DfaEffectSource> justdfa_effect;
 %type <std::vector<digitalkhatt::justify::DfaWriteSource>> justdfa_writes;
 %type <digitalkhatt::justify::DfaTargetSource> justdfa_target justdfa_slot;
@@ -674,9 +678,10 @@ justdfa_definition
 	  justdfa_page_policy[pagePolicy]
 	  justdfa_line_policy[linePolicy]
 	  FACTS '{' justdfa_facts[facts] '}'
-	  RULES '{' justdfa_rules[rules] '}'
+	  justdfa_patterns[patterns]
 	  justdfa_attachments_block[attachments]
-	  ACTIONS '{' justdfa_actions_block[actions] '}'
+	  justdfa_named_actions[actions]
+	  OPPORTUNITIES '{' justdfa_opportunities[opportunities] '}'
 	  SELECTIONS '{' justdfa_selections[selections] '}'
 	  justdfa_stages[stages]
 	  justdfa_stretch_policy_list[stretchPolicies]
@@ -688,10 +693,10 @@ justdfa_definition
 		source.pagePolicy = std::move($pagePolicy);
 		source.linePolicy = std::move($linePolicy);
 		source.facts = std::move($facts);
-		source.rules = std::move($rules);
 		source.attachments = std::move($attachments);
-		source.actions = std::move($actions.binds);
-		source.actionDefinitions = std::move($actions.definitions);
+		source.actionDefinitions = std::move($actions);
+		source.opportunities = std::move($opportunities);
+		source.patterns = std::move($patterns);
 		source.selections = std::move($selections);
 		source.stages = std::move($stages);
 		source.stretchPolicies = std::move($stretchPolicies);
@@ -761,6 +766,27 @@ justdfa_line_steps
 justdfa_line_step
 	: identifier[operation] ';' { $$ = {$operation, {}, {}}; }
 	| STAGE identifier[name] ';' { $$ = {.operation = "stage", .stage = $name}; }
+	| STAGE identifier[name] identifier[option] ';'
+	  {
+		if ($option != "continue") {
+			error(yyla.location, "Expected stage Name continue;"); YYERROR;
+		}
+		$$ = {.operation = "stage", .stage = $name, .continuation = "maximum"};
+	  }
+	| STAGE identifier[name] identifier[option] BY doubleorint[value] ';'
+	  {
+		if ($option != "continue" || !std::isfinite($value) || $value <= 0) {
+			error(yyla.location, "Expected stage Name continue by positive-value;"); YYERROR;
+		}
+		$$ = {.operation = "stage", .stage = $name, .continuation = "by", .continuationLimit = $value};
+	  }
+	| STAGE identifier[name] identifier[option] identifier[bound] doubleorint[value] ';'
+	  {
+		if ($option != "continue" || $bound != "to" || !std::isfinite($value) || $value < 0) {
+			error(yyla.location, "Expected stage Name continue to nonnegative-value;"); YYERROR;
+		}
+		$$ = {.operation = "stage", .stage = $name, .continuation = "to", .continuationLimit = $value};
+	  }
 	| identifier[operation] doubleorint[a] ';' { $$ = {$operation, {$a}, {}}; }
 	| identifier[operation] doubleorint[a] doubleorint[b] ';' { $$ = {$operation, {$a, $b}, {}}; }
 	| identifier[operation] doubleorint[a] doubleorint[b] doubleorint[c] doubleorint[d] ';' { $$ = {$operation, {$a, $b, $c, $d}, {}}; }
@@ -828,23 +854,47 @@ character_list
 	| character_list CHAR_STRING { $$ = std::move($1); $$.insert($$.end(), $2.begin(), $2.end()); }
 	;
 
-justdfa_rules
+justdfa_opportunities
 	: { $$ = {}; }
-	| justdfa_rules justdfa_rule { $$ = std::move($1); $$.push_back(std::move($2)); }
+	| justdfa_opportunities justdfa_opportunity { $$ = std::move($1); $$.push_back(std::move($2)); }
 	;
 
-justdfa_rule
-	: RULE identifier[name] '[' identifier_list[slots] ']' ';'
-	  { $$ = {$name, std::move($slots)}; }
+justdfa_opportunity
+	: OPPORTUNITY identifier[name] '{' justdfa_opportunity_match[match] ACTION identifier[action] ';' '}'
+	  { $$ = std::move($match); $$.name = $name; $$.action = $action; }
+	| OPPORTUNITY identifier[name] '{' justdfa_opportunity_match[match] justdfa_action_body[body] '}'
+	  { $$ = std::move($match); $$.name = $name; $$.effects = std::move($body); }
+	;
+
+justdfa_opportunity_match
+	: MATCH '[' justdfa_match_slots[slots] ']' ';' { $$ = {.pattern = std::move($slots)}; }
+	| MATCH identifier[name] ';' { $$ = {.patternName = $name}; }
+	;
+
+justdfa_patterns
+	: { $$ = {}; }
+	| PATTERNS '{' justdfa_pattern_list[patterns] '}' { $$ = std::move($patterns); }
+	;
+
+justdfa_pattern_list
+	: { $$ = {}; }
+	| justdfa_pattern_list justdfa_pattern { $$ = std::move($1); $$.push_back(std::move($2)); }
+	;
+
+justdfa_pattern
+	: PATTERN identifier[name] '[' justdfa_match_slots[slots] ']' ';' { $$ = {$name, std::move($slots)}; }
+	;
+
+justdfa_match_slots
+	: identifier { $$ = {{.fact = $1}}; }
+	| '{' justdfa_fact_body[fact] '}' { $$ = {{.inlineFact = std::move($fact)}}; }
+	| justdfa_match_slots identifier { $$ = std::move($1); $$.push_back({.fact = $2}); }
+	| justdfa_match_slots '{' justdfa_fact_body[fact] '}' { $$ = std::move($1); $$.push_back({.inlineFact = std::move($fact)}); }
 	;
 
 identifier_list
 	: identifier { $$ = {$1}; }
 	| identifier_list identifier { $$ = std::move($1); $$.push_back(std::move($2)); }
-	;
-
-justdfa_action
-	: BIND identifier[rule] identifier[action] ';' { $$ = {$rule, $action}; }
 	;
 
 justdfa_attachments_block
@@ -1004,15 +1054,57 @@ justdfa_growth_axes
 	| justdfa_growth_axes identifier { $$ = std::move($1); $$.push_back(std::move($2)); }
 	;
 
+justdfa_named_actions
+	: { $$ = {}; }
+	| ACTIONS '{' justdfa_actions_block[actions] '}' { $$ = std::move($actions); }
+	;
+
 justdfa_actions_block
 	: { $$ = {}; }
-	| justdfa_actions_block justdfa_action { $$ = std::move($1); $$.binds.push_back(std::move($2)); }
-	| justdfa_actions_block justdfa_action_def { $$ = std::move($1); $$.definitions.push_back(std::move($2)); }
+	| justdfa_actions_block justdfa_action_def { $$ = std::move($1); $$.push_back(std::move($2)); }
 	;
 
 justdfa_action_def
-	: ACTION identifier[name] '{' justdfa_effects[effects] '}'
+	: ACTION identifier[name] '{' justdfa_action_body[effects] '}'
 	  { $$ = {}; $$.name = $name; $$.effects = std::move($effects); }
+	;
+
+/* Shared actions and inline opportunities have exactly the same ordered body.
+   prepare blocks can surround ranges when later preparation needs a staged
+   minimum. This preserves dependencies without replaying preparation on resume. */
+justdfa_action_body
+	: { $$ = {}; }
+	| justdfa_action_body PREPARE '{' justdfa_effects[effects] '}'
+	  { $$ = std::move($1); for (auto& effect : $effects) $$.push_back(std::move(effect)); }
+	| justdfa_action_body justdfa_range[effects]
+	  { $$ = std::move($1); for (auto& effect : $effects) $$.push_back(std::move(effect)); }
+	| justdfa_action_body WHEN justdfa_cond[condition] '{' justdfa_action_body[nested] '}'
+	  { $$ = std::move($1); $$.push_back({.kind = "when", .condition = std::move($condition), .nested = std::move($nested)}); }
+	;
+
+justdfa_range
+	: RANGE justdfa_target[target] ':' identifier[attribute] justdfa_range_options[range] ';'
+	  {
+		if ($range.preferred.empty()) { error(yyla.location, "range requires preferred <value>"); YYERROR; }
+		$$ = {};
+		if (!$range.minimum.empty()) $$.push_back({.kind = "update", .target = $target, .attribute = $attribute, .value = std::move($range.minimum)});
+		$$.push_back({.kind = "vary", .target = std::move($target), .attribute = $attribute, .value = std::move($range.preferred), .maximum = std::move($range.maximum)});
+	  }
+	;
+
+justdfa_range_options
+	: { $$ = {}; }
+	| justdfa_range_options identifier[property] justdfa_prim[value]
+	  {
+		$$ = std::move($1);
+		digitalkhatt::justify::DfaExprSource* destination = nullptr;
+		if ($property == "minimum") destination = &$$.minimum;
+		else if ($property == "preferred") destination = &$$.preferred;
+		else if ($property == "maximum") destination = &$$.maximum;
+		else { error(yyla.location, "Unknown range bound '" + $property + "'"); YYERROR; }
+		if (!destination->empty()) { error(yyla.location, "Duplicate range bound '" + $property + "'"); YYERROR; }
+		*destination = std::move($value);
+	  }
 	;
 
 justdfa_effects
@@ -1045,15 +1137,6 @@ justdfa_effect
 	  { $$ = {}; $$.kind = "clear"; $$.target = std::move($target); }
 	| LOOKUP justdfa_target[target] identifier[name] ';'
 	  { $$ = {}; $$.kind = "lookup"; $$.target = std::move($target); $$.lookup = std::move($name); }
-	| VARY justdfa_target[target] ':' identifier[attribute] identifier[keyword] justdfa_prim[value] ';'
-	  {
-		if ($keyword != "to") {
-			error(yyla.location, "Expected 'to' in a justification vary effect, found '" + $keyword + "'");
-			YYERROR;
-		}
-		$$ = {}; $$.kind = "vary"; $$.target = std::move($target);
-		$$.attribute = $attribute; $$.value = std::move($value);
-	  }
 	| WHEN justdfa_cond[condition] '{' justdfa_effects[nested] '}'
 	  { $$ = {}; $$.kind = "when"; $$.condition = std::move($condition); $$.nested = std::move($nested); }
 	;

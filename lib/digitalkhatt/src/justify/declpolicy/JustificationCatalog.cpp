@@ -44,6 +44,15 @@ bool positionMatches(std::string_view position, bool firstInSubword,
                               std::string(position));
 }
 
+void validateFactDefinition(const DfaFactSource& fact, const std::string& label) {
+  (void)formMatches(fact.form, false, false, false, true);
+  (void)positionMatches(fact.position, false, false);
+  if (fact.form.empty() && fact.position.empty() && fact.sourceCharacters.empty() && fact.glyphSetRef < 0) throw std::invalid_argument("justification fact " + label + " constrains nothing and would match every glyph");
+  for (const auto character : fact.sourceCharacters) {
+    if (character < 0 || character > 0xffff) throw std::invalid_argument("invalid source character in justification fact " + label);
+  }
+}
+
 GlyphPredicate any(std::uint64_t facts) {
   return GlyphPredicate{.anyOf = facts};
 }
@@ -238,7 +247,54 @@ std::vector<ResolvedAttachmentSubstitution> resolveAttachmentSubstitutions(const
 }
 
 CompiledJustificationCatalog compileJustificationCatalog(
-    const JustificationDfaSource& source, const GlyphAxisRegistry& axes) {
+    const JustificationDfaSource& input, const GlyphAxisRegistry& axes) {
+  // Opportunities are the authoring model. Lower them once to the existing
+  // DFA/effect IR so matching, fixed steps and continuation share one engine.
+  auto source = input;
+  std::unordered_map<std::string, const DfaPatternSource*> patterns;
+  for (const auto& pattern : source.patterns) {
+    if (pattern.name.empty() || pattern.slots.empty()) throw std::invalid_argument("a named justification pattern requires a name and nonempty slots");
+    if (!patterns.emplace(pattern.name, &pattern).second) throw std::invalid_argument("duplicate justification pattern " + pattern.name);
+    for (const auto& slot : pattern.slots) {
+      if (slot.inlineFact) {
+        if (!slot.fact.empty()) throw std::invalid_argument("named pattern " + pattern.name + " combines named and inline slot facts");
+        validateFactDefinition(*slot.inlineFact, "in pattern " + pattern.name);
+      } else if (std::none_of(source.facts.begin(), source.facts.end(), [&](const auto& fact) { return fact.name == slot.fact; })) throw std::invalid_argument("pattern " + pattern.name + " references unknown fact " + slot.fact);
+    }
+  }
+  if (!source.opportunities.empty() && (!source.rules.empty() || !source.actions.empty())) throw std::invalid_argument("cannot mix opportunities with low-level DFA rules/bindings");
+  for (const auto& opportunity : source.opportunities) {
+    if (!opportunity.action.empty() && !opportunity.effects.empty()) throw std::invalid_argument("opportunity " + opportunity.name + " cannot combine an action reference and an inline body");
+    const auto* slots = &opportunity.pattern;
+    if (!opportunity.patternName.empty()) {
+      if (!slots->empty()) throw std::invalid_argument("opportunity " + opportunity.name + " cannot combine named and inline patterns");
+      const auto found = patterns.find(opportunity.patternName);
+      if (found == patterns.end()) throw std::invalid_argument("opportunity " + opportunity.name + " references unknown pattern " + opportunity.patternName);
+      slots = &found->second->slots;
+    }
+    DfaRuleSource rule{opportunity.name, {}};
+    for (const auto& slot : *slots) {
+      if (slot.inlineFact) {
+        if (!slot.fact.empty()) throw std::invalid_argument("opportunity slot cannot combine named and inline facts");
+        auto fact = *slot.inlineFact;
+        fact.name.clear();
+        const auto found = std::find_if(source.facts.begin(), source.facts.end(), [&](auto other) { other.name.clear(); return other == fact; });
+        if (found != source.facts.end()) rule.pattern.push_back(found->name);
+        else {
+          fact.name = "$inline." + opportunity.name + "." + std::to_string(rule.pattern.size() + 1);
+          rule.pattern.push_back(fact.name);
+          source.facts.push_back(std::move(fact));
+        }
+      } else rule.pattern.push_back(slot.fact);
+    }
+    source.rules.push_back(std::move(rule));
+    auto action = opportunity.action;
+    if (action.empty()) {
+      action = "$inline." + opportunity.name;
+      source.actionDefinitions.push_back({action, opportunity.effects});
+    }
+    source.actions.push_back({opportunity.name, std::move(action)});
+  }
   if (source.name.empty()) {
     throw std::invalid_argument("justification catalog has no name");
   }
@@ -258,22 +314,9 @@ CompiledJustificationCatalog compileJustificationCatalog(
     if (fact.name.empty())
       throw std::invalid_argument("a justification fact has no name");
     // Validate the discriminator vocabulary now rather than per glyph.
-    (void)formMatches(fact.form, false, false, false, true);
-    (void)positionMatches(fact.position, false, false);
-    if (fact.form.empty() && fact.position.empty() &&
-        fact.sourceCharacters.empty() && fact.glyphSetRef < 0) {
-      throw std::invalid_argument("justification fact " + fact.name +
-                                  " constrains nothing and would match every "
-                                  "glyph");
-    }
+    validateFactDefinition(fact, fact.name);
     if (!factBits.emplace(fact.name, std::uint64_t{1} << index).second) {
       throw std::invalid_argument("duplicate justification fact " + fact.name);
-    }
-    for (const auto character : fact.sourceCharacters) {
-      if (character < 0 || character > 0xffff) {
-        throw std::invalid_argument(
-            "invalid source character in justification fact " + fact.name);
-      }
     }
   }
 
@@ -579,6 +622,7 @@ CompiledJustificationCatalog compileJustificationCatalog(
                                         "; candidate ranges require a native glyph parameter");
           }
           compiledEffect.value = compileExpr(effect.value, definition.name);
+          if (!effect.maximum.empty()) compiledEffect.maximum = compileExpr(effect.maximum, definition.name);
         } else if (effect.kind == "replace") {
           compiledEffect.kind = JustEffectKind::Replace;
           if (effect.writes.empty()) {
@@ -780,6 +824,8 @@ CompiledJustificationCatalog compileJustificationCatalog(
         const auto found = stages.find(step.stage);
         if (found == stages.end()) throw std::invalid_argument(direction + " policy " + policy.name + " references undefined stage " + step.stage);
         step.phases = found->second;
+        if (step.continuation.mode != StageContinuation::Mode::None && std::any_of(step.phases.begin(), step.phases.end(), [](const auto& phase) { return phase.allocator != PolicyPhase::Allocator::CandidatePool; }))
+          throw std::invalid_argument("stage continuation requires candidate_pool allocation");
         if (!stretch && std::any_of(step.phases.begin(), step.phases.end(), [](const auto& phase) {
               return phase.allocator != PolicyPhase::Allocator::CandidatePool;
             }))

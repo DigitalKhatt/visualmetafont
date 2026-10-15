@@ -43,11 +43,11 @@ class ShapingLineBackend final : public decl::LineJustificationBackend {
   double measure(const vector<runtime::TextFontFeatures>& candidateFeatures, const vector<runtime::TextFontFeatures>& currentFeatures, double currentWidth) override {
     return currentWidth + measureCached(candidateFeatures) - measureCached(currentFeatures);
   }
-  double applyStage(std::span<const PolicyPhase> phases, const vector<runtime::TextFontFeatures>& globalFeatures, double currentWidth) override {
+  double applyStage(const LinePolicyStep& step, const vector<runtime::TextFontFeatures>& globalFeatures, double currentWidth, bool retainOpportunities) override {
     measuredWidths_.clear();
     synchronizeGlobalFeatures(globalFeatures);
     info_.textLineWidth = currentWidth;
-    decl::applyDeclPolicyStage(text_, info_, phases, parameterQuantization_, candidateWidth_);
+    decl::applyDeclPolicyStage(text_, info_, step.phases, parameterQuantization_, candidateWidth_, retainOpportunities ? step.stage : std::string_view{}, step.continuation);
     return info_.textLineWidth;
   }
   double measureSclx(float value) override {

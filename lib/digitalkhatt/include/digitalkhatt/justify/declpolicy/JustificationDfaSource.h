@@ -152,6 +152,8 @@ struct DfaEffectSource {
   std::vector<DfaWriteSource> writes;
   DfaExprSource condition;
   std::vector<DfaEffectSource> nested;
+  // Optional full endpoint for continuation; ordinary allocation uses value.
+  DfaExprSource maximum;
   bool operator==(const DfaEffectSource&) const = default;
 };
 
@@ -167,11 +169,35 @@ struct DfaActionSource {
   bool operator==(const DfaActionSource&) const = default;
 };
 
-// The actions block holds both binds and action definitions.
-struct DfaActionsBlockSource {
-  std::vector<DfaActionSource> binds;
-  std::vector<DfaActionDefSource> definitions;
-  bool operator==(const DfaActionsBlockSource&) const = default;
+struct DfaOpportunitySlotSource {
+  std::string fact;
+  std::optional<DfaFactSource> inlineFact;
+  bool operator==(const DfaOpportunitySlotSource&) const = default;
+};
+
+struct DfaPatternSource {
+  std::string name;
+  std::vector<DfaOpportunitySlotSource> slots;
+  bool operator==(const DfaPatternSource&) const = default;
+};
+
+struct DfaOpportunitySource {
+  std::string name;
+  std::vector<DfaOpportunitySlotSource> pattern;
+  // Either reference a shared action or provide its inline body, never both.
+  std::string action;
+  std::vector<DfaEffectSource> effects;
+  // A whole-pattern reference instead of an inline pattern, never both.
+  std::string patternName;
+  bool operator==(const DfaOpportunitySource&) const = default;
+};
+
+// Parser-only range declaration. Lowered to the same ordered update/vary
+// instructions used by the evaluator; omitted minimum keeps the staged value.
+struct DfaRangeSource {
+  DfaExprSource minimum;
+  DfaExprSource preferred;
+  DfaExprSource maximum;
 };
 
 struct DfaChoiceSource {
@@ -235,6 +261,8 @@ struct DfaLineStepSource {
   std::vector<std::string> features;
   // Named stage for a `stage Name;` stretch-policy step.
   std::string stage;
+  std::string continuation;  // empty | by | to | maximum
+  double continuationLimit = 0;
   bool operator==(const DfaLineStepSource&) const = default;
 };
 
@@ -291,10 +319,14 @@ struct DfaLineRecipeSource {
 struct JustificationDfaSource {
   std::string name;
   std::vector<DfaFactSource> facts;
+  // Low-level DFA/effect IR for compiler clients and tests, not FEA syntax.
+  // Author-facing opportunities are lowered into these structures once.
   std::vector<DfaRuleSource> rules;
   std::vector<DfaActionSource> actions;
   std::vector<DfaAttachmentSource> attachments;
   std::vector<DfaActionDefSource> actionDefinitions;
+  std::vector<DfaOpportunitySource> opportunities;
+  std::vector<DfaPatternSource> patterns;
   std::vector<DfaSelectionSource> selections;
   std::vector<DfaStageSource> stages;
   std::vector<DfaLineRecipeSource> stretchPolicies;

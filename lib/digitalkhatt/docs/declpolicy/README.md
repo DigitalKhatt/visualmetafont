@@ -25,14 +25,19 @@ The authoring copy of the policy catalog now lives in
 
 ```fea
 table(justdfa) oldmadina.experimental2 {
+  linepolicy { stretch fixed_steps; shrink standard; }
   facts {
-    fact BehFirst medi [1576 1578 1579 1606 1610 1587 1588 1589 1590];
+    fact BehFirst form medi chars ["بتثنيسشصض"];
+    fact BehSecond glyphs [behshape.medi];
   }
-  rules {
-    rule BehKashida [BehFirst BehSecond];
-  }
-  actions {
-    bind BehKashida StretchKashidaPair;
+  opportunities {
+    opportunity BehKashida {
+      match [BehFirst BehSecond];
+      prepare {
+        add $1:cv01 1 clamp 6;
+        update $2:cv02 = prod(2, $1:cv01);
+      }
+    }
   }
   selections {
     selection Beh {
@@ -60,15 +65,16 @@ table(justdfa) oldmadina.experimental2 {
 The sections have intentionally separate responsibilities:
 
 - `facts` maps font-specific glyph forms and source characters to predicates;
-- `rules` describes one- or two-glyph fixed patterns;
-- `actions` maps a recognized pattern to a semantic action;
+- optional `patterns` shares fixed-slot recognition across opportunities;
+- `opportunities` associates fixed-slot matches with preparation and parameter ranges;
+- optional `actions` holds shared prepare/range bodies referenced by opportunities;
 - `selections` records rule priority, logical first/last match
   direction, subword traversal, named result records, and state constraints;
 - `stages` groups reusable selection phases, priorities, allocators, and repetition budgets;
 - `stretchpolicy` and `shrinkpolicy` define complete ordered recipes.
 
 A catalog carries one or more named recipes in each direction. Everything else
--- facts, rules, attachments, actions, selections, and the `pagepolicy` and
+-- facts, opportunities, attachments, shared actions, selections, and the `pagepolicy` and
 `linepolicy` -- belongs to the catalog and is shared, so every recipe uses one
 compiled DFA and one interned id space; a fact bit means the same thing in all
 of them. `JustOption::justStretchPolicy` and `justShrinkPolicy` are optional
@@ -142,27 +148,107 @@ attachments {
 }
 actions {
   action IncrementAlternate {
-    forbid $self:cv02 > 0;
-    add $self:cv01 1 clamp 12;
-    replace $self@Fatha { cv01 = sum(1, floordiv($self:cv01, 3)); }
+    prepare {
+      forbid $self:cv02 > 0;
+      add $self:cv01 1 clamp 12;
+      replace $self@Fatha { cv01 = sum(1, floordiv($self:cv01, 3)); }
+    }
   }
-  bind AlternateGroup1 IncrementAlternate;
+}
+opportunities {
+  opportunity AlternateGroup1 {
+    match [{ form terminal chars ["بتثكن"] }];
+    action IncrementAlternate;
+  }
 }
 ```
 
-Every `bind` must name an action declared in the same block -- the built-in
-action kinds and the C++ dispatch that selected them are gone, so a catalog
-that binds an undeclared name is rejected at load time.
+Every action reference must name a declared shared action. An opportunity may
+instead contain its prepare/range body inline; combining a reference and inline
+body is rejected. Separate `rules`, `rule` and `bind` declarations are no longer
+accepted. The compiled DFA still uses internal pattern IDs and effect programs;
+there is no second runtime implementation for opportunities.
+
+```fea
+opportunity TerminalGroup1 {
+  match [{ form terminal chars ["بتثكن"] }];
+  prepare {
+    forbid $self:righttatweel > 0;
+    forbid $self:lefttatweel > 0;
+    lookup $self justify.expand_terminal;
+  }
+  range $self:lefttatweel minimum 1 preferred 3 maximum 9;
+}
+```
+
+An opportunity's match can mix named and inline facts:
+`match [BehFirst { position last glyphs [meem.fina meem.fina.ii] }];`.
+An inline fact has the same discriminators and AND semantics as a named fact.
+Identical facts are interned where their definitions agree, including reuse of
+named fact bits. Empty inline facts are rejected, as are empty patterns.
+
+Repeated matches can be declared once in an optional `patterns` block immediately
+after `facts`, before attachments and shared actions:
+
+```fea
+patterns {
+  pattern FinalMeemConnection [BehFirst FinalMeem];
+  pattern UpperConnection [BehFirst { position last glyphs [meem.fina meem.fina.ii] }];
+}
+actions {
+  action OpenConnection {
+    prepare { lookup $1 justify.decompose_left; }
+    range $1:lefttatweel minimum 0.5 preferred 1.75 maximum 4;
+  }
+}
+opportunities {
+  opportunity PreferredFinalMeem {
+    match FinalMeemConnection;
+    action OpenConnection;
+  }
+  opportunity AlternativeConnection {
+    match UpperConnection;
+    prepare { lookup $1 justify.decompose_left; }
+    range $1:lefttatweel minimum 1 preferred 2 maximum 5;
+  }
+}
+```
+
+`match Name;` references an entire named pattern; `match [Name];` instead matches
+one slot using the named fact. Pattern bodies support the same mixture of named
+and inline facts as inline matches. Pattern composition, repetition and recursive
+pattern references are not supported: every pattern remains fixed-length.
+Definitions are validated at load time, including unused patterns. Expansion
+happens during catalog compilation, so opportunity identity, preparation,
+selection weights, records and continuation remain independent. No extra runtime
+matching pass or scheduling layer is introduced.
+
+OldMadina shares repeated multi-slot connections through named patterns while
+keeping simple one-slot matches and unique patterns inline.
+
+`range` requires a `preferred` expression. An omitted `minimum` retains the
+current staged value; an omitted `maximum` uses the preferred endpoint as the
+full continuation limit. An explicit minimum installs the mandatory activation
+value. Bounds accept the same expressions as updates. The old `vary ... to ...`
+spelling has been removed from the feature language.
+
+Preparation blocks and ranges are evaluated in declaration order while a trial
+is built. Multiple prepare blocks may surround ranges when later preparation
+depends on an earlier staged minimum. Continuation reuses accepted opportunities
+without replaying their preparation. Fixed-step opportunities can contain only
+`prepare`, with no ranges.
 
 Guards combine with `and`, `or`, `not` and parentheses, and `isfact($n, Name)`
 tests a slot's facts:
 
 ```fea
 action ApplyKafPair {
-  forbid isfact($2, Noon) and $2:cv01 > 0;
-  update $1:cv03 = 1;
-  update $2:cv03 = 1;
-  replace $1@Fatha { cv01 = sum(1, floordiv($2:cv01, 3)); }
+  prepare {
+    forbid isfact($2, Noon) and $2:cv01 > 0;
+    update $1:cv03 = 1;
+    update $2:cv03 = 1;
+    replace $1@Fatha { cv01 = sum(1, floordiv($2:cv01, 3)); }
+  }
 }
 ```
 
@@ -191,9 +277,8 @@ independent `when` blocks. Most of those guards are now eliminated: the
 featureless stretch lookup's input glyph identifies the ligature component
 directly. The lam/dal exception remains a policy condition, as explained below.
 
-`$self` is the slot the action is bound at, and `$1`..`$n` are absolute
-positions in the matched span; `bind R A;` means `slot 1` today, so an action
-body will not need editing when binds become per-slot. Effects run in
+`$self` is the first matched slot, and `$1`..`$n` are positions relative to the
+start of the opportunity's matched span. Effects run in
 declaration order against staged state, so a read sees what an earlier effect
 in the same action wrote -- which is how the mark above picks up the value the
 `add` just produced. Guards must precede every write, which is checked when the
@@ -658,12 +743,22 @@ including all accepted per-site features, parameters, and substitutions.
 weighted --compare-shrink-policy standard --line-list LINES.csv --output
 comparison.pdf oldmadina.mp` renders both recipes at the same page sizing.
 Each CSV row contains `page,line` (one-based), with an optional header.
+Add `--text-width 16000` to override the target text width in font units
+(positive integer, at most 100000; default `OtLayout::TextWidth`, currently
+16400). It applies to natural-width ranking, justification, short-line target
+ratios, and comparison rendering. PDF text areas retain their point width;
+font-unit-to-PDF scaling follows the selected target width. Both policies
+in a paired comparison use the same width.
 Add `--font-size-scale 0.95` to multiply the normal DigitalKhatt base font size
 by 0.95, like setting the GUI font-size control from 100 to 95. This affects
 natural-width ranking, justification and mark positioning; it keeps the target
 line widths and scanned reference sizes unchanged. Both policies in a paired
 comparison use the same base multiplier. Values must be positive and finite.
 The default multiplier is 1, with the existing FontSizeXScale page fitting.
+The comparison PDF applies `fontSize` once to the whole line, including advances
+and offsets. Natural-width rankings and XScale-only baselines use the rendered
+width after that scale. Spacing A/B comparisons keep internal glyph coordinates
+unchanged and redistribute width only through word spaces.
 `--page-fitting XScale` keeps the base font size fixed while permitting residual
 horizontal scaling; `--page-fitting FontSizeXScale` allows the usual page
 adjustments. Other supported styles are None, SameSizeByPage, FontSize and SCLX.
@@ -827,15 +922,17 @@ Continuation is expressed as an ordinary action, for example:
 
 ```fea
 action ContinueAlternate9 {
-  forbid not ($self:lefttatweel > 0) or $self:righttatweel > 0;
-  vary $self:lefttatweel to max($self:lefttatweel, 9);
+  prepare {
+    forbid not ($self:lefttatweel > 0) or $self:righttatweel > 0;
+  }
+  range $self:lefttatweel preferred max($self:lefttatweel, 9);
   when $self@Fatha:lefttatweel > 0 {
-    vary $self@Fatha:lefttatweel to max($self@Fatha:lefttatweel, 4);
+    range $self@Fatha:lefttatweel preferred max($self@Fatha:lefttatweel, 4);
   }
 }
 ```
 
-Without an `update`, `vary` uses the current accepted value as its minimum.
+Without an explicit minimum, a range uses the current accepted value as its minimum.
 There are no lookups or clears to reset the accepted state. Pair continuations
 require positive left and right parameters at the matched connection; their
 selections neither forbid nor overwrite Horizontal. The original record still
@@ -851,6 +948,66 @@ removed captured-candidate implementation's ranking.
 
 `staged_pool_full_shape` provides the same schedule with full-shape endpoint
 measurement. Advance measurement remains the default for `staged_pool`.
+
+`baseline_pool` can also run after other stretch stages. It skips the whole
+connection if either requested parameter is already nonzero, preserving
+accepted stretching and intrinsic shaping adjustments. Untouched supported
+connections remain eligible. Endpoints must still be finite and positive.
+
+### Continuing a stage
+
+```fea
+stage PreferredStretch;
+cap_spaces 250 250;
+stage PreferredStretch continue by 1;
+stage PreferredStretch continue to 9;
+stage PreferredStretch continue;
+```
+
+Continuation uses `candidate_pool`, requires native glyph parameters, and is
+stretch-only. `continue by N` offers up to N additional units on the leading
+varying parameter of each opportunity. `continue to N` offers capacity up to
+absolute value N, never reducing an accepted value. Bare `continue` offers each
+action's entire remaining capacity. All three honor the action's declared
+maximum; other varying parameters follow the same interpolation ratio (for
+example, outgoing +1 and incoming +0.5). These are capacities, not forced values:
+the weighted allocator chooses what fits the remaining line width. Existing
+quantization and measured-width commit checks still apply. The experimental
+`increment N` spelling has been removed.
+
+An action can declare its ordinary preferred endpoint and a full maximum together:
+
+```fea
+range $self:lefttatweel minimum 1 preferred 3 maximum 9;
+```
+
+Ordinary stages still offer the endpoint 3. Continuation can advance up to 9;
+omitting `maximum` uses the ordinary endpoint as the full limit as well.
+The optional maximum is an expression, evaluated at activation, and must be
+finite and no smaller than the preferred endpoint.
+
+Accepted opportunities are retained only within the current line and stage name,
+and only for stages referenced by continuation in the selected recipe. Thus an
+ordinary first invocation retains its accepted sites without changing its
+allocation, while recipes without continuation avoid the state-tracking cost.
+Later invocations recognize the same rule on the current glyphs, validate the
+accepted glyph identity and the parameters written by that opportunity, and offer the next range without replaying
+activation guards, substitutions, clears, or mandatory updates. Changes made by
+an intervening writer to an owned parameter invalidate the affected opportunity;
+changes to unrelated axes on the same glyph do not. The site's own records
+do not block its continuation, but other record constraints remain enforced.
+New opportunities may also start during continuation, using ordinary recognition
+and activation guards. Mandatory activation values count toward the offered
+amount; a bound smaller than the mandatory minimum skips the site. Continuation
+keeps this stage's original weights; it does
+not implicitly adopt a separate continuation selection's weights or traversal.
+
+OldMadina's optional `staged_pool_continue` policy mirrors the surrounding
+full-shape schedule, starts with ordinary PreferredStretch allocation, then uses
+one `stage PreferredStretch continue to 9;` after decomposition. `RemainingStretch` handles the
+independent decomposition/rare-terminal continuation and fallback families.
+The original policies and their continuation definitions remain available for
+comparison; this syntax does not change their behavior or the font's default.
 
 ### Declarative page policy
 

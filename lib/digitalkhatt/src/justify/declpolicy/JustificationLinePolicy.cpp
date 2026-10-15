@@ -32,6 +32,16 @@ LinePolicyStep compileLinePolicyStep(const DfaLineStepSource& step, bool stretch
   if ((stretch && !operation->allowStretch) || (!stretch && !operation->allowShrink)) throw std::invalid_argument("linepolicy operation in wrong branch: " + step.operation);
   if (step.arguments.size() != operation->arguments || operation->features != !step.features.empty()) throw std::invalid_argument("invalid linepolicy arguments for " + step.operation);
   if ((operation->code == LineStepOp::Stage) != !step.stage.empty()) throw std::invalid_argument("invalid stage reference in " + step.operation);
+  StageContinuation continuation;
+  if (!step.continuation.empty()) {
+    if (!stretch || operation->code != LineStepOp::Stage) throw std::invalid_argument("continuation is only supported on stretch stages");
+    if (step.continuation == "by") continuation.mode = StageContinuation::Mode::By;
+    else if (step.continuation == "to") continuation.mode = StageContinuation::Mode::To;
+    else if (step.continuation == "maximum") continuation.mode = StageContinuation::Mode::Maximum;
+    else throw std::invalid_argument("unknown stage continuation " + step.continuation);
+    continuation.limit = step.continuationLimit;
+  }
+  if (!std::isfinite(step.continuationLimit) || step.continuationLimit < 0 || (continuation.mode == StageContinuation::Mode::By && step.continuationLimit == 0) || ((continuation.mode == StageContinuation::Mode::None || continuation.mode == StageContinuation::Mode::Maximum) && step.continuationLimit != 0)) throw std::invalid_argument("invalid stage continuation limit");
   for (double value : step.arguments) {
     if (!std::isfinite(value) || value < 0 || (operation->code == LineStepOp::FitSclx && value == 0)) throw std::invalid_argument("invalid linepolicy numeric argument for " + step.operation);
   }
@@ -40,7 +50,7 @@ LinePolicyStep compileLinePolicyStep(const DfaLineStepSource& step, bool stretch
     if (tag.size() != 4 || !std::all_of(tag.begin(), tag.end(), [](unsigned char c) { return c >= 32 && c <= 126; })) throw std::invalid_argument("invalid linepolicy feature tag " + tag);
     if (!tags.insert(tag).second) throw std::invalid_argument("duplicate linepolicy feature " + tag);
   }
-  return {operation->code, step.arguments, step.features, step.stage, {}};
+  return {operation->code, step.arguments, step.features, step.stage, {}, continuation};
 }
 
 LineJustificationPolicy compileLineJustificationPolicy(const DfaLinePolicySource& source) {
@@ -57,6 +67,8 @@ runtime::JustResultByLine executeLineJustificationPolicy(std::span<const LinePol
   const bool stretching = metrics.currentWidth < metrics.targetWidth;
   result.operation = stretching ? LineJustificationOperation::Stretch : metrics.currentWidth > metrics.targetWidth ? LineJustificationOperation::Shrink : LineJustificationOperation::None;
   const std::span<const LinePolicyStep> steps = stretching ? stretchSteps : shrinkSteps;
+  std::set<std::string_view> continuedStages;
+  for (const auto& step : steps) if (step.continuation.mode != StageContinuation::Mode::None) continuedStages.insert(step.stage);
   bool shrinkFeaturesFinished = false;
   const auto spaceCount = metrics.simpleSpaces + metrics.ayaSpaces;
   const auto scale = [&] { result.xScale = metrics.currentWidth != 0 ? metrics.targetWidth / metrics.currentWidth : 1; };
@@ -92,7 +104,7 @@ runtime::JustResultByLine executeLineJustificationPolicy(std::span<const LinePol
       case LineStepOp::Stage:
         if (!stretching) result.isShrink = true;
         if (stretching ? metrics.targetWidth > metrics.currentWidth : metrics.currentWidth > metrics.targetWidth)
-          metrics.currentWidth = backend.applyStage(step.phases, result.globalFeatures, metrics.currentWidth);
+          metrics.currentWidth = backend.applyStage(step, result.globalFeatures, metrics.currentWidth, continuedStages.contains(step.stage));
         break;
       case LineStepOp::FillSpaces:
         fill();

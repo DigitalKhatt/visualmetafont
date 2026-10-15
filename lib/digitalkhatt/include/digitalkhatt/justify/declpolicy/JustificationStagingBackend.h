@@ -87,6 +87,10 @@ class JustificationStagingBackend {
     throw std::logic_error("vary requires candidate_pool range collection");
   }
 
+  virtual void varyWithMaximum(JustificationSiteRef site, JustAttributeId attribute, double preferred, double) {
+    vary(site, attribute, preferred);
+  }
+
   // Resolves a declared attachment from an anchor, or kNoSite.
   virtual JustificationSiteRef attachment(JustificationSiteRef anchor,
                                           JustAttachmentId attachment) const = 0;

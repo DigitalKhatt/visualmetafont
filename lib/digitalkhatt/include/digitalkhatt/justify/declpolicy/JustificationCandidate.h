@@ -19,6 +19,8 @@ struct JustificationCandidateParameter {
   double initialValue = 0;
   double minimumValue = 0;
   double maximumValue = 0;
+  // Full bound for continuation invocations. Null for fixed writes.
+  std::optional<double> continuationMaximum;
   bool operator==(const JustificationCandidateParameter&) const = default;
 };
 
@@ -120,5 +122,9 @@ std::optional<JustificationCandidate> collectJustificationCandidate(
 // font shaping.
 bool measureJustificationCandidate(JustificationCandidate& candidate,
                                    JustificationStagingBackend& backend);
+
+// Bound the leading varying parameter's relative growth or absolute target, preserving the
+// other ranges' interpolation ratio. Never cross mandatory activation values.
+bool limitJustificationCandidateContinuation(JustificationCandidate& candidate, StageContinuation continuation);
 
 }  // namespace digitalkhatt::justify

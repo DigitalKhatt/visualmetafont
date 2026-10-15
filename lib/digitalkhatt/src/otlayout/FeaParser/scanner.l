@@ -87,8 +87,14 @@ UTF8_FOUR (\xF0[\x90-\xBF][\x80-\xBF]{2}|[\xF1-\xF3][\x80-\xBF]{3}|\xF4[\x80-\x8
 "linepolicy"                                                {return(token::LINEPOLICY);}
 "pagepolicy"                                                {return(token::PAGEPOLICY);}
 "facts"                                                     {return(token::FACTS);}
-"rules"                                                     {return(token::RULES);}
 "actions"                                                   {return(token::ACTIONS);}
+"patterns"                                                  {return(token::PATTERNS);}
+"pattern"                                                   {return(token::PATTERN);}
+"opportunities"                                             {return(token::OPPORTUNITIES);}
+"opportunity"                                               {return(token::OPPORTUNITY);}
+"match"                                                     {return(token::MATCH);}
+"prepare"                                                   {return(token::PREPARE);}
+"range"                                                     {return(token::RANGE);}
 "selections"                                                {return(token::SELECTIONS);}
 "stretchpolicy"                                             {return(token::STRETCHPOLICY);}
 "shrinkpolicy"                                              {return(token::SHRINKPOLICY);}
@@ -96,8 +102,6 @@ UTF8_FOUR (\xF0[\x90-\xBF][\x80-\xBF]{2}|[\xF1-\xF3][\x80-\xBF]{3}|\xF4[\x80-\x8
 "stage"                                                     {return(token::STAGE);}
 "quantize"                                                  {return(token::QUANTIZE);}
 "fact"                                                      {return(token::FACT);}
-"rule"                                                      {return(token::RULE);}
-"bind"                                                      {return(token::BIND);}
 "selection"                                                 {return(token::SELECTION);}
 "choose"                                                    {return(token::CHOOSE);}
 "traversal"                                                 {return(token::TRAVERSAL);}
@@ -143,7 +147,6 @@ UTF8_FOUR (\xF0[\x90-\xBF][\x80-\xBF]{2}|[\xF1-\xF3][\x80-\xBF]{3}|\xF4[\x80-\x8
 "markClass"													{return(token::MARKCLASS);} 
 "by"														{return(token::BY);} 
 "add"														{return(token::ADD);}
-"vary"                           {return(token::VARY);}
 "addparams"                       {return(token::ADDPARAMS);}
 "params"                          {return(token::PARAMS);}
 "coord"                           {return(token::COORD);}

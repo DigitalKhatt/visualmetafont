@@ -123,6 +123,24 @@ CLI arguments override it: `--page-width`, `--page-height`, `--left-margin`,
 while retaining the margins. Old snapshots without `pageLayout` retain the
 legacy PDF sizing and margin behavior.
 
+### Binary pre-layout geometry
+
+Both binary formats keep their existing version numbers (interpolated v3 and
+whole-glyph v4). Immediately after `DKLY` and the uint16 version, they now store
+two big-endian uint32 values: `pageWidth` and `lineSpacing`, in page-space font
+units. `lineSpacing` is the minimum baseline distance used for pre-layout and
+XPBD. Each line's saved `x` includes the right margin and is measured inward
+from the right page edge. Page height, baseline Y positions, PDF paper size and
+separate margins are not stored in the binary.
+
+Tarteel keeps its screen baseline spacing `D = (height - 5) / 15` and uses
+`scale = min(width / pageWidth, D / lineSpacing)`. The scaled page is centered
+horizontally; line origins use the saved page-edge `x`. Taller screens add
+baseline space, while shorter screens reduce glyph size to retain at least the
+saved spacing in font units. Line `fontSize` and `xscale` still apply within
+that page scale. Regenerate binaries before using the updated renderer; older
+files with the same version numbers have a different header and X convention.
+
 ## Waqf height target
 
 When a waqf is beside its stack, its soft target puts its top above the highest

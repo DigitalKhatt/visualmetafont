@@ -378,6 +378,71 @@ int main() {
   };
   setSingleStagePolicy(source, {{"ArbitrarySelectionName", 1}});
   const auto compiled = compileJustificationCatalog(source);
+  {
+    auto authored = source;
+    authored.rules.clear();
+    authored.actions.clear();
+    authored.opportunities = {{.name = "ArbitraryRuleName", .pattern = {{.fact = "CustomTerminal"}}, .action = "IncrementAlternate"}};
+    const auto named = compileJustificationCatalog(authored);
+    ok &= expect(named.rules == compiled.rules && named.actions == compiled.actions, "named opportunities lower to the same DFA and action dispatch");
+    authored.opportunities[0].pattern = {{.inlineFact = DfaFactSource{.form = "terminal", .sourceCharacters = {u'ب'}}}};
+    const auto inlineFact = compileJustificationCatalog(authored);
+    ok &= expect(inlineFact.facts == named.facts && inlineFact.rules == named.rules, "an inline fact identical to a named fact reuses its bit");
+    authored.opportunities[0].action.clear();
+    authored.opportunities[0].effects = source.actionDefinitions[0].effects;
+    const auto inlineBody = compileJustificationCatalog(authored);
+    ok &= expect(inlineBody.actionDefinitions.at(inlineBody.actions[0].definition).effects == compiled.actionDefinitions[0].effects, "inline opportunity bodies use the same action evaluator");
+    authored.opportunities[0].pattern.push_back({.inlineFact = DfaFactSource{.form = "medi", .position = "first"}});
+    const auto mixed = compileJustificationCatalog(authored);
+    ok &= expect(mixed.rules[0].pattern.size() == 2 && mixed.facts.size() == 2, "named and inline slot facts can be mixed in a fixed-slot opportunity");
+    auto sharedPattern = authored;
+    sharedPattern.patterns = {{.name = "Shared", .slots = sharedPattern.opportunities[0].pattern}};
+    sharedPattern.opportunities[0].pattern.clear();
+    sharedPattern.opportunities[0].patternName = "Shared";
+    const auto reusedPattern = compileJustificationCatalog(sharedPattern);
+    ok &= expect(reusedPattern.rules == mixed.rules && reusedPattern.facts == mixed.facts && reusedPattern.actions == mixed.actions, "named patterns expand at compilation without changing rule IDs, fact bits or dispatch");
+    auto secondOpportunity = sharedPattern.opportunities[0];
+    secondOpportunity.name = "SecondOpportunity";
+    sharedPattern.opportunities.push_back(secondOpportunity);
+    const auto independent = compileJustificationCatalog(sharedPattern);
+    ok &= expect(independent.facts.size() == mixed.facts.size() && independent.rules[0].pattern == independent.rules[1].pattern && independent.rules[0].id != independent.rules[1].id && independent.actions.size() == 2, "opportunities sharing a pattern retain independent identities while reusing inline fact bits");
+    for (int invalid = 0; invalid != 9; ++invalid) {
+      auto bad = sharedPattern;
+      if (invalid == 0) bad.patterns.push_back(bad.patterns[0]);
+      if (invalid == 1) bad.patterns[0].name.clear();
+      if (invalid == 2) bad.patterns[0].slots.clear();
+      if (invalid == 3) bad.opportunities[0].patternName = "Missing";
+      if (invalid == 4) bad.opportunities[0].pattern = {{.fact = "CustomTerminal"}};
+      if (invalid == 5) bad.patterns.push_back({.name = "UnusedInvalid", .slots = {{.fact = "MissingFact"}}});
+      if (invalid == 6) bad.patterns.push_back({.name = "UnusedEmpty", .slots = {{.inlineFact = DfaFactSource{}}}});
+      if (invalid == 7) bad.patterns.push_back({.name = "UnusedMixed", .slots = {{.fact = "CustomTerminal", .inlineFact = DfaFactSource{.form = "medi"}}}});
+      if (invalid == 8) bad.patterns.push_back({.name = "UnusedBadForm", .slots = {{.inlineFact = DfaFactSource{.form = "typo"}}}});
+      bool rejected = false;
+      try { (void)compileJustificationCatalog(bad); } catch (const std::invalid_argument&) { rejected = true; }
+      ok &= expect(rejected, "named patterns reject duplicate/empty definitions, unknown references, mixed matches and invalid unused definitions");
+    }
+    for (int invalid = 0; invalid != 6; ++invalid) {
+      auto bad = authored;
+      if (invalid == 0) bad.opportunities[0].action = "IncrementAlternate";
+      if (invalid == 1) bad.opportunities[0].pattern[0].fact = "CustomTerminal";
+      if (invalid == 2) bad.opportunities[0].pattern[0].inlineFact = DfaFactSource{};
+      if (invalid == 3) bad.opportunities[0].pattern.clear();
+      if (invalid == 4) bad.opportunities.push_back(bad.opportunities[0]);
+      if (invalid == 5) bad.rules = source.rules;
+      bool rejected = false;
+      try { (void)compileJustificationCatalog(bad); } catch (const std::invalid_argument&) { rejected = true; }
+      ok &= expect(rejected, "opportunities reject ambiguous bodies/slots, empty inline facts/patterns, duplicate names and mixed low-level IR");
+    }
+    auto interned = authored;
+    interned.opportunities[0].pattern.resize(1);
+    for (int index = 1; index != 70; ++index) {
+      auto opportunity = interned.opportunities[0];
+      opportunity.name = "Inline" + std::to_string(index);
+      interned.opportunities.push_back(std::move(opportunity));
+    }
+    const auto reused = compileJustificationCatalog(interned);
+    ok &= expect(reused.facts.size() == 1 && reused.rules.size() == 70, "repeated inline facts do not exhaust the 64-bit fact budget");
+  }
   const std::array tableMatchFacts{glyphFacts(
       {.glyphName = "behshape.fina", .sourceCharacter = u'ب'},
       compiled.facts)};
@@ -529,6 +594,37 @@ int main() {
     rangeSource.actionDefinitions[0].effects = {{.kind = "vary", .target = {}, .attribute = "third", .value = {{.op = "literal", .literal = 7}}}};
     setSingleStagePolicy(rangeSource, {{"ArbitrarySelectionName", 1, "candidate_pool"}});
     const auto rangeCatalog = compileJustificationCatalog(rangeSource);
+    {
+      auto boundedSource = rangeSource;
+      boundedSource.actionDefinitions[0].effects[0].maximum = {{.op = "literal", .literal = 9}};
+      const auto boundedCatalog = compileJustificationCatalog(boundedSource);
+      FakeBackend boundedBackend;
+      const std::array slots{FixedSlotSlot{.indexInLine = 10}};
+      FixedSlotActionSite site{.definition = 0, .rule = 0, .wordIndex = 0, .subwordIndex = 0, .context = slots};
+      const auto candidate = collectJustificationCandidate(boundedCatalog, boundedCatalog.actionDefinitions[0], site, boundedBackend);
+      ok &= expect(candidate && candidate->parameters[0].maximumValue == 7 && candidate->parameters[0].continuationMaximum == 9, "ordinary allocation retains its preferred endpoint while continuation can use the full maximum");
+      JustificationCandidate pair;
+      pair.parameters = {{.initialValue = 0, .minimumValue = 0.5, .maximumValue = 1.75, .continuationMaximum = 4}, {.initialValue = 0, .minimumValue = 0.25, .maximumValue = 0.875, .continuationMaximum = 2}};
+      ok &= expect(limitJustificationCandidateContinuation(pair, {StageContinuation::Mode::By, 1}) && pair.parameters[0].maximumValue == 1 && pair.parameters[1].maximumValue == 0.5, "relative continuation preserves the half-length incoming connection");
+      pair.parameters = {{.initialValue = 1, .minimumValue = 1, .maximumValue = 4, .continuationMaximum = 4}, {.initialValue = 0.5, .minimumValue = 0.5, .maximumValue = 2, .continuationMaximum = 2}};
+      ok &= expect(limitJustificationCandidateContinuation(pair, {StageContinuation::Mode::By, 1}) && pair.parameters[0].maximumValue == 2 && pair.parameters[1].maximumValue == 1, "relative continuation starts from accepted values instead of resetting activation minima");
+      ok &= expect(limitJustificationCandidateContinuation(pair, {StageContinuation::Mode::To, 3}) && pair.parameters[0].maximumValue == 3 && pair.parameters[1].maximumValue == 1.5, "absolute continuation preserves paired interpolation");
+      ok &= expect(limitJustificationCandidateContinuation(pair, {StageContinuation::Mode::Maximum}) && pair.parameters[0].maximumValue == 4 && pair.parameters[1].maximumValue == 2, "bare continuation offers the full remaining capacity");
+      ok &= expect(!limitJustificationCandidateContinuation(pair, {StageContinuation::Mode::To, 0.5}), "absolute continuation never reduces an accepted value");
+      pair.parameters = {{.initialValue = 0, .minimumValue = 1, .maximumValue = 3, .continuationMaximum = 9}};
+      ok &= expect(!limitJustificationCandidateContinuation(pair, {StageContinuation::Mode::By, 0.5}) && pair.parameters[0].maximumValue == 3, "a step smaller than mandatory preparation is rejected without modifying its range");
+      pair.parameters = {{.initialValue = 8.5, .minimumValue = 8.5, .maximumValue = 9, .continuationMaximum = 9}};
+      ok &= expect(limitJustificationCandidateContinuation(pair, {StageContinuation::Mode::To, 20}) && pair.parameters[0].maximumValue == 9, "absolute continuation stops at the declared full maximum");
+      pair.parameters[0].initialValue = pair.parameters[0].minimumValue = 9;
+      ok &= expect(!limitJustificationCandidateContinuation(pair, {StageContinuation::Mode::By, 1}), "saturated opportunities are not offered again");
+      boundedSource.stretchPolicies[0].steps[0].continuation = "by";
+      boundedSource.stretchPolicies[0].steps[0].continuationLimit = 1;
+      ok &= expect(compileJustificationCatalog(boundedSource).stretchPolicies[0].steps[0].continuation == StageContinuation{StageContinuation::Mode::By, 1}, "named candidate stages retain their continuation limit");
+      boundedSource.stages[0].phases[0].allocator = "fixed_steps";
+      bool rejected = false;
+      try { (void)compileJustificationCatalog(boundedSource); } catch (const std::invalid_argument&) { rejected = true; }
+      ok &= expect(rejected, "continuation stages reject incompatible allocation modes");
+    }
     {
       auto baselineSource = rangeSource;
       baselineSource.selections[0].record.clear();

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
@@ -151,6 +152,19 @@ double parseFontSizeScale(const std::string& value) {
   if (parsed != value.size() || !std::isfinite(scale) || scale <= 0)
     throw std::runtime_error("--font-size-scale must be a finite positive number");
   return scale;
+}
+
+int parseTextWidth(const std::string& value) {
+  std::size_t parsed = 0;
+  int width = 0;
+  try {
+    width = std::stoi(value, &parsed);
+  } catch (const std::exception&) {
+    throw std::runtime_error("--text-width must be an integer between 1 and 100000");
+  }
+  if (parsed != value.size() || width < 1 || width > 100000)
+    throw std::runtime_error("--text-width must be an integer between 1 and 100000");
+  return width;
 }
 
 double parseQpcTextWidthRatio(const std::string& value,
@@ -412,7 +426,7 @@ struct ExtremeLine {
   int page = 0;
   int line = 0;
   int pageLineIndex = 0;
-  int naturalWidth = 0;
+  double naturalWidth = 0;
   int targetWidth = 0;
   double difference = 0;
   double percentage = 0;
@@ -482,7 +496,7 @@ Rankings rankNaturalWidths(OtLayout& layout,
     for (int index = 0; index < static_cast<int>(natural.size()); ++index) {
       if (input[index].lineType != LineType::Line || input[index].width <= 0)
         continue;
-      const int current = natural[index].currentLineWidth;
+      const double current = natural[index].renderedWidth();
       if (naturalGlyphs) {
         for (const auto& positioned : natural[index].glyphs) {
           auto* glyph = layout.getGlyph(positioned);
@@ -1026,8 +1040,8 @@ Bounds oldMadinaInkBounds(OtLayout& layout, const LineLayoutInfo& line) {
     x -= positioned.x_advance;
     auto* glyph = layout.getGlyph(positioned);
     if (!glyph || glyph->bbox.urx <= glyph->bbox.llx || glyph->bbox.ury <= glyph->bbox.lly) continue;
-    const double left = x + positioned.x_offset + glyph->bbox.llx * line.fontSize;
-    const double right = x + positioned.x_offset + glyph->bbox.urx * line.fontSize;
+    const double left = x + positioned.x_offset + glyph->bbox.llx;
+    const double right = x + positioned.x_offset + glyph->bbox.urx;
     if (!bounds.valid) {
       bounds.left = left;
       bounds.right = right;
@@ -1044,9 +1058,10 @@ void drawOldMadinaLine(PageContentContext* context, OtLayout& layout,
                        const LineLayoutInfo& line, double right, double baseline,
                        double scale, std::optional<double> xscale = std::nullopt) {
   raw(context, "q\n0 g\n");
-  const double horizontalScale = scale * xscale.value_or(line.xscale);
+  const double verticalScale = scale * line.fontSize;
+  const double horizontalScale = verticalScale * xscale.value_or(line.xscale);
   const auto bounds = oldMadinaInkBounds(layout, line);
-  context->cm(horizontalScale, 0, 0, scale, right - horizontalScale * bounds.right, baseline);
+  context->cm(horizontalScale, 0, 0, verticalScale, right - horizontalScale * bounds.right, baseline);
   double x = 0;
   for (const auto& positioned : line.glyphs) {
     x -= positioned.x_advance;
@@ -1060,7 +1075,6 @@ void drawOldMadinaLine(PageContentContext* context, OtLayout& layout,
     if (path.empty()) continue;
     raw(context, "q\n");
     context->cm(1, 0, 0, 1, x + positioned.x_offset, positioned.y_offset);
-    context->cm(line.fontSize, 0, 0, line.fontSize, 0, 0);
     raw(context, path + "f\nQ\n");
   }
   raw(context, "Q\n");
@@ -1142,7 +1156,7 @@ struct BaselineOptions {
   bool showXScale = false;
   bool enabled() const { return showNatural || showXScale; }
   int rows(const LineLayoutInfo& natural, int targetWidth) const {
-    return int(showNatural) + int(showXScale && natural.currentLineWidth > targetWidth);
+    return int(showNatural) + int(showXScale && natural.renderedWidth() > targetWidth);
   }
 };
 
@@ -1178,7 +1192,7 @@ double baselinePaperWidth(OtLayout& layout, const JustifiedPages& natural,
   for (const auto* lines : {&first, &second}) {
     for (const auto& record : *lines) {
       const auto& line = natural.at(record.page).at(record.pageLineIndex);
-      extent = std::max(extent, oldMadinaInkBounds(layout, line).width());
+      extent = std::max(extent, oldMadinaInkBounds(layout, line).width() * line.horizontalScale());
     }
   }
   return 72 + extent * unitScale;
@@ -1189,16 +1203,16 @@ void drawComparisonBaselines(const LineLayoutInfo& natural, int targetWidth,
                              BaselineOptions options, DrawRow&& draw) {
   if (options.showNatural)
     draw(natural, 1.0);
-  if (options.showXScale && natural.currentLineWidth > targetWidth)
-    draw(natural, double(targetWidth) / natural.currentLineWidth);
+  if (options.showXScale && natural.renderedWidth() > targetWidth)
+    draw(natural, double(targetWidth) / natural.renderedWidth());
 }
 
 std::string baselineDescription(const LineLayoutInfo& natural, int targetWidth,
                                 BaselineOptions options) {
-  if (!options.showXScale || natural.currentLineWidth <= targetWidth) return {};
+  if (!options.showXScale || natural.renderedWidth() <= targetWidth) return {};
   std::ostringstream text;
   text << "  XScale-only " << std::fixed << std::setprecision(4)
-       << double(targetWidth) / natural.currentLineWidth;
+       << double(targetWidth) / natural.renderedWidth();
   return text.str();
 }
 
@@ -1285,33 +1299,32 @@ JustifiedPages compareWordSpacing(
     const auto& text = pages.at(record.page - 1).at(record.pageLineIndex).dk;
     std::vector<std::size_t> spaces;
     int target = 0;
-    int advance = 0;
     for (std::size_t index = 0; index < line.glyphs.size(); ++index) {
-      auto& glyph = line.glyphs[index];
+      const auto& glyph = line.glyphs[index];
       if (glyph.cluster >= 0 && glyph.cluster < static_cast<int>(text.size()) &&
           text[glyph.cluster] == u' ')
         spaces.push_back(index);
       target += glyph.x_advance;
-      glyph.x_advance = std::lround(glyph.x_advance * scale);
-      glyph.y_advance = std::lround(glyph.y_advance * scale);
-      glyph.x_offset = std::lround(glyph.x_offset * scale);
-      glyph.y_offset = std::lround(glyph.y_offset * scale);
-      advance += glyph.x_advance;
     }
     if (spaces.empty() || !std::isfinite(line.xscale) || line.xscale <= 0)
       throw std::runtime_error("Spacing comparison requires a verse line with word spaces");
-    const int extra = target - advance;
+    // Scale the whole line once; recover its former width by changing only spaces.
+    // Internal advances and offsets stay in font units, preserving cursive joins.
+    const double respacedWidth = target / scale;
+    if (!std::isfinite(respacedWidth) || respacedWidth > std::numeric_limits<int>::max())
+      throw std::runtime_error("Spacing comparison width exceeds the supported range");
+    const int extra = static_cast<int>(std::lround(respacedWidth)) - target;
     if (extra < 0)
       throw std::runtime_error("Spacing comparison does not fit its line target");
     for (std::size_t index = 0; index < spaces.size(); ++index)
       line.glyphs[spaces[index]].x_advance += extra / static_cast<int>(spaces.size()) +
                                             (index < extra % static_cast<int>(spaces.size()) ? 1 : 0);
     line.fontSize *= scale;
-    line.currentLineWidth = target;
-    line.overfull = 0;
+    line.currentLineWidth = target + extra;
+    line.overfull = line.renderedOverflow();
     std::cout << "Respaced page " << record.page << ", line " << record.line
               << ": " << spaces.size() << " gaps, " << scale << " size scale, "
-              << extra * line.xscale / spaces.size() << " added layout units per gap\n";
+              << extra * line.horizontalScale() / spaces.size() << " added layout units per gap\n";
   }
   return comparison;
 }
@@ -1402,10 +1415,9 @@ class QpcFontCache {
 void writeQpcWidthReport(const fs::path& path,
                          const std::vector<std::vector<QuranLine>>& pages,
                          const fs::path& qpcFontDir, int firstPage, int lastPage,
-                         double textWidthRatio) {
+                         int pageWidth, double textWidthRatio) {
   // Match the comparison PDF's nominal text width (842 pt minus two margins).
   constexpr double textWidthPoints = 842 - 2 * 36;
-  const int pageWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
   const double fontUnitScale = textWidthPoints / pageWidth;
   std::ofstream output(path);
   if (!output) throw std::runtime_error("Could not create " + path.string());
@@ -2003,7 +2015,7 @@ void renderPolicyDifferencePdf(const fs::path& path, OtLayout& layout,
     raw(context, separator.str());
     writeLabel(margin, separatorY - 11,
                "#" + std::to_string(index + 1) + "  Mushaf page " + std::to_string(record.page) + ", line " + std::to_string(record.line) +
-                   (spacingComparison ? std::string{} : "  widths " + std::to_string(advance.currentLineWidth) + " / " + std::to_string(fullShape.currentLineWidth)) +
+                   (spacingComparison ? std::string{} : "  widths " + std::to_string(advance.renderedWidth()) + " / " + std::to_string(fullShape.renderedWidth())) +
                    (spacingComparison || sizingLabel.empty() ? std::string{} : "  font scales " + std::to_string(advance.fontSize / (1 << OtLayout::SCALEBY)) + " / " + std::to_string(fullShape.fontSize / (1 << OtLayout::SCALEBY))) +
                    (baselineOptions.enabled() ? baselineDescription(natural.at(record.page).at(record.pageLineIndex), record.targetWidth, baselineOptions) : std::string{}),
                8);
@@ -2054,6 +2066,7 @@ void usage(const char* program) {
                "                     in font units (1000/em), excluding GPOS and page scaling; all pages are justified\n"
                "                     terminal includes the expanded-form substitution; kashida measures axis extension\n"
                "  --justifier NAME   decl-policy or experimental2 (default experimental2)\n"
+               "  --text-width N    Target text width in font units (1-100000; default OtLayout::TextWidth)\n"
                "  --font-size-scale N  DigitalKhatt font-size multiplier (default 1); scans stay unchanged\n"
                "                       Scales the base size before the page-fitting policy is applied\n"
                "  --compare-spacing-scale N  A/B proof: shrink the existing word forms by N and\n"
@@ -2118,6 +2131,7 @@ int main(int argc, char** argv) {
     BaselineOptions baselineOptions;
     JustType engine = JustType::Experimental2;
     std::optional<double> requestedFontSizeScale;
+    std::optional<int> requestedTextWidth;
     std::optional<double> requestedSpacingScale;
     std::optional<JustStyle> requestedPageFitting;
     std::string stretchPolicyName;
@@ -2160,6 +2174,8 @@ int main(int argc, char** argv) {
           throw std::runtime_error("--justifier must be decl-policy or experimental2");
       } else if (arg == "--font-size-scale") {
         requestedFontSizeScale = parseFontSizeScale(value());
+      } else if (arg == "--text-width") {
+        requestedTextWidth = parseTextWidth(value());
       } else if (arg == "--compare-spacing-scale") {
         requestedSpacingScale = parseQpcTextWidthRatio(value(), "--compare-spacing-scale");
       } else if (arg == "--show-natural") {
@@ -2221,6 +2237,8 @@ int main(int argc, char** argv) {
     }
     if (firstPage < 1 || lastPage < firstPage || lastPage > 604)
       throw std::runtime_error("Invalid page range");
+    const int textWidth = requestedTextWidth.value_or(OtLayout::TextWidth);
+    const int pageWidth = textWidth << OtLayout::SCALEBY;
     if (!qpcWidthReport.empty()) {
       if (qpcLayout != QpcLayoutMode::Tarteel)
         throw std::runtime_error("--qpc-width-report requires --qpc-layout tarteel");
@@ -2232,8 +2250,9 @@ int main(int argc, char** argv) {
         throw std::runtime_error("Page range exceeds database");
       fs::create_directories(qpcWidthReport.parent_path());
       writeQpcWidthReport(qpcWidthReport, pages, qpcFontDir, firstPage, lastPage,
-                          qpcTextWidthRatio);
-      std::cout << "QPC text-width/page-width ratio: " << qpcTextWidthRatio << '\n'
+                          pageWidth, qpcTextWidthRatio);
+      std::cout << "Text width (font units): " << textWidth << '\n'
+                << "QPC text-width/page-width ratio: " << qpcTextWidthRatio << '\n'
                 << "Pages: " << firstPage << '-' << lastPage << '\n'
                 << "QPC width CSV: " << qpcWidthReport << '\n';
       return 0;
@@ -2288,12 +2307,15 @@ int main(int argc, char** argv) {
     OtLayout::EMSCALE = requestedFontSizeScale.value_or(1.0);
     const auto pageFitting = requestedPageFitting.value_or(JustStyle::FontSizeXScale);
     std::string sizingLabel;
-    if (requestedFontSizeScale || requestedPageFitting) {
+    if (requestedFontSizeScale || requestedPageFitting || requestedTextWidth) {
       std::ostringstream label;
-      label << "  [base font scale " << OtLayout::EMSCALE << "; fitting " << pageFittingName(pageFitting) << ']';
+      label << "  [base font scale " << OtLayout::EMSCALE << "; fitting " << pageFittingName(pageFitting);
+      if (requestedTextWidth) label << "; text width " << textWidth;
+      label << ']';
       sizingLabel = label.str();
     }
-    std::cout << "DigitalKhatt font-size scale: " << OtLayout::EMSCALE << '\n'
+    std::cout << "Text width (font units): " << textWidth << '\n'
+              << "DigitalKhatt font-size scale: " << OtLayout::EMSCALE << '\n'
               << "DigitalKhatt page fitting: " << pageFittingName(pageFitting) << '\n';
     if (usesQpc(mode) && qpcLayout == QpcLayoutMode::Tarteel)
       std::cout << "QPC text-width/page-width ratio: " << qpcTextWidthRatio << '\n';
@@ -2333,7 +2355,6 @@ int main(int argc, char** argv) {
     const auto pages = loadLines(database);
     if (lastPage > static_cast<int>(pages.size()))
       throw std::runtime_error("Page range exceeds database");
-    const int pageWidth = OtLayout::TextWidth << OtLayout::SCALEBY;
     if (policyComparison) {
       const auto selected = readSelectedLines(lineList, pages, pageWidth);
       if (selected.empty()) throw std::runtime_error("line list contains no lines");

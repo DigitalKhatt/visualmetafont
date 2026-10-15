@@ -12,7 +12,7 @@ class LineJustificationBackend {
  public:
   virtual ~LineJustificationBackend() = default;
   virtual double measure(const std::vector<runtime::TextFontFeatures>& candidateFeatures, const std::vector<runtime::TextFontFeatures>& currentFeatures, double currentWidth) = 0;
-  virtual double applyStage(std::span<const PolicyPhase> phases, const std::vector<runtime::TextFontFeatures>& globalFeatures, double currentWidth) = 0;
+  virtual double applyStage(const LinePolicyStep& step, const std::vector<runtime::TextFontFeatures>& globalFeatures, double currentWidth, bool retainOpportunities) = 0;
   virtual double measureSclx(float value) = 0;
 };
 

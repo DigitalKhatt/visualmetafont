@@ -58,6 +58,7 @@ class CandidateRecordingBackend final : public JustificationStagingBackend {
     auto& parameter = parameterAt(site, attribute);
     parameter.minimumValue = value;
     parameter.maximumValue = value;
+    parameter.continuationMaximum.reset();
     backend_.update(site, attribute, value);
   }
 
@@ -95,8 +96,15 @@ class CandidateRecordingBackend final : public JustificationStagingBackend {
     auto& parameter = parameterAt(site, attribute);
     parameter.minimumValue = backend_.read(site, attribute);
     parameter.maximumValue = endpoint;
+    parameter.continuationMaximum = endpoint;
     // `vary` offers an endpoint; it does not change the mandatory staged
     // value observed by effects that follow it.
+  }
+
+  void varyWithMaximum(JustificationSiteRef site, JustAttributeId attribute, double preferred, double maximum) override {
+    if (!std::isfinite(maximum) || maximum < preferred) throw std::runtime_error("vary maximum must be finite and at least the preferred endpoint");
+    vary(site, attribute, preferred);
+    parameterAt(site, attribute).continuationMaximum = maximum;
   }
 
   JustificationSiteRef attachment(
@@ -172,6 +180,34 @@ std::optional<JustificationCandidate> collectJustificationCandidate(
       site.wordIndex, recording);
   if (result == FixedSlotActionResult::Forbidden) return std::nullopt;
   return candidate;
+}
+
+bool limitJustificationCandidateContinuation(JustificationCandidate& candidate, StageContinuation continuation) {
+  if (!std::isfinite(continuation.limit) || continuation.limit < 0 || (continuation.mode == StageContinuation::Mode::By && continuation.limit == 0) || continuation.mode == StageContinuation::Mode::None) throw std::invalid_argument("invalid candidate continuation limit");
+  double span = 0;
+  double initial = 0;
+  for (const auto& parameter : candidate.parameters) {
+    if (parameter.continuationMaximum) {
+      initial = parameter.initialValue;
+      span = *parameter.continuationMaximum - parameter.initialValue;
+      break;
+    }
+  }
+  if (span <= 0) return false;
+  const double offered = continuation.mode == StageContinuation::Mode::By ? continuation.limit : continuation.mode == StageContinuation::Mode::To ? continuation.limit - initial : span;
+  if (offered <= 0) return false;
+  const double ratio = std::min(1.0, offered / span);
+  for (const auto& parameter : candidate.parameters) {
+    if (!parameter.continuationMaximum) continue;
+    const double endpoint = parameter.initialValue + ratio * (*parameter.continuationMaximum - parameter.initialValue);
+    if (!std::isfinite(endpoint) || endpoint + 1e-12 < parameter.minimumValue) return false;
+  }
+  for (auto& parameter : candidate.parameters) {
+    if (parameter.continuationMaximum) parameter.maximumValue = std::max(parameter.minimumValue, parameter.initialValue + ratio * (*parameter.continuationMaximum - parameter.initialValue));
+  }
+  candidate.minimumWidthDelta.reset();
+  candidate.maximumWidthDelta.reset();
+  return true;
 }
 
 bool measureJustificationCandidate(JustificationCandidate& candidate,

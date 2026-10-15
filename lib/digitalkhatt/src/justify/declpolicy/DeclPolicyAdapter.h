@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <string_view>
 
 #include <digitalkhatt/justify/declpolicy/JustificationCandidate.h>
 
@@ -17,7 +18,7 @@ double quantizeProportionalParameter(double value, double from, double to, unsig
 // next action. Rejected trials leave glyph facts and attachments untouched.
 //
 // Returns true when a candidate overflowed the line, which abandons it.
-bool applyDeclPolicyStage(const runtime::LineTextInfo& lineTextInfo, runtime::JustInfo& justInfo, std::span<const PolicyPhase> phases, unsigned parameterQuantization, CandidateWidthMode candidateWidth);
+bool applyDeclPolicyStage(const runtime::LineTextInfo& lineTextInfo, runtime::JustInfo& justInfo, std::span<const PolicyPhase> phases, unsigned parameterQuantization, CandidateWidthMode candidateWidth, std::string_view retainedStage = {}, StageContinuation continuation = {});
 
 // Builds a measured, immutable inventory for a future line-wide allocator.
 // It neither commits actions nor changes the current execution state.

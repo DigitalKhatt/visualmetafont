@@ -47,6 +47,9 @@ def read_binary(path):
     r = Reader(path)
     if r.read('IH') != (0x444B4C59, 4):
         raise ValueError('Use a DKLY v4 Whole glyphs export, not an interpolated v3 export')
+    page_width, line_spacing = r.read('II')
+    if not page_width or not line_spacing:
+        raise ValueError('Invalid page width or line spacing; regenerate the binary')
     variants = {i + 1: (r.read('H'), r.outline()) for i in range(r.read('H'))}
     pages = []
     for _ in range(r.read('H')):
@@ -75,7 +78,7 @@ def read_binary(path):
         pages.append(lines)
     if r.offset != len(r.data):
         raise ValueError('Trailing binary data')
-    return dict(variants=variants, pages=pages)
+    return dict(variants=variants, pages=pages, pageWidth=page_width, lineSpacing=line_spacing)
 
 
 def metadata(path, document):
@@ -114,7 +117,7 @@ def resolve(document, meta, spacing):
                 continue  # Headings use a separate font, absent from DKLY outlines.
             mapping, labels = word_map(meta['pages'][p][l]) if meta else (None, {0: f'Line {l + 1}'})
             words.update({(l + 1, w): t for w, t in labels.items()})
-            y = meta['baselines'][p][l] if meta else -(l * spacing)
+            y = meta['baselines'][p][l] if meta else -(l * (spacing if spacing is not None else document['lineSpacing']))
             x = -line['x']; scale_x = line['xscale'] * line['fontSize']; scale_y = line['fontSize']
             for i, placement in enumerate(line['glyphs']):
                 x -= placement['advance'] * scale_x
@@ -201,7 +204,7 @@ def main():
     parser.add_argument('--before-repeat', type=Path)
     parser.add_argument('--after-repeat', type=Path)
     parser.add_argument('--skip-repeatability-check', action='store_true')
-    parser.add_argument('--line-spacing', type=float, default=1683, help='Used only without text/baseline sidecars')
+    parser.add_argument('--line-spacing', type=float, help='Override saved line spacing when baseline sidecars are absent')
     args = parser.parse_args(); proof = {}
     for side in ('before', 'after'):
         original, repeat = getattr(args, side), getattr(args, side + '_repeat')

@@ -88,7 +88,10 @@ std::vector<uint8_t> wholeGlyphLayoutBinary(OtLayout& layout,const LayoutPages& 
   for (const auto& page:pages.pages) for (const auto& line:page)
     if (line.type!=LineType::Sura) for (const auto& g:line.glyphs) variants.try_emplace(key(g),Variant{&g});
   if (variants.empty()) throw std::runtime_error("No body glyphs for DKLY export");
-  Bytes out;out.u32(0x444B4C59);out.u16(4);out.u16(variants.size());
+  Bytes out;out.u32(0x444B4C59);out.u16(4);
+  out.u32(layout.pageLayout().pageWidth << OtLayout::SCALEBY);
+  out.u32(layout.interLineSpacing() << OtLayout::SCALEBY);
+  out.u16(variants.size());
   unsigned next=1;
   for (auto& [k,v]:variants) {
     v.id=next++;auto* glyph=layout.getGlyph(*v.placement);
@@ -111,7 +114,8 @@ std::vector<uint8_t> wholeGlyphLayoutBinary(OtLayout& layout,const LayoutPages& 
         if(mask&4)out.i16(g.y_offset);
         if(mask&8)out.u8(color(g.color));
       }
-      out.u8(static_cast<unsigned>(line.type));out.i16(line.xstartposition);
+      out.u8(static_cast<unsigned>(line.type));
+      out.i16((layout.pageLayout().rightMargin << OtLayout::SCALEBY) + line.xstartposition);
       out.fixed(line.xscale);out.fixed(line.fontSize);out.u16(text[l].size());
       if(line.type==LineType::Sura)out.u8(surah++);
     }

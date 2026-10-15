@@ -109,6 +109,7 @@ struct JustEffect {
   std::vector<JustWrite> writes;
   JustExpr condition;
   std::vector<JustEffect> nested;
+  JustExpr maximum;
   bool operator==(const JustEffect&) const = default;
 };
 
@@ -248,12 +249,20 @@ enum class LineStepOp : std::uint8_t { CapSpaces,
                                        FitSclx,
                                        Balance,
                                        Scale };
+struct StageContinuation {
+  enum class Mode : std::uint8_t { None, By, To, Maximum };
+  Mode mode = Mode::None;
+  double limit = 0;
+  bool operator==(const StageContinuation&) const = default;
+};
+
 struct LinePolicyStep {
   LineStepOp operation;
   std::vector<double> arguments;
   std::vector<std::string> features;
   std::string stage;
   std::vector<PolicyPhase> phases;
+  StageContinuation continuation;
 };
 
 struct LineJustificationPolicy {

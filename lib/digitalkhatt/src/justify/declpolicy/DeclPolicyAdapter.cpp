@@ -19,6 +19,7 @@
 #include <digitalkhatt/justify/declpolicy/JustificationActionEvaluator.h>
 #include <digitalkhatt/justify/declpolicy/JustificationCandidate.h>
 #include <digitalkhatt/justify/declpolicy/JustificationStagingBackend.h>
+#include <digitalkhatt/justify/declpolicy/FixedSlotDfa.h>
 
 #include "../JustificationShaping.h"
 
@@ -602,6 +603,83 @@ FixedSlotActionResult commitCandidate(const LineTextInfo& lineTextInfo, JustInfo
   return backend.commitTransaction(candidate.wordIndex);
 }
 
+std::optional<runtime::ContinuationGlyphState> continuationGlyphState(const LineTextInfo& text, const JustInfo& info, int word, int site) {
+  hb_buffer_t* buffer = info.recognitionBuffer;
+  int cluster = site;
+  if (word < static_cast<int>(info.acceptedWordBuffers.size()) && info.acceptedWordBuffers[word]) {
+    buffer = info.acceptedWordBuffers[word].get();
+    cluster -= text.wordInfos.at(word).startIndex;
+  }
+  const auto glyph = glyphInfoAtCluster(info.font, buffer, cluster);
+  if (!glyph) return std::nullopt;
+  return runtime::ContinuationGlyphState{glyph->codepoint, info.layout->glyphParameters(*glyph, 0, 0)};
+}
+
+bool continuationOpportunityValid(const LineTextInfo& text, const JustInfo& info, const runtime::StageOpportunity& opportunity) {
+  for (const auto& [site, expected] : opportunity.expectedGlyphs) {
+    const auto current = continuationGlyphState(text, info, opportunity.candidate.wordIndex, site);
+    if (!current || current->codepoint != expected.codepoint) return false;
+    // Adjacent connections share a glyph, but own different axes. A baseline
+    // righttatweel must not invalidate this site's accepted lefttatweel.
+    for (const auto& parameter : opportunity.candidate.parameters) {
+      if (parameter.site != site) continue;
+      const auto axis = info.catalog->attributeAxes.at(parameter.attribute);
+      if (axis != NoGlyphAxis && current->parameters.value(axis) != expected.parameters.value(axis)) return false;
+    }
+  }
+  for (std::size_t index = 0; index < opportunity.candidate.parameters.size(); ++index) {
+    const auto& parameter = opportunity.candidate.parameters[index];
+    const auto found = info.fontFeatures.find(parameter.site);
+    if (found == info.fontFeatures.end() || std::none_of(found->second.begin(), found->second.end(), [&](const auto& value) { return value.name == info.catalog->attributes.at(parameter.attribute) && value.value == opportunity.expectedAttributes.at(index); })) return false;
+  }
+  // Reuse the original rule, but recognize its current prepared glyphs.
+  std::vector<std::uint64_t> facts;
+  for (const auto& slot : opportunity.candidate.context) {
+    const auto glyph = continuationGlyphState(text, info, opportunity.candidate.wordIndex, slot.indexInLine);
+    if (!glyph) return false;
+    const auto name = info.layout->recognitionGlyphName(info.font, glyph->codepoint);
+    facts.push_back(glyphFacts({.glyphName = name, .sourceCharacter = text.lineText.at(slot.indexInLine), .firstInSubword = slot.baseIndex == 0, .lastInSubword = slot.baseIndex == opportunity.candidate.context.back().baseIndex}, info.catalog->facts));
+  }
+  const auto matches = info.catalog->dfa->match(facts);
+  return std::any_of(matches.begin(), matches.end(), [&](const auto& match) { return match.ruleId == opportunity.candidate.rule && match.first == static_cast<std::size_t>(opportunity.candidate.matchOffset); });
+}
+
+void rememberStageOpportunity(const LineTextInfo& text, const JustInfo& info, const JustificationCandidate& fullCandidate, std::vector<runtime::StageOpportunity>& opportunities) {
+  runtime::StageOpportunity saved{fullCandidate, {}, {}};
+  for (const auto& parameter : fullCandidate.parameters) {
+    const auto glyph = continuationGlyphState(text, info, fullCandidate.wordIndex, parameter.site);
+    if (!glyph) return;
+    saved.expectedGlyphs.insert_or_assign(parameter.site, *glyph);
+    const auto found = info.fontFeatures.find(parameter.site);
+    if (found == info.fontFeatures.end()) return;
+    const auto attribute = std::find_if(found->second.begin(), found->second.end(), [&](const auto& value) { return value.name == info.catalog->attributes.at(parameter.attribute); });
+    if (attribute == found->second.end()) return;
+    saved.expectedAttributes.push_back(attribute->value);
+  }
+  const auto found = std::find_if(opportunities.begin(), opportunities.end(), [&](const auto& entry) { return candidateKey(entry.candidate) == candidateKey(fullCandidate); });
+  if (found == opportunities.end()) opportunities.push_back(std::move(saved));
+  else *found = std::move(saved);
+}
+
+bool passesContinuationRecords(const SelectionPolicy& selection, const JustificationCandidate& candidate, const std::map<std::string, DeclPolicyRecordedPosition>& records) {
+  auto filtered = records;
+  const auto removeOwn = [&](const std::string& name) {
+    const auto found = filtered.find(name);
+    if (found != filtered.end() && found->second.subwordIndex == candidate.subwordIndex && found->second.baseIndex == candidate.context.at(candidate.matchOffset).baseIndex) filtered.erase(found);
+  };
+  removeOwn(selection.record);
+  const auto* choice = candidateChoice(selection, candidate);
+  if (!choice) return false;
+  removeOwn(choice->record);
+  // Required records are checked against actual state, not the filtered view.
+  for (const auto& name : selection.requireRecorded) if (!records.contains(name)) return false;
+  for (const auto& name : choice->requireRecorded) if (!records.contains(name)) return false;
+  auto continuationSelection = selection;
+  continuationSelection.requireRecorded.clear();
+  for (auto& rule : continuationSelection.rules) rule.requireRecorded.clear();
+  return passesCandidateRecords(continuationSelection, candidate, filtered);
+}
+
 bool measureCandidate(const LineTextInfo& lineTextInfo, JustInfo& justInfo, JustificationCandidate& candidate, CandidateWidthMode candidateWidth) {
   FeatureStagingBackend backend(lineTextInfo, justInfo, *justInfo.catalog, candidateWidth);
   return measureJustificationCandidate(candidate, backend);
@@ -696,10 +774,12 @@ bool applyBaselinePoolStage(const LineTextInfo& text, JustInfo& info, std::span<
     bool eligible = !candidate.parameters.empty();
     for (const auto& parameter : candidate.parameters) {
       const auto axis = info.catalog->attributeAxes.at(parameter.attribute);
-      if (axis == NoGlyphAxis || parameter.minimumValue != 0 || !std::isfinite(parameter.maximumValue) || parameter.maximumValue <= 0) throw std::runtime_error("baseline_pool requires native vary ranges from zero to a positive endpoint");
+      if (axis == NoGlyphAxis || !std::isfinite(parameter.maximumValue) || parameter.maximumValue <= 0) throw std::runtime_error("baseline_pool requires native vary ranges to a positive finite endpoint");
       const auto glyph = glyphStateAtSite(info, info.fontFeatures, info.substitutions, parameter.site);
       const auto maximum = glyph ? info.layout->glyphParameterMaximum(glyph->codepoint, axis) : std::nullopt;
-      if (!glyph || glyph->parameters.value(axis) != 0 || !maximum || *maximum < parameter.maximumValue) eligible = false;
+      // Earlier stages may already have stretched either side. Skip the
+      // whole connection, without replacing or adding to its accepted values.
+      if (parameter.minimumValue != 0 || !glyph || glyph->parameters.value(axis) != 0 || !maximum || *maximum < parameter.maximumValue) eligible = false;
     }
     if (!eligible) {
       traceCandidateDecision(info, phases, candidate, 0, "rejected", "baseline_unsupported_or_nonzero", available, 0, 0);
@@ -767,7 +847,7 @@ double capCandidateRatioToRemainingWidth(const JustificationCandidate& candidate
   return std::min(ratio, ratioThatFits);
 }
 
-bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInfo, std::span<const PolicyPhase> phases, unsigned parameterQuantization, CandidateWidthMode candidateWidth) {
+bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInfo, std::span<const PolicyPhase> phases, unsigned parameterQuantization, CandidateWidthMode candidateWidth, StageContinuation continuation = {}, std::vector<runtime::StageOpportunity>* opportunities = nullptr) {
   std::map<CandidateKey, int> repetitions;
   std::set<CandidateKey> blocked;
   std::vector<int> phaseTotals(phases.size());
@@ -780,11 +860,50 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
   const auto remaining = [&] { return direction * (justInfo.desiredWidth - justInfo.textLineWidth); };
   std::vector<JustificationCandidate> candidates;
   bool refreshCandidates = true;
+  std::map<CandidateKey, JustificationCandidate> continuationTemplates;
+  std::set<CandidateKey> continuing;
 
   while (remaining() > 0.000001) {
     ++pass;
     if (refreshCandidates) {
       candidates = collectDeclPolicyStageCandidates(lineTextInfo, justInfo, phases);
+      if (opportunities) {
+        continuationTemplates.clear();
+        continuing.clear();
+        if (continuation.mode != StageContinuation::Mode::None) {
+          std::erase_if(*opportunities, [&](const auto& saved) {
+            if (continuationOpportunityValid(lineTextInfo, justInfo, saved)) return false;
+            traceCandidateDecision(justInfo, phases, saved.candidate, pass, "rejected", "continuation_state_changed", remaining(), 0, parameterQuantization);
+            return true;
+          });
+          for (const auto& saved : *opportunities) {
+            const auto key = candidateKey(saved.candidate);
+            std::erase_if(candidates, [&](const auto& candidate) { return candidateKey(candidate) == key; });
+            auto resumed = saved.candidate;
+            resumed.minimumWidthDelta.reset();
+            resumed.maximumWidthDelta.reset();
+            resumed.clearedSites.clear();
+            resumed.substitutions.clear();
+            std::erase_if(resumed.parameters, [](const auto& parameter) { return !parameter.continuationMaximum; });
+            for (auto& parameter : resumed.parameters) {
+              const auto& values = justInfo.fontFeatures.at(parameter.site);
+              const auto value = std::find_if(values.begin(), values.end(), [&](const auto& entry) { return entry.name == justInfo.catalog->attributes.at(parameter.attribute); })->value;
+              parameter.initialValue = parameter.minimumValue = value;
+              parameter.maximumValue = std::max(value, *parameter.continuationMaximum);
+            }
+            continuationTemplates.emplace(key, saved.candidate);
+            continuing.insert(key);
+            candidates.push_back(std::move(resumed));
+          }
+        }
+        std::erase_if(candidates, [&](auto& candidate) {
+          const auto key = candidateKey(candidate);
+          continuationTemplates.try_emplace(key, candidate);
+          if (continuation.mode == StageContinuation::Mode::None || limitJustificationCandidateContinuation(candidate, continuation)) return false;
+          traceCandidateDecision(justInfo, phases, candidate, pass, "rejected", "continuation_saturated_or_below_minimum", remaining(), 0, parameterQuantization);
+          return true;
+        });
+      }
       std::stable_sort(candidates.begin(), candidates.end(), [](const auto& left, const auto& right) {
         if (left.priorityBand != right.priorityBand) return left.priorityBand < right.priorityBand;
         return left.weight > right.weight;
@@ -831,7 +950,7 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
         reject("subword_limit");
         continue;
       }
-      if (!passesCandidateRecords(selection, candidate, trialRecords[candidate.wordIndex])) {
+      if (!(continuing.contains(key) ? passesContinuationRecords(selection, candidate, trialRecords[candidate.wordIndex]) : passesCandidateRecords(selection, candidate, trialRecords[candidate.wordIndex]))) {
         reject("record_constraint");
         continue;
       }
@@ -895,7 +1014,8 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
         blockedNewCandidate = blocked.insert(key).second || blockedNewCandidate;
         continue;
       }
-      traceCandidateDecision(justInfo, phases, candidate, pass, "applied", "accepted", remaining(), ratio, parameterQuantization);
+      const auto appliedReason = continuation.mode != StageContinuation::Mode::None ? (continuing.contains(key) ? "continued" : "continuation_started") : "accepted";
+      traceCandidateDecision(justInfo, phases, candidate, pass, "applied", appliedReason, remaining(), ratio, parameterQuantization);
       changed = true;
       ++repetitions[key];
       ++phaseTotals[candidate.priorityBand];
@@ -904,6 +1024,7 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
       ++subwordTotals[{candidate.wordIndex, candidate.subwordIndex}];
       if (justInfo.declPolicyState.recordsByWord.empty()) justInfo.declPolicyState.recordsByWord.resize(lineTextInfo.wordInfos.size());
       recordCandidate(selection, candidate, justInfo.declPolicyState.recordsByWord[candidate.wordIndex]);
+      if (opportunities) rememberStageOpportunity(lineTextInfo, justInfo, continuationTemplates.at(key), *opportunities);
       justInfo.declPolicyState.currentGlyphs.clear();
     }
     // Failed commits release tentative width and records. Reselect before
@@ -918,7 +1039,7 @@ bool applyCandidatePoolStage(const LineTextInfo& lineTextInfo, JustInfo& justInf
 
 }  // namespace
 
-bool applyDeclPolicyStage(const LineTextInfo& lineTextInfo, JustInfo& justInfo, std::span<const PolicyPhase> phases, unsigned parameterQuantization, CandidateWidthMode candidateWidth) {
+bool applyDeclPolicyStage(const LineTextInfo& lineTextInfo, JustInfo& justInfo, std::span<const PolicyPhase> phases, unsigned parameterQuantization, CandidateWidthMode candidateWidth, std::string_view retainedStage, StageContinuation continuation) {
   if (justInfo.declPolicyState.stopped) return true;
   if (justInfo.catalog == nullptr) {
     throw std::runtime_error("declarative-policy justification requires table(justdfa)");
@@ -931,7 +1052,12 @@ bool applyDeclPolicyStage(const LineTextInfo& lineTextInfo, JustInfo& justInfo, 
     throw std::runtime_error(
         "declarative-policy justification requires a glyph-name provider");
   }
-  if (!phases.empty() && phases.front().allocator == PolicyPhase::Allocator::CandidatePool) return applyCandidatePoolStage(lineTextInfo, justInfo, phases, parameterQuantization, candidateWidth);
+  const bool continuing = continuation.mode != StageContinuation::Mode::None;
+  if (continuing && (retainedStage.empty() || !justInfo.layout->supportsGlyphParameters() || phases.empty() || std::any_of(phases.begin(), phases.end(), [](const auto& phase) { return phase.allocator != PolicyPhase::Allocator::CandidatePool; }) || justInfo.desiredWidth < justInfo.textLineWidth)) throw std::runtime_error("stage continuation requires a named native stretch candidate_pool stage");
+  if (!phases.empty() && phases.front().allocator == PolicyPhase::Allocator::CandidatePool) {
+    auto* opportunities = !retainedStage.empty() && justInfo.layout->supportsGlyphParameters() ? &justInfo.stageOpportunities[std::string(retainedStage)] : nullptr;
+    return applyCandidatePoolStage(lineTextInfo, justInfo, phases, parameterQuantization, candidateWidth, continuation, opportunities);
+  }
   if (!phases.empty() && phases.front().allocator == PolicyPhase::Allocator::BaselinePool) return applyBaselinePoolStage(lineTextInfo, justInfo, phases, parameterQuantization);
   const auto locations = prepareBaseLocations(lineTextInfo);
   const auto recognizeAcceptedWord = [&](int wordIndex) {

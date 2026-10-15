@@ -51,6 +51,9 @@ def read_v3(data):
     r = Reader(data)
     if r.read('IH') != (0x444B4C59, 3):
         raise ValueError('Input must be a DKLY version 3 layout')
+    geometry = r.read('II')
+    if not all(geometry):
+        raise ValueError('Invalid page width or line spacing; regenerate the binary')
     masters = {}
     for _ in range(r.read('H')):
         code = r.read('I')
@@ -93,7 +96,7 @@ def read_v3(data):
         pages.append(lines)
     if r.offset != len(data):
         raise ValueError(f'Trailing data at byte {r.offset}')
-    return masters, pages
+    return masters, pages, geometry
 
 
 def interpolate(master, axes):
@@ -128,13 +131,13 @@ def interpolate(master, axes):
 
 
 def bake(data):
-    masters, pages = read_v3(data)
+    masters, pages, geometry = read_v3(data)
     keys = sorted({(g[0], *g[4]) for page in pages for kind, glyphs, _ in page
                    if kind != 1 for g in glyphs})
     if not 0 < len(keys) <= 65535:
         raise ValueError('Variant count cannot fit uint16 IDs')
     ids = {key: i + 1 for i, key in enumerate(keys)}
-    output = bytearray(struct.pack('>IHH', 0x444B4C59, 4, len(keys)))
+    output = bytearray(struct.pack('>IHIIH', 0x444B4C59, 4, *geometry, len(keys)))
     for code, *axes in keys:
         if code not in masters:
             raise ValueError(f'Missing master glyph {code}')
@@ -144,7 +147,7 @@ def bake(data):
             output.extend(struct.pack('>ffB', *points[0], len(points) - 1))
             for cubic in points[1:]:
                 output.extend(struct.pack('>6f', *cubic))
-    outline_bytes = len(output) - 6
+    outline_bytes = len(output) - 14
     output.extend(struct.pack('>H', len(pages)))
     placements = 0
     for page in pages:

@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -16,6 +17,7 @@
 #include <digitalkhatt/justify/FeatureJustifier.h>
 #include <digitalkhatt/justify/declpolicy/DeclPolicyJustifier.h>
 #include <digitalkhatt/justify/declpolicy/JustificationCatalog.h>
+#include <digitalkhatt/justify/declpolicy/JustificationCandidate.h>
 
 namespace digitalkhatt::justify::runtime {
 
@@ -108,6 +110,20 @@ struct JustResultByLine {
   double addedSpaceAfterShrink = 0.0;
 };
 
+struct ContinuationGlyphState {
+  hb_codepoint_t codepoint;
+  GlyphParameters parameters;
+  bool operator==(const ContinuationGlyphState&) const = default;
+};
+
+struct StageOpportunity {
+  JustificationCandidate candidate;
+  std::map<int, ContinuationGlyphState> expectedGlyphs;
+  // Accepted assignment values, aligned with candidate.parameters. Unrelated
+  // axes on a shared glyph may change without taking over this opportunity.
+  std::vector<double> expectedAttributes;
+};
+
 struct JustInfo {
   std::map<int, std::vector<TextFontFeatures>> fontFeatures = {};
   // Initial connection spacing is a separate layer, not an accepted action.
@@ -132,6 +148,10 @@ struct JustInfo {
   ShapingBuffer nativeBaseline;
   std::map<std::string, std::map<int, GlyphParameters>> featureParameterDeltas;
   DeclPolicyExecutionState declPolicyState;
+  // Per-line accepted opportunities, keyed by the reusable stage name.
+  // Populated only for stages referenced by a continuation in this line recipe.
+  // Ordinary invocations retain ownership without changing their allocation.
+  std::map<std::string, std::vector<StageOpportunity>> stageOpportunities;
   // Per character index: bit 2*i when the glyph there is in attachment i's
   // find set, bit 2*i+1 when it is in its skip set.  Empty when no attachment
   // matches glyphs.
