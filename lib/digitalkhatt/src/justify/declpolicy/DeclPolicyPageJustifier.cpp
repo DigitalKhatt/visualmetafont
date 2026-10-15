@@ -1,6 +1,7 @@
 #include <digitalkhatt/justify/declpolicy/DeclPolicyPageJustifier.h>
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -165,17 +166,29 @@ std::vector<LineLayoutInfo> DeclPolicyPageJustifier::justifyPage(double emScale,
   // The policy chooses which lines contribute. Measuring and font ownership
   // remain adapter work; the ratio decision itself is independent of shaping.
   const int spaceWidth = getWidth(u" ", justifyFont.get(), {});
+  const bool adaptive = justOption.justStyle == JustStyle::AdaptiveMargins;
   vector<LineTextInfo> linesTextInfo;
   vector<double> ratios;
+  vector<double> naturalWidths;
   linesTextInfo.reserve(lines.size());
   for (const auto& line : lines) {
     linesTextInfo.push_back(analyzeLineForJust(line.text));
     if (!decl::pageMeasuresLine(policy, line)) continue;
+    // Do not let decorative headings or intentionally short lines determine
+    // the physical page frame. Legacy sizing statistics stay unchanged.
+    if (adaptive && (line.lineType != LineType::Line || line.width != pageWidth || !decl::pageLineRule(policy, line).justify)) continue;
     const double fontSizeLineWidthRatio = static_cast<double>(FONTSIZE) * emScale / line.width;
     const double desiredWidth = FONTSIZE / fontSizeLineWidthRatio;
     const double width = getWidth(line.text, justifyFont.get(), {});
-    if (width > 0) ratios.push_back(desiredWidth / width);
+    if (width > 0) {
+      ratios.push_back(desiredWidth / width);
+      if (adaptive) naturalWidths.push_back(width * emScale);
+    }
   }
+  const auto geometry = layout_.pageLayout();
+  const auto frame = decl::pageTextFrame(policy, justOption.justStyle, naturalWidths, pageWidth, geometry.leftMargin, geometry.rightMargin, std::ldexp(1.0, layout_.scaleBy()));
+  if (adaptive)
+    for (auto& ratio : ratios) ratio *= double(frame.width) / pageWidth;
   const double fontRatio = decl::pageFontRatio(policy, justOption.justStyle, ratios);
 
   digitalkhatt::PageTajweedResult tajweedResults(lines.size());
@@ -188,11 +201,12 @@ std::vector<LineLayoutInfo> DeclPolicyPageJustifier::justifyPage(double emScale,
   int currentyPos = layout_.topSpace() << layout_.scaleBy();
   for (std::size_t index = 0; index < lines.size(); ++index) {
     const auto& line = lines[index];
+    const int targetWidth = adaptive ? static_cast<int>(std::round(double(line.width) * frame.width / pageWidth)) : line.width;
     const auto& lineTextInfo = linesTextInfo[index];
     const auto& treatment = decl::pageLineRule(policy, line);
     JustResultByLine result;
     if (treatment.justify) {
-      const double ratio = line.width != 0 ? static_cast<double>(FONTSIZE) * emScale / line.width : 1;
+      const double ratio = targetWidth != 0 ? static_cast<double>(FONTSIZE) * emScale / targetWidth : 1;
       result = justifyLine(lineTextInfo, justifyFont.get(), ratio * fontRatio, spaceWidth, justOption, layout_, static_cast<int>(index));
     } else {
       result.simpleSpacing = result.ayaSpacing = spaceWidth;
@@ -208,9 +222,17 @@ std::vector<LineLayoutInfo> DeclPolicyPageJustifier::justifyPage(double emScale,
       shapeFont = ownedShapeFont.get();
     }
     if (result.sclxAxis != 0) hb_font_set_variation(shapeFont, HB_TAG('S', 'C', 'L', 'X'), result.sclxAxis);
-    auto lineLayout = shapeLine(layout_, line.width, pageWidth, lineTextInfo, result, tajweedColor, lineFontScale, shapeFont, line.lineJustification, currentyPos, tajweedResults[index]);
+    auto lineLayout = shapeLine(layout_, targetWidth, frame.width, lineTextInfo, result, tajweedColor, lineFontScale, shapeFont, line.lineJustification, currentyPos, tajweedResults[index]);
     lineLayout.type = line.lineType;
     decl::finishPageLine(render, result, lineLayout);
+    if (adaptive) {
+      // Final GSUB/GPOS can differ slightly from the allocator's trial width.
+      // Fit the actual advances without another shape, only in this new mode.
+      if (render.output == PageOutputOp::XScale && lineLayout.type == LineType::Line && targetWidth > 0 && lineLayout.currentLineWidth > 0) lineLayout.xscale = targetWidth / (lineLayout.currentLineWidth * lineLayout.fontSize);
+      // Position after residual x-scaling so centered lines remain centered.
+      if (line.lineJustification == LineJustification::Center) lineLayout.xstartposition = static_cast<int>(std::round((frame.width - lineLayout.renderedWidth()) / 2));
+      lineLayout.xstartposition += frame.rightOffset;
+    }
     lineLayout.overfull = lineLayout.renderedOverflow();
     page.push_back(std::move(lineLayout));
   }

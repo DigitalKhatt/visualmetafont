@@ -308,7 +308,8 @@ class OtLayout {
     return justifyPage(emScale, lineWidth, pageWidth, lines, justification, newFace, tajweedColor, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES, {JustType::HarfBuzz, JustStyle::None, ShrinkType::None}, mushafLayoutType);
   }
 
-  std::vector<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, std::vector<std::string> lines, LineJustification justification, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level, JustOption justOption, std::string mushafLayoutType);
+  // Supply the corpus page number for adaptive previews; zero means free text.
+  std::vector<LineLayoutInfo> justifyPage(double emScale, int lineWidth, int pageWidth, std::vector<std::string> lines, LineJustification justification, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level, JustOption justOption, std::string mushafLayoutType, int pageNumber = 0);
   std::vector<LineLayoutInfo> justifyPage(double emScale, int pageWidth, const std::vector<LineToJustify>& lines, bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level, JustOption justOption, std::string mushafLayoutType);
 
   std::vector<LineLayoutInfo> justifyPageUsingFeatures(double emScale, int pageWidth, const std::vector<LineToJustify>& lines, bool newFace, bool tajweedColor,

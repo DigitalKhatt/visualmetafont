@@ -308,7 +308,7 @@ void usage() {
       "  -o, --output PATH          Mushaf PDF (default mushaf.pdf)\n"
       "  --layout NAME              Database layout; aliases qpc, v1, v2, v4\n"
       "  --justifier NAME           none, harfbuzz, madina, indopak, experimental, experimental2, decl-policy\n"
-      "  --style NAME               none, same-size-by-page, xscale, font-size, font-size-xscale\n"
+      "  --style NAME               none, same-size-by-page, xscale, font-size, font-size-xscale, adaptive-margins\n"
       "  --shrink NAME              none, standard, test\n"
       "  --stretch-policy NAME      Declarative stretch policy override\n"
       "  --shrink-policy NAME       Declarative shrink policy override\n"

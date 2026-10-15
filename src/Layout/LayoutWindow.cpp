@@ -708,6 +708,7 @@ void LayoutWindow::createActions() {
   justStyleCombo->addItem("XScale", qVariantFromValue(JustStyle::XScale));
   justStyleCombo->addItem("FontSize", qVariantFromValue(JustStyle::FontSize));
   justStyleCombo->addItem("FontSizeXScale", qVariantFromValue(JustStyle::FontSizeXScale));
+  justStyleCombo->addItem("AdaptiveMargins", qVariantFromValue(JustStyle::AdaptiveMargins));
   // justStyleCombo->addItem("SCLX Axis", qVariantFromValue(JustStyle::SCLX));
 
   justStyleLabelAction = jutifyToolbar->addWidget(new QLabel(tr("Page fitting:")));
@@ -1352,7 +1353,7 @@ void LayoutWindow::updateJustificationControls() {
     const std::pair<const char*, JustStyle> styles[] = {
         {"No Style", JustStyle::None}, {"Same Size By page", JustStyle::SameSizeByPage},
         {"XScale", JustStyle::XScale}, {"FontSize", JustStyle::FontSize},
-        {"FontSizeXScale", JustStyle::FontSizeXScale}, {"SCLX Axis", JustStyle::SCLX}};
+        {"FontSizeXScale", JustStyle::FontSizeXScale}, {"SCLX Axis", JustStyle::SCLX}, {"AdaptiveMargins", JustStyle::AdaptiveMargins}};
     for (const auto& [name, style] : styles) if (saved == name) preferred = style;
     settings.setValue(QString("Layout/JustificationStyle/%1").arg(static_cast<int>(engine)), static_cast<int>(preferred));
   }
@@ -1383,6 +1384,7 @@ void LayoutWindow::updateJustificationControls() {
   add("XScale", JustStyle::XScale);
   add("FontSize", JustStyle::FontSize);
   add("FontSizeXScale", JustStyle::FontSizeXScale);
+  add("AdaptiveMargins", JustStyle::AdaptiveMargins);
   add("SCLX Axis", JustStyle::SCLX);
   const auto selected = justStyleCombo->findData(qVariantFromValue(preferred));
   justStyleCombo->setCurrentIndex(selected >= 0 ? selected : 0);
@@ -3302,7 +3304,7 @@ void LayoutWindow::calculateMinimumSize() {
         emScale, lineWidth, lineWidth, toStdStrings(lines),
         m_otlayout->pageLayout().centerLines ? LineJustification::Center : LineJustification::Distribute, false, tajweedEnabled,
         HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS, just,
-        mushafLayouts->currentText().toStdString());
+        mushafLayouts->currentText().toStdString(), pagenum + 1);
 
     for (int linenum = 0; linenum < static_cast<int>(page.size()); linenum++) {
       const auto& line = page[linenum];
@@ -3475,12 +3477,16 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
     lines = textt.split(char(10), Qt::SkipEmptyParts);
   }
 
+  // Only an unchanged corpus page has trustworthy per-line width overrides.
+  // Free text and TeX rebreaking must not inherit the selected page's geometry.
+  const int selectedPage = integerSpinBox->value();
+  const int corpusPage = !applyTeXAlgo && selectedPage > 0 && selectedPage <= currentQuranText.size() && textt == currentQuranText[selectedPage - 1] ? selectedPage : 0;
   auto page = m_otlayout->justifyPage(
       scale, lineWidth, lineWidth, toStdStrings(lines),
       m_otlayout->pageLayout().centerLines ? LineJustification::Center : LineJustification::Distribute,
       newFace, tajweedEnabled,
       HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS,
-      getJustOption(), mushafLayouts->currentText().toStdString());
+      getJustOption(), mushafLayouts->currentText().toStdString(), corpusPage);
 
   QVector<int> set;
 

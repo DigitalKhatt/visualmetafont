@@ -27,6 +27,8 @@ int main() {
     word = u"\u0627\u0654\u06d6\u06d6";
     normalizeMushafWord(word, "dk_v1");
     require(word == u"\u0627\u034f\u0654\u034f\u06d6", "CGJ and duplicate waqf normalization");
+    const auto unnumbered = mushafLineInputs(std::vector<TextString>(30, u"عَلِيمٌ"), 0, 16400, "qpc_v1_layout");
+    for (const auto& line : unnumbered) require(line.width == 16400, "Unnumbered preview must not accidentally apply first-page width overrides to lines beyond 15");
     sqlite3* raw = nullptr;
     require(sqlite3_open_v2(DIGITALKHATT_QURAN_DATABASE, &raw, SQLITE_OPEN_READONLY, nullptr) == SQLITE_OK, "Cannot open corpus");
     std::unique_ptr<sqlite3, decltype(&sqlite3_close)> database(raw, sqlite3_close);

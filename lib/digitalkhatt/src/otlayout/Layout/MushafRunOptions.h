@@ -56,11 +56,12 @@ inline std::string styleName(JustStyle value) {
     case JustStyle::XScale: return "xscale";
     case JustStyle::FontSize: return "font-size";
     case JustStyle::FontSizeXScale: return "font-size-xscale";
+    case JustStyle::AdaptiveMargins: return "adaptive-margins";
     default: throw std::runtime_error("Unsupported justification style");
   }
 }
 inline JustStyle parseStyle(const std::string& name) {
-  for (auto value : {JustStyle::None, JustStyle::SameSizeByPage, JustStyle::XScale, JustStyle::FontSize, JustStyle::FontSizeXScale})
+  for (auto value : {JustStyle::None, JustStyle::SameSizeByPage, JustStyle::XScale, JustStyle::FontSize, JustStyle::FontSizeXScale, JustStyle::AdaptiveMargins})
     if (name == styleName(value)) return value;
   throw std::runtime_error("Unknown style: " + name);
 }

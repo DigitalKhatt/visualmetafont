@@ -105,7 +105,8 @@ enum class JustStyle {
   XScale,
   FontSize,
   FontSizeXScale,
-  SCLX
+  SCLX,
+  AdaptiveMargins
 };
 enum class ShrinkType {
   None,

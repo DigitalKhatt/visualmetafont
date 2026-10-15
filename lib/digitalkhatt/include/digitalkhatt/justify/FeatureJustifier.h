@@ -11,6 +11,7 @@
 #include <hb.h>
 
 #include "digitalkhatt/core/digitalkahtt_types.h"
+#include "digitalkhatt/core/PageLayout.h"
 #include "digitalkhatt/justify/declpolicy/JustificationCandidate.h"
 #include "digitalkhatt/justify/declpolicy/JustificationCatalog.h"
 
@@ -26,6 +27,7 @@ class FeatureJustificationLayout {
   virtual int scaleBy() const = 0;
   virtual int topSpace() const = 0;
   virtual int interLineSpacing() const = 0;
+  virtual PageLayout pageLayout() const { return {}; }
   virtual std::string glyphName(hb_font_t* font,
                                 hb_codepoint_t glyph) const = 0;
   // Logical glyph identity for policy matching. An exported parameter

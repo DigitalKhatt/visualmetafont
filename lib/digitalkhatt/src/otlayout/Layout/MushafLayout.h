@@ -14,6 +14,7 @@ void normalizeMushafWord(TextString& word, std::string_view column);
 std::vector<TextString> assembleMushafText(const std::vector<MushafWordRow>& rows,
                                         std::string_view column);
 std::vector<TextString> splitMushafLines(TextView text);
+// pageNumber == 0 classifies headings without corpus-specific width overrides.
 std::vector<LineToJustify> mushafLineInputs(const std::vector<TextString>& text,
     int pageNumber, int pageWidth, std::string_view layoutName,
     LineJustification justification = LineJustification::Distribute);

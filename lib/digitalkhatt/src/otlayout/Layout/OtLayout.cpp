@@ -22,6 +22,7 @@
 #undef max
 #include "Lookup.h"
 #include "OtLayout.h"
+#include "MushafLayout.h"
 #include "MPFont.h"
 
 #include "Subtable.h"
@@ -2171,6 +2172,8 @@ std::vector<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth,
   auto justType = justOption.justType;
   auto justStyle = justOption.justStyle;
 
+  if (justStyle == JustStyle::AdaptiveMargins && justType != JustType::DeclPolicy) throw std::invalid_argument("AdaptiveMargins requires the DeclPolicy justifier");
+
   if (justType == JustType::Madina || justType == JustType::IndoPak || justType == JustType::Experimental ||
       justType == JustType::Experimental2 || justType == JustType::DeclPolicy) {
     return justifyPageUsingFeatures(emScale, pageWidth, lines, newFace, tajweedColor, cluster_level, justOption, mushafLayout);
@@ -2258,11 +2261,20 @@ std::vector<LineLayoutInfo> OtLayout::justifyPage(double emScale, int pageWidth,
 }
 
 std::vector<LineLayoutInfo> OtLayout::justifyPage(double emScale, int lineWidth, int pageWidth, std::vector<std::string> lines, LineJustification justification,
-                                                  bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level, JustOption justOption, std::string mushafLayoutType) {
+                                                  bool newFace, bool tajweedColor, hb_buffer_cluster_level_t cluster_level, JustOption justOption, std::string mushafLayoutType, int pageNumber) {
   std::vector<LineToJustify> newLines;
 
   for (auto& line : lines) {
     newLines.push_back({utf8ToUtf16(line), lineWidth, justification, LineType::Line});
+  }
+  if (justOption.justStyle == JustStyle::AdaptiveMargins) {
+    // The editor supplies raw strings, unlike the typed corpus exporter.
+    // Use the same headings and shortened-line targets as the corpus exporter.
+    // Page 0 classifies headings only, for arbitrary or edited text.
+    std::vector<digitalkhatt::TextString> text;
+    text.reserve(newLines.size());
+    for (auto& line : newLines) text.push_back(std::move(line.text));
+    newLines = digitalkhatt::mushafLineInputs(text, pageNumber, lineWidth, mushafLayoutType, justification);
   }
   return justifyPage(emScale, pageWidth, newLines, newFace, tajweedColor, cluster_level, justOption, mushafLayoutType);
 }

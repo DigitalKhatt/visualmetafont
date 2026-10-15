@@ -120,7 +120,7 @@ std::vector<LineToJustify> mushafLineInputs(const std::vector<TextString>& text,
       else { line.width = 0; line.lineJustification = LineJustification::Center; }
     }
     const auto width = widths.find(pageNumber * 15 + static_cast<int>(i) + 1);
-    if (width != widths.end() && width->second < 1) {
+    if (pageNumber > 0 && width != widths.end() && width->second < 1) {
       line.width = static_cast<int>(pageWidth * width->second);
       line.lineJustification = LineJustification::Center;
     }

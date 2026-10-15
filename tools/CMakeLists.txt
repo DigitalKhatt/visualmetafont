@@ -16,6 +16,10 @@ target_compile_definitions(digitalkhatt_compare_extreme_lines PRIVATE
   DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../src/Resources/metafont"
   DIGITALKHATT_QURAN_DATABASE="${CMAKE_CURRENT_SOURCE_DIR}/../src/Resources/quran-data.sqlite"
 )
+if(BUILD_TESTING)
+  add_test(NAME digitalkhatt.comparison_geometry
+    COMMAND digitalkhatt_compare_extreme_lines --self-test)
+endif()
 
 # Headless replay of exported placements against live MetaPost outlines.
 if(DIGITALKHATT_BUILD_GUI)

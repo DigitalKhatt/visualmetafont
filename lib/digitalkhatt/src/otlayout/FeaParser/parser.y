@@ -789,6 +789,13 @@ justdfa_line_step
 	  }
 	| identifier[operation] doubleorint[a] ';' { $$ = {$operation, {$a}, {}}; }
 	| identifier[operation] doubleorint[a] doubleorint[b] ';' { $$ = {$operation, {$a, $b}, {}}; }
+	| identifier[operation] identifier[decrease] doubleorint[a] identifier[increase] doubleorint[b] ';'
+	  {
+		if ($operation != "margins" || $decrease != "decrease" || $increase != "increase") {
+			error(yyla.location, "Expected margins decrease value increase value;"); YYERROR;
+		}
+		$$ = {"relative_margins", {$a, $b}, {}};
+	  }
 	| identifier[operation] doubleorint[a] doubleorint[b] doubleorint[c] doubleorint[d] ';' { $$ = {$operation, {$a, $b, $c, $d}, {}}; }
 	| identifier[operation] '[' identifier_list[features] ']' ';' { $$ = {$operation, {}, std::move($features)}; }
 	;

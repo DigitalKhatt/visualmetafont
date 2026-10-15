@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <digitalkhatt/justify/declpolicy/FixedSlotDfa.h>
@@ -291,6 +292,10 @@ struct PageSizingRule {
   std::optional<JustStyle> style;
   PageSizingOp operation;
   std::vector<double> arguments;
+  // Absolute (minimum, maximum), or relative (decrease, increase) per side.
+  // Both use physical font units, independent of the selected font size.
+  std::optional<std::pair<double, double>> margins;
+  bool relativeMargins = false;
 };
 
 struct PageLineRule {

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <set>
 #include <stdexcept>
 #include <tuple>
@@ -16,6 +17,7 @@ JustStyle styleValue(const std::string& value) {
   if (value == "FontSize") return JustStyle::FontSize;
   if (value == "FontSizeXScale") return JustStyle::FontSizeXScale;
   if (value == "SCLX") return JustStyle::SCLX;
+  if (value == "AdaptiveMargins") return JustStyle::AdaptiveMargins;
   throw std::invalid_argument("unknown pagepolicy style " + value);
 }
 
@@ -30,6 +32,15 @@ void arguments(const DfaLineStepSource& step, std::size_t count, bool features =
   if (step.arguments.size() != count || features != !step.features.empty()) throw std::invalid_argument("invalid pagepolicy arguments for " + step.operation);
   for (double value : step.arguments)
     if (!std::isfinite(value)) throw std::invalid_argument("non-finite pagepolicy argument");
+}
+
+const PageSizingRule& sizingRule(const PageJustificationPolicy& policy, JustStyle style) {
+  for (const auto& rule : policy.sizing)
+    if (!rule.style || *rule.style == style) {
+      if (style == JustStyle::AdaptiveMargins && !rule.margins) throw std::invalid_argument("AdaptiveMargins requires an explicit pagepolicy sizing branch with margins");
+      return rule;
+    }
+  throw std::logic_error("pagepolicy has no matching sizing rule");
 }
 
 }  // namespace
@@ -60,10 +71,23 @@ PageJustificationPolicy compilePageJustificationPolicy(const DfaPagePolicySource
     if (!branch.condition.empty() && selectors.contains({branch.section, branch.value, ""})) throw std::invalid_argument("pagepolicy type branch hides a later conditional branch");
     if (branch.steps.empty()) throw std::invalid_argument("empty pagepolicy branch");
     if (branch.section == "sizing") {
-      if (branch.steps.size() != 1) throw std::invalid_argument("pagepolicy sizing requires one operation");
-      const auto& step = branch.steps[0];
       PageSizingRule rule;
       if (!fallback) rule.style = styleValue(branch.value);
+      const DfaLineStepSource* sizing = nullptr;
+      for (const auto& step : branch.steps) {
+        if (step.operation == "margins" || step.operation == "relative_margins") {
+          arguments(step, 2);
+          const bool relative = step.operation == "relative_margins";
+          if (rule.margins || rule.style != JustStyle::AdaptiveMargins || step.arguments[0] < 0 || step.arguments[1] < 0 || (!relative && step.arguments[1] < step.arguments[0])) throw std::invalid_argument("margins requires AdaptiveMargins and nonnegative bounds; absolute minimum must not exceed maximum");
+          rule.margins = {step.arguments[0], step.arguments[1]};
+          rule.relativeMargins = relative;
+        } else {
+          if (sizing) throw std::invalid_argument("pagepolicy sizing requires one sizing operation");
+          sizing = &step;
+        }
+      }
+      if (!sizing) throw std::invalid_argument("pagepolicy sizing requires one sizing operation");
+      const auto& step = *sizing;
       if (step.operation == "fixed_size" || step.operation == "min_fit") {
         arguments(step, 1);
         if (step.arguments[0] <= 0) throw std::invalid_argument("pagepolicy font ratio must be positive");
@@ -76,6 +100,7 @@ PageJustificationPolicy compilePageJustificationPolicy(const DfaPagePolicySource
       } else
         throw std::invalid_argument("unknown pagepolicy sizing operation " + step.operation);
       rule.arguments = step.arguments;
+      if (rule.style == JustStyle::AdaptiveMargins && (!rule.margins || rule.operation != PageSizingOp::BoundedFit)) throw std::invalid_argument("AdaptiveMargins requires margins and bounded_fit");
       result.sizing.push_back(std::move(rule));
     } else if (line) {
       PageLineRule rule;
@@ -136,14 +161,43 @@ bool pageMeasuresLine(const PageJustificationPolicy& policy, const LineToJustify
   return line.width != 0 && std::find(policy.measureTypes.begin(), policy.measureTypes.end(), line.lineType) != policy.measureTypes.end();
 }
 
+PageTextFrame pageTextFrame(const PageJustificationPolicy& policy, JustStyle style, std::span<const double> naturalWidths, int referenceWidth, int leftMargin, int rightMargin, double unitsPerFontUnit) {
+  if (style != JustStyle::AdaptiveMargins) return {referenceWidth, 0};
+  const auto& rule = sizingRule(policy, style);
+  if (referenceWidth <= 0 || leftMargin < 0 || rightMargin < 0 || !std::isfinite(unitsPerFontUnit) || unitsPerFontUnit <= 0) throw std::invalid_argument("invalid adaptive page geometry");
+  const double physicalWidth = referenceWidth + (double(leftMargin) + rightMargin) * unitsPerFontUnit;
+  const auto [firstMargin, secondMargin] = *rule.margins;
+  // Positions are integer page coordinates. Round the margin limits inward
+  // first so centering an odd-width frame cannot cross a fractional bound.
+  const double minimumWidth = rule.relativeMargins ? referenceWidth - 2 * std::floor(secondMargin * unitsPerFontUnit) : std::ceil(physicalWidth - 2 * std::floor(secondMargin * unitsPerFontUnit));
+  const double maximumWidth = rule.relativeMargins ? referenceWidth + 2 * std::floor(std::min({firstMargin, double(leftMargin), double(rightMargin)}) * unitsPerFontUnit) : std::floor(physicalWidth - 2 * std::ceil(firstMargin * unitsPerFontUnit));
+  if (!std::isfinite(minimumWidth) || !std::isfinite(maximumWidth) || minimumWidth < 1 || maximumWidth < minimumWidth || maximumWidth > std::numeric_limits<int>::max()) throw std::invalid_argument("adaptive margins leave no representable text frame");
+
+  // Clamp each preference to what the physical frame can achieve before
+  // intersecting. An unreachable interval becomes its nearest margin limit.
+  const double lower = rule.arguments[0], upper = rule.arguments[1];
+  double acceptableLow = minimumWidth, acceptableHigh = maximumWidth;
+  for (double natural : naturalWidths) {
+    if (!std::isfinite(natural) || natural <= 0) continue;
+    acceptableLow = std::max(acceptableLow, std::clamp(lower * natural, minimumWidth, maximumWidth));
+    acceptableHigh = std::min(acceptableHigh, std::clamp(upper * natural, minimumWidth, maximumWidth));
+  }
+  double width;
+  if (acceptableLow <= acceptableHigh) {
+    width = std::clamp(double(referenceWidth), acceptableLow, acceptableHigh);
+  } else {
+    // Even the achievable preferences conflict: keep the nominal width
+    // instead of choosing a compromise between them.
+    width = std::clamp(double(referenceWidth), minimumWidth, maximumWidth);
+  }
+  const int roundedWidth = static_cast<int>(std::clamp(std::round(width), minimumWidth, maximumWidth));
+  const double offset = rule.relativeMargins ? (double(referenceWidth) - roundedWidth) / 2 : (physicalWidth - roundedWidth) / 2 - rightMargin * unitsPerFontUnit;
+  if (std::abs(offset) > std::numeric_limits<int>::max()) throw std::invalid_argument("adaptive page offset is not representable");
+  return {roundedWidth, static_cast<int>(std::round(offset))};
+}
+
 double pageFontRatio(const PageJustificationPolicy& policy, JustStyle style, std::span<const double> ratios) {
-  const PageSizingRule* selected = nullptr;
-  for (const auto& rule : policy.sizing)
-    if (!rule.style || *rule.style == style) {
-      selected = &rule;
-      break;
-    }
-  if (!selected) throw std::logic_error("pagepolicy has no matching sizing rule");
+  const auto* selected = &sizingRule(policy, style);
   const auto& a = selected->arguments;
   if (selected->operation == PageSizingOp::Fixed) return a[0];
   double minRatio = 0, maxRatio = 0;
