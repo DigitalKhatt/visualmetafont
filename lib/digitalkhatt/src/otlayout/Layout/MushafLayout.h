@@ -15,7 +15,8 @@ std::vector<TextString> assembleMushafText(const std::vector<MushafWordRow>& row
                                         std::string_view column);
 std::vector<TextString> splitMushafLines(TextView text);
 std::vector<LineToJustify> mushafLineInputs(const std::vector<TextString>& text,
-    int pageNumber, int pageWidth, std::string_view layoutName);
+    int pageNumber, int pageWidth, std::string_view layoutName,
+    LineJustification justification = LineJustification::Distribute);
 void finishMushafPage(std::vector<LineLayoutInfo>& page,
     const std::vector<TextString>& text, int pageNumber);
 }  // namespace digitalkhatt

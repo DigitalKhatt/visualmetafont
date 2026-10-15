@@ -17,6 +17,7 @@ struct PageLayout {
   int lineSpacing = 1800;
   double paperWidthMM = 90.2;
   double paperHeightMM = paperWidthMM * pageHeight / pageWidth;
+  bool centerLines = false;  // Use Center alignment for Distribute lines.
 
   void matchBottomMarginToHeight() {
     if (pageHeight >= 1 && pageHeight <= 100000 && topSpace >= 0 && topSpace <= 100000 && lineSpacing >= 1 && lineSpacing <= 100000)

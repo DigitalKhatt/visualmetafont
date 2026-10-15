@@ -26,6 +26,7 @@ digitalkhatt::PageLayout loadPageLayoutSettings() {
     layout.*field.member = settings.value(field.key, layout.*field.member).toInt();
   layout.paperWidthMM = settings.value("PaperWidthMM", layout.paperWidthMM).toDouble();
   layout.paperHeightMM = settings.value("PaperHeightMM", layout.paperHeightMM).toDouble();
+  layout.centerLines = settings.value("CenterLines", layout.centerLines).toBool();
   layout.matchBottomMarginToHeight();
   layout.matchPaperAspectRatio();
   try { layout.validate(); }
@@ -43,6 +44,7 @@ void savePageLayoutSettings(const digitalkhatt::PageLayout& layout) {
   for (const auto& field : fields) settings.setValue(field.key, layout.*field.member);
   settings.setValue("PaperWidthMM", layout.paperWidthMM);
   settings.setValue("PaperHeightMM", layout.paperHeightMM);
+  settings.setValue("CenterLines", layout.centerLines);
   settings.sync();
 }
 
@@ -76,6 +78,10 @@ PageLayoutDialog::PageLayoutDialog(const digitalkhatt::PageLayout& layout, QWidg
   height_->setToolTip(tr("Changing page height updates the bottom margin below the last baseline of a 15-line page."));
   spacing_ = add(tr("Line spacing"), 1);
   spacing_->setToolTip(tr("Baseline distance, used before shaping and collision resolution."));
+  centerLines_ = new QCheckBox(tr("Center lines horizontally"));
+  centerLines_->setToolTip(tr("Use Center alignment for lines that would otherwise use Distribute. "
+      "The existing centering calculation and selected justification policy still apply."));
+  form->addRow(centerLines_);
   main->addWidget(geometry);
   auto* paper = new QGroupBox(tr("PDF paper size"));
   auto* paperForm = new QFormLayout(paper);
@@ -135,6 +141,7 @@ digitalkhatt::PageLayout PageLayoutDialog::pageLayout() const {
   digitalkhatt::PageLayout layout{width_->value(), height_->value(), left_->value(), right_->value(), top_->value(),
       bottom_->value(), spacing_->value()};
   layout.setPaperWidthMM(paperWidthMM_);
+  layout.centerLines = centerLines_->isChecked();
   return layout;
 }
 
@@ -145,6 +152,7 @@ void PageLayoutDialog::setPageLayout(const digitalkhatt::PageLayout& layout) {
   left_->setValue(layout.leftMargin); right_->setValue(layout.rightMargin);
   top_->setValue(layout.topSpace); bottom_->setValue(layout.bottomMargin);
   spacing_->setValue(layout.lineSpacing);
+  centerLines_->setChecked(layout.centerLines);
   paperWidthMM_ = layout.paperWidthMM;
   updateVerticalGeometry(false);
 }

@@ -81,6 +81,13 @@ precision so display rounding does not change the ratio.
 does not save, and **Restore defaults** restores the original geometry values.
 The existing saved line-spacing preference is retained.
 
+**Center lines horizontally** selects `Center` instead of `Distribute` when
+creating line inputs, before calling `justifyPage`. It uses the existing centering
+calculation and keeps the selected justification policy. It is off by default
+and is saved across launches and in Generate Mushaf settings snapshots
+(`pageLayout.centerLines`), so GUI and command-line PDF generation use the same
+alignment. **Restore defaults** also resets this option.
+
 Page height and bottom margin are linked for a standard 15-line page:
 `pageHeight = topSpace + 14 * lineSpacing + bottomMargin`. Editing height updates
 the bottom margin; editing the bottom margin updates height (and hence PDF

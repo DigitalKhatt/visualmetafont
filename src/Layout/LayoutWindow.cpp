@@ -1418,7 +1418,8 @@ bool LayoutWindow::exportpdf() {
   ;
 
   auto page = m_otlayout->justifyPage(
-      scale, lineWidth, lineWidth, toStdStrings(lines), LineJustification::Distribute, true,
+      scale, lineWidth, lineWidth, toStdStrings(lines),
+      m_otlayout->pageLayout().centerLines ? LineJustification::Center : LineJustification::Distribute, true,
       tajweedEnabled,
       HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES,
       getJustOption(), mushafLayouts->currentText().toStdString());
@@ -1534,7 +1535,8 @@ LayoutPages LayoutWindow::shapeMushaf(double scale, int pageWidth, OtLayout* lay
   bool newFace = true;
   for (int p = 0; p < currentQuranText.size(); ++p) {
     auto text = digitalkhatt::splitMushafLines(currentQuranText[p].toStdU16String());
-    auto input = digitalkhatt::mushafLineInputs(text, p + 1, pageWidth, mushafLayouts->currentText().toStdString());
+    auto input = digitalkhatt::mushafLineInputs(text, p + 1, pageWidth, mushafLayouts->currentText().toStdString(),
+        layout->pageLayout().centerLines ? LineJustification::Center : LineJustification::Distribute);
     auto shaped = layout->justifyPage(scale, pageWidth, input, newFace, tajweedEnabled,
                                       cluster_level, getJustOption(), mushafLayouts->currentText().toStdString());
     digitalkhatt::finishMushafPage(shaped, text, p + 1);
@@ -2283,7 +2285,7 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
 
   if (this->applyJustification) {
     for (int pagenum = 0; pagenum < pages.originalPages.size(); pagenum++) {
-      auto justification = LineJustification::Distribute;
+      auto justification = m_otlayout->pageLayout().centerLines ? LineJustification::Center : LineJustification::Distribute;
 
       auto page = m_otlayout->justifyPage(
           scale, lineWidth, lineWidth,
@@ -3298,7 +3300,7 @@ void LayoutWindow::calculateMinimumSize() {
     const auto lines = currentQuranText[pagenum].split(char(10), Qt::SkipEmptyParts);
     const auto page = m_otlayout->justifyPage(
         emScale, lineWidth, lineWidth, toStdStrings(lines),
-        LineJustification::Distribute, false, tajweedEnabled,
+        m_otlayout->pageLayout().centerLines ? LineJustification::Center : LineJustification::Distribute, false, tajweedEnabled,
         HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS, just,
         mushafLayouts->currentText().toStdString());
 
@@ -3474,7 +3476,8 @@ void LayoutWindow::executeRunText(bool newFace, int refresh) {
   }
 
   auto page = m_otlayout->justifyPage(
-      scale, lineWidth, lineWidth, toStdStrings(lines), LineJustification::Distribute,
+      scale, lineWidth, lineWidth, toStdStrings(lines),
+      m_otlayout->pageLayout().centerLines ? LineJustification::Center : LineJustification::Distribute,
       newFace, tajweedEnabled,
       HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS,
       getJustOption(), mushafLayouts->currentText().toStdString());

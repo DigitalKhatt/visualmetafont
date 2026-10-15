@@ -796,7 +796,8 @@ void LayoutWindow::compareWithOldMadinah(bool isQPC, bool isImage) {
     for (const auto& line : lines) stdLines.push_back(line.toStdString());
 
     auto tempPage = m_otlayout->justifyPage(
-        emScale, lineWidth, lineWidth, std::move(stdLines), LineJustification::Distribute,
+        emScale, lineWidth, lineWidth, std::move(stdLines),
+        m_otlayout->pageLayout().centerLines ? LineJustification::Center : LineJustification::Distribute,
         false, tajweedEnabled,
         HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS,
         getJustOption(),

@@ -622,7 +622,8 @@ int main(int argc,char** argv) {
     bool newFace=true; int surah=0;
     for (int p=1;p<=options.lastPage;++p) {
       const auto text=splitMushafLines(pages[p-1]);
-      const auto input=mushafLineInputs(text,p,width,options.layout);
+      const auto input=mushafLineInputs(text,p,width,options.layout,
+          layout.pageLayout().centerLines ? LineJustification::Center : LineJustification::Distribute);
       const int surahBefore=surah;
       for (const auto& line:input) if (line.lineType==LineType::Sura) ++surah;
       if (p<options.firstPage) continue;

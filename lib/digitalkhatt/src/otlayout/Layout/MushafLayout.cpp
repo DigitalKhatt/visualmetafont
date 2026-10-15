@@ -108,12 +108,12 @@ std::vector<TextString> splitMushafLines(TextView text) {
 }
 
 std::vector<LineToJustify> mushafLineInputs(const std::vector<TextString>& text,
-    int pageNumber, int pageWidth, std::string_view layoutName) {
+    int pageNumber, int pageWidth, std::string_view layoutName, LineJustification justification) {
   static const Regex16 header(u"^(سُورَةُ .*|بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ( ۝١)?|بِّسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ)$");
   const auto& widths = layoutName == "qpc_v2_layout" ? madinaLineWidths : oldMadinaLineWidths;
   std::vector<LineToJustify> result;
   for (size_t i = 0; i < text.size(); ++i) {
-    LineToJustify line{text[i], pageWidth, LineJustification::Distribute, LineType::Line, false};
+    LineToJustify line{text[i], pageWidth, justification, LineType::Line, false};
     if (header.match(text[i]).hasMatch()) {
       line.lineType = text[i].starts_with(u"سُ") ? LineType::Sura : LineType::Bism;
       if ((pageNumber == 1 || pageNumber == 2) && i == 1) line.basm2 = true;

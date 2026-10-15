@@ -6,6 +6,7 @@
 class QSpinBox;
 class QDoubleSpinBox;
 class QLabel;
+class QCheckBox;
 
 digitalkhatt::PageLayout loadPageLayoutSettings();
 void savePageLayoutSettings(const digitalkhatt::PageLayout& layout);
@@ -23,5 +24,6 @@ class PageLayoutDialog : public QDialog {
   QSpinBox *width_, *height_, *left_, *right_, *top_, *bottom_, *spacing_;
   QDoubleSpinBox *paperWidth_, *paperHeight_;
   QLabel* summary_;
+  QCheckBox* centerLines_;
   double paperWidthMM_ = 90.2;
 };
