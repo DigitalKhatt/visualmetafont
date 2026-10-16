@@ -977,6 +977,14 @@ justdfa_mark_vertical
 
 justdfa_attachment_body
 	: { $$ = {}; }
+	| justdfa_attachment_body WHEN identifier[condition] GLYPHS glyphset[set] identifier[property] doubleorint[value]
+	  {
+		if ($condition != "followed_by" || $property != "growth_scale" || $1.followingMarkGlyphSetRef >= 0) { error(yyla.location, "Expected one 'when followed_by glyphs [...] growth_scale <0..1>' declaration"); YYERROR; }
+		$$ = std::move($1);
+		driver.context.justificationGlyphSets.emplace_back($set);
+		$$.followingMarkGlyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.followingGrowthScale = $value;
+	  }
 	| justdfa_attachment_body SUBSTITUTE identifier[glyph] WHEN identifier[axis] '>' doubleorint[threshold] identifier[keyword] identifier[otherwise]
 	  {
 		if ($keyword != "otherwise" || $1.substitution) { error(yyla.location, "Expected one 'substitute <glyph> when <axis> > <value> otherwise <glyph>' declaration"); YYERROR; }

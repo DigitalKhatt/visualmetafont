@@ -13,6 +13,7 @@ struct TopMarkStackLink {
   double minGap;
   bool outlineClearance = false;
   std::optional<double> preferredGap;
+  bool compactAttachment = false;
 };
 
 // Apply authored rules only to marks of the same base with consecutive original

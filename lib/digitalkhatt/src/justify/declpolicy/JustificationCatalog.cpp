@@ -228,6 +228,7 @@ void resolveJustificationGlyphSets(
                          "justification attachment " + attachment.name);
     }
     if (attachment.excludeMarkGlyphSetRef >= 0) attachment.excludeMarkGlyphNames = expandGlyphSet(resolve, attachment.excludeMarkGlyphSetRef, "excluded marks on " + attachment.name);
+    if (attachment.followingMarkGlyphSetRef >= 0) attachment.followingMarkGlyphNames = expandGlyphSet(resolve, attachment.followingMarkGlyphSetRef, "following marks on " + attachment.name);
   }
 }
 
@@ -404,6 +405,14 @@ CompiledJustificationCatalog compileJustificationCatalog(
                                   .maximumWidth = attachment.maximumWidth,
                                   .widthGrid = attachment.widthGrid});
     auto& compiledAttachment = result.attachments.back();
+    if (!std::isfinite(attachment.followingGrowthScale) || attachment.followingGrowthScale < 0 || attachment.followingGrowthScale > 1 ||
+        ((attachment.followingMarkGlyphSetRef >= 0 || !attachment.followingMarkGlyphNames.empty()) && widthAxis == NoGlyphAxis) ||
+        (attachment.followingGrowthScale != 1 && attachment.followingMarkGlyphSetRef < 0 && attachment.followingMarkGlyphNames.empty()))
+      throw std::invalid_argument("following mark growth_scale requires width_axis, following glyphs and a finite value in [0,1]: " + attachment.name);
+    compiledAttachment.followingMarkGlyphSetRef = attachment.followingMarkGlyphSetRef;
+    compiledAttachment.followingMarkGlyphNames = attachment.followingMarkGlyphNames;
+    std::sort(compiledAttachment.followingMarkGlyphNames.begin(), compiledAttachment.followingMarkGlyphNames.end());
+    compiledAttachment.followingGrowthScale = attachment.followingGrowthScale;
     if (attachment.substitution) {
       const auto& substitution = *attachment.substitution;
       const auto axis = axes.find(substitution.axis);

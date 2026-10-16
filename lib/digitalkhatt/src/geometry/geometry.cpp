@@ -512,6 +512,17 @@ GeometrySet buildPolyFromCubics(const GlyphCubic& g, double tau) {
   return GeometrySet(std::move(outers));
 }
 
+GeometrySet buildConvexPartsFromPolygons(const GeometrySet& contours) {
+  std::vector<Poly> parts;
+  for (auto contour : contours.polys()) {
+    if (contour.size() < 3) continue;
+    makeCCW(contour);
+    auto pieces = convexDecomposeBayazit(contour);
+    parts.insert(parts.end(), pieces.begin(), pieces.end());
+  }
+  return GeometrySet(std::move(parts));
+}
+
 inline bool
 aabbOverlap(const AABB& a, const AABB& b) {
   return !(a.maxx < b.minx || b.maxx < a.minx || a.maxy < b.miny ||

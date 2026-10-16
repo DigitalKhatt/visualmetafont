@@ -176,6 +176,9 @@ struct JustAttachment {
   AttachmentDuring during = AttachmentDuring::Both;
   int excludeMarkGlyphSetRef = -1;
   std::vector<std::string> excludeMarkGlyphNames;
+  int followingMarkGlyphSetRef = -1;
+  std::vector<std::string> followingMarkGlyphNames;
+  double followingGrowthScale = 1;
   std::optional<JustAttachmentSubstitution> substitution;
   bool appliesDuring(LineJustificationOperation operation) const {
     return during == AttachmentDuring::Both || (during == AttachmentDuring::Stretch && operation == LineJustificationOperation::Stretch) || (during == AttachmentDuring::Shrink && operation == LineJustificationOperation::Shrink);

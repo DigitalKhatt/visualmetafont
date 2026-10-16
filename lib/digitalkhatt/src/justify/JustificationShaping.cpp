@@ -243,6 +243,39 @@ static void applyAttachments(std::u16string_view text, hb_font_t* font, hb_buffe
             return layout.glyphDesignWidth(mark->codepoint, measured);
           });
         }
+        if (value && attachment.followingGrowthScale != 1 && !attachment.followingMarkGlyphNames.empty()) {
+          // Follow source clusters, not visual buffer order. Format controls
+          // do not break attachment; another letter or mark does.
+          auto following = mark->cluster + 1;
+          while (following < text.size() && (text[following] == 0x034F || hb_unicode_general_category(hb_buffer_get_unicode_funcs(buffer), text[following]) == HB_UNICODE_GENERAL_CATEGORY_FORMAT)) ++following;
+          bool matches = false;
+          for (unsigned i = 0; i < buffer->len && following < text.size(); ++i) {
+            const auto& candidate = buffer->info[i];
+            if (candidate.cluster != following || hb_ot_layout_get_glyph_class(hb_font_get_face(font), candidate.codepoint) != HB_OT_LAYOUT_GLYPH_CLASS_MARK) continue;
+            const auto name = layout.recognitionGlyphName(font, candidate.codepoint);
+            matches |= std::binary_search(attachment.followingMarkGlyphNames.begin(), attachment.followingMarkGlyphNames.end(), name);
+          }
+          if (matches) {
+            const auto& baseline = baselineParameters[mark - buffer->info];
+            auto proposed = layout.glyphParameters(*mark, 0, 0);
+            proposed.set(axis, *value);
+            const auto originalWidth = layout.glyphDesignWidth(mark->codepoint, baseline);
+            const auto proposedWidth = layout.glyphDesignWidth(mark->codepoint, proposed);
+            const auto maximum = layout.glyphParameterMaximum(mark->codepoint, axis);
+            if (originalWidth && proposedWidth && maximum) {
+              const double target = *originalWidth + attachment.followingGrowthScale * std::max(0.0, *proposedWidth - *originalWidth);
+              if (target <= *originalWidth) value = baseline.value(axis);
+              else {
+                value = dependentMarkWidthParameter(target, *maximum, attachment.widthGrid, [&](double parameter) {
+                  auto measured = proposed;
+                  measured.set(axis, parameter);
+                  return layout.glyphDesignWidth(mark->codepoint, measured);
+                });
+                if (value) *value = std::max(*value, baseline.value(axis));
+              }
+            }
+          }
+        }
         if (value) {
           const auto previousValue = layout.glyphParameters(*mark, 0, 0).value(axis);
           if (*value != previousValue) {

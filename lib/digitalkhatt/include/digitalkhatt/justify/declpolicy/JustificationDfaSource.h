@@ -95,6 +95,9 @@ struct DfaAttachmentSource {
   std::string during = "both";
   int excludeMarkGlyphSetRef = -1;
   std::vector<std::string> excludeMarkGlyphNames;
+  int followingMarkGlyphSetRef = -1;
+  std::vector<std::string> followingMarkGlyphNames;
+  double followingGrowthScale = 1;
   std::optional<DfaAttachmentSubstitutionSource> substitution;
   bool operator==(const DfaAttachmentSource&) const = default;
 };

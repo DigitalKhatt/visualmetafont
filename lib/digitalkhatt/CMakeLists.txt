@@ -165,6 +165,7 @@ add_library(digitalkhatt_layout
   src/layout/constraints/VerticalStackAlignConstraint.cpp
   src/layout/constraints/SqueezeCenterConstraint.cpp
   src/layout/constraints/StackOrderConstraint.cpp
+  src/layout/constraints/CompactMarkConstraint.cpp
   src/layout/constraints/BaseVicinityConstraint.cpp
   src/layout/constraints/BowlClusterConstraint.cpp
 )

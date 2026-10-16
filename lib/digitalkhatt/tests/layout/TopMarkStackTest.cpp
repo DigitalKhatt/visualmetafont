@@ -4,6 +4,7 @@
 #include "digitalkhatt/layout/OptimizeLayout.h"
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
 #include "digitalkhatt/layout/constraints/StackOrderConstraint.h"
+#include "digitalkhatt/layout/constraints/CompactMarkConstraint.h"
 #include "digitalkhatt/layout/SolverContext.h"
 
 using namespace digitalkhatt::layout;
@@ -42,6 +43,9 @@ void semanticAdjacency() {
   Fixture{"twodotsup","shadda","fatha"}.expect({{0,1},{1,2}});
   Fixture{"twodotsup","shadda","fatha.stretched"}.expect({{0,1},{1,2}});
   Fixture{"onedotup","fatha.stretched"}.expect({{0,1}});
+  Fixture{"fatha","meemiqlab"}.expect({{0,1}});
+  Fixture{"fatha.stretched","meemiqlab"}.expect({{0,1}});
+  Fixture{"damma","meemiqlab"}.expect({{0,1}});
   Fixture{"twodotsup","shadda","hamzaabove.joined","damma"}.expect({{0,1},{2,3}});
   Fixture{"onedotup","hamzaabove","shadda","fatha"}.expect({{2,3}});
   Fixture{"onedotup","fatha","hamzaabove.joined","damma"}.expect({{2,3},{0,1}});
@@ -71,6 +75,124 @@ void semanticAdjacency() {
   // Caller order is irrelevant; semantic order comes from glyphIndex.
   std::swap(hamza.group[0],hamza.group[2]);
   hamza.expect({{1,2}});
+}
+
+void compactIqlabUsesInkNotHull() {
+  Fixture stack{"fatha.stretched", "meemiqlab"};
+  auto& parent = stack.marks[0];
+  auto& child = stack.marks[1];
+  parent.preserveGposHorizontal = true;
+  parent.mobility = child.mobility = 1;
+  // The child nests in a concavity. Its hull overlaps, but its actual ink does not.
+  parent.geomScaled = geometry::GeometrySet(std::vector<geometry::Poly>{{{0,0},{200,0},{200,200},{160,200},{160,40},{40,40},{40,200},{0,200}}});
+  child.geomScaled = geometry::GeometrySet(std::vector<geometry::Poly>{{{70,70},{130,70},{130,130},{70,130}}});
+  buildWorldPolys(parent);
+  buildWorldPolys(child);
+  require(geometry::overlapAABB(parent.worldPolys.boundingAABB(), child.worldPolys.boundingAABB()), "Fixture must have overlapping boxes despite its clear ink");
+  const auto links = buildTopMarkStackLinks(stack.group);
+  require(links.size() == 1 && links[0].compactAttachment, "Justification Fatha/Iqlab must opt into compact attachment");
+  std::vector<std::vector<GlyphInstance>> page;
+  const ClassMap classes;
+  SolverContext context(page, classes);
+  CompactMarkConstraint constraint(parent, child, 15, 0);
+  constraint.project(context, 1);
+  require(parent.dx == 0 && parent.dy == 0 && child.dx == 0 && child.dy == 0, "Clear concave ink must not be pushed apart by its hull");
+  parent.dx = 100;
+  buildWorldPolys(parent);
+  constraint.project(context, 1);
+  require(parent.dx == 50 && child.dx == 50 && parent.dy == 0 && child.dy == 0, "Both marks must share correction toward their GPOS-relative translation");
+  // Freeze the preferred target at a genuinely intersecting placement.
+  parent.dx = 100;
+  child.baseY = -50;
+  child.dx = 100;
+  buildWorldPolys(parent);
+  buildWorldPolys(child);
+  CompactMarkConstraint colliding(parent, child, 15, 0);
+  for (int i = 0; i < 5; ++i) colliding.project(context, 1);
+  std::vector<ConstraintViolation> violations;
+  colliding.reportViolations(context, violations);
+  require(violations.empty() && parent.dy < 0 && child.dy > 0 && std::abs(parent.dy + child.dy) < 1e-8, "Real ink intersection must share separation between both marks");
+  parent.preserveGposHorizontal = false;
+  require(buildTopMarkStackLinks(stack.group).size() == 1, "Compact attachment must not depend on the unrelated GPOS-preservation flag");
+  parent.glyphName = "fatha";
+  require(buildTopMarkStackLinks(stack.group).size() == 1, "Ordinary Fatha must also keep its Iqlab attached");
+  GlyphInstance otherBase;
+  child.prevBase = &otherBase;
+  require(buildTopMarkStackLinks(stack.group).empty(), "Compact attachment must not cross base ownership");
+  child.prevBase = parent.prevBase;
+  child.glyphIndex = 2;
+  require(buildTopMarkStackLinks(stack.group).empty(), "Another glyph must block compact attachment");
+}
+
+void compactIqlabRespectsMobilities() {
+  for (const auto [parentMobility, childMobility] : {std::pair{1.0, 1.0}, std::pair{0.25, 1.0}, std::pair{0.0, 1.0}, std::pair{1.0, 0.0}, std::pair{0.0, 0.0}}) {
+    Fixture stack{"fatha", "meemiqlab"};
+    auto& parent = stack.marks[0];
+    auto& child = stack.marks[1];
+    parent.mobility = parentMobility;
+    child.mobility = childMobility;
+    parent.geomScaled = child.geomScaled = geometry::GeometrySet(std::vector<geometry::Poly>{{{0,0},{100,0},{100,100},{0,100}}});
+    child.baseX = 80;
+    buildWorldPolys(parent);
+    buildWorldPolys(child);
+    std::vector<std::vector<GlyphInstance>> page;
+    const ClassMap classes;
+    SolverContext context(page, classes);
+    CompactMarkConstraint constraint(parent, child, 15, 0);
+    constraint.project(context, 1);
+    const double total = parentMobility + childMobility;
+    if (total == 0) {
+      require(parent.dx == 0 && child.dx == 0 && parent.dy == 0 && child.dy == 0, "Two rigid marks must stay fixed");
+      continue;
+    }
+    require(std::abs(parent.dx + 35 * parentMobility / total) < 1e-8 && std::abs(child.dx - 35 * childMobility / total) < 1e-8, "Separation must respect equal, unequal and zero mobility on either side");
+    // Test the relative-anchor correction separately from collision clearance.
+    parent.dx = parent.dy = child.dx = child.dy = 0;
+    child.baseX = 200;
+    buildWorldPolys(parent);
+    buildWorldPolys(child);
+    CompactMarkConstraint following(parent, child, 0, 0);
+    child.dx += 100;
+    buildWorldPolys(child);
+    const double oldParentX = parent.dx, oldChildX = child.dx;
+    following.project(context, 1);
+    require(std::abs(parent.dx - oldParentX - 100 * parentMobility / total) < 1e-8 && std::abs(child.dx - oldChildX + 100 * childMobility / total) < 1e-8, "The relative-anchor correction must also respect both mobilities");
+  }
+}
+
+void optimizerKeepsIqlabPairCompact() {
+  for (const auto* fatha : {"fatha", "fatha.stretched", "damma"})
+  for (const bool obstacle : {false, true}) {
+    std::vector<std::vector<GlyphInstance>> page(1);
+    auto& row = page[0];
+    row.resize(obstacle ? 4 : 3);
+    for (std::size_t i = 0; i < row.size(); ++i) {
+      auto& g = row[i];
+      g.glyphName = i == 0 ? "behshape.init" : i == 1 ? fatha : i == 2 ? "meemiqlab" : "damma";
+      g.isMark = i != 0;
+      g.glyphIndex = static_cast<int>(i);
+      g.prevBase = i ? &row[0] : nullptr;
+      g.baseY = i ? 400 : 0;
+      // Leave 45 units of ink clearance inside the concavity, above the
+      // current 40-unit pair clearance (not just the original 15-unit setting).
+      g.geomScaled = geometry::GeometrySet(std::vector<geometry::Poly>{{{85,85},{115,85},{115,115},{85,115}}});
+    }
+    row[1].preserveGposHorizontal = std::string_view(fatha) == "fatha.stretched";
+    row[1].geomScaled = geometry::GeometrySet(std::vector<geometry::Poly>{{{0,0},{200,0},{200,200},{160,200},{160,40},{40,40},{40,200},{0,200}}});
+    ClassMap classes{{"topmarks", {"fatha", "fatha.stretched", "meemiqlab", "damma"}}};
+    OptParams params;
+    params.toggles.ylane = false;
+    params.toggles.waqfPlacement = false;
+    params.toggles.waqfEscape = false;
+    params.toggles.hardStayAboveBelow = false;
+    params.toggles.baseVicinity = false;
+    params.toggles.horizontalOrder = false;
+    params.toggles.matchMarkPosition = false;
+    params.toggles.bowlCluster = false;
+    optimizePage(page, classes, params);
+    if (!obstacle) require(row[1].dx == 0 && row[1].dy == 0 && row[2].dx == 0 && row[2].dy == 0, "Optimizer must replace the direct pair's hull gap with compact ink contact");
+    else require(std::hypot(row[3].dx, row[3].dy) > 1, "The direct-pair exception must not disable collisions with a third glyph");
+  }
 }
 void unclassifiedHamzaBlocksNonAdjacentLink() {
   std::vector<std::vector<GlyphInstance>> page(1);
@@ -392,6 +514,9 @@ void optimizerWiresPreferredStackGap() {
 int main() {
   try {
     semanticAdjacency();
+    compactIqlabUsesInkNotHull();
+    compactIqlabRespectsMobilities();
+    optimizerKeepsIqlabPairCompact();
     unclassifiedHamzaBlocksNonAdjacentLink();
     stretchedFathaPreservesGposStackOffset();
     stretchedFathaUsesLocalOutlineClearance();

@@ -1484,6 +1484,19 @@ int main() {
     try { (void)compileJustificationCatalog(response); } catch (const std::invalid_argument&) { badScope = true; }
     ok &= expect(badScope, "unknown attachment scope is rejected");
     response.attachments[0].during = "both";
+    response.attachments[0].followingMarkGlyphSetRef = 6;
+    response.attachments[0].followingGrowthScale = 0.5;
+    auto moderated = compileJustificationCatalog(response);
+    resolveJustificationGlyphSets(moderated, [](int) { return std::vector<std::string>{"meemiqlab"}; });
+    ok &= expect(moderated.attachments[0].followingMarkGlyphNames == std::vector<std::string>{"meemiqlab"} && moderated.attachments[0].followingGrowthScale == 0.5, "following-mark moderation is font declared and resolves glyph classes");
+    for (const double invalid : {-0.1, 1.1, std::numeric_limits<double>::infinity()}) {
+      response.attachments[0].followingGrowthScale = invalid;
+      bool badScale = false;
+      try { (void)compileJustificationCatalog(response); } catch (const std::invalid_argument&) { badScale = true; }
+      ok &= expect(badScale, "following-mark scale must be finite and between zero and one");
+    }
+    response.attachments[0].followingMarkGlyphSetRef = -1;
+    response.attachments[0].followingGrowthScale = 1;
     response.attachments[0].excludeMarkGlyphSetRef = 5;
     auto blockedCatalog = compileJustificationCatalog(response);
     resolveJustificationGlyphSets(blockedCatalog, [](int) { return std::vector<std::string>{"smallalef.joined", "smallalef", "smallalef"}; });

@@ -25,6 +25,7 @@
 #include "digitalkhatt/layout/constraints/MatchMarkPositionWithOffsetConstraint.h"
 #include "digitalkhatt/layout/constraints/SqueezeCenterConstraint.h"
 #include "digitalkhatt/layout/constraints/StackOrderConstraint.h"
+#include "digitalkhatt/layout/constraints/CompactMarkConstraint.h"
 #include "digitalkhatt/layout/constraints/WaqfPlacementConstraint.h"
 #include "digitalkhatt/layout/constraints/WaqfEscapeConstraint.h"
 #include "digitalkhatt/layout/constraints/YlaneConstraint.h"
@@ -86,9 +87,12 @@ void wireStackTable(const std::vector<GlyphInstance*>& group,
   for (const auto& rule : buildTopMarkStackLinks(group)) {
     GlyphInstance* above = rule.outer;
     GlyphInstance* below = rule.inner;
-    xpbdConstraints.push_back(std::make_unique<StackOrderConstraint>(
-        *below, *above, /*isAbove=*/true,
-        rule.minGap, P.compliance.stackOrderGap, P.compliance.stackOrderXAlign, rule.offsetX, rule.outlineClearance, rule.preferredGap));
+    if (rule.compactAttachment)
+      xpbdConstraints.push_back(std::make_unique<CompactMarkConstraint>(*below, *above, rule.minGap, P.compliance.matchMarkPosition));
+    else
+      xpbdConstraints.push_back(std::make_unique<StackOrderConstraint>(
+          *below, *above, /*isAbove=*/true,
+          rule.minGap, P.compliance.stackOrderGap, P.compliance.stackOrderXAlign, rule.offsetX, rule.outlineClearance, rule.preferredGap));
     // The authored stack gap replaces generic clearance only for this direct
     // pair. Contacts with every other mark remain active.
     excludedFromGenericGap.insert(

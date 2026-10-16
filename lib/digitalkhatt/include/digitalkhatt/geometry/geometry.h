@@ -223,6 +223,8 @@ GSContact getDistanceConvexHull(const GeometrySet& A, const GeometrySet& B,
                                 double maxAabbDistance);
 
 GeometrySet buildConvexPartsFromCubics(const GlyphCubic& g, double tau);
+// Decompose already flattened solid contours without replacing them by a hull.
+GeometrySet buildConvexPartsFromPolygons(const GeometrySet& contours);
 
 GeometrySet buildPolyFromCubics(const GlyphCubic& g, double tau);
 
