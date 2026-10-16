@@ -872,87 +872,57 @@ comparison tool exposes the same data as JSON lines with
 `--trace-candidates PAGE:LINE`; combine it with `--snapshot-live` to inspect
 native glyph-parameter actions.
 
-### Manually staged candidate policies
+### Staged candidate policy
 
-OldMadina's `staged_pool` uses only existing actions, selections and stages:
-
-```fea
-stage PreferredStretch;
-stage DecomposeConnections;
-stage ContinueStretch;
-fill_spaces;
-```
-
-Dedicated preferred actions write explicit endpoints with `vary`: terminal
-group 1 offers lefttatweel 1..3 and fatha 1..1.75, group 2 offers 1..2.5 and
-fatha 1..1.5, Beh/before-Hah pairs offer left 1..1.75 and right 2..3.5, and final
-ascendant pairs offer 1..2 on both sides. Preferred Kaf includes its structural
-substitution and offers body parameter `third` 1..1.75, then its continuation
-can extend the existing body towards 4 without repeating the substitution or
-resetting the fatha. These are editable design choices,
-not inferred manuscript limits. The original full-range actions and
-`candidate_pool` comparison policy are unchanged.
-
-`PreferredStretch` first considers whole two-base-glyph subwords ending in Reh
-(not Zay), using first/last facts on its two slots. Its preferred left/right
-ranges are 1..1.5 and 2..3. Other preferred candidates follow. The Horizontal
-record therefore keeps the Reh connection ahead of a competing connection in
-another subword of the same word, without any line/page-specific condition.
-
-If width remains, the second stage may decompose Sad-Reh and the before-Hah family.
-Sad-Reh opens at left 1..1.25 and right 2..2.5 before its later continuation to
-4 and 8. These modest ranges allow both Sad-Reh occurrences on page 193 line 10
-to open instead of spending the remaining width on the first occurrence.
-The before-Hah fact uses `/.*[.]beforehah$/`, with no source-character restriction:
-it covers the behshape, meem, fehshape and sad glyphs and their dotted letters.
-The explicit left/right lookup maps cover these four current glyphs; future
-family additions need their substitution mapping too. The separate
-`lam.init.beforehahyeh` compound is not part of this exact-suffix family.
-Opening `hah.medi.afterbeh.beforeyeh` preserves its following Yeh connection
-by substituting `hah.medi.beforeyeh`, which is also recognized for continuation.
-
-The final stage first continues stretched preferred sites, then stretched
-decomposed sites, followed by new Kaf and generic fallback opportunities.
-Kaf competes in the preferred pool at weight 3, rather than a separate highest
-priority phase. An accepted Kaf records Horizontal and therefore blocks later
-Yeh–Hah decomposition in the same word, as required by the existing constraint.
-Each phase remains a separate priority band.
-
-Continuation is expressed as an ordinary action, for example:
+OldMadina's `staged_pool_continue` allocates preferred lengths first, then
+continues those same accepted opportunities without separate preferred-continuation
+rules:
 
 ```fea
-action ContinueAlternate9 {
-  prepare {
-    forbid not ($self:lefttatweel > 0) or $self:righttatweel > 0;
-  }
-  range $self:lefttatweel preferred max($self:lefttatweel, 9);
-  when $self@Fatha:lefttatweel > 0 {
-    range $self@Fatha:lefttatweel preferred max($self@Fatha:lefttatweel, 4);
-  }
+stretchpolicy staged_pool_continue {
+  candidate_width advance;
+  cap_spaces 250 250;
+  stage PreferredStretch;
+  stage DecomposeConnections;
+  stage RareTerminalStretch;
+  stage DecomposeLastResort;
+  stage PreferredStretch continue to 6;
+  stage InitialShortStretch;
+  stage PreferredStretch continue to 9;
+  cap_spaces 400 400;
+  stage RemainingStretch;
+  fill_spaces;
 }
 ```
 
-Without an explicit minimum, a range uses the current accepted value as its minimum.
-There are no lookups or clears to reset the accepted state. Pair continuations
-require positive left and right parameters at the matched connection; their
-selections neither forbid nor overwrite Horizontal. The original record still
-blocks new competing connections in the other selections.
+Each preferred opportunity declares its activation, preferred endpoint and full
+maximum together. For example, terminal group 1 uses lefttatweel minimum 1,
+preferred 3 and maximum 9; Kaf uses body parameter `third` minimum 1, preferred
+1.75 and maximum 4. `continue to` never exceeds the opportunity's own maximum.
+It retains the selected site, original score, parameter relationships and record
+ownership without repeating preparation lookups. Newly eligible sites may still
+activate through ordinary recognition and preparation guards.
 
-Continuation selections use `all_non_overlapping` so an inactive last match
-does not hide an earlier stretched site. Matching and scoring run again on
-the current glyphs; there is no saved operation identity, record ownership,
-or implicit continuation support in the engine. This is deliberately a
-font-policy convention: if future stages set the same parameters for another
-purpose, these guards must be reviewed. It is not guaranteed to reproduce the
-removed captured-candidate implementation's ranking.
+`RemainingStretch` still uses `ContinueLamAlternate`, `ContinueBeforeHah` and
+`ContinueSadReh`. These belong to the separate rare-terminal and decomposition
+stages, not `PreferredStretch`, so preferred-stage continuation does not replace
+them. They recognize current glyphs, require an existing stretch where appropriate,
+and leave minimal last-resort decomposition sites locked through
+`different_position [MinimalDecomposition]`. They are followed by remaining Kaf,
+Kaf-companion and generic fallback opportunities.
 
-`staged_pool_full_shape` provides the same schedule with full-shape endpoint
-measurement. Advance measurement remains the default for `staged_pool`.
+To measure endpoints with complete shaping instead, set
+`candidate_width full_shape;` on the same policy. Separate `staged_pool` and
+`staged_pool_full_shape` policies and their duplicate preferred-continuation
+rules are no longer provided. `fixed_steps` and `native_fixed_steps` remain
+independently selectable.
 
-`baseline_pool` can also run after other stretch stages. It skips the whole
-connection if either requested parameter is already nonzero, preserving
-accepted stretching and intrinsic shaping adjustments. Untouched supported
-connections remain eligible. Endpoints must still be finite and positive.
+`baseline_pool` may run after other stretch stages. It skips the whole connection
+if either requested parameter is already nonzero, preserving accepted stretching
+and intrinsic shaping adjustments. Untouched supported connections remain
+eligible. Endpoints must be finite and positive. Its separate baseline values
+do not become accepted preferred opportunities and cannot by themselves trigger
+stage continuation.
 
 ### Continuing a stage
 
@@ -1002,12 +972,11 @@ amount; a bound smaller than the mandatory minimum skips the site. Continuation
 keeps this stage's original weights; it does
 not implicitly adopt a separate continuation selection's weights or traversal.
 
-OldMadina's optional `staged_pool_continue` policy mirrors the surrounding
-full-shape schedule, starts with ordinary PreferredStretch allocation, then uses
-one `stage PreferredStretch continue to 9;` after decomposition. `RemainingStretch` handles the
-independent decomposition/rare-terminal continuation and fallback families.
-The original policies and their continuation definitions remain available for
-comparison; this syntax does not change their behavior or the font's default.
+OldMadina's default `staged_pool_continue` starts with ordinary PreferredStretch
+allocation, then continues to 6 and 9 around the short-baseline pass.
+`RemainingStretch` handles independent decomposition/rare-terminal continuation
+and fallback families. The old staged comparison policies and their duplicate
+preferred-continuation definitions have been removed.
 
 ### Declarative page policy
 
