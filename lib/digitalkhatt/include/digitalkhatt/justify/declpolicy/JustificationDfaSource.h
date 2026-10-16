@@ -220,6 +220,10 @@ struct DfaChoiceSource {
   std::vector<std::string> differentPosition;
   // Every named record must already have been accepted in this word.
   std::vector<std::string> requireRecorded;
+  // Optional shared occurrence counter; empty retains per-rule decay.
+  std::string decayGroup;
+  // Compare first base-glyph positions, ignoring intervening marks.
+  std::vector<std::string> notAdjacent;
   bool operator==(const DfaChoiceSource&) const = default;
 };
 
@@ -232,6 +236,7 @@ struct DfaSelectionSource {
   std::vector<std::string> differentSubword;
   std::vector<std::string> differentPosition;
   std::vector<std::string> requireRecorded;
+  std::vector<std::string> notAdjacent;
   bool operator==(const DfaSelectionSource&) const = default;
 };
 

@@ -723,6 +723,7 @@ CompiledJustificationCatalog compileJustificationCatalog(
     compiled.differentSubword = selection.differentSubword;
     compiled.differentPosition = selection.differentPosition;
     compiled.requireRecorded = selection.requireRecorded;
+    compiled.notAdjacent = selection.notAdjacent;
 
     for (const auto& choice : selection.choices) {
       const auto rule = ruleIds.find(choice.rule);
@@ -742,7 +743,9 @@ CompiledJustificationCatalog compileJustificationCatalog(
                                 .forbidRecorded = choice.forbidRecorded,
                                 .differentSubword = choice.differentSubword,
                                 .differentPosition = choice.differentPosition,
-                                .requireRecorded = choice.requireRecorded});
+                                .requireRecorded = choice.requireRecorded,
+                                .decayGroup = choice.decayGroup,
+                                .notAdjacent = choice.notAdjacent});
     }
 
     const auto validateRecords = [&](const std::vector<std::string>& names,
@@ -759,11 +762,13 @@ CompiledJustificationCatalog compileJustificationCatalog(
     validateRecords(compiled.requireRecorded, "require_recorded");
     validateRecords(compiled.differentSubword, "different_subword");
     validateRecords(compiled.differentPosition, "different_position");
+    validateRecords(compiled.notAdjacent, "not_adjacent");
     for (const auto& choice : compiled.rules) {
       validateRecords(choice.forbidRecorded, "choice forbid_recorded");
       validateRecords(choice.requireRecorded, "choice require_recorded");
       validateRecords(choice.differentSubword, "choice different_subword");
       validateRecords(choice.differentPosition, "choice different_position");
+      validateRecords(choice.notAdjacent, "choice not_adjacent");
     }
     result.selections.push_back(std::move(compiled));
   }

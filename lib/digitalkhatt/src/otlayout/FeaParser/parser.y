@@ -1289,6 +1289,7 @@ justdfa_selection_body
 		else if ($property == "require_recorded") $$.requireRecorded = std::move($records);
 		else if ($property == "different_subword") $$.differentSubword = std::move($records);
 		else if ($property == "different_position") $$.differentPosition = std::move($records);
+		else if ($property == "not_adjacent") $$.notAdjacent = std::move($records);
 		else {
 			error(yyla.location, "Unknown list justification selection property '" + $property + "'");
 			YYERROR;
@@ -1312,6 +1313,7 @@ justdfa_choice_options
 	  {
 		$$ = std::move($1);
 		if ($property == "record") $$.record = $value;
+		else if ($property == "decay_group") $$.decayGroup = $value;
 		else {
 			error(yyla.location, "Unknown scalar justification choice option '" + $property + "'");
 			YYERROR;
@@ -1324,6 +1326,7 @@ justdfa_choice_options
 		else if ($property == "require_recorded") $$.requireRecorded = std::move($records);
 		else if ($property == "different_subword") $$.differentSubword = std::move($records);
 		else if ($property == "different_position") $$.differentPosition = std::move($records);
+		else if ($property == "not_adjacent") $$.notAdjacent = std::move($records);
 		else {
 			error(yyla.location, "Unknown list justification choice option '" + $property + "'");
 			YYERROR;

@@ -600,7 +600,7 @@ const RuleSelection* candidateChoice(const SelectionPolicy& selection, const Jus
   return found == selection.rules.end() ? nullptr : &*found;
 }
 
-bool passesCandidatePositionRecords(std::span<const std::string> differentSubword, std::span<const std::string> differentPosition, const JustificationCandidate& candidate, const std::map<std::string, DeclPolicyRecordedPosition>& records) {
+bool passesCandidatePositionRecords(std::span<const std::string> differentSubword, std::span<const std::string> differentPosition, std::span<const std::string> notAdjacent, const JustificationCandidate& candidate, const std::map<std::string, DeclPolicyRecordedPosition>& records) {
   const auto baseIndex = candidate.context.at(candidate.matchOffset).baseIndex;
   for (const auto& name : differentSubword) {
     const auto found = records.find(name);
@@ -609,6 +609,10 @@ bool passesCandidatePositionRecords(std::span<const std::string> differentSubwor
   for (const auto& name : differentPosition) {
     const auto found = records.find(name);
     if (found != records.end() && found->second.subwordIndex == candidate.subwordIndex && found->second.baseIndex == baseIndex) return false;
+  }
+  for (const auto& name : notAdjacent) {
+    const auto found = records.find(name);
+    if (found != records.end() && found->second.subwordIndex == candidate.subwordIndex && std::abs(found->second.baseIndex - baseIndex) == 1) return false;
   }
   return true;
 }
@@ -627,7 +631,7 @@ bool passesCandidateRecords(const SelectionPolicy& selection, const Justificatio
     });
   };
   if (hasRecorded(selection.forbidRecorded) || hasRecorded(choice->forbidRecorded)) return false;
-  return passesCandidatePositionRecords(selection.differentSubword, selection.differentPosition, candidate, records) && passesCandidatePositionRecords(choice->differentSubword, choice->differentPosition, candidate, records);
+  return passesCandidatePositionRecords(selection.differentSubword, selection.differentPosition, selection.notAdjacent, candidate, records) && passesCandidatePositionRecords(choice->differentSubword, choice->differentPosition, choice->notAdjacent, candidate, records);
 }
 
 void recordCandidate(const SelectionPolicy& selection, const JustificationCandidate& candidate, std::map<std::string, DeclPolicyRecordedPosition>& records) {

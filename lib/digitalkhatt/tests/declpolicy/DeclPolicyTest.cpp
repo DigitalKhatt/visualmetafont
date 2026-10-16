@@ -523,6 +523,41 @@ int main() {
                  "choice-local records constrain later candidates without selection-wide records");
   }
 
+  // Adjacency compares base positions (not marks or the entire subword).
+  for (const bool selectionScope : {false, true}) {
+    auto adjacentSource = source;
+    auto& selection = adjacentSource.selections[0];
+    (selectionScope ? selection.notAdjacent : selection.choices[0].notAdjacent) = {"ArbitraryRecordName"};
+    const auto adjacentCatalog = compileJustificationCatalog(adjacentSource);
+    const DeclPolicyJustifier adjacentEngine(adjacentCatalog);
+    const std::array phases{PolicyPhase{.selection = 0, .levels = 1, .allocator = PolicyPhase::Allocator::CandidatePool}};
+    for (const auto [base, subword, blocked] : std::array<std::tuple<int, int, bool>, 5>{{{1, 0, true}, {2, 0, false}, {1, 1, false}, {0, 0, false}, {3, 0, false}}}) {
+      DeclPolicyExecutionState state;
+      state.recordsByWord.resize(1);
+      state.recordsByWord[0]["ArbitraryRecordName"] = {subword, base};
+      int collected = 0;
+      adjacentEngine.collectStageCandidates(1, preparedGlyphs, phases, state, [&](const auto&, auto, const auto&) { ++collected; });
+      ok &= expect(collected == (blocked ? 0 : 1), "not_adjacent only blocks neighbouring base positions in the same subword");
+      int applied = 0;
+      auto fixedPhases = phases;
+      fixedPhases[0].allocator = PolicyPhase::Allocator::FixedSteps;
+      adjacentEngine.applyStage(1, preparedGlyphs, fixedPhases, state, [&](const auto&) { ++applied; return FixedSlotActionResult::Positive; });
+      ok &= expect(applied == collected, "fixed-step and candidate collection share adjacency semantics");
+    }
+    auto later = preparedGlyphs;
+    later[0].baseIndex = 2;
+    DeclPolicyExecutionState state;
+    state.recordsByWord.resize(1);
+    state.recordsByWord[0]["ArbitraryRecordName"] = {0, 1};
+    int collected = 0;
+    adjacentEngine.collectStageCandidates(1, later, phases, state, [&](const auto&, auto, const auto&) { ++collected; });
+    ok &= expect(collected == 0, "not_adjacent also rejects an earlier recorded neighbour");
+    (selectionScope ? selection.notAdjacent : selection.choices[0].notAdjacent) = {"MissingRecord"};
+    bool rejected = false;
+    try { (void)compileJustificationCatalog(adjacentSource); } catch (const std::invalid_argument&) { rejected = true; }
+    ok &= expect(rejected, "unknown adjacency records are rejected during compilation");
+  }
+
   // Required records refer to accepted state in the same word, at both
   // selection and choice scope. Empty lists preserve the old behavior.
   {

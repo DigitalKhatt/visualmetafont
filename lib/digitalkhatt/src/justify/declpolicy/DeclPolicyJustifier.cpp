@@ -103,7 +103,7 @@ bool hasAllRecords(const std::map<std::string, DeclPolicyRecordedPosition>& reco
   return std::all_of(names.begin(), names.end(), [&](const auto& name) { return records.contains(name); });
 }
 
-bool passesPositionConstraints(std::span<const std::string> differentSubword, std::span<const std::string> differentPosition, const Opportunity& opportunity, const std::map<std::string, DeclPolicyRecordedPosition>& records) {
+bool passesPositionConstraints(std::span<const std::string> differentSubword, std::span<const std::string> differentPosition, std::span<const std::string> notAdjacent, const Opportunity& opportunity, const std::map<std::string, DeclPolicyRecordedPosition>& records) {
   for (const auto& name : differentSubword) {
     const auto found = records.find(name);
     if (found != records.end() && found->second.subwordIndex == opportunity.subwordIndex) {
@@ -116,6 +116,10 @@ bool passesPositionConstraints(std::span<const std::string> differentSubword, st
       return false;
     }
   }
+  for (const auto& name : notAdjacent) {
+    const auto found = records.find(name);
+    if (found != records.end() && found->second.subwordIndex == opportunity.subwordIndex && std::abs(found->second.baseIndex - opportunity.firstBaseIndex) == 1) return false;
+  }
   return true;
 }
 
@@ -124,7 +128,7 @@ bool passesRecordConstraints(const SelectionPolicy& selection, const Opportunity
   if (choice == nullptr) return false;
   if (!hasAllRecords(records, selection.requireRecorded) || !hasAllRecords(records, choice->requireRecorded)) return false;
   if (hasAnyRecord(records, selection.forbidRecorded) || hasAnyRecord(records, choice->forbidRecorded)) return false;
-  return passesPositionConstraints(selection.differentSubword, selection.differentPosition, opportunity, records) && passesPositionConstraints(choice->differentSubword, choice->differentPosition, opportunity, records);
+  return passesPositionConstraints(selection.differentSubword, selection.differentPosition, selection.notAdjacent, opportunity, records) && passesPositionConstraints(choice->differentSubword, choice->differentPosition, choice->notAdjacent, opportunity, records);
 }
 
 void recordOpportunity(const SelectionPolicy& selection, const Opportunity& opportunity, std::map<std::string, DeclPolicyRecordedPosition>& records) {
@@ -268,6 +272,7 @@ void DeclPolicyJustifier::collectStageCandidates(std::size_t wordCount, std::spa
     if (phase.selection >= catalog_.selections.size()) throw std::runtime_error("compiled justification phase is invalid");
     const auto& selection = catalog_.selections[phase.selection];
     std::map<JustificationRuleId, std::size_t> occurrences;
+    std::map<std::string_view, std::size_t> groupedOccurrences;
     for (int wordIndex = 0; wordIndex < static_cast<int>(wordCount); ++wordIndex) {
       const auto& records = state.recordsByWord.empty() ? noRecords : state.recordsByWord[wordIndex];
       for (const auto* opportunity : candidatesFor(selection, recognition[wordIndex], records)) {
@@ -275,7 +280,7 @@ void DeclPolicyJustifier::collectStageCandidates(std::size_t wordCount, std::spa
         const auto* action = actionFor(opportunity->rule, catalog_.actions);
         if (action == nullptr) continue;
         const auto* choice = ruleSelection(selection, opportunity->rule);
-        const auto occurrence = occurrences[opportunity->rule]++;
+        const auto occurrence = choice->decayGroup.empty() ? occurrences[opportunity->rule]++ : groupedOccurrences[choice->decayGroup]++;
         FixedSlotCandidateScore score;
         score.occurrence = static_cast<int>(occurrence);
         score.baseWeight = phase.weight * choice->weight;

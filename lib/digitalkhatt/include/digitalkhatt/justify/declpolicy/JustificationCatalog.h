@@ -210,6 +210,10 @@ struct RuleSelection {
   std::vector<std::string> differentSubword;
   std::vector<std::string> differentPosition;
   std::vector<std::string> requireRecorded;
+  // Empty preserves per-rule occurrence decay; named counters are phase-local.
+  std::string decayGroup;
+  // Reject neighbouring first base-glyph positions in the same subword.
+  std::vector<std::string> notAdjacent;
   bool operator==(const RuleSelection&) const = default;
 };
 
@@ -222,6 +226,7 @@ struct SelectionPolicy {
   std::vector<std::string> differentSubword;
   std::vector<std::string> differentPosition;
   std::vector<std::string> requireRecorded;
+  std::vector<std::string> notAdjacent;
   bool operator==(const SelectionPolicy&) const = default;
 };
 
