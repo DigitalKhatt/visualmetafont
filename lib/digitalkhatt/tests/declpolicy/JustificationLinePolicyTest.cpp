@@ -121,6 +121,13 @@ int main() {
   (void)executeLineJustificationPolicy(repeatedStage, {}, {3000, 1000, 100, 0, 0}, backend);
   ok &= expect(backend.continuations == std::vector<std::pair<std::string, StageContinuation>>{{"Preferred", {}}, {"Preferred", {StageContinuation::Mode::By, 1}}, {"Preferred", {StageContinuation::Mode::To, 9}}, {"Preferred", {StageContinuation::Mode::Maximum, 0}}} && backend.glyphCalls == 4 && backend.glyphInput == 1600, "stage invocations preserve identity, continuation mode, limit and current width");
   ok &= expect(backend.retainedStages == std::vector<bool>(4, true), "ordinary stages retain accepted sites when the recipe later continues them");
+  const std::vector<LinePolicyStep> percentageStages{
+      repeatedStage.front(),
+      compileLinePolicyStep({.operation = "stage", .stage = "Preferred", .continuation = "to", .continuationLimit = 50, .continuationPercentage = true}, true),
+      compileLinePolicyStep({.operation = "stage", .stage = "Preferred", .continuation = "by", .continuationLimit = 12.5, .continuationPercentage = true}, true)};
+  backend = {};
+  (void)executeLineJustificationPolicy(percentageStages, {}, {3000, 1000, 100, 0, 0}, backend);
+  ok &= expect(backend.continuations == std::vector<std::pair<std::string, StageContinuation>>{{"Preferred", {}}, {"Preferred", {StageContinuation::Mode::To, 50, true}}, {"Preferred", {StageContinuation::Mode::By, 12.5, true}}} && backend.retainedStages == std::vector<bool>(3, true), "percentage limits survive compilation, dispatch and retained-stage tracking");
   backend = {};
   (void)executeLineJustificationPolicy(std::span(repeatedStage).first(1), {}, {3000, 1000, 100, 0, 0}, backend);
   ok &= expect(backend.retainedStages == std::vector<bool>{false}, "recipes without continuation avoid retaining stage state");
@@ -253,6 +260,14 @@ int main() {
   ok &= expect(rejectsStretchStep([](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuation = "increment", .continuationLimit = 1}; }), "reject replaced increment spelling");
   ok &= expect(rejectsStretchStep([](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuation = "maximum", .continuationLimit = 1}; }), "bare continuation takes no numeric limit");
   ok &= expect(rejectsStretchStep([](auto& s) { s = {.operation = "fill_spaces", .continuation = "maximum"}; }), "reject continuation on non-stage operations");
+  ok &= expect(rejectsShrinkStep([](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuation = "to", .continuationLimit = 50, .continuationPercentage = true}; }), "reject percentage continuation during shrinking");
+  for (double invalidPercentage : {-1.0, 100.1, std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN()}) {
+    ok &= expect(rejectsStretchStep([&](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuation = "to", .continuationLimit = invalidPercentage, .continuationPercentage = true}; }), "reject invalid percentage continuation limits");
+  }
+  ok &= expect(rejectsStretchStep([](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuation = "by", .continuationPercentage = true}; }), "reject zero percentage increments");
+  ok &= expect(rejectsStretchStep([](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuation = "maximum", .continuationPercentage = true}; }), "bare continuation takes no percentage unit");
+  ok &= expect(rejectsStretchStep([](auto& s) { s = {.operation = "stage", .stage = "Preferred", .continuationPercentage = true}; }), "percentage units require continuation");
+  ok &= expect(compileLinePolicyStep({.operation = "stage", .stage = "Preferred", .continuation = "to", .continuationPercentage = true}, true).continuation == StageContinuation{StageContinuation::Mode::To, 0, true}, "zero-percent absolute targets are valid");
   ok &= expect(rejectsShrinkStep([](auto& s) { s = {.operation = "reduce_spaces", .arguments = {0.95}}; }), "reject removed reduce_spaces primitive");
   ok &= expect(rejectsStretchStep([](auto& s) { s.operation = "typo"; }), "reject unknown stretch operation");
   auto missingStretch = fixture();

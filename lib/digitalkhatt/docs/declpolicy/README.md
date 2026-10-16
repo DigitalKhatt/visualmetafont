@@ -874,23 +874,24 @@ native glyph-parameter actions.
 
 ### Staged candidate policy
 
-OldMadina's `staged_pool_continue` allocates preferred lengths first, then
-continues those same accepted opportunities without separate preferred-continuation
-rules:
+OldMadina's `staged_pool` opens opportunities at 25% of their declared ranges,
+then continues those same accepted opportunities through 50%, 70% and 100%,
+without separate preferred-continuation rules:
 
 ```fea
-stretchpolicy staged_pool_continue {
+stretchpolicy staged_pool {
   candidate_width advance;
   cap_spaces 250 250;
-  stage PreferredStretch;
+  stage PreferredStretch continue to 25%;
   stage DecomposeConnections;
   stage RareTerminalStretch;
   stage DecomposeLastResort;
-  stage PreferredStretch continue to 6;
+  stage PreferredStretch continue to 50%;
   stage InitialShortStretch;
-  stage PreferredStretch continue to 9;
+  stage PreferredStretch continue to 70%;
   cap_spaces 400 400;
   stage RemainingStretch;
+  stage PreferredStretch continue to 100%;
   fill_spaces;
 }
 ```
@@ -903,6 +904,29 @@ It retains the selected site, original score, parameter relationships and record
 ownership without repeating preparation lookups. Newly eligible sites may still
 activate through ordinary recognition and preparation guards.
 
+`PreferredStretch` has two priority bands: `CandidatePreferred`, then
+`CandidateKafCompanion`. The primary selection includes `SecondaryGhFehKashida`
+and `RightLetterBehKashida`, despite the historical `Secondary` name. They
+compete by score in the same band as the existing preferred opportunities.
+`RightLetterBehKashida` matches `FinalRightKashida` followed by a joining
+Beh-shape, including Ain/Ghain-Beh, Hah/Khah-Yeh and Feh/Qaf-Yeh. Ghain-Feh
+remains a separate character-specific pair. Both reuse `PreferredKashida`
+(normal minimum 0.5, preferred 1.75, maximum 4).
+
+These choices record `Horizontal` and forbid an existing `Horizontal` anywhere
+in the word. `different_subword [KafBody]` permits them alongside a Kaf body
+only in a different subword. Merely writing `record Horizontal` does not
+exclude a competing site: its choice must also check that record, or it can
+overwrite the first site's record and block the first site's continuation.
+`PreferredFinalAscendantKashida` uses weight 4 with no occurrence decay and
+the same word-wide Horizontal/different-subword Kaf exclusions.
+
+To add another joining pair, define an opportunity with its own match and
+`action PreferredKashida;`, then add its `choose` and explicit record constraints
+to `CandidatePreferred`. Later stage continuation retains the accepted site
+and its ranges without extra continuation declarations. Phase precedence is
+line-wide, not a word-local score adjustment.
+
 `RemainingStretch` still uses `ContinueLamAlternate`, `ContinueBeforeHah` and
 `ContinueSadReh`. These belong to the separate rare-terminal and decomposition
 stages, not `PreferredStretch`, so preferred-stage continuation does not replace
@@ -912,9 +936,9 @@ and leave minimal last-resort decomposition sites locked through
 Kaf-companion and generic fallback opportunities.
 
 To measure endpoints with complete shaping instead, set
-`candidate_width full_shape;` on the same policy. Separate `staged_pool` and
-`staged_pool_full_shape` policies and their duplicate preferred-continuation
-rules are no longer provided. `fixed_steps` and `native_fixed_steps` remain
+`candidate_width full_shape;` on the same policy. The old `staged_pool_continue`
+and `staged_pool_full_shape` names and duplicate preferred-continuation rules
+are no longer provided. `fixed_steps` and `native_fixed_steps` remain
 independently selectable.
 
 `baseline_pool` may run after other stretch stages. It skips the whole connection
@@ -945,6 +969,36 @@ the weighted allocator chooses what fits the remaining line width. Existing
 quantization and measured-width commit checks still apply. The experimental
 `increment N` spelling has been removed.
 
+Continuation also accepts percentages, without changing ordinary `preferred`
+allocation or the existing numeric forms:
+
+```fea
+stage PreferredStretch;
+stage PreferredStretch continue to 50%;
+stage PreferredStretch continue by 25%;
+stage PreferredStretch continue to 100%;  # equivalent to bare continue
+```
+
+Percentages use **each varying parameter's original activation minimum and full
+maximum**, evaluated when that opportunity is first prepared, not the current
+accepted minimum or the remaining range. For an original range `[m, M]`:
+
+- `continue to P%` offers an endpoint `m + P / 100 * (M - m)`.
+- `continue by P%` offers `current + P / 100 * (M - m)`, capped at `M`.
+
+An already accepted value above a percentage target is kept unchanged; other
+parameters in the same opportunity can still grow. Fixed preparation writes do
+not acquire ranges. For example, ranges `[0.5, 4]` and `[0.25, 2]` offer respective
+endpoints `2.25` and `1.125` at `50%`. These remain capacities, not forced values:
+the allocator interpolates from the current minima to the offered endpoints.
+Repeated `to 50%` does not increase the ceiling, whereas repeated `by 25%` adds
+the same amount each time. A newly activated opportunity still has to fit its
+mandatory preparation; an increment below that minimum skips it. `to 0%` can
+activate a new site at its minimum, but never reduces an accepted value.
+Decimal percentages are allowed. `to` accepts `[0, 100]`, and `by` accepts
+`(0, 100]`; percentages above 100 are rejected. No `%` means the original
+absolute/relative parameter-unit semantics.
+
 An action can declare its ordinary preferred endpoint and a full maximum together:
 
 ```fea
@@ -972,8 +1026,8 @@ amount; a bound smaller than the mandatory minimum skips the site. Continuation
 keeps this stage's original weights; it does
 not implicitly adopt a separate continuation selection's weights or traversal.
 
-OldMadina's default `staged_pool_continue` starts with ordinary PreferredStretch
-allocation, then continues to 6 and 9 around the short-baseline pass.
+OldMadina's default `staged_pool` starts PreferredStretch at 25%, then continues
+to 50%, 70% and 100% around the decomposition, short-baseline and fallback passes.
 `RemainingStretch` handles independent decomposition/rare-terminal continuation
 and fallback families. The old staged comparison policies and their duplicate
 preferred-continuation definitions have been removed.

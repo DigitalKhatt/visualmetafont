@@ -21,6 +21,9 @@ struct JustificationCandidateParameter {
   double maximumValue = 0;
   // Full bound for continuation invocations. Null for fixed writes.
   std::optional<double> continuationMaximum;
+  // Original activation minimum; retained when a resumed candidate's current
+  // minimum changes, so percentages always refer to the same declared range.
+  double continuationMinimum = 0;
   bool operator==(const JustificationCandidateParameter&) const = default;
 };
 
@@ -123,8 +126,9 @@ std::optional<JustificationCandidate> collectJustificationCandidate(
 bool measureJustificationCandidate(JustificationCandidate& candidate,
                                    JustificationStagingBackend& backend);
 
-// Bound the leading varying parameter's relative growth or absolute target, preserving the
-// other ranges' interpolation ratio. Never cross mandatory activation values.
+// Numeric bounds use the leading parameter and preserve the other ranges'
+// interpolation ratio. Percentages use each parameter's original activation
+// minimum and full maximum. Never cross mandatory activation values.
 bool limitJustificationCandidateContinuation(JustificationCandidate& candidate, StageContinuation continuation);
 
 }  // namespace digitalkhatt::justify

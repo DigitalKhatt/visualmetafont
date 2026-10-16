@@ -262,6 +262,7 @@ struct StageContinuation {
   enum class Mode : std::uint8_t { None, By, To, Maximum };
   Mode mode = Mode::None;
   double limit = 0;
+  bool percentage = false;
   bool operator==(const StageContinuation&) const = default;
 };
 

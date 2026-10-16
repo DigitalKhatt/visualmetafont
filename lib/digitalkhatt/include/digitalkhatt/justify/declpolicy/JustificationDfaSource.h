@@ -271,6 +271,7 @@ struct DfaLineStepSource {
   std::string stage;
   std::string continuation;  // empty | by | to | maximum
   double continuationLimit = 0;
+  bool continuationPercentage = false;
   bool operator==(const DfaLineStepSource&) const = default;
 };
 

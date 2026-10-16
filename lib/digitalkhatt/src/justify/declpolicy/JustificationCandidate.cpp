@@ -59,6 +59,7 @@ class CandidateRecordingBackend final : public JustificationStagingBackend {
     parameter.minimumValue = value;
     parameter.maximumValue = value;
     parameter.continuationMaximum.reset();
+    parameter.continuationMinimum = 0;
     backend_.update(site, attribute, value);
   }
 
@@ -97,6 +98,7 @@ class CandidateRecordingBackend final : public JustificationStagingBackend {
     parameter.minimumValue = backend_.read(site, attribute);
     parameter.maximumValue = endpoint;
     parameter.continuationMaximum = endpoint;
+    parameter.continuationMinimum = parameter.minimumValue;
     // `vary` offers an endpoint; it does not change the mandatory staged
     // value observed by effects that follow it.
   }
@@ -184,6 +186,31 @@ std::optional<JustificationCandidate> collectJustificationCandidate(
 
 bool limitJustificationCandidateContinuation(JustificationCandidate& candidate, StageContinuation continuation) {
   if (!std::isfinite(continuation.limit) || continuation.limit < 0 || (continuation.mode == StageContinuation::Mode::By && continuation.limit == 0) || continuation.mode == StageContinuation::Mode::None) throw std::invalid_argument("invalid candidate continuation limit");
+  if (continuation.percentage) {
+    if ((continuation.mode != StageContinuation::Mode::By && continuation.mode != StageContinuation::Mode::To) || continuation.limit > 100) throw std::invalid_argument("invalid candidate continuation percentage");
+    const auto endpoint = [&](const JustificationCandidateParameter& parameter) {
+      const double maximum = *parameter.continuationMaximum;
+      const double amount = continuation.limit / 100 * (maximum - parameter.continuationMinimum);
+      if (continuation.mode == StageContinuation::Mode::To) return continuation.limit == 100 ? maximum : parameter.continuationMinimum + amount;
+      return std::min(maximum, parameter.initialValue + amount);
+    };
+    bool grows = false;
+    for (const auto& parameter : candidate.parameters) {
+      if (!parameter.continuationMaximum) continue;
+      const double value = endpoint(parameter);
+      // Already accepted axes may be above a percentage target. Keep them
+      // unchanged, but never activate a new site below its mandatory minimum.
+      if (!std::isfinite(value) || (value + 1e-12 < parameter.minimumValue && parameter.minimumValue > parameter.initialValue)) return false;
+      grows |= value > parameter.initialValue;
+    }
+    if (!grows) return false;
+    for (auto& parameter : candidate.parameters) {
+      if (parameter.continuationMaximum) parameter.maximumValue = std::max(parameter.minimumValue, endpoint(parameter));
+    }
+    candidate.minimumWidthDelta.reset();
+    candidate.maximumWidthDelta.reset();
+    return true;
+  }
   double span = 0;
   double initial = 0;
   for (const auto& parameter : candidate.parameters) {

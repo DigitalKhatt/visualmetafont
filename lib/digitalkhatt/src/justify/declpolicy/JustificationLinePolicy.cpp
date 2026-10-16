@@ -40,8 +40,10 @@ LinePolicyStep compileLinePolicyStep(const DfaLineStepSource& step, bool stretch
     else if (step.continuation == "maximum") continuation.mode = StageContinuation::Mode::Maximum;
     else throw std::invalid_argument("unknown stage continuation " + step.continuation);
     continuation.limit = step.continuationLimit;
+    continuation.percentage = step.continuationPercentage;
   }
   if (!std::isfinite(step.continuationLimit) || step.continuationLimit < 0 || (continuation.mode == StageContinuation::Mode::By && step.continuationLimit == 0) || ((continuation.mode == StageContinuation::Mode::None || continuation.mode == StageContinuation::Mode::Maximum) && step.continuationLimit != 0)) throw std::invalid_argument("invalid stage continuation limit");
+  if (step.continuationPercentage && ((continuation.mode != StageContinuation::Mode::By && continuation.mode != StageContinuation::Mode::To) || step.continuationLimit > 100)) throw std::invalid_argument("stage continuation percentages require by or to and a limit from 0 to 100");
   for (double value : step.arguments) {
     if (!std::isfinite(value) || value < 0 || (operation->code == LineStepOp::FitSclx && value == 0)) throw std::invalid_argument("invalid linepolicy numeric argument for " + step.operation);
   }

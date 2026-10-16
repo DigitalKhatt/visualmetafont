@@ -780,12 +780,26 @@ justdfa_line_step
 		}
 		$$ = {.operation = "stage", .stage = $name, .continuation = "by", .continuationLimit = $value};
 	  }
+	| STAGE identifier[name] identifier[option] BY doubleorint[value] '%' ';'
+	  {
+		if ($option != "continue" || !std::isfinite($value) || $value <= 0 || $value > 100) {
+			error(yyla.location, "Expected stage Name continue by percentage in (0, 100];"); YYERROR;
+		}
+		$$ = {.operation = "stage", .stage = $name, .continuation = "by", .continuationLimit = $value, .continuationPercentage = true};
+	  }
 	| STAGE identifier[name] identifier[option] identifier[bound] doubleorint[value] ';'
 	  {
 		if ($option != "continue" || $bound != "to" || !std::isfinite($value) || $value < 0) {
 			error(yyla.location, "Expected stage Name continue to nonnegative-value;"); YYERROR;
 		}
 		$$ = {.operation = "stage", .stage = $name, .continuation = "to", .continuationLimit = $value};
+	  }
+	| STAGE identifier[name] identifier[option] identifier[bound] doubleorint[value] '%' ';'
+	  {
+		if ($option != "continue" || $bound != "to" || !std::isfinite($value) || $value < 0 || $value > 100) {
+			error(yyla.location, "Expected stage Name continue to percentage in [0, 100];"); YYERROR;
+		}
+		$$ = {.operation = "stage", .stage = $name, .continuation = "to", .continuationLimit = $value, .continuationPercentage = true};
 	  }
 	| identifier[operation] doubleorint[a] ';' { $$ = {$operation, {$a}, {}}; }
 	| identifier[operation] doubleorint[a] doubleorint[b] ';' { $$ = {$operation, {$a, $b}, {}}; }
