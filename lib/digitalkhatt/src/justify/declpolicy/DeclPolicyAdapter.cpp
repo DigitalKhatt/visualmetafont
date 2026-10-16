@@ -145,6 +145,22 @@ std::optional<hb_glyph_info_t> glyphInfoAtCluster(hb_font_t* font, hb_buffer_t* 
   return fallback;
 }
 
+// Same first-non-mark (otherwise first glyph) choice as glyphInfoAtCluster,
+// indexed once when every character in a parameter probe must be compared.
+std::vector<const hb_glyph_info_t*> glyphsByCluster(hb_font_t* font, hb_buffer_t* buffer, std::size_t length) {
+  std::vector<const hb_glyph_info_t*> result(length, nullptr);
+  unsigned count = 0;
+  const auto* glyphs = hb_buffer_get_glyph_infos(buffer, &count);
+  auto* face = hb_font_get_face(font);
+  for (unsigned index = 0; index < count; ++index) {
+    const auto& glyph = glyphs[index];
+    if (glyph.cluster >= length) continue;
+    auto*& selected = result[glyph.cluster];
+    if (!selected || (hb_ot_layout_get_glyph_class(face, selected->codepoint) == HB_OT_LAYOUT_GLYPH_CLASS_MARK && hb_ot_layout_get_glyph_class(face, glyph.codepoint) != HB_OT_LAYOUT_GLYPH_CLASS_MARK)) selected = &glyph;
+  }
+  return result;
+}
+
 hb_codepoint_t currentGlyphAtSite(const LineTextInfo& lineTextInfo, const JustInfo& justInfo, const map<int, hb_codepoint_t>& substitutions, JustificationSiteRef site) {
   const auto staged = substitutions.find(site);
   if (staged != substitutions.end()) return staged->second;
@@ -189,10 +205,12 @@ double featureParameterDelta(const LineTextInfo& text, JustInfo& info, std::stri
   auto found = info.featureParameterDeltas.find(tag);
   if (found == info.featureParameterDeltas.end()) {
     auto probe = shapeParameterProbe(text, info, tag);
+    const auto baselineGlyphs = glyphsByCluster(info.font, info.nativeBaseline.get(), text.lineText.size());
+    const auto probeGlyphs = glyphsByCluster(info.font, probe.get(), text.lineText.size());
     map<int, GlyphParameters> deltas;
     for (int cluster = 0; cluster < static_cast<int>(text.lineText.size()); ++cluster) {
-      const auto before = glyphInfoAtCluster(info.font, info.nativeBaseline.get(), cluster);
-      const auto after = glyphInfoAtCluster(info.font, probe.get(), cluster);
+      const auto* before = baselineGlyphs[cluster];
+      const auto* after = probeGlyphs[cluster];
       // Structural substitutions are not representable by parameter deltas.
       if (!before || !after || before->codepoint != after->codepoint) continue;
       const auto from = info.layout->glyphParameters(*before, 0, 0);
@@ -258,7 +276,8 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
       : lineTextInfo_(lineTextInfo), justInfo_(justInfo), catalog_(catalog), candidateWidth_(candidateWidth) {}
 
   void beginTransaction() override {
-    staged_ = justInfo_.fontFeatures;
+    staged_.clear();
+    materialized_ = false;
     stagedSubstitutions_ = justInfo_.substitutions;
     touchedSites_.clear();
     canMeasureAdvance_ = true;
@@ -270,6 +289,7 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
   }
 
   FixedSlotActionResult commitTransaction(int wordIndex) override {
+    materialize();
     switch (tryApplyFeatures(wordIndex, lineTextInfo_, justInfo_, staged_, true, &stagedSubstitutions_, justInfo_.textLineWidth > justInfo_.desiredWidth)) {
       case AppliedResult::NoChange:
         return FixedSlotActionResult::NoChange;
@@ -309,7 +329,11 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
 
   void update(JustificationSiteRef site, JustAttributeId attribute,
               double value) override {
-    auto& features = staged_[site];
+    auto [entry, inserted] = staged_.try_emplace(site);
+    if (inserted && !materialized_) {
+      if (const auto current = justInfo_.fontFeatures.find(site); current != justInfo_.fontFeatures.end()) entry->second = current->second;
+    }
+    auto& features = entry->second;
     const auto& tag = tagOf(attribute);
     const auto axis = catalog_.attributeAxes.at(attribute);
     // A policy may pair a native axis with an OpenType compatibility feature
@@ -337,8 +361,8 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
 
   void clear(JustificationSiteRef site) override {
     touchedSites_.insert(site);
-    if (const auto found = staged_.find(site); found != staged_.end()) {
-      const bool hasFeature = std::any_of(found->second.begin(), found->second.end(), [](const auto& feature) { return feature.axis == NoGlyphAxis; });
+    if (const auto* values = featuresAt(site)) {
+      const bool hasFeature = std::any_of(values->begin(), values->end(), [](const auto& feature) { return feature.axis == NoGlyphAxis; });
       canMeasureAdvance_ = canMeasureAdvance_ && !hasFeature;
       changesGsub_ = changesGsub_ || hasFeature;
     }
@@ -364,6 +388,7 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
   }
 
   std::optional<double> measureStagedWidthDelta(int wordIndex) override {
+    materialize();
     if (candidateWidth_ == CandidateWidthMode::Advance && canMeasureAdvance_) {
       const auto delta = measureGlyphDelta(justInfo_, justInfo_.fontFeatures, justInfo_.substitutions, staged_, stagedSubstitutions_, touchedSites_);
       if (delta) return delta;
@@ -404,6 +429,26 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
   }
 
  private:
+  // Candidate collection is a dry run. Keep only changed sites until an
+  // actual width measurement/commit needs the complete replay state.
+  void materialize() {
+    if (materialized_) return;
+    auto complete = justInfo_.fontFeatures;
+    for (auto& [site, values] : staged_) complete.insert_or_assign(site, std::move(values));
+    staged_ = std::move(complete);
+    materialized_ = true;
+  }
+
+  const vector<TextFontFeatures>* featuresAt(JustificationSiteRef site) const {
+    const auto found = staged_.find(site);
+    if (found != staged_.end()) return &found->second;
+    if (!materialized_) {
+      const auto current = justInfo_.fontFeatures.find(site);
+      if (current != justInfo_.fontFeatures.end()) return &current->second;
+    }
+    return nullptr;
+  }
+
   const std::string& tagOf(JustAttributeId attribute) const {
     if (attribute >= catalog_.attributes.size()) {
       throw std::runtime_error("justification attribute is out of range");
@@ -413,10 +458,10 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
 
   const TextFontFeatures* find(JustificationSiteRef site,
                                JustAttributeId attribute) const {
-    const auto entry = staged_.find(site);
-    if (entry == staged_.end()) return nullptr;
+    const auto* values = featuresAt(site);
+    if (!values) return nullptr;
     const auto& tag = tagOf(attribute);
-    for (const auto& feature : entry->second) {
+    for (const auto& feature : *values) {
       if (feature.name == tag) return &feature;
     }
     return nullptr;
@@ -429,6 +474,7 @@ class FeatureStagingBackend final : public JustificationStagingBackend {
   map<int, vector<TextFontFeatures>> staged_;
   map<int, hb_codepoint_t> stagedSubstitutions_;
   std::set<JustificationSiteRef> touchedSites_;
+  bool materialized_ = false;
   bool canMeasureAdvance_ = true;
   bool changesGsub_ = false;
 };

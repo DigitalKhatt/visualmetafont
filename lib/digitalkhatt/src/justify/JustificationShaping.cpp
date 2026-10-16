@@ -260,9 +260,8 @@ hb_buffer_t* shape(TextString text, hb_font_t* font, vector<hb_feature_t> featur
   ShapingBuffer owner(hb_buffer_create());
   auto* buffer = owner.get();
 
-  // This fork emits end-table-GSUB before initializing advances and running
-  // GPOS. Keep native actions external: no second positioning pass, no use of
-  // diagnostic callbacks when a line/word has no instance assignments.
+  // The fork's direct post-GSUB hook runs before advances and GPOS. Keep
+  // native actions external without enabling diagnostic messages per lookup.
   struct ParameterContext {
     const FeatureJustificationLayout* layout;
     const vector<GlyphParameterAssignment>& parameters;
@@ -275,9 +274,9 @@ hb_buffer_t* shape(TextString text, hb_font_t* font, vector<hb_feature_t> featur
   if (!parameters.empty() || context.dependentMarks) {
     const bool hasParameters = std::any_of(parameters.begin(), parameters.end(), [](const auto& parameter) { return parameter.axis != NoGlyphAxis; });
     if (hasParameters && (!layout || !layout->supportsGlyphParameters())) throw std::runtime_error("native justification parameters require a live layout provider");
-    hb_buffer_set_message_func(buffer, [](hb_buffer_t* buffer, hb_font_t* font, const char* message, void* data) -> hb_bool_t {
+    hb_buffer_set_post_gsub_func(buffer, [](hb_buffer_t* buffer, hb_font_t* font, void* data) {
       auto& context = *static_cast<ParameterContext*>(data);
-      if (strcmp(message, "end table GSUB") != 0 || context.applied) return true;
+      if (context.applied) return;
       context.applied = true;
       try {
         vector<hb_codepoint_t> originals;
@@ -329,7 +328,7 @@ hb_buffer_t* shape(TextString text, hb_font_t* font, vector<hb_feature_t> featur
         }
         if (context.dependentMarks) applyAttachments(context.text, font, buffer, originals, baselineParameters, *context.layout, context.operation, true);
       } catch (...) { context.error = std::current_exception(); }
-      return true; }, &context, nullptr);
+    }, &context, nullptr);
   }
 
   hb_buffer_set_segment_properties(buffer, &savedprops);
@@ -341,7 +340,7 @@ hb_buffer_t* shape(TextString text, hb_font_t* font, vector<hb_feature_t> featur
   hb_buffer_add_utf16(buffer, reinterpret_cast<const uint16_t*>(text.data()), static_cast<int>(text.size()), 0, static_cast<int>(text.size()));
 
   hb_shape(font, buffer, features.data(), features.size());
-  hb_buffer_set_message_func(buffer, nullptr, nullptr, nullptr);
+  hb_buffer_set_post_gsub_func(buffer, nullptr, nullptr, nullptr);
   if (context.error) std::rethrow_exception(context.error);
   if ((!parameters.empty() || context.dependentMarks) && !context.applied) throw std::runtime_error("shaper did not provide the required post-GSUB parameter stage");
   return owner.release();

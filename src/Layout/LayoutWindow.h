@@ -176,13 +176,16 @@ class LayoutWindow : public QMainWindow {
   QComboBox* justCombo;
   QComboBox* justStyleCombo;
   QComboBox* shrinkTypeCombo;
+  QComboBox* stretchPolicyCombo = nullptr;
   QComboBox* shrinkPolicyCombo = nullptr;
-  void refreshShrinkPolicies();
+  void refreshJustificationPolicies();
   void updateJustificationControls();
   QAction* justStyleLabelAction = nullptr;
   QAction* justStyleAction = nullptr;
   QAction* shrinkTypeLabelAction = nullptr;
   QAction* shrinkTypeAction = nullptr;
+  QAction* stretchPolicyLabelAction = nullptr;
+  QAction* stretchPolicyAction = nullptr;
   QAction* shrinkPolicyLabelAction = nullptr;
   QAction* shrinkPolicyAction = nullptr;
   QDockWidget* textRun;

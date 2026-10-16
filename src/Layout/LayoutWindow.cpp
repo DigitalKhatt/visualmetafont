@@ -756,12 +756,23 @@ void LayoutWindow::createActions() {
             executeRunText(true, 1);
           });
 
+  stretchPolicyLabelAction = jutifyToolbar->addWidget(new QLabel(tr("Stretch policy:")));
+  stretchPolicyCombo = new QComboBox;
+  stretchPolicyCombo->setObjectName("stretchPolicy");
+  stretchPolicyCombo->setToolTip(tr("Stretch recipe declared by the font, used by Declarative policy. Font default follows the font's line policy."));
+  stretchPolicyAction = jutifyToolbar->addWidget(stretchPolicyCombo);
+  connect(stretchPolicyCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this]() {
+    QSettings settings;
+    settings.setValue("LastDeclStretchPolicy", stretchPolicyCombo->currentData().toString());
+    executeRunText(true, 1);
+  });
+
   shrinkPolicyLabelAction = jutifyToolbar->addWidget(new QLabel(tr("Shrink policy:")));
   shrinkPolicyCombo = new QComboBox;
   shrinkPolicyCombo->setObjectName("shrinkPolicy");
   shrinkPolicyCombo->setToolTip(tr("Shrink recipe declared by the font, used by Declarative policy."));
   shrinkPolicyAction = jutifyToolbar->addWidget(shrinkPolicyCombo);
-  refreshShrinkPolicies();
+  refreshJustificationPolicies();
   connect(shrinkPolicyCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this]() {
     QSettings settings;
     settings.setValue("LastDeclShrinkPolicy", shrinkPolicyCombo->currentData().toString());
@@ -1302,45 +1313,52 @@ bool LayoutWindow::save() {
   return true;
 }
 
-void LayoutWindow::refreshShrinkPolicies() {
-  if (!shrinkPolicyCombo) return;
+void LayoutWindow::refreshJustificationPolicies() {
+  if (!stretchPolicyCombo || !shrinkPolicyCombo) return;
   QSettings settings;
-  const auto selected = settings.value("LastDeclShrinkPolicy").toString();
-  const QSignalBlocker blocker(shrinkPolicyCombo);
-  shrinkPolicyCombo->clear();
-  shrinkPolicyCombo->addItem(tr("Font default"), QString());
-  if (m_otlayout && m_otlayout->compiledJustificationCatalog) {
-    for (const auto& recipe : m_otlayout->compiledJustificationCatalog->shrinkPolicies) {
-      const auto name = QString::fromStdString(recipe.name);
-      shrinkPolicyCombo->addItem(name, name);
+  const auto* catalog = m_otlayout && m_otlayout->compiledJustificationCatalog ? &*m_otlayout->compiledJustificationCatalog : nullptr;
+  const auto populate = [&](QComboBox* combo, const char* setting, bool stretch) {
+    const auto selected = settings.value(setting).toString();
+    const QSignalBlocker blocker(combo);
+    combo->clear();
+    combo->addItem(tr("Font default"), QString());
+    if (catalog) {
+      for (const auto& recipe : stretch ? catalog->stretchPolicies : catalog->shrinkPolicies) {
+        const auto name = QString::fromStdString(recipe.name);
+        combo->addItem(name, name);
+      }
+      if (catalog->linePolicy) {
+        const auto& defaultName = stretch ? catalog->linePolicy->stretchPolicy : catalog->linePolicy->shrinkPolicy;
+        if (!defaultName.empty()) combo->setItemText(0, tr("Font default (%1)").arg(QString::fromStdString(defaultName)));
+      }
     }
-  }
-  const auto index = shrinkPolicyCombo->findData(selected);
-  shrinkPolicyCombo->setCurrentIndex(index >= 0 ? index : 0);
-  if (m_otlayout && m_otlayout->compiledJustificationCatalog) {
-    const auto& catalog = *m_otlayout->compiledJustificationCatalog;
-    if (catalog.linePolicy) {
-      const auto defaultIndex = shrinkPolicyCombo->findData(QString::fromStdString(catalog.linePolicy->shrinkPolicy));
-      if (defaultIndex > 0) shrinkPolicyCombo->setItemText(0, tr("Font default (%1)").arg(shrinkPolicyCombo->itemText(defaultIndex)));
-    }
-  }
+    // Preserve an unavailable preference so returning to its font restores it.
+    const auto index = combo->findData(selected);
+    combo->setCurrentIndex(index >= 0 ? index : 0);
+  };
+  populate(stretchPolicyCombo, "LastDeclStretchPolicy", true);
+  populate(shrinkPolicyCombo, "LastDeclShrinkPolicy", false);
   updateJustificationControls();
 }
 
 void LayoutWindow::updateJustificationControls() {
-  if (!justStyleCombo || !shrinkPolicyCombo) return;
+  if (!justStyleCombo || !stretchPolicyCombo || !shrinkPolicyCombo) return;
   const auto engine = justCombo->currentData().value<JustType>();
   const bool declarative = engine == JustType::DeclPolicy;
   const bool legacy = engine == JustType::Madina || engine == JustType::IndoPak ||
                       engine == JustType::Experimental || engine == JustType::Experimental2;
   const auto* catalog = m_otlayout && m_otlayout->compiledJustificationCatalog
       ? &*m_otlayout->compiledJustificationCatalog : nullptr;
-  const bool hasRecipes = declarative && catalog && !catalog->shrinkPolicies.empty();
+  const bool hasStretchRecipes = declarative && catalog && !catalog->stretchPolicies.empty();
+  const bool hasShrinkRecipes = declarative && catalog && !catalog->shrinkPolicies.empty();
   shrinkTypeLabelAction->setVisible(legacy);
   shrinkTypeAction->setVisible(legacy);
-  shrinkPolicyLabelAction->setVisible(hasRecipes);
-  shrinkPolicyAction->setVisible(hasRecipes);
-  shrinkPolicyCombo->setEnabled(hasRecipes);
+  stretchPolicyLabelAction->setVisible(hasStretchRecipes);
+  stretchPolicyAction->setVisible(hasStretchRecipes);
+  stretchPolicyCombo->setEnabled(hasStretchRecipes);
+  shrinkPolicyLabelAction->setVisible(hasShrinkRecipes);
+  shrinkPolicyAction->setVisible(hasShrinkRecipes);
+  shrinkPolicyCombo->setEnabled(hasShrinkRecipes);
 
   // Keep a preference per engine. Filtering or font reloads do not overwrite
   // an unavailable preference, so switching back restores the original choice.
@@ -1401,9 +1419,10 @@ JustOption LayoutWindow::getJustOption() {
   };
   if (option.justType == JustType::None || option.justType == JustType::HarfBuzz || option.justType == JustType::DeclPolicy)
     option.shrinkType = ShrinkType::None;
-  if (option.justType == JustType::DeclPolicy && shrinkPolicyCombo && m_otlayout && m_otlayout->compiledJustificationCatalog) {
-    const auto name = shrinkPolicyCombo->currentData().toString().toStdString();
-    option.justShrinkPolicy = m_otlayout->compiledJustificationCatalog->shrinkPolicyIndex(name);
+  if (option.justType == JustType::DeclPolicy && m_otlayout && m_otlayout->compiledJustificationCatalog) {
+    const auto& catalog = *m_otlayout->compiledJustificationCatalog;
+    if (stretchPolicyCombo) option.justStretchPolicy = catalog.stretchPolicyIndex(stretchPolicyCombo->currentData().toString().toStdString());
+    if (shrinkPolicyCombo) option.justShrinkPolicy = catalog.shrinkPolicyIndex(shrinkPolicyCombo->currentData().toString().toStdString());
   }
   return option;
 }
@@ -2185,6 +2204,11 @@ bool LayoutWindow::generateMushaf(bool isHTML) {
     settings.justifier = digitalkhatt::justifierName(just.justType);
     settings.style = digitalkhatt::styleName(just.justStyle);
     settings.shrink = digitalkhatt::shrinkName(just.shrinkType);
+    if (just.justType == JustType::DeclPolicy && m_otlayout->compiledJustificationCatalog) {
+      const auto& catalog = *m_otlayout->compiledJustificationCatalog;
+      if (just.justStretchPolicy >= 0) settings.stretchPolicy = catalog.stretchPolicies[just.justStretchPolicy].name;
+      if (just.justShrinkPolicy >= 0) settings.shrinkPolicy = catalog.shrinkPolicies[just.justShrinkPolicy].name;
+    }
     settings.pageLayout = m_otlayout->pageLayout();
     settings.lineSpacing = m_otlayout->interLineSpacing();
     settings.textWidth = m_otlayout->textWidth();
@@ -2339,7 +2363,7 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
 
 void LayoutWindow::loadLookupFile(QString fileName) {
   m_otlayout->loadLookupFile(fileName.toStdString());
-  refreshShrinkPolicies();
+  refreshJustificationPolicies();
 
   QSettings settings;
 

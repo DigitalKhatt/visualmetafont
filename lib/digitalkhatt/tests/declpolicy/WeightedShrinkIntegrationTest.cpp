@@ -54,7 +54,7 @@ class Provider : public FeatureJustificationLayout {
 static void testFeatureDeltas(Provider& provider) {
   const auto& catalog = *provider.justificationCatalog();
   auto* font = provider.createFont(1, false);
-  for (const auto value : {u"بب بب", u"عص فص حس حع عح حح مف لك كف لن قف", u"بسم الله الرحمن الرحيم"}) {
+  for (const auto value : {u"بب بب", u"عص فص حس حع عح حح مف لك كف لن قف", u"بسم الله الرحمن الرحيم", u"مُؤْمِنِينَ ٱللَّهَ عَلِيمٌ"}) {
     auto text = analyzeLineForJust(value);
     for (const bool compact : {false, true}) {
       std::vector<TextFontFeatures> globals;
@@ -69,6 +69,12 @@ static void testFeatureDeltas(Provider& provider) {
         const auto selection = std::find_if(catalog.selections.begin(), catalog.selections.end(), [&](const auto& selected) { return selected.name == name; }) - catalog.selections.begin();
         check(selection < catalog.selections.size(), "Missing native selection");
         PolicyPhase phase{.selection = static_cast<JustificationSelectionId>(selection), .levels = 1, .allocator = PolicyPhase::Allocator::CandidatePool};
+        // Collection writes only a private transaction, even when the line
+        // already contains accepted assignments from the previous stage.
+        const auto beforeCollection = info.fontFeatures;
+        const auto beforeWidth = info.textLineWidth;
+        (void)decl::collectDeclPolicyStageCandidates(text, info, std::span(&phase, 1));
+        check(info.fontFeatures == beforeCollection && info.textLineWidth == beforeWidth, "Candidate collection mutated accepted state");
         decl::applyDeclPolicyStage(text, info, std::span(&phase, 1), 16, CandidateWidthMode::Advance);
 
         // Repeating the stage must not apply the same level a second time.

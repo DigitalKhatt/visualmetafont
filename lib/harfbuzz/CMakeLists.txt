@@ -73,6 +73,12 @@ endif (UNIX)
 
 target_include_directories(${PROJECT_NAME} PUBLIC "harfbuzz/src")
 
+if(BUILD_TESTING AND NOT EMSCRIPTEN)
+  add_executable(harfbuzz_test_post_gsub tests/PostGsubCallbackTest.cpp)
+  target_link_libraries(harfbuzz_test_post_gsub PRIVATE harfbuzz)
+  add_test(NAME harfbuzz.post_gsub COMMAND harfbuzz_test_post_gsub)
+endif()
+
 if (NOT EMSCRIPTEN)
   target_compile_definitions(${PROJECT_NAME} PUBLIC HB_MINI)
   #target_compile_definitions(${PROJECT_NAME} PRIVATE HB_NO_JUSTIFICATION)
