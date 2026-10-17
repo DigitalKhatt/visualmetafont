@@ -33,6 +33,20 @@ The default output is `mushaf.pdf` in the working directory. Force defaults to
 off, as in the editor, so positions remain the justified shaping output.
 Use `--force` to apply XPBD. Reports are optional and independent of Force.
 
+The experimental lower-mark placement for `behshape.init` and
+`behshape.init.beforeseen` is off by
+default. Enable it with `--reh-waw-beh-placement` or
+`xpbd.toggles.rehWawBehPlacement: true` in a settings snapshot; disable it with
+`--no-reh-waw-beh-placement`. The matching GUI checkbox is in Placement /
+Special placements / Reh / Waw followed by initial Beh. Off retains the original
+placement. On uses a left/above-tip slot only when the full dot fits and clears
+nearby ink. Otherwise it prefers below and near the tip, extending downward if
+another descending Reh blocks that region. Same-owner kasra follows the dots
+horizontally (preserving the authored offset) and vertically with the dot/kasra
+stack clearance. Slot clearance is checked for the pair, including neighboring
+lines. Contextual lower marks yield to the next line's ink instead of displacing
+its stacks. Kasra owned by a neighboring Reh/Waw is not linked.
+
 Old Madina's declarative `standard` shrink policy tries features in order,
 accepting the first undershoot and stopping further shrink trials. Final
 `balance;` in `oldmadinafont/features.fea` distributes the created gap equally

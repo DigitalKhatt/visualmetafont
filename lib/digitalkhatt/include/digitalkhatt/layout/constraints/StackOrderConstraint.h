@@ -30,6 +30,15 @@ struct StackOrderConstraint : XPBDConstraint {
   bool outlineClearance = false;
   std::optional<double> preferredGap;
   double preferredGapCompliance;
+  // Lower stacks preserve dot placement and may have a separate contextual
+  // X target (e.g. kasra beside the tip of the preceding Reh/Waw).
+  bool keepInnerForGap = false;
+  bool alignHorizontal = true;
+  // A dot may occupy a neighboring bowl's free interior. Escape beneath it
+  // only after a persistent ink contact, rather than from bbox overlap alone.
+  bool onlyAfterInkContact = false;
+  int inkContactIterations = 0;
+  bool inkEscapeActive = false;
 
   double lambdaGap = 0.0;
   double lambdaX = 0.0;

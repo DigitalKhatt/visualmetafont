@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "digitalkhatt/layout/SolverContext.h"
+#include "digitalkhatt/layout/BelowMarkPlacement.h"
 #include "digitalkhatt/layout/ConstraintViolation.h"
 #include "digitalkhatt/layout/SweepBroadphase.h"
 #include "digitalkhatt/layout/constraints/WaqfEscapeConstraint.h"
@@ -18,6 +19,12 @@ double gapCompliance(const GlyphInstance& A, const GlyphInstance& B) {
 
 std::pair<double, double> gapMobilities(const SolverContext& context,
     const GlyphInstance& A, const GlyphInstance& B) {
+  if (context.rehWawBehPlacement && A.lineIndex != B.lineIndex) {
+    if (A.lineIndex < B.lineIndex && context.contextualBelowMarks.contains(&A))
+      return {A.mobility, 0.0};
+    if (B.lineIndex < A.lineIndex && context.contextualBelowMarks.contains(&B))
+      return {0.0, B.mobility};
+  }
   if (A.isMark && B.isMark) {
     if (context.isWaqf(A) && !context.isWaqf(B)) return {3.0, 1.0};
     if (!context.isWaqf(A) && context.isWaqf(B)) return {1.0, 3.0};
@@ -45,6 +52,21 @@ double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptPar
   if (A.lineIndex != B.lineIndex ||
       (A.wordIndex >= 0 && B.wordIndex >= 0 && A.wordIndex != B.wordIndex))
     return P.differentWordGap;
+  const auto tipPair = [](const GlyphInstance& base, const GlyphInstance& mark) {
+    if (!isRehWaw(base) || !mark.isMark) return false;
+    // Check against base.nextBase so no unvalidated mark owner is traversed.
+    const auto* owner = base.nextBase;
+    return owner && owner == mark.prevBase && isRehWawFollowingBase(*owner) &&
+           (isKasraMark(mark) || isRehWawDot(mark));
+  };
+  if (P.toggles.rehWawBehPlacement) {
+    if (tipPair(A, B) || tipPair(B, A)) return std::min(P.sameWordGap, rehWawTipGap);
+    const auto dotOwnerPair = [](const GlyphInstance& base, const GlyphInstance& mark) {
+      if (!mark.isMark || !isRehWawDot(mark) || !rehWawReference(mark)) return false;
+      return &base == mark.prevBase || &base == mark.prevBase->nextBase;
+    };
+    if (dotOwnerPair(A, B) || dotOwnerPair(B, A)) return std::min(P.sameWordGap, rehWawTipGap);
+  }
   if (A.glyphName.starts_with("alef") &&
       B.prevBase == &A &&
       (B.glyphName.starts_with("hamza") ||
@@ -88,9 +110,9 @@ void solveGapConstraint(SolverContext& solverContext,
   double C = dr.contact.depth_or_gap - gmin;  // want C >= 0
 
   if (C < 0.0 && !solverContext.waqfEscapes.empty()) {
-    if (auto* escape = solverContext.waqfEscapes[A.globalIndex])
+    if (auto* escape = solverContext.waqfEscapes[A.globalIndex]; escape && wA > 0.0)
       escape->recordContact(B, dr.contact.normal * -1.0, dr.contact.depth_or_gap, gmin);
-    if (auto* escape = solverContext.waqfEscapes[B.globalIndex])
+    if (auto* escape = solverContext.waqfEscapes[B.globalIndex]; escape && wB > 0.0)
       escape->recordContact(A, dr.contact.normal, dr.contact.depth_or_gap, gmin);
   }
 

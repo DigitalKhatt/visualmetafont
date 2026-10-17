@@ -101,6 +101,36 @@ def verify_repeatability(reference, repeat):
                 repeat=dict(path=str(repeat.resolve()), sha256=actual))
 
 
+def select_previews(cases, limit):
+    """Keep large movements and a deterministic spread of mark combinations.
+
+    Numeric comparison/CSV coverage remains complete. Only ink previews are
+    sampled, since copying three context lines per word can produce gigabytes.
+    """
+    if not limit or len(cases) <= limit:
+        return cases
+    selected = {id(c) for c in sorted(cases, key=lambda c: -c['maximumMovement'])[:max(1, limit // 4)]}
+    if len(selected) == limit:
+        return [c for c in cases if id(c) in selected]
+    groups = {}
+    for case in cases:
+        key = tuple(sorted({g['name'] for g in case['changes']}))
+        groups.setdefault(key, []).append(case)
+    # Interleave each group's largest change and evenly spaced corpus samples.
+    queues = []
+    for group in groups.values():
+        spread = sorted(group, key=lambda c: (c['page'], c['line'], c['word']))
+        n = min(len(spread), limit)
+        samples = [spread[round(i * (len(spread) - 1) / max(1, n - 1))] for i in range(n)]
+        queues.append([max(group, key=lambda c: c['maximumMovement']), *samples])
+    for level in range(limit + 1):
+        for queue in queues:
+            if level < len(queue): selected.add(id(queue[level]))
+            if len(selected) >= limit:
+                return [c for c in cases if id(c) in selected]
+    return [c for c in cases if id(c) in selected]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--before-executable', required=True, type=Path)
@@ -112,7 +142,11 @@ def main():
     parser.add_argument('--before-repeat-data', type=Path, help='Existing independent baseline placement export to verify')
     parser.add_argument('--after-repeat-data', type=Path, help='Existing independent changed-build placement export to verify')
     parser.add_argument('--skip-repeatability-check', action='store_true', help='Explicitly generate an unverified comparison')
+    parser.add_argument('--preview-limit', type=int, default=0,
+                        help='Limit ink previews to representative words; numeric comparison and CSV remain complete (0 = all)')
     args = parser.parse_args()
+    if args.preview_limit < 0:
+        parser.error('--preview-limit must be nonnegative')
     args.output_dir.mkdir(parents=True, exist_ok=True)
     config = json.loads(args.config.read_text())
     manifests = []
@@ -128,6 +162,9 @@ def main():
         manifests.append(manifest)
     verify_sources(*manifests, config)
     cases, summary = compare(args.output_dir/'before.placements.jsonl', args.output_dir/'after.placements.jsonl')
+    all_cases = cases
+    cases = select_previews(cases, args.preview_limit)
+    summary['previewWords'] = len(cases)
     requests = args.output_dir/'review-words.json'
     requests.write_text(json.dumps([[c['page'],c['line'],c['word']] for c in cases]))
     proof_path = args.output_dir/'repeatability.json'
@@ -210,7 +247,7 @@ def main():
     with (args.output_dir/'changes.csv').open('w') as stream:
         writer = csv.writer(stream)
         writer.writerow(['page','line','word','text','glyph','index','base','before_x','before_y','after_x','after_y','delta_x_world','delta_y_world'])
-        for c in cases:
+        for c in all_cases:
             for g in c['changes']:
                 writer.writerow([c['page'],c['line'],c['word'],c['text'],g['name'],g['index'],g['base'],*g['before'],*g['after'],g['x'],g['y']])
     template = Path(__file__).with_name('placement_comparison.html').read_text()

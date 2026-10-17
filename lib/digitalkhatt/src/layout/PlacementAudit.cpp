@@ -4,6 +4,7 @@
 #include <cmath>
 #include <unordered_set>
 
+#include "digitalkhatt/layout/BelowMarkPlacement.h"
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
 #include "digitalkhatt/layout/SolverContext.h"
 
@@ -19,8 +20,10 @@ bool isManuallyPositionedMark(const GlyphInstance& mark, const SolverContext& co
         [&](const auto& line) { return std::any_of(line.begin(), line.end(),
             [&](const auto& g) { return &g == base.prevBase; }); });
   };
+  // Off means the original anchored-dot exception, including its variants.
+  const bool experimentalOwner = context.rehWawBehPlacement && isRehWawFollowingBase(base);
   return (below && context.isBowlBase(base)) ||
-      (context.downdotmarks.contains(mark.glyphName) &&
+      (!experimentalOwner && context.downdotmarks.contains(mark.glyphName) &&
        base.glyphName.starts_with("behshape.init") &&
        base.glyphName != "behshape.init.beforenoon" && precedingBaseExists() &&
        (base.prevBase->glyphName.starts_with("reh") || base.prevBase->glyphName.starts_with("waw")) &&

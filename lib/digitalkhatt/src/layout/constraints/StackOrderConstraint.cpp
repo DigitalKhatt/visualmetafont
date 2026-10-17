@@ -16,6 +16,9 @@ StackOrderConstraint::FacingEdges StackOrderConstraint::facingEdges() const {
   if ((!outlineClearance && !outer.preserveGposHorizontal) || inner.worldPolys.empty() || outer.worldPolys.empty()) {
     return {true, {x, isAbove ? boxTopY(inner) : boxBottomY(inner)}, {x, isAbove ? boxBottomY(outer) : boxTopY(outer)}};
   }
+  const auto innerBox = inner.worldPolys.boundingAABB(), outerBox = outer.worldPolys.boundingAABB();
+  if (innerBox.maxx < outerBox.minx || outerBox.maxx < innerBox.minx)
+    return {false, {}, {}};
 
   const geometry::Vec2 innerOrigin{inner.baseX + inner.dx, inner.baseY + inner.dy};
   const geometry::Vec2 outerOrigin{outer.baseX + outer.dx, outer.baseY + outer.dy};
@@ -64,7 +67,18 @@ StackOrderConstraint::FacingEdges StackOrderConstraint::facingEdges() const {
 }
 
 void StackOrderConstraint::project(SolverContext& solverContext, double dt) {
-  const double wI = inner.mobility;
+  if (onlyAfterInkContact && !inkEscapeActive) {
+    // The contact proxy is flattened; protect curved ink and final renderer
+    // rounding with twice the flattening tolerance before declaring it clear.
+    constexpr double inkSafety = 2.0 * geometry::CUBIC_FLATNESS_TOLERANCE;
+    if (geometry::getDistance(inner.worldPolys, outer.worldPolys, inkSafety).contact.depth_or_gap < inkSafety)
+      ++inkContactIterations;
+    else
+      inkContactIterations = 0;
+    if (inkContactIterations < 3) return;
+    inkEscapeActive = true;
+  }
+  const double wI = keepInnerForGap ? 0.0 : inner.mobility;
   const double wO = outer.mobility;
   if (wI + wO <= 0.0) return;
 
@@ -143,7 +157,7 @@ void StackOrderConstraint::project(SolverContext& solverContext, double dt) {
   // Dots are the reference: only the outer mark follows their position.
   // Their actual mobility remains available to gap and other constraints.
   // ------------------------------------------------------------
-  {
+  if (alignHorizontal) {
     const bool innerIsDots = solverContext.topdotmarks.contains(inner.glyphName) ||
                              solverContext.downdotmarks.contains(inner.glyphName);
     const double wAlignInner = innerIsDots ? 0.0 : wI;
@@ -169,8 +183,10 @@ void StackOrderConstraint::project(SolverContext& solverContext, double dt) {
 
 void StackOrderConstraint::reportViolations(
     SolverContext&, std::vector<ConstraintViolation>& out) const {
-  reportSoftTarget(out, ViolationType::SoftTargetResidual, outer, &inner,
-                   boxCenterX(inner) - boxCenterX(outer) - offsetX, "Stack horizontal alignment");
+  if (onlyAfterInkContact && !inkEscapeActive) return;
+  if (alignHorizontal)
+    reportSoftTarget(out, ViolationType::SoftTargetResidual, outer, &inner,
+                     boxCenterX(inner) - boxCenterX(outer) - offsetX, "Stack horizontal alignment");
   if (preferredGap) {
     const auto edges = facingEdges();
     if (edges.overlap) reportSoftTarget(out, ViolationType::SoftTargetResidual, outer, &inner, (isAbove ? edges.outer.y - edges.inner.y : edges.inner.y - edges.outer.y) - std::max(minGap, *preferredGap), "Stack preferred outline clearance");

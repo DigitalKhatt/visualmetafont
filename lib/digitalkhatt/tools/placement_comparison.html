@@ -17,6 +17,10 @@ if(data.glyphs)for(const c of data.cases)for(const side of ['before','after'])c[
 let filtered=data.cases, page=0, current=null, observer=null;
 const fmt=v=>Number(v).toFixed(2), el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e};
 $('summary').textContent=`${data.summary.changedWords.toLocaleString()} changed words · ${data.summary.changedGlyphs.toLocaleString()} changed glyphs · ${data.summary.pages} pages reviewed`;
+if(data.summary.previewWords<data.summary.changedWords){
+ $('summary').textContent+=` · ${data.summary.previewWords} representative ink previews (full numeric coverage in changes.csv)`;
+ $('description').textContent='Ink previews show representative changed words; changes.csv includes every changed final, rounded glyph offset. The default view hides movements below 30 font units and keeps new or worsened findings visible. Both runs use the same shaped inputs and font snapshot.';
+}
 $('settings').textContent=JSON.stringify(data.summary.configuration,null,2);
 const verified=['before','after'].every(side=>data.summary.repeatability?.[side]?.verified);
 $('proof').textContent=verified?'Repeatability verified: independent runs produce byte-identical placement exports.':'Repeatability has not been verified for this comparison.';

@@ -152,6 +152,7 @@ add_library(digitalkhatt_layout
   src/layout/MarkClassifier.cpp
   src/layout/OptimizeLayout.cpp
   src/layout/TopMarkStack.cpp
+  src/layout/BelowMarkPlacement.cpp
   src/layout/PlacementAudit.cpp
   src/layout/constraints/YlaneConstraint.cpp
   src/layout/constraints/HorizontalOrderConstraint.cpp
@@ -166,6 +167,7 @@ add_library(digitalkhatt_layout
   src/layout/constraints/SqueezeCenterConstraint.cpp
   src/layout/constraints/StackOrderConstraint.cpp
   src/layout/constraints/CompactMarkConstraint.cpp
+  src/layout/constraints/RehWawMarkConstraint.cpp
   src/layout/constraints/BaseVicinityConstraint.cpp
   src/layout/constraints/BowlClusterConstraint.cpp
 )

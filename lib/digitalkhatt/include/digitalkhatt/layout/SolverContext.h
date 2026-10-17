@@ -39,6 +39,10 @@ struct SolverContext {
   }
 
   GapsInfo gapInfos;
+  bool rehWawBehPlacement = false;
+  // Registered by the opt-in setup. Across lines these lower marks yield to
+  // the next line's ink, instead of displacing its top-mark/Waqf stacks.
+  std::unordered_set<const GlyphInstance*> contextualBelowMarks;
   // Registered once by global glyph index; null entries cost no class lookup.
   std::vector<WaqfEscapeConstraint*> waqfEscapes;
   const ClassMap& classes;

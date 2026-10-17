@@ -45,6 +45,12 @@ Mushaf links therefore use `#page=P` directly. Timing includes reporting, previe
 geometry and placement preparation; it is not an isolated solver benchmark.
 
 `--reuse` rebuilds the viewer from completed outputs without regenerating PDFs.
+For changes affecting thousands of words, `--preview-limit 120` keeps the largest
+movements and a deterministic spread of changed mark combinations in the ink
+viewer. All words are still compared numerically and included in `changes.csv`;
+the viewer explicitly labels its sampled preview coverage. The default remains
+all changed words. This avoids multi-gigabyte contextual preview files.
+
 `--reuse-before` preserves the baseline Mushaf and regenerates the changed run
 and both preview selections. Use these only when the font/configuration and
 baseline binary are unchanged. Every run validates its input source checksums.
@@ -76,6 +82,37 @@ Neither original nor solved coordinates determine parent selection. Other
 marks block a relationship through semantic adjacency, never through their
 initial heights. Generic gap contacts remain enabled for
 all pairs except the direct stack pairs with their own authored gap.
+
+## Lower dots and kasra
+
+The experiment is opt-in and scoped to the exact `behshape.init` glyph.
+`xpbd.toggles.rehWawBehPlacement` defaults to `false`: absent/false settings
+preserve the original solver, including its manually anchored Reh/Waw-dot
+exception. Initial variants, isolated Beh and other letters retain that policy
+even when the option is enabled. The GUI checkbox is under Placement / Special
+placements / Reh / Waw followed by initial Beh. CLI overrides are
+`--reh-waw-beh-placement` and `--no-reh-waw-beh-placement`.
+
+When enabled, lower dots and kasra/kasratan on `behshape.init` form a downward
+stack with 40-unit contour clearance, even across an intervening upper mark.
+Kasra takes the vertical correction and preserves the authored horizontal
+offset. This stack also follows the existing `stackOrder` switch.
+
+After Reh/Waw in the same word, kasra prefers the lower contour near the tip
+with a 30-unit gap, with or without dots. Its semantic owner stays Beh. Dots
+instead search a bounded region near Beh for balanced ink clearances to Beh
+and Reh/Waw. If the full mark fits in the free space left of and above the tip,
+the preference centers it there. Otherwise a compact position near the tip is
+allowed. A live clearance-balance correction respects the region and surrounding
+base and mark ink, including fixed marks inside neighboring bowls. A neighboring
+Ain's low bowl never becomes a downward placement rail
+for these dots; they remain near their Beh owner.
+
+Contextual dot contacts with the owner, Reh/Waw and following base use compact
+30-unit clearance. Other contacts stay active. The contextual target replaces
+vicinity/squeeze preferences for those marks. Directional lower bounds apply
+to kasra only. Authored bowl-interior exceptions remain unchanged. Constants
+are named in `BelowMarkPlacement.h`; all movement still requires Force.
 
 ## Repeatability and review thresholds
 

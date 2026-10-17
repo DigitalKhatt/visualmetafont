@@ -315,6 +315,7 @@ void usage() {
       "  --force / --no-force       Enable/disable XPBD (default matches GUI: off)\n"
       "  --report / --no-report     Generate PDFs, CSV and offline web viewer\n"
       "  --xpbd-config PATH         Partial/full OptParams JSON\n"
+      "  --reh-waw-beh-placement / --no-reh-waw-beh-placement  Initial-Beh lower placement (default off)\n"
       "  --same-word-gap N          Generic intra-word target clearance (default 80)\n"
       "  --different-word-gap N     Inter-word / inter-line target clearance (default 80)\n"
       "  --soft-targets             Include optional soft residuals\n"
@@ -444,6 +445,8 @@ int main(int argc,char** argv) {
       else if (arg=="--waqf-previous-line-margin") options.xpbd.waqfPreviousLineMarginPercent=std::stod(value());
       else if (arg=="--waqf-x-alignment-band") options.xpbd.waqfHorizontalAlignmentBandPercent=std::stod(value());
       else if (arg=="--waqf-escape") options.xpbd.toggles.waqfEscape=true;
+      else if (arg=="--reh-waw-beh-placement") options.xpbd.toggles.rehWawBehPlacement=true;
+      else if (arg=="--no-reh-waw-beh-placement") options.xpbd.toggles.rehWawBehPlacement=false;
       else if (arg=="--no-waqf-escape") options.xpbd.toggles.waqfEscape=false;
       else if (arg=="--waqf-escape-min-gap") options.xpbd.waqfEscapeMinGap=std::stod(value());
       else if (arg=="--waqf-escape-step") options.xpbd.waqfEscapeStepPercent=std::stod(value());

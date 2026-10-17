@@ -14,6 +14,7 @@ struct ConstraintToggles {
   bool hardStayAboveBelow = false;  // both stay-above/stay-below rails
   bool squeezeCenter = false;
   bool stackOrder = true;
+  bool rehWawBehPlacement = false; // opt-in: behshape.init and behshape.init.beforeseen
   bool baseVicinity = true;
   bool horizontalOrder = true;
   bool matchMarkPosition = true;     // kasra + smalllowmeem cohesion

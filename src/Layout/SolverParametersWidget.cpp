@@ -278,6 +278,11 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   updateEscape();
 
   auto* special = addSection(constraints, tr("Special placements"));
+  auto behPlacement = addConstraint(special, tr("Reh / Waw followed by initial Beh"), settings,
+      "toggle.rehWawBehPlacement", toggles.rehWawBehPlacement, this, changed);
+  auto* behNote = new QLabel(tr("Opt-in placement for behshape.init and behshape.init.beforeseen. Uses a clear full-width slot left of and above the Reh/Waw tip; otherwise places dots below near the tip. Same-owner kasra follows the dots and stays below them. Off preserves the previous implementation."), behPlacement.box);
+  behNote->setWordWrap(true);
+  behPlacement.form->addRow(behNote);
   auto pair = addConstraint(special, tr("Kasra / iqlab meem pair"), settings,
       "toggle.matchMarkPosition", toggles.matchMarkPosition, this, changed);
   compliance(pair.form, tr("Compliance"), "compliance.matchMarkPosition", comp.matchMarkPosition);
