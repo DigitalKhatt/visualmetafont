@@ -210,6 +210,11 @@ void runEffects(const std::vector<JustEffect>& effects, const ActionRun& run,
         if (effect.maximum.empty()) backend.vary(target, effect.attribute, run.evaluate(effect.value));
         else backend.varyWithMaximum(target, effect.attribute, run.evaluate(effect.value), run.evaluate(effect.maximum));
         break;
+      case JustEffectKind::Derive: {
+        const auto driver = run.site(effect.driver);
+        if (driver != kNoSite) backend.derive(target, effect.attribute, driver, effect.driverAttribute, run.evaluate(effect.value));
+        break;
+      }
       case JustEffectKind::Forbid:
       case JustEffectKind::When:
         break;  // handled above

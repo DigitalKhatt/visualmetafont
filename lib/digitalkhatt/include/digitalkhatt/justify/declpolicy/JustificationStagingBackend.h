@@ -91,6 +91,12 @@ class JustificationStagingBackend {
     vary(site, attribute, preferred);
   }
 
+  // A dependent output follows its driver's value, including quantization.
+  // It has no independent allocation range or rounding grid.
+  virtual void derive(JustificationSiteRef, JustAttributeId, JustificationSiteRef, JustAttributeId, double) {
+    throw std::logic_error("derived ranges require candidate_pool range collection");
+  }
+
   // Resolves a declared attachment from an anchor, or kNoSite.
   virtual JustificationSiteRef attachment(JustificationSiteRef anchor,
                                           JustAttachmentId attachment) const = 0;

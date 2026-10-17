@@ -67,7 +67,7 @@ The sections have intentionally separate responsibilities:
 - `facts` maps font-specific glyph forms and source characters to predicates;
 - optional `patterns` shares fixed-slot recognition across opportunities;
 - `opportunities` associates fixed-slot matches with preparation and parameter ranges;
-- optional `actions` holds shared prepare/range bodies referenced by opportunities;
+- optional `actions` holds shared preparation and parameter operations, with arguments supplied by opportunities;
 - `selections` records rule priority, logical first/last match
   direction, subword traversal, named result records, and state constraints;
 - `stages` groups reusable selection phases, priorities, allocators, and repetition budgets;
@@ -231,6 +231,89 @@ current staged value; an omitted `maximum` uses the preferred endpoint as the
 full continuation limit. An explicit minimum installs the mandatory activation
 value. Bounds accept the same expressions as updates. The old `vary ... to ...`
 spelling has been removed from the feature language.
+
+### Opportunity ranges and action arguments
+
+Shared actions can receive named ranges declared by each opportunity. For
+example, the existing two-sided ascendant action can be written as:
+
+```fea
+action OpenAscendant(outgoing, incoming) {
+  prepare {
+    # Put the existing guards before the first lookup/write.
+    lookup $1 justify.decompose_left;
+  }
+  update $1:lefttatweel = outgoing;
+  prepare {
+    clear $2;
+    lookup $2 justify.decompose_right;
+  }
+  update $2:righttatweel = incoming;
+}
+
+opportunity PreferredAscendant {
+  match FinalAscendantConnection;
+  range left minimum 1 preferred 2 maximum 5;
+  range right minimum 0.5 preferred 1 maximum 2.5;
+  action OpenAscendant(left, right);
+}
+```
+
+Arguments are positional; the opportunity's range names need not equal the
+action's formal argument names. Bounds are expanded at the corresponding
+assignment in the action, not evaluated before its preparation. Assigning a
+range inserts the same mandatory update (if present) and `vary` operation as
+the old glyph-parameter range syntax. This preserves staged reads, substitution
+order, per-output quantization, width measurement and continuation behavior.
+The range names and call arguments exist only during compilation. Calls with
+identical expanded effects reuse a single compiled action; different bounds
+create a separate compiled instance without changing the shared definition.
+
+Scalar arguments are also supported, for example `action Open(left, 0.5);`.
+Their expressions are expanded at their use sites. Formal arguments and range
+names must be unique; call arity, unknown arguments/ranges, unused ranges and
+mixed inline/action bodies are checked when the catalog is loaded. Existing
+argument-free actions and inline glyph-parameter ranges remain supported.
+
+For proportional outputs, declare **one independent range** and derive the
+other values inside the action:
+
+```fea
+action OpenAscendant(outgoing) {
+  prepare { lookup $1 justify.decompose_left; }
+  update $1:lefttatweel = outgoing;
+  prepare {
+    clear $2;
+    lookup $2 justify.decompose_right;
+  }
+  update $2:righttatweel = prod(0.5, outgoing);
+}
+
+opportunity PreferredAscendant {
+  match FinalAscendantConnection;
+  range length minimum 1 preferred 2 maximum 5;
+  action OpenAscendant(length);
+}
+```
+
+The first direct assignment establishes the driver. Later assignments of that
+range, or `prod(scalarExpression, range)`, are dependent outputs. Scalar factors
+may include facts and scalar action arguments; they are evaluated once, when
+the action is collected, and must be positive and finite. Nonlinear expressions
+and products of two ranges are rejected. A driver cannot subsequently be cleared
+or overwritten; conditional drivers are scoped to their conditional block.
+
+Preparation observes the mandatory driver minimum and its derived value.
+Allocation and numeric/percentage continuation operate on the independent
+range. Only the driver is quantized; dependent outputs are calculated from its
+accepted value without another rounding step. Thus `incoming = 0.5 * outgoing`
+holds exactly even with a 1/16 grid (the incoming value may be on a 1/32 grid).
+This intentionally differs from the older independently rounded outputs.
+
+OldMadina's shared Kashida actions use proportional outputs where all bounds
+have the same ratio. `ContinueKashida4` retains independent ranges because its
+`max(current, endpoint)` expressions can start from unrelated existing values.
+Independent ranges remain available whenever proportional coupling is unwanted.
 
 Preparation blocks and ranges are evaluated in declaration order while a trial
 is built. Multiple prepare blocks may surround ranges when later preparation
@@ -999,10 +1082,11 @@ Decimal percentages are allowed. `to` accepts `[0, 100]`, and `by` accepts
 `(0, 100]`; percentages above 100 are rejected. No `%` means the original
 absolute/relative parameter-unit semantics.
 
-An action can declare its ordinary preferred endpoint and a full maximum together:
+An opportunity can declare its ordinary preferred endpoint and a full maximum together:
 
 ```fea
-range $self:lefttatweel minimum 1 preferred 3 maximum 9;
+range length minimum 1 preferred 3 maximum 9;
+action ExpandTerminal(length);
 ```
 
 Ordinary stages still offer the endpoint 3. Continuation can advance up to 9;

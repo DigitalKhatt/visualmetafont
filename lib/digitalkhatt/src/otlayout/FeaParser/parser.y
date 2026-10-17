@@ -115,7 +115,10 @@
 %type <std::vector<int>> character_list;
 %type <std::vector<std::string>> identifier_list;
 %type <digitalkhatt::justify::DfaFactSource> justdfa_fact justdfa_fact_body;
-%type <digitalkhatt::justify::DfaOpportunitySource> justdfa_opportunity justdfa_opportunity_match;
+%type <digitalkhatt::justify::DfaOpportunitySource> justdfa_opportunity justdfa_opportunity_match justdfa_opportunity_body;
+%type <digitalkhatt::justify::DfaNamedRangeSource> justdfa_named_range;
+%type <std::vector<std::string>> justdfa_action_parameters;
+%type <std::vector<digitalkhatt::justify::DfaExprSource>> justdfa_call_arguments;
 %type <digitalkhatt::justify::DfaPatternSource> justdfa_pattern;
 %type <std::vector<digitalkhatt::justify::DfaPatternSource>> justdfa_patterns justdfa_pattern_list;
 %type <std::vector<digitalkhatt::justify::DfaOpportunitySource>> justdfa_opportunities;
@@ -134,7 +137,7 @@
 %type <std::vector<digitalkhatt::justify::DfaActionDefSource>> justdfa_actions_block justdfa_named_actions;
 %type <digitalkhatt::justify::DfaActionDefSource> justdfa_action_def;
 %type <std::vector<digitalkhatt::justify::DfaEffectSource>> justdfa_effects justdfa_action_body justdfa_range;
-%type <digitalkhatt::justify::DfaEffectSource> justdfa_effect;
+%type <digitalkhatt::justify::DfaEffectSource> justdfa_effect justdfa_update;
 %type <std::vector<digitalkhatt::justify::DfaWriteSource>> justdfa_writes;
 %type <digitalkhatt::justify::DfaTargetSource> justdfa_target justdfa_slot;
 %type <digitalkhatt::justify::DfaExprSource> justdfa_cond justdfa_comparison justdfa_prim;
@@ -881,10 +884,52 @@ justdfa_opportunities
 	;
 
 justdfa_opportunity
-	: OPPORTUNITY identifier[name] '{' justdfa_opportunity_match[match] ACTION identifier[action] ';' '}'
-	  { $$ = std::move($match); $$.name = $name; $$.action = $action; }
-	| OPPORTUNITY identifier[name] '{' justdfa_opportunity_match[match] justdfa_action_body[body] '}'
-	  { $$ = std::move($match); $$.name = $name; $$.effects = std::move($body); }
+	: OPPORTUNITY identifier[name] '{' justdfa_opportunity_match[match] justdfa_opportunity_body[body] '}'
+	  { $$ = std::move($body); $$.name = $name; $$.pattern = std::move($match.pattern); $$.patternName = std::move($match.patternName); }
+	;
+
+justdfa_opportunity_body
+	: { $$ = {}; }
+	| justdfa_opportunity_body ACTION identifier[action] justdfa_call_arguments[arguments] ';'
+	  {
+		$$ = std::move($1);
+		if (!$$.action.empty() || !$$.effects.empty()) { error(yyla.location, "An opportunity requires one action call or an inline body, not both"); YYERROR; }
+		$$.action = $action; $$.arguments = std::move($arguments);
+	  }
+	| justdfa_opportunity_body justdfa_named_range[range]
+	  { $$ = std::move($1); $$.ranges.push_back(std::move($range)); }
+	| justdfa_opportunity_body PREPARE '{' justdfa_effects[effects] '}'
+	  {
+		$$ = std::move($1);
+		if (!$$.action.empty()) { error(yyla.location, "An opportunity cannot combine an action call and an inline body"); YYERROR; }
+		for (auto& effect : $effects) $$.effects.push_back(std::move(effect));
+	  }
+	| justdfa_opportunity_body justdfa_range[effects]
+	  {
+		$$ = std::move($1);
+		if (!$$.action.empty()) { error(yyla.location, "An opportunity cannot combine an action call and an inline body"); YYERROR; }
+		for (auto& effect : $effects) $$.effects.push_back(std::move(effect));
+	  }
+	| justdfa_opportunity_body WHEN justdfa_cond[condition] '{' justdfa_action_body[nested] '}'
+	  {
+		$$ = std::move($1);
+		if (!$$.action.empty()) { error(yyla.location, "An opportunity cannot combine an action call and an inline body"); YYERROR; }
+		$$.effects.push_back({.kind = "when", .condition = std::move($condition), .nested = std::move($nested)});
+	  }
+	;
+
+justdfa_named_range
+	: RANGE identifier[name] justdfa_range_options[bounds] ';'
+	  {
+		if ($bounds.preferred.empty()) { error(yyla.location, "range requires preferred <value>"); YYERROR; }
+		$$ = {$name, std::move($bounds)};
+	  }
+	;
+
+justdfa_call_arguments
+	: { $$ = {}; }
+	| '(' ')' { $$ = {}; }
+	| '(' justdfa_args[arguments] ')' { $$ = std::move($arguments); }
 	;
 
 justdfa_opportunity_match
@@ -1096,6 +1141,15 @@ justdfa_actions_block
 justdfa_action_def
 	: ACTION identifier[name] '{' justdfa_action_body[effects] '}'
 	  { $$ = {}; $$.name = $name; $$.effects = std::move($effects); }
+	| ACTION identifier[name] '(' ')' '{' justdfa_action_body[effects] '}'
+	  { $$ = {}; $$.name = $name; $$.effects = std::move($effects); }
+	| ACTION identifier[name] '(' justdfa_action_parameters[parameters] ')' '{' justdfa_action_body[effects] '}'
+	  { $$ = {}; $$.name = $name; $$.effects = std::move($effects); $$.parameters = std::move($parameters); }
+	;
+
+justdfa_action_parameters
+	: identifier { $$ = {$1}; }
+	| justdfa_action_parameters ',' identifier { $$ = std::move($1); $$.push_back($3); }
 	;
 
 /* Shared actions and inline opportunities have exactly the same ordered body.
@@ -1107,6 +1161,8 @@ justdfa_action_body
 	  { $$ = std::move($1); for (auto& effect : $effects) $$.push_back(std::move(effect)); }
 	| justdfa_action_body justdfa_range[effects]
 	  { $$ = std::move($1); for (auto& effect : $effects) $$.push_back(std::move(effect)); }
+	| justdfa_action_body justdfa_update[effect]
+	  { $$ = std::move($1); $$.push_back(std::move($effect)); }
 	| justdfa_action_body WHEN justdfa_cond[condition] '{' justdfa_action_body[nested] '}'
 	  { $$ = std::move($1); $$.push_back({.kind = "when", .condition = std::move($condition), .nested = std::move($nested)}); }
 	;
@@ -1155,11 +1211,7 @@ justdfa_effect
 		$$ = {}; $$.kind = "add"; $$.target = std::move($target);
 		$$.attribute = $attribute; $$.value = std::move($value); $$.clamp = $maximum;
 	  }
-	| UPDATE justdfa_target[target] ':' identifier[attribute] '=' justdfa_prim[value] ';'
-	  {
-		$$ = {}; $$.kind = "update"; $$.target = std::move($target);
-		$$.attribute = $attribute; $$.value = std::move($value);
-	  }
+	| justdfa_update { $$ = std::move($1); }
 	| REPLACE justdfa_target[target] '{' justdfa_writes[writes] '}'
 	  { $$ = {}; $$.kind = "replace"; $$.target = std::move($target); $$.writes = std::move($writes); }
 	| CLEAR justdfa_target[target] ';'
@@ -1168,6 +1220,11 @@ justdfa_effect
 	  { $$ = {}; $$.kind = "lookup"; $$.target = std::move($target); $$.lookup = std::move($name); }
 	| WHEN justdfa_cond[condition] '{' justdfa_effects[nested] '}'
 	  { $$ = {}; $$.kind = "when"; $$.condition = std::move($condition); $$.nested = std::move($nested); }
+	;
+
+justdfa_update
+	: UPDATE justdfa_target[target] ':' identifier[attribute] '=' justdfa_prim[value] ';'
+	  { $$ = {.kind = "update", .target = std::move($target), .attribute = $attribute, .value = std::move($value)}; }
 	;
 
 justdfa_writes
@@ -1233,6 +1290,7 @@ justdfa_comparison
 justdfa_prim
 	: INT_LITERAL[value] { $$ = {}; $$.push_back({.op = "literal", .literal = static_cast<double>($value)}); }
 	| DOUBLE_LITERAL[value] { $$ = {}; $$.push_back({.op = "literal", .literal = $value}); }
+	| identifier[name] { $$ = {{.op = "argument", .name = $name}}; }
 	| justdfa_target[target] ':' identifier[attribute]
 	  { $$ = {}; $$.push_back({.op = "attribute", .target = std::move($target), .name = $attribute}); }
 	/* A fact test needs a token of its own: its second argument is a fact name,

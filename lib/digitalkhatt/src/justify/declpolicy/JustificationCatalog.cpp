@@ -17,6 +17,167 @@ bool has(std::string_view name, std::string_view part) {
   return name.find(part) != std::string_view::npos;
 }
 
+JustExprOp exprOp(const std::string& name);
+int operandCount(JustExprOp op);
+
+// Specialize action calls once, before compiling the ordinary effect IR.
+// Range arguments are assigned at the action's original update site, not at
+// the start of preparation: later guards/reads must keep their current order.
+void lowerActionArguments(JustificationDfaSource& source) {
+  struct ActionTemplate {
+    DfaActionDefSource definition;
+    std::size_t index;
+    std::vector<std::pair<std::vector<DfaEffectSource>, std::string>> instances;
+  };
+  std::unordered_map<std::string, ActionTemplate> definitions;
+  for (std::size_t index = 0; index < source.actionDefinitions.size(); ++index) {
+    const auto& definition = source.actionDefinitions[index];
+    if (definition.name.empty()) throw std::invalid_argument("a justification action has no name");
+    if (!definitions.emplace(definition.name, ActionTemplate{definition, index, {}}).second) throw std::invalid_argument("duplicate justification action " + definition.name);
+    std::unordered_set<std::string> names;
+    for (const auto& name : definition.parameters)
+      if (name.empty() || !names.insert(name).second) throw std::invalid_argument("empty or duplicate action argument in " + definition.name);
+  }
+  for (const auto& binding : source.actions) {
+    const auto found = definitions.find(binding.action);
+    if (found != definitions.end() && !found->second.definition.parameters.empty()) throw std::invalid_argument("parameterized actions require an opportunity call: " + binding.action);
+  }
+  for (auto& opportunity : source.opportunities) {
+    const auto owner = "opportunity " + opportunity.name;
+    if (opportunity.action.empty()) {
+      if (!opportunity.ranges.empty() || !opportunity.arguments.empty()) throw std::invalid_argument(owner + " requires an action call for named ranges or arguments");
+      continue;
+    }
+    if (!opportunity.effects.empty()) throw std::invalid_argument(owner + " cannot combine an action reference and an inline body");
+    const auto found = definitions.find(opportunity.action);
+    if (found == definitions.end()) throw std::invalid_argument(owner + " references unknown action " + opportunity.action);
+    auto& action = found->second;
+    if (opportunity.arguments.size() != action.definition.parameters.size()) throw std::invalid_argument(owner + " has the wrong number of arguments for " + opportunity.action);
+    std::unordered_map<std::string, std::size_t> rangeIds;
+    for (std::size_t index = 0; index < opportunity.ranges.size(); ++index) {
+      const auto& range = opportunity.ranges[index];
+      if (range.name.empty() || range.bounds.preferred.empty() || !rangeIds.emplace(range.name, index).second) throw std::invalid_argument(owner + " has an empty, duplicate or incomplete named range");
+    }
+    if (action.definition.parameters.empty()) {
+      if (!opportunity.ranges.empty()) throw std::invalid_argument(owner + " declares unused named ranges");
+      continue;
+    }
+    std::vector<int> argumentRanges(opportunity.arguments.size(), -1);
+    std::vector<bool> usedRanges(opportunity.ranges.size());
+    for (std::size_t index = 0; index < opportunity.arguments.size(); ++index) {
+      const auto& argument = opportunity.arguments[index];
+      if (argument.size() == 1 && argument.front().op == "argument") {
+        const auto range = rangeIds.find(argument.front().name);
+        if (range == rangeIds.end()) throw std::invalid_argument(owner + " references unknown range " + argument.front().name);
+        argumentRanges[index] = static_cast<int>(range->second);
+      } else if (std::any_of(argument.begin(), argument.end(), [](const auto& node) { return node.op == "argument"; })) throw std::invalid_argument(owner + " must pass named ranges directly, not inside expressions");
+    }
+    const auto argumentId = [&](const std::string& name) {
+      const auto& parameters = action.definition.parameters;
+      const auto parameter = std::find(parameters.begin(), parameters.end(), name);
+      if (parameter == parameters.end()) throw std::invalid_argument("unknown argument " + name + " in action " + action.definition.name);
+      return static_cast<std::size_t>(parameter - parameters.begin());
+    };
+    const auto substitute = [&](const DfaExprSource& expression) {
+      DfaExprSource result;
+      for (const auto& node : expression) {
+        if (node.op != "argument") result.push_back(node);
+        else {
+          const auto index = argumentId(node.name);
+          if (argumentRanges[index] >= 0) throw std::invalid_argument("range argument " + node.name + " requires a direct or proportional update in " + action.definition.name);
+          const auto& argument = opportunity.arguments[index];
+          result.insert(result.end(), argument.begin(), argument.end());
+        }
+      }
+      return result;
+    };
+    // A range may be multiplied by a scalar expression (including facts and
+    // scalar arguments). It cannot participate in arbitrary nonlinear math or
+    // depend on another range. Keep a single independent driver per range.
+    const auto proportional = [&](const DfaExprSource& expression, auto&& self) -> std::optional<std::pair<std::size_t, DfaExprSource>> {
+      if (expression.size() == 1 && expression.front().op == "argument") {
+        const auto range = argumentRanges[argumentId(expression.front().name)];
+        if (range >= 0) return {{static_cast<std::size_t>(range), {{.op = "literal", .literal = 1}}}};
+      }
+      if (expression.empty() || (expression.back().op != "mul" && expression.back().op != "prod")) {
+        (void)substitute(expression); // Reject a range hidden in unsupported math.
+        return std::nullopt;
+      }
+      std::size_t split = expression.size() - 1;
+      int needed = 1;
+      while (split > 0 && needed > 0) {
+        const auto& node = expression[--split];
+        needed += (node.op == "argument" ? 0 : operandCount(exprOp(node.op))) - 1;
+      }
+      if (needed != 0 || split == 0) throw std::invalid_argument("unbalanced proportional argument in " + action.definition.name);
+      const DfaExprSource left(expression.begin(), expression.begin() + split), right(expression.begin() + split, expression.end() - 1);
+      auto a = self(left, self), b = self(right, self);
+      if (a && b) throw std::invalid_argument("a derived output cannot multiply two ranges in " + action.definition.name);
+      if (!a && !b) return std::nullopt;
+      auto derived = a ? std::move(*a) : std::move(*b);
+      const auto factor = substitute(a ? right : left);
+      derived.second.insert(derived.second.end(), factor.begin(), factor.end());
+      derived.second.push_back({.op = "mul"});
+      return derived;
+    };
+    using Driver = std::pair<DfaTargetSource, std::string>;
+    std::vector<std::optional<Driver>> drivers(opportunity.ranges.size());
+    const auto expand = [&](const std::vector<DfaEffectSource>& effects, auto& activeDrivers, auto&& self) -> std::vector<DfaEffectSource> {
+      std::vector<DfaEffectSource> result;
+      for (const auto& effect : effects) {
+        for (const auto& driver : activeDrivers) {
+          if (!driver || driver->first != effect.target) continue;
+          if (effect.kind == "clear" || effect.kind == "replace" || ((effect.kind == "update" || effect.kind == "add" || effect.kind == "vary") && driver->second == effect.attribute)) throw std::invalid_argument("an independent range output cannot be overwritten in " + action.definition.name);
+        }
+        if (effect.kind == "update") {
+          if (auto derived = proportional(effect.value, proportional)) {
+            const auto rangeIndex = derived->first;
+            const auto& bounds = opportunity.ranges[rangeIndex].bounds;
+            usedRanges[rangeIndex] = true;
+            if (activeDrivers[rangeIndex]) {
+              const auto& driver = *activeDrivers[rangeIndex];
+              result.push_back({.kind = "derive", .target = effect.target, .attribute = effect.attribute, .value = std::move(derived->second), .driver = driver.first, .driverAttribute = driver.second});
+            } else {
+              // The first assignment defines the independent output; scaled
+              // assignments are only valid after that direct assignment.
+              if (effect.value.size() != 1) throw std::invalid_argument("assign the independent range before its derived outputs in " + action.definition.name);
+              activeDrivers[rangeIndex] = Driver{effect.target, effect.attribute};
+              if (!bounds.minimum.empty()) result.push_back({.kind = "update", .target = effect.target, .attribute = effect.attribute, .value = bounds.minimum});
+              result.push_back({.kind = "vary", .target = effect.target, .attribute = effect.attribute, .value = bounds.preferred, .maximum = bounds.maximum});
+            }
+            continue;
+          }
+        }
+        auto compiled = effect;
+        compiled.value = substitute(effect.value);
+        compiled.maximum = substitute(effect.maximum);
+        compiled.condition = substitute(effect.condition);
+        for (auto& write : compiled.writes) write.value = substitute(write.value);
+        auto nestedDrivers = activeDrivers;
+        compiled.nested = self(effect.nested, nestedDrivers, self);
+        result.push_back(std::move(compiled));
+      }
+      return result;
+    };
+    auto effects = expand(action.definition.effects, drivers, expand);
+    if (std::find(usedRanges.begin(), usedRanges.end(), false) != usedRanges.end()) throw std::invalid_argument(owner + " declares an unused named range");
+    const auto existing = std::find_if(action.instances.begin(), action.instances.end(), [&](const auto& instance) { return instance.first == effects; });
+    if (existing != action.instances.end()) opportunity.action = existing->second;
+    else {
+      const auto name = action.instances.empty() ? action.definition.name : "$call." + opportunity.name;
+      if (action.instances.empty()) source.actionDefinitions[action.index] = {name, effects};
+      else source.actionDefinitions.push_back({name, effects});
+      action.instances.emplace_back(std::move(effects), name);
+      opportunity.action = name;
+    }
+    opportunity.arguments.clear();
+    opportunity.ranges.clear();
+  }
+  // Uncalled templates have no runtime work; no unresolved argument reaches
+  // the evaluator. Called templates were replaced in place above.
+  std::erase_if(source.actionDefinitions, [](const auto& definition) { return !definition.parameters.empty(); });
+}
+
 bool formMatches(std::string_view form, bool initial, bool medial, bool final,
                  bool isolated) {
   if (form.empty()) return true;  // the fact does not constrain form
@@ -252,6 +413,7 @@ CompiledJustificationCatalog compileJustificationCatalog(
   // Opportunities are the authoring model. Lower them once to the existing
   // DFA/effect IR so matching, fixed steps and continuation share one engine.
   auto source = input;
+  lowerActionArguments(source);
   std::unordered_map<std::string, const DfaPatternSource*> patterns;
   for (const auto& pattern : source.patterns) {
     if (pattern.name.empty() || pattern.slots.empty()) throw std::invalid_argument("a named justification pattern requires a name and nonempty slots");
@@ -632,6 +794,13 @@ CompiledJustificationCatalog compileJustificationCatalog(
           }
           compiledEffect.value = compileExpr(effect.value, definition.name);
           if (!effect.maximum.empty()) compiledEffect.maximum = compileExpr(effect.maximum, definition.name);
+        } else if (effect.kind == "derive") {
+          compiledEffect.kind = JustEffectKind::Derive;
+          compiledEffect.attribute = writableAttributeId(effect.attribute);
+          compiledEffect.driver = compileTarget(effect.driver, definition.name);
+          compiledEffect.driverAttribute = writableAttributeId(effect.driverAttribute);
+          if (result.attributeAxes.at(compiledEffect.attribute) == NoGlyphAxis || result.attributeAxes.at(compiledEffect.driverAttribute) == NoGlyphAxis) throw std::invalid_argument("derived outputs require native glyph parameters in " + definition.name);
+          compiledEffect.value = compileExpr(effect.value, definition.name);
         } else if (effect.kind == "replace") {
           compiledEffect.kind = JustEffectKind::Replace;
           if (effect.writes.empty()) {

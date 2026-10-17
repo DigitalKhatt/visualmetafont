@@ -90,7 +90,8 @@ enum class JustEffectKind : std::uint8_t { Forbid,
                                            Clear,
                                            Lookup,
                                            When,
-                                           Vary };
+                                           Vary,
+                                           Derive };
 
 struct JustWrite {
   JustAttributeId attribute = 0;
@@ -111,6 +112,8 @@ struct JustEffect {
   JustExpr condition;
   std::vector<JustEffect> nested;
   JustExpr maximum;
+  JustTarget driver;
+  JustAttributeId driverAttribute = 0;
   bool operator==(const JustEffect&) const = default;
 };
 

@@ -9,10 +9,11 @@
 
 namespace digitalkhatt::justify {
 
-// One parameter contribution offered by a candidate. `minimumValue` is the
+// One parameter output offered by a candidate. `minimumValue` is the
 // mandatory state installed when the candidate is activated;
 // `maximumValue` is the optional endpoint offered by `vary`. They are equal
-// for today's discrete actions.
+// for discrete actions. A dependent output names its independent driver and
+// follows it without independent allocation or quantization.
 struct JustificationCandidateParameter {
   JustificationSiteRef site = kNoSite;
   JustAttributeId attribute = 0;
@@ -24,6 +25,9 @@ struct JustificationCandidateParameter {
   // Original activation minimum; retained when a resumed candidate's current
   // minimum changes, so percentages always refer to the same declared range.
   double continuationMinimum = 0;
+  JustificationSiteRef driverSite = kNoSite;
+  JustAttributeId driverAttribute = 0;
+  double driverScale = 1;
   bool operator==(const JustificationCandidateParameter&) const = default;
 };
 
@@ -126,9 +130,14 @@ std::optional<JustificationCandidate> collectJustificationCandidate(
 bool measureJustificationCandidate(JustificationCandidate& candidate,
                                    JustificationStagingBackend& backend);
 
+// Independent parameters are quantized first; dependent outputs are then
+// calculated from that accepted value, without a second rounding step.
+double justificationCandidateParameterValue(const JustificationCandidate& candidate, std::size_t index, double ratio, unsigned subdivisions);
+
 // Numeric bounds use the leading parameter and preserve the other ranges'
-// interpolation ratio. Percentages use each parameter's original activation
-// minimum and full maximum. Never cross mandatory activation values.
+// interpolation ratio. Percentages use each independent parameter's original
+// activation minimum and full maximum. Dependent outputs follow their driver.
+// Never cross mandatory activation values.
 bool limitJustificationCandidateContinuation(JustificationCandidate& candidate, StageContinuation continuation);
 
 }  // namespace digitalkhatt::justify

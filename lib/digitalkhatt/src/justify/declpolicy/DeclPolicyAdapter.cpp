@@ -646,8 +646,9 @@ FixedSlotActionResult commitCandidate(const LineTextInfo& lineTextInfo, JustInfo
   backend.beginTransaction();
   for (const auto site : candidate.clearedSites) backend.clear(site);
   for (const auto& substitution : candidate.substitutions) backend.applyLookup(substitution.site, substitution.lookup);
-  for (const auto& parameter : candidate.parameters) {
-    const auto value = quantizeProportionalParameter(parameter.minimumValue + ratio * (parameter.maximumValue - parameter.minimumValue), parameter.minimumValue, parameter.maximumValue, parameterQuantization);
+  for (std::size_t index = 0; index < candidate.parameters.size(); ++index) {
+    const auto& parameter = candidate.parameters[index];
+    const auto value = justificationCandidateParameterValue(candidate, index, ratio, parameterQuantization);
     backend.update(parameter.site, parameter.attribute, value);
   }
   return backend.commitTransaction(candidate.wordIndex);
@@ -766,8 +767,9 @@ void traceCandidateDecision(const JustInfo& justInfo, std::span<const PolicyPhas
   trace.decision = decision;
   trace.reason = reason;
   const bool applies = trace.decision == "selected" || trace.decision == "applied" || trace.reason.starts_with("commit_");
-  for (const auto& parameter : candidate.parameters) {
-    const auto appliedValue = applies ? quantizeProportionalParameter(parameter.minimumValue + ratio * (parameter.maximumValue - parameter.minimumValue), parameter.minimumValue, parameter.maximumValue, parameterQuantization) : parameter.initialValue;
+  for (std::size_t index = 0; index < candidate.parameters.size(); ++index) {
+    const auto& parameter = candidate.parameters[index];
+    const auto appliedValue = applies ? justificationCandidateParameterValue(candidate, index, ratio, parameterQuantization) : parameter.initialValue;
     trace.parameters.push_back({parameter.site, justInfo.catalog->attributes.at(parameter.attribute), parameter.initialValue, parameter.minimumValue, parameter.maximumValue, appliedValue});
   }
   justInfo.layout->traceJustificationDecision(trace);

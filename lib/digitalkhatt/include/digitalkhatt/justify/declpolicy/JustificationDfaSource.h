@@ -124,7 +124,8 @@ struct DfaExprNodeSource {
   // initial_underfull | initial_underfull_percent | stretched | stretched_percent
   std::string op;
   DfaTargetSource target;
-  // Attribute tag for attribute/present, fact name for fact.
+  // Attribute tag for attribute/present, fact name for fact, or an action
+  // argument/range name. Arguments are expanded before runtime compilation.
   std::string name;
   double literal = 0;
   bool operator==(const DfaExprNodeSource&) const = default;
@@ -145,6 +146,7 @@ struct DfaEffectSource {
   // clear   -- drop everything staged at the target
   // lookup  -- apply a named structural one-to-one GSUB lookup
   // vary    -- offer a native glyph parameter's current value..value range
+  // derive  -- compiler-generated proportional output of a named range
   // when    -- run `nested` if `condition` holds
   std::string kind;
   DfaTargetSource target;
@@ -157,12 +159,16 @@ struct DfaEffectSource {
   std::vector<DfaEffectSource> nested;
   // Optional full endpoint for continuation; ordinary allocation uses value.
   DfaExprSource maximum;
+  // Compile-only proportional output of an earlier independent range.
+  DfaTargetSource driver;
+  std::string driverAttribute;
   bool operator==(const DfaEffectSource&) const = default;
 };
 
 struct DfaActionDefSource {
   std::string name;
   std::vector<DfaEffectSource> effects;
+  std::vector<std::string> parameters;
   bool operator==(const DfaActionDefSource&) const = default;
 };
 
@@ -184,6 +190,22 @@ struct DfaPatternSource {
   bool operator==(const DfaPatternSource&) const = default;
 };
 
+// Named ranges belong to an opportunity. Action calls bind them to formal
+// arguments; compilation inserts update/vary at the driver's assignment site
+// and proportional outputs at later assignments, preserving preparation order.
+struct DfaRangeSource {
+  DfaExprSource minimum;
+  DfaExprSource preferred;
+  DfaExprSource maximum;
+  bool operator==(const DfaRangeSource&) const = default;
+};
+
+struct DfaNamedRangeSource {
+  std::string name;
+  DfaRangeSource bounds;
+  bool operator==(const DfaNamedRangeSource&) const = default;
+};
+
 struct DfaOpportunitySource {
   std::string name;
   std::vector<DfaOpportunitySlotSource> pattern;
@@ -192,15 +214,9 @@ struct DfaOpportunitySource {
   std::vector<DfaEffectSource> effects;
   // A whole-pattern reference instead of an inline pattern, never both.
   std::string patternName;
+  std::vector<DfaNamedRangeSource> ranges;
+  std::vector<DfaExprSource> arguments;
   bool operator==(const DfaOpportunitySource&) const = default;
-};
-
-// Parser-only range declaration. Lowered to the same ordered update/vary
-// instructions used by the evaluator; omitted minimum keeps the staged value.
-struct DfaRangeSource {
-  DfaExprSource minimum;
-  DfaExprSource preferred;
-  DfaExprSource maximum;
 };
 
 struct DfaChoiceSource {

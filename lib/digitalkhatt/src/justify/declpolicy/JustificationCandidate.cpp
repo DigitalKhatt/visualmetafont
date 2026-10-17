@@ -10,6 +10,18 @@
 namespace digitalkhatt::justify {
 namespace {
 
+void synchronizeDerivedEndpoints(JustificationCandidate& candidate) {
+  for (auto& output : candidate.parameters) {
+    if (output.driverSite == kNoSite) continue;
+    const auto driver = std::find_if(candidate.parameters.begin(), candidate.parameters.end(), [&](const auto& p) { return p.site == output.driverSite && p.attribute == output.driverAttribute; });
+    if (driver == candidate.parameters.end() || driver->driverSite != kNoSite || !driver->continuationMaximum) throw std::logic_error("candidate lost its independent range driver");
+    output.minimumValue = output.driverScale * driver->minimumValue;
+    output.maximumValue = output.driverScale * driver->maximumValue;
+    output.continuationMinimum = output.driverScale * driver->continuationMinimum;
+    output.continuationMaximum = output.driverScale * *driver->continuationMaximum;
+  }
+}
+
 class CandidateRecordingBackend final : public JustificationStagingBackend {
  public:
   CandidateRecordingBackend(JustificationStagingBackend& backend,
@@ -24,6 +36,7 @@ class CandidateRecordingBackend final : public JustificationStagingBackend {
   FixedSlotActionResult commitTransaction(int wordIndex) override {
     // Collection is a deliberately aborted dry run. The caller will replay
     // the candidate only after the line planner has selected it.
+    synchronizeDerivedEndpoints(candidate_);
     if (measureWidths_) {
       candidate_.minimumWidthDelta = backend_.measureStagedWidthDelta(wordIndex);
       bool hasRange = false;
@@ -60,6 +73,7 @@ class CandidateRecordingBackend final : public JustificationStagingBackend {
     parameter.maximumValue = value;
     parameter.continuationMaximum.reset();
     parameter.continuationMinimum = 0;
+    parameter.driverSite = kNoSite;
     backend_.update(site, attribute, value);
   }
 
@@ -109,6 +123,22 @@ class CandidateRecordingBackend final : public JustificationStagingBackend {
     parameterAt(site, attribute).continuationMaximum = maximum;
   }
 
+  void derive(JustificationSiteRef site, JustAttributeId attribute, JustificationSiteRef driverSite, JustAttributeId driverAttribute, double scale) override {
+    if (!std::isfinite(scale) || scale <= 0) throw std::runtime_error("a proportional range requires a positive finite scale");
+    // Take a copy before parameterAt can reallocate the parameter vector.
+    const auto driver = parameterAt(driverSite, driverAttribute);
+    if (!driver.continuationMaximum || driver.driverSite != kNoSite || (site == driverSite && attribute == driverAttribute)) throw std::runtime_error("a derived output requires an earlier independent range");
+    auto& output = parameterAt(site, attribute);
+    output.minimumValue = scale * driver.minimumValue;
+    output.maximumValue = scale * driver.maximumValue;
+    output.continuationMinimum = scale * driver.continuationMinimum;
+    output.continuationMaximum = scale * *driver.continuationMaximum;
+    output.driverSite = driverSite;
+    output.driverAttribute = driverAttribute;
+    output.driverScale = scale;
+    backend_.update(site, attribute, output.minimumValue);
+  }
+
   JustificationSiteRef attachment(
       JustificationSiteRef anchor,
       JustAttachmentId attachment) const override {
@@ -146,6 +176,20 @@ class CandidateRecordingBackend final : public JustificationStagingBackend {
 };
 
 }  // namespace
+
+double justificationCandidateParameterValue(const JustificationCandidate& candidate, std::size_t index, double ratio, unsigned subdivisions) {
+  const auto& parameter = candidate.parameters.at(index);
+  if (parameter.driverSite != kNoSite) {
+    const auto driver = std::find_if(candidate.parameters.begin(), candidate.parameters.end(), [&](const auto& p) { return p.site == parameter.driverSite && p.attribute == parameter.driverAttribute; });
+    if (driver == candidate.parameters.end() || driver->driverSite != kNoSite) throw std::logic_error("candidate lost its independent range driver");
+    return parameter.driverScale * justificationCandidateParameterValue(candidate, driver - candidate.parameters.begin(), ratio, subdivisions);
+  }
+  const double value = parameter.minimumValue + ratio * (parameter.maximumValue - parameter.minimumValue);
+  if (subdivisions == 0) return value;
+  const double scaled = value * subdivisions;
+  const double snapped = parameter.maximumValue >= parameter.minimumValue ? std::floor(scaled + 1e-12) / subdivisions : std::ceil(scaled - 1e-12) / subdivisions;
+  return std::clamp(snapped, std::min(parameter.minimumValue, parameter.maximumValue), std::max(parameter.minimumValue, parameter.maximumValue));
+}
 
 std::optional<JustificationCandidate> collectJustificationCandidate(
     const CompiledJustificationCatalog& catalog,
@@ -196,7 +240,7 @@ bool limitJustificationCandidateContinuation(JustificationCandidate& candidate, 
     };
     bool grows = false;
     for (const auto& parameter : candidate.parameters) {
-      if (!parameter.continuationMaximum) continue;
+      if (!parameter.continuationMaximum || parameter.driverSite != kNoSite) continue;
       const double value = endpoint(parameter);
       // Already accepted axes may be above a percentage target. Keep them
       // unchanged, but never activate a new site below its mandatory minimum.
@@ -205,8 +249,9 @@ bool limitJustificationCandidateContinuation(JustificationCandidate& candidate, 
     }
     if (!grows) return false;
     for (auto& parameter : candidate.parameters) {
-      if (parameter.continuationMaximum) parameter.maximumValue = std::max(parameter.minimumValue, endpoint(parameter));
+      if (parameter.continuationMaximum && parameter.driverSite == kNoSite) parameter.maximumValue = std::max(parameter.minimumValue, endpoint(parameter));
     }
+    synchronizeDerivedEndpoints(candidate);
     candidate.minimumWidthDelta.reset();
     candidate.maximumWidthDelta.reset();
     return true;
@@ -214,7 +259,7 @@ bool limitJustificationCandidateContinuation(JustificationCandidate& candidate, 
   double span = 0;
   double initial = 0;
   for (const auto& parameter : candidate.parameters) {
-    if (parameter.continuationMaximum) {
+    if (parameter.continuationMaximum && parameter.driverSite == kNoSite) {
       initial = parameter.initialValue;
       span = *parameter.continuationMaximum - parameter.initialValue;
       break;
@@ -225,13 +270,14 @@ bool limitJustificationCandidateContinuation(JustificationCandidate& candidate, 
   if (offered <= 0) return false;
   const double ratio = std::min(1.0, offered / span);
   for (const auto& parameter : candidate.parameters) {
-    if (!parameter.continuationMaximum) continue;
+    if (!parameter.continuationMaximum || parameter.driverSite != kNoSite) continue;
     const double endpoint = parameter.initialValue + ratio * (*parameter.continuationMaximum - parameter.initialValue);
     if (!std::isfinite(endpoint) || endpoint + 1e-12 < parameter.minimumValue) return false;
   }
   for (auto& parameter : candidate.parameters) {
-    if (parameter.continuationMaximum) parameter.maximumValue = std::max(parameter.minimumValue, parameter.initialValue + ratio * (*parameter.continuationMaximum - parameter.initialValue));
+    if (parameter.continuationMaximum && parameter.driverSite == kNoSite) parameter.maximumValue = std::max(parameter.minimumValue, parameter.initialValue + ratio * (*parameter.continuationMaximum - parameter.initialValue));
   }
+  synchronizeDerivedEndpoints(candidate);
   candidate.minimumWidthDelta.reset();
   candidate.maximumWidthDelta.reset();
   return true;

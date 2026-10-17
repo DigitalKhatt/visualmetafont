@@ -443,6 +443,115 @@ int main() {
     const auto reused = compileJustificationCatalog(interned);
     ok &= expect(reused.facts.size() == 1 && reused.rules.size() == 70, "repeated inline facts do not exhaust the 64-bit fact budget");
   }
+  // Opportunity-owned ranges expand at the argument assignment, retaining
+  // exactly the old update/vary sequence and therefore its quantization.
+  {
+    const DfaExprSource one{{.op = "literal", .literal = 1}}, two{{.op = "literal", .literal = 2}}, five{{.op = "literal", .literal = 5}};
+    const DfaExprSource half{{.op = "literal", .literal = 0.5}}, twoHalf{{.op = "literal", .literal = 2.5}};
+    auto legacy = source;
+    legacy.actionDefinitions[0].effects = {
+        {.kind = "update", .attribute = "third", .value = one},
+        {.kind = "vary", .attribute = "third", .value = two, .maximum = five},
+        {.kind = "update", .attribute = "fifth", .value = {{.op = "attribute", .name = "third"}}},
+        {.kind = "update", .attribute = "fourth", .value = half},
+        {.kind = "vary", .attribute = "fourth", .value = one, .maximum = twoHalf},
+    };
+    auto authored = legacy;
+    authored.rules.clear();
+    authored.actions.clear();
+    authored.actionDefinitions[0].parameters = {"outgoing", "incoming"};
+    authored.actionDefinitions[0].effects = {
+        {.kind = "update", .attribute = "third", .value = {{.op = "argument", .name = "outgoing"}}},
+        legacy.actionDefinitions[0].effects[2],
+        {.kind = "update", .attribute = "fourth", .value = {{.op = "argument", .name = "incoming"}}},
+    };
+    authored.opportunities = {{.name = "ArbitraryRuleName", .pattern = {{.fact = "CustomTerminal"}}, .action = "IncrementAlternate", .ranges = {{"left", {one, two, five}}, {"right", {half, one, twoHalf}}}, .arguments = {{{.op = "argument", .name = "left"}}, {{.op = "argument", .name = "right"}}}}};
+    const auto expected = compileJustificationCatalog(legacy);
+    const auto actual = compileJustificationCatalog(authored);
+    ok &= expect(actual.actionDefinitions == expected.actionDefinitions && actual.attributes == expected.attributes && actual.actions == expected.actions, "range arguments lower to identical ordered effects, attributes and dispatch");
+    FakeBackend backend;
+    const std::array slots{FixedSlotSlot{.indexInLine = 10}};
+    const auto candidate = collectJustificationCandidate(actual, actual.actionDefinitions[0], {.definition = 0, .rule = 1, .wordIndex = 0, .context = slots}, backend);
+    ok &= expect(candidate && candidate->parameters.size() == 3 && candidate->parameters[0].minimumValue == 1 && candidate->parameters[0].maximumValue == 2 && candidate->parameters[0].continuationMaximum == 5 && candidate->parameters[1].minimumValue == 1 && candidate->parameters[2].minimumValue == 0.5, "later preparation observes the range minimum, not the preferred endpoint");
+
+    auto shared = authored;
+    auto another = shared.opportunities[0];
+    another.name = "Second";
+    shared.opportunities.push_back(another);
+    auto reused = compileJustificationCatalog(shared);
+    ok &= expect(reused.actionDefinitions.size() == 1 && reused.actions[0].definition == reused.actions[1].definition, "identical range calls share one compiled action");
+    shared.opportunities[1].ranges[0].bounds.maximum = {{.op = "literal", .literal = 9}};
+    reused = compileJustificationCatalog(shared);
+    ok &= expect(reused.actionDefinitions.size() == 2 && reused.actions[0].definition != reused.actions[1].definition && reused.actionDefinitions.at(reused.actions[0].definition).effects[1].maximum != reused.actionDefinitions.at(reused.actions[1].definition).effects[1].maximum, "one shared action supports opportunity-specific bounds without mutating other calls");
+
+    auto scalar = authored;
+    scalar.opportunities[0].ranges.pop_back();
+    scalar.opportunities[0].arguments[1] = two;
+    const auto scalarCatalog = compileJustificationCatalog(scalar);
+    ok &= expect(scalarCatalog.actionDefinitions[0].effects.size() == 4 && scalarCatalog.actionDefinitions[0].effects.back().kind == JustEffectKind::Update && scalarCatalog.actionDefinitions[0].effects.back().value[0].literal == 2, "scalar action arguments remain ordinary updates rather than ranges");
+    auto nested = authored;
+    nested.actionDefinitions[0].effects = {{.kind = "when", .condition = one, .nested = nested.actionDefinitions[0].effects}};
+    const auto nestedCatalog = compileJustificationCatalog(nested);
+    ok &= expect(nestedCatalog.actionDefinitions[0].effects[0].nested == actual.actionDefinitions[0].effects, "conditional range assignments preserve nested preparation order");
+    auto noMinimum = authored;
+    noMinimum.opportunities[0].ranges[0].bounds.minimum.clear();
+    const auto currentMinimum = compileJustificationCatalog(noMinimum);
+    ok &= expect(currentMinimum.actionDefinitions[0].effects.front().kind == JustEffectKind::Vary, "omitted range minima keep the staged value without inserting an update");
+
+    auto derived = authored;
+    derived.actionDefinitions[0].parameters[1] = "scale";
+    derived.actionDefinitions[0].effects.back().value = {{.op = "argument", .name = "scale"}, {.op = "argument", .name = "outgoing"}, {.op = "mul"}};
+    derived.opportunities[0].ranges.pop_back();
+    derived.opportunities[0].arguments[1] = half;
+    const auto derivedCatalog = compileJustificationCatalog(derived);
+    auto dependent = collectJustificationCandidate(derivedCatalog, derivedCatalog.actionDefinitions[0], {.definition = 0, .rule = 1, .wordIndex = 0, .context = slots}, backend);
+    ok &= expect(dependent && dependent->parameters.size() == 3 && dependent->parameters[2].driverSite == 10 && dependent->parameters[2].driverScale == 0.5 && dependent->parameters[2].minimumValue == 0.5 && dependent->parameters[2].maximumValue == 1 && dependent->parameters[2].continuationMaximum == 2.5, "derived outputs retain one independent range and its scaled endpoints");
+    if (dependent) {
+      const auto outgoing = justificationCandidateParameterValue(*dependent, 0, 0.1, 16);
+      const auto incoming = justificationCandidateParameterValue(*dependent, 2, 0.1, 16);
+      ok &= expect(outgoing == 1.0625 && incoming == 0.53125 && incoming == outgoing / 2, "quantize the driver once, then calculate the exact half without independent rounding");
+      ok &= expect(justificationCandidateParameterValue(*dependent, 2, 0.1, 0) == justificationCandidateParameterValue(*dependent, 0, 0.1, 0) / 2, "unquantized allocation retains the same dependency");
+      ok &= expect(limitJustificationCandidateContinuation(*dependent, {StageContinuation::Mode::To, 50, true}) && dependent->parameters[0].maximumValue == 3 && dependent->parameters[2].maximumValue == 1.5, "percentage continuation limits only the independent range and follows it on dependent outputs");
+      dependent->parameters[0].initialValue = dependent->parameters[0].minimumValue = outgoing;
+      dependent->parameters[2].initialValue = dependent->parameters[2].minimumValue = incoming;
+      ok &= expect(limitJustificationCandidateContinuation(*dependent, {StageContinuation::Mode::By, 1}) && dependent->parameters[0].maximumValue == 2.0625 && dependent->parameters[2].maximumValue == 1.03125 && justificationCandidateParameterValue(*dependent, 2, 0.5, 16) == justificationCandidateParameterValue(*dependent, 0, 0.5, 16) / 2, "continued allocation retains the exact dependency after accepted fractional values");
+    }
+    auto identity = derived;
+    identity.actionDefinitions[0].effects.back().value = {{.op = "argument", .name = "outgoing"}};
+    const auto identityCatalog = compileJustificationCatalog(identity);
+    const auto identical = collectJustificationCandidate(identityCatalog, identityCatalog.actionDefinitions[0], {.wordIndex = 0, .context = slots}, backend);
+    ok &= expect(identical && identical->parameters[2].driverScale == 1 && justificationCandidateParameterValue(*identical, 2, 0.1, 16) == justificationCandidateParameterValue(*identical, 0, 0.1, 16), "a repeated direct range assignment is a dependent identity output");
+    for (int invalid = 0; invalid < 5; ++invalid) {
+      auto bad = derived;
+      if (invalid == 0) bad.actionDefinitions[0].effects.back().value.back().op = "add";
+      if (invalid == 1) bad.actionDefinitions[0].effects.back().value = {{.op = "argument", .name = "outgoing"}, {.op = "argument", .name = "outgoing"}, {.op = "mul"}};
+      if (invalid == 2) bad.actionDefinitions[0].effects.push_back({.kind = "clear"});
+      if (invalid == 3) bad.actionDefinitions[0].effects.back().attribute = "cv01";
+      if (invalid == 4) bad.actionDefinitions[0].effects.push_back({.kind = "update", .attribute = "third", .value = one});
+      bool rejected = false;
+      try { (void)compileJustificationCatalog(bad); } catch (const std::invalid_argument&) { rejected = true; }
+      ok &= expect(rejected, "derived ranges reject nonlinear/multi-range expressions, non-native outputs and overwriting the driver");
+    }
+
+    for (int invalid = 0; invalid != 12; ++invalid) {
+      auto bad = authored;
+      if (invalid == 0) bad.actionDefinitions[0].parameters[1] = "outgoing";
+      if (invalid == 1) bad.opportunities[0].arguments.pop_back();
+      if (invalid == 2) bad.opportunities[0].arguments[0][0].name = "missing";
+      if (invalid == 3) bad.opportunities[0].ranges.push_back(bad.opportunities[0].ranges[0]);
+      if (invalid == 4) bad.opportunities[0].ranges[0].bounds.preferred.clear();
+      if (invalid == 5) bad.opportunities[0].action.clear();
+      if (invalid == 6) bad.opportunities[0].ranges.push_back({"unused", {one, two, five}});
+      if (invalid == 7) bad.actionDefinitions[0].effects[0].value[0].name = "missing";
+      if (invalid == 8) bad.actionDefinitions[0].effects[0].value = {{.op = "argument", .name = "outgoing"}, {.op = "literal", .literal = 0.5}, {.op = "mul"}};
+      if (invalid == 9) bad.opportunities[0].arguments[0] = {{.op = "argument", .name = "left"}, {.op = "literal", .literal = 0.5}, {.op = "mul"}};
+      if (invalid == 10) bad.opportunities[0].effects = legacy.actionDefinitions[0].effects;
+      if (invalid == 11) bad.actionDefinitions[0].effects[0].attribute = "cv01";
+      bool rejected = false;
+      try { (void)compileJustificationCatalog(bad); } catch (const std::invalid_argument&) { rejected = true; }
+      ok &= expect(rejected, "range calls reject invalid arguments, ambiguous bodies, unused ranges, non-native outputs and unsupported derived ranges");
+    }
+  }
   const std::array tableMatchFacts{glyphFacts(
       {.glyphName = "behshape.fina", .sourceCharacter = u'ب'},
       compiled.facts)};
