@@ -30,7 +30,8 @@
 #include "digitalkhatt/layout/constraints/SqueezeCenterConstraint.h"
 #include "digitalkhatt/layout/constraints/StackOrderConstraint.h"
 #include "digitalkhatt/layout/constraints/CompactMarkConstraint.h"
-#include "digitalkhatt/layout/constraints/RehWawMarkConstraint.h"
+#include "digitalkhatt/layout/RehWawMarkPlacement.h"
+#include "digitalkhatt/layout/constraints/HorizontalGapConstraint.h"
 #include "digitalkhatt/layout/constraints/WaqfPlacementConstraint.h"
 #include "digitalkhatt/layout/constraints/WaqfEscapeConstraint.h"
 #include "digitalkhatt/layout/constraints/YlaneConstraint.h"
@@ -40,6 +41,8 @@ namespace digitalkhatt::layout {
 void initGlyphMobilities(std::vector<std::vector<GlyphInstance>>& pageGlyphs) {
   for (auto& lineGlyphs : pageGlyphs) {
     for (auto& g : lineGlyphs) {
+      g.initialPlacement = GlyphInstance::InitialPlacement::None;
+      g.initialPositioningDx = g.initialPositioningDy = 0.0;
       if (!g.isMark) {
         g.mobility = 0.0;  // base glyphs fixed (for now)
         continue;
@@ -96,15 +99,12 @@ struct PageConstraints {
   std::vector<std::unique_ptr<WaqfEscapeConstraint>> waqfEscapes;
 };
 
-// Setup state belongs exclusively to the opt-in Reh/Waw + initial Beh policy.
-// Raw pointers link dot/kasra targets in PageConstraints::placement. Pending
-// bounds and stacks transfer to PageConstraints::hard before solving.
+// Initial plans live only while assembling the page. XPBD receives ordinary
+// constraints plus a mobility-zero flag for accepted current-gap dots.
 struct RehWawBehSetup {
   MarkGroups stackGroups;
   std::unordered_set<GlyphInstance*> lowerBoundMarks;
-  std::unordered_map<GlyphInstance*, RehWawMarkConstraint*> tipPlacements;
-  ConstraintList dotBounds;
-  ConstraintList kasraFollowers;
+  std::unordered_map<GlyphInstance*, std::unique_ptr<RehWawMarkPlacement>> placements;
   ConstraintList stacks;
 };
 
@@ -172,22 +172,30 @@ std::vector<GlyphInstance*> collectLowerObstacles(const GlyphSequence& glyphs,
   return obstacles;
 }
 
-bool addRehWawBehPlacement(GlyphInstance& mark,
-                           const GlyphSequence& glyphs,
-                           const ValidBases& validBases,
-                           SolverContext& solverContext,
-                           const OptParams& P,
-                           RehWawBehSetup& rehWawBeh,
-                           ConstraintList& placementConstraints) {
-  GlyphInstance* tipReference = nullptr;
-  if (validBases.contains(mark.prevBase->prevBase))
-    tipReference = rehWawReference(mark);
-  if (tipReference) {
+void prepareRehWawBehPositions(const GlyphSequence& glyphs,
+                               const ValidBases& validBases,
+                               SolverContext& solverContext,
+                               const OptParams& P,
+                               RehWawBehSetup& setup,
+                               InitialPositioning initialPositioning) {
+  // Gather and link every pair before searching. All searches see the same
+  // unchanged HarfBuzz input, regardless of the order in which plans are made.
+  for (auto& ref : glyphs) {
+    auto& mark = ref.get();
+    if (!mark.isMark || !hasValidOwner(mark, validBases) ||
+        isManuallyPositionedMark(mark, solverContext)) continue;
+    if (!solverContext.lowmarks.contains(mark.glyphName) &&
+        !solverContext.downdotmarks.contains(mark.glyphName)) continue;
+    if (isRehWawFollowingBase(*mark.prevBase))
+      setup.stackGroups[mark.prevBase].push_back(&mark);
+    if (!validBases.contains(mark.prevBase->prevBase)) continue;
+    auto* tipReference = rehWawReference(mark);
+    if (!tipReference) continue;
     solverContext.contextualBelowMarks.insert(&mark);
-    rehWawBeh.lowerBoundMarks.insert(&mark);
-    auto placement = std::make_unique<RehWawMarkConstraint>(mark, *tipReference, P);
+    setup.lowerBoundMarks.insert(&mark);
+    auto placement = std::make_unique<RehWawMarkPlacement>(mark, *tipReference, P);
     placement->obstacles = collectLowerObstacles(glyphs, validBases, mark);
-    if (!isKasraMark(mark)) {
+    {
       // Authored marks inside a following bowl are excluded from the generic
       // gap pass. They still occupy ink: include them in the dot's slot
       // search, without moving them or changing their bowl policy.
@@ -215,15 +223,80 @@ bool addRehWawBehPlacement(GlyphInstance& mark,
           placement->obstacles.push_back(&other);
       }
     }
-    placement->prepareDotTarget();
-    if (!isKasraMark(mark))
-      rehWawBeh.dotBounds.push_back(std::make_unique<RehWawDotBoundsConstraint>(*placement));
-    rehWawBeh.tipPlacements[&mark] = placement.get();
-    placementConstraints.push_back(std::move(placement));
+    for (const auto* obstacle : placement->obstacles)
+      if (obstacle->isMark && obstacle->prevBase != mark.prevBase)
+        solverContext.gapIncludedPairs.insert(
+            {std::min(mark.globalIndex, obstacle->globalIndex), std::max(mark.globalIndex, obstacle->globalIndex)});
+    setup.placements[&mark] = std::move(placement);
   }
-  if (isRehWawFollowingBase(*mark.prevBase))
-    rehWawBeh.stackGroups[mark.prevBase].push_back(&mark);
-  return tipReference != nullptr;
+  for (auto& ref : glyphs) {
+    auto& dot = ref.get();
+    if (!isRehWawDot(dot)) continue;
+    auto it = setup.placements.find(&dot);
+    if (it == setup.placements.end()) continue;
+    for (auto* mark : setup.stackGroups[dot.prevBase]) {
+      if (!isKasraMark(*mark)) continue;
+      auto kasra = setup.placements.find(mark);
+      if (kasra == setup.placements.end()) continue;
+      kasra->second->dots.push_back(&dot);
+      kasra->second->followedDotPlacement = it->second.get();
+      it->second->kasras.push_back(kasra->second.get());
+    }
+    if (initialPositioning == InitialPositioning::Apply) it->second->prepareDotTarget();
+  }
+  if (initialPositioning == InitialPositioning::Skip) return;
+  struct Plan {
+    GlyphInstance* mark;
+    RehWawMarkPlacement* placement;
+    geometry::GeometrySet original;
+    geometry::GeometrySet shape;
+    double dx, dy;
+    GlyphInstance::InitialPlacement kind;
+  };
+  std::vector<Plan> plans;
+  for (auto& ref : glyphs) {
+    auto& mark = ref.get();
+    auto it = setup.placements.find(&mark);
+    if (it == setup.placements.end()) continue;
+    auto& placement = *it->second;
+    auto shape = placement.preferredShape();
+    if (shape.empty()) continue;
+    const auto box = shape.boundingAABB();
+    auto kind = GlyphInstance::InitialPlacement::None;
+    if (!isKasraMark(mark))
+      kind = placement.dotUsesCurrentGap ? GlyphInstance::InitialPlacement::CenteredGap :
+          placement.dotUsesLeftSlot ? GlyphInstance::InitialPlacement::LeftOfRehWaw :
+                                     GlyphInstance::InitialPlacement::BelowRehWaw;
+    plans.push_back({&mark, &placement, mark.worldPolys, std::move(shape),
+        0.5 * (box.minx + box.maxx) - boxCenterX(mark), box.maxy - boxTopY(mark), kind});
+  }
+  // Validate planned pairs together before pinning any dot. If simultaneous
+  // moves conflict, restore that owner's input and let ordinary XPBD handle it.
+  for (auto& plan : plans) plan.mark->worldPolys = plan.shape;
+  std::unordered_set<GlyphInstance*> rejected;
+  for (;;) {
+    bool changed = false;
+    for (const auto& plan : plans) {
+      auto* owner = plan.mark->prevBase;
+      if (rejected.contains(owner) || plan.placement->hasInkClearance(plan.shape)) continue;
+      rejected.insert(owner);
+      changed = true;
+      for (const auto& sibling : plans)
+        if (sibling.mark->prevBase == owner) sibling.mark->worldPolys = sibling.original;
+    }
+    if (!changed) break;
+  }
+  for (const auto& plan : plans) {
+    auto& mark = *plan.mark;
+    if (rejected.contains(mark.prevBase)) continue;
+    mark.dx += plan.dx;
+    mark.dy += plan.dy;
+    mark.initialPositioningDx = plan.dx;
+    mark.initialPositioningDy = plan.dy;
+    mark.initialPlacement = plan.kind;
+    if (plan.kind == GlyphInstance::InitialPlacement::CenteredGap) mark.mobility = 0.0;
+    updateWorldPolys(mark);
+  }
 }
 
 void addRehWawBehStackConstraints(RehWawBehSetup& rehWawBeh,
@@ -238,24 +311,15 @@ void addRehWawBehStackConstraints(RehWawBehSetup& rehWawBeh,
       for (auto* kasra : group) {
         if (!isKasraMark(*kasra)) continue;
         rehWawBeh.lowerBoundMarks.insert(kasra);
-        if (auto it = rehWawBeh.tipPlacements.find(kasra); it != rehWawBeh.tipPlacements.end()) {
-          if (it->second->dots.empty())
-            rehWawBeh.kasraFollowers.push_back(std::make_unique<RehWawKasraFollowConstraint>(*it->second));
-          it->second->dots.push_back(dots);
-          if (auto dot = rehWawBeh.tipPlacements.find(dots); dot != rehWawBeh.tipPlacements.end()) {
-            it->second->followedDotPlacement = dot->second;
-            dot->second->kasras.push_back(it->second);
-          }
-        }
-        const double authoredOffset = (boxCenterX(*dots) - dots->dx) -
-                                      (boxCenterX(*kasra) - kasra->dx);
+        // Initial positioning is now the input baseline, just as if HarfBuzz
+        // had produced it. Preserve that pair's horizontal offset in XPBD.
+        const double authoredOffset = boxCenterX(*dots) - boxCenterX(*kasra);
         auto stack = std::make_unique<StackOrderConstraint>(
-            *dots, *kasra, false, belowDotKasraGap, P.compliance.stackOrderGap,
-            P.compliance.stackOrderXAlign, authoredOffset, true);
+            *dots, *kasra, false, P.rehWaw.dotKasraGap, P.compliance.stackOrderGap,
+            solverContext.contextualBelowMarks.contains(kasra) ? P.compliance.rehWawKasraFollow :
+                                                               P.compliance.stackOrderXAlign,
+            authoredOffset, true);
         stack->keepInnerForGap = true;
-        // The contextual follower handles X after validating the whole pair.
-        // If no safe slot exists, let ordinary contacts resolve placement.
-        stack->alignHorizontal = !solverContext.contextualBelowMarks.contains(kasra);
         rehWawBeh.stacks.push_back(std::move(stack));
         solverContext.excludedFromGenericGap.insert(
             {std::min(dots->globalIndex, kasra->globalIndex), std::max(dots->globalIndex, kasra->globalIndex)});
@@ -278,9 +342,9 @@ void appendRehWawBehHardConstraints(RehWawBehSetup& rehWawBeh,
     auto& mark = ref.get();
     if (!rehWawBeh.lowerBoundMarks.contains(&mark) || !isKasraMark(mark)) continue;
     // A linked pair's selected slot already clears surrounding ink. Its
-    // follower and dot-kasra stack replace the blanket below-base bounds.
-    if (auto it = rehWawBeh.tipPlacements.find(&mark);
-        it != rehWawBeh.tipPlacements.end() && !it->second->dots.empty()) continue;
+    // ordinary dot-kasra stack replaces the blanket below-base bounds.
+    if (auto it = rehWawBeh.placements.find(&mark);
+        it != rehWawBeh.placements.end() && !it->second->dots.empty()) continue;
     for (auto* obstacle : collectLowerObstacles(glyphs, validBases, mark)) {
       auto bound = std::make_unique<StackOrderConstraint>(
           *obstacle, mark, false, chooseMinGap(*obstacle, mark, P),
@@ -290,8 +354,21 @@ void appendRehWawBehHardConstraints(RehWawBehSetup& rehWawBeh,
       hardConstraints.push_back(std::move(bound));
     }
   }
-  for (auto& bound : rehWawBeh.dotBounds) hardConstraints.push_back(std::move(bound));
-  for (auto& follow : rehWawBeh.kasraFollowers) hardConstraints.push_back(std::move(follow));
+  for (auto& ref : glyphs) {
+    auto& dot = ref.get();
+    if (dot.initialPlacement == GlyphInstance::InitialPlacement::LeftOfRehWaw) {
+      if (auto* reference = rehWawReference(dot))
+        hardConstraints.push_back(std::make_unique<HorizontalGapConstraint>(*reference, dot, P.rehWaw.leftGap));
+    } else if (dot.initialPlacement == GlyphInstance::InitialPlacement::BelowRehWaw) {
+      if (auto* reference = rehWawReference(dot)) {
+        auto bound = std::make_unique<StackOrderConstraint>(*reference, dot, false,
+            P.rehWaw.compactGap, P.compliance.hardStayBelow, 0.0);
+        bound->keepInnerForGap = true;
+        bound->alignHorizontal = false;
+        hardConstraints.push_back(std::move(bound));
+      }
+    }
+  }
   // Dot ordering follows the base bounds, since a contextual dot may itself
   // have moved down around a descending stroke during this iteration.
   for (auto& stack : rehWawBeh.stacks) hardConstraints.push_back(std::move(stack));
@@ -368,7 +445,8 @@ void addHarakatLaneConstraints(const MarkGroups& aboveStackGroups,
 PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
                                      const GlyphSequence& glyphs,
                                      SolverContext& solverContext,
-                                     const OptParams& P) {
+                                     const OptParams& P,
+                                     InitialPositioning initialPositioning) {
   ValidBases validBases;
   for (const auto& ref : glyphs) {
     const auto& g = ref.get();
@@ -376,6 +454,8 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
   }
   PageConstraints constraints;
   RehWawBehSetup rehWawBeh;
+  if (P.toggles.rehWawBehPlacement)
+    prepareRehWawBehPositions(glyphs, validBases, solverContext, P, rehWawBeh, initialPositioning);
   std::vector<WaqfPlacementConstraint*> waqfPlacements;
   if (P.toggles.waqfEscape && P.toggles.waqfPlacement && P.toggles.genericGapConstraint)
     solverContext.waqfEscapes.resize(glyphs.size(), nullptr);
@@ -442,10 +522,7 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
       continue;
     }
 
-    bool hasRehWawPlacement = false;
-    if (P.toggles.rehWawBehPlacement && isBelowMark)
-      hasRehWawPlacement = addRehWawBehPlacement(
-          mark, glyphs, validBases, solverContext, P, rehWawBeh, constraints.placement);
+    const bool hasRehWawPlacement = solverContext.contextualBelowMarks.contains(&mark);
 
     // Trapped inside a bowl-shaped base (Jeem/Hah/Khah)? Membership is decided
     // per-BASE (see the bowlBases pre-pass above), not per-mark: once a base
@@ -587,7 +664,7 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
   }
 
   // Projection order after generic contacts: ordinary rails (already added),
-  // Reh/Waw kasra base bounds, dot bounds, kasra followers, dot-kasra stacks,
+  // Reh/Waw kasra base bounds, directional dot bounds, dot-kasra stacks,
   // then Waqf top order.
   // Appending these in a different order can change the solved placement.
   if (P.toggles.rehWawBehPlacement)
@@ -737,7 +814,8 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
 void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
                   const ClassMap& classes,
                   const OptParams& P,
-                  std::vector<ConstraintViolation>* outViolations) {
+                  std::vector<ConstraintViolation>* outViolations,
+                  InitialPositioning initialPositioning) {
   // 1. Prepare geometry and ownership indices.
   initGlyphMobilities(pageGlyphs);
   SolverContext solverContext{pageGlyphs, classes};
@@ -745,7 +823,7 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
   const auto glyphs = prepareGlyphs(pageGlyphs);
 
   // 2. Assemble constraints once, preserving their projection order.
-  auto constraints = buildPageConstraints(pageGlyphs, glyphs, solverContext, P);
+  auto constraints = buildPageConstraints(pageGlyphs, glyphs, solverContext, P, initialPositioning);
 
   // 3. Project constraints and check convergence.
   solvePageConstraints(glyphs, solverContext, P, constraints);

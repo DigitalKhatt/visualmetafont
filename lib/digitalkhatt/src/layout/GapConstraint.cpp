@@ -19,6 +19,9 @@ double gapCompliance(const GlyphInstance& A, const GlyphInstance& B) {
 
 std::pair<double, double> gapMobilities(const SolverContext& context,
     const GlyphInstance& A, const GlyphInstance& B) {
+  if (context.gapExcludedGlyphs.contains(A.globalIndex) || context.gapExcludedGlyphs.contains(B.globalIndex))
+    return {context.gapExcludedGlyphs.contains(A.globalIndex) ? 0.0 : A.mobility,
+            context.gapExcludedGlyphs.contains(B.globalIndex) ? 0.0 : B.mobility};
   if (context.rehWawBehPlacement && A.lineIndex != B.lineIndex) {
     if (A.lineIndex < B.lineIndex && context.contextualBelowMarks.contains(&A))
       return {A.mobility, 0.0};
@@ -26,8 +29,10 @@ std::pair<double, double> gapMobilities(const SolverContext& context,
       return {0.0, B.mobility};
   }
   if (A.isMark && B.isMark) {
-    if (context.isWaqf(A) && !context.isWaqf(B)) return {3.0, 1.0};
-    if (!context.isWaqf(A) && context.isWaqf(B)) return {1.0, 3.0};
+    if (context.isWaqf(A) && !context.isWaqf(B))
+      return {A.mobility > 0.0 ? 3.0 : 0.0, B.mobility > 0.0 ? 1.0 : 0.0};
+    if (!context.isWaqf(A) && context.isWaqf(B))
+      return {A.mobility > 0.0 ? 1.0 : 0.0, B.mobility > 0.0 ? 3.0 : 0.0};
   }
   return {A.mobility, B.mobility};
 }
@@ -60,12 +65,12 @@ double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptPar
            (isKasraMark(mark) || isRehWawDot(mark));
   };
   if (P.toggles.rehWawBehPlacement) {
-    if (tipPair(A, B) || tipPair(B, A)) return std::min(P.sameWordGap, rehWawTipGap);
+    if (tipPair(A, B) || tipPair(B, A)) return std::min(P.sameWordGap, P.rehWaw.tipGap);
     const auto dotOwnerPair = [](const GlyphInstance& base, const GlyphInstance& mark) {
       if (!mark.isMark || !isRehWawDot(mark) || !rehWawReference(mark)) return false;
-      return &base == mark.prevBase || &base == mark.prevBase->nextBase;
+      return &base == mark.prevBase;
     };
-    if (dotOwnerPair(A, B) || dotOwnerPair(B, A)) return std::min(P.sameWordGap, rehWawTipGap);
+    if (dotOwnerPair(A, B) || dotOwnerPair(B, A)) return std::min(P.sameWordGap, P.rehWaw.tipGap);
   }
   if (A.glyphName.starts_with("alef") &&
       B.prevBase == &A &&

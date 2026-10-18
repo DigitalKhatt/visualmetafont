@@ -85,34 +85,55 @@ all pairs except the direct stack pairs with their own authored gap.
 
 ## Lower dots and kasra
 
-The experiment is opt-in and scoped to the exact `behshape.init` glyph.
+The experiment is opt-in for `behshape.init` and all `behshape.init.*` variants.
 `xpbd.toggles.rehWawBehPlacement` defaults to `false`: absent/false settings
-preserve the original solver, including its manually anchored Reh/Waw-dot
-exception. Initial variants, isolated Beh and other letters retain that policy
-even when the option is enabled. The GUI checkbox is under Placement / Special
-placements / Reh / Waw followed by initial Beh. CLI overrides are
+preserve the original solver and authored anchored-dot exceptions. Isolated,
+medial and unrelated glyphs remain outside this scope. CLI overrides are
 `--reh-waw-beh-placement` and `--no-reh-waw-beh-placement`.
 
-When enabled, lower dots and kasra/kasratan on `behshape.init` form a downward
-stack with 40-unit contour clearance, even across an intervening upper mark.
-Kasra takes the vertical correction and preserves the authored horizontal
-offset. This stack also follows the existing `stackOrder` switch.
+The GUI controls are under Placement / Special placements / Reh / Waw followed
+by initial Beh. Gaps, clearance floors, overhang percentage/cap and kasra horizontal
+compliance persist in QSettings and export in the `xpbd.rehWaw` and
+`xpbd.compliance` snapshot objects. See the [settings table](../docs/generate-mushaf.md)
+for names and defaults.
 
-After Reh/Waw in the same word, kasra prefers the lower contour near the tip
-with a 30-unit gap, with or without dots. Its semantic owner stays Beh. Dots
-instead search a bounded region near Beh for balanced ink clearances to Beh
-and Reh/Waw. If the full mark fits in the free space left of and above the tip,
-the preference centers it there. Otherwise a compact position near the tip is
-allowed. A live clearance-balance correction respects the region and surrounding
-base and mark ink, including fixed marks inside neighboring bowls. A neighboring
-Ain's low bowl never becomes a downward placement rail
-for these dots; they remain near their Beh owner.
+A clear balanced gap at the current tip position has priority. The dot may
+straddle the tip's horizontal position, but its center must remain at or right
+of the tip; a left-shifted mark must use the separate left-slot rules. Actual
+outline clearances decide
+whether it fits, independently of the full-width left-slot restriction. The
+whole same-owner dot/kasra pair must fit. If this gap is blocked, the solver
+tries a full-width left-tip slot, followed by a small outline-checked
+overhang. Only when all those searches fail do the independent single-dot and
+double-dot checkboxes apply: checked permits below-tip placement (the default),
+unchecked leaves ordinary collision handling active without forcing descent.
+Inside a feasible current gap, `rehWaw.preferredGap` (default 80) controls the
+desired breathing room to Behshape and Reh/Waw. The search prioritizes the
+smaller of those clearances up to this target, then balance and movement cost.
+The target is separate from the minimum `compactGap`: failure to reach it
+keeps the roomiest safe in-gap position instead of triggering another slot.
 
-Contextual dot contacts with the owner, Reh/Waw and following base use compact
-30-unit clearance. Other contacts stay active. The contextual target replaces
-vicinity/squeeze preferences for those marks. Directional lower bounds apply
-to kasra only. Authored bowl-interior exceptions remain unchanged. Constants
-are named in `BelowMarkPlacement.h`; all movement still requires Force.
+Positioning runs once before XPBD, from unchanged input geometry. Accepted
+current-gap dots are flagged and get zero mobility. A left dot's vertical
+center aligns with the leftmost tip point, and `rehWaw.leftGap` (default 30)
+is its minimum horizontal clearance. Below fallback starts below the whole
+Reh/Waw outline. The existing local half-dot sideways allowance is considered
+before accepting a deeper descent. Left and below dots remain movable during XPBD. Proposed
+owner groups are validated together before application.
+
+Same-owner lower dots and kasra/kasratan form an ordinary downward stack,
+preserving their adjusted initial horizontal offset. Horizontal compliance
+is `compliance.rehWawKasraFollow` (default 0.2); the vertical minimum uses
+`compliance.stackOrderGap`. The stack follows the existing `stackOrder` switch.
+There is no custom dot point attraction or repeated contextual search during
+XPBD. The legacy `compliance.rehWawDotTarget` key is ignored. Extra vertical
+separation is allowed, with complete-pair feasibility checked before XPBD.
+
+Compact contact targets apply only to the reference Reh/Waw and owning
+Behshape. Other ink retains ordinary gap targets. Fixed authored bowl marks
+are obstacles for contextual lower marks and remain fixed. All positioning
+still requires Force. Placement exports include `initialPositioning`,
+`initialPlacement` and `mobility` to distinguish the initial pass from XPBD.
 
 ## Repeatability and review thresholds
 

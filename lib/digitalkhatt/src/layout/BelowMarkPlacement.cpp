@@ -13,7 +13,7 @@ bool isRehWaw(const GlyphInstance& base) {
 
 bool isRehWawFollowingBase(const GlyphInstance& base) {
   return !base.isMark && (base.glyphName == "behshape.init" ||
-                         base.glyphName == "behshape.init.beforeseen");
+                         base.glyphName.starts_with("behshape.init."));
 }
 
 GlyphInstance* rehWawReference(const GlyphInstance& mark) {

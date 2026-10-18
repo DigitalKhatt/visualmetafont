@@ -27,8 +27,8 @@ struct SolverContext {
   // `pr` is keyed {min,max} globalIndex, matching SweepBroadphase.
   bool isGapExcluded(const std::pair<int, int>& pr) const {
     return excludedFromGenericGap.contains(pr) ||
-           gapExcludedGlyphs.contains(pr.first) ||
-           gapExcludedGlyphs.contains(pr.second);
+           (!gapIncludedPairs.contains(pr) &&
+            (gapExcludedGlyphs.contains(pr.first) || gapExcludedGlyphs.contains(pr.second)));
   }
 
   // True if `base` is a bowl-shaped base glyph (e.g. final/isolated
@@ -66,6 +66,10 @@ struct SolverContext {
   // the mark opts out of collision entirely and relies on its owning constraint
   // (and the bowl containment) instead.
   std::unordered_set<int> gapExcludedGlyphs;
+
+  // Contextual lower marks still collide with fixed authored bowl marks.
+  // Only these pairs override a glyph-wide exclusion; excluded marks stay fixed.
+  std::set<std::pair<int, int>> gapIncludedPairs;
 
   ClassSet marks;
   ClassSet topmarks;

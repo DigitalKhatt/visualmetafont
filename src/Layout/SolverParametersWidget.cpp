@@ -11,11 +11,12 @@
 #include <QSpinBox>
 #include <QTabWidget>
 #include <QTimer>
-#include <QToolBox>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace {
 constexpr int kDebounceMs = 150;
@@ -94,6 +95,9 @@ void addIntRow(QFormLayout* form, const QString& label, QSettings& settings,
 
 QFormLayout* makeForm(QWidget* parent) {
   auto* form = new QFormLayout(parent);
+  form->setContentsMargins(8, 6, 8, 6);
+  form->setVerticalSpacing(4);
+  form->setFormAlignment(Qt::AlignTop);
   form->setRowWrapPolicy(QFormLayout::WrapLongRows);
   form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
   return form;
@@ -105,17 +109,78 @@ QWidget* addTab(QTabWidget* tabs, const QString& title) {
   auto* page = new QWidget(scroll);
   auto* layout = new QVBoxLayout(page);
   layout->setContentsMargins(6, 6, 6, 6);
+  layout->setSpacing(6);
+  layout->setAlignment(Qt::AlignTop);
   scroll->setWidget(page);
   tabs->addTab(scroll, title);
   return page;
 }
 
-QWidget* addSection(QToolBox* sections, const QString& title) {
-  auto* page = new QWidget(sections);
-  auto* layout = new QVBoxLayout(page);
-  layout->setContentsMargins(4, 4, 4, 4);
-  sections->addItem(page, title);
-  return page;
+// Unlike QToolBox, every section may close and hidden pages reserve no height.
+// The outer tab scrolls the actual content, without a second expanding viewport.
+class CollapsibleSections : public QWidget {
+ public:
+  explicit CollapsibleSections(QWidget* parent) : QWidget(parent) {
+    m_layout = new QVBoxLayout(this);
+    m_layout->setContentsMargins(0, 0, 0, 0);
+    m_layout->setSpacing(2);
+    m_layout->setAlignment(Qt::AlignTop);
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+  }
+  QWidget* addSection(const QString& title) {
+    const int index = static_cast<int>(m_sections.size());
+    auto* header = new QToolButton(this);
+    header->setText(title);
+    header->setCheckable(true);
+    header->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    header->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    header->setArrowType(Qt::RightArrow);
+    auto* page = new QWidget(this);
+    auto* layout = new QVBoxLayout(page);
+    layout->setContentsMargins(2, 2, 2, 4);
+    layout->setSpacing(6);
+    layout->setAlignment(Qt::AlignTop);
+    page->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+    page->hide();
+    m_layout->addWidget(header);
+    m_layout->addWidget(page);
+    m_sections.push_back({header, page});
+    connect(header, &QToolButton::clicked, this, [this, index]() {
+      setCurrentIndex(m_current == index ? -1 : index);
+    });
+    return page;
+  }
+  void restore(QSettings& settings, const QString& key) {
+    m_key = settingKey(key);
+    setObjectName(key);
+    for (int i = 0; i < static_cast<int>(m_sections.size()); ++i) {
+      m_sections[i].header->setObjectName(key + ".header." + QString::number(i));
+      m_sections[i].page->setObjectName(key + ".page." + QString::number(i));
+    }
+    setCurrentIndex(std::clamp(settings.value(m_key, 0).toInt(), -1, static_cast<int>(m_sections.size()) - 1));
+  }
+
+ private:
+  struct Section { QToolButton* header; QWidget* page; };
+  std::vector<Section> m_sections;
+  QVBoxLayout* m_layout;
+  QString m_key;
+  int m_current = -1;
+  void setCurrentIndex(int index) {
+    m_current = index;
+    for (int i = 0; i < static_cast<int>(m_sections.size()); ++i) {
+      const bool open = i == index;
+      m_sections[i].header->setChecked(open);
+      m_sections[i].header->setArrowType(open ? Qt::DownArrow : Qt::RightArrow);
+      m_sections[i].page->setVisible(open);
+    }
+    if (!m_key.isEmpty()) QSettings().setValue(m_key, index);
+    updateGeometry();
+  }
+};
+
+QWidget* addSection(CollapsibleSections* sections, const QString& title) {
+  return sections->addSection(title);
 }
 
 void addNote(QWidget* parent, const QString& text) {
@@ -131,6 +196,7 @@ ConstraintForm addConstraint(QWidget* parent, const QString& title, QSettings& s
   const QString fullKey = settingKey(key);
   enabled = settings.value(fullKey, enabled).toBool();
   auto* box = new QGroupBox(title, parent);
+  box->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
   box->setObjectName(key);
   box->setCheckable(true);
   box->setChecked(enabled);
@@ -145,15 +211,13 @@ ConstraintForm addConstraint(QWidget* parent, const QString& title, QSettings& s
   return {box, form};
 }
 
-void rememberSection(QToolBox* box, QSettings& settings, const QString& key,
-                     SolverParametersWidget* owner) {
-  const QString fullKey = settingKey(key);
-  box->setCurrentIndex(std::clamp(settings.value(fullKey, 0).toInt(), 0, box->count() - 1));
-  QObject::connect(box, &QToolBox::currentChanged, owner,
-      [fullKey](int index) { QSettings().setValue(fullKey, index); });
-}
-
 void migrateSettings(QSettings& settings) {
+  const QString oldFallback = settingKey("rehWaw.belowTipFallback");
+  if (settings.contains(oldFallback)) {
+    for (const auto* key : {"rehWaw.oneDotBelowTip", "rehWaw.twoDotsBelowTip"})
+      if (!settings.contains(settingKey(key))) settings.setValue(settingKey(key), settings.value(oldFallback));
+    settings.remove(oldFallback);
+  }
   const QString paddingKey = settingKey("broadphasePadding");
   bool hasLegacyPadding = false;
   for (const auto* key : {"minGapBody", "minGapMark", "maxShiftBodyX", "maxShiftBodyY", "maxShiftMark"})
@@ -203,7 +267,7 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
       0.0, 50.0, 0.1, 2, this, changed,
       tr("Early exit requires small applied corrections and acceptable remaining hard residuals."), units);
   static_cast<QVBoxLayout*>(placement->layout())->addWidget(solver);
-  auto* constraints = new QToolBox(placement);
+  auto* constraints = new CollapsibleSections(placement);
   static_cast<QVBoxLayout*>(placement->layout())->addWidget(constraints);
 
   auto* collisionPage = addSection(constraints, tr("Collision avoidance"));
@@ -280,9 +344,32 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   auto* special = addSection(constraints, tr("Special placements"));
   auto behPlacement = addConstraint(special, tr("Reh / Waw followed by initial Beh"), settings,
       "toggle.rehWawBehPlacement", toggles.rehWawBehPlacement, this, changed);
-  auto* behNote = new QLabel(tr("Opt-in placement for behshape.init and behshape.init.beforeseen. Uses a clear full-width slot left of and above the Reh/Waw tip; otherwise places dots below near the tip. Same-owner kasra follows the dots and stays below them. Off preserves the previous implementation."), behPlacement.box);
+  auto& beh = m_params.rehWaw;
+  auto* behNote = new QLabel(tr("Initial positioning runs once before XPBD. Centered dots stay fixed with their center at or right of the tip. Left dots align their center with the leftmost Reh/Waw tip. Left/below dots remain movable; ordinary stacking aligns same-owner kasra."), behPlacement.box);
   behNote->setWordWrap(true);
   behPlacement.form->addRow(behNote);
+  const auto fallbackTip = tr("A clear centered current gap is kept first. Used only when both that gap and the left slot fail. Checked: allow initial placement below Reh/Waw. Unchecked: keep the original input when neither slot fits.");
+  addToggleRow(behPlacement.form, tr("One dot below tip"), settings,
+      "rehWaw.oneDotBelowTip", beh.oneDotBelowTip, this, changed, fallbackTip);
+  addToggleRow(behPlacement.form, tr("Two dots below tip"), settings,
+      "rehWaw.twoDotsBelowTip", beh.twoDotsBelowTip, this, changed, fallbackTip);
+  addDoubleRow(behPlacement.form, tr("Tip gap"), settings, "rehWaw.tipGap", beh.tipGap,
+      0, 1000, 1, 2, this, changed, tr("Preferred compact spacing to the reference Reh/Waw tip."), units);
+  addDoubleRow(behPlacement.form, tr("Dot–kasra gap"), settings, "rehWaw.dotKasraGap", beh.dotKasraGap,
+      0, 1000, 1, 2, this, changed, tr("Vertical stacking gap for dots and kasra on the same Beh/Yeh."), units);
+  addDoubleRow(behPlacement.form, tr("Compact ink clearance"), settings, "rehWaw.compactGap", beh.compactGap,
+      0, 1000, 1, 2, this, changed, tr("Minimum outline clearance to the owning Behshape and reference Reh/Waw."), units);
+  addDoubleRow(behPlacement.form, tr("Minimum left clearance"), settings, "rehWaw.leftGap", beh.leftGap,
+      0, 1000, 1, 2, this, changed, tr("Minimum horizontal gap from a left-positioned dot's right edge to Reh/Waw's leftmost tip. The dot's center is initially level with that tip."), units);
+  addDoubleRow(behPlacement.form, tr("Preferred in-gap clearance"), settings, "rehWaw.preferredGap", beh.preferredGap,
+      0, 1000, 1, 2, this, changed, tr("Aim for this much clearance to both Behshape and Reh/Waw within the current gap. If it cannot fit, use the roomiest safe position there. This target does not force below-tip placement; Compact ink clearance remains the minimum."), units);
+  addDoubleRow(behPlacement.form, tr("Other ink clearance"), settings, "rehWaw.neighborGap", beh.neighborGap,
+      0, 1000, 1, 2, this, changed, tr("Minimum outline clearance to other letters and marks. Normal same-word/different-word gaps remain preferences."), units);
+  addDoubleRow(behPlacement.form, tr("Allowed overhang"), settings, "rehWaw.overhangPercent", beh.overhangPercent,
+      0, 100, 1, 1, this, changed, tr("Maximum left-slot overhang beyond Behshape, as a percentage of dot width."), percent);
+  addDoubleRow(behPlacement.form, tr("Overhang cap"), settings, "rehWaw.overhangLimit", beh.overhangLimit,
+      0, 1000, 1, 2, this, changed, tr("Absolute cap on the allowed left-slot overhang."), units);
+  compliance(behPlacement.form, tr("Kasra horizontal compliance"), "compliance.rehWawKasraFollow", comp.rehWawKasraFollow);
   auto pair = addConstraint(special, tr("Kasra / iqlab meem pair"), settings,
       "toggle.matchMarkPosition", toggles.matchMarkPosition, this, changed);
   compliance(pair.form, tr("Compliance"), "compliance.matchMarkPosition", comp.matchMarkPosition);
@@ -292,7 +379,7 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   auto squeeze = addConstraint(special, tr("Center squeezed marks"), settings,
       "toggle.squeezeCenter", toggles.squeezeCenter, this, changed);
   compliance(squeeze.form, tr("Compliance"), "compliance.squeezeCenter", comp.squeezeCenter);
-  rememberSection(constraints, settings, "ui.placementSection", this);
+  constraints->restore(settings, "ui.placementSection");
 
   auto* reports = addTab(tabs, tr("Reports"));
   auto* collectBox = new QGroupBox(tr("Collection"), reports);
@@ -301,7 +388,7 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
       toggles.reportViolations, this, changed, tr("Enable violation reporting when generating the Mushaf."));
   static_cast<QVBoxLayout*>(reports->layout())->addWidget(collectBox);
   addNote(reports, tr("These settings select and interpret report findings; they do not change placement forces."));
-  auto* reportSections = new QToolBox(reports);
+  auto* reportSections = new CollapsibleSections(reports);
   static_cast<QVBoxLayout*>(reports->layout())->addWidget(reportSections);
   auto* selection = addSection(reportSections, tr("Finding selection"));
   auto* selectionFormWidget = new QWidget(selection);
@@ -370,7 +457,7 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   addDoubleRow(allowanceForm, tr("Proxy gap slack multiplier"), settings, "complianceResidualMargin", m_params.complianceResidualMargin,
       0.0, 100.0, 0.05, 2, this, changed,
       tr("Multiplier on expected compliance slack for solver-proxy gap findings. Actual intersections remain reportable; Save Collision mode does not use this allowance."));
-  rememberSection(reportSections, settings, "ui.reportSection", this);
+  reportSections->restore(settings, "ui.reportSection");
 
   auto* advanced = addTab(tabs, tr("Advanced"));
   auto* search = new QGroupBox(tr("Collision candidate search"), advanced);

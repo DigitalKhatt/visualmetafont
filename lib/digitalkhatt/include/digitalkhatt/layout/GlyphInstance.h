@@ -17,11 +17,17 @@ struct GlyphMetrics {
 };
 
 struct GlyphInstance {
+  enum class InitialPlacement { None, CenteredGap, LeftOfRehWaw, BelowRehWaw };
   double baseX = 0.0;
   double baseY = 0.0;
   double lineY = 0.0;
   double dx = 0.0;
   double dy = 0.0;
+  // The initial positioning contribution is included in dx/dy. Ordinary
+  // constraints and audits use this adjusted input as the authored baseline.
+  double initialPositioningDx = 0.0;
+  double initialPositioningDy = 0.0;
+  InitialPlacement initialPlacement = InitialPlacement::None;
 
   // Observe every applied projection, including corrections that cancel later
   // in the same iteration. A net displacement alone can hide conflicting forces.

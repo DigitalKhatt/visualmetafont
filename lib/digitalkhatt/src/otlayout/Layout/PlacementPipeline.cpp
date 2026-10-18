@@ -122,11 +122,12 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
   if (report) {
     auto initialOptions = options;
     initialOptions.maxIters = 0;
-    optimizePage(result.glyphs, classes, initialOptions, &result.initialViolations);
+    optimizePage(result.glyphs, classes, initialOptions, &result.initialViolations, InitialPositioning::Skip);
     if (collisionReport) collectCollisions(page, result, params.collisionReportMinGap, result.initialViolations);
   }
   if (!force) options.maxIters = 0;
-  optimizePage(result.glyphs, classes, options, report ? &result.violations : nullptr);
+  optimizePage(result.glyphs, classes, options, report ? &result.violations : nullptr,
+      force ? InitialPositioning::Apply : InitialPositioning::Skip);
   if (force) {
     for (size_t l = 0; l < page.size(); ++l)
       for (size_t i = 0; i < result.glyphs[l].size(); ++i)

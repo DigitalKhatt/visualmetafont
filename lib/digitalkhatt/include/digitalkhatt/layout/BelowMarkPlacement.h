@@ -1,11 +1,17 @@
 #pragma once
 
 #include "digitalkhatt/layout/GlyphInstance.h"
+#include "digitalkhatt/layout/OptParams.h"
 
 namespace digitalkhatt::layout {
 
-inline constexpr double rehWawTipGap = 30.0;
-inline constexpr double belowDotKasraGap = 40.0;
+// Named defaults for callers and proofs; live constraints use OptParams.
+inline constexpr double rehWawTipGap = RehWawPlacementParams{}.tipGap;
+inline constexpr double belowDotKasraGap = RehWawPlacementParams{}.dotKasraGap;
+inline constexpr double rehWawCompactInkGap = RehWawPlacementParams{}.compactGap;
+inline constexpr double rehWawNeighborInkGap = RehWawPlacementParams{}.neighborGap;
+inline constexpr double rehWawLeftOverhangFraction = RehWawPlacementParams{}.overhangPercent / 100.0;
+inline constexpr double rehWawLeftOverhangLimit = RehWawPlacementParams{}.overhangLimit;
 
 bool isKasraMark(const GlyphInstance& mark);
 bool isRehWaw(const GlyphInstance& base);

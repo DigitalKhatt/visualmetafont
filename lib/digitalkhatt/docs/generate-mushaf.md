@@ -29,23 +29,92 @@ build/mushaf-cli/visualmetafont/lib/digitalkhatt/digitalkhatt_generate_mushaf \
   oldmadinafont/oldmadina.mp --output mushaf.pdf
 ```
 
-The default output is `mushaf.pdf` in the working directory. Force defaults to
-off, as in the editor, so positions remain the justified shaping output.
-Use `--force` to apply XPBD. Reports are optional and independent of Force.
+The default output is `mushaf.pdf` in the working directory. The CLI defaults
+Force to off unless a settings snapshot or `--force` enables XPBD. The editor
+remembers its Force button state between sessions (off before first use), and
+exports it as `force` in `mushaf.settings.json`. With Force off, positions remain
+the justified shaping output. Reports are optional and independent of Force.
 
-The experimental lower-mark placement for `behshape.init` and
-`behshape.init.beforeseen` is off by
+The experimental lower-mark placement for `behshape.init` and all
+`behshape.init.*` variants is off by
 default. Enable it with `--reh-waw-beh-placement` or
 `xpbd.toggles.rehWawBehPlacement: true` in a settings snapshot; disable it with
 `--no-reh-waw-beh-placement`. The matching GUI checkbox is in Placement /
 Special placements / Reh / Waw followed by initial Beh. Off retains the original
-placement. On uses a left/above-tip slot only when the full dot fits and clears
-nearby ink. Otherwise it prefers below and near the tip, extending downward if
-another descending Reh blocks that region. Same-owner kasra follows the dots
-horizontally (preserving the authored offset) and vertically with the dot/kasra
-stack clearance. Slot clearance is checked for the pair, including neighboring
-lines. Contextual lower marks yield to the next line's ink instead of displacing
-its stacks. Kasra owned by a neighboring Reh/Waw is not linked.
+placement. When enabled, a single positioning pass runs before XPBD, using
+unchanged input outlines and checking each complete same-owner dot/kasra pair.
+It first balances the current gap. Accepted centered dots have zero mobility,
+so XPBD cannot undo their centering. If the gap cannot fit, it tries a left
+slot with the dot's **vertical center at the leftmost Reh/Waw tip point**.
+`rehWaw.leftGap` is a minimum horizontal distance from the dot's right edge to
+the reference's left edge. A small outline-checked overhang beyond Behshape's
+footprint is allowed. If neither slot fits, the independently enabled fallback
+starts below the **whole reference outline**, extending downward only within
+the available line space. Below fallback compares the existing local half-dot
+sideways allowance before descending farther; it does not first accept a deep
+narrow slot below an independent Reh/Waw kasra. Left and below dots retain
+ordinary mobility.
+
+Candidate clearance defaults to 14 units to the owning Behshape and preceding
+Reh/Waw, and 40 units to other ink. Neighbor ranking also aims for normal
+same-word/different-word spacing. All candidates include the following kasra
+and neighboring-line ink. Simultaneous plans are validated together before any
+dot is pinned. Conflicting owner groups keep their input positioning.
+
+After this pass there is no contextual dot point attraction, repeated slot
+search or special kasra follower in XPBD. Ordinary contacts and directional
+left/below constraints act on movable dots. Ordinary `StackOrderConstraint`
+preserves the adjusted dot–kasra horizontal offset, with 0.2 horizontal
+compliance, and enforces the minimum downward stack gap with its configured
+gap compliance. Extra vertical separation is allowed. Only same-owner kasra
+is linked; a neighboring Reh/Waw's kasra is independent. Fixed authored bowl
+marks remain collision obstacles for contextual lower marks without moving.
+The legacy JSON key `compliance.rehWawDotTarget` is accepted but has no effect;
+its obsolete GUI control has been removed.
+
+The GUI exposes these defaults under **Placement / Special placements / Reh / Waw
+followed by initial Beh**. They persist between sessions and are included in
+`mushaf.settings.json` under `xpbd`:
+
+| GUI setting | Snapshot key under `xpbd` | Default |
+| --- | --- | --- |
+| One dot below tip | `rehWaw.oneDotBelowTip` | `true` |
+| Two dots below tip | `rehWaw.twoDotsBelowTip` | `true` |
+| Tip gap | `rehWaw.tipGap` | 30 |
+| Minimum left clearance | `rehWaw.leftGap` | 30 |
+| Dot–kasra gap | `rehWaw.dotKasraGap` | 40 |
+| Compact ink clearance | `rehWaw.compactGap` | 14 |
+| Preferred in-gap clearance | `rehWaw.preferredGap` | 80 |
+| Other ink clearance | `rehWaw.neighborGap` | 40 |
+| Allowed overhang | `rehWaw.overhangPercent` | 10% |
+| Overhang cap | `rehWaw.overhangLimit` | 14 |
+| Kasra horizontal compliance | `compliance.rehWawKasraFollow` | 0.2 |
+
+A balanced current gap has priority for both dot types, regardless of the
+below-tip checkboxes. The search keeps the dot's footprint across the tip's
+horizontal position, its horizontal center at or right of that tip, and its
+vertical center above the tip, and balances actual outline
+gaps near the authored position. Height may adjust within that cavity. This
+search uses `compactGap` for the owning Behshape and reference Reh/Waw and
+`neighborGap` for other ink, including the whole following same-owner kasra.
+A valid gap is kept even when the full-width left-slot test would fail.
+Within that gap, the search first maximizes the smaller clearance to Behshape
+and Reh/Waw, up to `preferredGap`; balance, neighboring spacing and movement
+from the authored position break ties. This gives a cramped but feasible gap
+as much breathing room as it can provide. `preferredGap` is a comfort target,
+not a second minimum: an unattainable value does not trigger left or below-tip
+relocation. `compactGap` remains the feasibility floor. An accepted centered
+dot is fixed at that initial position throughout XPBD.
+
+The two dot-type checkboxes independently control the last fallback, after
+both the current gap and left-tip searches fail. Checked allows below-tip
+placement; unchecked leaves ordinary collision handling active without forcing
+that descent. For example, `rehWaw.oneDotBelowTip: false` and
+`rehWaw.twoDotsBelowTip: true` permits this final descent only for two dots.
+Older snapshots with the shared `rehWaw.belowTipFallback` key are migrated to
+both choices; explicit new values take precedence.
+The constraint category headers open and close on click; collapsing a category
+does not change its constraint checkboxes, and all categories may stay closed.
 
 Old Madina's declarative `standard` shrink policy tries features in order,
 accepting the first undershoot and stopping further shrink trials. Final

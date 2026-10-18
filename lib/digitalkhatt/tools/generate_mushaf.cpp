@@ -85,6 +85,16 @@ template<class T> void readJson(T& value, const fs::path& path, LegacySearchPadd
           "waqfBaseVicinityMarginFactor","waqfInterLineGap","waqfStackGap","waqfHeightPreferenceBand"})
         changed |= fields.erase(key) != 0;
     }
+    if (auto* rehWaw = child(xpbd,"rehWaw"); rehWaw && rehWaw->is_object()) {
+      auto& fields = rehWaw->get_object();
+      if (const auto it = fields.find("belowTipFallback"); it != fields.end()) {
+        const auto legacy = it->second;
+        fields.try_emplace("oneDotBelowTip", legacy);
+        fields.try_emplace("twoDotsBelowTip", legacy);
+        fields.erase("belowTipFallback");
+        changed = true;
+      }
+    }
     if (auto* toggles = child(xpbd,"toggles"); toggles && toggles->is_object()) {
       for (const auto* key : {"preserveMarkSemantics","waqfBaseVicinity","returnToAnchor"})
         changed |= toggles->get_object().erase(key) != 0;
@@ -225,6 +235,9 @@ struct PlacementGlyph {
   std::array<int,2> final;
   std::vector<double> parameters;
   double justificationAddedLeftTatweel = 0;
+  std::array<double,2> initialPositioning{};
+  std::string initialPlacement;
+  double mobility = 0;
 };
 struct PlacementRecord { int page; std::vector<PlacementGlyph> glyphs; };
 struct ReviewGlyph {
@@ -266,6 +279,10 @@ PlacementRecord placementRecord(int page, const PlacementPage& solved,
     for (GlyphAxisId axis=0;axis<input.parameters.size();++axis)
       record.parameters.push_back(input.parameters.value(axis));
     record.justificationAddedLeftTatweel = input.justificationAddedLeftTatweel;
+    record.initialPositioning = {g.initialPositioningDx,g.initialPositioningDy};
+    constexpr const char* kinds[] = {"none","centered-gap","left-tip","below"};
+    record.initialPlacement = kinds[static_cast<int>(g.initialPlacement)];
+    record.mobility = g.mobility;
     result.glyphs.push_back(std::move(record));
   }
   return result;

@@ -438,3 +438,16 @@ endif()
 
 
 include(CPack)
+
+if(BUILD_TESTING AND NOT EMSCRIPTEN)
+  add_executable(visualmetafont_test_solver_parameters
+    tests/SolverParametersWidgetTest.cpp
+    Layout/SolverParametersWidget.cpp
+    Layout/SolverParametersWidget.h)
+  target_compile_features(visualmetafont_test_solver_parameters PRIVATE cxx_std_20)
+  target_include_directories(visualmetafont_test_solver_parameters PRIVATE
+    Layout ../lib/digitalkhatt/include)
+  target_link_libraries(visualmetafont_test_solver_parameters PRIVATE Qt5::Widgets)
+  add_test(NAME visualmetafont.solver_parameters COMMAND visualmetafont_test_solver_parameters)
+  set_tests_properties(visualmetafont.solver_parameters PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()

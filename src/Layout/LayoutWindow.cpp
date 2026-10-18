@@ -804,9 +804,11 @@ void LayoutWindow::createActions() {
 
   toggleButton = new QPushButton(tr("&Force"));
   toggleButton->setCheckable(true);
-  toggleButton->setChecked(false);
+  applyForce = settings.value("Settings/forceEnabled", false).toBool();
+  toggleButton->setChecked(applyForce);
 
   connect(toggleButton, &QPushButton::toggled, [&](bool checked) {
+    QSettings().setValue("Settings/forceEnabled", checked);
     applyForce = checked;
     executeRunText(true, 1);
   });

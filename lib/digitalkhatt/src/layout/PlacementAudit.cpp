@@ -133,7 +133,7 @@ void collectPlacementViolations(const SolverContext& context,
       // final center to lie over the neighbor's ink and outside its owner's.
       const auto ownIt = std::find(bases.begin(), bases.end(), base);
       if (ownIt == bases.end()) continue;
-      const double initialX = cx - mark.dx;
+      const double initialX = cx - mark.dx + mark.initialPositioningDx;
       const double ownDistance = horizontalDistance(cx, bb);
       const double initialOwnDistance = horizontalDistance(initialX, bb);
       for (int direction : {-1, 1}) {

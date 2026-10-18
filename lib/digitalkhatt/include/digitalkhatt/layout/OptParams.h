@@ -14,7 +14,7 @@ struct ConstraintToggles {
   bool hardStayAboveBelow = false;  // both stay-above/stay-below rails
   bool squeezeCenter = false;
   bool stackOrder = true;
-  bool rehWawBehPlacement = false; // opt-in: behshape.init and behshape.init.beforeseen
+  bool rehWawBehPlacement = false; // opt-in: behshape.init and its dotted-name variants
   bool baseVicinity = true;
   bool horizontalOrder = true;
   bool matchMarkPosition = true;     // kasra + smalllowmeem cohesion
@@ -57,12 +57,27 @@ struct ConstraintCompliance {
 
   double stackOrderGap = 0.001;
   double stackOrderXAlign = 0.2;
+  double rehWawDotTarget = 0.2;   // legacy snapshot field; no point target in XPBD
+  double rehWawKasraFollow = 0.2; // ordinary lower-stack horizontal alignment
 
   double horizontalOrder = 0.0;
 
   double matchMarkPosition = 0.2;
   double bowlCluster = 0.3;
   double ylane = 0.1;
+};
+
+struct RehWawPlacementParams {
+  double tipGap = 30.0;
+  double dotKasraGap = 40.0;
+  double compactGap = 14.0;
+  double leftGap = 30.0;       // minimum horizontal clearance for a left dot
+  double preferredGap = 80.0;  // in-gap comfort target; never a feasibility floor
+  double neighborGap = 40.0;
+  double overhangPercent = 10.0;
+  double overhangLimit = 14.0;
+  bool oneDotBelowTip = true;  // false: do not force one dot below the tip
+  bool twoDotsBelowTip = true; // false: do not force two dots below the tip
 };
 
 struct OptParams {
@@ -138,6 +153,7 @@ struct OptParams {
 
   ConstraintToggles toggles;
   ConstraintCompliance compliance;
+  RehWawPlacementParams rehWaw;
 };
 
 }  // namespace digitalkhatt::layout
