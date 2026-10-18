@@ -103,7 +103,6 @@ struct PageConstraints {
 // constraints plus a mobility-zero flag for accepted current-gap dots.
 struct RehWawBehSetup {
   MarkGroups stackGroups;
-  std::unordered_set<GlyphInstance*> lowerBoundMarks;
   std::unordered_map<GlyphInstance*, std::unique_ptr<RehWawMarkPlacement>> placements;
   ConstraintList stacks;
 };
@@ -186,13 +185,14 @@ void prepareRehWawBehPositions(const GlyphSequence& glyphs,
         isManuallyPositionedMark(mark, solverContext)) continue;
     if (!solverContext.lowmarks.contains(mark.glyphName) &&
         !solverContext.downdotmarks.contains(mark.glyphName)) continue;
-    if (isRehWawFollowingBase(*mark.prevBase))
-      setup.stackGroups[mark.prevBase].push_back(&mark);
     if (!validBases.contains(mark.prevBase->prevBase)) continue;
     auto* tipReference = rehWawReference(mark);
     if (!tipReference) continue;
+    // The switch scopes both positioning AND dot-kasra constraints. An
+    // initial Beh after Alef (or across a word/line boundary) keeps the same
+    // ordinary constraints it has with this option disabled.
+    setup.stackGroups[mark.prevBase].push_back(&mark);
     solverContext.contextualBelowMarks.insert(&mark);
-    setup.lowerBoundMarks.insert(&mark);
     auto placement = std::make_unique<RehWawMarkPlacement>(mark, *tipReference, P);
     placement->obstacles = collectLowerObstacles(glyphs, validBases, mark);
     {
@@ -242,9 +242,13 @@ void prepareRehWawBehPositions(const GlyphSequence& glyphs,
       kasra->second->followedDotPlacement = it->second.get();
       it->second->kasras.push_back(kasra->second.get());
     }
-    if (initialPositioning == InitialPositioning::Apply) it->second->prepareDotTarget();
   }
   if (initialPositioning == InitialPositioning::Skip) return;
+  // Complete the ownership links first: standalone kasra searches its own
+  // slot, while a linked kasra only follows the owning dot's selected slot.
+  for (auto& ref : glyphs)
+    if (auto it = setup.placements.find(&ref.get()); it != setup.placements.end())
+      it->second->prepareTarget();
   struct Plan {
     GlyphInstance* mark;
     RehWawMarkPlacement* placement;
@@ -263,12 +267,11 @@ void prepareRehWawBehPositions(const GlyphSequence& glyphs,
     if (shape.empty()) continue;
     const auto box = shape.boundingAABB();
     auto kind = GlyphInstance::InitialPlacement::None;
-    if (!isKasraMark(mark))
-      kind = placement.dotUsesCurrentGap ? GlyphInstance::InitialPlacement::CenteredGap :
-          placement.dotUsesLeftSlot ? GlyphInstance::InitialPlacement::LeftOfRehWaw :
-                                     GlyphInstance::InitialPlacement::BelowRehWaw;
+    if (placement.dots.empty())
+      kind = placement.dotUsesCurrentGap ? GlyphInstance::InitialPlacement::CenteredGap : placement.dotUsesLeftSlot ? GlyphInstance::InitialPlacement::LeftOfRehWaw
+                                                                                                                    : GlyphInstance::InitialPlacement::BelowRehWaw;
     plans.push_back({&mark, &placement, mark.worldPolys, std::move(shape),
-        0.5 * (box.minx + box.maxx) - boxCenterX(mark), box.maxy - boxTopY(mark), kind});
+                     0.5 * (box.minx + box.maxx) - boxCenterX(mark), box.maxy - boxTopY(mark), kind});
   }
   // Validate planned pairs together before pinning any dot. If simultaneous
   // moves conflict, restore that owner's input and let ordinary XPBD handle it.
@@ -297,6 +300,13 @@ void prepareRehWawBehPositions(const GlyphSequence& glyphs,
     if (plan.kind == GlyphInstance::InitialPlacement::CenteredGap) mark.mobility = 0.0;
     updateWorldPolys(mark);
   }
+  for (auto& ref : glyphs) {
+    auto& dot = ref.get();
+    if (dot.initialPlacement != GlyphInstance::InitialPlacement::BelowRehWaw) continue;
+    solverContext.belowFallbackMarks.insert(&dot);
+    for (auto* sibling : setup.stackGroups[dot.prevBase])
+      if (isKasraMark(*sibling)) solverContext.belowFallbackMarks.insert(sibling);
+  }
 }
 
 void addRehWawBehStackConstraints(RehWawBehSetup& rehWawBeh,
@@ -310,14 +320,12 @@ void addRehWawBehStackConstraints(RehWawBehSetup& rehWawBeh,
       if (!solverContext.downdotmarks.contains(dots->glyphName)) continue;
       for (auto* kasra : group) {
         if (!isKasraMark(*kasra)) continue;
-        rehWawBeh.lowerBoundMarks.insert(kasra);
         // Initial positioning is now the input baseline, just as if HarfBuzz
         // had produced it. Preserve that pair's horizontal offset in XPBD.
         const double authoredOffset = boxCenterX(*dots) - boxCenterX(*kasra);
         auto stack = std::make_unique<StackOrderConstraint>(
             *dots, *kasra, false, P.rehWaw.dotKasraGap, P.compliance.stackOrderGap,
-            solverContext.contextualBelowMarks.contains(kasra) ? P.compliance.rehWawKasraFollow :
-                                                               P.compliance.stackOrderXAlign,
+            solverContext.contextualBelowMarks.contains(kasra) ? P.compliance.rehWawKasraFollow : P.compliance.stackOrderXAlign,
             authoredOffset, true);
         stack->keepInnerForGap = true;
         rehWawBeh.stacks.push_back(std::move(stack));
@@ -330,41 +338,47 @@ void addRehWawBehStackConstraints(RehWawBehSetup& rehWawBeh,
 
 void appendRehWawBehHardConstraints(RehWawBehSetup& rehWawBeh,
                                     const GlyphSequence& glyphs,
-                                    const ValidBases& validBases,
                                     const OptParams& P,
                                     ConstraintList& hardConstraints) {
-  // A lower mark squeezed against a descending neighbor must leave beneath
-  // that ink, rather than be pushed upward into its dot stack by a shortest-
-  // distance contact and then back down by the below rail. Keep all generic
-  // contacts active; these directional bounds run after them. Iterate the
-  // shaped sequence for deterministic projection order.
+  // Preserve each independent mark's selected slot. Blanket below-base
+  // bounds would undo a standalone kasra's current-gap or left-tip choice.
+  // Iterate the shaped sequence for deterministic projection order.
   for (auto& ref : glyphs) {
     auto& mark = ref.get();
-    if (!rehWawBeh.lowerBoundMarks.contains(&mark) || !isKasraMark(mark)) continue;
-    // A linked pair's selected slot already clears surrounding ink. Its
-    // ordinary dot-kasra stack replaces the blanket below-base bounds.
-    if (auto it = rehWawBeh.placements.find(&mark);
-        it != rehWawBeh.placements.end() && !it->second->dots.empty()) continue;
-    for (auto* obstacle : collectLowerObstacles(glyphs, validBases, mark)) {
-      auto bound = std::make_unique<StackOrderConstraint>(
-          *obstacle, mark, false, chooseMinGap(*obstacle, mark, P),
-          P.compliance.hardStayBelow, P.compliance.stackOrderXAlign, 0.0, true);
-      bound->keepInnerForGap = true;
-      bound->alignHorizontal = false;
-      hardConstraints.push_back(std::move(bound));
-    }
-  }
-  for (auto& ref : glyphs) {
-    auto& dot = ref.get();
-    if (dot.initialPlacement == GlyphInstance::InitialPlacement::LeftOfRehWaw) {
-      if (auto* reference = rehWawReference(dot))
-        hardConstraints.push_back(std::make_unique<HorizontalGapConstraint>(*reference, dot, P.rehWaw.leftGap));
-    } else if (dot.initialPlacement == GlyphInstance::InitialPlacement::BelowRehWaw) {
-      if (auto* reference = rehWawReference(dot)) {
-        auto bound = std::make_unique<StackOrderConstraint>(*reference, dot, false,
-            P.rehWaw.compactGap, P.compliance.hardStayBelow, 0.0);
+    if (mark.initialPlacement == GlyphInstance::InitialPlacement::LeftOfRehWaw) {
+      if (auto* reference = rehWawReference(mark))
+        hardConstraints.push_back(std::make_unique<HorizontalGapConstraint>(*reference, mark, P.rehWaw.leftGap));
+    } else if (mark.initialPlacement == GlyphInstance::InitialPlacement::BelowRehWaw) {
+      if (auto* reference = rehWawReference(mark)) {
+        // Prefer the owner center and reference bottom only where base ink
+        // allows it. A deeper bowl may require the already validated initial
+        // position; neighboring marks do not determine these preferences.
+        double preferredX = boxCenterX(*mark.prevBase);
+        const double nearTop = boxBottomY(*reference) - P.rehWaw.tipGap;
+        double preferredTop = nearTop;
+        const auto& planner = *rehWawBeh.placements.at(&mark);
+        auto baseClear = [&](double x, double top) {
+          return planner.hasInkClearance(mark.worldPolys.translate(
+                                             x - boxCenterX(mark), top - boxTopY(mark)),
+                                         false);
+        };
+        if (!baseClear(preferredX, preferredTop)) {
+          if (baseClear(boxCenterX(mark), nearTop))
+            preferredX = boxCenterX(mark);
+          else if (baseClear(preferredX, boxTopY(mark)))
+            preferredTop = boxTopY(mark);
+          else {
+            preferredX = boxCenterX(mark);
+            preferredTop = boxTopY(mark);
+          }
+        }
+        const double ownerOffset = boxCenterX(*reference) - preferredX;
+        auto bound = std::make_unique<StackOrderConstraint>(*reference, mark, false,
+                                                            P.rehWaw.tipGap, P.compliance.hardStayBelow,
+                                                            P.compliance.stackOrderXAlign, ownerOffset);
         bound->keepInnerForGap = true;
-        bound->alignHorizontal = false;
+        bound->preferredGap = boxBottomY(*reference) - preferredTop;
+        bound->preferredGapCompliance = P.compliance.rehWawBelowBottom;
         hardConstraints.push_back(std::move(bound));
       }
     }
@@ -372,6 +386,21 @@ void appendRehWawBehHardConstraints(RehWawBehSetup& rehWawBeh,
   // Dot ordering follows the base bounds, since a contextual dot may itself
   // have moved down around a descending stroke during this iteration.
   for (auto& stack : rehWawBeh.stacks) hardConstraints.push_back(std::move(stack));
+  if (P.toggles.baseVicinity) {
+    for (auto& ref : glyphs) {
+      auto& mark = ref.get();
+      const bool belowIndependentMark = mark.initialPlacement == GlyphInstance::InitialPlacement::BelowRehWaw;
+      const auto it = rehWawBeh.placements.find(&mark);
+      const bool followingBelowDot = isKasraMark(mark) && it != rehWawBeh.placements.end() &&
+                                     !it->second->dots.empty() &&
+                                     it->second->dots.front()->initialPlacement == GlyphInstance::InitialPlacement::BelowRehWaw;
+      if ((!belowIndependentMark && !followingBelowDot) || mark.preserveGposHorizontal) continue;
+      const auto box = mark.worldPolys.boundingAABB();
+      const double margin = (box.maxx - box.minx) * 0.5;
+      hardConstraints.push_back(std::make_unique<BaseVicinityConstraint>(
+          mark, margin, P.compliance.baseVicinityLeft, P.compliance.baseVicinityRight));
+    }
+  }
 }
 
 void addBowlClusterConstraints(const MarkGroups& bowlMarkGroups,
@@ -664,11 +693,11 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
   }
 
   // Projection order after generic contacts: ordinary rails (already added),
-  // Reh/Waw kasra base bounds, directional dot bounds, dot-kasra stacks,
+  // Reh/Waw directional mark bounds, dot-kasra stacks,
   // then Waqf top order.
   // Appending these in a different order can change the solved placement.
   if (P.toggles.rehWawBehPlacement)
-    appendRehWawBehHardConstraints(rehWawBeh, glyphs, validBases, P, constraints.hard);
+    appendRehWawBehHardConstraints(rehWawBeh, glyphs, P, constraints.hard);
 
   // Apply waqf top ordering after all ordinary mark rails, so their upward
   // corrections cannot leave the waqf below its own stack's highest top.
@@ -787,7 +816,7 @@ void collectPageViolations(const GlyphSequence& glyphs,
     const bool left = v.marker[0].x < 0.5 * (baseBounds.minx + baseBounds.maxx);
     if (v.detail.empty())
       v.detail = std::string(left ? "Left" : "Right") +
-          " horizontal overflow beyond owning base footprint + margin";
+                 " horizontal overflow beyond owning base footprint + margin";
     v.detail += std::string("; ") + (dots ? "dot" : "mark") + " reporting tolerance applied";
   }
 
@@ -798,8 +827,8 @@ void collectPageViolations(const GlyphSequence& glyphs,
   // not something a font designer should act on.
   std::erase_if(violations, [&](const ConstraintViolation& v) {
     return !v.structural &&
-        ((v.type == ViolationType::BaseVicinity && v.severity <= v.allowedResidual) ||
-         violationReportSeverity(v) < P.minViolationSeverity);
+           ((v.type == ViolationType::BaseVicinity && v.severity <= v.allowedResidual) ||
+            violationReportSeverity(v) < P.minViolationSeverity);
   });
 }
 

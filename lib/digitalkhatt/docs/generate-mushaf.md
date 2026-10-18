@@ -50,24 +50,61 @@ slot with the dot's **vertical center at the leftmost Reh/Waw tip point**.
 the reference's left edge. A small outline-checked overhang beyond Behshape's
 footprint is allowed. If neither slot fits, the independently enabled fallback
 starts below the **whole reference outline**, extending downward only within
-the available line space. Below fallback compares the existing local half-dot
-sideways allowance before descending farther; it does not first accept a deep
-narrow slot below an independent Reh/Waw kasra. Left and below dots retain
-ordinary mobility.
+the available line space. Below fallback first keeps the mark center within
+its own base's horizontal footprint. Initial below candidates use
+`belowMarkGap` (default 10) to clear same-line neighboring marks; their larger
+XPBD spacing target is soft, so it does not force the dots far left/right or down to clear a preceding kasra. Left and below dots
+retain ordinary mobility.
 
-Candidate clearance defaults to 14 units to the owning Behshape and preceding
-Reh/Waw, and 40 units to other ink. Neighbor ranking also aims for normal
+Current-gap clearance defaults to 14 units to the owning Behshape and preceding
+Reh/Waw, and 40 units to other ink. The configured `compactGap` minimum applies
+to all surrounding ink, including neighboring dots and kasra; neighboring ink
+also retains its `neighborGap` minimum, so the larger minimum is used.
+Neighbor ranking also aims for normal
 same-word/different-word spacing. All candidates include the following kasra
 and neighboring-line ink. Simultaneous plans are validated together before any
 dot is pinned. Conflicting owner groups keep their input positioning.
+`compactGap` is used only for current-gap acceptance and balancing. Once that
+gap fails, the left slot uses `leftGap` from the reference and the below slot
+uses `tipGap`. Relocated marks use `neighborGap` for owning-Behshape ink.
+The selected slot's rules apply to the complete same-owner dot/kasra pair,
+including simultaneous validation. No XPBD constraint reads `compactGap`;
+increasing it cannot reject or displace a left/below mark after the current gap has failed.
 
-After this pass there is no contextual dot point attraction, repeated slot
+Standalone kasra, kasratan and kasratanidgham on the same initial-Beh forms
+use that same current-gap, left-tip, then local below-tip search. A centered
+standalone mark is fixed; left/below marks remain movable and receive the
+same directional constraints and ordinary owner contact target as dots.
+The one-dot/two-dot fallback switches affect dots only: standalone kasra
+always tries the local below slot last. A kasra linked to a lower dot still
+follows that dot instead of choosing its own slot. This rule does not move
+Reh/Waw's own kasra. The former standalone below-every-base rails are removed,
+so they cannot undo a clear current-gap or left-tip choice.
+Eligibility scopes the added stacks and gap exclusions as well as positioning:
+the owning initial Beh must immediately follow Reh/Waw in the same word and
+line. Initial Beh after Alef, without a predecessor, or across word/line
+boundaries keeps its ordinary solver constraints. In particular, the switch
+must not add a below-Ain/Hah bound to an unrelated Beh's kasra.
+Candidates also satisfy the enabled ordinary below-mark rail before pinning.
+After initial placement, ordinary XPBD constraints solve together. There is
+no final ink-floor projection to reposition marks after those constraints.
+Centered marks retain their zero mobility; movable neighbors use ordinary
+collision constraints. `belowMarkGap` selects clear initial below candidates,
+without imposing a second hard mark-to-mark minimum during XPBD. Below fallback
+retains its softer neighboring-mark spacing policy.
+
+During XPBD there is no contextual dot point attraction, repeated slot
 search or special kasra follower in XPBD. Ordinary contacts and directional
 left/below constraints act on movable dots. Ordinary `StackOrderConstraint`
 preserves the adjusted dot–kasra horizontal offset, with 0.2 horizontal
 compliance, and enforces the minimum downward stack gap with its configured
 gap compliance. Extra vertical separation is allowed. Only same-owner kasra
-is linked; a neighboring Reh/Waw's kasra is independent. Fixed authored bowl
+is linked; a neighboring Reh/Waw's kasra is independent. Below dots also use
+an ordinary stack's horizontal arm to prefer their own base center and its
+preferred-gap arm to stay near the reference bottom. The base-vicinity leash
+runs after contacts/stacks when enabled. Below dots and their same-owner kasra
+use softer spacing to same-line marks on other bases. Base ink and
+neighboring-line contacts keep their original policy. Fixed authored bowl
 marks remain collision obstacles for contextual lower marks without moving.
 The legacy JSON key `compliance.rehWawDotTarget` is accepted but has no effect;
 its obsolete GUI control has been removed.
@@ -89,6 +126,9 @@ followed by initial Beh**. They persist between sessions and are included in
 | Allowed overhang | `rehWaw.overhangPercent` | 10% |
 | Overhang cap | `rehWaw.overhangLimit` | 14 |
 | Kasra horizontal compliance | `compliance.rehWawKasraFollow` | 0.2 |
+| Below mark clearance | `rehWaw.belowMarkGap` | 10 |
+| Below mark spacing compliance | `compliance.rehWawBelowMarkGap` | 1.0 |
+| Below bottom compliance | `compliance.rehWawBelowBottom` | 0.2 |
 
 A balanced current gap has priority for both dot types, regardless of the
 below-tip checkboxes. The search keeps the dot's footprint across the tip's
@@ -108,7 +148,12 @@ dot is fixed at that initial position throughout XPBD.
 
 The two dot-type checkboxes independently control the last fallback, after
 both the current gap and left-tip searches fail. Checked allows below-tip
-placement; unchecked leaves ordinary collision handling active without forcing
+placement within the owner's local region. A neighboring base descending
+past the normal near-reference slot
+must not be cleared by putting the dots or their linked kasra beneath that
+base's bottom. If the complete pair cannot fit locally, it retains its input
+position for ordinary compliant constraints rather than forcing a distant
+ink-clear fallback. Unchecked leaves ordinary collision handling active without forcing
 that descent. For example, `rehWaw.oneDotBelowTip: false` and
 `rehWaw.twoDotsBelowTip: true` permits this final descent only for two dots.
 Older snapshots with the shared `rehWaw.belowTipFallback` key are migrated to

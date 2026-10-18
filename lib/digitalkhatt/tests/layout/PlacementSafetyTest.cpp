@@ -463,6 +463,7 @@ void lowerDotKasraStack() {
   Fixture f;
   f.classes["marks"].insert("onedotdown");
   f.classes["downdotmarks"].insert("onedotdown");
+  f.add("reh.isol", 450, -150, 100, 200);
   f.add("behshape.init", 0, 0, 200, 50);
   auto& dot = f.add("onedotdown", 40, -120, 40, 30);
   f.add("fatha", 50, 120);  // An intervening top mark must not break ownership.
@@ -474,7 +475,8 @@ void lowerDotKasraStack() {
   p.toggles.stackOrder = p.toggles.genericGapConstraint = true;
   p.minViolationSeverity = 0.1;
   std::vector<ConstraintViolation> violations;
-  optimizePage(f.page, f.classes, p, &violations);
+  // Exercise the ordinary contextual stack without pre-positioning its dot.
+  optimizePage(f.page, f.classes, p, &violations, InitialPositioning::Skip);
   require(boxBottomY(dot) - boxTopY(kasra) >= belowDotKasraGap - 0.1,
       "Lower stack must put kasra below same-owner dots, even across a top mark");
   require(dot.dy == 0 && dot.baseY == dotY && std::abs(boxCenterX(dot) - boxCenterX(kasra) - offset) < 0.1,
@@ -490,6 +492,114 @@ void lowerDotKasraStack() {
   p.toggles.genericGapConstraint = false;
   optimizePage(unrelated.page, unrelated.classes, p);
   require(otherDot.dy == 0 && otherKasra.dy == 0, "Marks with different owners must not form a lower stack");
+}
+
+void nonContextualBehIgnoresRehWawSwitch() {
+  for (const std::string form : {"behshape.init", "behshape.init.beforeseen", "behshape.init.beforebeh"}) {
+    for (const std::string preceding : {"alef.fina", "behshape.medi", "none", "other-word", "other-line"}) {
+      for (bool withDot : {false, true}) {
+        auto run = [&](bool enabled) {
+          Fixture f;
+          f.classes["marks"].insert("onedotdown");
+          f.classes["downdotmarks"].insert("onedotdown");
+          if (preceding != "none") {
+            f.add(preceding.starts_with("other-") ? "reh.isol" : preceding, 450, -150, 100, 200);
+            if (preceding == "other-word") f.add("space", 300, 0);
+          }
+          auto& owner = f.add(form, 0, 0, 200, 50);
+          if (withDot) f.add("onedotdown", 40, -120, 40, 30);
+          f.add("kasra", 20, -130, 100, 20);
+          auto& ain = f.add("ain.fina", -100, -350, 300, 400);
+          ain.geomScaled = geometry::GeometrySet(std::vector<geometry::Poly>{
+              {{0,0},{300,0},{300,20},{0,20}},
+              {{0,0},{20,0},{20,400},{0,400}},
+              {{280,0},{300,0},{300,400},{280,400}}});
+          if (preceding == "other-line")
+            for (auto& g : f.page[0]) if (g.glyphIndex >= owner.glyphIndex) g.lineIndex = 1;
+          auto p = quiet();
+          p.toggles.rehWawBehPlacement = enabled;
+          p.toggles.stackOrder = p.toggles.genericGapConstraint = p.toggles.baseVicinity = true;
+          p.rehWaw.dotKasraGap = 80;
+          p.maxIters = 40;
+          optimizePage(f.page, f.classes, p);
+          std::vector<double> offsets;
+          for (const auto& g : f.page[0]) {
+            require(g.initialPlacement == GlyphInstance::InitialPlacement::None,
+                "An initial Beh without a same-word, same-line preceding Reh/Waw must not receive contextual positioning");
+            offsets.push_back(g.dx); offsets.push_back(g.dy);
+          }
+          return offsets;
+        };
+        const auto enabled = run(true), disabled = run(false);
+        const auto detail = "The Reh/Waw switch must not alter an unrelated initial Beh: " + form +
+            ", preceding=" + preceding + (withDot ? ", with dot" : ", standalone");
+        require(enabled == disabled, detail.c_str());
+      }
+    }
+  }
+}
+
+void standaloneKasraUsesOrderedSlots() {
+  for (const std::string name : {"kasra", "kasratan", "kasratanidgham"}) {
+    for (const std::string slot : {"gap", "left", "below"}) {
+      Fixture f;
+      f.classes["marks"].insert(name);
+      f.classes["lowmarks"].insert(name);
+      const bool gap = slot == "gap", left = slot == "left";
+      auto& reference = f.add("waw.isol", gap || left ? 150 : 100, -200,
+          gap ? 446 : 100, gap ? 20 : 250);
+      auto& owner = f.add("behshape.init.beforeseen", left ? -100 : 0, 0,
+          gap ? 246 : left ? 360 : 80, 50);
+      auto& kasra = f.add(name, gap ? 90 : left ? 80 : 0, gap ? -70 : -120, 120, 40);
+      auto p = quiet();
+      p.toggles.rehWawBehPlacement = p.toggles.stackOrder =
+          p.toggles.genericGapConstraint = p.toggles.baseVicinity = true;
+      // These switches apply only to lower dots, not standalone kasra.
+      p.rehWaw.oneDotBelowTip = p.rehWaw.twoDotsBelowTip = false;
+      optimizePage(f.page, f.classes, p, nullptr, InitialPositioning::Skip);
+      require(kasra.dx == 0 && kasra.dy == 0 && kasra.mobility == 1,
+          "Diagnostics and Force-off preparation must not position standalone kasra");
+      p.maxIters = 40;
+      optimizePage(f.page, f.classes, p);
+      require(kasra.prevBase == &owner && reference.dx == 0 && owner.dx == 0,
+          "Standalone kasra slot selection must preserve ownership and base positions");
+      if (gap) {
+        require(kasra.initialPlacement == GlyphInstance::InitialPlacement::CenteredGap &&
+                kasra.mobility == 0 && kasra.dx == kasra.initialPositioningDx &&
+                kasra.dy == kasra.initialPositioningDy,
+            "Standalone kasra must keep a clear current gap fixed throughout XPBD");
+      } else if (left) {
+        require(kasra.initialPlacement == GlyphInstance::InitialPlacement::LeftOfRehWaw &&
+                kasra.mobility == 1 &&
+                reference.worldPolys.boundingAABB().minx - kasra.worldPolys.boundingAABB().maxx >= p.rehWaw.leftGap - 0.1 &&
+                std::abs(boxCenterY(kasra) + 200) < 0.1,
+            "A standalone kasra's left slot must retain tip alignment without blanket below-base bounds");
+      } else {
+        require(kasra.initialPlacement == GlyphInstance::InitialPlacement::BelowRehWaw &&
+                kasra.mobility == 1 && boxTopY(kasra) <= boxBottomY(reference) - p.rehWaw.compactGap + 0.1,
+            "Standalone kasra must use local below-tip fallback when current-gap and left slots cannot fit");
+      }
+      require(chooseMinGap(owner, kasra, p) == p.rehWaw.tipGap &&
+              chooseMinGap(kasra, owner, p) == p.rehWaw.tipGap,
+          "Selected standalone kasra must use the compact owner contact target in either pair order");
+    }
+  }
+  Fixture disabled;
+  disabled.add("waw.isol", 150, -200, 100, 250);
+  disabled.add("behshape.init", -100, 0, 360, 50);
+  auto& kasra = disabled.add("kasra", 80, -120, 120, 40);
+  auto p = quiet();
+  optimizePage(disabled.page, disabled.classes, p);
+  require(kasra.dx == 0 && kasra.dy == 0 && kasra.initialPlacement == GlyphInstance::InitialPlacement::None,
+      "Disabling contextual placement must retain the previous standalone-kasra input");
+  RehWawMarkPlacement rail(kasra, disabled.page[0][0], p);
+  p.toggles.hardStayAboveBelow = true;
+  const auto high = kasra.worldPolys.translate(0, 115); // bottom -5, top 35
+  require(!rail.hasInkClearance(high) && rail.hasInkClearance(high.translate(0, -25)),
+      "A standalone candidate must satisfy the ordinary below-mark rail before it can be pinned");
+  p.toggles.hardStayAboveBelow = false;
+  require(rail.hasInkClearance(high),
+      "A disabled below-mark rail must not restrict the standalone slot search");
 }
 
 void rehWawLowerMarkPlacement() {
@@ -514,8 +624,9 @@ void rehWawLowerMarkPlacement() {
         require(kasra.prevBase == &beh && reh.dx == 0 && reh.dy == 0,
             "Tip placement must retain semantic ownership and fixed base geometry");
         if (dotName.empty()) {
-          require(boxTopY(kasra) < boxBottomY(reh) && std::abs(boxCenterX(kasra) - 150) < 25,
-              "A lone kasra must prefer below the Reh/Waw tip");
+          require(kasra.initialPlacement == GlyphInstance::InitialPlacement::LeftOfRehWaw &&
+                  boxCenterX(kasra) < boxCenterX(reh),
+              "A lone kasra must try a clear left slot before descending below Reh/Waw");
         } else {
           const auto& dot = f.page[0][2];
           require(boxBottomY(dot) - boxTopY(kasra) >= belowDotKasraGap - p.tolCollision,
@@ -562,9 +673,8 @@ void rehWawLowerMarkPlacement() {
   auto& underTip = swash.add("kasra", 20, -60, 100, 20);
   p.toggles.genericGapConstraint = true;
   optimizePage(swash.page, swash.classes, p);
-  require(boxTopY(underTip) <= boxBottomY(remote) - p.differentWordGap + 0.1 &&
-          !geometry::getDistance(remote.worldPolys, underTip.worldPolys, 10).contact.intersect,
-      "Tip placement must clear a physically overlapping swash even across a word boundary and intervening bases");
+  require(!geometry::getDistance(remote.worldPolys, underTip.worldPolys, 10).contact.intersect,
+      "Standalone slot placement must clear a neighboring word's swash without forcing a below-swash rail");
 
   Fixture bowlDot;
   bowlDot.classes["marks"].insert("onedotdown");
@@ -669,7 +779,7 @@ void initialBehOptInAndWideSlot() {
       "An obstructed current gap and insufficient left space must fall back below the Reh tip");
   require(boxBottomY(dots) > boxBottomY(ain) + 100 && boxCenterX(dots) >= 0 && boxCenterX(dots) <= 246,
       "Two dots must stay near their Beh owner instead of dropping beneath the next Ain's bowl");
-  require(geometry::getDistance(dots.worldPolys, fixedKasratan.worldPolys, 1000).contact.depth_or_gap >= rehWawNeighborInkGap - p.tolCollision &&
+  require(!geometry::getDistance(dots.worldPolys, fixedKasratan.worldPolys, 1000).contact.intersect &&
           fixedKasratan.dx == 0 && fixedKasratan.dy == 0,
       "A fixed kasratan inside the following Ain must remain an obstacle without being moved");
 }
@@ -687,7 +797,7 @@ void conditionalDotSlotAndKasraFollow() {
     RehWawMarkPlacement placement(dot, reh, p);
     placement.obstacles = {&reh, &beh};
     if (blocker) placement.obstacles.push_back(blocker);
-    placement.prepareDotTarget();
+    placement.prepareTarget();
     applyPreferred(placement);
     require(placement.dotTargetClear && placement.dotUsesLeftSlot == !blocked,
         "A wide left slot is eligible only when the whole dot also clears neighboring ink");
@@ -714,7 +824,7 @@ void conditionalDotSlotAndKasraFollow() {
   auto p = quiet();
   RehWawMarkPlacement placement(dot, reference, p);
   placement.obstacles = {&reference, &beh, &nextReh};
-  placement.prepareDotTarget();
+  placement.prepareTarget();
   applyPreferred(placement);
   require(placement.dotTargetClear && !placement.dotUsesLeftSlot &&
           boxTopY(dot) <= boxBottomY(nextReh) - 14.0 + 0.1 &&
@@ -735,7 +845,7 @@ void dotSlotMustFitFollowingKasra() {
   auto p = quiet();
   RehWawMarkPlacement placement(dot, reh, p);
   placement.obstacles = {&reh, &beh, &nextLine};
-  placement.prepareDotTarget();
+  placement.prepareTarget();
   require(placement.dotTargetClear && placement.dotUsesLeftSlot,
       "The test's upper side slot must fit the dot by itself");
   RehWawMarkPlacement follow(kasra, reh, p);
@@ -743,7 +853,7 @@ void dotSlotMustFitFollowingKasra() {
   follow.dots.push_back(&dot);
   follow.followedDotPlacement = &placement;
   placement.kasras.push_back(&follow);
-  placement.prepareDotTarget();
+  placement.prepareTarget();
   require(!placement.dotTargetClear,
       "A slot that fits the dot but puts its following kasra into the next line must be rejected");
   applyPreferred(follow);
@@ -770,7 +880,7 @@ void dotNeighborClearance() {
         "Compact contacts belong only to the reference Reh/Waw and the dot's own Beh");
     RehWawMarkPlacement placement(dot, reh, p);
     placement.obstacles = {&reh, &beh, &heh};
-    placement.prepareDotTarget();
+    placement.prepareTarget();
     applyPreferred(placement);
     const double gap = geometry::getDistance(dot.worldPolys, heh.worldPolys, 1000).contact.depth_or_gap;
     require(placement.dotTargetClear && gap >= rehWawNeighborInkGap - 0.1,
@@ -822,7 +932,7 @@ void limitedLeftSlotOverhang() {
       placement.obstacles = {&reh, &beh, &heh};
       follow.dots.push_back(&dot);
       placement.kasras.push_back(&follow);
-      placement.prepareDotTarget();
+      placement.prepareTarget();
       applyPreferred(placement);
       require(placement.dotTargetClear && placement.dotUsesLeftSlot == (shortfall == 2.0),
           "A small bounding-box shortfall may use clear left space; a large one must retain the below-tip fallback");
@@ -841,17 +951,17 @@ void limitedLeftSlotOverhang() {
           "The overhang search must still accommodate the following same-owner kasra");
 
       p.rehWaw.overhangPercent = 0;
-      placement.prepareDotTarget();
+      placement.prepareTarget();
       require(!placement.dotUsesLeftSlot, "Setting allowed overhang to zero must restore the full-width restriction");
       p.rehWaw.overhangPercent = 10;
       p.rehWaw.overhangLimit = 0;
-      placement.prepareDotTarget();
+      placement.prepareTarget();
       require(!placement.dotUsesLeftSlot, "The configured absolute cap must limit overhang independently of its percentage");
       p.rehWaw.overhangLimit = 14;
 
       auto& blocker = f.add("blocker", -limit, -150, tipX + limit, 150);
       placement.obstacles.push_back(&blocker);
-      placement.prepareDotTarget();
+      placement.prepareTarget();
       applyPreferred(placement);
       require(placement.dotTargetClear && !placement.dotUsesLeftSlot && boxTopY(dot) <= -150 - rehWawTipGap + 0.1,
           "An obstructed overhang must fall back below the tip instead of bypassing clearance checks");
@@ -860,7 +970,7 @@ void limitedLeftSlotOverhang() {
 }
 
 void clearCurrentGapHasPriority() {
-  for (const std::string dotName : {"onedotdown", "twodotsdown"}) {
+  for (const std::string dotName : {"onedotdown", "twodotsdown", "kasra"}) {
     for (bool belowTip : {false, true}) {
       for (double clearance : {6.0, 14.0}) {
         Fixture f;
@@ -876,7 +986,7 @@ void clearCurrentGapHasPriority() {
         p.rehWaw.oneDotBelowTip = p.rehWaw.twoDotsBelowTip = belowTip;
         RehWawMarkPlacement placement(dot, reh, p);
         placement.obstacles = {&reh, &beh};
-        placement.prepareDotTarget();
+        placement.prepareTarget();
         applyPreferred(placement);
         if (clearance == 6.0) {
           require(placement.dotTargetClear && boxCenterY(dot) > -180 && boxCenterY(dot) < -100,
@@ -884,7 +994,7 @@ void clearCurrentGapHasPriority() {
           require(geometry::getDistance(dot.worldPolys, reh.worldPolys, 1000).contact.depth_or_gap >= clearance - 0.1 &&
                   geometry::getDistance(dot.worldPolys, beh.worldPolys, 1000).contact.depth_or_gap >= clearance - 0.1,
               "Keeping the current gap must still enforce the configured outline clearance");
-        } else if (belowTip) {
+        } else if (belowTip || isKasraMark(dot)) {
           require(placement.dotTargetClear && boxTopY(dot) <= -200 - p.rehWaw.tipGap + 0.1,
               "Below-tip fallback is allowed only after the current gap and left slot cannot fit safely");
         } else {
@@ -897,32 +1007,41 @@ void clearCurrentGapHasPriority() {
 }
 
 void currentGapMustFitFollowingKasra() {
-  Fixture f;
-  f.classes["marks"].insert("twodotsdown");
-  auto& reh = f.add("waw.isol", 150, -200, 446, 20);
-  auto& beh = f.add("behshape.init", 0, -100, 246, 50);
-  auto& dot = f.add("twodotsdown", 10, -170, 230, 60);
-  auto& kasra = f.add("kasra", 10, -250, 230, 20);
-  auto& blocker = f.add("blocker", -300, -280, 1000, 60);
-  auto p = quiet();
-  p.rehWaw.compactGap = 6;
-  RehWawMarkPlacement placement(dot, reh, p), follow(kasra, reh, p);
-  placement.obstacles = {&reh, &beh, &blocker};
-  follow.obstacles = placement.obstacles;
-  follow.dots.push_back(&dot);
-  follow.followedDotPlacement = &placement;
-  placement.prepareDotTarget();
-  require(placement.dotTargetClear && placement.dotMinY >= -200,
-      "The current cavity must fit the dot before its kasra is linked");
-  placement.kasras.push_back(&follow);
-  placement.prepareDotTarget();
-  applyPreferred(placement);
-  applyPreferred(follow);
-  require(placement.dotTargetClear && boxTopY(dot) <= -280 - p.rehWaw.neighborGap + 0.1,
-      "A dot-only current gap must yield to below-tip fallback if its following kasra cannot fit");
-  require(boxBottomY(dot) - boxTopY(kasra) >= p.rehWaw.dotKasraGap - 0.1 &&
-          geometry::getDistance(kasra.worldPolys, blocker.worldPolys, 1000).contact.depth_or_gap >= p.rehWaw.neighborGap - 0.1,
-      "The same-owner kasra must follow the relocated dot with stacking and neighboring clearance");
+  for (double blockerBottom : {-280.0, -350.0}) {
+    Fixture f;
+    f.classes["marks"].insert("twodotsdown");
+    auto& reh = f.add("waw.isol", 150, -200, 446, 20);
+    auto& beh = f.add("behshape.init", 0, -100, 246, 50);
+    auto& dot = f.add("twodotsdown", 10, -170, 230, 60);
+    auto& kasra = f.add("kasra", 10, -250, 230, 20);
+    auto& blocker = f.add("blocker", -300, blockerBottom, 1000, -220 - blockerBottom);
+    auto p = quiet();
+    p.rehWaw.compactGap = 6;
+    RehWawMarkPlacement placement(dot, reh, p), follow(kasra, reh, p);
+    placement.obstacles = {&reh, &beh, &blocker};
+    follow.obstacles = placement.obstacles;
+    follow.dots.push_back(&dot);
+    follow.followedDotPlacement = &placement;
+    placement.prepareTarget();
+    require(placement.dotTargetClear && placement.dotMinY >= -200,
+        "The current cavity must fit the dot before its kasra is linked");
+    placement.kasras.push_back(&follow);
+    placement.prepareTarget();
+    applyPreferred(placement);
+    applyPreferred(follow);
+    if (blockerBottom == -280.0) {
+      require(placement.dotTargetClear && boxTopY(dot) <= -280 - p.rehWaw.neighborGap + 0.1,
+          "A shallow obstruction must still allow an ordinary near-tip below fallback");
+      require(boxBottomY(dot) - boxTopY(kasra) >= p.rehWaw.dotKasraGap - 0.1 &&
+              geometry::getDistance(kasra.worldPolys, blocker.worldPolys, 1000).contact.depth_or_gap >= p.rehWaw.neighborGap - 0.1,
+          "A local fallback must continue checking the complete dot-kasra stack against surrounding ink");
+      continue;
+    }
+    require(!placement.dotTargetClear && placement.preferredShape().empty() && follow.preferredShape().empty(),
+        "A dot-only cavity must not be accepted when fitting the complete pair requires escaping under another base");
+    require(dot.dx == 0 && dot.dy == 0 && kasra.dx == 0 && kasra.dy == 0,
+        "An infeasible local dot-kasra pair must retain both authored inputs for ordinary constraints");
+  }
 }
 
 void currentGapUsesAvailableClearance() {
@@ -935,7 +1054,7 @@ void currentGapUsesAvailableClearance() {
   p.rehWaw.preferredGap = 80;
   RehWawMarkPlacement placement(dot, waw, p);
   placement.obstacles = {&waw, &beh};
-  placement.prepareDotTarget();
+  placement.prepareTarget();
   applyPreferred(placement);
   const double room = std::min(
       geometry::getDistance(dot.worldPolys, waw.worldPolys, 1000).contact.depth_or_gap,
@@ -943,13 +1062,13 @@ void currentGapUsesAvailableClearance() {
   require(placement.dotTargetClear && !placement.dotUsesLeftSlot && room >= 69.5,
       "A current gap with 70 units available on both sides must use that room before preferring the authored position");
   p.rehWaw.preferredGap = p.rehWaw.compactGap;
-  placement.prepareDotTarget();
+  placement.prepareTarget();
   applyPreferred(placement);
   require(std::min(geometry::getDistance(dot.worldPolys, waw.worldPolys, 1000).contact.depth_or_gap,
                    geometry::getDistance(dot.worldPolys, beh.worldPolys, 1000).contact.depth_or_gap) < 69.5,
       "Reducing the comfort target to the minimum must restore authored-position ranking within that safe gap");
   p.rehWaw.preferredGap = 1000;
-  placement.prepareDotTarget();
+  placement.prepareTarget();
   require(placement.dotTargetClear && !placement.dotUsesLeftSlot && placement.dotMinY >= -200,
       "An unattainable comfort target must not reject a safe current gap or trigger below-tip fallback");
 }
@@ -971,7 +1090,7 @@ void kasraCanYieldBelowPreferredGap() {
   follow.dots.push_back(&dot);
   follow.followedDotPlacement = &placement;
   placement.kasras.push_back(&follow);
-  placement.prepareDotTarget();
+  placement.prepareTarget();
   applyPreferred(placement);
   applyPreferred(follow);
   require(placement.dotTargetClear && !placement.dotUsesLeftSlot && boxCenterY(dot) > -140,
@@ -1005,7 +1124,7 @@ void rehWawFallbackChoiceAndParameters() {
         p.compliance.rehWawDotTarget = 0.6;
         RehWawMarkPlacement placement(dot, reh, p);
         placement.obstacles = {&reh, &beh};
-        placement.prepareDotTarget();
+        placement.prepareTarget();
         applyPreferred(placement);
         const bool belowTip = dotName == "onedotdown" ? oneBelow : twoBelow;
         require(placement.dotTargetClear == belowTip && !placement.dotUsesLeftSlot,
@@ -1035,14 +1154,14 @@ void rehWawFallbackChoiceAndParameters() {
   placement.obstacles = {&reh, &beh, &heh};
   follow.dots.push_back(&dot);
   placement.kasras.push_back(&follow);
-  placement.prepareDotTarget();
+  placement.prepareTarget();
   applyPreferred(placement);
   require(placement.dotTargetClear && placement.dotUsesLeftSlot &&
           geometry::getDistance(dot.worldPolys, heh.worldPolys, 1000).contact.depth_or_gap >= 90 - 0.1,
       "The configured neighboring clearance must replace the default 40-unit floor");
   const double x = boxCenterX(dot), y = boxTopY(dot);
   p.rehWaw.oneDotBelowTip = false;
-  placement.prepareDotTarget();
+  placement.prepareTarget();
   applyPreferred(placement);
   require(placement.dotUsesLeftSlot && std::abs(boxCenterX(dot) - x) < 0.1 && std::abs(boxTopY(dot) - y) < 0.1,
       "Changing the fallback must not change an available left slot");
@@ -1051,7 +1170,7 @@ void rehWawFallbackChoiceAndParameters() {
       "Configured kasra compliance and dot-kasra spacing must replace their defaults");
 }
 
-void belowFallbackUsesNearbySideSpaceBeforeDescending() {
+void belowFallbackPrioritizesOwnerOverMarkSpacing() {
   Fixture f;
   f.classes["marks"].insert("twodotsdown");
   f.classes["downdotmarks"].insert("twodotsdown");
@@ -1065,16 +1184,198 @@ void belowFallbackUsesNearbySideSpaceBeforeDescending() {
   p.rehWaw.neighborGap = 40;
   RehWawMarkPlacement placement(dot, reh, p);
   placement.obstacles = {&reh, &beh, &kasra};
-  placement.prepareDotTarget();
+  placement.prepareTarget();
   applyPreferred(placement);
   require(placement.dotTargetClear && !placement.dotUsesCurrentGap && !placement.dotUsesLeftSlot,
       "The fixture must use below-tip fallback after both non-descending slots fail");
-  require(boxTopY(dot) >= -241 && boxCenterX(dot) < beh.worldPolys.boundingAABB().minx,
-      "An allowed nearby sideways slot must beat descending below the Reh's kasra within a narrow owner band");
-  require(geometry::getDistance(dot.worldPolys, kasra.worldPolys, 1000).contact.depth_or_gap >= 40 - 0.1 &&
+  require(boxTopY(dot) >= -301 && boxCenterX(dot) >= beh.worldPolys.boundingAABB().minx &&
+          boxCenterX(dot) <= beh.worldPolys.boundingAABB().maxx,
+      "Below fallback must keep the mark associated with its owner before seeking full neighboring-mark spacing");
+  require(geometry::getDistance(dot.worldPolys, kasra.worldPolys, 1000).contact.depth_or_gap >= p.rehWaw.belowMarkGap - 0.1 &&
           geometry::getDistance(dot.worldPolys, reh.worldPolys, 1000).contact.depth_or_gap >= 30 - 0.1 &&
           kasra.dx == 0 && kasra.dy == 0,
       "Sideways fallback must clear Reh and its independent kasra without moving that kasra");
+  dot.dx = dot.dy = 0;
+  updateWorldPolys(dot);
+  p.maxIters = 40;
+  p.toggles.rehWawBehPlacement = p.toggles.genericGapConstraint = p.toggles.baseVicinity = true;
+  optimizePage(f.page, f.classes, p);
+  require(dot.initialPlacement == GlyphInstance::InitialPlacement::BelowRehWaw &&
+          boxCenterX(dot) >= beh.worldPolys.boundingAABB().minx - 5 &&
+          boxCenterX(dot) <= beh.worldPolys.boundingAABB().maxx + 5,
+      "Ordinary owner alignment and vicinity must retain below dots near their own base throughout XPBD");
+}
+
+void belowMarkContactsUseConfiguredCompliance() {
+  Fixture f;
+  auto& reh = f.add("reh.isol", 300, -200, 100, 250);
+  auto& kasra = f.add("kasra", 40, -250, 20, 20);
+  auto& beh = f.add("behshape.init", 0, 0, 100, 50);
+  auto& dot = f.add("fatha", 0, -250, 20, 20);
+  auto& sameOwner = f.add("kasra", 0, -300, 20, 20);
+  SolverContext context(f.page, f.classes);
+  context.belowFallbackMarks.insert(&dot);
+  OptParams p;
+  p.compliance.rehWawBelowMarkGap = 1.0;
+  require(effectiveGapCompliance(context, dot, kasra, p, 80) == 1.0 &&
+          effectiveGapCompliance(context, kasra, dot, p, 80) == 1.0,
+      "Neighboring-mark spacing must use the below-fallback compliance in either pair order");
+  p.compliance.rehWawBelowMarkGap = 0;
+  require(effectiveGapCompliance(context, dot, kasra, p, 80) == 0,
+      "Zero below-mark compliance must restore rigid spacing when explicitly requested");
+  p.compliance.rehWawBelowMarkGap = 1.0;
+  require(effectiveGapCompliance(context, dot, sameOwner, p, 80) == 0.1 &&
+          effectiveGapCompliance(context, dot, reh, p, 80) == 0.1,
+      "Same-owner stacks and reference/base contacts must retain their ordinary stiffness");
+  kasra.lineIndex = 1;
+  require(effectiveGapCompliance(context, dot, kasra, p, 80) == 0.1,
+      "Below fallback must still yield to the next line's marks with the original contact policy");
+  kasra.lineIndex = 0;
+  context.belowFallbackMarks.clear();
+  require(effectiveGapCompliance(context, dot, kasra, p, 80) == 0.1,
+      "Centered and left-slot marks must retain the ordinary contact policy");
+  context.belowFallbackMarks.insert(&dot);
+  double penetration = 0;
+  solveGapConstraint(context, dot, kasra, p, 1, penetration);
+  require(std::abs(dot.dx) < 25 && kasra.dx > 0,
+      "Soft neighbor spacing must apply less displacement than the original 0.1-compliance contact");
+
+}
+
+void belowReferenceUsesTipGapWhenCompactClearanceIsLarger() {
+  for (const std::string name : {"kasra", "onedotdown", "twodotsdown"}) {
+    for (double compact : {14.0, 100.0, 500.0}) {
+      for (int iterations : {0, 40}) {
+        Fixture f;
+        f.classes["marks"].insert(name);
+        if (name != "kasra") f.classes["downdotmarks"].insert(name);
+        auto& reference = f.add("waw.isol", 100, -200, 100, 250);
+        f.add("behshape.init", 0, 0, 80, 50);
+        auto& mark = f.add(name, 0, -120, 120, 40);
+        auto p = quiet();
+        p.toggles.rehWawBehPlacement = p.toggles.stackOrder =
+            p.toggles.genericGapConstraint = p.toggles.baseVicinity = true;
+        p.maxIters = iterations;
+        p.rehWaw.tipGap = 40;
+        p.rehWaw.compactGap = compact;
+        p.rehWaw.overhangPercent = p.rehWaw.overhangLimit = 0;
+        optimizePage(f.page, f.classes, p);
+        require(mark.initialPlacement == GlyphInstance::InitialPlacement::BelowRehWaw,
+            "An oversized compact clearance must still allow a local below-reference fallback");
+        const double verticalGap = boxBottomY(reference) - boxTopY(mark);
+        require(std::abs(verticalGap - p.rehWaw.tipGap) <= p.tolCollision &&
+                geometry::getDistance(mark.worldPolys, reference.worldPolys, 1000).contact.depth_or_gap >=
+                    p.rehWaw.tipGap - p.tolCollision,
+            "Below search and stack bounds must use Tip gap without a larger compact floor");
+      }
+    }
+  }
+}
+
+void compactClearanceCannotRejectOrDisplaceLeftSlots() {
+  for (const std::string name : {"kasra", "onedotdown", "twodotsdown"}) {
+    for (int iterations : {0, 40}) {
+      std::vector<double> expected;
+      for (double compact : {100.0, 500.0}) {
+        Fixture f;
+        f.classes["marks"].insert(name);
+        if (name != "kasra") f.classes["downdotmarks"].insert(name);
+        auto& reference = f.add("waw.isol", 150, -70, 100, 120);
+        auto& owner = f.add("behshape.init", -100, 0, 360, 50);
+        auto& mark = f.add(name, 0, -120, 120, 40);
+        GlyphInstance* following = name == "kasra" ? nullptr : &f.add("kasra", 20, -180, 60, 20);
+        auto p = quiet();
+        p.toggles.rehWawBehPlacement = p.toggles.stackOrder =
+            p.toggles.genericGapConstraint = p.toggles.baseVicinity = true;
+        p.rehWaw.compactGap = compact;
+        p.rehWaw.leftGap = p.rehWaw.tipGap = p.rehWaw.neighborGap = 40;
+        p.maxIters = iterations;
+        optimizePage(f.page, f.classes, p);
+        require(mark.initialPlacement == GlyphInstance::InitialPlacement::LeftOfRehWaw &&
+                reference.worldPolys.boundingAABB().minx - mark.worldPolys.boundingAABB().maxx >= 40 - 0.1 &&
+                std::abs(boxCenterY(mark) + 70) < 0.1,
+            "A rejected current gap must try the left clearance without reapplying compact clearance");
+        const double ownerGap = geometry::getDistance(mark.worldPolys, owner.worldPolys, 1000).contact.depth_or_gap;
+        require(ownerGap >= 40 - 0.1 && ownerGap < compact,
+            "Relocated marks must retain ordinary owner ink clearance even when it is below the compact threshold");
+        std::vector<double> actual{mark.dx, mark.dy};
+        if (following) {
+          actual.push_back(following->dx); actual.push_back(following->dy);
+          require(boxBottomY(mark) - boxTopY(*following) >= p.rehWaw.dotKasraGap - 0.1,
+              "A linked kasra must inherit its dot's slot clearance and keep its ordinary stack");
+        }
+        if (expected.empty()) expected = actual;
+        else require(expected == actual,
+            "Once current-gap checks fail, changing compact clearance must not change left placement or its linked kasra");
+      }
+    }
+  }
+}
+
+void currentGapChecksCompactClearanceAgainstNeighborDots() {
+  Fixture f;
+  f.classes["marks"].insert("twodotsdown");
+  auto& waw = f.add("waw.isol", 300, -200, 100, 250);
+  auto& beh = f.add("behshape.init", 0, 0, 100, 50);
+  auto& kasra = f.add("kasra", 0, -120, 20, 20);
+  f.add("behshape.medi", 200, 0, 100, 50);
+  auto& dots = f.add("twodotsdown", 70, -120, 20, 20);
+  auto p = quiet();
+  RehWawMarkPlacement placement(kasra, waw, p);
+  placement.obstacles = {&waw, &beh, &dots};
+  p.rehWaw.compactGap = 30;
+  require(placement.hasInkClearance(kasra.worldPolys),
+      "A current gap must accept neighboring dots that clear both compact and other-ink minima");
+  p.rehWaw.compactGap = 60;
+  require(!placement.hasInkClearance(kasra.worldPolys),
+      "Kasra must not be pinned when neighboring dots meet Other ink clearance but fail Compact ink clearance");
+  placement.searchSlot = RehWawMarkPlacement::Slot::Left;
+  require(placement.hasInkClearance(kasra.worldPolys),
+      "Compact clearance must affect only current-gap eligibility, not relocated slots");
+}
+
+void belowFallbackCannotEscapeUnderAnotherBase() {
+  Fixture f;
+  f.classes["marks"].insert("twodotsdown");
+  f.classes["downdotmarks"].insert("twodotsdown");
+  f.add("reh.isol", 100, -200, 100, 250);
+  auto& beh = f.add("behshape.init", 0, 0, 80, 50);
+  auto& dot = f.add("twodotsdown", 0, -120, 120, 40);
+  auto& bowl = f.add("hah.fina", 0, -350, 80, 100);
+  auto p = quiet();
+  p.toggles.rehWawBehPlacement = p.toggles.genericGapConstraint = p.toggles.baseVicinity = true;
+  p.maxIters = 40;
+  p.rehWaw.tipGap = 40;
+  p.rehWaw.compactGap = 30;
+  p.rehWaw.neighborGap = 40;
+  optimizePage(f.page, f.classes, p);
+  require(dot.initialPlacement == GlyphInstance::InitialPlacement::None &&
+          dot.initialPositioningDx == 0 && dot.initialPositioningDy == 0,
+      "An otherwise ink-clear fallback underneath a following bowl must be rejected before XPBD");
+  require(boxBottomY(dot) > boxTopY(bowl) &&
+          geometry::getDistance(dot.worldPolys, bowl.worldPolys, 1000).contact.depth_or_gap >= 40 - p.tolCollision,
+      "Without a local fallback, ordinary contacts must keep dots nearby rather than descending underneath the next base");
+  require(boxCenterX(dot) >= beh.worldPolys.boundingAABB().minx - 5 &&
+          boxCenterX(dot) <= beh.worldPolys.boundingAABB().maxx + 5,
+      "Rejecting a nonlocal fallback must preserve the owner's ordinary vicinity constraint");
+}
+
+void linkedBelowKasraUsesTheSameInkFloor() {
+  Fixture f;
+  auto& ref = f.add("reh.isol", 300, -200, 100, 250);
+  auto& neighbor = f.add("kasra", 0, -200, 20, 20);
+  f.add("behshape.init", 0, 0, 100, 50);
+  auto& dot = f.add("fatha", 40, -100, 20, 20);
+  auto& kasra = f.add("kasra", 40, -200, 20, 20);
+  auto p = quiet();
+  RehWawMarkPlacement dots(dot, ref, p), follow(kasra, ref, p);
+  follow.followedDotPlacement = &dots;
+  follow.obstacles = {&neighbor};
+  require(!follow.hasInkClearance(kasra.worldPolys),
+      "Ordinary slots must retain the normal 40-unit neighbor floor");
+  dots.searchSlot = RehWawMarkPlacement::Slot::Below;
+  require(follow.hasInkClearance(kasra.worldPolys),
+      "A same-owner linked kasra must inherit the below dot's tighter ink floor during final plan validation");
 }
 
 void currentGapCannotBypassLeftSlotRules() {
@@ -1222,11 +1523,11 @@ void contextualLowerMarksYieldToNextLine() {
   auto p = quiet();
   RehWawMarkPlacement placement(dot, reh, p);
   placement.obstacles = {&reh, &beh, &nextBase, &upper};
-  placement.prepareDotTarget();
+  placement.prepareTarget();
   require(!placement.dotTargetClear,
       "A blocked lower slot must not escape across the next line to find room");
   upper.dy = -1000; updateWorldPolys(upper);
-  placement.prepareDotTarget();
+  placement.prepareTarget();
   require(!placement.dotTargetClear,
       "Moving the next line's ink away must not manufacture space for a lower dot");
 
@@ -1264,11 +1565,19 @@ int main() {
     stretchedFathaBandRespectsAuthoredHeight();
     fontAuthoredBaselineClearance();
     lowerDotKasraStack();
+    nonContextualBehIgnoresRehWawSwitch();
+    standaloneKasraUsesOrderedSlots();
     rehWawLowerMarkPlacement();
     persistentDotInkEscape();
     initialBehOptInAndWideSlot();
     conditionalDotSlotAndKasraFollow();
-    belowFallbackUsesNearbySideSpaceBeforeDescending();
+    belowFallbackPrioritizesOwnerOverMarkSpacing();
+    belowMarkContactsUseConfiguredCompliance();
+    belowReferenceUsesTipGapWhenCompactClearanceIsLarger();
+    compactClearanceCannotRejectOrDisplaceLeftSlots();
+    currentGapChecksCompactClearanceAgainstNeighborDots();
+    belowFallbackCannotEscapeUnderAnotherBase();
+    linkedBelowKasraUsesTheSameInkFloor();
     currentGapCannotBypassLeftSlotRules();
     initialPositioningAndCenteredMobility();
     leftTipAlignmentAndDoubleDotFallback();

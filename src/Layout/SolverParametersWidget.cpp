@@ -344,11 +344,12 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   auto* special = addSection(constraints, tr("Special placements"));
   auto behPlacement = addConstraint(special, tr("Reh / Waw followed by initial Beh"), settings,
       "toggle.rehWawBehPlacement", toggles.rehWawBehPlacement, this, changed);
+  behPlacement.box->setToolTip(tr("Applies only to lower marks on an initial Beh form immediately following Reh/Waw in the same word and line. Other Beh forms keep their ordinary constraints; this option does not add a global dot-kasra stack or below-bowl bound."));
   auto& beh = m_params.rehWaw;
-  auto* behNote = new QLabel(tr("Initial positioning runs once before XPBD. Centered dots stay fixed with their center at or right of the tip. Left dots align their center with the leftmost Reh/Waw tip. Left/below dots remain movable; ordinary stacking aligns same-owner kasra."), behPlacement.box);
+  auto* behNote = new QLabel(tr("Dots and standalone kasra try the current gap, left tip, then below. Centered marks stay fixed. Initial positions are checked against surrounding ink; ordinary XPBD constraints then solve together. Below marks prefer their own base and the reference bottom, with softer neighboring-mark spacing."), behPlacement.box);
   behNote->setWordWrap(true);
   behPlacement.form->addRow(behNote);
-  const auto fallbackTip = tr("A clear centered current gap is kept first. Used only when both that gap and the left slot fail. Checked: allow initial placement below Reh/Waw. Unchecked: keep the original input when neither slot fits.");
+  const auto fallbackTip = tr("A clear centered current gap is kept first. Used only when both that gap and the left slot fail. Checked: allow initial placement below Reh/Waw. Unchecked: keep the original input when neither slot fits. These switches apply to dots; standalone kasra always tries the local below fallback last.");
   addToggleRow(behPlacement.form, tr("One dot below tip"), settings,
       "rehWaw.oneDotBelowTip", beh.oneDotBelowTip, this, changed, fallbackTip);
   addToggleRow(behPlacement.form, tr("Two dots below tip"), settings,
@@ -358,18 +359,22 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   addDoubleRow(behPlacement.form, tr("Dot–kasra gap"), settings, "rehWaw.dotKasraGap", beh.dotKasraGap,
       0, 1000, 1, 2, this, changed, tr("Vertical stacking gap for dots and kasra on the same Beh/Yeh."), units);
   addDoubleRow(behPlacement.form, tr("Compact ink clearance"), settings, "rehWaw.compactGap", beh.compactGap,
-      0, 1000, 1, 2, this, changed, tr("Minimum outline clearance to the owning Behshape and reference Reh/Waw."), units);
+      0, 1000, 1, 2, this, changed, tr("Used only to decide whether the current gap fits, checking all surrounding ink, including the owning Behshape, reference Reh/Waw and neighboring dots or kasra. Other ink clearance also applies to neighboring glyphs. After that gap fails, left placement uses Minimum left clearance and below placement uses Tip gap; this value no longer affects relocation or XPBD."), units);
   addDoubleRow(behPlacement.form, tr("Minimum left clearance"), settings, "rehWaw.leftGap", beh.leftGap,
-      0, 1000, 1, 2, this, changed, tr("Minimum horizontal gap from a left-positioned dot's right edge to Reh/Waw's leftmost tip. The dot's center is initially level with that tip."), units);
+      0, 1000, 1, 2, this, changed, tr("Minimum horizontal gap from a left-positioned mark's right edge to Reh/Waw's leftmost tip. The mark's center is initially level with that tip."), units);
   addDoubleRow(behPlacement.form, tr("Preferred in-gap clearance"), settings, "rehWaw.preferredGap", beh.preferredGap,
       0, 1000, 1, 2, this, changed, tr("Aim for this much clearance to both Behshape and Reh/Waw within the current gap. If it cannot fit, use the roomiest safe position there. This target does not force below-tip placement; Compact ink clearance remains the minimum."), units);
   addDoubleRow(behPlacement.form, tr("Other ink clearance"), settings, "rehWaw.neighborGap", beh.neighborGap,
-      0, 1000, 1, 2, this, changed, tr("Minimum outline clearance to other letters and marks. Normal same-word/different-word gaps remain preferences."), units);
+      0, 1000, 1, 2, this, changed, tr("Minimum outline clearance to other letters and marks, and to the owning Behshape after relocation. Below-tip fallback uses Below mark clearance for same-line neighboring marks, with softer ordinary spacing."), units);
   addDoubleRow(behPlacement.form, tr("Allowed overhang"), settings, "rehWaw.overhangPercent", beh.overhangPercent,
-      0, 100, 1, 1, this, changed, tr("Maximum left-slot overhang beyond Behshape, as a percentage of dot width."), percent);
+      0, 100, 1, 1, this, changed, tr("Maximum left-slot overhang beyond Behshape, as a percentage of the moving mark's width."), percent);
   addDoubleRow(behPlacement.form, tr("Overhang cap"), settings, "rehWaw.overhangLimit", beh.overhangLimit,
       0, 1000, 1, 2, this, changed, tr("Absolute cap on the allowed left-slot overhang."), units);
   compliance(behPlacement.form, tr("Kasra horizontal compliance"), "compliance.rehWawKasraFollow", comp.rehWawKasraFollow);
+  addDoubleRow(behPlacement.form, tr("Below mark clearance"), settings, "rehWaw.belowMarkGap", beh.belowMarkGap,
+      0, 1000, 1, 2, this, changed, tr("Minimum outline clearance to neighboring marks when selecting an initial below-tip fallback. After initial placement, ordinary XPBD constraints solve together using Below mark spacing compliance; this value is not enforced by a final projection."), units);
+  compliance(behPlacement.form, tr("Below mark spacing compliance"), "compliance.rehWawBelowMarkGap", comp.rehWawBelowMarkGap);
+  compliance(behPlacement.form, tr("Below bottom compliance"), "compliance.rehWawBelowBottom", comp.rehWawBelowBottom);
   auto pair = addConstraint(special, tr("Kasra / iqlab meem pair"), settings,
       "toggle.matchMarkPosition", toggles.matchMarkPosition, this, changed);
   compliance(pair.form, tr("Compliance"), "compliance.matchMarkPosition", comp.matchMarkPosition);

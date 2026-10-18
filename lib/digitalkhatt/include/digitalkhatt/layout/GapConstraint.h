@@ -29,6 +29,8 @@ double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptPar
 // Shared so the post-solve violation report can predict a pair's expected
 // compliant-equilibrium residual with the same formula the solver used.
 double effectiveGapCompliance(const GlyphInstance& A, const GlyphInstance& B, double gmin);
+double effectiveGapCompliance(const SolverContext& context, const GlyphInstance& A,
+    const GlyphInstance& B, const OptParams& params, double gmin);
 
 // Closed-form equilibrium residual of a single pairwise XPBD inequality with
 // constant gradient: the recursion C_{i+1} = C_i*alpha/(w+alpha) (alpha =

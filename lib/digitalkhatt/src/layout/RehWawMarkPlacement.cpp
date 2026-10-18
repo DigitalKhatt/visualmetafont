@@ -27,9 +27,6 @@ double lowerContour(const geometry::GeometrySet& shape, double left, double righ
   }
   return result;
 }
-double lowerContour(const GlyphInstance& base, double left, double right) {
-  return lowerContour(base.worldPolys, left, right);
-}
 // Slot feasibility needs an actual polygon gap. A support-mapping distance
 // can overestimate separation at a touching edge, so use convex separation
 // and edge distances for nearby parts; distant AABBs need no polygon work.
@@ -115,12 +112,58 @@ RehWawMarkPlacement::RehWawMarkPlacement(GlyphInstance& m, GlyphInstance& r, con
   targetX = std::clamp(tip.x, owner.minx, std::max(owner.maxx, tip.x));
 }
 
-bool RehWawMarkPlacement::hasInkClearance(const geometry::GeometrySet& shape) const {
-  // Enforce the separately configured compact-pair and neighboring ink gaps.
+double RehWawMarkPlacement::localBottomLimit() const {
+  // A following bowl is an obstacle, not another level of the owner's stack.
+  // Do not clear it by putting the mark underneath its entire descending body.
+  // Reh/Waw remain eligible references (including a second descending Reh).
+  const auto owner = mark.prevBase->worldPolys.boundingAABB();
+  const double referenceBottom = reference.worldPolys.boundingAABB().miny;
+  const auto& dot = followedDotPlacement ? followedDotPlacement->mark : mark;
+  const double localBottom = referenceBottom - params.rehWaw.tipGap - boxHeight(dot);
+  double bottom = -std::numeric_limits<double>::infinity();
   for (const auto* obstacle : obstacles) {
+    if (obstacle->isMark || obstacle == mark.prevBase || obstacle == &reference ||
+        obstacle->lineIndex != mark.lineIndex || isRehWaw(*obstacle)) continue;
+    const auto box = obstacle->worldPolys.boundingAABB();
+    // A shallow neighbor may naturally end above the near-reference slot.
+    // Only a body extending BELOW that normal slot can cause a remote escape.
+    if (box.miny < localBottom && box.minx < owner.maxx && box.maxx > owner.minx)
+      bottom = std::max(bottom, box.miny);
+  }
+  return bottom;
+}
+
+bool RehWawMarkPlacement::hasInkClearance(const geometry::GeometrySet& shape, bool includeMarks) const {
+  if (isKasraMark(mark) && dots.empty() && params.toggles.hardStayAboveBelow) {
+    // A centered kasra is pinned, so its candidate must already satisfy the
+    // ordinary below-mark rail: either its top clears the owner bottom or
+    // the baseline clears the point 66% up its bounding box.
+    const auto box = shape.boundingAABB();
+    const double baselinePoint = box.miny + 0.66 * (box.maxy - box.miny);
+    if (std::min(box.maxy - boxBottomY(*mark.prevBase), baselinePoint - mark.prevBase->lineY) > 1e-6)
+      return false;
+  }
+  if (usesBelowFallback() && shape.boundingAABB().miny < localBottomLimit() - 1e-6)
+    return false;
+  // Compact clearance only decides whether the current gap fits. Relocated
+  // marks use their selected slot's reference gap and ordinary owner ink
+  // clearance; linked kasra inherits its dot's slot throughout planning.
+  for (const auto* obstacle : obstacles) {
+    if (!includeMarks && obstacle->isMark) continue;
     const bool otherLine = obstacle->lineIndex != mark.lineIndex;
-    const bool compactPair = obstacle == &reference || obstacle == mark.prevBase;
-    const double gap = compactPair ? params.rehWaw.compactGap : params.rehWaw.neighborGap;
+    const bool ownerOrReference = obstacle == &reference || obstacle == mark.prevBase;
+    const bool neighboringMark = usesBelowFallback() && obstacle->isMark && !otherLine &&
+                                 obstacle->prevBase != mark.prevBase;
+    double gap = neighboringMark ? params.rehWaw.belowMarkGap : params.rehWaw.neighborGap;
+    if (ownerOrReference && activeSlot() == Slot::CurrentGap)
+      gap = params.rehWaw.compactGap;
+    else if (obstacle == &reference)
+      gap = activeSlot() == Slot::Left ? params.rehWaw.leftGap : params.rehWaw.tipGap;
+    // Pinning a current-gap mark requires the compact minimum against ALL
+    // surrounding ink, including another base's lower dots. A large compact
+    // clearance must not be silently replaced by the smaller neighbor gap.
+    if (activeSlot() == Slot::CurrentGap)
+      gap = std::max(gap, params.rehWaw.compactGap);
     if (!shapesHaveClearance(shape, obstacle->worldPolys, gap))
       return false;
     // A lower dot must not claim space made available only by pushing the
@@ -141,7 +184,11 @@ double RehWawMarkPlacement::neighboringGapPenalty(const geometry::GeometrySet& s
     if (boxGapSquared(shape.boundingAABB(), obstacle->worldPolys.boundingAABB()) >= preferredGap * preferredGap) continue;
     const double gap = geometry::getDistance(shape, obstacle->worldPolys, preferredGap).contact.depth_or_gap;
     const double shortfall = std::max(0.0, preferredGap - gap);
-    penalty += shortfall * shortfall;
+    // Below fallback prioritizes ownership and proximity to the reference
+    // bottom over extra breathing room to a neighboring mark.
+    const bool softMark = usesBelowFallback() && obstacle->isMark &&
+                          obstacle->lineIndex == mark.lineIndex && obstacle->prevBase != mark.prevBase;
+    penalty += (softMark ? 0.05 : 1.0) * shortfall * shortfall;
   }
   return penalty;
 }
@@ -202,8 +249,10 @@ geometry::GeometrySet RehWawMarkPlacement::followingShape(const geometry::Geomet
   return {};
 }
 
-void RehWawMarkPlacement::prepareDotTarget() {
-  if (isKasraMark(mark)) return;
+void RehWawMarkPlacement::prepareTarget() {
+  // Linked kasra follows its own dots. Every independent lower mark uses
+  // the same current-gap, left-tip, then local below-tip slot search.
+  if (!dots.empty()) return;
   const auto box = mark.worldPolys.boundingAABB();
   const auto owner = mark.prevBase->worldPolys.boundingAABB();
   const double width = box.maxx - box.minx, height = box.maxy - box.miny;
@@ -212,8 +261,8 @@ void RehWawMarkPlacement::prepareDotTarget() {
   double bestX = originX, bestY = originY;
   double best = std::numeric_limits<double>::infinity();
   double bestRoom = -std::numeric_limits<double>::infinity();
-  bool balanceCurrentGap = false;
   dotTargetClear = false;
+  searchSlot = Slot::CurrentGap;
   dotUsesLeftSlot = false;
   dotUsesCurrentGap = false;
 
@@ -228,7 +277,7 @@ void RehWawMarkPlacement::prepareDotTarget() {
       const double shortfall = std::max(0.0, params.rehWaw.tipGap - refGap);
       double penalty = shortfall * shortfall + neighboringGapPenalty(trial, mark);
       double room = 0.0;
-      if (balanceCurrentGap) {
+      if (searchSlot == Slot::CurrentGap) {
         const double ownerGap = geometry::getDistance(trial, mark.prevBase->worldPolys, 1e6).contact.depth_or_gap;
         const double imbalance = ownerGap - refGap;
         penalty += imbalance * imbalance;
@@ -279,14 +328,13 @@ void RehWawMarkPlacement::prepareDotTarget() {
   const double authoredY = originY - mark.dy;
   dotMinY = std::max(tipY, std::min(tipY + height * 0.5, authoredY - height * 0.5));
   dotMaxY = owner.miny + height * 0.5 - params.rehWaw.compactGap;
-  balanceCurrentGap = true;
   if (search(originX - mark.dx, authoredY)) {
     dotUsesCurrentGap = true;
     targetX = bestX;
     dotTargetTop = bestY + height * 0.5;
     return;
   }
-  balanceCurrentGap = false;
+  searchSlot = Slot::Left;
 
   // A left mark's vertical CENTER aligns with the leftmost reference tip.
   // Its right edge must also keep an explicit horizontal gap from Reh/Waw.
@@ -304,8 +352,9 @@ void RehWawMarkPlacement::prepareDotTarget() {
                       tipX - params.rehWaw.leftGap - width * 0.5);
     dotUsesLeftSlot = search(leftPreferredX, dotMinY);
   }
-  const bool belowTipFallback = mark.glyphName == "twodotsdown" ?
-      params.rehWaw.twoDotsBelowTip : params.rehWaw.oneDotBelowTip;
+  // Dot-specific fallback switches do not disable standalone kasra's search.
+  const bool belowTipFallback = isKasraMark(mark) || (mark.glyphName == "twodotsdown" ?
+      params.rehWaw.twoDotsBelowTip : params.rehWaw.oneDotBelowTip);
   if (!dotUsesLeftSlot && !belowTipFallback) {
     // Both non-descending searches failed. Leave ordinary collision handling
     // active rather than forcing a below-tip target against the user's choice.
@@ -314,21 +363,24 @@ void RehWawMarkPlacement::prepareDotTarget() {
     return;
   }
   if (!dotUsesLeftSlot) {
-    // Compare all locally allowed sideways positions before accepting a
-    // deeper descent. A narrow-first search can put dots below a neighboring
-    // kasra even when the existing half-dot allowance fits beside it.
-    dotMinX = owner.minx - width * 0.5;
-    dotMaxX = owner.maxx + width * 0.5;
+    // First keep the mark's center under its semantic owner. Neighboring
+    // marks need ink clearance, but their larger spacing target may yield.
+    searchSlot = Slot::Below;
+    dotMinX = owner.minx;
+    dotMaxX = owner.maxx;
     dotMaxY = referenceBottom - params.rehWaw.tipGap - height * 0.5;
     dotMinY = dotMaxY - height - params.rehWaw.tipGap;
-    double lowerLineLimit = -std::numeric_limits<double>::infinity();
+    // Stop at a descending neighbor's bottom as well as the next line. If
+    // no local slot fits, leave the authored input to ordinary constraints;
+    // a distant ink-clear slot would lose the mark's semantic association.
+    double lowerLineLimit = localBottomLimit() + height * 0.5;
     for (const auto* obstacle : obstacles) {
       if (obstacle->lineIndex == mark.lineIndex + 1)
         lowerLineLimit = std::max(lowerLineLimit,
             0.5 * (mark.lineY + obstacle->lineY) + height * 0.5);
     }
     dotMinY = std::max(dotMinY, lowerLineLimit);
-    const double preferredX = std::clamp(tipX, dotMinX, dotMaxX);
+    const double preferredX = 0.5 * (owner.minx + owner.maxx);
     const double preferredY = dotMaxY;
     if (!search(preferredX, preferredY)) {
       // A following Reh can descend farther than the reference tip (e.g.
@@ -353,28 +405,15 @@ void RehWawMarkPlacement::prepareDotTarget() {
 }
 
 geometry::GeometrySet RehWawMarkPlacement::preferredShape() const {
-  if (!isKasraMark(mark)) {
+  if (dots.empty()) {
     if (!dotTargetClear) return {};
     return mark.worldPolys.translate(targetX - boxCenterX(mark), dotTargetTop - boxTopY(mark));
   }
-  if (!dots.empty()) {
-    if (followedDotPlacement && !followedDotPlacement->dotTargetClear) return {};
-    const auto* placement = followedDotPlacement;
-    if (!placement) return followingShape(dots.front()->worldPolys);
-    const auto dotShape = placement->preferredShape();
-    return dotShape.empty() ? geometry::GeometrySet{} : followingShape(dotShape);
-  }
-  auto trial = mark.worldPolys.translate(targetX - boxCenterX(mark), 0.0);
-  const auto box = trial.boundingAABB();
-  const double contour = lowerContour(reference, box.minx, box.maxx);
-  double top = (std::isfinite(contour) ? contour : tipY) - params.rehWaw.tipGap;
-  for (const auto* obstacle : obstacles) {
-    if (obstacle->isMark || obstacle->lineIndex != mark.lineIndex || obstacle->worldPolys.empty()) continue;
-    const double floor = lowerContour(*obstacle, box.minx, box.maxx);
-    if (std::isfinite(floor)) top = std::min(top, floor - chooseMinGap(*obstacle, mark, params));
-  }
-  trial = trial.translate(0.0, top - box.maxy);
-  return hasInkClearance(trial) ? trial : geometry::GeometrySet{};
+  if (followedDotPlacement && !followedDotPlacement->dotTargetClear) return {};
+  const auto* placement = followedDotPlacement;
+  if (!placement) return followingShape(dots.front()->worldPolys);
+  const auto dotShape = placement->preferredShape();
+  return dotShape.empty() ? geometry::GeometrySet{} : followingShape(dotShape);
 }
 
 }  // namespace digitalkhatt::layout

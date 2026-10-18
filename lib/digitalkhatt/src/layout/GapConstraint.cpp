@@ -46,6 +46,19 @@ double effectiveGapCompliance(const GlyphInstance& A, const GlyphInstance& B, do
   return baseCompliance / (normGmin * normGmin);
 }
 
+namespace {
+bool softBelowMarkPair(const SolverContext& context, const GlyphInstance& A, const GlyphInstance& B) {
+  return A.isMark && B.isMark && A.lineIndex == B.lineIndex && A.prevBase != B.prevBase &&
+      (context.belowFallbackMarks.contains(&A) || context.belowFallbackMarks.contains(&B));
+}
+}
+
+double effectiveGapCompliance(const SolverContext& context, const GlyphInstance& A,
+    const GlyphInstance& B, const OptParams& P, double gmin) {
+  return softBelowMarkPair(context, A, B) ? P.compliance.rehWawBelowMarkGap :
+                                          effectiveGapCompliance(A, B, gmin);
+}
+
 double expectedComplianceResidual(double initialC, double compliance, double w, double dt) {
   const double alpha = compliance / (dt * dt);
   const double denom = w + alpha;
@@ -66,11 +79,13 @@ double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptPar
   };
   if (P.toggles.rehWawBehPlacement) {
     if (tipPair(A, B) || tipPair(B, A)) return std::min(P.sameWordGap, P.rehWaw.tipGap);
-    const auto dotOwnerPair = [](const GlyphInstance& base, const GlyphInstance& mark) {
-      if (!mark.isMark || !isRehWawDot(mark) || !rehWawReference(mark)) return false;
+    const auto lowerMarkOwnerPair = [](const GlyphInstance& base, const GlyphInstance& mark) {
+      const bool independentKasra = isKasraMark(mark) &&
+          mark.initialPlacement != GlyphInstance::InitialPlacement::None;
+      if (!mark.isMark || (!isRehWawDot(mark) && !independentKasra) || !rehWawReference(mark)) return false;
       return &base == mark.prevBase;
     };
-    if (dotOwnerPair(A, B) || dotOwnerPair(B, A)) return std::min(P.sameWordGap, P.rehWaw.tipGap);
+    if (lowerMarkOwnerPair(A, B) || lowerMarkOwnerPair(B, A)) return std::min(P.sameWordGap, P.rehWaw.tipGap);
   }
   if (A.glyphName.starts_with("alef") &&
       B.prevBase == &A &&
@@ -106,7 +121,7 @@ void solveGapConstraint(SolverContext& solverContext,
   }
 
   const double gmin = chooseMinGap(A, B, P);
-  double compliance = effectiveGapCompliance(A, B, gmin);
+  double compliance = effectiveGapCompliance(solverContext, A, B, P, gmin);
 
   auto dr = getDistance(A.worldPolys, B.worldPolys, gmin);
   if (!std::isfinite(dr.contact.depth_or_gap))
@@ -214,7 +229,7 @@ void collectGapViolations(
     // exact pair was never processed there (no entry), fall back to the
     // current C itself, i.e. assume no compliance shrinkage history and don't
     // suppress -- conservative, avoids hiding a genuine issue.
-    const double compliance = effectiveGapCompliance(A, B, gmin);
+    const double compliance = effectiveGapCompliance(solverContext, A, B, P, gmin);
     const auto [wA, wB] = gapMobilities(solverContext, A, B);
     const double w = wA + wB;
     const auto gapIt = solverContext.gapInfos.find(GapKey{&A, &B});
@@ -230,7 +245,9 @@ void collectGapViolations(
 
     ConstraintViolation v;
     v.type = ViolationType::GenericGap;
-    v.kind = ViolationKind::Hard;
+    v.kind = softBelowMarkPair(solverContext, A, B) && compliance > 0.0 &&
+        !dr.contact.intersect && dr.contact.depth_or_gap >= 0.0 ?
+        ViolationKind::Soft : ViolationKind::Hard;
     v.residual = C;
     v.severity = -C;
     v.allowedResidual = allowed;

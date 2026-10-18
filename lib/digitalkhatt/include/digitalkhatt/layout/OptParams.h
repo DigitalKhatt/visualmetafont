@@ -59,6 +59,8 @@ struct ConstraintCompliance {
   double stackOrderXAlign = 0.2;
   double rehWawDotTarget = 0.2;   // legacy snapshot field; no point target in XPBD
   double rehWawKasraFollow = 0.2; // ordinary lower-stack horizontal alignment
+  double rehWawBelowMarkGap = 1.0; // softer spacing to neighboring marks below the tip
+  double rehWawBelowBottom = 0.2;  // preferred distance from the reference bottom
 
   double horizontalOrder = 0.0;
 
@@ -70,10 +72,11 @@ struct ConstraintCompliance {
 struct RehWawPlacementParams {
   double tipGap = 30.0;
   double dotKasraGap = 40.0;
-  double compactGap = 14.0;
+  double compactGap = 14.0;    // current-gap acceptance only; never a relocated-mark floor
   double leftGap = 30.0;       // minimum horizontal clearance for a left dot
   double preferredGap = 80.0;  // in-gap comfort target; never a feasibility floor
   double neighborGap = 40.0;
+  double belowMarkGap = 10.0; // neighboring-mark clearance for initial below candidates only
   double overhangPercent = 10.0;
   double overhangLimit = 14.0;
   bool oneDotBelowTip = true;  // false: do not force one dot below the tip

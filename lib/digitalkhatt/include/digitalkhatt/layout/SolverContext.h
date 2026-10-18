@@ -43,6 +43,9 @@ struct SolverContext {
   // Registered by the opt-in setup. Across lines these lower marks yield to
   // the next line's ink, instead of displacing its top-mark/Waqf stacks.
   std::unordered_set<const GlyphInstance*> contextualBelowMarks;
+  // Applied below-tip independent marks and dot-linked kasra; centered/left slots
+  // retain their existing contact policy.
+  std::unordered_set<const GlyphInstance*> belowFallbackMarks;
   // Registered once by global glyph index; null entries cost no class lookup.
   std::vector<WaqfEscapeConstraint*> waqfEscapes;
   const ClassMap& classes;

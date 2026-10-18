@@ -107,6 +107,21 @@ tries a full-width left-tip slot, followed by a small outline-checked
 overhang. Only when all those searches fail do the independent single-dot and
 double-dot checkboxes apply: checked permits below-tip placement (the default),
 unchecked leaves ordinary collision handling active without forcing descent.
+Standalone kasra/kasratan/kasratanidgham on initial Beh variants uses the same
+ordered search, independently of those dot-specific checkboxes. Centered
+standalone marks get zero mobility; left/below marks retain ordinary mobility
+and their selected slot's directional constraints. A dot-linked kasra keeps
+following its dot. A neighboring Reh/Waw's own kasra is unaffected.
+The same-word/same-line preceding Reh/Waw check also gates stack registration
+and generic-gap exclusions. Other initial Beh forms keep the ordinary solver
+constraints they have with the option disabled, including inside a following
+Ain/Hah bowl; they receive no contextual below-bowl bounds.
+Standalone candidates satisfy the enabled below-mark rail before pinning.
+After initial positioning, ordinary XPBD constraints solve together. There is
+no final ink-floor projection; centered marks stay fixed through mobility zero,
+while movable neighbors use ordinary collision constraints. `compactGap` checks
+all surrounding ink during current-gap acceptance, including neighboring dots
+and kasra. Other ink must also meet `neighborGap`, using the larger minimum.
 Inside a feasible current gap, `rehWaw.preferredGap` (default 80) controls the
 desired breathing room to Behshape and Reh/Waw. The search prioritizes the
 smaller of those clearances up to this target, then balance and movement cost.
@@ -117,9 +132,25 @@ Positioning runs once before XPBD, from unchanged input geometry. Accepted
 current-gap dots are flagged and get zero mobility. A left dot's vertical
 center aligns with the leftmost tip point, and `rehWaw.leftGap` (default 30)
 is its minimum horizontal clearance. Below fallback starts below the whole
-Reh/Waw outline. The existing local half-dot sideways allowance is considered
-before accepting a deeper descent. Left and below dots remain movable during XPBD. Proposed
-owner groups are validated together before application.
+Reh/Waw outline. It prioritizes the mark center remaining under its own base.
+`compactGap` is used only for current-gap acceptance and balancing. Once that
+gap fails, left placement uses `leftGap`, below placement uses `tipGap`, and
+owning-Behshape ink uses `neighborGap`. Linked kasra inherits its dot's slot
+for all checks. XPBD constraints do not read `compactGap`.
+The search rejects
+dots or linked kasra below a different base whose descender
+extends past the normal near-reference slot.
+If no complete local slot fits, ordinary compliant constraints adjust the
+authored input instead of accepting a distant escape underneath that base.
+Initial below-slot candidates use `belowMarkGap` (default 10) for same-line
+neighboring marks. Below dots prefer the owner center horizontally and the reference
+bottom vertically using an ordinary stack, plus the enabled base-vicinity
+leash. Neighboring-mark spacing uses `compliance.rehWawBelowMarkGap` (1.0),
+while bottom preference uses `compliance.rehWawBelowBottom` (0.2). The separate
+initial clearance is not enforced by a final projection after bounds. Base ink
+and next-line contacts remain unchanged.
+Left and below dots remain movable during XPBD. Proposed owner groups are
+validated together before application.
 
 Same-owner lower dots and kasra/kasratan form an ordinary downward stack,
 preserving their adjusted initial horizontal offset. Horizontal compliance

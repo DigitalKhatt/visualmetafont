@@ -70,7 +70,8 @@ int main(int argc, char** argv) {
         {"rehWaw.tipGap", 44}, {"rehWaw.dotKasraGap", 65},
         {"rehWaw.compactGap", 18}, {"rehWaw.leftGap", 33}, {"rehWaw.preferredGap", 66}, {"rehWaw.neighborGap", 55},
         {"rehWaw.overhangPercent", 8}, {"rehWaw.overhangLimit", 12},
-        {"compliance.rehWawKasraFollow", 0.45}};
+        {"compliance.rehWawKasraFollow", 0.45}, {"rehWaw.belowMarkGap", 12},
+        {"compliance.rehWawBelowMarkGap", 1.4}, {"compliance.rehWawBelowBottom", 0.3}};
     for (const auto& [name, value] : values) field<QDoubleSpinBox>(widget, name)->setValue(value);
     field<QCheckBox>(widget, "rehWaw.oneDotBelowTip")->setChecked(false);
     field<QCheckBox>(widget, "rehWaw.twoDotsBelowTip")->setChecked(true);
@@ -78,6 +79,8 @@ int main(int argc, char** argv) {
             params.rehWaw.compactGap == 18 && params.rehWaw.leftGap == 33 && params.rehWaw.preferredGap == 66 && params.rehWaw.neighborGap == 55 &&
             params.rehWaw.overhangPercent == 8 && params.rehWaw.overhangLimit == 12 &&
             params.compliance.rehWawKasraFollow == 0.45 &&
+            params.rehWaw.belowMarkGap == 12 && params.compliance.rehWawBelowMarkGap == 1.4 &&
+            params.compliance.rehWawBelowBottom == 0.3 &&
             !params.rehWaw.oneDotBelowTip && params.rehWaw.twoDotsBelowTip,
         "GUI controls must update the live placement parameters");
     special->click();
@@ -91,6 +94,8 @@ int main(int argc, char** argv) {
             restored.rehWaw.compactGap == 18 && restored.rehWaw.leftGap == 33 && restored.rehWaw.preferredGap == 66 && restored.rehWaw.neighborGap == 55 &&
             restored.rehWaw.overhangPercent == 8 && restored.rehWaw.overhangLimit == 12 &&
             restored.compliance.rehWawKasraFollow == 0.45 &&
+            restored.rehWaw.belowMarkGap == 12 && restored.compliance.rehWawBelowMarkGap == 1.4 &&
+            restored.compliance.rehWawBelowBottom == 0.3 &&
             !restored.rehWaw.oneDotBelowTip && restored.rehWaw.twoDotsBelowTip && restored.toggles.rehWawBehPlacement,
         "Placement tuning and fallback choice must survive reopening the panel");
     for (int i = 0; i < 5; ++i)
@@ -120,7 +125,7 @@ int main(int argc, char** argv) {
       QSettings().setValue("SolverTuning/toggle.rehWawBehPlacement", true);
       digitalkhatt::layout::OptParams defaults;
       SolverParametersWidget preview(defaults);
-      preview.resize(460, 1000);
+      preview.resize(460, 1200);
       preview.show();
       app.processEvents();
       QDir directory(QString::fromLocal8Bit(argv[1]));

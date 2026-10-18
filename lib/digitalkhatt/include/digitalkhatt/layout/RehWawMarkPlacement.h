@@ -13,6 +13,10 @@ struct RehWawMarkPlacement {
   const OptParams& params;
   double targetX;
   double tipY;
+  enum class Slot { CurrentGap, Left, Below };
+  Slot searchSlot = Slot::CurrentGap;
+  // Slot state is shared by lower dots and standalone kasra. A linked kasra
+  // follows its dot instead of selecting an independent slot.
   bool dotUsesCurrentGap = false;
   bool dotUsesLeftSlot = false;
   bool dotTargetClear = false;
@@ -25,11 +29,18 @@ struct RehWawMarkPlacement {
   std::vector<GlyphInstance*> obstacles;
 
   RehWawMarkPlacement(GlyphInstance&, GlyphInstance&, const OptParams&);
-  void prepareDotTarget();
+  void prepareTarget();
   geometry::GeometrySet preferredShape() const;
-  bool hasInkClearance(const geometry::GeometrySet&) const;
+  bool hasInkClearance(const geometry::GeometrySet&, bool includeMarks = true) const;
 
  private:
+  double localBottomLimit() const;
+  Slot activeSlot() const {
+    return followedDotPlacement ? followedDotPlacement->searchSlot : searchSlot;
+  }
+  bool usesBelowFallback() const {
+    return activeSlot() == Slot::Below;
+  }
   double neighboringGapPenalty(const geometry::GeometrySet&, const GlyphInstance&) const;
   bool dotHasClearance(const geometry::GeometrySet&) const;
   double followingTop(const geometry::GeometrySet&, const geometry::GeometrySet&) const;
