@@ -50,7 +50,7 @@ struct Fixture {
   ClassMap classes{{"marks", {"fatha", "shadda", "onedotup", "kasra", "smalllowmeem", "waqf.meem"}},
       {"topmarks", {"fatha", "shadda"}}, {"topdotmarks", {"onedotup"}},
       {"lowmarks", {"kasra", "smalllowmeem"}}, {"waqfmarks", {"waqf.meem"}},
-      {"bowlbases", {"hah.isol"}}};
+      {"lowerMarkGapExcludedBases", {"hah.isol"}}};
   std::vector<std::vector<GlyphInstance>> page{1};
 
   Fixture() { page[0].reserve(16); }
@@ -100,7 +100,52 @@ OptParams quiet() {
   return p;
 }
 
-void ainLowerMarksSkipOnlyBelowRail() {
+void bowlLowerMarksUseBaseTopRail() {
+  Fixture custom;
+  custom.classes["lowerMarkGapExcludedBases"].insert("custom.base");
+  auto& excluded = custom.add("custom.base", 0, -100, 100, 200);
+  SolverContext customContext(custom.page, custom.classes);
+  require(customContext.excludesLowerMarksFromGap(excluded) && !customContext.hasBowlInterior(excluded),
+      "Gap exclusion must not classify an arbitrary base as a bowl");
+  for (const auto* base : {"hah.isol", "hah.fina", "ain.isol", "ain.fina"}) {
+    for (const auto* markName : {"kasra", "kasratan", "kasratanidgham", "roundedfilledlow", "smalllowmeem", "onedotdown"}) {
+      for (const double y : {-180.0, 20.0, 80.0, 110.0}) {
+        Fixture f;
+        f.classes["marks"].insert(markName);
+        f.classes[std::string(markName) == "onedotdown" ? "downdotmarks" : "lowmarks"].insert(markName);
+        f.add(base, 0, -100, 100, 200);
+        auto& mark = f.add(markName, 30, y, 20, 20);
+        auto p = quiet();
+        p.toggles.hardStayAboveBelow = true;
+        p.compliance.hardStayBelow = 0;
+        std::vector<ConstraintViolation> violations;
+        optimizePage(f.page, f.classes, p, &violations);
+        const auto rail = std::find_if(violations.begin(), violations.end(), [](const auto& v) {
+          return v.type == ViolationType::HardStayBelow;
+        });
+        if (y > 80) {
+          require(rail != violations.end() && rail->severity == 30 && rail->marker[0].y == 100,
+              "Bowl violation severity and marker must use mark ink top versus base ink top");
+        } else {
+          require(rail == violations.end() && std::none_of(violations.begin(), violations.end(), [](const auto& v) {
+            return v.type == ViolationType::MarkSide;
+          }), "Marks inside or below a bowl must not violate its lower-mark ceiling or semantic audit");
+        }
+        p.maxIters = 20;
+        optimizePage(f.page, f.classes, p);
+        require(mark.dx == 0 && boxTopY(mark) <= 100 &&
+                (y <= 80 ? mark.dy == 0 : mark.dy == -30),
+            "Bowl marks must retain valid anchors and only descend when their ink rises above the base top");
+      }
+    }
+    Fixture disabled;
+    disabled.add(base, 0, -100, 100, 200);
+    auto& mark = disabled.add("kasra", 30, 110, 20, 20);
+    auto p = quiet();
+    p.maxIters = 20;
+    optimizePage(disabled.page, disabled.classes, p);
+    require(mark.dx == 0 && mark.dy == 0, "The bowl ceiling must respect the Stay above / below switch");
+  }
   for (const auto* base : {"ain.isol", "ain.fina", "ain.init"}) {
     const bool exempt = std::string(base) != "ain.init";
     for (const auto* markName : {"kasra", "kasratan", "kasratanidgham", "roundedfilledlow", "smalllowmeem"}) {
@@ -114,7 +159,7 @@ void ainLowerMarksSkipOnlyBelowRail() {
       p.toggles.hardStayAboveBelow = true;
       optimizePage(f.page, f.classes, p);
       require(mark.dx == 0 && (exempt ? mark.dy == 0 : mark.dy < -30),
-          "Only isolated/final Ain lower marks may retain authored positions above the below-mark rail");
+          "Isolated/final Ain must allow bowl interiors while initial Ain keeps its ordinary below-mark rail");
     }
     if (!exempt) continue;
     Fixture collision;
@@ -802,7 +847,7 @@ void initialBehOptInAndWideSlot() {
       {{640,0},{660,0},{660,550},{640,550}}});
   narrow.classes["marks"].insert("kasratan");
   narrow.classes["lowmarks"].insert("kasratan");
-  narrow.classes["bowlbases"].insert("ain.fina");
+  narrow.classes["lowerMarkGapExcludedBases"].insert("ain.fina");
   auto& fixedKasratan = narrow.add("kasratan", -173, -301, 194, 273);
   p.toggles.genericGapConstraint = true;
   optimizePage(narrow.page, narrow.classes, p);
@@ -1644,7 +1689,7 @@ void contextualLowerMarksYieldToNextLine() {
 int main() {
   try {
     intentionalMarkHullPolicy();
-    ainLowerMarksSkipOnlyBelowRail();
+    bowlLowerMarksUseBaseTopRail();
     independentSideAndOwnerChecks();
     ownershipAndReportContext();
     worldBoundsAndAppliedOffsets();

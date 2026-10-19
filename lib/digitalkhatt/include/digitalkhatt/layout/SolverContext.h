@@ -31,11 +31,18 @@ struct SolverContext {
             (gapExcludedGlyphs.contains(pr.first) || gapExcludedGlyphs.contains(pr.second)));
   }
 
-  // True if `base` is a bowl-shaped base glyph (e.g. final/isolated
-  // Jeem/Hah/Khah) whose below-mark anchor already places the mark inside
-  // the bowl, so the generic stay-below rail must not apply to it.
-  bool isBowlBase(const GlyphInstance& base) const {
-    return bowlbases.contains(base.glyphName);
+  // Bases whose authored lower-mark placements are excluded from generic gaps.
+  // This allowlist does not identify the geometry used by the below-mark rail.
+  bool excludesLowerMarksFromGap(const GlyphInstance& base) const {
+    return lowerMarkGapExcludedBases.contains(base.glyphName);
+  }
+
+  // Interior geometry is separate from the manual-placement allowlist:
+  // Ain may participate in generic gaps while retaining marks inside its bowl.
+  bool hasBowlInterior(const GlyphInstance& base) const {
+    return base.glyphName == "hah.isol" ||
+           base.glyphName == "hah.fina" || base.glyphName == "ain.isol" ||
+           base.glyphName == "ain.fina";
   }
 
   GapsInfo gapInfos;
@@ -81,7 +88,7 @@ struct SolverContext {
   ClassSet waqfmarks;
   ClassSet topdotmarks;
   ClassSet downdotmarks;
-  ClassSet bowlbases;
+  ClassSet lowerMarkGapExcludedBases;
 };
 
 }  // namespace digitalkhatt::layout

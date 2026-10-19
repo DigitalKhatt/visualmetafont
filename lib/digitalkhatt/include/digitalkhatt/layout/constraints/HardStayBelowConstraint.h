@@ -8,8 +8,9 @@ namespace digitalkhatt::layout {
 struct HardStayBelowConstraint : XPBDConstraint {
   GlyphInstance& mark;
 
-  // Hard upper bounds
-  double maxGapToBase = 0.0;       // distance BELOW base bottom
+  // Hard upper bounds. A negative base gap raises the bound above the bottom;
+  // -base ink height places it at the top, allowing marks inside a bowl.
+  double maxGapToBase = 0.0;       // signed distance BELOW base bottom
   double maxDistToBaseline = 0.0;  // distance BELOW baseline
 
   // If true, use the base bottom as the single upper bound; otherwise use the

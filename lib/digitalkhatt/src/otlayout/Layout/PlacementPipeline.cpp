@@ -12,7 +12,7 @@ PlacementPipeline::PlacementPipeline(OtLayout& layout, double emScale)
     : layout_(layout), emScale_(emScale) {}
 
 void PlacementPipeline::collectCollisions(const std::vector<LineLayoutInfo>& page,
-    PlacementPage& result, double minimumGap, std::vector<ConstraintViolation>& violations) {
+                                          PlacementPage& result, double minimumGap, std::vector<ConstraintViolation>& violations) {
   std::size_t count = 0;
   for (const auto& line : result.glyphs) count += line.size();
   result.collisionGeometry.clear();
@@ -31,7 +31,8 @@ void PlacementPipeline::collectCollisions(const std::vector<LineLayoutInfo>& pag
       auto found = collisionGeometry_.find(outline);
       if (found == collisionGeometry_.end())
         found = collisionGeometry_.emplace(outline, geometry::buildConvexPartsFromCubics(
-            geometry::getGlyphCubic(outline->copiedPath), geometry::CUBIC_FLATNESS_TOLERANCE)).first;
+                                                        geometry::getGlyphCubic(outline->copiedPath), geometry::CUBIC_FLATNESS_TOLERANCE))
+                    .first;
       x -= positioned.x_advance * line.horizontalScale();
       const double px = x + positioned.x_offset * line.horizontalScale();
       const double py = y + positioned.y_offset * line.fontSize;
@@ -49,7 +50,7 @@ void PlacementPipeline::collectCollisions(const std::vector<LineLayoutInfo>& pag
     v.severity = -v.residual;
     v.diagnostic = "save-collision";
     v.detail = c.contact.depth_or_gap < 0.0 ? "Ink intersection (Save Collision)"
-                                          : "Clearance below Save Collision minimum";
+                                            : "Clearance below Save Collision minimum";
     v.glyphA = static_cast<int>(c.first);
     v.glyphB = static_cast<int>(c.second);
     v.markerCount = 2;
@@ -60,10 +61,10 @@ void PlacementPipeline::collectCollisions(const std::vector<LineLayoutInfo>& pag
 }
 
 PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
-    const OptParams& params, bool force, bool report) {
+                                       const OptParams& params, bool force, bool report) {
   PlacementPage result;
   auto classes = layout_.glyphClasses();
-  if (!classes.contains("bowlbases")) classes["bowlbases"] = {"hah.isol", "hah.fina"};
+  if (!classes.contains("lowerMarkGapExcludedBases")) classes["lowerMarkGapExcludedBases"] = {"hah.isol", "hah.fina"};
   const auto& marks = classesOrEmpty(classes, "marks");
   const auto& top = classesOrEmpty(classes, "topmarks");
   const auto& dots = classesOrEmpty(classes, "topdotmarks");
@@ -103,7 +104,8 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
         if (const auto clearance = layout_.markBaselineClearance(positioned.codepoint, positioned.parameters)) g.baselineClearance = *clearance * line.fontSize;
       }
       g.justificationAddedLeftTatweel = positioned.justificationAddedLeftTatweel;
-      g.lineIndex = l; g.glyphIndex = i;
+      g.lineIndex = l;
+      g.glyphIndex = i;
       g.lineY = y;
       g.baseX = x + positioned.x_offset * xscale;
       g.baseY = y + positioned.y_offset * line.fontSize;
@@ -127,12 +129,12 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
   }
   if (!force) options.maxIters = 0;
   optimizePage(result.glyphs, classes, options, report ? &result.violations : nullptr,
-      force ? InitialPositioning::Apply : InitialPositioning::Skip);
+               force ? InitialPositioning::Apply : InitialPositioning::Skip);
   if (force) {
     for (size_t l = 0; l < page.size(); ++l)
       for (size_t i = 0; i < result.glyphs[l].size(); ++i)
         applySolvedGlyphOffsets(page[l].glyphs[i], result.glyphs[l][i],
-            page[l].horizontalScale(), page[l].fontSize);
+                                page[l].horizontalScale(), page[l].fontSize);
   }
   if (collisionReport) collectCollisions(page, result, params.collisionReportMinGap, result.violations);
   if (report) {
@@ -152,8 +154,8 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
       if (prior != before.end()) v.initialSeverity = prior->second.first;
       v.introduced = force && prior == before.end();
       v.worsened = force && prior != before.end() &&
-          (v.waqf ? violationReportSeverity(v) > prior->second.second + params.tolCollision
-                  : v.severity > prior->second.first + params.tolCollision);
+                   (v.waqf ? violationReportSeverity(v) > prior->second.second + params.tolCollision
+                           : v.severity > prior->second.first + params.tolCollision);
     }
   }
   return result;

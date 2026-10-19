@@ -496,8 +496,8 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
   // the loop; the members are excluded from the generic gap there.
   MarkGroups bowlMarkGroups;
 
-  // Bowl membership is per base: an eligible non-above mark on a base in the
-  // bowlbases allowlist enrolls all of that base's eligible non-above marks.
+  // Bowl membership is geometric and independent of the gap-exclusion list.
+  // An eligible non-above mark enrolls its base's other non-above marks.
   std::unordered_set<GlyphInstance*> bowlBases;
   if (P.toggles.bowlCluster) {
     for (auto& gRef : glyphs) {
@@ -506,7 +506,7 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
       const bool isAbove = solverContext.topmarks.contains(g.glyphName) ||
                            solverContext.topdotmarks.contains(g.glyphName);
       if (isAbove) continue;
-      if (solverContext.isBowlBase(*g.prevBase)) {
+      if (solverContext.hasBowlInterior(*g.prevBase)) {
         bowlBases.insert(g.prevBase);
       }
     }
@@ -543,6 +543,17 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
                              solverContext.topdotmarks.contains(mark.glyphName);
     const bool isBelowMark = solverContext.lowmarks.contains(mark.glyphName) ||
                              solverContext.downdotmarks.contains(mark.glyphName);
+
+    // Even manually positioned bowl marks must not rise above their base.
+    // Add this before their exclusion without changing the existing gap policy.
+    // Bases stay fixed during XPBD: bottom - (-height) is their ink top.
+    const bool bowlLowerMark = !isAboveMark && isBelowMark &&
+                               solverContext.hasBowlInterior(*mark.prevBase);
+    if (bowlLowerMark && P.toggles.hardStayAboveBelow)
+      constraints.hard.push_back(std::make_unique<HardStayBelowConstraint>(
+          mark, P.compliance.hardStayBelow,
+          /*maxGapToBase=*/-boxHeight(*mark.prevBase), /*maxDistToBaseline=*/0.0,
+          /*useBaseBottom=*/true));
 
     // Authored bowl interiors retain their dedicated placement policy.
     const bool manuallyPositioned = isManuallyPositionedMark(mark, solverContext);
@@ -585,14 +596,8 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
           constraints.hard.push_back(std::make_unique<HardStayAboveConstraint>(
               mark, P.compliance.hardStayAbove, /*minGapToBase=*/0.0, minDistFromBaseline, /*useBaseTop=*/false, true));
         }
-      } else if (isBelowMark) {
-        // A bowl-base below-mark would have hit the manuallyPositioned
-        // continue above, so isBowlBase is never true here.
-        // Ain's authored interior anchors are exempt only from this rail;
-        // keep their ordinary gap and association constraints active.
-        const auto& baseName = mark.prevBase->glyphName;
-        const bool ainBowl = baseName == "ain.isol" || baseName == "ain.fina";
-        if (P.toggles.hardStayAboveBelow && !ainBowl) {
+      } else if (isBelowMark && !bowlLowerMark) {
+        if (P.toggles.hardStayAboveBelow) {
           constraints.hard.push_back(std::make_unique<HardStayBelowConstraint>(
               mark, P.compliance.hardStayBelow, /*maxGapToBase=*/0.0, /*maxDistToBaseline=*/0.0,
               /*useBaseBottom=*/false, /*testBothReferences=*/true,

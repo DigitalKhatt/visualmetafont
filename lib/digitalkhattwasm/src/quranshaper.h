@@ -1108,8 +1108,8 @@ private:
     }
 
     auto solverClasses = classes;
-    if (!solverClasses.contains("bowlbases")) {
-      solverClasses["bowlbases"] = {"hah.isol", "hah.fina", "ain.fina"};
+    if (!solverClasses.contains("lowerMarkGapExcludedBases")) {
+      solverClasses["lowerMarkGapExcludedBases"] = {"hah.isol", "hah.fina", "ain.fina"};
     }
     digitalkhatt::layout::OptParams solverParams;
     digitalkhatt::layout::optimizePage(pageGlyphs, solverClasses, solverParams);

@@ -11,7 +11,7 @@ SolverContext::SolverContext(std::vector<std::vector<GlyphInstance>>& pageGlyphs
   waqfmarks = classesOrEmpty(classes, "waqfmarks");
   topdotmarks = classesOrEmpty(classes, "topdotmarks");
   downdotmarks = classesOrEmpty(classes, "downdotmarks");
-  bowlbases = classesOrEmpty(classes, "bowlbases");
+  lowerMarkGapExcludedBases = classesOrEmpty(classes, "lowerMarkGapExcludedBases");
 }
 
 }  // namespace digitalkhatt::layout

@@ -20,7 +20,7 @@ bool isManuallyPositionedMark(const GlyphInstance& mark, const SolverContext& co
         [&](const auto& line) { return std::any_of(line.begin(), line.end(),
             [&](const auto& g) { return &g == base.prevBase; }); });
   };
-  if (below && context.isBowlBase(base)) return true;
+  if (below && context.excludesLowerMarksFromGap(base)) return true;
   // Preserve the original anchored-dot exception outside an eligible pair,
   // including when the preceding Reh/Waw belongs to another word or line.
   if (!context.downdotmarks.contains(mark.glyphName) ||
@@ -115,12 +115,14 @@ void collectPlacementViolations(const SolverContext& context,
       // whole-ink rails; existing contextual anchors can lie inside base ink.
       if (above != below && !isManuallyPositionedMark(mark, context)) {
         const double rail = above ? std::min(bb.maxy, base->lineY)
-                                  : std::max(bb.miny, base->lineY);
+                                  : context.hasBowlInterior(*base) ? bb.maxy
+                                                                 : std::max(bb.miny, base->lineY);
         const double residual = above ? rail - cy : cy - rail;
         if (residual > 0.0) {
           auto v = diagnostic(mark, ViolationType::MarkSide,
               above ? "Top mark center is below its base/baseline reference"
-                    : "Bottom mark center is above its base/baseline reference");
+                    : context.hasBowlInterior(*base) ? "Bottom mark center is above its bowl's top"
+                                                    : "Bottom mark center is above its base/baseline reference");
           v.residual = v.severity = residual;
           v.glyphB = base->globalIndex;
           v.markerCount = 2;
