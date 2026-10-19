@@ -1334,6 +1334,62 @@ void currentGapChecksCompactClearanceAgainstNeighborDots() {
       "Compact clearance must affect only current-gap eligibility, not relocated slots");
 }
 
+void adaptiveGapEscapeRequiresPersistentLocalSqueezing() {
+  require(!OptParams{}.toggles.downwardEscape, "Downward escape must be independently opt-in");
+  for (const std::string mode : {"tight", "roomy", "transient", "pinned", "independent", "off", "late", "top", "small_drop", "shallow_base", "many_repeats", "same_owner", "hamza", "iqlab"}) {
+    Fixture f;
+    f.classes["marks"].insert("onedotdown");
+    f.classes["downdotmarks"].insert("onedotdown");
+    auto& owner = f.add("behshape.medi", 0, 0, 200, 30);
+    const std::string name = mode == "top" ? "fatha" : mode == "hamza" ? "hamzabelow" : mode == "iqlab" ? "smalllowmeem" : "onedotdown";
+    if (mode == "hamza") { f.classes["marks"].insert(name); f.classes["lowmarks"].insert(name); }
+    auto& dot = f.add(name, 90, -50, 20, 40);
+    const double space = mode == "roomy" ? 30 : 5;
+    auto& left = f.add("neighbor", -200, -200, 290 - space, 400);
+    f.add("behshape.init", 150, 0, 100, 30);
+    auto& kasra = f.add("kasra", 110 + space, -200, 200, 400);
+    kasra.mobility = 0;
+    kasra.initialPlacement = GlyphInstance::InitialPlacement::CenteredGap;
+    if (mode == "same_owner") kasra.prevBase = &owner;
+    if (mode == "pinned") dot.mobility = 0;
+    SolverContext context(f.page, f.classes);
+    context.rehWawBehPlacement = mode != "independent";
+    std::vector<std::reference_wrapper<GlyphInstance>> glyphs;
+    for (auto& g : f.page[0]) glyphs.push_back(g);
+    OptParams p;
+    p.toggles.downwardEscape = mode != "off";
+    if (mode == "small_drop") p.downwardEscape.maxDescentPercent = 50;
+    if (mode == "shallow_base") p.downwardEscape.maxBelowBasePercent = 75;
+    if (mode == "many_repeats") p.downwardEscape.repeatedCollisions = 100;
+    for (int i = 0; i < 60; ++i) {
+      if (mode == "transient" && i == 2) {
+        left.dx = -500; kasra.dx = 500;
+        updateWorldPolys(left); updateWorldPolys(kasra);
+      }
+      beginGapPass(context, glyphs, p, mode == "late" ? 5 : 60 - i);
+      double penetration = 0;
+      solveGapConstraint(context, left, dot, p, 1.0, penetration);
+      solveGapConstraint(context, dot, kasra, p, 1.0, penetration);
+    }
+    const auto it = context.gapSqueezes.find(&dot);
+    const bool active = it != context.gapSqueezes.end() && it->second.active;
+    if (mode == "tight" || mode == "independent") {
+      require(active && dot.dy < -0.75 * boxHeight(dot) &&
+              boxTopY(dot) >= boxBottomY(owner) - 1.25 * boxHeight(dot) - 1e-6 &&
+              dot.dy >= -boxHeight(dot) - 1e-6,
+          "Persistent opposing contacts must gain a downward gap response bounded by the mark's own base and input");
+    } else if (mode == "small_drop" || mode == "shallow_base") {
+      require(active && dot.dy < -15 && dot.dy >= -20 - 1e-6,
+          "Both configurable descent limits must cap the gap response independently");
+    } else {
+      require(!active && dot.dy == 0,
+          "Transient, roomy, fixed, disabled, high-repeat-count, late-budget and upper-mark contacts must not start downward escape");
+    }
+    require(kasra.dy == 0 && kasra.dx == (mode == "transient" ? 500 : 0) && owner.dx == 0 && owner.dy == 0,
+        "Adaptive gap escape must preserve centered-kasra and base mobility zero");
+  }
+}
+
 void belowFallbackCannotEscapeUnderAnotherBase() {
   Fixture f;
   f.classes["marks"].insert("twodotsdown");
@@ -1576,6 +1632,7 @@ int main() {
     belowReferenceUsesTipGapWhenCompactClearanceIsLarger();
     compactClearanceCannotRejectOrDisplaceLeftSlots();
     currentGapChecksCompactClearanceAgainstNeighborDots();
+    adaptiveGapEscapeRequiresPersistentLocalSqueezing();
     belowFallbackCannotEscapeUnderAnotherBase();
     linkedBelowKasraUsesTheSameInkFloor();
     currentGapCannotBypassLeftSlotRules();

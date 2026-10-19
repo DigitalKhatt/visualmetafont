@@ -70,6 +70,7 @@ struct WaqfPlacementConstraint : XPBDConstraint {
 
   void project(SolverContext& solverContext, double dt) override;
   double escapeMinimumBottom(const SolverContext& context) const;
+  double preferredBottom(const SolverContext& context) const;
   void reportViolations(SolverContext& solverContext,
                         std::vector<ConstraintViolation>& out) const override;
 };

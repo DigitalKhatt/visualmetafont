@@ -149,6 +149,16 @@ leash. Neighboring-mark spacing uses `compliance.rehWawBelowMarkGap` (1.0),
 while bottom preference uses `compliance.rehWawBelowBottom` (0.2). The separate
 initial clearance is not enforced by a final projection after bounds. Base ink
 and next-line contacts remain unchanged.
+The separate `toggles.downwardEscape` option (default false) enables a downward
+ordinary-gap response for any squeezed movable lower dot or kasra, independently of
+Reh/Waw placement. `downwardEscape.repeatedCollisions` stalled completed
+iterations (default 3), opposing normals and clearance below 20 units are
+required. Same-owner attachment contacts are not squeeze evidence. Centered marks remain fixed. `maxDescentPercent` (default 100) limits
+extra descent from initial placement; `maxBelowBasePercent` (default 125)
+limits the mark top below its owner bottom. Both are percentages of mark height
+in the `downwardEscape` settings object, and the closer limit applies.
+New escapes need six remaining solver iterations; the bias fades toward zero
+as clearance opens to 40. No slot search or final position projection is added.
 Left and below dots remain movable during XPBD. Proposed owner groups are
 validated together before application.
 

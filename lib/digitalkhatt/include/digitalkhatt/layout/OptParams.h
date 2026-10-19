@@ -20,6 +20,7 @@ struct ConstraintToggles {
   bool matchMarkPosition = true;     // kasra + smalllowmeem cohesion
   bool bowlCluster = false;           // center marks trapped inside a bowl base
   bool genericGapConstraint = true;  // broadphase never-overlap pass
+  bool downwardEscape = false;      // opt-in: adaptive gap response for squeezed lower marks
   bool reportViolations = false;     // post-solve diagnostic PDF + log
 
   // GenericGap has no per-instance constraint objects (it's a free function
@@ -81,6 +82,12 @@ struct RehWawPlacementParams {
   double overhangLimit = 14.0;
   bool oneDotBelowTip = true;  // false: do not force one dot below the tip
   bool twoDotsBelowTip = true; // false: do not force two dots below the tip
+};
+
+struct DownwardEscapeParams {
+  int repeatedCollisions = 3;       // consecutive stalled, squeezed iterations
+  double maxDescentPercent = 100.0; // % of mark height beyond adjusted initial placement
+  double maxBelowBasePercent = 125.0; // mark top below owner bottom, % of mark height
 };
 
 struct OptParams {
@@ -157,6 +164,7 @@ struct OptParams {
   ConstraintToggles toggles;
   ConstraintCompliance compliance;
   RehWawPlacementParams rehWaw;
+  DownwardEscapeParams downwardEscape;
 };
 
 }  // namespace digitalkhatt::layout

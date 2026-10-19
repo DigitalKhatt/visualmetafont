@@ -717,6 +717,8 @@ void solvePageConstraints(const GlyphSequence& glyphs,
   const double toleranceSquared = P.tolCollision * P.tolCollision;
   for (int iter = 0; iter < P.maxIters; ++iter) {
     for (auto& ref : glyphs) ref.get().iterationMaxMovementSquared = 0.0;
+    const bool gapEscapePending = P.toggles.genericGapConstraint &&
+        beginGapPass(solverContext, glyphs, P, P.maxIters - iter);
     // Consume the previous ordinary gap pass, then clear its samples. The
     // existing broadphase/contact pass below handles any induced movement.
     for (auto& escape : constraints.waqfEscapes) {
@@ -761,7 +763,7 @@ void solvePageConstraints(const GlyphSequence& glyphs,
       const bool hardBoundUnresolved = std::any_of(remaining.begin(), remaining.end(), [&](const auto& v) {
         return v.kind == ViolationKind::Hard && v.severity > P.tolCollision;
       });
-      if (!hardBoundUnresolved) break;
+      if (!hardBoundUnresolved && !gapEscapePending) break;
     }
   }
 }

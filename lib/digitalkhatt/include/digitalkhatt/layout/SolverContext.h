@@ -39,6 +39,7 @@ struct SolverContext {
   }
 
   GapsInfo gapInfos;
+  std::unordered_map<const GlyphInstance*, GapSqueezeState> gapSqueezes;
   bool rehWawBehPlacement = false;
   // Registered by the opt-in setup. Across lines these lower marks yield to
   // the next line's ink, instead of displacing its top-mark/Waqf stacks.

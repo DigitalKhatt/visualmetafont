@@ -5,6 +5,7 @@
 
 #include "digitalkhatt/layout/SolverContext.h"
 #include "digitalkhatt/layout/BelowMarkPlacement.h"
+#include "digitalkhatt/layout/GlyphInstanceUtils.h"
 #include "digitalkhatt/layout/ConstraintViolation.h"
 #include "digitalkhatt/layout/SweepBroadphase.h"
 #include "digitalkhatt/layout/constraints/WaqfEscapeConstraint.h"
@@ -47,10 +48,111 @@ double effectiveGapCompliance(const GlyphInstance& A, const GlyphInstance& B, do
 }
 
 namespace {
+constexpr double squeezeInkGap = 20.0;
+constexpr int squeezeMinimumRemainingIterations = 6;
+constexpr double squeezeProgress = 0.5;
+
 bool softBelowMarkPair(const SolverContext& context, const GlyphInstance& A, const GlyphInstance& B) {
   return A.isMark && B.isMark && A.lineIndex == B.lineIndex && A.prevBase != B.prevBase &&
       (context.belowFallbackMarks.contains(&A) || context.belowFallbackMarks.contains(&B));
 }
+
+void recordSqueezeContact(SolverContext& context, const GlyphInstance& mark,
+    const GlyphInstance& obstacle, geometry::Vec2 away, double gap, double target, const OptParams& P) {
+  if (!P.toggles.downwardEscape || !mark.isMark || mark.mobility <= 0.0 || !mark.prevBase ||
+      (!isKasraMark(mark) && !context.downdotmarks.contains(mark.glyphName)) ||
+      (obstacle.isMark && mark.prevBase == obstacle.prevBase) ||
+      mark.lineIndex != obstacle.lineIndex ||
+      (mark.wordIndex >= 0 && obstacle.wordIndex >= 0 && mark.wordIndex != obstacle.wordIndex) ||
+      gap >= target || std::abs(away.x) < 0.2) return;
+  auto& state = context.gapSqueezes.try_emplace(&mark).first->second;
+  auto& closest = away.x > 0.0 ? state.leftGap : state.rightGap;
+  auto& index = away.x > 0.0 ? state.left : state.right;
+  if (gap < closest) { closest = gap; index = obstacle.globalIndex; }
+}
+
+const GapSqueezeState* squeezeState(const SolverContext& context, const GlyphInstance& mark) {
+  if (context.gapSqueezes.empty()) return nullptr;
+  const auto it = context.gapSqueezes.find(&mark);
+  return it == context.gapSqueezes.end() || !it->second.active ? nullptr : &it->second;
+}
+
+bool earlyWaqfOwnStack(const SolverContext& context, const GlyphInstance& mark,
+    const GlyphInstance& waqf) {
+  if (context.waqfEscapes.empty() || !mark.isTopMark || mark.prevBase != waqf.prevBase ||
+      context.isWaqf(mark)) return false;
+  const auto* escape = context.waqfEscapes[waqf.globalIndex];
+  return escape && escape->active && escape->startedFromInitialSqueeze;
+}
+
+geometry::Vec2 gapResponse(const GapSqueezeState* state, geometry::Vec2 away,
+    bool horizontalOnly = false) {
+  // An oblique contact response keeps its horizontal separation arm and adds
+  // a downward preference. With bias <= 1.5, dot(away,response) stays >= .25,
+  // so this remains a separating direction even for an upward-facing normal.
+  if (state) away.y -= state->downwardBias * std::abs(away.x);
+  // During an initial waqf escape, its own top marks may give way sideways,
+  // but the contact must not press them down into their dots/harakat stack.
+  // Their vertical mobility under all other constraints stays unchanged.
+  if (horizontalOnly) away.y = 0.0;
+  return away;
+}
+
+void applyGapMove(GlyphInstance& mark, geometry::Vec2 move, const GapSqueezeState* state) {
+  if (state && move.y < 0.0) {
+    // Directional mobility at the owner's local descent limit. Do not force
+    // a mark upward if another constraint already put it below this limit.
+    move.y = std::max(move.y, -std::max(0.0, boxTopY(mark) - state->minimumTop));
+  }
+  mark.dx += move.x; mark.dy += move.y;
+  updateWorldPolys(mark);
+}
+}
+
+bool beginGapPass(SolverContext& context,
+    const std::vector<std::reference_wrapper<GlyphInstance>>& glyphs, const OptParams& P,
+    int iterationsRemaining) {
+  if (!P.toggles.downwardEscape) { context.gapSqueezes.clear(); return false; }
+  const int repeats = std::clamp(P.downwardEscape.repeatedCollisions, 1, 100);
+  bool pending = false;
+  for (auto& [mark, state] : context.gapSqueezes) {
+    // Count unresolved contacts in the previous iteration's FINAL geometry,
+    // not transient intersections created halfway through the pair pass.
+    auto finalGap = [&](int& index, bool left) {
+      if (index < 0 || static_cast<size_t>(index) >= glyphs.size())
+        return std::numeric_limits<double>::infinity();
+      const auto contact = geometry::getDistance(mark->worldPolys, glyphs[index].get().worldPolys, 2 * squeezeInkGap).contact;
+      const auto away = contact.normal * -1.0;
+      if ((left ? away.x : -away.x) < 0.2) { index = -1; return std::numeric_limits<double>::infinity(); }
+      return contact.depth_or_gap;
+    };
+    state.leftGap = finalGap(state.left, true);
+    state.rightGap = finalGap(state.right, false);
+    const double gap = std::min(state.leftGap, state.rightGap);
+    const bool squeezed = state.left >= 0 && state.right >= 0 && gap < squeezeInkGap;
+    const bool sameObstacles = state.left == state.previousLeft && state.right == state.previousRight;
+    const double progressThreshold = std::max(squeezeProgress, 0.01 * boxHeight(*mark));
+    const bool improving = gap > state.previousGap + progressThreshold;
+    state.stalledIterations = !squeezed ? 0 : sameObstacles && !improving ? state.stalledIterations + 1 : 1;
+    if (!state.active && state.stalledIterations >= repeats && mark->prevBase &&
+        iterationsRemaining >= squeezeMinimumRemainingIterations) {
+      const double height = boxHeight(*mark);
+      const double initialTop = boxTopY(*mark) - mark->dy + mark->initialPositioningDy;
+      const double maxDrop = std::clamp(P.downwardEscape.maxDescentPercent, 0.0, 500.0) * height / 100.0;
+      const double baseDepth = std::clamp(P.downwardEscape.maxBelowBasePercent, 0.0, 500.0) * height / 100.0;
+      state.minimumTop = std::max(boxBottomY(*mark->prevBase) - baseDepth, initialTop - maxDrop);
+      if (boxTopY(*mark) > state.minimumTop) state.active = true;
+    }
+    pending |= !state.active && squeezed && state.stalledIterations < repeats &&
+               iterationsRemaining >= squeezeMinimumRemainingIterations + repeats - state.stalledIterations;
+    // Fade the preference after the small ink gap opens. The 80-unit comfort
+    // target alone never starts or sustains a downward escape.
+    state.downwardBias = state.active ? 1.5 * std::clamp((2 * squeezeInkGap - gap) / squeezeInkGap, 0.0, 1.0) : 0.0;
+    state.previousLeft = state.left; state.previousRight = state.right; state.previousGap = gap;
+    state.left = state.right = -1;
+    state.leftGap = state.rightGap = std::numeric_limits<double>::infinity();
+  }
+  return pending;
 }
 
 double effectiveGapCompliance(const SolverContext& context, const GlyphInstance& A,
@@ -129,6 +231,9 @@ void solveGapConstraint(SolverContext& solverContext,
 
   double C = dr.contact.depth_or_gap - gmin;  // want C >= 0
 
+  if (wA > 0.0) recordSqueezeContact(solverContext, A, B, dr.contact.normal * -1.0, dr.contact.depth_or_gap, gmin, P);
+  if (wB > 0.0) recordSqueezeContact(solverContext, B, A, dr.contact.normal, dr.contact.depth_or_gap, gmin, P);
+
   if (C < 0.0 && !solverContext.waqfEscapes.empty()) {
     if (auto* escape = solverContext.waqfEscapes[A.globalIndex]; escape && wA > 0.0)
       escape->recordContact(B, dr.contact.normal * -1.0, dr.contact.depth_or_gap, gmin);
@@ -158,18 +263,42 @@ void solveGapConstraint(SolverContext& solverContext,
 
   double& lambda = gapInfo.lambda;
 
+  const auto* escapeA = P.toggles.downwardEscape ? squeezeState(solverContext, A) : nullptr;
+  const auto* escapeB = P.toggles.downwardEscape ? squeezeState(solverContext, B) : nullptr;
+  if (gapInfo.escapingA != (escapeA != nullptr) || gapInfo.escapingB != (escapeB != nullptr)) {
+    // A new response direction starts a fresh contact multiplier, rather than
+    // inheriting a spring equilibrium computed before the squeeze activated.
+    lambda = 0.0;
+    gapInfo.escapingA = escapeA != nullptr; gapInfo.escapingB = escapeB != nullptr;
+  }
+
   maxPenetration = std::min(maxPenetration, C);
 
   Vec2 n = dr.contact.normal;
+  const bool horizontalA = earlyWaqfOwnStack(solverContext, A, B);
+  const bool horizontalB = earlyWaqfOwnStack(solverContext, B, A);
+  const auto responseA = gapResponse(escapeA, n * -1.0, horizontalA);
+  const auto responseB = gapResponse(escapeB, n, horizontalB);
 
   // XPBD parameters
   double alpha = compliance / (dt * dt);
 
-  double denom = wA + wB + alpha;
+  const double weight = !escapeA && !escapeB && !horizontalA && !horizontalB ? wA + wB :
+      wA * geometry::dot(n * -1.0, responseA) + wB * geometry::dot(n, responseB);
+  double denom = weight + alpha;
   if (denom < 1e-9)
     return;
 
   double deltaLambda = (-C - alpha * lambda) / denom;
+
+  // Escape by small contact steps, not a single jump across the neighboring
+  // letter. The owner-relative floor below also limits cumulative descent.
+  double maxStep = std::numeric_limits<double>::infinity();
+  if (escapeA && wA > 0.0)
+    maxStep = std::min(maxStep, boxHeight(A) * 0.125 / (wA * geometry::len(responseA)));
+  if (escapeB && wB > 0.0)
+    maxStep = std::min(maxStep, boxHeight(B) * 0.125 / (wB * geometry::len(responseB)));
+  deltaLambda = std::clamp(deltaLambda, -maxStep, maxStep);
 
   // Enforce inequality: lambda >= 0
   double lambdaNew = std::max(0.0, lambda + deltaLambda);
@@ -178,17 +307,11 @@ void solveGapConstraint(SolverContext& solverContext,
 
   gapInfo.count++;
   if (wA > 0.0) {
-    Vec2 corrA = n * (-wA * deltaLambda);
-    A.dx += corrA.x;
-    A.dy += corrA.y;
-    updateWorldPolys(A);
+    applyGapMove(A, responseA * (wA * deltaLambda), escapeA);
   }
 
   if (wB > 0.0) {
-    Vec2 corrB = n * (wB * deltaLambda);
-    B.dx += corrB.x;
-    B.dy += corrB.y;
-    updateWorldPolys(B);
+    applyGapMove(B, responseB * (wB * deltaLambda), escapeB);
   }
 }
 
@@ -231,7 +354,14 @@ void collectGapViolations(
     // suppress -- conservative, avoids hiding a genuine issue.
     const double compliance = effectiveGapCompliance(solverContext, A, B, P, gmin);
     const auto [wA, wB] = gapMobilities(solverContext, A, B);
-    const double w = wA + wB;
+    const auto n = dr.contact.normal;
+    const auto* escapeA = P.toggles.downwardEscape ? squeezeState(solverContext, A) : nullptr;
+    const auto* escapeB = P.toggles.downwardEscape ? squeezeState(solverContext, B) : nullptr;
+    const bool horizontalA = earlyWaqfOwnStack(solverContext, A, B);
+    const bool horizontalB = earlyWaqfOwnStack(solverContext, B, A);
+    const double w = !escapeA && !escapeB && !horizontalA && !horizontalB ? wA + wB :
+        wA * geometry::dot(n * -1.0, gapResponse(escapeA, n * -1.0, horizontalA)) +
+        wB * geometry::dot(n, gapResponse(escapeB, n, horizontalB));
     const auto gapIt = solverContext.gapInfos.find(GapKey{&A, &B});
     const double initialC =
         (gapIt != solverContext.gapInfos.end() && gapIt->second.hasInitialC)

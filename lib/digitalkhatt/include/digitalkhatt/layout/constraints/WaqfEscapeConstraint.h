@@ -30,10 +30,14 @@ struct WaqfEscapeConstraint : XPBDConstraint {
   std::vector<WaqfEscapeContact> contacts;
   double previousGap = std::numeric_limits<double>::infinity();
   double targetOffset = 0.0; // relative to the owning base's ink left edge
+  double leftBandMinimum = 0.0; // far edge of the early soft left band
   double targetBottomOffset = 0.0; // relative to the owning baseline
   double lambdaDown = 0.0;
   int stalledIterations = 0;
   bool active = false;
+  bool initialContactsChecked = false;
+  bool startedFromInitialSqueeze = false;
+  bool bandRelaxed = false;
 
   WaqfEscapeConstraint(WaqfPlacementConstraint& placement_, const OptParams& params_);
   void recordContact(const GlyphInstance& obstacle, geometry::Vec2 normal,
@@ -41,6 +45,10 @@ struct WaqfEscapeConstraint : XPBDConstraint {
   void project(SolverContext& context, double dt) override;
   void reportViolations(SolverContext& context,
                         std::vector<ConstraintViolation>& out) const override;
+
+ private:
+  bool seedInitialSqueeze(SolverContext& context);
+  double opposedStackCompression(const SolverContext& context, double bandResidual) const;
 };
 
 } // namespace digitalkhatt::layout

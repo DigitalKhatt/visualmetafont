@@ -7,6 +7,7 @@
 #include <QEventLoop>
 #include <QGroupBox>
 #include <QSettings>
+#include <QSpinBox>
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -61,6 +62,23 @@ int main(int argc, char** argv) {
         "Closed content must not retain a blank expanding viewport");
     require(params.toggles.genericGapConstraint, "Closing a section must not disable its constraints");
 
+    auto* downward = field<QGroupBox>(widget, "toggle.downwardEscape");
+    auto* gaps = field<QGroupBox>(widget, "toggle.genericGapConstraint");
+    require(!downward->isChecked(), "Downward escape must default to disabled independently of Reh/Waw");
+    downward->setChecked(true);
+    field<QSpinBox>(widget, "downwardEscape.repeatedCollisions")->setValue(7);
+    field<QDoubleSpinBox>(widget, "downwardEscape.maxDescentPercent")->setValue(140);
+    field<QDoubleSpinBox>(widget, "downwardEscape.maxBelowBasePercent")->setValue(180);
+    require(params.toggles.downwardEscape && !params.toggles.rehWawBehPlacement && downward->isEnabled() &&
+            params.downwardEscape.repeatedCollisions == 7 && params.downwardEscape.maxDescentPercent == 140 &&
+            params.downwardEscape.maxBelowBasePercent == 180,
+        "Downward escape controls must update live parameters with Reh/Waw disabled");
+    gaps->setChecked(false);
+    require(!downward->isEnabled() && downward->isChecked() && params.toggles.downwardEscape,
+        "Disabling collision avoidance must suspend downward escape without losing its saved choice");
+    gaps->setChecked(true);
+    require(downward->isEnabled(), "Restoring collision avoidance must restore the independent escape control");
+
     require(!widget.findChild<QDoubleSpinBox*>("compliance.rehWawDotTarget"),
         "Initial-positioned dots must not expose an obsolete point-target compliance control");
     auto* special = field<QToolButton>(widget, "ui.placementSection.header.4");
@@ -90,6 +108,9 @@ int main(int argc, char** argv) {
 
     digitalkhatt::layout::OptParams restored;
     SolverParametersWidget reopened(restored);
+    require(restored.toggles.downwardEscape && restored.downwardEscape.repeatedCollisions == 7 &&
+            restored.downwardEscape.maxDescentPercent == 140 && restored.downwardEscape.maxBelowBasePercent == 180,
+        "Independent escape and both descent bounds must survive reopening the GUI");
     require(restored.rehWaw.tipGap == 44 && restored.rehWaw.dotKasraGap == 65 &&
             restored.rehWaw.compactGap == 18 && restored.rehWaw.leftGap == 33 && restored.rehWaw.preferredGap == 66 && restored.rehWaw.neighborGap == 55 &&
             restored.rehWaw.overhangPercent == 8 && restored.rehWaw.overhangLimit == 12 &&
@@ -140,6 +161,11 @@ int main(int argc, char** argv) {
       field<QToolButton>(preview, "ui.placementSection.header.4")->click();
       app.processEvents();
       require(preview.grab().save(directory.filePath("collapsed.png")), "Save collapsed panel preview");
+      field<QToolButton>(preview, "ui.placementSection.header.0")->click();
+      field<QGroupBox>(preview, "toggle.rehWawBehPlacement")->setChecked(false);
+      field<QGroupBox>(preview, "toggle.downwardEscape")->setChecked(true);
+      app.processEvents();
+      require(preview.grab().save(directory.filePath("downward-escape.png")), "Save independent downward-escape controls");
     }
     std::cout << "Solver parameter controls, persistence and collapsible sections passed\n";
   } catch (const std::exception& e) {

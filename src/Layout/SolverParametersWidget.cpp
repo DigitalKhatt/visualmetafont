@@ -282,6 +282,24 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   auto* gapRules = new QLabel(tr("Attachment exceptions: 40 units for selected marks on their alef, and 10 for the kasra / iqlab meem pair. Base glyphs remain fixed; gap forces act on marks."), gaps.box);
   gapRules->setWordWrap(true);
   gaps.form->addRow(gapRules);
+  auto downward = addConstraint(collisionPage, tr("Downward escape for squeezed lower marks"), settings,
+      "toggle.downwardEscape", toggles.downwardEscape, this, changed);
+  downward.box->setToolTip(tr("A soft downward response inside collision avoidance, independent of Reh/Waw placement. Applies to movable lower dots and kasra with persistent opposing contacts. Same-owner mark attachments do not count as squeezing. Centered marks with zero mobility stay fixed. Requires Resolve gaps and collisions and XPBD/Force."));
+  auto& down = m_params.downwardEscape;
+  addIntRow(downward.form, tr("Repeated collisions"), settings,
+      "downwardEscape.repeatedCollisions", down.repeatedCollisions, 1, 100, this, changed,
+      tr("Number of consecutive stalled solver iterations with opposing contacts and less than 20 units of ink clearance. Improving or transient contacts restart the count. At least six solver iterations must remain when escape starts."));
+  addDoubleRow(downward.form, tr("Maximum descent"), settings,
+      "downwardEscape.maxDescentPercent", down.maxDescentPercent, 0, 500, 5, 1, this, changed,
+      tr("Maximum extra downward movement from the adjusted initial position, as a percentage of the moving mark's ink height. 100% means one full mark height; 0 prevents extra descent. The base-relative limit also applies."), percent);
+  addDoubleRow(downward.form, tr("Maximum depth below base"), settings,
+      "downwardEscape.maxBelowBasePercent", down.maxBelowBasePercent, 0, 500, 5, 1, this, changed,
+      tr("Maximum depth of the mark's TOP below its owning base's ink bottom, as a percentage of mark height. This prevents a mark escaping far below its own base; the closer of the two descent limits is used."), percent);
+  const auto updateDownward = [downward, gaps]() {
+    downward.box->setEnabled(gaps.box->isChecked());
+  };
+  connect(gaps.box, &QGroupBox::toggled, this, updateDownward);
+  updateDownward();
   addNote(collisionPage, tr("Save Collision clearance is a separate reporting setting in the Reports tab."));
 
   auto* association = addSection(constraints, tr("Base association"));
@@ -326,13 +344,13 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
       "toggle.waqfEscape", toggles.waqfEscape, this, changed);
   addDoubleRow(escape.form, tr("Trigger clearance"), settings, "waqfEscapeMinGap", m_params.waqfEscapeMinGap,
       0.0, 1000.0, 1.0, 2, this, changed,
-      tr("Escape starts below this estimated clearance when progress stalls, or immediately when an earlier-line contact opposes contact with the owning top stack."), units);
+      tr("Escape starts below this estimated clearance when progress stalls, or immediately for opposing contacts. An initial outline intersection with the previous line beside an owning top mark closer than this clearance also starts a soft escape before the first contact pass."), units);
   addDoubleRow(escape.form, tr("Left step"), settings, "waqfEscapeStepPercent", m_params.waqfEscapeStepPercent,
       0.0, 100.0, 1.0, 2, this, changed, tr("Target advance per iteration, as a percentage of waqf width."), percent);
   addDoubleRow(escape.form, tr("Down step"), settings, "waqfEscapeDownStepPercent", m_params.waqfEscapeDownStepPercent,
-      0.0, 100.0, 1.0, 2, this, changed, tr("Target advance per iteration, as a percentage of waqf height."), percent);
+      0.0, 100.0, 1.0, 2, this, changed, tr("Target advance per iteration, as a percentage of waqf height. Once an initial squeeze clears, the ordinary preferred height resumes softly. Zero also disables this downward settling."), percent);
   addDoubleRow(escape.form, tr("Maximum left target offset"), settings, "waqfEscapeMaxLeftPercent", m_params.waqfEscapeMaxLeftPercent,
-      0.0, 1000.0, 5.0, 2, this, changed, tr("Cap on the escape target's left offset from the owning base, as a percentage of waqf width."), percent);
+      0.0, 1000.0, 5.0, 2, this, changed, tr("Cap on the escape target's left offset from the owning base, as a percentage of waqf width. An initial squeeze prefers a soft band on the left, with an alignment-band margin inside this limit; ordinary contacts determine the final displacement."), percent);
   escape.box->setToolTip(tr("A soft escape preference for a stalled contact or squeeze against an earlier line. Requires waqf placement and collision avoidance to be enabled."));
   const auto updateEscape = [escape, waqfPlacement, gaps]() {
     escape.box->setEnabled(waqfPlacement.box->isChecked() && gaps.box->isChecked());

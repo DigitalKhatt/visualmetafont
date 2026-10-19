@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <limits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -13,6 +14,27 @@ namespace digitalkhatt::layout {
 
 struct SolverContext;  // defined in SolverContext.h
 struct ConstraintViolation;
+
+// Per-solve contact history, shared across the pairs squeezing one lower mark.
+// Only the ordinary gap pass writes it; reporting is read-only.
+struct GapSqueezeState {
+  int left = -1, right = -1;
+  int previousLeft = -1, previousRight = -1;
+  double leftGap = std::numeric_limits<double>::infinity();
+  double rightGap = std::numeric_limits<double>::infinity();
+  double previousGap = std::numeric_limits<double>::infinity();
+  int stalledIterations = 0;
+  bool active = false;
+  double downwardBias = 0.0;
+  double minimumTop = 0.0;
+};
+
+// Consume the previous pass's squeeze samples before solving this pass's pairs.
+// This changes contact response, never glyph positioning by itself. Returns
+// true while a stalled squeeze needs another sample before convergence.
+bool beginGapPass(SolverContext& context,
+    const std::vector<std::reference_wrapper<GlyphInstance>>& glyphs, const OptParams& params,
+    int iterationsRemaining);
 
 std::pair<double, double> gapMobilities(const SolverContext& context,
     const GlyphInstance& A, const GlyphInstance& B);
@@ -58,6 +80,7 @@ struct GapInfo {
   // residual from a genuine unresolved conflict.
   double initialC = 0;
   bool hasInitialC = false;
+  bool escapingA = false, escapingB = false;
 };
 
 struct GapKeyHasher {

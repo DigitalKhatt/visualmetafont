@@ -93,6 +93,43 @@ collision constraints. `belowMarkGap` selects clear initial below candidates,
 without imposing a second hard mark-to-mark minimum during XPBD. Below fallback
 retains its softer neighboring-mark spacing policy.
 
+The independent **Placement / Collision avoidance / Downward escape for
+squeezed lower marks** option defaults off. It can give any movable lower dot or kasra
+a local downward gap response after a configured number of stalled iterations
+of opposing contacts with less than 20 units of ink clearance. It does not
+require Reh/Waw placement. Collision avoidance and XPBD/Force must be enabled.
+The default repeat count is three. Same-owner mark attachments do not count
+as opposing squeeze evidence; hamza and small iqlab meem retain their ordinary
+attachment behavior. It samples completed iterations,
+not temporary intersections inside a contact pass. Improvement larger than
+0.5 units or 1% of mark height (whichever is larger) restarts the stall count.
+The response retains the ordinary gap compliance and zero-mobility marks stay
+fixed. It fades as the tight gap opens toward 40 units; missing the ordinary
+80-unit comfort target alone does not activate it.
+Each adaptive contact step is at most one eighth of the mark's height. Its
+top cannot descend more than **Maximum descent** (default 100% of its height)
+from the adjusted initial position, or **Maximum depth below base** (default
+125% of mark height) below its own base's ink bottom, whichever limit is closer. These limits apply inside the gap response; there
+is no final position projection. A new escape requires at least six remaining
+iterations to give the ordinary constraints time to settle. Initial slot
+selection and centered-mark mobility are unchanged.
+
+The GUI toggle and these parameters persist independently in QSettings and
+saved `mushaf.settings.json` snapshots:
+
+```json
+"toggles": { "downwardEscape": true },
+"downwardEscape": {
+  "repeatedCollisions": 3,
+  "maxDescentPercent": 100,
+  "maxBelowBasePercent": 125
+}
+```
+
+Percentages use the moving mark's own ink height. Repeat count accepts 1–100;
+percentages accept 0–500. A zero descent allowance prevents additional descent.
+Older snapshots without this option leave it disabled.
+
 During XPBD there is no contextual dot point attraction, repeated slot
 search or special kasra follower in XPBD. Ordinary contacts and directional
 left/below constraints act on movable dots. Ordinary `StackOrderConstraint`
@@ -350,8 +387,9 @@ compatibility target. The binary fields and DKLY version numbers are unchanged.
 
 **Waqf left/down escape** is a separate XPBD preference, enabled by default
 when waqf placement and generic gap forces are enabled. It uses contacts
-already sampled by the ordinary gap pass; there are no extra broadphase scans,
-GJK queries, placement searches, contact sweeps or solver iterations.
+already sampled by the ordinary gap pass. The early case remeasures those few
+contacts against current outlines; it adds no broadphase scans, placement
+searches, contact sweeps or solver iterations.
 
 The preference activates when a previous-line obstacle remains too close to the
 waqf and its estimated clearance stays below 10 font units with less than 10%
@@ -366,9 +404,37 @@ Contact estimates account for translations after sampling;
 they trigger the preference but do not certify final clearance. Final collision
 reporting still uses fresh geometry.
 
+Before the first contact pass, an actual outline intersection with the nearest
+previous populated line plus an owning top mark closer than **Trigger clearance**
+starts a small soft left/down preference immediately. Bounding-box overlap alone
+does not qualify. This handles initial pockets whose nearest penetration normal
+points sideways and would otherwise push the waqf right before escape starts.
+For this early case, a soft band starts on the left side of the ordinary
+**Horizontal alignment band**, or **Maximum left target offset** if smaller.
+Its far edge reserves one alignment-band width inside the maximum left target
+offset; if the interval would invert, it collapses to the near edge. This soft
+band resists both a return right and an excessive drift left. Ordinary contacts
+determine the final displacement. Fresh outline
+distances recheck this case's contacts before advancing the target, so old
+contact normals cannot keep the preference progressing after the pocket clears.
+During these waqf/own-top-mark contacts, the top marks can yield horizontally;
+vertical separation is handled by the waqf. This prevents the waqf from pressing
+its dots and harakat downward into one another. The top marks retain their normal
+vertical mobility under all other constraints. The early downward target advances
+by its configured step rather than adopting a large contact-driven displacement
+as its next target.
+After the previous-line contact clears, an early escape advances its target by
+the configured **Down step** toward ordinary preferred height beside its owning
+stack, stopping when it reaches that height. This remains a soft downward target
+using the configured preferred-height compliance; gap contacts, the visibility
+floor and top ordering remain active. It prevents a clear sign being left at an
+unnecessarily high escape height. A zero **Down step** disables this settlement.
+The owning-stack visibility floor, compliances and iteration limit are unchanged.
+
 While clearance is below the trigger, compliant targets advance left by 5% of
 waqf ink width and downward by 5% of its ink height per iteration. The left
-target is capped at one waqf width left of its base. Descent stops at the owning
+target is capped at one waqf width left of its base (the early case above uses
+its soft left band). Descent stops at the owning
 base's visibility floor (100 units above base ink and 700 above its baseline)
 and keeps the waqf's top at or above every attached top mark's top. During
 escape, overlapping horizontal boxes no longer impose a bottom-above-mark
@@ -377,7 +443,19 @@ top-order rail also enforces the visibility floor for escaping waqf signs.
 Normal placement retains its 50-unit top lift preference before escape activates.
 
 The left preference uses X-align compliance (0.24); descent uses the chosen
-height-target compliance (5.0). Normal soft height/alignment targets yield to
+height-target compliance (5.0). For the early left band, a compressed ordinary
+top mark on the same base can soften the horizontal preference only when its
+contact separation opposes the band's restoring direction. With desired gap
+`g` and freshly measured gap `d`, compression is `clamp((g-d)/g, 0, 1)` and
+effective compliance is `X-align * (1 + 9 * compression)`. On the far-left side,
+compression is additionally weighted by the fraction of the reserved left
+allowance still available: full at the band's far edge, zero at **Maximum left
+target offset**. This keeps the existing association preference as the reserve
+runs out. Clear, aiding, neighboring-base and other-waqf contacts do not soften
+the band; zero X-align compliance remains zero. The multiplier is released on
+entering/leaving relaxation, rather than reset every pass. Ordinary gap
+compliance, visibility bounds and maximum left allowance remain unchanged.
+Normal soft height/alignment targets yield to
 the escape preferences, so each axis has one soft target while escaping.
 Targets stop advancing once trigger clearance is reached and hold for the remainder of the solve. A preference is
 inactive when its target is already satisfied. Contacts can move the glyph

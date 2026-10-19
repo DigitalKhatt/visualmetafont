@@ -531,6 +531,9 @@ int main(int argc,char** argv) {
         !std::isfinite(options.xpbd.waqfEscapeStepPercent) || options.xpbd.waqfEscapeStepPercent<0 || options.xpbd.waqfEscapeStepPercent>100 ||
         !std::isfinite(options.xpbd.waqfEscapeDownStepPercent) || options.xpbd.waqfEscapeDownStepPercent<0 || options.xpbd.waqfEscapeDownStepPercent>100 ||
         !std::isfinite(options.xpbd.waqfEscapeMaxLeftPercent) || options.xpbd.waqfEscapeMaxLeftPercent<0 || options.xpbd.waqfEscapeMaxLeftPercent>1000 ||
+        options.xpbd.downwardEscape.repeatedCollisions<1 || options.xpbd.downwardEscape.repeatedCollisions>100 ||
+        !std::isfinite(options.xpbd.downwardEscape.maxDescentPercent) || options.xpbd.downwardEscape.maxDescentPercent<0 || options.xpbd.downwardEscape.maxDescentPercent>500 ||
+        !std::isfinite(options.xpbd.downwardEscape.maxBelowBasePercent) || options.xpbd.downwardEscape.maxBelowBasePercent<0 || options.xpbd.downwardEscape.maxBelowBasePercent>500 ||
         !std::isfinite(options.emScale) || options.emScale<=0 || options.emScale>5 ||
         options.textWidth<1 || options.textWidth>100000) throw std::runtime_error("Invalid numeric option");
     if (options.pageLayout) {

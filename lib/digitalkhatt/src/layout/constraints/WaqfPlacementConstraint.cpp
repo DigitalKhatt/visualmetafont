@@ -86,6 +86,12 @@ double WaqfPlacementConstraint::escapeMinimumBottom(const SolverContext& context
   return floor.minimum;
 }
 
+double WaqfPlacementConstraint::preferredBottom(const SolverContext& context) const {
+  const auto& base = *waqfMark.prevBase;
+  const auto floor = placementFloor(*this, context, base);
+  return heightTarget(*this, floor, base.lineY + upperCeilingY - boxHeight(waqfMark));
+}
+
 void WaqfTopOrderConstraint::project(SolverContext& solverContext, double) {
   auto& waqf = placement.waqfMark;
   if (waqf.mobility <= 0.0 || !waqf.prevBase) return;
