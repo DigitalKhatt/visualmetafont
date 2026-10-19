@@ -63,7 +63,7 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
     const OptParams& params, bool force, bool report) {
   PlacementPage result;
   auto classes = layout_.glyphClasses();
-  if (!classes.contains("bowlbases")) classes["bowlbases"] = {"hah.isol", "hah.fina", "ain.fina"};
+  if (!classes.contains("bowlbases")) classes["bowlbases"] = {"hah.isol", "hah.fina"};
   const auto& marks = classesOrEmpty(classes, "marks");
   const auto& top = classesOrEmpty(classes, "topmarks");
   const auto& dots = classesOrEmpty(classes, "topdotmarks");

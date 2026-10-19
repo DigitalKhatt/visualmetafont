@@ -588,7 +588,11 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
       } else if (isBelowMark) {
         // A bowl-base below-mark would have hit the manuallyPositioned
         // continue above, so isBowlBase is never true here.
-        if (P.toggles.hardStayAboveBelow) {
+        // Ain's authored interior anchors are exempt only from this rail;
+        // keep their ordinary gap and association constraints active.
+        const auto& baseName = mark.prevBase->glyphName;
+        const bool ainBowl = baseName == "ain.isol" || baseName == "ain.fina";
+        if (P.toggles.hardStayAboveBelow && !ainBowl) {
           constraints.hard.push_back(std::make_unique<HardStayBelowConstraint>(
               mark, P.compliance.hardStayBelow, /*maxGapToBase=*/0.0, /*maxDistToBaseline=*/0.0,
               /*useBaseBottom=*/false, /*testBothReferences=*/true,

@@ -100,6 +100,39 @@ OptParams quiet() {
   return p;
 }
 
+void ainLowerMarksSkipOnlyBelowRail() {
+  for (const auto* base : {"ain.isol", "ain.fina", "ain.init"}) {
+    const bool exempt = std::string(base) != "ain.init";
+    for (const auto* markName : {"kasra", "kasratan", "kasratanidgham", "roundedfilledlow", "smalllowmeem"}) {
+      Fixture f;
+      f.classes["marks"].insert(markName);
+      f.classes["lowmarks"].insert(markName);
+      f.add(base, 0, -100, 100, 200);
+      auto& mark = f.add(markName, 30, 20, 20, 20);
+      auto p = quiet();
+      p.maxIters = 20;
+      p.toggles.hardStayAboveBelow = true;
+      optimizePage(f.page, f.classes, p);
+      require(mark.dx == 0 && (exempt ? mark.dy == 0 : mark.dy < -30),
+          "Only isolated/final Ain lower marks may retain authored positions above the below-mark rail");
+    }
+    if (!exempt) continue;
+    Fixture collision;
+    collision.classes["marks"].insert("kasratan");
+    collision.classes["lowmarks"].insert("kasratan");
+    collision.add(base, 0, -100, 100, 200);
+    auto& mark = collision.add("kasratan", 30, 20, 20, 20);
+    SolverContext context(collision.page, collision.classes);
+    require(!isManuallyPositionedMark(mark, context), "The Ain rail exemption must not become a blanket solver exclusion");
+    auto p = quiet();
+    p.maxIters = 20;
+    p.toggles.hardStayAboveBelow = p.toggles.genericGapConstraint = true;
+    optimizePage(collision.page, collision.classes, p);
+    require(std::abs(mark.dx) + std::abs(mark.dy) > 1,
+        "Generic gap constraints must still move colliding lower marks on both Ain forms");
+  }
+}
+
 bool contains(const std::vector<ConstraintViolation>& v, ViolationType type) {
   return std::any_of(v.begin(), v.end(), [&](const auto& entry) { return entry.type == type; });
 }
@@ -1611,6 +1644,7 @@ void contextualLowerMarksYieldToNextLine() {
 int main() {
   try {
     intentionalMarkHullPolicy();
+    ainLowerMarksSkipOnlyBelowRail();
     independentSideAndOwnerChecks();
     ownershipAndReportContext();
     worldBoundsAndAppliedOffsets();
