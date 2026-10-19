@@ -47,6 +47,18 @@ int main(int argc, char** argv) {
     QSettings().clear();
     digitalkhatt::layout::OptParams params;
     SolverParametersWidget widget(params);
+    require(field<QDoubleSpinBox>(widget, "differentLineGap")->value() == 250,
+        "Different-line gap must be exposed with a 250-unit default");
+    require(field<QDoubleSpinBox>(widget, "compliance.extraLineSpacing")->value() == 1.0,
+        "Extra line spacing compliance must be exposed with a 1.0 default");
+    field<QDoubleSpinBox>(widget, "compliance.extraLineSpacing")->setValue(2.5);
+    require(params.compliance.extraLineSpacing == 2.5 && params.differentLineGap == 250,
+        "Extra line spacing softness must be independent of its distance target");
+    field<QDoubleSpinBox>(widget, "differentWordGap")->setValue(120);
+    require(params.differentLineGap == 250, "Editing the word gap must not change the line gap");
+    field<QDoubleSpinBox>(widget, "differentLineGap")->setValue(300);
+    require(params.differentLineGap == 300 && params.differentWordGap == 120,
+        "The line gap must be independently editable");
     widget.resize(460, 850);
     widget.show();
     app.processEvents();
@@ -79,6 +91,35 @@ int main(int argc, char** argv) {
     gaps->setChecked(true);
     require(downward->isEnabled(), "Restoring collision avoidance must restore the independent escape control");
 
+    require(!widget.findChild<QDoubleSpinBox*>("compliance.waqfTarget") &&
+            !widget.findChild<QDoubleSpinBox*>("compliance.waqfXAlign"),
+        "Removed preferred-height and horizontal-alignment springs must have no GUI controls");
+    require(field<QDoubleSpinBox>(widget, "compliance.waqfMin") &&
+            field<QDoubleSpinBox>(widget, "compliance.waqfMax"),
+        "Safety-bound controls must remain available");
+    auto* waqfFallback = field<QCheckBox>(widget, "toggle.waqfEscape");
+    auto* waqfPlacement = field<QGroupBox>(widget, "toggle.waqfPlacement");
+    require(field<QDoubleSpinBox>(widget, "waqfMinHeight")->value() == 700,
+        "The waqf minimum-height parameter must retain the former 700-unit default");
+    field<QDoubleSpinBox>(widget, "waqfMinHeight")->setValue(800);
+    require(params.waqfMinHeight == 800,
+        "The minimum-height GUI control must update the live solver parameter");
+    require(waqfPlacement->isAncestorOf(waqfFallback) && waqfFallback->isChecked(),
+        "The fallback checkbox must be inside Position waqf marks and retain its enabled default");
+    waqfFallback->setChecked(false);
+    require(!params.toggles.waqfEscape && params.toggles.waqfPlacement &&
+            field<QDoubleSpinBox>(widget, "waqfEscapeMaxLeftPercent")->isEnabled() &&
+            !field<QDoubleSpinBox>(widget, "waqfEscapeMinGap")->isEnabled(),
+        "Disabling fallback must retain initial placement and its shared left allowance");
+    gaps->setChecked(false);
+    require(!waqfFallback->isEnabled(), "Fallback requires ordinary collision forces");
+    gaps->setChecked(true);
+    require(waqfFallback->isEnabled() && !waqfFallback->isChecked(),
+        "Restoring gap forces must retain the disabled fallback choice");
+    waqfPlacement->setChecked(false);
+    require(!waqfFallback->isEnabled(), "Fallback requires waqf placement");
+    waqfPlacement->setChecked(true);
+
     require(!widget.findChild<QDoubleSpinBox*>("compliance.rehWawDotTarget"),
         "Initial-positioned dots must not expose an obsolete point-target compliance control");
     auto* special = field<QToolButton>(widget, "ui.placementSection.header.4");
@@ -108,6 +149,14 @@ int main(int argc, char** argv) {
 
     digitalkhatt::layout::OptParams restored;
     SolverParametersWidget reopened(restored);
+    require(!restored.toggles.waqfEscape && restored.toggles.waqfPlacement,
+        "The disabled fallback choice must survive reopening independently of initial placement");
+    require(restored.waqfMinHeight == 800,
+        "The waqf minimum height must survive reopening the panel");
+    require(restored.compliance.extraLineSpacing == 2.5,
+        "Extra line spacing compliance must survive reopening the panel");
+    require(restored.differentLineGap == 300 && restored.differentWordGap == 120,
+        "Independent line and word gaps must survive reopening the panel");
     require(restored.toggles.downwardEscape && restored.downwardEscape.repeatedCollisions == 7 &&
             restored.downwardEscape.maxDescentPercent == 140 && restored.downwardEscape.maxBelowBasePercent == 180,
         "Independent escape and both descent bounds must survive reopening the GUI");

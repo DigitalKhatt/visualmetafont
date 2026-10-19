@@ -278,7 +278,13 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
       tr("Generic target clearance within one word. Dedicated stacks and the 40 / 10-unit attachment exceptions use their own gaps. Zero requests no extra clearance."), units);
   addDoubleRow(gaps.form, tr("Different-word gap"), settings, "differentWordGap", m_params.differentWordGap,
       0.0, 1000.0, 5.0, 1, this, changed,
-      tr("Target clearance between glyphs of different words, including different lines. Word identity follows spaces in the glyph sequence, not mark positions. XPBD compliance can leave a residual."), units);
+      tr("Target clearance between glyphs of different words on the same line. Word identity follows spaces in the glyph sequence, not mark positions. XPBD compliance can leave a residual."), units);
+  addDoubleRow(gaps.form, tr("Different-line gap"), settings, "differentLineGap", m_params.differentLineGap,
+      0.0, 1000.0, 5.0, 1, this, changed,
+      tr("Target clearance between glyphs on different lines. Base glyphs remain fixed; gap forces act on marks. XPBD compliance can leave a residual."), units);
+  addDoubleRow(gaps.form, tr("Extra line spacing compliance"), settings,
+      "compliance.extraLineSpacing", comp.extraLineSpacing, 0.0, 100.0, 0.1, 3, this, changed,
+      tr("Softness of extra line spacing when the different-line gap exceeds the different-word gap. Higher values make the extra spacing yield more readily. Ordinary cross-line clearance retains compliance 0.1; zero makes the extra spacing rigid."));
   auto* gapRules = new QLabel(tr("Attachment exceptions: 40 units for selected marks on their alef, and 10 for the kasra / iqlab meem pair. Base glyphs remain fixed; gap forces act on marks."), gaps.box);
   gapRules->setWordWrap(true);
   gaps.form->addRow(gapRules);
@@ -333,30 +339,47 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   auto* waqf = addSection(constraints, tr("Waqf placement"));
   auto waqfPlacement = addConstraint(waqf, tr("Position waqf marks"), settings,
       "toggle.waqfPlacement", toggles.waqfPlacement, this, changed);
+  addDoubleRow(waqfPlacement.form, tr("Minimum height above baseline"), settings, "waqfMinHeight",
+      m_params.waqfMinHeight, 0.0, 1400.0, 10.0, 1, this, changed,
+      tr("Minimum distance from the owning baseline to the bottom of waqf ink. Used by the initial search and safety floor. Base clearance and top-mark ordering may require a higher position."), units);
   compliance(waqfPlacement.form, tr("Minimum-height compliance"), "compliance.waqfMin", comp.waqfMin);
-  compliance(waqfPlacement.form, tr("Preferred-height compliance"), "compliance.waqfTarget", comp.waqfTarget, 10.0);
   compliance(waqfPlacement.form, tr("Maximum-height compliance"), "compliance.waqfMax", comp.waqfMax);
-  compliance(waqfPlacement.form, tr("Horizontal compliance"), "compliance.waqfXAlign", comp.waqfXAlign);
-  addDoubleRow(waqfPlacement.form, tr("Horizontal alignment band"), settings, "waqfHorizontalAlignmentBandPercent",
+  // Retain old saved values for the optional escape only. There are no
+  // ordinary preferred-height/horizontal alignment controls or springs.
+  for (const auto& entry : std::vector<std::pair<QString, double*>>{
+           {"compliance.waqfTarget", &comp.waqfTarget}, {"compliance.waqfXAlign", &comp.waqfXAlign}}) {
+    const double saved = settings.value(settingKey(entry.first), *entry.second).toDouble();
+    if (std::isfinite(saved)) *entry.second = std::clamp(saved, 0.0, entry.first == "compliance.waqfTarget" ? 10.0 : 2.0);
+  }
+  addDoubleRow(waqfPlacement.form, tr("Maximum right offset"), settings, "waqfHorizontalAlignmentBandPercent",
       m_params.waqfHorizontalAlignmentBandPercent, 0.0, 1000.0, 5.0, 1, this, changed,
-      tr("No horizontal alignment force within this distance on either side of the target, as a percentage of waqf width."), percent);
-  auto escape = addConstraint(waqf, tr("Left / down escape when squeezed"), settings,
-      "toggle.waqfEscape", toggles.waqfEscape, this, changed);
-  addDoubleRow(escape.form, tr("Trigger clearance"), settings, "waqfEscapeMinGap", m_params.waqfEscapeMinGap,
+      tr("Right allowance from the owning base's left edge for initial search and outer association bounds, as a percentage of waqf width. No alignment target is applied inside the owner interval."), percent);
+  waqfPlacement.box->setToolTip(tr("Searches for an initial ink-clear position. XPBD then applies clearance and safety bounds without preferred-height or horizontal-alignment springs. Escape fallback can be disabled separately."));
+  addDoubleRow(waqfPlacement.form, tr("Maximum left target offset"), settings, "waqfEscapeMaxLeftPercent", m_params.waqfEscapeMaxLeftPercent,
+      0.0, 1000.0, 5.0, 2, this, changed, tr("Left allowance for the initial slot search and escape fallback, as a percentage of waqf width. Ordinary collision contacts may move the sign farther."), percent);
+  auto* escape = addToggleRow(waqfPlacement.form, tr("Enable escape fallback"), settings,
+      "toggle.waqfEscape", toggles.waqfEscape, this, changed,
+      tr("Adds a left/down escape preference if contacts stall or squeeze the waqf against an earlier line. Uncheck to keep the initial search and ordinary XPBD refinement without escape fallback."));
+  auto* trigger = addDoubleRow(waqfPlacement.form, tr("Trigger clearance"), settings, "waqfEscapeMinGap", m_params.waqfEscapeMinGap,
       0.0, 1000.0, 1.0, 2, this, changed,
       tr("Escape starts below this estimated clearance when progress stalls, or immediately for opposing contacts. An initial outline intersection with the previous line beside an owning top mark closer than this clearance also starts a soft escape before the first contact pass."), units);
-  addDoubleRow(escape.form, tr("Left step"), settings, "waqfEscapeStepPercent", m_params.waqfEscapeStepPercent,
+  auto* leftStep = addDoubleRow(waqfPlacement.form, tr("Left step"), settings, "waqfEscapeStepPercent", m_params.waqfEscapeStepPercent,
       0.0, 100.0, 1.0, 2, this, changed, tr("Target advance per iteration, as a percentage of waqf width."), percent);
-  addDoubleRow(escape.form, tr("Down step"), settings, "waqfEscapeDownStepPercent", m_params.waqfEscapeDownStepPercent,
-      0.0, 100.0, 1.0, 2, this, changed, tr("Target advance per iteration, as a percentage of waqf height. Once an initial squeeze clears, the ordinary preferred height resumes softly. Zero also disables this downward settling."), percent);
-  addDoubleRow(escape.form, tr("Maximum left target offset"), settings, "waqfEscapeMaxLeftPercent", m_params.waqfEscapeMaxLeftPercent,
-      0.0, 1000.0, 5.0, 2, this, changed, tr("Cap on the escape target's left offset from the owning base, as a percentage of waqf width. An initial squeeze prefers a soft band on the left, with an alignment-band margin inside this limit; ordinary contacts determine the final displacement."), percent);
-  escape.box->setToolTip(tr("A soft escape preference for a stalled contact or squeeze against an earlier line. Requires waqf placement and collision avoidance to be enabled."));
-  const auto updateEscape = [escape, waqfPlacement, gaps]() {
-    escape.box->setEnabled(waqfPlacement.box->isChecked() && gaps.box->isChecked());
+  auto* downStep = addDoubleRow(waqfPlacement.form, tr("Down step"), settings, "waqfEscapeDownStepPercent", m_params.waqfEscapeDownStepPercent,
+      0.0, 100.0, 1.0, 2, this, changed, tr("Target advance per iteration, as a percentage of waqf height. The fallback holds its bounded target once the squeeze clears; no ordinary height target resumes."), percent);
+  const auto updateEscape = [escape, waqfPlacement, gaps, trigger, leftStep, downStep]() {
+    const bool available = waqfPlacement.box->isChecked() && gaps.box->isChecked();
+    escape->setEnabled(available);
+    const bool enabled = available && escape->isChecked();
+    for (auto* spin : {trigger, leftStep, downStep}) {
+      spin->setEnabled(enabled);
+      waqfPlacement.form->labelForField(spin)->setEnabled(enabled);
+    }
+    waqfPlacement.form->labelForField(escape)->setEnabled(available);
   };
   connect(waqfPlacement.box, &QGroupBox::toggled, this, updateEscape);
   connect(gaps.box, &QGroupBox::toggled, this, updateEscape);
+  connect(escape, &QCheckBox::toggled, this, updateEscape);
   updateEscape();
 
   auto* special = addSection(constraints, tr("Special placements"));

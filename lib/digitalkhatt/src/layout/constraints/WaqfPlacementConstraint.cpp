@@ -8,7 +8,6 @@
 #include <sstream>
 
 #include "digitalkhatt/layout/ConstraintViolation.h"
-#include "digitalkhatt/layout/ConstraintDiagnostics.h"
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
 #include "digitalkhatt/layout/OptParams.h"
 #include "digitalkhatt/layout/SolverContext.h"
@@ -18,7 +17,6 @@ namespace digitalkhatt::layout {
 namespace {
 struct WaqfFloor {
   double minimum;
-  double leftEdge; // leftmost ink edge of the base and its ordinary top marks
   const GlyphInstance* mark = nullptr;
   bool aboveStack = false;
   double topMinimum = -std::numeric_limits<double>::infinity();
@@ -30,7 +28,7 @@ WaqfFloor placementFloor(const WaqfPlacementConstraint& constraint,
   const auto bounds = waqf.worldPolys.boundingAABB();
   const double baseMinimum = std::max(boxTopY(base) + constraint.minGapToBase,
                                     base.lineY + constraint.minDistFromBaseline);
-  WaqfFloor floor{baseMinimum, base.worldPolys.boundingAABB().minx};
+  WaqfFloor floor{baseMinimum};
   const auto& line = context.pageGlyphs[base.lineIndex];
   const int end = waqf.nextBase ? waqf.nextBase->glyphIndex
                               : static_cast<int>(line.size());
@@ -39,13 +37,10 @@ WaqfFloor placementFloor(const WaqfPlacementConstraint& constraint,
     if (&mark == &waqf || !mark.isMark || !mark.isTopMark || mark.prevBase != &base)
       continue;
     const auto markBounds = mark.worldPolys.boundingAABB();
-    // Waqf signs cannot serve as one another's alignment reference.
-    if (!context.isWaqf(mark) && !mark.worldPolys.empty())
-      floor.leftEdge = std::min(floor.leftEdge, markBounds.minx);
     floor.topMinimum = std::max(floor.topMinimum,
                                markBounds.maxy - (bounds.maxy - bounds.miny));
     const double stackMinimum = markBounds.maxy + constraint.minGapToTopMarks;
-    const bool overlaps = !constraint.collisionEscapeActive &&
+    const bool overlaps = !constraint.collisionEscapeActive && !constraint.hasInitialSlot &&
         bounds.minx < markBounds.maxx && bounds.maxx > markBounds.minx;
     // Above an overlapping mark, the waqf's bottom must clear its top.
     // Beside it or during collision escape, top ordering permits descent;
@@ -61,23 +56,16 @@ WaqfFloor placementFloor(const WaqfPlacementConstraint& constraint,
   return floor;
 }
 
-double heightTarget(const WaqfPlacementConstraint& constraint, const WaqfFloor& floor,
-                    double maximumBottom) {
-  if (floor.minimum > maximumBottom) return 0.5 * (floor.minimum + maximumBottom);
-  // Beside the stack, prefer the waqf's top slightly above the highest mark's
-  // top. Overlapping marks retain the stronger bottom-above-top floor.
-  const double preferred = std::max(floor.minimum,
-                                   floor.topMinimum + constraint.minGapToTopMarks);
-  return std::clamp(preferred + constraint.desiredExtraLift, floor.minimum, maximumBottom);
-}
-
-double horizontalBandResidual(const WaqfPlacementConstraint& constraint,
-                              double leftEdge) {
+double associationResidual(const WaqfPlacementConstraint& constraint) {
   const auto bounds = constraint.waqfMark.worldPolys.boundingAABB();
-  const double percent = std::isfinite(constraint.xAlignmentBandPercent)
-      ? std::clamp(constraint.xAlignmentBandPercent, 0.0, 1000.0) : 0.0;
-  const double band = (bounds.maxx - bounds.minx) * percent / 100.0;
-  return bounds.minx - std::clamp(bounds.minx, leftEdge - band, leftEdge + band);
+  const double width = bounds.maxx - bounds.minx;
+  const double baseLeft = constraint.waqfMark.prevBase->worldPolys.boundingAABB().minx;
+  const double offset = constraint.waqfMark.worldPolys.boundingAABB().minx - baseLeft;
+  const double left = -width * std::clamp(constraint.maxLeftPercent, 0.0, 1000.0) / 100.0;
+  const double right = width * std::clamp(constraint.maxRightPercent, 0.0, 1000.0) / 100.0;
+  // No force anywhere inside the whole owner interval, including after
+  // contacts move the sign away from its initial slot.
+  return offset - std::clamp(offset, left, right);
 }
 }  // namespace
 
@@ -86,17 +74,12 @@ double WaqfPlacementConstraint::escapeMinimumBottom(const SolverContext& context
   return floor.minimum;
 }
 
-double WaqfPlacementConstraint::preferredBottom(const SolverContext& context) const {
-  const auto& base = *waqfMark.prevBase;
-  const auto floor = placementFloor(*this, context, base);
-  return heightTarget(*this, floor, base.lineY + upperCeilingY - boxHeight(waqfMark));
-}
-
 void WaqfTopOrderConstraint::project(SolverContext& solverContext, double) {
   auto& waqf = placement.waqfMark;
   if (waqf.mobility <= 0.0 || !waqf.prevBase) return;
   const auto floor = placementFloor(placement, solverContext, *waqf.prevBase);
-  const double minimum = placement.collisionEscapeActive ? floor.minimum : floor.topMinimum;
+  const double minimum = placement.collisionEscapeActive || placement.hasInitialSlot
+      ? floor.minimum : floor.topMinimum;
   const double correction = minimum - boxBottomY(waqf);
   if (correction <= 0.0) return;
   // Zero compliance, with only the waqf mobile: the XPBD weight cancels.
@@ -122,7 +105,6 @@ void WaqfPlacementConstraint::project(SolverContext& solverContext,
   if (lowerBoundMark != floor.mark || lowerBoundAboveStack != floor.aboveStack) {
     // A released stack floor must not retain its old upward multiplier.
     lambdaMin = 0.0;
-    lambdaTarget = 0.0;
     lowerBoundMark = floor.mark;
     lowerBoundAboveStack = floor.aboveStack;
   }
@@ -188,50 +170,17 @@ void WaqfPlacementConstraint::project(SolverContext& solverContext,
     }
   }
 
-  // ----------------------------------------------------------
-  // 6) Soft vertical target: yBottom - yTargetBottom = 0
-  // Collision escape supplies the bounded downward target when active.
-  // ----------------------------------------------------------
-  if (!collisionEscapeActive) {
-    const double bottom = boxBottomY(waqfMark);
-    const double C = bottom - heightTarget(*this, floor, yMaxBottom);
-    double alpha = targetCompliance / (dt * dt);
-    double denom = w + alpha;
-    if (denom > 1e-12) {
-      double deltaLambda = -(C + alpha * lambdaTarget) / denom;
-      lambdaTarget += deltaLambda;
-      // grad dC/dy = +1
-      waqfMark.dy += w * deltaLambda;
-      updateWorldPolys(waqfMark);
-    }
-  }
-
-  // ----------------------------------------------------------
-  // 7) Soft horizontal band around the leftmost edge of the base/top stack.
-  // Vertical pressure does not switch to an entirely different placement.
-  // ----------------------------------------------------------
-  if (!collisionEscapeActive) {
-    const double C = horizontalBandResidual(*this, floor.leftEdge);
-    if (C == 0.0) {
-      lambdaX = 0.0; // inactive inside the band; release the restoring force
-      return;
-    }
-    // Opposite sides are different unilateral constraints and cannot inherit
-    // one another's multiplier after a contact pushes across the band.
-    if (C * lambdaX > 0.0) lambdaX = 0.0;
-
-    double alpha = xAlignCompliance / (dt * dt);
-    double denom = w + alpha;
-    if (denom > 1e-12) {
-      double deltaLambda = -(C + alpha * lambdaX) / denom;
-      const double nextLambda = C < 0.0 ? std::max(0.0, lambdaX + deltaLambda)
-                                       : std::min(0.0, lambdaX + deltaLambda);
-      deltaLambda = nextLambda - lambdaX;
-      lambdaX = nextLambda;
-      // grad dC/dx = +1
-      waqfMark.dx += w * deltaLambda;
-      updateWorldPolys(waqfMark);
-    }
+  // Owner association is an outer safety interval, not alignment with the
+  // initial slot or base left edge. Ordinary contacts decide the position.
+  const double C = associationResidual(*this);
+  if (C == 0.0) lambdaAssociation = 0.0;
+  else {
+    if (C * lambdaAssociation > 0.0) lambdaAssociation = 0.0;
+    const double alpha = (C < 0.0 ? leftCompliance : rightCompliance) / (dt * dt);
+    const double delta = -(C + alpha * lambdaAssociation) / (w + alpha);
+    lambdaAssociation += delta;
+    waqfMark.dx += w * delta;
+    updateWorldPolys(waqfMark);
   }
 }
 
@@ -285,12 +234,21 @@ void WaqfPlacementConstraint::reportViolations(
 
   pushBound(yMin - boxBottomY(waqfMark), yMin);  // hard lower bound breach
   pushBound(boxTopY(waqfMark) - yMax, yMax);     // hard upper bound breach
-  if (!collisionEscapeActive) {
-    const double yTarget = heightTarget(*this, floor, yMaxBottom);
-    reportSoftTarget(out, ViolationType::SoftTargetResidual, waqfMark, base,
-        boxBottomY(waqfMark) - yTarget, "Waqf target height");
-    reportSoftTarget(out, ViolationType::SoftTargetResidual, waqfMark, base,
-        horizontalBandResidual(*this, floor.leftEdge), "Waqf horizontal alignment band");
+  const double association = associationResidual(*this);
+  if (association != 0.0) {
+    ConstraintViolation v;
+    v.type = ViolationType::WaqfBoundsResidual;
+    v.diagnostic = "association-bound";
+    v.detail = "Waqf owning-base horizontal safety bound";
+    v.kind = ViolationKind::Hard;
+    v.residual = association;
+    v.severity = std::abs(association);
+    v.glyphA = waqfMark.globalIndex;
+    v.glyphB = base->globalIndex;
+    v.markerCount = 2;
+    v.marker[0] = {wb.minx, wb.miny};
+    v.marker[1] = {wb.minx - association, wb.miny};
+    out.push_back(v);
   }
 }
 

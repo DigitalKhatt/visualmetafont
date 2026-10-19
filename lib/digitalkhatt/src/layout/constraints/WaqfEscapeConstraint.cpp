@@ -15,7 +15,7 @@ namespace digitalkhatt::layout {
 WaqfEscapeConstraint::WaqfEscapeConstraint(WaqfPlacementConstraint& placement_,
                                          const OptParams& params_)
     : placement(placement_), params(params_) {
-  compliance = placement.xAlignCompliance;
+  compliance = params.compliance.waqfXAlign;
   reportEnabled = true;
 }
 
@@ -60,7 +60,7 @@ bool WaqfEscapeConstraint::seedInitialSqueeze(SolverContext& context) {
       const auto contact = geometry::getDistance(waqf.worldPolys, obstacle.worldPolys, 0.0).contact;
       if (contact.depth_or_gap >= 0.0) continue;
       recordContact(obstacle, contact.normal * -1.0, contact.depth_or_gap,
-                    chooseMinGap(waqf, obstacle, params));
+                    chooseOrdinaryGap(waqf, obstacle, params));
     }
     break;
   }
@@ -151,11 +151,11 @@ void WaqfEscapeConstraint::project(SolverContext& context, double dt) {
   const auto bounds = waqf.worldPolys.boundingAABB();
   const double width = bounds.maxx - bounds.minx;
   const double baseLeft = base->worldPolys.boundingAABB().minx;
-  // The initial preference only asks for the left side of the ordinary
-  // alignment band. Contacts decide how much farther it must move. Spending
+  // Early fallback asks for the near edge of its own soft left band.
+  // Contacts decide how much farther it must move. Spending
   // the full escape allowance before the first pass can overshoot the base.
   const double leftPercent = startedFromInitialSqueeze
-      ? std::min(params.waqfEscapeMaxLeftPercent, placement.xAlignmentBandPercent)
+      ? std::min(params.waqfEscapeMaxLeftPercent, params.waqfHorizontalAlignmentBandPercent)
       : params.waqfEscapeMaxLeftPercent;
   const double limit = -width * std::clamp(leftPercent, 0.0, 1000.0) / 100.0;
   const double step = width * std::clamp(params.waqfEscapeStepPercent, 0.0, 100.0) / 100.0;
@@ -167,14 +167,13 @@ void WaqfEscapeConstraint::project(SolverContext& context, double dt) {
     if (!active) {
       targetOffset = initialSqueeze ? std::min(currentOffset, limit) : currentOffset;
       leftBandMinimum = std::min(targetOffset, -width * std::max(0.0,
-          params.waqfEscapeMaxLeftPercent - placement.xAlignmentBandPercent) / 100.0);
+          params.waqfEscapeMaxLeftPercent - params.waqfHorizontalAlignmentBandPercent) / 100.0);
       targetBottomOffset = bounds.miny - waqf.lineY;
       active = placement.collisionEscapeActive = true;
-      placement.lambdaX = 0.0;
-      placement.lambdaMin = placement.lambdaTarget = 0.0;
+      placement.lambdaMin = 0.0;
     }
-    // Advance only while tight. Hold the chosen preference for the remainder
-    // of this solve so normal alignment cannot restore the contact pocket.
+    // Advance only while tight. Hold this bounded escape preference for
+    // the remainder of the solve while ordinary contacts continue to refine.
     if (currentOffset > limit && step > 0.0) {
       targetOffset = std::max(limit, std::min(targetOffset, currentOffset) - step);
       lambda = 0.0; // a changed target cannot inherit the old spring multiplier
@@ -192,17 +191,6 @@ void WaqfEscapeConstraint::project(SolverContext& context, double dt) {
     }
   }
   if (!active) return;
-
-  if (startedFromInitialSqueeze && !tight && downStep > 0.0) {
-    // Clearing the previous line does not make the current height preferable.
-    // Resume the ordinary soft height target beside the owning stack, instead
-    // of leaving the sign stranded at the last contact-driven escape height.
-    const double preferred = placement.preferredBottom(context) - waqf.lineY;
-    if (targetBottomOffset > preferred + 1e-6) {
-      targetBottomOffset = std::max(preferred, targetBottomOffset - downStep);
-      lambdaDown = 0.0;
-    }
-  }
 
   const auto correction = [&](double C, double& multiplier, double softness) {
     if (C <= 0.0) { multiplier = 0.0; return 0.0; }
@@ -248,7 +236,7 @@ void WaqfEscapeConstraint::project(SolverContext& context, double dt) {
   }
   const double minimumBottom = placement.escapeMinimumBottom(context);
   const double targetBottom = std::max(minimumBottom, waqf.lineY + targetBottomOffset);
-  const double descent = correction(bounds.miny - targetBottom, lambdaDown, placement.targetCompliance);
+  const double descent = correction(bounds.miny - targetBottom, lambdaDown, params.compliance.waqfTarget);
   waqf.dy += std::max(descent, std::min(0.0, minimumBottom - bounds.miny));
   updateWorldPolys(waqf);
 }

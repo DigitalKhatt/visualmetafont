@@ -43,10 +43,11 @@ struct ConstraintToggles {
 // no row currently overrides gapCompliance/xAlignCompliance individually,
 // so a single shared knob matches current behavior exactly.
 struct ConstraintCompliance {
+  double extraLineSpacing = 1.0; // extra cross-line spacing above ordinary word clearance
   double waqfMin = 0.3;         // hard-ish lower bound
-  double waqfTarget = 5.0;      // softer target height
+  double waqfTarget = 5.0;      // legacy key: optional escape descent compliance only
   double waqfMax = 0.3;         // hard-ish upper bound
-  double waqfXAlign = 0.24;
+  double waqfXAlign = 0.24;     // legacy key: optional escape horizontal compliance only
 
   double hardStayAbove = 1e-7;  // near-zero: rigid rail
   double hardStayBelow = 1e-7;  // near-zero: rigid rail
@@ -94,7 +95,8 @@ struct OptParams {
   // Generic target clearances in solver world/font units. Dedicated stack
   // constraints and the 40/10-unit attachment exceptions keep their own gaps.
   double sameWordGap = 80.0;
-  double differentWordGap = 80.0;  // includes glyphs on different lines
+  double differentWordGap = 80.0;  // different words on the same line
+  double differentLineGap = 250.0; // glyphs on different lines
 
   // Minimum expansion of each ink box when finding potential contact pairs.
   // The search also covers half the largest configured target gap.
@@ -131,9 +133,13 @@ struct OptParams {
   double waqfRightDriftTolerancePercent = 50.0;
   double waqfPreviousLineMarginPercent = 20.0;   // % of actual baseline spacing
 
-  // Solver preference: no horizontal force within this distance on either
-  // side of the leftmost ink edge of the base and its attached top marks.
-  // Contacts may move farther.
+  // Minimum waqf ink bottom above its owning baseline, in solver units.
+  // Shared by initial placement and the ordinary visibility safety floor.
+  double waqfMinHeight = 700.0;
+
+  // Legacy key retained for snapshots: maximum right allowance for initial
+  // search/owner bounds, and width of the early fallback's left band.
+  // There is no ordinary horizontal-alignment spring.
   double waqfHorizontalAlignmentBandPercent = 25.0; // % of waqf ink width
 
   double waqfEscapeMinGap = 10.0;       // trigger/stop clearance, font units

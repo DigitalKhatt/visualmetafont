@@ -31,6 +31,7 @@
 #include "digitalkhatt/layout/constraints/StackOrderConstraint.h"
 #include "digitalkhatt/layout/constraints/CompactMarkConstraint.h"
 #include "digitalkhatt/layout/RehWawMarkPlacement.h"
+#include "digitalkhatt/layout/WaqfMarkPlacement.h"
 #include "digitalkhatt/layout/constraints/HorizontalGapConstraint.h"
 #include "digitalkhatt/layout/constraints/WaqfPlacementConstraint.h"
 #include "digitalkhatt/layout/constraints/WaqfEscapeConstraint.h"
@@ -209,7 +210,6 @@ void prepareRehWawBehPositions(const GlyphSequence& glyphs,
         const double offset = std::abs((boxCenterX(mark) - mark.dx) - (boxCenterX(other) - other.dx));
         halfFootprint = std::max(halfFootprint, offset + (bounds.maxx - bounds.minx) * 0.5);
       }
-      const double margin = halfFootprint + P.differentWordGap;
       for (auto& ref : glyphs) {
         auto& other = ref.get();
         const bool neighboringMark = other.isMark && hasValidOwner(other, validBases) &&
@@ -218,6 +218,8 @@ void prepareRehWawBehPositions(const GlyphSequence& glyphs,
                                          validBases.contains(&other);
         if ((!neighboringMark && !neighboringLineBase) ||
             std::abs(other.lineIndex - mark.lineIndex) > 1 || other.worldPolys.empty()) continue;
+        const double margin = halfFootprint +
+            (other.lineIndex == mark.lineIndex ? P.differentWordGap : P.differentLineGap);
         const auto bounds = other.worldPolys.boundingAABB();
         if (bounds.minx <= owner.maxx + margin && bounds.maxx >= owner.minx - margin)
           placement->obstacles.push_back(&other);
@@ -521,11 +523,13 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
     if (solverContext.isWaqf(mark)) {
       if (P.toggles.waqfPlacement) {
         auto placement = std::make_unique<WaqfPlacementConstraint>(
-            mark, P.compliance.waqfMin, P.compliance.waqfTarget,
-            P.compliance.waqfMax, P.compliance.waqfXAlign,
-            /*minDistFromBaseline=*/700.0, /*minGapToBase=*/100.0,
-            /*minGapToTopMarks=*/50.0, /*desiredExtraLift=*/0.0,
-            /*upperCeilingY=*/1400.0, P.waqfHorizontalAlignmentBandPercent);
+            mark, P.compliance.waqfMin, P.compliance.waqfMax,
+            /*minDistFromBaseline=*/P.waqfMinHeight, /*minGapToBase=*/100.0,
+            /*minGapToTopMarks=*/50.0, /*upperCeilingY=*/1400.0);
+        placement->maxLeftPercent = P.waqfEscapeMaxLeftPercent;
+        placement->maxRightPercent = P.waqfHorizontalAlignmentBandPercent;
+        placement->leftCompliance = P.compliance.baseVicinityLeft;
+        placement->rightCompliance = P.compliance.baseVicinityRight;
         waqfPlacements.push_back(placement.get());
         if (!solverContext.waqfEscapes.empty()) {
           auto escape = std::make_unique<WaqfEscapeConstraint>(*placement, P);
@@ -710,6 +714,8 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
 
   // Apply waqf top ordering after all ordinary mark rails, so their upward
   // corrections cannot leave the waqf below its own stack's highest top.
+  if (initialPositioning == InitialPositioning::Apply && P.toggles.genericGapConstraint)
+    prepareWaqfPositions(waqfPlacements, solverContext, P);
   for (auto* placement : waqfPlacements)
     constraints.hard.push_back(std::make_unique<WaqfTopOrderConstraint>(*placement));
   return constraints;
@@ -719,6 +725,21 @@ void solvePageConstraints(const GlyphSequence& glyphs,
                           SolverContext& solverContext,
                           const OptParams& P,
                           PageConstraints& constraints) {
+  // Exclusion policies are fixed after assembly. Cache their precedence once:
+  // glyph-wide exclusions, explicit inclusions, then dedicated-pair exclusions.
+  const size_t glyphCount = glyphs.size();
+  std::vector<unsigned char> gapExclusions;
+  if (P.toggles.genericGapConstraint && P.maxIters > 0) {
+    gapExclusions.resize(glyphCount * glyphCount, 0);
+    const auto setExcluded = [&](int a, int b, unsigned char value) {
+      gapExclusions[std::min(a, b) * glyphCount + std::max(a, b)] = value;
+    };
+    for (int a : solverContext.gapExcludedGlyphs)
+      for (int b = 0; b < static_cast<int>(glyphCount); ++b) setExcluded(a, b, 1);
+    for (auto [a, b] : solverContext.gapIncludedPairs) setExcluded(a, b, 0);
+    for (auto [a, b] : solverContext.excludedFromGenericGap) setExcluded(a, b, 1);
+  }
+
   const double dt = 1.0;
   // Per iteration: Waqf escape, placement targets, refreshed broadphase,
   // generic contacts, ordered hard bounds, then convergence checks.
@@ -748,7 +769,10 @@ void solvePageConstraints(const GlyphSequence& glyphs,
       for (auto& pair : pairs) {
         GlyphInstance& glyphA = glyphs[pair.first];
         GlyphInstance& glyphB = glyphs[pair.second];
-        if (!solverContext.isGapExcluded(pair)) {
+        // These pairs already return immediately from the gap projection.
+        if (!(glyphA.isMark || glyphB.isMark) ||
+            (glyphA.mobility <= 0.0 && glyphB.mobility <= 0.0)) continue;
+        if (!gapExclusions[pair.first * glyphCount + pair.second]) {
           solveGapConstraint(solverContext, glyphA, glyphB, P, dt, maxPenetration);
         }
       }

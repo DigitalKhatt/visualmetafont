@@ -243,27 +243,22 @@ inline GJKResult gjkSet(const GeometrySet& A, const GeometrySet& B, int maxItera
     return result;
   }
 
-  double lastSqDist = std::numeric_limits<double>::infinity();
-
   for (int iter = 0; iter < maxIterations; ++iter) {
     // New support in current direction
     SupportPoint newPt = support(A, B, simplex.dir);
 
     double proj = Vec2::dot(newPt.p, simplex.dir);
 
-    auto newSqDist = newPt.p.lengthSq();
-
-    // No progress towards origin: no intersection; compute
-    // distance from current simplex
-    if (proj <= -EPSILON ||
-        std::fabs(lastSqDist - newSqDist) <= EPSILON_SQUARED) {
-      // no intersection
+    // A negative support projection proves separation. Equal lengths of
+    // successive support points do not: distinct points on a symmetric
+    // Minkowski boundary can have the same radius while enclosing the origin.
+    if (proj <= -EPSILON) {
       simplex.pts[simplex.count++] = newPt;
       auto delta = getDela(simplex);
       auto dd = dot(simplex.dir, delta);
       while (dd > EPSILON) {
-        auto tt = updateSimplex(simplex);
-        assert(!tt);
+        [[maybe_unused]] const bool containsOrigin = updateSimplex(simplex);
+        assert(!containsOrigin);  // The support plane above separates the shapes.
         newPt = support(A, B, simplex.dir);
         simplex.pts[simplex.count++] = newPt;
         delta = getDela(simplex);
@@ -302,8 +297,6 @@ inline GJKResult gjkSet(const GeometrySet& A, const GeometrySet& B, int maxItera
       result.simplex = simplex;
       return result;
     }
-
-    lastSqDist = newSqDist;
   }
   // If we get here, treat as intersecting or fail-safe
   result.intersect = true;
@@ -328,27 +321,22 @@ inline GJKResult gjk(const Poly& A, const Poly& B, int maxIterations = 32) {
     return result;
   }
 
-  double lastSqDist = std::numeric_limits<double>::infinity();
-
   for (int iter = 0; iter < maxIterations; ++iter) {
     // New support in current direction
     SupportPoint newPt = support(A, B, simplex.dir);
 
     double proj = Vec2::dot(newPt.p, simplex.dir);
 
-    auto newSqDist = newPt.p.lengthSq();
-
-    // No progress towards origin: no intersection; compute
-    // distance from current simplex
-    if (proj <= -EPSILON ||
-        std::fabs(lastSqDist - newSqDist) <= EPSILON_SQUARED) {
-      // no intersection
+    // A negative support projection proves separation. Equal lengths of
+    // successive support points do not: distinct points on a symmetric
+    // Minkowski boundary can have the same radius while enclosing the origin.
+    if (proj <= -EPSILON) {
       simplex.pts[simplex.count++] = newPt;
       auto delta = getDela(simplex);
       auto dd = dot(simplex.dir, delta);
       while (dd > EPSILON) {
-        auto tt = updateSimplex(simplex);
-        assert(!tt);
+        [[maybe_unused]] const bool containsOrigin = updateSimplex(simplex);
+        assert(!containsOrigin);  // The support plane above separates the shapes.
         newPt = support(A, B, simplex.dir);
         simplex.pts[simplex.count++] = newPt;
         delta = getDela(simplex);
@@ -387,8 +375,6 @@ inline GJKResult gjk(const Poly& A, const Poly& B, int maxIterations = 32) {
       result.simplex = simplex;
       return result;
     }
-
-    lastSqDist = newSqDist;
   }
 
   // If we get here, treat as intersecting or fail-safe

@@ -280,7 +280,7 @@ PlacementRecord placementRecord(int page, const PlacementPage& solved,
       record.parameters.push_back(input.parameters.value(axis));
     record.justificationAddedLeftTatweel = input.justificationAddedLeftTatweel;
     record.initialPositioning = {g.initialPositioningDx,g.initialPositioningDy};
-    constexpr const char* kinds[] = {"none","centered-gap","left-tip","below"};
+    constexpr const char* kinds[] = {"none","centered-gap","left-tip","below","waqf-slot"};
     record.initialPlacement = kinds[static_cast<int>(g.initialPlacement)];
     record.mobility = g.mobility;
     result.glyphs.push_back(std::move(record));
@@ -334,7 +334,9 @@ void usage() {
       "  --xpbd-config PATH         Partial/full OptParams JSON\n"
       "  --reh-waw-beh-placement / --no-reh-waw-beh-placement  Initial-Beh lower placement (default off)\n"
       "  --same-word-gap N          Generic intra-word target clearance (default 80)\n"
-      "  --different-word-gap N     Inter-word / inter-line target clearance (default 80)\n"
+      "  --different-word-gap N     Inter-word target clearance on one line (default 80)\n"
+      "  --different-line-gap N     Cross-line target clearance (default 250)\n"
+      "  --extra-line-spacing-compliance N  Extra cross-line spacing softness (default 1)\n"
       "  --soft-targets             Include optional soft residuals\n"
       "  --waqf-escape / --no-waqf-escape  Conditional left escape (default on)\n"
       "  --waqf-escape-min-gap N     Escape trigger/stop clearance (default 10)\n"
@@ -345,7 +347,8 @@ void usage() {
       "  --waqf-left-drift-tolerance N   Allowed left drift, % of waqf width (default 100)\n"
       "  --waqf-right-drift-tolerance N  Allowed right drift, % of waqf width (default 50)\n"
       "  --waqf-previous-line-margin N  Margin below previous baseline, % of spacing (default 20)\n"
-      "  --waqf-x-alignment-band N   Inactive horizontal band, % of waqf width each side (default 25)\n"
+      "  --waqf-x-alignment-band N   Right search/association allowance, % width (legacy flag; default 25)\n"
+      "  --waqf-min-height N         Minimum waqf bottom above baseline, font units (default 700)\n"
       "  --report-generic-gap / --no-report-generic-gap  Include/exclude gap findings (default off)\n"
       "  --report-gap-mode MODE     collisions (Save Collision, default) or all (solver residuals)\n"
       "  --collision-report-gap N   Save Collision minimum clearance, font units (default 10)\n"
@@ -461,6 +464,7 @@ int main(int argc,char** argv) {
       else if (arg=="--waqf-right-drift-tolerance") options.xpbd.waqfRightDriftTolerancePercent=std::stod(value());
       else if (arg=="--waqf-previous-line-margin") options.xpbd.waqfPreviousLineMarginPercent=std::stod(value());
       else if (arg=="--waqf-x-alignment-band") options.xpbd.waqfHorizontalAlignmentBandPercent=std::stod(value());
+      else if (arg=="--waqf-min-height") options.xpbd.waqfMinHeight=std::stod(value());
       else if (arg=="--waqf-escape") options.xpbd.toggles.waqfEscape=true;
       else if (arg=="--reh-waw-beh-placement") options.xpbd.toggles.rehWawBehPlacement=true;
       else if (arg=="--no-reh-waw-beh-placement") options.xpbd.toggles.rehWawBehPlacement=false;
@@ -479,6 +483,8 @@ int main(int argc,char** argv) {
       else if (arg=="--xpbd-config") readJson(options.xpbd,value(),&legacyPadding);
       else if (arg=="--same-word-gap") options.xpbd.sameWordGap=std::stod(value());
       else if (arg=="--different-word-gap") options.xpbd.differentWordGap=std::stod(value());
+      else if (arg=="--different-line-gap") options.xpbd.differentLineGap=std::stod(value());
+      else if (arg=="--extra-line-spacing-compliance") options.xpbd.compliance.extraLineSpacing=std::stod(value());
       else if (arg=="--write-config") extraConfig=value();
       else if (arg=="--placement-data") placementData=value();
       else if (arg=="--review-words-file") reviewWordsFile=value();
@@ -519,6 +525,8 @@ int main(int argc,char** argv) {
         !std::isfinite(options.xpbd.broadphasePadding) || options.xpbd.broadphasePadding<0 ||
         !std::isfinite(options.xpbd.sameWordGap) || options.xpbd.sameWordGap<0 || options.xpbd.sameWordGap>1000 ||
         !std::isfinite(options.xpbd.differentWordGap) || options.xpbd.differentWordGap<0 || options.xpbd.differentWordGap>1000 ||
+        !std::isfinite(options.xpbd.differentLineGap) || options.xpbd.differentLineGap<0 || options.xpbd.differentLineGap>1000 ||
+        !std::isfinite(options.xpbd.compliance.extraLineSpacing) || options.xpbd.compliance.extraLineSpacing<0 || options.xpbd.compliance.extraLineSpacing>100 ||
         !std::isfinite(options.xpbd.collisionReportMinGap) || options.xpbd.collisionReportMinGap<0 || options.xpbd.collisionReportMinGap>1000 ||
         !std::isfinite(options.xpbd.minViolationSeverity) || options.xpbd.minViolationSeverity<0 ||
         !std::isfinite(options.xpbd.baseVicinityMarkTolerancePercent) || options.xpbd.baseVicinityMarkTolerancePercent<0 || options.xpbd.baseVicinityMarkTolerancePercent>100 ||
@@ -527,6 +535,7 @@ int main(int argc,char** argv) {
         !std::isfinite(options.xpbd.waqfRightDriftTolerancePercent) || options.xpbd.waqfRightDriftTolerancePercent<0 || options.xpbd.waqfRightDriftTolerancePercent>1000 ||
         !std::isfinite(options.xpbd.waqfPreviousLineMarginPercent) || options.xpbd.waqfPreviousLineMarginPercent<0 || options.xpbd.waqfPreviousLineMarginPercent>100 ||
         !std::isfinite(options.xpbd.waqfHorizontalAlignmentBandPercent) || options.xpbd.waqfHorizontalAlignmentBandPercent<0 || options.xpbd.waqfHorizontalAlignmentBandPercent>1000 ||
+        !std::isfinite(options.xpbd.waqfMinHeight) || options.xpbd.waqfMinHeight<0 || options.xpbd.waqfMinHeight>1400 ||
         !std::isfinite(options.xpbd.waqfEscapeMinGap) || options.xpbd.waqfEscapeMinGap<0 || options.xpbd.waqfEscapeMinGap>1000 ||
         !std::isfinite(options.xpbd.waqfEscapeStepPercent) || options.xpbd.waqfEscapeStepPercent<0 || options.xpbd.waqfEscapeStepPercent>100 ||
         !std::isfinite(options.xpbd.waqfEscapeDownStepPercent) || options.xpbd.waqfEscapeDownStepPercent<0 || options.xpbd.waqfEscapeDownStepPercent>100 ||

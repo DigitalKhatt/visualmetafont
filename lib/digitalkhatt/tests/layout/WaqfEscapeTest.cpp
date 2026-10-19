@@ -6,6 +6,8 @@
 #include "digitalkhatt/layout/GapConstraint.h"
 #include "digitalkhatt/layout/OptParams.h"
 #include "digitalkhatt/layout/SolverContext.h"
+#include "digitalkhatt/layout/WaqfMarkPlacement.h"
+#include "digitalkhatt/layout/OptimizeLayout.h"
 #include "digitalkhatt/layout/constraints/WaqfEscapeConstraint.h"
 #include "digitalkhatt/layout/constraints/WaqfPlacementConstraint.h"
 
@@ -49,8 +51,7 @@ struct Fixture {
   }
 
   WaqfPlacementConstraint placement() {
-    return WaqfPlacementConstraint(page[1][2], 0.3, 5.0, 0.3, 0.24,
-                                  70.0, 10.0, 5.0, 0.0, 200.0);
+    return WaqfPlacementConstraint(page[1][2], 0.3, 0.3, 70.0, 10.0, 5.0, 200.0);
   }
 };
 
@@ -132,7 +133,7 @@ void initialPocketStartsSoftLeftEscape() {
     }
     const auto bounds = waqf.worldPolys.boundingAABB();
     const double width = bounds.maxx - bounds.minx;
-    require(waqf.dx < 0.0 && -waqf.dx < width * placement.xAlignmentBandPercent / 100.0,
+    require(waqf.dx < 0.0 && -waqf.dx < width * f.params.waqfHorizontalAlignmentBandPercent / 100.0,
         "Initial squeeze must approach the left band softly, not project to its edge");
     require(waqf.dy < 0.0 && boxBottomY(waqf) >= placement.escapeMinimumBottom(f.context),
         "Initial descent must retain the ordinary owning-stack visibility floor");
@@ -141,7 +142,7 @@ void initialPocketStartsSoftLeftEscape() {
       escape.recordContact(upper, {0, -1}, -2.0, 80.0);
       escape.project(f.context, 1.0);
     }
-    require(escape.targetOffset >= -width * placement.xAlignmentBandPercent / 100.0 - 1e-9,
+    require(escape.targetOffset >= -width * f.params.waqfHorizontalAlignmentBandPercent / 100.0 - 1e-9,
         "Initial left preference must stop at the ordinary band rather than spend the full drift allowance");
     require(upper.dx == 0.0 && upper.dy == 0.0 && stack.dx == 0.0 && stack.dy == 0.0,
         "Early escape must move only its own waqf");
@@ -166,48 +167,22 @@ void initialPocketStartsSoftLeftEscape() {
   }
 }
 
-void clearedInitialPocketSettlesToOrdinaryHeight() {
-  for (bool allowDescent : {false, true}) {
-    Fixture f;
-    f.params.waqfEscapeMinGap = 50.0;
-    if (!allowDescent) f.params.waqfEscapeDownStepPercent = 0.0;
-    auto& upper = f.page[0][0];
-    auto& waqf = f.page[1][2];
-    upper.baseX = -10.0; upper.baseY = 135.0;
-    buildWorldPolys(upper);
-    auto placement = f.placement();
-    WaqfEscapeConstraint escape(placement, f.params);
-    escape.project(f.context, 1.0);
-    require(escape.active && escape.startedFromInitialSqueeze,
-        "Fixture must enter the early escape before testing settlement");
-    const double previousDy = waqf.dy;
-    upper.baseX = 1000.0;
-    buildWorldPolys(upper);
-    escape.contacts.clear();
-    const double previousTarget = escape.targetBottomOffset;
-    escape.project(f.context, 1.0);
-    if (allowDescent) {
-      require(waqf.dy < previousDy &&
-              escape.targetBottomOffset < previousTarget &&
-              previousTarget - escape.targetBottomOffset <= boxHeight(waqf) * f.params.waqfEscapeDownStepPercent / 100.0 + 1e-9,
-          "Clearing the upper ink must advance the soft target toward ordinary height by the configured down step");
-      require(boxBottomY(waqf) > waqf.lineY + escape.targetBottomOffset &&
-              boxBottomY(waqf) >= placement.escapeMinimumBottom(f.context),
-          "Settlement must use a compliant target and retain the visibility floor, not project to the target");
-      for (int i = 0; i < 40; ++i) escape.project(f.context, 1.0);
-      require(std::abs(escape.targetBottomOffset - placement.preferredBottom(f.context) + waqf.lineY) < 1e-9,
-          "Settlement must stop advancing at the ordinary preferred height");
-      const double settledDy = waqf.dy;
-      for (int i = 0; i < 10; ++i) escape.project(f.context, 1.0);
-      require(std::abs(waqf.dy - settledDy) < 1e-9,
-          "A settled target must retain its multiplier rather than hardening through repeated resets");
-    } else {
-      require(waqf.dy == previousDy,
-          "Zero down step must also disable settling after an early squeeze clears");
-    }
-    require(f.page[1][1].dx == 0.0 && f.page[1][1].dy == 0.0,
-        "Settling the waqf must not directly reposition its owning top stack");
-  }
+void clearedEscapeHoldsItsTargetWithoutOrdinaryHeightSpring() {
+  Fixture f;
+  f.params.waqfEscapeMinGap = 50;
+  auto& upper = f.page[0][0];
+  upper.baseX = -10; upper.baseY = 135;
+  buildWorldPolys(upper);
+  auto placement = f.placement();
+  WaqfEscapeConstraint escape(placement, f.params);
+  escape.project(f.context, 1);
+  require(escape.active, "Fixture must activate fallback");
+  const double target = escape.targetBottomOffset;
+  upper.baseX = 1000; buildWorldPolys(upper);
+  escape.contacts.clear();
+  for (int i = 0; i < 10; ++i) escape.project(f.context, 1);
+  require(escape.targetBottomOffset == target,
+      "Clearing a squeeze must not restart the removed ordinary preferred-height target");
 }
 
 void compressedOwnStackSoftensOnlyAnOpposingBand() {
@@ -229,7 +204,7 @@ void compressedOwnStackSoftensOnlyAnOpposingBand() {
     if (mode == "pinned") waqf.mobility = 0.0;
     buildWorldPolys(stack); updateWorldPolys(waqf);
     auto placement = f.placement();
-    if (mode == "hard") placement.xAlignCompliance = 0.0;
+    if (mode == "hard") f.params.compliance.waqfXAlign = 0.0;
     WaqfEscapeConstraint escape(placement, f.params);
     escape.active = escape.startedFromInitialSqueeze = escape.initialContactsChecked = true;
     escape.targetOffset = 5.0;
@@ -294,15 +269,369 @@ void relaxationRetainsTheExistingLeftAllowance() {
         "The association response must remain soft rather than project to a final position");
   }
 }
+void initialSearchOptimizesClearInkAndLeavesBlockedInkToEscape() {
+  for (const std::string mode : {"clear", "blocked", "no_slot", "pinned"}) {
+    Fixture f;
+    f.params.sameWordGap = f.params.differentWordGap = f.params.differentLineGap = 5.0;
+    f.params.waqfEscapeMaxLeftPercent = 300.0;
+    auto& upper = f.page[0][0];
+    auto& waqf = f.page[1][2];
+    upper.baseX = mode == "clear" ? 1000.0 : -10.0;
+    upper.baseY = 135.0;
+    // Exclude the otherwise unused following row from the search region.
+    f.page[2][0].baseY = -1000.0;
+    buildWorldPolys(f.page[2][0]);
+    if (mode == "no_slot")
+      upper.geomScaled = geometry::GeometrySet(std::vector<geometry::Poly>{
+          {{-100, -100}, {100, -100}, {100, 100}, {-100, 100}}});
+    if (mode == "pinned") waqf.mobility = 0.0;
+    buildWorldPolys(upper);
+    auto placement = f.placement();
+    placement.maxLeftPercent = f.params.waqfEscapeMaxLeftPercent;
+    prepareWaqfPositions({&placement}, f.context, f.params);
+    if (mode == "clear") {
+      require(placement.hasInitialSlot && waqf.dy < 0,
+          "Clear authored ink must still be searched when its preferred height is lower");
+      continue;
+    }
+    if (mode != "blocked") {
+      require(!placement.hasInitialSlot && waqf.dx == 0.0 && waqf.dy == 0.0,
+          "Pinned or infeasible initial ink must preserve the authored position");
+      if (mode == "no_slot") {
+        WaqfEscapeConstraint escape(placement, f.params);
+        for (int i = 0; i < 3; ++i) {
+          escape.contacts.clear();
+          escape.recordContact(upper, {0, -1}, -2.0, 5.0);
+          escape.project(f.context, 1.0);
+        }
+        require(escape.active, "Unavailable initial slots must leave collision escape available");
+      }
+      continue;
+    }
+    require(placement.hasInitialSlot && waqf.initialPlacement == GlyphInstance::InitialPlacement::WaqfSlot &&
+            waqf.mobility == 1.0, "A searched waqf must remain movable by XPBD");
+    require(geometry::getDistance(waqf.worldPolys, upper.worldPolys, 5.0).contact.depth_or_gap >= 5.0 - 1e-6 &&
+            geometry::getDistance(waqf.worldPolys, f.page[1][1].worldPolys, 5.0).contact.depth_or_gap >= 5.0 - 1e-6,
+        "Initial search must clear both upper ink and the owning stack");
+    require(upper.dx == 0.0 && f.page[1][1].dx == 0.0 && f.page[1][1].dy == 0.0,
+        "Search must translate only its own waqf");
+    const double initialX = waqf.dx;
+    waqf.dx -= 5.0; updateWorldPolys(waqf);
+    const double shifted = waqf.dx;
+    placement.project(f.context, 1.0);
+    require(waqf.dx == shifted && shifted < initialX,
+        "Safety bounds must not restore horizontal alignment inside the owner interval");
+    WaqfTopOrderConstraint(placement).project(f.context, 1.0);
+    require(boxTopY(waqf) >= boxTopY(f.page[1][1]),
+        "A searched slot must retain the owning stack's top ordering");
+    WaqfEscapeConstraint escape(placement, f.params);
+    for (int i = 0; i < 3; ++i) {
+      escape.contacts.clear();
+      escape.recordContact(upper, {0, -1}, -2.0, 5.0);
+      escape.project(f.context, 1.0);
+    }
+    require(escape.active && placement.collisionEscapeActive,
+        "A searched slot must still permit fallback escape if later contacts stall");
+  }
+}
+
+void safetyBoundsDoNotCreatePlacementTargets() {
+  for (const std::string mode : {"inside", "low", "high", "left", "right", "pinned"}) {
+    Fixture f;
+    auto& waqf = f.page[1][2];
+    auto placement = f.placement();
+    placement.hasInitialSlot = true;
+    waqf.dx = -10;
+    if (mode == "low") waqf.dy = -100;
+    if (mode == "high") waqf.dy = 100;
+    if (mode == "left") waqf.dx = -40;
+    if (mode == "right") waqf.dx = 40;
+    if (mode == "pinned") { waqf.mobility = 0; waqf.dx = 40; waqf.dy = 100; }
+    updateWorldPolys(waqf);
+    const double x = waqf.dx, y = waqf.dy;
+    for (int i = 0; i < 5; ++i) placement.project(f.context, 1);
+    if (mode == "inside" || mode == "pinned")
+      require(waqf.dx == x && waqf.dy == y,
+          "Valid positions and pinned glyphs must receive no height/alignment force");
+    if (mode == "low") require(waqf.dy > y && waqf.dx == x, "Visibility floor must remain active");
+    if (mode == "high") require(waqf.dy < y && waqf.dx == x, "Upper safety ceiling must remain active");
+    if (mode == "left") require(waqf.dx > x && waqf.dy == y, "Left owner bound must remain active");
+    if (mode == "right") require(waqf.dx < x && waqf.dy == y, "Right owner bound must remain active");
+    require(f.page[1][1].dx == 0 && f.page[1][1].dy == 0,
+        "Waqf safety bounds must not move ordinary top marks");
+  }
+}
+
+void alignedContactSearchDetectsContainmentWithoutCorruption() {
+  geometry::GeometrySet a(std::vector<geometry::Poly>{{{0,110},{20,110},{20,130},{0,130}}});
+  geometry::GeometrySet b(std::vector<geometry::Poly>{{{0,100},{20,100},{20,120},{0,120}}});
+  for (int i = 0; i < 10; ++i) {
+    require(geometry::getDistance(a,b,5).contact.intersect &&
+            geometry::getDistanceConvexHull(a,b,5).contact.intersect,
+        "Aligned overlapping ink must be detected when repeated support distances enclose the origin");
+    const auto box=a.boundingAABB();
+    require(box.minx==0 && box.miny==110 && box.maxx==20 && box.maxy==130,
+        "An aligned distance query must not overwrite its caller's geometry or bounds");
+  }
+  const auto separated=a.translated(0,15);
+  const auto contact=geometry::getDistance(separated,b,5).contact;
+  require(!contact.intersect && std::abs(contact.depth_or_gap-5)<1e-9,
+      "The same aligned shapes must retain their correct separated clearance");
+}
+
+void initialSearchIncludesHeightAndBaseAlignmentPreferences() {
+  for (bool withStack : {false, true}) {
+    Fixture f;
+    f.params.sameWordGap = f.params.differentWordGap = f.params.differentLineGap = 5;
+    f.params.waqfEscapeMaxLeftPercent = 300;
+    f.page[0][0].baseX = 1000;
+    f.page[2][0].baseY = -1000;
+    auto& waqf = f.page[1][2];
+    waqf.baseX = 4; waqf.baseY = 160;
+    if (!withStack) f.page[1][1].geomScaled = {};
+    for (auto& line : f.page) for (auto& g : line) buildWorldPolys(g);
+    auto placement = f.placement();
+    placement.maxLeftPercent = 300;
+    prepareWaqfPositions({&placement}, f.context, f.params);
+    require(placement.hasInitialSlot && std::abs(boxBottomY(waqf) - (withStack ? 125 : 70)) < 1e-9 &&
+            std::abs(waqf.worldPolys.boundingAABB().minx) < 1e-9,
+        "Initial search must lower clear high anchors and prefer base-left alignment, with owning-stack clearance");
+    const double x = waqf.dx, y = waqf.dy;
+    for (int i = 0; i < 5; ++i) placement.project(f.context, 1);
+    require(waqf.dx == x && waqf.dy == y,
+        "Height/alignment preferences must be applied in the search without returning as XPBD springs");
+  }
+}
+
+void initialSearchAlignsToOverhangingOwningTopMarks() {
+  for (const std::string mode : {"overhang", "inside", "multiple", "foreign", "below",
+                                  "other_waqf", "empty", "outside_bound", "blocked"}) {
+    Fixture f;
+    f.params.sameWordGap = f.params.differentWordGap = f.params.differentLineGap = 5;
+    f.page[0][0].baseX = 1000;
+    f.page[2][0].baseY = -1000;
+    f.page[1][1].baseX = mode == "inside" ? 4 : mode == "outside_bound" ? -30 : -12;
+    f.page[1][2].baseX = 4;
+    if (mode == "foreign") f.page[1][1].prevBase = &f.page[0][0];
+    if (mode == "below") f.page[1][1].isTopMark = false;
+    if (mode == "other_waqf") f.page[1][1].glyphName = "waqf.qaf";
+    if (mode == "empty") f.page[1][1].geomScaled = {};
+    if (mode == "multiple") {
+      f.page[1].push_back(f.page[1][1]);
+      f.page[1].push_back(f.page[1][1]);
+      for (size_t i = 1; i < f.page[1].size(); ++i) {
+        f.page[1][i].prevBase = i == 4 ? &f.page[2][0] : &f.page[1][0];
+        f.page[1][i].glyphIndex = static_cast<int>(i);
+      }
+      f.page[1][3].baseX = -15;
+      f.page[1][4].baseX = -18;  // A farther-left mark belonging to another base.
+      f.page[1][4].baseY = 50;
+    }
+    if (mode == "blocked") {
+      f.page[0][0].baseX = -12;
+      f.page[0][0].baseY = 125;  // Occupies the preferred aligned slot.
+    }
+    for (auto& line : f.page) for (auto& g : line) buildWorldPolys(g);
+    auto placement = f.placement();
+    prepareWaqfPositions({&placement}, f.context, f.params);
+    auto& waqf = f.page[1][2];
+    if (mode == "outside_bound") {
+      const auto contact = geometry::getDistance(waqf.worldPolys, f.page[1][1].worldPolys, 5).contact;
+      const double left = waqf.worldPolys.boundingAABB().minx;
+      require(placement.hasInitialSlot && left >= -20 && left <= 5 &&
+              !contact.intersect && contact.depth_or_gap >= 5 - 1e-6,
+          "An overhanging mark must not extend the existing horizontal safety interval or override clearance");
+      continue;
+    }
+    const double expected = mode == "multiple" ? -15 :
+        mode == "overhang" || mode == "blocked" ? -12 : 0;
+    const auto detail = "Initial waqf alignment for " + mode + ": expected " +
+        std::to_string(expected) + ", got " + std::to_string(waqf.worldPolys.boundingAABB().minx);
+    require(placement.hasInitialSlot &&
+            std::abs(waqf.worldPolys.boundingAABB().minx - expected) < 1e-9,
+        detail.c_str());
+    if (mode == "blocked")
+      require(!geometry::getDistance(waqf.worldPolys, f.page[0][0].worldPolys, 5).contact.intersect &&
+              geometry::getDistance(waqf.worldPolys, f.page[0][0].worldPolys, 5).contact.depth_or_gap >= 5 - 1e-6,
+          "Top-mark alignment must still search for clearance when its preferred slot is occupied");
+    if (mode == "overhang" || mode == "multiple") {
+      waqf.dx += 3;
+      updateWorldPolys(waqf);
+      const double x = waqf.dx, y = waqf.dy;
+      placement.project(f.context, 1);
+      require(waqf.dx == x && waqf.dy == y,
+          "Top-mark alignment belongs to initial search, without adding an XPBD alignment spring");
+    }
+  }
+}
+
+void minimumHeightParameterDrivesInitialSearchAndSafetyFloor() {
+  for (double minimum : {600.0, 900.0}) {
+    Fixture f;
+    for (auto& line : f.page) for (auto& g : line) {
+      g.baseX *= 10; g.baseY *= 10;
+      g.geomScaled = g.geomScaled.scaled(10,10);
+    }
+    f.page[0][0].baseX = 10000;
+    f.page[2][0].baseY = -10000;
+    f.page[1][1].geomScaled = {};
+    f.params.sameWordGap = f.params.differentWordGap = f.params.differentLineGap = 5;
+    f.params.waqfMinHeight = minimum;
+    f.params.maxIters = 0;
+    f.params.toggles.waqfEscape = false;
+    optimizePage(f.page, f.classes, f.params);
+    auto& waqf = f.page[1][2];
+    require(waqf.initialPlacement == GlyphInstance::InitialPlacement::WaqfSlot &&
+            std::abs(boxBottomY(waqf)-minimum)<1e-9,
+        "The page factory must use the configured minimum in its initial height preference");
+    auto placement=f.placement();
+    placement.minDistFromBaseline=minimum;
+    placement.upperCeilingY=1400;
+    placement.hasInitialSlot=true;
+    waqf.dy-=100;updateWorldPolys(waqf);
+    WaqfTopOrderConstraint(placement).project(f.context,1);
+    require(std::abs(boxBottomY(waqf)-minimum)<1e-9,
+        "The configured height must remain the final visibility floor after contacts move the waqf");
+  }
+}
+
+void crowdedInitialSearchKeepsClearInkWithoutRequiringEveryGap() {
+  for (bool blocked : {false, true}) {
+    Fixture f;
+    for (auto& line : f.page) for (auto& g : line) {
+      g.baseX *= 10; g.baseY *= 10;
+      g.geomScaled = g.geomScaled.scaled(10,10);
+    }
+    auto& upper = f.page[0][0];
+    upper.baseX = -1000;
+    upper.baseY = blocked ? 1100 : 1350;
+    upper.geomScaled = upper.geomScaled.scaled(10, blocked ? 10 : 1);
+    f.page[1][1].baseX = 40;
+    f.page[2][0].baseY = -10000;
+    for (auto& line : f.page) for (auto& g : line) buildWorldPolys(g);
+    f.params.sameWordGap = 80;
+    f.params.differentLineGap = 50;
+    WaqfPlacementConstraint placement(f.page[1][2], 0.3, 0.3, 700, 100, 50, 1400);
+    prepareWaqfPositions({&placement}, f.context, f.params);
+    const auto& waqf = f.page[1][2];
+    require(placement.hasInitialSlot == !blocked,
+        "A crowded ink-clear slot must be searched even when full spacing is impossible; occupied slots remain rejected");
+    if (blocked) {
+      require(waqf.dx == 0 && waqf.dy == 0,
+          "A search with no ink-clear position must preserve input for ordinary XPBD and optional escape");
+      continue;
+    }
+    const auto ownContact = geometry::getDistance(waqf.worldPolys, f.page[1][1].worldPolys, 80).contact;
+    const auto upperContact = geometry::getDistance(waqf.worldPolys, upper.worldPolys, 50).contact;
+    require(!ownContact.intersect && ownContact.depth_or_gap >= 10 && ownContact.depth_or_gap < 80 &&
+            !upperContact.intersect && upperContact.depth_or_gap >= 10,
+        "A crowded seed must retain ink clearance and leave only spacing shortfall for XPBD");
+    require(waqf.mobility > 0 && f.page[1][1].dx == 0 && f.page[1][1].dy == 0 && upper.dx == 0 && upper.dy == 0,
+        "The initial search must move only its waqf and retain refinement mobility");
+  }
+}
+
+void initialSearchIncludesTheAuthoredColumn() {
+  Fixture f;
+  f.params.sameWordGap = f.params.differentWordGap = f.params.differentLineGap = 5;
+  f.params.waqfEscapeMaxLeftPercent = 300;
+  auto& upper = f.page[0][0];
+  upper.baseX = -100; upper.baseY = 135;
+  upper.geomScaled = upper.geomScaled.scaled(10, 1);
+  f.page[1][1].baseY = 50;
+  f.page[2][0].baseY = -1000;
+  buildWorldPolys(upper); buildWorldPolys(f.page[1][1]); buildWorldPolys(f.page[2][0]);
+  auto placement = f.placement();
+  prepareWaqfPositions({&placement}, f.context, f.params);
+  const auto& waqf = f.page[1][2];
+  require(placement.hasInitialSlot && std::abs(waqf.dx) < 1e-9 && std::abs(waqf.dy + 55) < 1e-9,
+      "A clear vertical slot must not acquire horizontal drift from a grid that misses authored X");
+}
+
+void initialPlansAreValidatedTogether() {
+  for (bool together : {false, true}) {
+    Fixture f;
+    f.params.sameWordGap = f.params.differentWordGap = f.params.differentLineGap = 5.0;
+    f.params.waqfEscapeMaxLeftPercent = 300.0;
+    f.page[1].push_back(f.page[1][2]);
+    for (size_t i = 1; i < f.page[1].size(); ++i) {
+      f.page[1][i].prevBase = &f.page[1][0];
+      f.page[1][i].glyphIndex = static_cast<int>(i);
+    }
+    f.page[0][0].baseX = -10.0; f.page[0][0].baseY = 135.0;
+    f.page[2][0].baseY = -1000.0;
+    buildWorldPolys(f.page[0][0]); buildWorldPolys(f.page[2][0]);
+    auto first = f.placement();
+    WaqfPlacementConstraint second(f.page[1][3], 0.3, 0.3, 70.0, 10.0, 5.0, 200.0);
+    prepareWaqfPositions(together ? std::vector<WaqfPlacementConstraint*>{&first, &second}
+                                 : std::vector<WaqfPlacementConstraint*>{&first}, f.context, f.params);
+    require(first.hasInitialSlot == !together,
+        "Two independently clear plans selecting the same slot must be rejected together");
+    if (together)
+      require(!second.hasInitialSlot && f.page[1][2].dx == 0 && f.page[1][3].dx == 0,
+          "Conflicting plans must preserve both authored inputs for XPBD fallback");
+  }
+}
+
+void initialSearchHonorsForceSwitchesAndDiagnosticIndependence() {
+  std::pair<double, double> reference;
+  for (const std::string mode : {"apply", "diagnostics", "fallback_off", "skip", "placement_off", "gaps_off"}) {
+    Fixture f;
+    // Use production-sized ink with the factory's ordinary 700/1400 rails.
+    for (auto& line : f.page) for (auto& g : line) {
+      g.baseX *= 10; g.baseY *= 10;
+      g.geomScaled = g.geomScaled.scaled(10, 10);
+    }
+    f.page[0][0].baseX = -100; f.page[0][0].baseY = 1350;
+    f.page[2][0].baseY = -10000;
+    f.params.sameWordGap = f.params.differentWordGap = f.params.differentLineGap = 50;
+    f.params.waqfEscapeMaxLeftPercent = 300;
+    f.params.maxIters = 0;
+    f.params.toggles.waqfEscape = mode != "fallback_off";
+    f.params.toggles.waqfPlacement = mode != "placement_off";
+    f.params.toggles.genericGapConstraint = mode != "gaps_off";
+    if (mode == "diagnostics") {
+      f.params.waqfLeftDriftTolerancePercent = 0;
+      f.params.waqfRightDriftTolerancePercent = 1000;
+      f.params.waqfPreviousLineMarginPercent = 100;
+      f.params.toggles.reportPlacementAudit = f.params.toggles.reportWaqfBounds = true;
+    }
+    optimizePage(f.page, f.classes, f.params, nullptr,
+        mode == "skip" ? InitialPositioning::Skip : InitialPositioning::Apply);
+    const auto& w = f.page[1][2];
+    if (mode == "apply") {
+      require(w.initialPlacement == GlyphInstance::InitialPlacement::WaqfSlot && w.mobility > 0,
+          "The page factory must apply initial waqf plans without freezing mobility");
+      reference = {w.dx, w.dy};
+    } else if (mode == "diagnostics" || mode == "fallback_off") {
+      require(w.dx == reference.first && w.dy == reference.second,
+          "Reporting tolerances and disabling escape fallback must not alter initial search results");
+    } else {
+      require(w.initialPlacement == GlyphInstance::InitialPlacement::None && w.dx == 0 && w.dy == 0,
+          "Input inspection and disabled waqf/gap forces must skip initial search");
+    }
+  }
+}
+
 }  // namespace
 
 int main() {
   try {
+    initialSearchOptimizesClearInkAndLeavesBlockedInkToEscape();
+    initialPlansAreValidatedTogether();
+    initialSearchIncludesTheAuthoredColumn();
+    initialSearchIncludesHeightAndBaseAlignmentPreferences();
+    initialSearchAlignsToOverhangingOwningTopMarks();
+    minimumHeightParameterDrivesInitialSearchAndSafetyFloor();
+    crowdedInitialSearchKeepsClearInkWithoutRequiringEveryGap();
+    alignedContactSearchDetectsContainmentWithoutCorruption();
+    safetyBoundsDoNotCreatePlacementTargets();
+    initialSearchHonorsForceSwitchesAndDiagnosticIndependence();
     alternatingNormalsActivateEscape();
     sameAndFollowingLineContactsDoNotActivate();
     clearanceResetsPersistence();
     initialPocketStartsSoftLeftEscape();
-    clearedInitialPocketSettlesToOrdinaryHeight();
+    clearedEscapeHoldsItsTargetWithoutOrdinaryHeightSpring();
     compressedOwnStackSoftensOnlyAnOpposingBand();
     relaxationRetainsTheExistingLeftAllowance();
   } catch (const std::exception& error) {

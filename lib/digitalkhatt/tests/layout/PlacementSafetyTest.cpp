@@ -12,6 +12,7 @@
 #include "digitalkhatt/layout/OptimizeLayout.h"
 #include "digitalkhatt/layout/PlacementAudit.h"
 #include "digitalkhatt/layout/SolverContext.h"
+#include "digitalkhatt/layout/SweepBroadphase.h"
 #include "digitalkhatt/layout/ViolationReportContext.h"
 #include "digitalkhatt/layout/constraints/HorizontalOrderConstraint.h"
 #include "digitalkhatt/layout/constraints/HorizontalGapConstraint.h"
@@ -341,6 +342,102 @@ void stretchedFathaJoinedHorizontalGap() {
   }
 }
 
+void independentLineGap() {
+  Fixture f;
+  auto& a = f.add("fatha", 0, 0, 20, 20);
+  auto& b = f.add("shadda", 0, 220, 20, 20);
+  auto p = quiet();
+  p.sameWordGap = 30;
+  p.differentWordGap = 60;
+  p.broadphasePadding = 0;
+  require(p.differentLineGap == 250, "Different-line clearance must default to 250 units");
+  a.wordIndex = b.wordIndex = 0;
+  require(chooseMinGap(a, b, p) == 30, "Same-word contacts must retain their independent gap");
+  b.wordIndex = 1;
+  require(chooseMinGap(a, b, p) == 60, "Same-line different-word contacts must retain their independent gap");
+  b.lineIndex = 1;
+  require(chooseMinGap(a, b, p) == 250 && chooseMinGap(b, a, p) == 250,
+      "Line boundaries must take priority over word identity in both pair orders");
+  std::vector<std::reference_wrapper<GlyphInstance>> glyphs{a, b};
+  std::vector<std::pair<int, int>> pairs;
+  SweepBroadphase(glyphs, p).findPairs(pairs);
+  require(pairs.size() == 1, "Cross-line candidates must be found beyond the same-word and different-word horizons");
+  SolverContext context(f.page, f.classes);
+  std::vector<ConstraintViolation> violations;
+  collectGapViolations(context, glyphs, p, violations);
+  require(violations.size() == 1 && std::abs(violations[0].severity - 50) < 1e-6,
+      "Gap diagnostics must use the independent cross-line clearance");
+  require(violations[0].kind == ViolationKind::Soft && violations[0].diagnostic == "extra-line-spacing",
+      "Extra line spacing must be identified separately from ordinary collisions");
+  double penetration = 0;
+  solveGapConstraint(context, a, b, p, 1, penetration);
+  require(a.dy < 0 && b.dy > 0, "Cross-line gap forces must separate marks even when the word gaps are already satisfied");
+  a.dx = a.dy = b.dx = b.dy = 0;
+  updateWorldPolys(a); updateWorldPolys(b);
+  p.differentLineGap = 0;
+  SolverContext disabled(f.page, f.classes);
+  solveGapConstraint(disabled, a, b, p, 1, penetration);
+  require(a.dy == 0 && b.dy == 0 && chooseMinGap(a, b, p) == 0,
+      "Zero cross-line clearance must leave separated marks unchanged independently of the word gaps");
+}
+
+void separateLineSpacingConstraints() {
+  require(OptParams{}.compliance.extraLineSpacing == 1.0, "Extra line spacing must default to compliance 1.0");
+  for (double initialGap : {-10.0, 100.0, 180.0}) {
+    Fixture f;
+    auto& a = f.add("fatha", 0, 0, 20, 20);
+    auto& b = f.add("shadda", 0, initialGap + 20, 20, 20);
+    b.lineIndex = 1;
+    auto p = quiet(); p.differentWordGap = 120;
+    SolverContext context(f.page, f.classes);
+    std::vector<ConstraintViolation> violations;
+    collectGapViolations(context, {a,b}, p, violations);
+    if (initialGap < 0) {
+      require(violations.size() == 1 && violations[0].kind == ViolationKind::Hard &&
+              violations[0].diagnostic.empty(), "An ink intersection must be reported once as an ordinary collision");
+    }
+    require(effectiveGapCompliance(context,a,b,p,120) == 0.1,
+        "Ordinary cross-line collision compliance must remain 0.1");
+    double penetration = 0;
+    solveGapConstraint(context,a,b,p,1,penetration);
+    auto& states = context.gapInfos.at({&a,&b});
+    require(states.extraLine.lambda > 0 && states.extraLine.hasInitialC,
+        "Extra spacing must accumulate its own XPBD multiplier and initial residual");
+    require((initialGap < 120) == states.ordinary.hasInitialC &&
+            (initialGap < 120 ? states.ordinary.lambda > 0 : states.ordinary.lambda == 0),
+        "Ordinary clearance must be active only below its own target");
+    if (initialGap == 100) {
+      solveGapConstraint(context,a,b,p,1,penetration);
+      require(states.ordinary.lambda == 0 && states.extraLine.lambda > 0,
+          "Satisfying ordinary clearance must reset only its own multiplier");
+    }
+  }
+  double strongerMovement = 0;
+  for (double compliance : {1.0,5.0}) {
+    Fixture f;
+    auto& a = f.add("fatha",0,0,20,20);
+    auto& b = f.add("shadda",0,200,20,20); b.lineIndex = 1;
+    auto p = quiet(); p.differentWordGap = 120; p.compliance.extraLineSpacing = compliance;
+    SolverContext context(f.page,f.classes); double penetration = 0;
+    solveGapConstraint(context,a,b,p,1,penetration);
+    const double movement = std::abs(a.dy) + std::abs(b.dy);
+    if (compliance == 1) strongerMovement = movement;
+    else require(movement < strongerMovement, "Higher extra-line compliance must soften only the extra spacing force");
+  }
+  for (double lineGap : {80.0,120.0}) {
+    Fixture f;
+    auto& a = f.add("fatha",0,0,20,20);
+    auto& b = f.add("shadda",0,70,20,20); b.lineIndex = 1;
+    auto p = quiet(); p.differentWordGap = 120; p.differentLineGap = lineGap;
+    SolverContext context(f.page,f.classes); double penetration = 0;
+    solveGapConstraint(context,a,b,p,1,penetration);
+    const auto& states = context.gapInfos.at({&a,&b});
+    require(states.ordinary.lambda > 0 && !states.extraLine.hasInitialC && states.extraLine.lambda == 0 &&
+            std::abs(a.dy + (lineGap-50)/2.1) < 1e-6,
+        "A line target at or below word clearance must use only the ordinary 0.1 constraint");
+  }
+}
+
 void gapReportingAndKeys() {
   Fixture f;
   auto& a = f.add("fatha", 0, 100, 20, 20);
@@ -349,14 +446,14 @@ void gapReportingAndKeys() {
   SolverContext context(f.page, f.classes);
   const GapKey ab{&a, &b}, ba{&b, &a}, ca{&c, &a};
   require(ab == ba && !(ab == ca), "Gap identity must require both participants");
-  context.gapInfos[ab].lambda = 2;
+  context.gapInfos[ab].ordinary.lambda = 2;
   require(context.gapInfos.find(ba) != context.gapInfos.end(), "Reversed gap keys must share a hash and state");
   c.mobility = 2;
   const auto [wa, wb] = gapMobilities(context, a, c);
   require(wa + wb == 4, "Gap diagnostics and projection must use the same waqf mobility bias");
 
-  context.gapInfos[ab].initialC = -5000;
-  context.gapInfos[ab].hasInitialC = true;
+  context.gapInfos[ab].ordinary.initialC = -5000;
+  context.gapInfos[ab].ordinary.hasInitialC = true;
   std::vector<ConstraintViolation> v;
   collectGapViolations(context, {a, b}, OptParams{}, v);
   require(contains(v, ViolationType::GenericGap), "Actual ink intersection must not be hidden as expected compliance slack");
@@ -727,7 +824,7 @@ void rehWawLowerMarkPlacement() {
         require(chooseMinGap(reh, kasra, p) == p.differentWordGap, "Tip clearance must not cross word boundaries");
         kasra.wordIndex = reh.wordIndex;
         kasra.lineIndex = 1;
-        require(chooseMinGap(reh, kasra, p) == p.differentWordGap, "Tip clearance must not cross lines");
+        require(chooseMinGap(reh, kasra, p) == p.differentLineGap, "Tip clearance must not cross lines");
       }
     }
   }
@@ -1694,6 +1791,8 @@ int main() {
     ownershipAndReportContext();
     worldBoundsAndAppliedOffsets();
     stretchedFathaJoinedHorizontalGap();
+    independentLineGap();
+    separateLineSpacingConstraints();
     gapReportingAndKeys();
     completeConstraintCoverageAndConvergence();
     stretchedMarksRetainCollisionSafety();

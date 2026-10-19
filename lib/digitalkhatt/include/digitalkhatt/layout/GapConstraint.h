@@ -45,6 +45,9 @@ void collectGapViolations(SolverContext& context,
 double gapCompliance(const GlyphInstance& A, const GlyphInstance& B);
 
 double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptParams& params);
+// Cross-line ordinary clearance is capped at the inter-word target. Any
+// larger line target is handled by a separate compliant spacing constraint.
+double chooseOrdinaryGap(const GlyphInstance& A, const GlyphInstance& B, const OptParams& params);
 
 // The compliance actually applied to a pair's XPBD update (gapCompliance(A,B)
 // strengthened for gaps below 80; larger targets retain ordinary stiffness).
@@ -71,7 +74,7 @@ struct GapKey {
   }
 };
 
-struct GapInfo {
+struct GapConstraintState {
   double lambda = 0;
   double count = 0;
   // The first C measured for this pair (before any correction), i.e. C0 in
@@ -81,6 +84,11 @@ struct GapInfo {
   double initialC = 0;
   bool hasInitialC = false;
   bool escapingA = false, escapingB = false;
+};
+
+struct GapInfo {
+  GapConstraintState ordinary;
+  GapConstraintState extraLine;
 };
 
 struct GapKeyHasher {

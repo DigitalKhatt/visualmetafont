@@ -45,9 +45,10 @@ def compare(before, after):
         pages += 1
         for old, new in zip(a['glyphs'], b['glyphs']):
             glyphs += 1
-            # Every field except the solved delta and renderer offsets is input.
+            # Contextual initial placement and mobility are solver output too;
+            # HarfBuzz positions, glyph identities and deformation stay input.
             for field in old:
-                if field not in ('dx', 'dy', 'final') and old[field] != new[field]:
+                if field not in ('dx', 'dy', 'final', 'initialPositioning', 'initialPlacement', 'mobility') and old[field] != new[field]:
                     raise ValueError(f'Shaped input differs on page {a["page"]}: {field}')
             if old['final'] == new['final']:
                 raw_only += abs(old['dx']-new['dx']) > 1e-8 or abs(old['dy']-new['dy']) > 1e-8

@@ -17,7 +17,7 @@ struct GlyphMetrics {
 };
 
 struct GlyphInstance {
-  enum class InitialPlacement { None, CenteredGap, LeftOfRehWaw, BelowRehWaw };
+  enum class InitialPlacement { None, CenteredGap, LeftOfRehWaw, BelowRehWaw, WaqfSlot };
   double baseX = 0.0;
   double baseY = 0.0;
   double lineY = 0.0;

@@ -306,38 +306,69 @@ saved spacing in font units. Line `fontSize` and `xscale` still apply within
 that page scale. Regenerate binaries before using the updated renderer; older
 files with the same version numbers have a different header and X convention.
 
-## Waqf height target
+## Initial waqf placement
 
-When a waqf is beside its stack, its soft target puts its top above the highest
-same-base top mark by the existing top-mark gap (50 font units). The hard
-top-order floor allows their tops to be level. When their horizontal bounds
-overlap, the stronger bottom-above-top floor applies. Baseline/base visibility
-limits and the upper ceiling also bound the target. Solver and reporting use
-the same target calculation; there is no separate height-band parameter.
+With waqf placement and generic gap forces enabled, a bounded ink-clearance
+search runs before XPBD for every waqf, including already clear authored
+positions. It prefers aligning the waqf's left ink edge with the leftmost owning
+non-waqf top mark that extends left of the base, or with the base's left edge
+otherwise, within the existing search bounds. It ranks clear candidates by
+proximity to that alignment and a preferred height: the waqf top sits above its owning top stack by the existing
+50-unit gap, while respecting base clearance, the configured minimum baseline
+height, and the upper ceiling. It searches beside/above the owning base, within the configured maximum left
+escape allowance and right search allowance, baseline/base visibility
+floor, top-mark ordering, and height ceiling. Actual polygon contacts against
+nearby marks and bases, including neighboring lines, first require full ordinary
+clearance. If no such candidate exists, a second search accepts ink-clear slots
+with at least `min(10, ordinary gap)` units of margin. It minimizes the sum of
+squared ordinary spacing shortfalls before applying height/alignment preferences;
+XPBD then refines those remaining gaps. An actual intersection is always rejected.
+Extra line spacing contributes a softer comfort cost, rather than
+making an otherwise clear slot infeasible. Displacement from the original
+anchor is only a tie breaker, so a clear high anchor does not bypass height
+optimization. Preferred and authored axes are searched explicitly to avoid
+grid-origin bias. These are initial scoring preferences, not XPBD springs.
 
-The shared defaults use `compliance.waqfTarget = 5.0` and
-`compliance.waqfXAlign = 0.24`. The softer height target lets collision constraints
-move a waqf down beside its own stack. The GUI target control accepts 0–10;
-explicit values in saved GUI preferences and JSON snapshots override defaults.
+All waqf searches see the same page geometry; their plans are checked together
+before any translations are applied. Incompatible plans are discarded. A sign
+with no clear candidate retains its authored input for the existing escape
+fallback. Accepted signs remain movable: XPBD applies ink contacts and safety
+bounds without a preferred-height or horizontal-alignment spring. Its owner
+interval extends from **Maximum left target offset** left of the owning base's
+ink left edge to **Maximum right offset** right of that edge. No horizontal force
+acts inside that whole interval. The outer bounds use the existing left/right
+base-vicinity compliance. Collision escape can still activate if neighboring ink
+moves into the slot. Input diagnostics and Force-off runs skip the search.
+Placement exports identify accepted signs as `waqf-slot` and record their initial
+translation separately from subsequent XPBD refinement.
 
-## Waqf horizontal alignment band
+## Minimum waqf height
 
-Horizontal alignment prefers the leftmost ink edge among the owning base and
-its attached top marks (including dots and excluding waqf signs), with no force
-inside a band of 25% of the waqf's ink width on either side. Outside the band,
-the existing `waqfXAlign` compliance supplies a soft restoring force. Contacts
-can still move the waqf farther when needed; this is not a hard movement limit.
-The unilateral multiplier resets when the mark enters the band or crosses to
-the opposite side. There is no forced left relocation when a vertical stack
-exceeds its ceiling. The reference follows the current base/top-stack footprint;
-it does not subtract a whole waqf width to force a placement beside the stack.
+**Position waqf marks / Minimum height above baseline** controls the distance
+from the owning baseline to the waqf ink bottom. The default is the former
+700 units; GUI and CLI accept 0–1400 units. This feeds both the initial search
+and visibility safety floor. The owning base's ink-top clearance (100 units)
+and top-mark ordering can require a higher position. JSON snapshots store
+`xpbd.waqfMinHeight`; the CLI flag is `--waqf-min-height`.
 
-Set **X band (% width)** in the GUI's **Waqf placement** row, use
-`--waqf-x-alignment-band N`, or save `waqfHorizontalAlignmentBandPercent` under
-`xpbd`. A value of 0 requests exact soft left-edge alignment; larger values
-allow more free movement. This solver parameter is independent of the
-horizontal drift reporting tolerances below. Optional soft-target reporting
-measures only the excess outside the band.
+## Waqf safety bounds
+
+The ordinary waqf constraint applies only base/baseline visibility, upper-height,
+and outer owning-base association bounds. The final rigid top-order rail keeps
+the waqf top at or above its owning top marks. For unplanned ordinary placement,
+horizontal overlap retains the bottom-above-stack floor; searched slots and
+active escape use top ordering plus ordinary ink contacts beside the stack.
+There is no force toward a selected height, selected X, or left-edge alignment.
+The GUI retains minimum/maximum-height compliance and search/association limits.
+**Preferred-height compliance** and **Horizontal compliance** are removed.
+
+Saved `compliance.waqfTarget` and `compliance.waqfXAlign` keys remain readable for
+compatibility and now affect optional escape descent/horizontal softness only.
+They have no effect while fallback is inactive or disabled. The legacy
+`waqfHorizontalAlignmentBandPercent` key and `--waqf-x-alignment-band` flag now set
+the right search/association allowance and the early fallback band width, with
+no ordinary alignment spring. Its default remains 25% of waqf width. Reporting
+left/right drift tolerances remain independent and never alter layout.
 
 ## GUI minimum-size overflow report
 
@@ -385,6 +416,13 @@ compatibility target. The binary fields and DKLY version numbers are unchanged.
 
 ## Conditional waqf left/down escape
 
+The GUI's **Position waqf marks / Enable escape fallback** checkbox controls the
+left/down escape preference. Uncheck it to retain the initial slot search,
+ordinary XPBD refinement, and collision constraints while disabling fallback
+escape. The existing saved `toggles.waqfEscape` setting and CLI
+`--no-waqf-escape` do the same thing. **Maximum left target offset** is shared by
+the initial search and fallback, so it stays editable with fallback disabled.
+
 **Waqf left/down escape** is a separate XPBD preference, enabled by default
 when waqf placement and generic gap forces are enabled. It uses contacts
 already sampled by the ordinary gap pass. The early case remeasures those few
@@ -396,8 +434,7 @@ waqf and its estimated clearance stays below 10 font units with less than 10%
 of the desired gap improvement for three iterations. If that tight upper contact
 opposes a still-crowded contact with an ordinary top mark attached to the same
 base (contact normals more than 120 degrees apart), escape activates immediately.
-This recognizes a squeeze before normal alignment pulls the waqf back and the
-contacts select a rightward exit. An opposing lower mark is not required for the
+This recognizes a squeeze before local contact corrections select a rightward exit. An opposing lower mark is not required for the
 three-iteration fallback. The obstacle's owning line identifies it as an upper obstacle;
 an alternating separation normal must not reset a persistent squeeze.
 Contact estimates account for translations after sampling;
@@ -409,9 +446,9 @@ previous populated line plus an owning top mark closer than **Trigger clearance*
 starts a small soft left/down preference immediately. Bounding-box overlap alone
 does not qualify. This handles initial pockets whose nearest penetration normal
 points sideways and would otherwise push the waqf right before escape starts.
-For this early case, a soft band starts on the left side of the ordinary
-**Horizontal alignment band**, or **Maximum left target offset** if smaller.
-Its far edge reserves one alignment-band width inside the maximum left target
+For this early case, a soft band starts at the negative **Maximum right offset**
+percentage, or **Maximum left target offset** if smaller. Its far edge reserves
+that same width inside the maximum left target
 offset; if the interval would invert, it collapses to the near edge. This soft
 band resists both a return right and an excessive drift left. Ordinary contacts
 determine the final displacement. Fresh outline
@@ -423,27 +460,22 @@ its dots and harakat downward into one another. The top marks retain their norma
 vertical mobility under all other constraints. The early downward target advances
 by its configured step rather than adopting a large contact-driven displacement
 as its next target.
-After the previous-line contact clears, an early escape advances its target by
-the configured **Down step** toward ordinary preferred height beside its owning
-stack, stopping when it reaches that height. This remains a soft downward target
-using the configured preferred-height compliance; gap contacts, the visibility
-floor and top ordering remain active. It prevents a clear sign being left at an
-unnecessarily high escape height. A zero **Down step** disables this settlement.
-The owning-stack visibility floor, compliances and iteration limit are unchanged.
+Once the previous-line contact clears, fallback holds its selected bounded
+target. It does not resume an ordinary preferred-height target. Safety floors,
+ink contacts, top ordering and the configured iteration limit remain active.
 
 While clearance is below the trigger, compliant targets advance left by 5% of
 waqf ink width and downward by 5% of its ink height per iteration. The left
 target is capped at one waqf width left of its base (the early case above uses
 its soft left band). Descent stops at the owning
-base's visibility floor (100 units above base ink and 700 above its baseline)
+base's visibility floor (100 units above base ink and the configured minimum above its baseline)
 and keeps the waqf's top at or above every attached top mark's top. During
 escape, overlapping horizontal boxes no longer impose a bottom-above-mark
 floor; ordinary gap contacts protect the actual shapes. The existing final
 top-order rail also enforces the visibility floor for escaping waqf signs.
-Normal placement retains its 50-unit top lift preference before escape activates.
 
-The left preference uses X-align compliance (0.24); descent uses the chosen
-height-target compliance (5.0). For the early left band, a compressed ordinary
+Fallback alone uses the legacy horizontal compliance (0.24) and descent
+compliance (5.0). For the early left band, a compressed ordinary
 top mark on the same base can soften the horizontal preference only when its
 contact separation opposes the band's restoring direction. With desired gap
 `g` and freshly measured gap `d`, compression is `clamp((g-d)/g, 0, 1)` and
@@ -702,30 +734,46 @@ it is not proof of actual filled-ink intersection. Intentional pair exclusions
 and manual bowl placements follow the solver policy. These checks are not a proof
 of linguistic ownership or a replacement for a human Mushaf proofread.
 
-`sameWordGap` and `differentWordGap` tune the generic XPBD target clearance in
-solver font/world units. Both default to 80. Different-word clearance also
-applies between lines. Word identity is assigned once per page from glyph order,
+`sameWordGap`, `differentWordGap`, and `differentLineGap` tune the generic XPBD
+target clearance in solver font/world units. The two word gaps default to 80;
+the different-line gap defaults to 250 and takes priority across line boundaries.
+`differentWordGap` applies to different words on the same line.
+Word identity is assigned once per page from glyph order,
 spaces (including space variants), and line boundaries; moving a mark never
 changes its word. The 40-unit own-alef attachment and 10-unit kasra/iqlab pair
 exceptions retain their gaps. Dedicated stack constraints retain their authored
 gaps. Base glyphs remain fixed, so a larger value requests more clearance from
 movable marks; compliance and conflicting constraints can leave a residual.
-Raising a target above 80 retains ordinary contact stiffness; the smaller
-attachment gaps keep their historical stronger contacts.
+For different lines, ordinary clearance targets the smaller of the line gap
+and the different-word gap, with compliance 0.1. When the line gap is larger,
+a second constraint seeks the full line gap with its own XPBD multiplier and
+`compliance.extraLineSpacing` (default 1.0). Higher compliance makes this extra
+spacing yield more readily to other constraints. Below ordinary clearance both
+constraints can act; above it only the extra spacing constraint acts. Same-line
+contacts and the stronger historical attachment exceptions are unchanged.
 Zero requests no extra clearance while retaining intersection resolution.
 
 GUI: **Placement / Collision avoidance / Resolve gaps and collisions**, then
-**Same-word gap** and **Different-word gap**. For example, keep the former at 80
-and set the latter to 120 to request more spacing between words.
+**Same-word gap**, **Different-word gap**, and **Different-line gap**. For example,
+use 80 within words, 120 between words on one line, and 250 between lines.
+**Extra line spacing compliance** controls the second constraint independently
+of these distances. It is unused when the line gap does not exceed the word gap.
 
 ```sh
 digitalkhatt_generate_mushaf --config mushaf.settings.json --force \
-  --same-word-gap 80 --different-word-gap 120 -o mushaf.pdf
+  --same-word-gap 80 --different-word-gap 120 --different-line-gap 250 \
+  --extra-line-spacing-compliance 1 -o mushaf.pdf
 ```
 
-The corresponding JSON values are stored under `xpbd`. Solver-proxy gap reports
+The corresponding JSON values are stored under `xpbd`. Existing configurations
+without `differentLineGap` use the new 250-unit default. Set it equal to
+`differentWordGap` to reproduce the previous cross-line target. Solver-proxy gap reports
 use the same pair-specific targets. Save Collision clearance remains a separate
 reporting setting.
+Extra line-spacing residuals are soft diagnostics, identified separately from
+ordinary clearance findings. Enable generic-gap solver residuals and soft
+residual reporting to inspect them. Actual intersections remain ordinary
+collision findings; Save Collision continues to use its independent ink clearance.
 
 `broadphasePadding` sets the minimum expansion of each glyph's bounding box for
 candidate search, defaulting to 140 font units. Effective expansion is at least

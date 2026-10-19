@@ -136,6 +136,12 @@ target_include_directories(digitalkhatt_geometry PUBLIC include)
 target_compile_features(digitalkhatt_geometry PUBLIC cxx_std_20)
 target_link_libraries(digitalkhatt_geometry PUBLIC mplib PRIVATE Clipper2::Clipper2)
 
+if(BUILD_TESTING)
+  add_executable(digitalkhatt_test_gjk_epa tests/geometry/GjkEpaTest.cpp)
+  target_link_libraries(digitalkhatt_test_gjk_epa PRIVATE digitalkhatt_geometry)
+  add_test(NAME digitalkhatt.gjk_epa COMMAND digitalkhatt_test_gjk_epa)
+endif()
+
 
 # ---------------------------------------------------------------------------
 # digitalkhatt_layout — Qt-free XPBD collision-avoidance / mark-positioning
@@ -168,6 +174,7 @@ add_library(digitalkhatt_layout
   src/layout/constraints/StackOrderConstraint.cpp
   src/layout/constraints/CompactMarkConstraint.cpp
   src/layout/RehWawMarkPlacement.cpp
+  src/layout/WaqfMarkPlacement.cpp
   src/layout/constraints/BaseVicinityConstraint.cpp
   src/layout/constraints/BowlClusterConstraint.cpp
 )

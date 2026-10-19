@@ -42,7 +42,7 @@ struct RehWawMarkPlacement {
     return activeSlot() == Slot::Below;
   }
   double neighboringGapPenalty(const geometry::GeometrySet&, const GlyphInstance&) const;
-  bool dotHasClearance(const geometry::GeometrySet&) const;
+  bool dotHasClearance(const geometry::GeometrySet&, std::vector<geometry::GeometrySet>& followingShapes) const;
   double followingTop(const geometry::GeometrySet&, const geometry::GeometrySet&) const;
   geometry::GeometrySet followingShape(const geometry::GeometrySet&) const;
 };

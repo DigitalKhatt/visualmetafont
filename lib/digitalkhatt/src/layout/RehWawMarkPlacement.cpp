@@ -193,12 +193,17 @@ double RehWawMarkPlacement::neighboringGapPenalty(const geometry::GeometrySet& s
   return penalty;
 }
 
-bool RehWawMarkPlacement::dotHasClearance(const geometry::GeometrySet& shape) const {
+bool RehWawMarkPlacement::dotHasClearance(const geometry::GeometrySet& shape,
+                                         std::vector<geometry::GeometrySet>& followingShapes) const {
+  followingShapes.clear();
   if (!hasInkClearance(shape)) return false;
   // A slot must fit the moving dot/kasra pair, not just the dot. In
   // particular, following kasra must not be pulled into the next line's Waqf.
-  for (const auto* kasra : kasras)
-    if (kasra->followingShape(shape).empty()) return false;
+  for (const auto* kasra : kasras) {
+    auto following = kasra->followingShape(shape);
+    if (following.empty()) return false;
+    followingShapes.push_back(std::move(following));
+  }
   return true;
 }
 
@@ -265,14 +270,22 @@ void RehWawMarkPlacement::prepareTarget() {
   searchSlot = Slot::CurrentGap;
   dotUsesLeftSlot = false;
   dotUsesCurrentGap = false;
+  std::vector<geometry::GeometrySet> followingShapes;
+  followingShapes.reserve(kasras.size());
 
   // Only feasible candidates compete within a slot. Slot priority is decided
   // separately, so a weighted score cannot displace a clear existing gap.
   auto search = [&](double preferredX, double preferredY) {
     if (dotMinX > dotMaxX || dotMinY > dotMaxY) return false;
     auto consider = [&](double x, double y) {
+      const double displacement = (x - preferredX) * (x - preferredX) +
+          (y - preferredY) * (y - preferredY);
+      // Left/below slots have no current-gap room priority. Their spacing
+      // penalties are nonnegative, so displacement alone can rule out a win.
+      // Current-gap candidates must still compete for their breathing room.
+      if (searchSlot != Slot::CurrentGap && displacement >= best) return;
       const auto trial = mark.worldPolys.translate(x - originX, y - originY);
-      if (!dotHasClearance(trial)) return;
+      if (!dotHasClearance(trial, followingShapes)) return;
       const double refGap = geometry::getDistance(trial, reference.worldPolys, 1e6).contact.depth_or_gap;
       const double shortfall = std::max(0.0, params.rehWaw.tipGap - refGap);
       double penalty = shortfall * shortfall + neighboringGapPenalty(trial, mark);
@@ -290,10 +303,9 @@ void RehWawMarkPlacement::prepareTarget() {
             separatedShapeGap(trial, mark.prevBase->worldPolys, preferred),
             separatedShapeGap(trial, reference.worldPolys, preferred)));
       }
-      for (const auto* kasra : kasras)
-        penalty += neighboringGapPenalty(kasra->followingShape(trial), kasra->mark);
-      const double cost = (x - preferredX) * (x - preferredX) +
-          (y - preferredY) * (y - preferredY) + 4.0 * penalty;
+      for (size_t i = 0; i < kasras.size(); ++i)
+        penalty += neighboringGapPenalty(followingShapes[i], kasras[i]->mark);
+      const double cost = displacement + 4.0 * penalty;
       if (room > bestRoom || (room == bestRoom && cost < best)) {
         bestRoom = room;
         best = cost; bestX = x; bestY = y; dotTargetClear = true;

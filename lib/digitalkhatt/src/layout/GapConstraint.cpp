@@ -157,6 +157,7 @@ bool beginGapPass(SolverContext& context,
 
 double effectiveGapCompliance(const SolverContext& context, const GlyphInstance& A,
     const GlyphInstance& B, const OptParams& P, double gmin) {
+  if (A.lineIndex != B.lineIndex) return gmin > 0.0 ? 0.1 : 0.0;
   return softBelowMarkPair(context, A, B) ? P.compliance.rehWawBelowMarkGap :
                                           effectiveGapCompliance(A, B, gmin);
 }
@@ -169,8 +170,8 @@ double expectedComplianceResidual(double initialC, double compliance, double w, 
 }
 
 double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptParams& P) {
-  if (A.lineIndex != B.lineIndex ||
-      (A.wordIndex >= 0 && B.wordIndex >= 0 && A.wordIndex != B.wordIndex))
+  if (A.lineIndex != B.lineIndex) return P.differentLineGap;
+  if (A.wordIndex >= 0 && B.wordIndex >= 0 && A.wordIndex != B.wordIndex)
     return P.differentWordGap;
   const auto tipPair = [](const GlyphInstance& base, const GlyphInstance& mark) {
     if (!isRehWaw(base) || !mark.isMark) return false;
@@ -204,12 +205,17 @@ double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptPar
     return P.sameWordGap;
 }
 
-void solveGapConstraint(SolverContext& solverContext,
+double chooseOrdinaryGap(const GlyphInstance& A, const GlyphInstance& B, const OptParams& P) {
+  const double target = chooseMinGap(A, B, P);
+  return A.lineIndex != B.lineIndex ? std::min(target, P.differentWordGap) : target;
+}
+
+static void projectGapConstraint(SolverContext& solverContext,
                         GlyphInstance& A,
                         GlyphInstance& B,
                         const OptParams& P,
                         double dt,
-                        double& maxPenetration) {
+                        double& maxPenetration, bool extraLine) {
   // Decide desired min gap.
   const bool isMarkExists = (A.isMark || B.isMark);
 
@@ -222,19 +228,30 @@ void solveGapConstraint(SolverContext& solverContext,
     return;
   }
 
-  const double gmin = chooseMinGap(A, B, P);
-  double compliance = effectiveGapCompliance(solverContext, A, B, P, gmin);
+  const double gmin = extraLine ? P.differentLineGap : chooseOrdinaryGap(A, B, P);
+  const double compliance = extraLine ? P.compliance.extraLineSpacing :
+      effectiveGapCompliance(solverContext, A, B, P, gmin);
 
+  const auto clearMultiplier = [&] {
+    const auto it = solverContext.gapInfos.find(GapKey{&A, &B});
+    if (it != solverContext.gapInfos.end())
+      (extraLine ? it->second.extraLine : it->second.ordinary).lambda = 0;
+  };
   auto dr = getDistance(A.worldPolys, B.worldPolys, gmin);
-  if (!std::isfinite(dr.contact.depth_or_gap))
+  if (!std::isfinite(dr.contact.depth_or_gap)) {
+    // The bounded distance query can omit a satisfied target entirely. The
+    // two cross-line constraints must still release their states separately.
+    if (A.lineIndex != B.lineIndex && P.differentLineGap > P.differentWordGap)
+      clearMultiplier();
     return;
+  }
 
   double C = dr.contact.depth_or_gap - gmin;  // want C >= 0
 
-  if (wA > 0.0) recordSqueezeContact(solverContext, A, B, dr.contact.normal * -1.0, dr.contact.depth_or_gap, gmin, P);
-  if (wB > 0.0) recordSqueezeContact(solverContext, B, A, dr.contact.normal, dr.contact.depth_or_gap, gmin, P);
+  if (!extraLine && wA > 0.0) recordSqueezeContact(solverContext, A, B, dr.contact.normal * -1.0, dr.contact.depth_or_gap, gmin, P);
+  if (!extraLine && wB > 0.0) recordSqueezeContact(solverContext, B, A, dr.contact.normal, dr.contact.depth_or_gap, gmin, P);
 
-  if (C < 0.0 && !solverContext.waqfEscapes.empty()) {
+  if (!extraLine && C < 0.0 && !solverContext.waqfEscapes.empty()) {
     if (auto* escape = solverContext.waqfEscapes[A.globalIndex]; escape && wA > 0.0)
       escape->recordContact(B, dr.contact.normal * -1.0, dr.contact.depth_or_gap, gmin);
     if (auto* escape = solverContext.waqfEscapes[B.globalIndex]; escape && wB > 0.0)
@@ -244,16 +261,13 @@ void solveGapConstraint(SolverContext& solverContext,
   auto gapKey = GapKey{&A, &B};
 
   if (C >= 0.0) {
-    auto it = solverContext.gapInfos.find(gapKey);
-    if (it != solverContext.gapInfos.end()) {
-      it->second.lambda = 0;
-    }
+    clearMultiplier();
     return;
   }
 
-  auto [it, inserted] = solverContext.gapInfos.try_emplace(gapKey);
-  auto& gapInfo = it->second;
-  if (inserted) {
+  auto& pairInfo = solverContext.gapInfos[gapKey];
+  auto& gapInfo = extraLine ? pairInfo.extraLine : pairInfo.ordinary;
+  if (!gapInfo.hasInitialC) {
     // First time this pair is seen violated: this IS C0 for
     // expectedComplianceResidual (the violation the solver starts from,
     // before the compliant constraint has applied any correction).
@@ -315,6 +329,13 @@ void solveGapConstraint(SolverContext& solverContext,
   }
 }
 
+void solveGapConstraint(SolverContext& context, GlyphInstance& A, GlyphInstance& B,
+                        const OptParams& P, double dt, double& maxPenetration) {
+  projectGapConstraint(context, A, B, P, dt, maxPenetration, false);
+  if (A.lineIndex != B.lineIndex && P.differentLineGap > P.differentWordGap)
+    projectGapConstraint(context, A, B, P, dt, maxPenetration, true);
+}
+
 // Re-evaluate the generic broadphase gap pass read-only, after the solve, to
 // collect penetrations. The gap pass has no persistent constraint objects, so
 // it must be rebuilt here. Squeezed pairs are owned by SqueezeCenterConstraint
@@ -335,60 +356,67 @@ void collectGapViolations(
     GlyphInstance& B = glyphs[pr.second];
     if (!(A.isMark || B.isMark)) continue;  // mirror solveGapConstraint's filter
 
-    const double gmin = chooseMinGap(A, B, P);
-    auto dr = geometry::getDistance(A.worldPolys, B.worldPolys, gmin);
-    if (!std::isfinite(dr.contact.depth_or_gap)) continue;
+    const auto report = [&](bool extraLine) {
+      const double gmin = extraLine ? P.differentLineGap : chooseOrdinaryGap(A, B, P);
+      auto dr = geometry::getDistance(A.worldPolys, B.worldPolys, gmin);
+      if (!std::isfinite(dr.contact.depth_or_gap)) return;
 
-    const double C = dr.contact.depth_or_gap - gmin;  // violation when C < 0
-    if (C >= 0.0) continue;
+      if (extraLine && dr.contact.intersect) return;
+      const double C = dr.contact.depth_or_gap - gmin;  // violation when C < 0
+      if (C >= 0.0) return;
 
-    // A soft (compliance > 0) gap constraint is a spring by design: it is
-    // expected to settle at a nonzero residual, not close fully. Predict that
-    // residual from the pair's own compliance/mobility (same formula the
-    // solver's convergence follows) and drop the violation if the actual
-    // residual is at or below it -- that's the constraint behaving exactly as
-    // configured, not a defect. initialC comes from the live solve's
-    // gapInfos (set the first time this pair was seen violated); if this
-    // exact pair was never processed there (no entry), fall back to the
-    // current C itself, i.e. assume no compliance shrinkage history and don't
-    // suppress -- conservative, avoids hiding a genuine issue.
-    const double compliance = effectiveGapCompliance(solverContext, A, B, P, gmin);
-    const auto [wA, wB] = gapMobilities(solverContext, A, B);
-    const auto n = dr.contact.normal;
-    const auto* escapeA = P.toggles.downwardEscape ? squeezeState(solverContext, A) : nullptr;
-    const auto* escapeB = P.toggles.downwardEscape ? squeezeState(solverContext, B) : nullptr;
-    const bool horizontalA = earlyWaqfOwnStack(solverContext, A, B);
-    const bool horizontalB = earlyWaqfOwnStack(solverContext, B, A);
-    const double w = !escapeA && !escapeB && !horizontalA && !horizontalB ? wA + wB :
-        wA * geometry::dot(n * -1.0, gapResponse(escapeA, n * -1.0, horizontalA)) +
-        wB * geometry::dot(n, gapResponse(escapeB, n, horizontalB));
-    const auto gapIt = solverContext.gapInfos.find(GapKey{&A, &B});
-    const double initialC =
-        (gapIt != solverContext.gapInfos.end() && gapIt->second.hasInitialC)
-            ? gapIt->second.initialC
-            : C;
-    const double expected =
-        expectedComplianceResidual(initialC, compliance, w, /*dt=*/1.0);
-    // Expected spring slack must never hide an actual ink intersection.
-    const double allowed = -expected * P.complianceResidualMargin;
-    if (!dr.contact.intersect && -C <= allowed) continue;
+      // A soft (compliance > 0) gap constraint is a spring by design: it is
+      // expected to settle at a nonzero residual, not close fully. Predict that
+      // residual from the pair's own compliance/mobility (same formula the
+      // solver's convergence follows) and drop the violation if the actual
+      // residual is at or below it -- that's the constraint behaving exactly as
+      // configured, not a defect. initialC comes from the live solve's
+      // gapInfos (set the first time this pair was seen violated); if this
+      // exact pair was never processed there (no entry), fall back to the
+      // current C itself, i.e. assume no compliance shrinkage history and don't
+      // suppress -- conservative, avoids hiding a genuine issue.
+      const double compliance = extraLine ? P.compliance.extraLineSpacing :
+          effectiveGapCompliance(solverContext, A, B, P, gmin);
+      const auto [wA, wB] = gapMobilities(solverContext, A, B);
+      const auto n = dr.contact.normal;
+      const auto* escapeA = P.toggles.downwardEscape ? squeezeState(solverContext, A) : nullptr;
+      const auto* escapeB = P.toggles.downwardEscape ? squeezeState(solverContext, B) : nullptr;
+      const bool horizontalA = earlyWaqfOwnStack(solverContext, A, B);
+      const bool horizontalB = earlyWaqfOwnStack(solverContext, B, A);
+      const double w = !escapeA && !escapeB && !horizontalA && !horizontalB ? wA + wB :
+          wA * geometry::dot(n * -1.0, gapResponse(escapeA, n * -1.0, horizontalA)) +
+          wB * geometry::dot(n, gapResponse(escapeB, n, horizontalB));
+      const auto gapIt = solverContext.gapInfos.find(GapKey{&A, &B});
+      const auto* state = gapIt == solverContext.gapInfos.end() ? nullptr :
+          (extraLine ? &gapIt->second.extraLine : &gapIt->second.ordinary);
+      const double initialC = state && state->hasInitialC ? state->initialC : C;
+      const double expected =
+          expectedComplianceResidual(initialC, compliance, w, /*dt=*/1.0);
+      // Expected spring slack must never hide an actual ink intersection.
+      const double allowed = -expected * P.complianceResidualMargin;
+      if (!dr.contact.intersect && -C <= allowed) return;
 
-    ConstraintViolation v;
-    v.type = ViolationType::GenericGap;
-    v.kind = softBelowMarkPair(solverContext, A, B) && compliance > 0.0 &&
-        !dr.contact.intersect && dr.contact.depth_or_gap >= 0.0 ?
-        ViolationKind::Soft : ViolationKind::Hard;
-    v.residual = C;
-    v.severity = -C;
-    v.allowedResidual = allowed;
-    v.detail = dr.contact.depth_or_gap < 0.0 ? "Collision-proxy intersection" :
-        dr.contact.intersect ? "Collision-proxy contact (touching or unresolved penetration)" : "Minimum gap not reached";
-    v.glyphA = A.globalIndex;
-    v.glyphB = B.globalIndex;
-    v.markerCount = 2;  // the contact segment between the two shapes
-    v.marker[0] = dr.contact.pA;
-    v.marker[1] = dr.contact.pB;
-    out.push_back(v);
+      ConstraintViolation v;
+      v.type = ViolationType::GenericGap;
+      v.kind = (extraLine || (softBelowMarkPair(solverContext, A, B) && compliance > 0.0)) &&
+          !dr.contact.intersect && dr.contact.depth_or_gap >= 0.0 ?
+          ViolationKind::Soft : ViolationKind::Hard;
+      v.residual = C;
+      v.severity = -C;
+      v.allowedResidual = allowed;
+      if (extraLine) v.diagnostic = "extra-line-spacing";
+      v.detail = extraLine ? "Extra line spacing not reached" : dr.contact.depth_or_gap < 0.0 ? "Collision-proxy intersection" :
+          dr.contact.intersect ? "Collision-proxy contact (touching or unresolved penetration)" : "Minimum gap not reached";
+      v.glyphA = A.globalIndex;
+      v.glyphB = B.globalIndex;
+      v.markerCount = 2;  // the contact segment between the two shapes
+      v.marker[0] = dr.contact.pA;
+      v.marker[1] = dr.contact.pB;
+      out.push_back(v);
+    };
+    report(false);
+    if (A.lineIndex != B.lineIndex && P.differentLineGap > P.differentWordGap)
+      report(true);
   }
 }
 

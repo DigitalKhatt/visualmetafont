@@ -6,82 +6,49 @@
 #include "digitalkhatt/layout/XPBDConstraint.h"
 
 namespace digitalkhatt::layout {
-
 struct OptParams;
-// Read-only association diagnostics, independent of constraint force switches.
 void collectWaqfPlacementViolations(SolverContext& context, const OptParams& params,
                                    std::vector<ConstraintViolation>& out);
 
+// Safety intervals only. Initial search chooses the position; no preferred
+// height or horizontal alignment target is projected during ordinary XPBD.
 struct WaqfPlacementConstraint : XPBDConstraint {
   GlyphInstance& waqfMark;
+  double minCompliance;
+  double maxCompliance;
+  double minDistFromBaseline;
+  double minGapToBase;
+  double minGapToTopMarks;
+  double upperCeilingY;
+  double maxLeftPercent = 100.0;
+  double maxRightPercent = 25.0;
+  double leftCompliance = 0.1;
+  double rightCompliance = 0.1;
+  bool collisionEscapeActive = false;
+  bool hasInitialSlot = false;
 
-  // ---------- Vertical parameters ----------
-  double minCompliance = 0.0;     // hard lower bound
-  double targetCompliance = 0.0;  // soft preferred height
-  double maxCompliance = 0.0;     // hard upper bound
-  double xAlignCompliance = 0.0;  // horizontal alignment
-
-  double minDistFromBaseline = 0.0;
-  double minGapToBase = 0.0;
-  double minGapToTopMarks = 0.0;
-  double desiredExtraLift = 0.0;
-
-  // Upper bound on waqf TOP (usually from line above)
-  double upperCeilingY = 0.0;
-
-  // No alignment force inside this band around the leftmost ink edge of
-  // the base and its attached top marks (excluding waqf signs).
-  double xAlignmentBandPercent = 25.0;
-  bool collisionEscapeActive = false; // bounded left/down preference owns alignment
-
-  // ---------- Persistent XPBD state ----------
-  double lambdaMin = 0.0;     // lower bound inequality
-  double lambdaTarget = 0.0;  // target-height equality
-  double lambdaMax = 0.0;     // upper bound inequality
-  double lambdaX = 0.0;       // signed horizontal band multiplier
-  const GlyphInstance* lowerBoundMark = nullptr;  // active above-stack floor
+  double lambdaMin = 0.0;
+  double lambdaMax = 0.0;
+  double lambdaAssociation = 0.0;
+  const GlyphInstance* lowerBoundMark = nullptr;
   bool lowerBoundAboveStack = false;
 
-  explicit WaqfPlacementConstraint(
-      GlyphInstance& waqf,
-      double minCompliance_,
-      double targetCompliance_,
-      double maxCompliance_,
-      double xAlignCompliance_,
-      double minDistFromBaseline_,
-      double minGapToBase_,
-      double minGapToTopMarks_,
-      double desiredExtraLift_,
-      double upperCeilingY_,
-      double xAlignmentBandPercent_ = 25.0)
-      : waqfMark(waqf),
-        minCompliance(minCompliance_),
-        targetCompliance(targetCompliance_),
-        maxCompliance(maxCompliance_),
-        xAlignCompliance(xAlignCompliance_),
-        minDistFromBaseline(minDistFromBaseline_),
-        minGapToBase(minGapToBase_),
-        minGapToTopMarks(minGapToTopMarks_),
-        desiredExtraLift(desiredExtraLift_),
-        upperCeilingY(upperCeilingY_),
-        xAlignmentBandPercent(xAlignmentBandPercent_) {
+  WaqfPlacementConstraint(GlyphInstance& waqf, double minCompliance_, double maxCompliance_,
+      double minDistFromBaseline_, double minGapToBase_, double minGapToTopMarks_, double upperCeilingY_)
+      : waqfMark(waqf), minCompliance(minCompliance_), maxCompliance(maxCompliance_),
+        minDistFromBaseline(minDistFromBaseline_), minGapToBase(minGapToBase_),
+        minGapToTopMarks(minGapToTopMarks_), upperCeilingY(upperCeilingY_) {
     reportEnabled = true;
   }
-
-  void project(SolverContext& solverContext, double dt) override;
+  void project(SolverContext& context, double dt) override;
   double escapeMinimumBottom(const SolverContext& context) const;
-  double preferredBottom(const SolverContext& context) const;
-  void reportViolations(SolverContext& solverContext,
-                        std::vector<ConstraintViolation>& out) const override;
+  void reportViolations(SolverContext& context, std::vector<ConstraintViolation>& out) const override;
 };
 
-// Rigid top-edge ordering, projected after contacts alongside the other hard
-// rails. Diagnostics are included in WaqfPlacementConstraint's shared floor.
+// Projected after ordinary contacts to preserve owning-stack visibility/order.
 struct WaqfTopOrderConstraint : XPBDConstraint {
   WaqfPlacementConstraint& placement;
-  explicit WaqfTopOrderConstraint(WaqfPlacementConstraint& placement_)
-      : placement(placement_) {}
-  void project(SolverContext& solverContext, double dt) override;
+  explicit WaqfTopOrderConstraint(WaqfPlacementConstraint& value) : placement(value) {}
+  void project(SolverContext& context, double dt) override;
 };
-
-}  // namespace digitalkhatt::layout
+}
