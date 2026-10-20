@@ -52,6 +52,9 @@ struct StackOrderConstraint : XPBDConstraint {
   }
 
   void project(SolverContext& solverContext, double dt) override;
+  // Add a soft return toward the input gap, using the same ink metric as the
+  // stack's safety bound. Construction-time geometry includes authored GPOS.
+  void preserveAuthoredGap();
   void reportViolations(SolverContext& solverContext,
                         std::vector<ConstraintViolation>& out) const override;
 

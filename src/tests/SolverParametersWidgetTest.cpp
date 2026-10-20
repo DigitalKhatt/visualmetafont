@@ -6,6 +6,7 @@
 #include <QDoubleSpinBox>
 #include <QEventLoop>
 #include <QGroupBox>
+#include <QLineEdit>
 #include <QSettings>
 #include <QSpinBox>
 #include <QTabWidget>
@@ -47,6 +48,26 @@ int main(int argc, char** argv) {
     QSettings().clear();
     digitalkhatt::layout::OptParams params;
     SolverParametersWidget widget(params);
+    auto* collisionMarks = field<QLineEdit>(widget, "additionalCollisionMarks");
+    require(params.additionalCollisionMarks == std::vector<std::string>{"smallalef.isol"},
+        "Small isolated Alef must be a default collision-only mark");
+    collisionMarks->setText("smallalef.isol, custom.isol custom.isol");
+    QMetaObject::invokeMethod(collisionMarks, "editingFinished", Qt::DirectConnection);
+    require(params.additionalCollisionMarks == std::vector<std::string>{"smallalef.isol", "custom.isol"},
+        "The editable collision-only list must accept names and remove duplicates");
+    {
+      digitalkhatt::layout::OptParams restored;
+      SolverParametersWidget copy(restored);
+      require(restored.additionalCollisionMarks == params.additionalCollisionMarks,
+          "Additional collision marks must persist independently of font classes");
+      auto* empty = field<QLineEdit>(copy, "additionalCollisionMarks");
+      empty->clear();
+      QMetaObject::invokeMethod(empty, "editingFinished", Qt::DirectConnection);
+      digitalkhatt::layout::OptParams disabled;
+      SolverParametersWidget noAdditions(disabled);
+      require(disabled.additionalCollisionMarks.empty(), "An explicitly empty list must survive reloading");
+    }
+    QMetaObject::invokeMethod(collisionMarks, "editingFinished", Qt::DirectConnection);
     require(field<QDoubleSpinBox>(widget, "differentLineGap")->value() == 250,
         "Different-line gap must be exposed with a 250-unit default");
     require(field<QDoubleSpinBox>(widget, "compliance.extraLineSpacing")->value() == 1.0,

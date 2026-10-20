@@ -66,6 +66,15 @@ StackOrderConstraint::FacingEdges StackOrderConstraint::facingEdges() const {
   return {outlineEdges.overlap, outlineEdges.inner + innerOrigin, outlineEdges.outer + outerOrigin};
 }
 
+void StackOrderConstraint::preserveAuthoredGap() {
+  const auto edges = facingEdges();
+  if (edges.overlap) {
+    const double direction = isAbove ? 1.0 : -1.0;
+    preferredGap = std::max(minGap,
+        direction * (edges.outer.y - edges.inner.y - outer.dy + inner.dy));
+  }
+}
+
 void StackOrderConstraint::project(SolverContext& solverContext, double dt) {
   if (onlyAfterInkContact && !inkEscapeActive) {
     // The contact proxy is flattened; protect curved ink and final renderer
@@ -84,7 +93,7 @@ void StackOrderConstraint::project(SolverContext& solverContext, double dt) {
 
   // Use the same contour metric for preference and safety. Unlike the hard
   // bound, this equality can close excessive gaps as well as open short ones.
-  // Shadda remains the reference; other constraints may still move either mark.
+  // The inner glyph remains the reference; other constraints may move either glyph.
   if (preferredGap && wO > 0.0) {
     const auto edges = facingEdges();
     if (edges.overlap) {

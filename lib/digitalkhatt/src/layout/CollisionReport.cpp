@@ -36,7 +36,7 @@ std::vector<CollisionContact> findCollisionContacts(
       const auto& A = glyphs[first];
       const auto& B = glyphs[second];
       const bool sameLine = A.line == B.line;
-      if (sameLine && A.word == B.word &&
+      if (sameLine && A.word == B.word && !(A.isMark || B.isMark) &&
           (B.name.find(".medi") != B.name.npos || B.name.find(".fina") != B.name.npos) &&
           (A.name.find(".init") != A.name.npos || A.name.find(".medi") != A.name.npos))
         continue; // intentional cursive connections

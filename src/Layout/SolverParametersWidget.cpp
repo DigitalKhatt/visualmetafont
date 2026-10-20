@@ -6,6 +6,8 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QLabel>
+#include <QLineEdit>
+#include <QRegularExpression>
 #include <QScrollArea>
 #include <QSettings>
 #include <QSpinBox>
@@ -273,6 +275,30 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
   auto* collisionPage = addSection(constraints, tr("Collision avoidance"));
   auto gaps = addConstraint(collisionPage, tr("Resolve gaps and collisions"), settings,
       "toggle.genericGapConstraint", toggles.genericGapConstraint, this, changed);
+  const QString collisionMarksKey = settingKey("additionalCollisionMarks");
+  QStringList defaultCollisionMarks;
+  for (const auto& name : m_params.additionalCollisionMarks)
+    defaultCollisionMarks.append(QString::fromStdString(name));
+  auto* collisionMarks = new QLineEdit(this);
+  collisionMarks->setObjectName("additionalCollisionMarks");
+  collisionMarks->setText(settings.value(collisionMarksKey, defaultCollisionMarks.join(", ")).toString());
+  collisionMarks->setToolTip(tr("Treat these glyphs as movable marks for collision and spacing, retaining their font classification, advances and attached marks. Separate exact glyph names with commas or spaces. Clear the list to disable these additions."));
+  gaps.form->addRow(tr("Additional collision marks"), collisionMarks);
+  const auto readCollisionMarks = [this, collisionMarks] {
+    m_params.additionalCollisionMarks.clear();
+    for (const auto& name : collisionMarks->text().split(QRegularExpression("[,\\s]+"), Qt::SkipEmptyParts)) {
+      const auto value = name.toStdString();
+      if (std::find(m_params.additionalCollisionMarks.begin(), m_params.additionalCollisionMarks.end(), value) ==
+          m_params.additionalCollisionMarks.end()) m_params.additionalCollisionMarks.push_back(value);
+    }
+  };
+  readCollisionMarks();
+  connect(collisionMarks, &QLineEdit::editingFinished, this,
+      [this, collisionMarks, collisionMarksKey, readCollisionMarks, changed] {
+        readCollisionMarks();
+        QSettings().setValue(collisionMarksKey, collisionMarks->text());
+        (this->*changed)();
+      });
   addDoubleRow(gaps.form, tr("Same-word gap"), settings, "sameWordGap", m_params.sameWordGap,
       0.0, 1000.0, 5.0, 1, this, changed,
       tr("Generic target clearance within one word. Dedicated stacks and the 40 / 10-unit attachment exceptions use their own gaps. Zero requests no extra clearance."), units);

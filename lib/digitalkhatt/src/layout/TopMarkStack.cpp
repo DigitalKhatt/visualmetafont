@@ -15,6 +15,7 @@ struct StackSlot {
   bool outlineClearance = false;
   std::optional<double> preferredGap;
   bool compactAttachment = false;
+  bool preserveAuthoredGap = false;
 };
 using StackTable = std::vector<StackSlot>;
 
@@ -30,7 +31,8 @@ const StackTable& topStackTable() {
       {{"damma", "dammatanidgham", "dammatan"}, {"shadda"}, 30, 0},
       {{"fatha", "fatha.stretched", "fathatanidgham", "fathatan", "damma", "dammatanidgham", "dammatan"}, {"hamzaabove", "hamzaabove.joined", "hamzaabove.lamalef"}, 30, 0},
       {{"fatha", "fatha.stretched", "fathatanidgham", "fathatan", "damma", "dammatanidgham", "dammatan"}, {"onedotup", "twodotsup", "three_dots"}, 30, 10},
-      {{"maddahabove"}, {"smallalef.isol", "smallalef.replacement", "smallalef.joined"}, 30, 0}};
+      {{"maddahabove"}, {"smallalef.isol"}, 30, 0, false, 0},
+      {{"maddahabove"}, {"smallalef.replacement", "smallalef.joined"}, 30, 0}};
   return table;
 }
 
@@ -54,7 +56,7 @@ std::vector<TopMarkStackLink> buildTopMarkStackLinks(
           rule.belowNames.contains(below->glyphName) &&
           rule.aboveNames.contains(above->glyphName) &&
           (!rule.compactAttachment || below->prevBase == above->prevBase))
-        links.push_back({below, above, above->preserveGposHorizontal ? (boxCenterX(*below) - below->dx) - (boxCenterX(*above) - above->dx) : rule.offsetX, rule.minGap, rule.outlineClearance, rule.preferredGap, rule.compactAttachment});
+        links.push_back({below, above, above->preserveGposHorizontal ? (boxCenterX(*below) - below->dx) - (boxCenterX(*above) - above->dx) : rule.offsetX, rule.minGap, rule.outlineClearance, rule.preferredGap, rule.compactAttachment, rule.preserveAuthoredGap});
     }
   }
   return links;

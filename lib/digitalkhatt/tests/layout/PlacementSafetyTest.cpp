@@ -6,6 +6,7 @@
 #include <string>
 
 #include "digitalkhatt/layout/GapConstraint.h"
+#include "digitalkhatt/layout/CollisionMarkPolicy.h"
 #include "digitalkhatt/layout/BelowMarkPlacement.h"
 #include "digitalkhatt/layout/GlyphCollisionGeometry.h"
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
@@ -1887,9 +1888,60 @@ void framePreservesInitialWaqfSlot() {
   }
 }
 
+void additionalCollisionMarks() {
+  for (const std::string name : {"smallalef.isol", "custom.isol"}) {
+    Fixture f;
+    auto& fixed = f.add("base", 0, 0, 20, 20);
+    auto& extra = f.add(name, 5, 5, 20, 20);
+    auto& child = f.add("fatha", 5, 80, 20, 20);
+    auto p = quiet(); p.maxIters = 1; p.toggles.genericGapConstraint = true;
+    p.sameWordGap = p.differentWordGap = p.differentLineGap = 0;
+    if (name == "custom.isol") p.additionalCollisionMarks.push_back(name);
+    optimizePage(f.page, f.classes, p);
+    require(!extra.isMark && extra.isCollisionMark() && extra.mobility == 1 &&
+            !f.classes["marks"].contains(name),
+        "Additional collision marks must be movable without changing font classification");
+    require(extra.prevBase == &fixed && fixed.nextBase == &extra && child.prevBase == &extra,
+        "Collision-only treatment must retain base and child ownership");
+    require(fixed.dx == 0 && fixed.dy == 0 && std::hypot(extra.dx, extra.dy) > 0 &&
+            geometry::getDistance(fixed.worldPolys, extra.worldPolys, 1).contact.depth_or_gap >= -1e-6,
+        "A listed glyph must separate from fixed base ink through ordinary gap projection");
+    require(child.dx == extra.dx && child.dy == extra.dy,
+        "Attached marks must travel with a collision-only base instead of detaching");
+    const double childX = child.dx, childY = child.dy;
+    updateWorldPolys(extra);
+    require(child.dx == childX && child.dy == childY,
+        "Rebuilding unchanged parent geometry must not transport attachments twice");
+    SolverContext context(f.page, f.classes);
+    require(gapMobilities(context, extra, child) == std::pair<double,double>{0,1} &&
+            gapMobilities(context, child, extra) == std::pair<double,double>{1,0},
+        "A parent-child gap must refine the child, rather than translating their common frame");
+    p.additionalCollisionMarks.clear(); p.maxIters = 0;
+    optimizePage(f.page, f.classes, p);
+    require(!extra.isCollisionMark() && extra.mobility == 0 && extra.collisionAttachments.empty(),
+        "Removing a name must restore fixed-base behavior and clear attachment transport");
+  }
+
+  Fixture f;
+  auto& base = f.add("base", 0, 0, 30, 30);
+  auto& extra = f.add("smallalef.isol", 5, 5, 20, 20);
+  std::vector<CollisionGlyph> report{{&base.worldPolys, base.glyphName, 0, 0, false, 1},
+      {&extra.worldPolys, extra.glyphName, 1, 1, false, 1}};
+  require(findCollisionContacts(report, 0).empty(),
+      "Ordinary base-base cross-line contacts must remain excluded from Save Collision");
+  report[1].isMark = isAdditionalCollisionMark(extra.glyphName, OptParams{});
+  require(findCollisionContacts(report, 0).size() == 1,
+      "Save Collision must include the same extra collision marks as XPBD");
+  auto p = quiet(); p.additionalCollisionMarks = {"space", "linefeed", "smallalef"};
+  require(!isAdditionalCollisionMark("space", p) && !isAdditionalCollisionMark("linefeed", p) &&
+          !isAdditionalCollisionMark("smallalef.isol", p),
+      "The collision-only list must match exact names and never mobilize whitespace");
+}
+
 int main() {
   try {
     intentionalMarkHullPolicy();
+    additionalCollisionMarks();
     markFrameSafety();
     framePreservesInitialWaqfSlot();
     bowlLowerMarksUseBaseTopRail();

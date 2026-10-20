@@ -14,6 +14,7 @@
 #include "digitalkhatt/layout/GapConstraint.h"
 #include "digitalkhatt/layout/BelowMarkPlacement.h"
 #include "digitalkhatt/layout/CollisionReport.h"
+#include "digitalkhatt/layout/CollisionMarkPolicy.h"
 #include "digitalkhatt/layout/GlyphInstanceUtils.h"
 #include "digitalkhatt/layout/MarkClassifier.h"
 #include "digitalkhatt/layout/PlacementAudit.h"
@@ -45,7 +46,7 @@ void initGlyphMobilities(std::vector<std::vector<GlyphInstance>>& pageGlyphs) {
     for (auto& g : lineGlyphs) {
       g.initialPlacement = GlyphInstance::InitialPlacement::None;
       g.initialPositioningDx = g.initialPositioningDy = 0.0;
-      if (!g.isMark) {
+      if (!g.isCollisionMark()) {
         g.mobility = 0.0;  // base glyphs fixed (for now)
         continue;
       }
@@ -118,10 +119,16 @@ void addTopMarkStackConstraints(const std::vector<GlyphInstance*>& group,
     GlyphInstance* below = rule.inner;
     if (rule.compactAttachment)
       xpbdConstraints.push_back(std::make_unique<CompactMarkConstraint>(*below, *above, rule.minGap, P.compliance.matchMarkPosition));
-    else
-      xpbdConstraints.push_back(std::make_unique<StackOrderConstraint>(
+    else {
+      auto stack = std::make_unique<StackOrderConstraint>(
           *below, *above, /*isAbove=*/true,
-          rule.minGap, P.compliance.stackOrderGap, P.compliance.stackOrderXAlign, rule.offsetX, rule.outlineClearance, rule.preferredGap));
+          rule.minGap, P.compliance.stackOrderGap, P.compliance.stackOrderXAlign, rule.offsetX, rule.outlineClearance, rule.preferredGap);
+      // A movable font base already transports this child. Refine the child
+      // relative to that common frame, rather than moving both in opposition.
+      stack->keepInnerForGap = !below->isMark && above->prevBase == below;
+      if (rule.preserveAuthoredGap) stack->preserveAuthoredGap();
+      xpbdConstraints.push_back(std::move(stack));
+    }
     // The authored stack gap replaces generic clearance only for this direct
     // pair. Contacts with every other mark remain active.
     excludedFromGenericGap.insert(
@@ -667,7 +674,13 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
   // Explicit, case-by-case top-mark stacking
   if (P.toggles.stackOrder) {
     for (auto& [base, group] : aboveStackGroups) {
-      addTopMarkStackConstraints(group, P, constraints.placement, solverContext.excludedFromGenericGap);
+      if (base->collisionAsMark || base->glyphName == "smallalef.isol") {
+        auto stackGroup = group;
+        stackGroup.push_back(base);
+        addTopMarkStackConstraints(stackGroup, P, constraints.placement, solverContext.excludedFromGenericGap);
+      } else {
+        addTopMarkStackConstraints(group, P, constraints.placement, solverContext.excludedFromGenericGap);
+      }
       // Any combination of top marks not covered by a table row is left
       // unstacked until a rule for it is defined.
     }
@@ -726,7 +739,7 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
   // including authored marks excluded from ordinary gaps and pinned dots.
   for (auto& ref : glyphs) {
     auto& mark = ref.get();
-    if (mark.isMark && mark.frameOriginBounds)
+    if (mark.isCollisionMark() && mark.frameOriginBounds)
       constraints.hard.push_back(std::make_unique<MarkFrameConstraint>(mark, *mark.frameOriginBounds));
   }
   return constraints;
@@ -781,7 +794,7 @@ void solvePageConstraints(const GlyphSequence& glyphs,
         GlyphInstance& glyphA = glyphs[pair.first];
         GlyphInstance& glyphB = glyphs[pair.second];
         // These pairs already return immediately from the gap projection.
-        if (!(glyphA.isMark || glyphB.isMark) ||
+        if (!(glyphA.isCollisionMark() || glyphB.isCollisionMark()) ||
             (glyphA.mobility <= 0.0 && glyphB.mobility <= 0.0)) continue;
         if (!gapExclusions[pair.first * glyphCount + pair.second]) {
           solveGapConstraint(solverContext, glyphA, glyphB, P, dt, maxPenetration);
@@ -892,6 +905,15 @@ void optimizePage(std::vector<std::vector<GlyphInstance>>& pageGlyphs,
                   std::vector<ConstraintViolation>* outViolations,
                   InitialPositioning initialPositioning) {
   // 1. Prepare geometry and ownership indices.
+  std::unordered_set<GlyphInstance*> collisionBases;
+  for (auto& line : pageGlyphs) for (auto& g : line) {
+    g.collisionAsMark = !g.isMark && isAdditionalCollisionMark(g.glyphName, P);
+    g.collisionAttachments.clear();
+    if (g.collisionAsMark) collisionBases.insert(&g);
+  }
+  for (auto& line : pageGlyphs) for (auto& g : line)
+    if (g.isMark && collisionBases.contains(g.prevBase))
+      g.prevBase->collisionAttachments.push_back(&g);
   initGlyphMobilities(pageGlyphs);
   SolverContext solverContext{pageGlyphs, classes};
   solverContext.rehWawBehPlacement = P.toggles.rehWawBehPlacement;

@@ -5,6 +5,7 @@
 #include "GlyphVis.h"
 #include "digitalkhatt/layout/GlyphCollisionGeometry.h"
 #include "digitalkhatt/layout/CollisionReport.h"
+#include "digitalkhatt/layout/CollisionMarkPolicy.h"
 #include "digitalkhatt/layout/constraints/MarkFrameConstraint.h"
 
 namespace digitalkhatt::layout {
@@ -39,7 +40,7 @@ void PlacementPipeline::collectCollisions(const std::vector<LineLayoutInfo>& pag
       const double py = y + positioned.y_offset * line.fontSize;
       auto& geometry = result.collisionGeometry.emplace_back(found->second.scaleTranslate(
           line.horizontalScale(), line.fontSize, px, py));
-      glyphs.push_back({&geometry, g.glyphName, g.lineIndex, word, g.isMark, line.fontSize});
+      glyphs.push_back({&geometry, g.glyphName, g.lineIndex, word, g.isCollisionMark(), line.fontSize});
       if (isCollisionSpace(g.glyphName)) ++word;
     }
   }
@@ -93,17 +94,20 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
       auto* outline = layout_.getGlyph(positioned);
       if (!outline) throw std::runtime_error("Missing outline in placement pipeline");
       const auto& name = layout_.glyphNamePerCode.at(positioned.codepoint);
-      auto geom = geometry_.find(outline);
-      if (geom == geometry_.end()) {
+      const bool collisionMark = marks.contains(name) || isAdditionalCollisionMark(name, params);
+      auto& geometryCache = geometry_[collisionMark];
+      auto geom = geometryCache.find(outline);
+      if (geom == geometryCache.end()) {
         auto cubics = geometry::getGlyphCubic(outline->copiedPath);
-        auto polygons = buildGlyphCollisionGeometry(cubics, marks.contains(name));
+        auto polygons = buildGlyphCollisionGeometry(cubics, collisionMark);
         // fontSize already includes emScale; multiplying it twice makes the
         // solver's ink disagree with the exported PDF at other font sizes.
-        geom = geometry_.emplace(outline, std::move(polygons)).first;
+        geom = geometryCache.emplace(outline, std::move(polygons)).first;
       }
       x -= positioned.x_advance * xscale;
       auto& g = glyphs.emplace_back();
       g.isMark = marks.contains(name);
+      g.collisionAsMark = collisionMark && !g.isMark;
       g.isTopMark = top.contains(name) || dots.contains(name) || waqf.contains(name);
       g.glyphName = name;
       g.preserveGposHorizontal = layout_.preserveMarkGposHorizontal(positioned.codepoint, positioned.parameters);
@@ -119,7 +123,7 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
       g.glyphLayout = &positioned;
       g.metrics = {outline->width, outline->height, outline->bbox.llx, outline->bbox.urx};
       g.geomScaled = geom->second.scaled(xscale, line.fontSize);
-      if (g.isMark && !g.geomScaled.empty()) {
+      if (g.isCollisionMark() && !g.geomScaled.empty()) {
         const geometry::AABB ink{outline->bbox.llx * xscale, outline->bbox.lly * line.fontSize,
                                  outline->bbox.urx * xscale, outline->bbox.ury * line.fontSize};
         g.frameOriginBounds = markFrameOriginBounds(frame, ink, xscale, line.fontSize,

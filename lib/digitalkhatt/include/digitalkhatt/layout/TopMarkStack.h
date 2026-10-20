@@ -14,10 +14,11 @@ struct TopMarkStackLink {
   bool outlineClearance = false;
   std::optional<double> preferredGap;
   bool compactAttachment = false;
+  bool preserveAuthoredGap = false;
 };
 
-// Apply authored rules only to marks of the same base with consecutive original
-// glyph indices on the same line. Every intervening glyph blocks the match,
+// Apply authored rules within a base's group, optionally including that base,
+// to consecutive original glyph indices on the same line. Every intervening glyph blocks the match,
 // regardless of class membership. Positions never determine semantic adjacency.
 std::vector<TopMarkStackLink> buildTopMarkStackLinks(
     const std::vector<GlyphInstance*>& group);

@@ -49,6 +49,7 @@
 #include "GeometryQt.h"
 #include "digitalkhatt.h"
 #include "digitalkhatt/layout/CollisionReport.h"
+#include "digitalkhatt/layout/CollisionMarkPolicy.h"
 #include "gllobal_strings.h"
 #include "to_opentype.h"
 
@@ -525,7 +526,8 @@ void LayoutWindow::adjustOverlapping2(LayoutPageList& pages,
         bool isInit = glyphName.find(initName) != std::string::npos;
         bool isMedi = glyphName.find(mediName) != std::string::npos;
         bool isFina = glyphName.find(finaName) != std::string::npos;
-        auto isMark = markClass.contains(glyphName);
+        auto isMark = markClass.contains(glyphName) ||
+            digitalkhatt::layout::isAdditionalCollisionMark(glyphName, m_solverParams);
         if (xScale == 1 && yScale == 1) {
           geoSet.emplace_back(
               GlyphInfo{

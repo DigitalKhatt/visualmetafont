@@ -40,6 +40,10 @@ struct GlyphInstance {
   geometry::GeometrySet geomScaled;
 
   bool isMark = false;
+  // Collision-only override: retain this glyph's font role and attached marks.
+  bool collisionAsMark = false;
+  bool isCollisionMark() const { return isMark || collisionAsMark; }
+  std::vector<GlyphInstance*> collisionAttachments;
 
   bool isTopMark = false;
   // Authored horizontal GPOS placement for a deformed mark is a stack target,

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <array>
 #include "OtLayout.h"
 #include "digitalkhatt/layout/OptimizeLayout.h"
 
@@ -27,7 +28,8 @@ class PlacementPipeline {
  private:
   OtLayout& layout_;
   double emScale_;
-  std::unordered_map<const GlyphVis*, geometry::GeometrySet> geometry_;
+  // A caller can edit the collision-only class between solves.
+  std::array<std::unordered_map<const GlyphVis*, geometry::GeometrySet>, 2> geometry_;
   std::unordered_map<const GlyphVis*, geometry::GeometrySet> collisionGeometry_;
   void collectCollisions(const std::vector<LineLayoutInfo>& page, PlacementPage& result,
       double minimumGap, std::vector<ConstraintViolation>& violations);

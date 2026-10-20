@@ -20,6 +20,10 @@ double gapCompliance(const GlyphInstance& A, const GlyphInstance& B) {
 
 std::pair<double, double> gapMobilities(const SolverContext& context,
     const GlyphInstance& A, const GlyphInstance& B) {
+  // A collision-only base transports its children. A parent/child contact must
+  // refine the child alone; translating their common frame cannot separate it.
+  if (A.collisionAsMark && B.isMark && B.prevBase == &A) return {0.0, B.mobility};
+  if (B.collisionAsMark && A.isMark && A.prevBase == &B) return {A.mobility, 0.0};
   if (context.gapExcludedGlyphs.contains(A.globalIndex) || context.gapExcludedGlyphs.contains(B.globalIndex))
     return {context.gapExcludedGlyphs.contains(A.globalIndex) ? 0.0 : A.mobility,
             context.gapExcludedGlyphs.contains(B.globalIndex) ? 0.0 : B.mobility};
@@ -29,7 +33,7 @@ std::pair<double, double> gapMobilities(const SolverContext& context,
     if (B.lineIndex < A.lineIndex && context.contextualBelowMarks.contains(&B))
       return {0.0, B.mobility};
   }
-  if (A.isMark && B.isMark) {
+  if (A.isCollisionMark() && B.isCollisionMark()) {
     if (context.isWaqf(A) && !context.isWaqf(B))
       return {A.mobility > 0.0 ? 3.0 : 0.0, B.mobility > 0.0 ? 1.0 : 0.0};
     if (!context.isWaqf(A) && context.isWaqf(B))
@@ -216,7 +220,7 @@ static void projectGapConstraint(SolverContext& solverContext,
                         double dt,
                         double& maxPenetration, bool extraLine) {
   // Decide desired min gap.
-  const bool isMarkExists = (A.isMark || B.isMark);
+  const bool isMarkExists = (A.isCollisionMark() || B.isCollisionMark());
 
   if (!isMarkExists) return;
 
@@ -353,7 +357,7 @@ void collectGapViolations(
     if (solverContext.isGapExcluded(pr)) continue;
     GlyphInstance& A = glyphs[pr.first];
     GlyphInstance& B = glyphs[pr.second];
-    if (!(A.isMark || B.isMark)) continue;  // mirror solveGapConstraint's filter
+    if (!(A.isCollisionMark() || B.isCollisionMark())) continue;
 
     const auto report = [&](bool extraLine) {
       const double gmin = extraLine ? P.differentLineGap : chooseOrdinaryGap(A, B, P);

@@ -353,6 +353,32 @@ and visibility safety floor. The owning base's ink-top clearance (100 units)
 and top-mark ordering can require a higher position. JSON snapshots store
 `xpbd.waqfMinHeight`; the CLI flag is `--waqf-min-height`.
 
+## Additional collision marks
+
+**Placement / Collision avoidance / Resolve gaps and collisions / Additional
+collision marks** lists non-mark glyphs that should participate as movable marks
+in collision and spacing. It defaults to `smallalef.isol`. Add exact glyph names
+separated by commas or spaces; an empty list disables the additions. Settings
+snapshots and `--xpbd-config` use `additionalCollisionMarks`, a JSON string array.
+
+These additions retain their font classification, advances and attachment
+ownership. Their attached marks travel with them when collision corrections move
+the base, and retain their own stack/spacing refinement. They receive generic
+word/line gap forces and frame bounds, without acquiring harakat lanes or
+above/below placement rules. Native reports and GUI Save Collision use the same
+list. Font mark classes and exported GDEF/GPOS are unchanged.
+
+With stacking enabled, an immediately following `maddahabove` forms a stack with
+`smallalef.isol`, including when the Alef retains its base classification. The
+pair uses the existing small-alef/maddah alignment and minimum gap, plus a soft
+preferred gap explicitly set in `topStackTable()` (currently zero). The first
+number is horizontal offset, the second is minimum vertical gap, and the value
+after `outlineClearance` is the optional preferred vertical gap. A minimum alone
+does not close excessive separation. Only maddah receives the
+relative stack corrections; moving the Alef still transports its attachments.
+The direct pair is excluded from generic word clearance, while contacts with
+other glyphs remain active.
+
 ## Outer page boundary
 
 With Force enabled, every mark is constrained to the outer page border on all

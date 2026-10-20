@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace digitalkhatt::layout {
 
@@ -92,6 +93,8 @@ struct DownwardEscapeParams {
 };
 
 struct OptParams {
+  // Movable for collision/spacing without changing font classes or ownership.
+  std::vector<std::string> additionalCollisionMarks{"smallalef.isol"};
   // Generic target clearances in solver world/font units. Dedicated stack
   // constraints and the 40/10-unit attachment exceptions keep their own gaps.
   double sameWordGap = 80.0;

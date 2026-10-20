@@ -51,6 +51,12 @@ void semanticAdjacency() {
   Fixture{"onedotup","fatha","hamzaabove.joined","damma"}.expect({{2,3},{0,1}});
   Fixture{"shadda","fatha","hamzaabove.lamalef","fatha"}.expect({{0,1},{2,3}});
   Fixture{"smallalef.joined","maddahabove"}.expect({{0,1}});
+  Fixture isolatedAlef{"smallalef.isol","maddahabove"};
+  isolatedAlef.expect({{0,1}});
+  const auto isolatedLink = buildTopMarkStackLinks(isolatedAlef.group)[0];
+  require(isolatedLink.preferredGap == 0 && !isolatedLink.preserveAuthoredGap,
+      "Isolated small Alef must use the explicit zero gap without restoring its input gap");
+  Fixture{"smallalef.isol","fatha","maddahabove"}.expect({});
   Fixture{"onedotup","unrelated","dammatanidgham"}.expect({});
   Fixture{"fatha","shadda"}.expect({}); // A later glyph cannot own a preceding mark.
   Fixture{"damma","waqf.sad"}.expect({});
@@ -510,10 +516,63 @@ void optimizerWiresPreferredStackGap() {
     require(violations.empty(), "Soft preference residual must not leak into normal collision reports");
   }
 }
+void isolatedAlefMaddahStack() {
+  for (bool movableBase : {false, true}) for (bool stackEnabled : {false, true}) {
+    std::vector<std::vector<GlyphInstance>> page(1);
+    auto& row = page[0]; row.resize(2);
+    auto& alef = row[0]; auto& maddah = row[1];
+    alef.glyphName = "smallalef.isol"; alef.baseY = 300;
+    maddah.glyphName = "maddahabove"; maddah.glyphIndex = 1;
+    maddah.isMark = maddah.isTopMark = true; maddah.prevBase = &alef;
+    maddah.baseX = -30; maddah.baseY = 330;
+    for (auto& g : row) g.geomScaled = geometry::GeometrySet(std::vector<geometry::Poly>{
+        {{0,0},{20,0},{20,20},{0,20}}});
+    ClassMap classes{{"marks", {"maddahabove"}}, {"topmarks", {"maddahabove"}}};
+    OptParams p;
+    if (!movableBase) p.additionalCollisionMarks.clear();
+    p.toggles.stackOrder = stackEnabled;
+    p.toggles.ylane = p.toggles.baseVicinity = p.toggles.horizontalOrder = false;
+    p.toggles.waqfPlacement = p.toggles.waqfEscape = false;
+    p.toggles.matchMarkPosition = false;
+    optimizePage(page, classes, p);
+    const double gap = boxBottomY(maddah) - boxTopY(alef);
+    require(stackEnabled ? (gap >= 0 && gap < 1) : gap > 50,
+        "A zero preferred gap must close the authored separation, replacing generic spacing only while stacking is enabled");
+    require(!alef.isMark && maddah.prevBase == &alef && alef.dx == 0 && alef.dy == 0,
+        "Stacking must retain the isolated Alef's font role, ownership and reference position");
+  }
+
+  Fixture f{"smallalef.isol", "maddahabove"};
+  auto& alef = f.marks[0]; auto& maddah = f.marks[1];
+  alef.collisionAsMark = true; alef.mobility = maddah.mobility = 1;
+  alef.collisionAttachments = {&maddah}; maddah.isMark = true; maddah.prevBase = &alef;
+  maddah.baseY = 30;
+  for (auto& g : f.marks) {
+    g.geomScaled = geometry::GeometrySet(std::vector<geometry::Poly>{{{0,0},{20,0},{20,20},{0,20}}});
+    buildWorldPolys(g);
+  }
+  std::vector<std::vector<GlyphInstance>> empty;
+  ClassMap classes;
+  SolverContext context(empty, classes);
+  StackOrderConstraint stack(alef, maddah, true, 0, .001, .2);
+  stack.keepInnerForGap = true;
+  stack.preserveAuthoredGap();
+  require(stack.preferredGap == 10, "Preference must start from the font's authored gap");
+  maddah.dy = 120; updateWorldPolys(maddah);
+  stack.project(context, 1);
+  require(alef.dy == 0 && boxBottomY(maddah) - boxTopY(alef) < 22,
+      "A displaced maddah must return close to its small Alef without moving the common reference");
+  const double relativeY = maddah.dy - alef.dy;
+  alef.dx += 50; alef.dy += 40; updateWorldPolys(alef);
+  stack.project(context, 1);
+  require(std::abs(maddah.dy - alef.dy - relativeY) < 1e-8 && maddah.dx == alef.dx,
+      "Common collision transport must preserve the stacked pair without double corrections");
+}
 }  // namespace
 int main() {
   try {
     semanticAdjacency();
+    isolatedAlefMaddahStack();
     compactIqlabUsesInkNotHull();
     compactIqlabRespectsMobilities();
     optimizerKeepsIqlabPairCompact();
