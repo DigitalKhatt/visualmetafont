@@ -19,7 +19,7 @@ void buildWorldPolys(GlyphInstance& g) {
   const auto& local = g.geom ? *g.geom : g.geomScaled;
   // Cache local bounds once; translated geometry can then reuse those bounds.
   (void)local.boundingAABB();
-  g.worldPolys = local.translate(ox, oy);
+  g.worldPolys.assignTranslated(local, ox, oy);
   // Transport the authored attachment frame when a collision-only base moves.
   // Its marks can still receive their own spacing/stack refinements afterwards.
   if (g.collisionAsMark && (deltaX != 0.0 || deltaY != 0.0))

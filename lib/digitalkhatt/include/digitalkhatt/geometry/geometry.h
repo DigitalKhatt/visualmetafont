@@ -204,6 +204,10 @@ class GeometrySet {
 
   GeometrySet translate(double dx, double dy) const;
 
+  // Reuse this set's polygon storage while translating immutable source ink.
+  // Recompute from absolute offsets, never from previously translated vertices.
+  void assignTranslated(const GeometrySet& source, double dx, double dy);
+
   AABB boundingAABB() const;
 
   void computeAABB() const;

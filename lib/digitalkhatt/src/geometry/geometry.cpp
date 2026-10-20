@@ -167,6 +167,30 @@ GeometrySet GeometrySet::translate(double dx,
   }
 }
 
+void GeometrySet::assignTranslated(const GeometrySet& source, double dx, double dy) {
+  if (this == &source) {
+    *this = source.translate(dx, dy);
+    return;
+  }
+  polys_.resize(source.polys_.size());
+  for (size_t i = 0; i < source.polys_.size(); ++i) {
+    const auto& original = source.polys_[i];
+    auto& translated = polys_[i];
+    translated.resize(original.size());
+    for (size_t j = 0; j < original.size(); ++j)
+      translated[j] = original[j].translate(dx, dy);
+  }
+  if (!source.dirty_) {
+    aabb_.resize(source.aabb_.size());
+    for (size_t i = 0; i < source.aabb_.size(); ++i)
+      aabb_[i] = source.aabb_[i].translate(dx, dy);
+    cachedAABB_ = source.cachedAABB_.translate(dx, dy);
+    dirty_ = false;
+  } else {
+    computeAABB();
+  }
+}
+
 void GeometrySet::computeAABB() const {
   AABB b;
   std::vector<AABB> aabb;

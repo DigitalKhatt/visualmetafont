@@ -1,7 +1,11 @@
 #pragma once
 
 #include <algorithm>
+#include <bit>
+#include <cmath>
+#include <cstdint>
 #include <functional>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -44,9 +48,80 @@ struct SweepBroadphase {
               });
   }
 
-  // Run sweep and output candidate pairs
+  // Y buckets contain bits in the original X-sweep order. Visiting set bits
+  // in ascending rank retains the exact projection order, including X ties.
   void findPairs(std::vector<std::pair<int, int>>& pairs) const {
     pairs.clear();
+    const size_t n = boxes.size();
+    if (n < 2) return;
+
+    const auto emptyX = [](const Box& box) {
+      return box.minx == std::numeric_limits<double>::infinity() &&
+             box.maxx == -std::numeric_limits<double>::infinity();
+    };
+    double bottom = std::numeric_limits<double>::infinity(), top = -bottom;
+    for (const auto& box : boxes) {
+      // Empty geometry sorts last and cannot pass the old X-sweep test.
+      if (emptyX(box)) continue;
+      if (!std::isfinite(box.minx) || !std::isfinite(box.maxx) ||
+          !std::isfinite(box.miny) || !std::isfinite(box.maxy) ||
+          box.minx > box.maxx || box.miny > box.maxy) {
+        findPairsSweep(pairs);
+        return;
+      }
+      bottom = std::min(bottom, box.miny);
+      top = std::max(top, box.maxy);
+    }
+    const double height = top - bottom;
+    if (!(height > 0.0) || !std::isfinite(height)) {
+      findPairsSweep(pairs);
+      return;
+    }
+
+    constexpr size_t bucketCount = 64;
+    const size_t wordCount = (n + 63) / 64;
+    std::vector<std::uint64_t> buckets(bucketCount * wordCount, 0);
+    const auto bucketFor = [&](double y) {
+      // Divide first to avoid overflowing on large finite coordinates.
+      return std::min(bucketCount - 1,
+          static_cast<size_t>(((y - bottom) / height) * bucketCount));
+    };
+    for (size_t rank = 0; rank < n; ++rank) {
+      const auto& box = boxes[rank];
+      if (emptyX(box)) continue;
+      const size_t lastBucket = bucketFor(box.maxy);
+      for (size_t bucket = bucketFor(box.miny); bucket <= lastBucket; ++bucket)
+        buckets[bucket * wordCount + rank / 64] |= std::uint64_t{1} << (rank % 64);
+    }
+
+    for (size_t i = 0; i + 1 < n; ++i) {
+      const auto& a = boxes[i];
+      if (emptyX(a)) continue;
+      const size_t end = std::upper_bound(boxes.begin() + i + 1, boxes.end(), a.maxx,
+          [](double x, const Box& b) { return x < b.minx; }) - boxes.begin();
+      if (end == i + 1) continue;
+      const size_t firstBucket = bucketFor(a.miny), lastBucket = bucketFor(a.maxy);
+      for (size_t word = (i + 1) / 64; word <= (end - 1) / 64; ++word) {
+        std::uint64_t candidates = 0;
+        for (size_t bucket = firstBucket; bucket <= lastBucket; ++bucket)
+          candidates |= buckets[bucket * wordCount + word];
+        if (word == (i + 1) / 64) candidates &= ~std::uint64_t{0} << ((i + 1) % 64);
+        if (word == end / 64 && end % 64) candidates &= (std::uint64_t{1} << (end % 64)) - 1;
+        while (candidates) {
+          const size_t j = word * 64 + std::countr_zero(candidates);
+          candidates &= candidates - 1;
+          const auto& b = boxes[j];
+          if (!(a.maxy < b.miny || a.miny > b.maxy))
+            a.index < b.index ? pairs.emplace_back(a.index, b.index) : pairs.emplace_back(b.index, a.index);
+        }
+      }
+    }
+  }
+
+ private:
+  // Preserve the established handling of empty/non-finite boxes and ranges
+  // that cannot be indexed safely.
+  void findPairsSweep(std::vector<std::pair<int, int>>& pairs) const {
     const size_t n = boxes.size();
 
     for (size_t i = 0; i < n; ++i) {
