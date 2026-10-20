@@ -278,10 +278,10 @@ SolverParametersWidget::SolverParametersWidget(digitalkhatt::layout::OptParams& 
       tr("Generic target clearance within one word. Dedicated stacks and the 40 / 10-unit attachment exceptions use their own gaps. Zero requests no extra clearance."), units);
   addDoubleRow(gaps.form, tr("Different-word gap"), settings, "differentWordGap", m_params.differentWordGap,
       0.0, 1000.0, 5.0, 1, this, changed,
-      tr("Target clearance between glyphs of different words on the same line. Word identity follows spaces in the glyph sequence, not mark positions. XPBD compliance can leave a residual."), units);
+      tr("Target clearance between glyphs of different words, also retained as the ordinary minimum across lines. Word identity follows spaces in the glyph sequence, not mark positions. XPBD compliance can leave a residual."), units);
   addDoubleRow(gaps.form, tr("Different-line gap"), settings, "differentLineGap", m_params.differentLineGap,
       0.0, 1000.0, 5.0, 1, this, changed,
-      tr("Target clearance between glyphs on different lines. Base glyphs remain fixed; gap forces act on marks. XPBD compliance can leave a residual."), units);
+      tr("Additional target clearance across lines when larger than the different-word gap. Zero disables only extra line spacing; ordinary different-word clearance still applies. Base glyphs remain fixed; gap forces act on marks. XPBD compliance can leave a residual."), units);
   addDoubleRow(gaps.form, tr("Extra line spacing compliance"), settings,
       "compliance.extraLineSpacing", comp.extraLineSpacing, 0.0, 100.0, 0.1, 3, this, changed,
       tr("Softness of extra line spacing when the different-line gap exceeds the different-word gap. Higher values make the extra spacing yield more readily. Ordinary cross-line clearance retains compliance 0.1; zero makes the extra spacing rigid."));

@@ -168,6 +168,7 @@ add_library(digitalkhatt_layout
   src/layout/constraints/WaqfEscapeConstraint.cpp
   src/layout/constraints/HardStayAboveConstraint.cpp
   src/layout/constraints/HardStayBelowConstraint.cpp
+  src/layout/constraints/MarkFrameConstraint.cpp
   src/layout/constraints/MatchMarkPositionWithOffsetConstraint.cpp
   src/layout/constraints/VerticalStackAlignConstraint.cpp
   src/layout/constraints/SqueezeCenterConstraint.cpp

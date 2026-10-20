@@ -33,6 +33,7 @@ enum class ViolationType {
   ReturnToAnchor,
   MatchMarkPosition,
   SoftTargetResidual,
+  MarkFrame,        // mark ink outside the outer page border
 };
 
 // Hard = a feasibility or structural safety failure; Soft = a tuning target
@@ -58,6 +59,7 @@ inline const char* violationTypeName(ViolationType t) {
     case ViolationType::ReturnToAnchor: return "ReturnToAnchor";
     case ViolationType::MatchMarkPosition: return "MatchMarkPosition";
     case ViolationType::SoftTargetResidual: return "SoftTargetResidual";
+    case ViolationType::MarkFrame: return "MarkFrame";
   }
   return "Unknown";
 }

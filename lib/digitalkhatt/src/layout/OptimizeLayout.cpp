@@ -25,6 +25,7 @@
 #include "digitalkhatt/layout/constraints/BowlClusterConstraint.h"
 #include "digitalkhatt/layout/constraints/HardStayAboveConstraint.h"
 #include "digitalkhatt/layout/constraints/HardStayBelowConstraint.h"
+#include "digitalkhatt/layout/constraints/MarkFrameConstraint.h"
 #include "digitalkhatt/layout/constraints/HorizontalOrderConstraint.h"
 #include "digitalkhatt/layout/constraints/MatchMarkPositionWithOffsetConstraint.h"
 #include "digitalkhatt/layout/constraints/SqueezeCenterConstraint.h"
@@ -219,7 +220,8 @@ void prepareRehWawBehPositions(const GlyphSequence& glyphs,
         if ((!neighboringMark && !neighboringLineBase) ||
             std::abs(other.lineIndex - mark.lineIndex) > 1 || other.worldPolys.empty()) continue;
         const double margin = halfFootprint +
-            (other.lineIndex == mark.lineIndex ? P.differentWordGap : P.differentLineGap);
+            (other.lineIndex == mark.lineIndex ? P.differentWordGap :
+                std::max(P.differentWordGap, P.differentLineGap));
         const auto bounds = other.worldPolys.boundingAABB();
         if (bounds.minx <= owner.maxx + margin && bounds.maxx >= owner.minx - margin)
           placement->obstacles.push_back(&other);
@@ -714,10 +716,19 @@ PageConstraints buildPageConstraints(std::vector<std::vector<GlyphInstance>>& pa
 
   // Apply waqf top ordering after all ordinary mark rails, so their upward
   // corrections cannot leave the waqf below its own stack's highest top.
-  if (initialPositioning == InitialPositioning::Apply && P.toggles.genericGapConstraint)
+  // Preserve the existing search slot; the frame bound below corrects overflow
+  // without narrowing the search into selecting the opposite side of the base.
+  if (initialPositioning == InitialPositioning::Apply && P.toggles.waqfPlacement)
     prepareWaqfPositions(waqfPlacements, solverContext, P);
   for (auto* placement : waqfPlacements)
     constraints.hard.push_back(std::make_unique<WaqfTopOrderConstraint>(*placement));
+  // The outer page border takes priority over every placement/contact rule,
+  // including authored marks excluded from ordinary gaps and pinned dots.
+  for (auto& ref : glyphs) {
+    auto& mark = ref.get();
+    if (mark.isMark && mark.frameOriginBounds)
+      constraints.hard.push_back(std::make_unique<MarkFrameConstraint>(mark, *mark.frameOriginBounds));
+  }
   return constraints;
 }
 

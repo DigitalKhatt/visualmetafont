@@ -170,7 +170,7 @@ double expectedComplianceResidual(double initialC, double compliance, double w, 
 }
 
 double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptParams& P) {
-  if (A.lineIndex != B.lineIndex) return P.differentLineGap;
+  if (A.lineIndex != B.lineIndex) return std::max(P.differentWordGap, P.differentLineGap);
   if (A.wordIndex >= 0 && B.wordIndex >= 0 && A.wordIndex != B.wordIndex)
     return P.differentWordGap;
   const auto tipPair = [](const GlyphInstance& base, const GlyphInstance& mark) {
@@ -206,8 +206,7 @@ double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptPar
 }
 
 double chooseOrdinaryGap(const GlyphInstance& A, const GlyphInstance& B, const OptParams& P) {
-  const double target = chooseMinGap(A, B, P);
-  return A.lineIndex != B.lineIndex ? std::min(target, P.differentWordGap) : target;
+  return A.lineIndex != B.lineIndex ? P.differentWordGap : chooseMinGap(A, B, P);
 }
 
 static void projectGapConstraint(SolverContext& solverContext,

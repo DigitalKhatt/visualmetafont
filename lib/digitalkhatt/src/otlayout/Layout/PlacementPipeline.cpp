@@ -5,6 +5,7 @@
 #include "GlyphVis.h"
 #include "digitalkhatt/layout/GlyphCollisionGeometry.h"
 #include "digitalkhatt/layout/CollisionReport.h"
+#include "digitalkhatt/layout/constraints/MarkFrameConstraint.h"
 
 namespace digitalkhatt::layout {
 
@@ -69,6 +70,12 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
   const auto& top = classesOrEmpty(classes, "topmarks");
   const auto& dots = classesOrEmpty(classes, "topdotmarks");
   const auto& waqf = classesOrEmpty(classes, "waqfmarks");
+  const auto& pageLayout = layout_.pageLayout();
+  const double scale = 1 << OtLayout::SCALEBY;
+  // Same outer rectangle as GraphicsSceneAdjustment::pageRect(), with Y up.
+  const geometry::AABB frame{(-pageLayout.pageWidth + pageLayout.rightMargin) * scale,
+      (pageLayout.topSpace - pageLayout.pageHeight) * scale,
+      pageLayout.rightMargin * scale, pageLayout.topSpace * scale};
   result.glyphs.reserve(page.size());
   for (int l = 0; l < static_cast<int>(page.size()); ++l) {
     auto& line = page[l];
@@ -112,6 +119,12 @@ PlacementPage PlacementPipeline::solve(std::vector<LineLayoutInfo>& page,
       g.glyphLayout = &positioned;
       g.metrics = {outline->width, outline->height, outline->bbox.llx, outline->bbox.urx};
       g.geomScaled = geom->second.scaled(xscale, line.fontSize);
+      if (g.isMark && !g.geomScaled.empty()) {
+        const geometry::AABB ink{outline->bbox.llx * xscale, outline->bbox.lly * line.fontSize,
+                                 outline->bbox.urx * xscale, outline->bbox.ury * line.fontSize};
+        g.frameOriginBounds = markFrameOriginBounds(frame, ink, xscale, line.fontSize,
+            pageLayout.borderStrokeWidth * scale / 2.0);
+      }
       g.prevBase = base;
       if (!g.isMark) {
         if (base) base->nextBase = &g;

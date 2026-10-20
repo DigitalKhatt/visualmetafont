@@ -603,12 +603,13 @@ void initialSearchHonorsForceSwitchesAndDiagnosticIndependence() {
       require(w.initialPlacement == GlyphInstance::InitialPlacement::WaqfSlot && w.mobility > 0,
           "The page factory must apply initial waqf plans without freezing mobility");
       reference = {w.dx, w.dy};
-    } else if (mode == "diagnostics" || mode == "fallback_off") {
-      require(w.dx == reference.first && w.dy == reference.second,
-          "Reporting tolerances and disabling escape fallback must not alter initial search results");
+    } else if (mode == "diagnostics" || mode == "fallback_off" || mode == "gaps_off") {
+      require(w.initialPlacement == GlyphInstance::InitialPlacement::WaqfSlot &&
+              w.dx == reference.first && w.dy == reference.second,
+          "Reporting tolerances, escape fallback and generic gap forces must not alter initial search results");
     } else {
       require(w.initialPlacement == GlyphInstance::InitialPlacement::None && w.dx == 0 && w.dy == 0,
-          "Input inspection and disabled waqf/gap forces must skip initial search");
+          "Input inspection and disabled waqf placement must skip initial search");
     }
   }
 }

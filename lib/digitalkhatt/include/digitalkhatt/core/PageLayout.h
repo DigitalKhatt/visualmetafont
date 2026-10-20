@@ -8,6 +8,7 @@ namespace digitalkhatt {
 // Geometry is independent of the selected font-size ratio. Margins and
 // baseline spacing are in font units (1000 units = 1 em).
 struct PageLayout {
+  static constexpr int borderStrokeWidth = 20;
   int pageWidth = 17000;
   int pageHeight = 27400;
   int leftMargin = 300;

@@ -50,9 +50,9 @@ void GraphicsSceneAdjustment::drawBackground(QPainter* painter, const QRectF& re
   if (isDrawBackground) {
     painter->save();
     if (!isDark) {
-      painter->setPen(QPen(Qt::black, 20 << OtLayout::SCALEBY));
+      painter->setPen(QPen(Qt::black, digitalkhatt::PageLayout::borderStrokeWidth << OtLayout::SCALEBY));
     } else {
-      painter->setPen(QPen(Qt::white, 20 << OtLayout::SCALEBY));
+      painter->setPen(QPen(Qt::white, digitalkhatt::PageLayout::borderStrokeWidth << OtLayout::SCALEBY));
     }
 
     if (!isDark) {

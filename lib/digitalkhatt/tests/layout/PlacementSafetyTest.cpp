@@ -19,6 +19,7 @@
 #include "digitalkhatt/layout/constraints/YlaneConstraint.h"
 #include "digitalkhatt/layout/RehWawMarkPlacement.h"
 #include "digitalkhatt/layout/constraints/StackOrderConstraint.h"
+#include "digitalkhatt/layout/constraints/MarkFrameConstraint.h"
 
 using namespace digitalkhatt::layout;
 
@@ -377,8 +378,8 @@ void independentLineGap() {
   p.differentLineGap = 0;
   SolverContext disabled(f.page, f.classes);
   solveGapConstraint(disabled, a, b, p, 1, penetration);
-  require(a.dy == 0 && b.dy == 0 && chooseMinGap(a, b, p) == 0,
-      "Zero cross-line clearance must leave separated marks unchanged independently of the word gaps");
+  require(a.dy == 0 && b.dy == 0 && chooseMinGap(a, b, p) == p.differentWordGap,
+      "Zero line clearance must preserve ordinary word clearance while leaving already-clear marks unchanged");
 }
 
 void separateLineSpacingConstraints() {
@@ -424,7 +425,7 @@ void separateLineSpacingConstraints() {
     if (compliance == 1) strongerMovement = movement;
     else require(movement < strongerMovement, "Higher extra-line compliance must soften only the extra spacing force");
   }
-  for (double lineGap : {80.0,120.0}) {
+  for (double lineGap : {0.0,80.0,120.0}) {
     Fixture f;
     auto& a = f.add("fatha",0,0,20,20);
     auto& b = f.add("shadda",0,70,20,20); b.lineIndex = 1;
@@ -433,8 +434,11 @@ void separateLineSpacingConstraints() {
     solveGapConstraint(context,a,b,p,1,penetration);
     const auto& states = context.gapInfos.at({&a,&b});
     require(states.ordinary.lambda > 0 && !states.extraLine.hasInitialC && states.extraLine.lambda == 0 &&
-            std::abs(a.dy + (lineGap-50)/2.1) < 1e-6,
-        "A line target at or below word clearance must use only the ordinary 0.1 constraint");
+            std::abs(a.dy + (120-50)/2.1) < 1e-6,
+        "A line target at or below word clearance must retain the full word gap with only the ordinary 0.1 constraint");
+    require(chooseMinGap(a,b,p) == 120 && chooseMinGap(b,a,p) == 120 &&
+            chooseOrdinaryGap(a,b,p) == 120,
+        "Initial searches and gap reporting must also retain the cross-line word clearance floor");
   }
 }
 
@@ -491,7 +495,8 @@ void completeConstraintCoverageAndConvergence() {
   p = quiet();
   p.toggles.waqfPlacement = true;
   v.clear();
-  optimizePage(waqf.page, waqf.classes, p, &v);
+  // Inspect the authored violation before initial placement can correct it.
+  optimizePage(waqf.page, waqf.classes, p, &v, InitialPositioning::Skip);
   require(contains(v, ViolationType::WaqfPlacement), "Waqf bounds must participate in the report");
 
   Fixture lane;
@@ -1783,9 +1788,110 @@ void contextualLowerMarksYieldToNextLine() {
 
 }  // namespace
 
+// Frame safety is independent of owner validity, contact switches and mobility.
+void markFrameSafety() {
+  const geometry::AABB frame{-100, -200, 300, 400};
+  for (const auto* name : {"kasra", "fatha", "shadda", "smalllowmeem", "onedotup", "onedotdown", "waqf.meem"})
+  for (const auto position : {geometry::Vec2{-500, -600}, {500, 600}, {0, 0}}) {
+    Fixture f;
+    f.classes["marks"].insert(name);
+    auto& mark = f.add(name, position.x, position.y);
+    mark.frameOriginBounds = markFrameOriginBounds(frame, {0, 0, 20, 40}, 1, 1, 10);
+    auto p = quiet(); p.maxIters = 1;
+    optimizePage(f.page, f.classes, p);
+    const auto box = mark.worldPolys.boundingAABB();
+    require(box.minx >= -87.5 - 1e-8 && box.maxx <= 287.5 + 1e-8 &&
+            box.miny >= -186.5 - 1e-8 && box.maxy <= 386.5 + 1e-8,
+            "Every mark must clear the inner border stroke by the 0.5% inset plus rounding room");
+    if (position.x == 0) require(mark.dx == 0 && mark.dy == 0,
+        "An interior mark must remain unchanged");
+  }
+  Fixture f;
+  f.add("base", 500, 0);
+  auto& mark = f.add("kasra", 500, -100);
+  mark.frameOriginBounds = markFrameOriginBounds(frame, {0, 0, 20, 40}, 1, 1);
+  auto p = quiet(); p.maxIters = 3; p.toggles.baseVicinity = true;
+  optimizePage(f.page, f.classes, p);
+  require(mark.worldPolys.boundingAABB().maxx <= 299.5,
+      "Frame safety must project after a conflicting base-vicinity constraint");
+  mark.mobility = 0;
+  mark.dx = 0; updateWorldPolys(mark);
+  SolverContext context(f.page, f.classes);
+  MarkFrameConstraint bound(mark, *mark.frameOriginBounds);
+  bound.project(context, 1);
+  require(mark.worldPolys.boundingAABB().maxx <= 299.5,
+      "Pinned/manual marks must also respect the page border");
+  std::vector<ConstraintViolation> violations;
+  bound.reportViolations(context, violations);
+  require(violations.empty(), "A contained mark must not report frame overflow");
+  mark.dx = 0; updateWorldPolys(mark);
+  p.maxIters = 0;
+  optimizePage(f.page, f.classes, p, &violations, InitialPositioning::Skip);
+  require(mark.dx == 0 && std::any_of(violations.begin(), violations.end(), [](const auto& v) {
+    return v.type == ViolationType::MarkFrame;
+  }), "Read-only diagnostics must report overflow without changing the input");
+
+  Fixture oversized;
+  auto& wide = oversized.add("kasra", 0, 0, 500, 40);
+  wide.frameOriginBounds = markFrameOriginBounds(frame, {0, 0, 500, 40}, 1, 1);
+  p = quiet(); p.maxIters = 1; violations.clear();
+  optimizePage(oversized.page, oversized.classes, p, &violations);
+  require(std::isfinite(wide.dx) && std::any_of(violations.begin(), violations.end(), [](const auto& v) {
+    return v.type == ViolationType::MarkFrame && v.severity > 0;
+  }), "Ink wider than the page must be handled deterministically and reported");
+
+  // The adapter uses exact curve bounds, not the flattened collision proxy.
+  // Exercise the renderer's integer offset rounding at several line scales.
+  for (double xs : {0.5, 1.0, 1.37, 2.0}) for (double ys : {0.6, 1.0, 1.8}) {
+    const geometry::AABB ink{-17.3 * xs, -24.7 * ys, 49.8 * xs, 83.2 * ys};
+    const auto allowed = markFrameOriginBounds(frame, ink, xs, ys, 10);
+    for (int edge = 0; edge < 4; ++edge) {
+      GlyphInstance g;
+      g.baseX = -23.123; g.baseY = 7.891;
+      const double x = edge == 0 ? allowed.minx : edge == 1 ? allowed.maxx : 0;
+      const double y = edge == 2 ? allowed.miny : edge == 3 ? allowed.maxy : 0;
+      g.dx = x - g.baseX; g.dy = y - g.baseY;
+      digitalkhatt::GlyphLayoutInfo output{};
+      applySolvedGlyphOffsets(output, g, xs, ys);
+      const double rx = g.baseX + output.x_offset * xs, ry = g.baseY + output.y_offset * ys;
+      require(rx + ink.minx >= frame.minx + 12 - 1e-8 && rx + ink.maxx <= frame.maxx - 12 + 1e-8 &&
+              ry + ink.miny >= frame.miny + 13 - 1e-8 && ry + ink.maxy <= frame.maxy - 13 + 1e-8,
+              "Rounded renderer offsets must preserve 0.5% clearance from the visible border edge at every scale");
+    }
+  }
+}
+
+void framePreservesInitialWaqfSlot() {
+  auto p = quiet(); p.toggles.waqfPlacement = true;
+  p.sameWordGap = p.differentWordGap = p.differentLineGap = 0;
+  geometry::Vec2 initial;
+  for (bool bounded : {false, true}) {
+    Fixture f;
+    f.add("base", -150, 0, 100, 50);
+    f.add("fatha", -220, 700, 10, 40);
+    auto& waqf = f.add("waqf.meem", -250, 900, 200, 40);
+    if (bounded)
+      waqf.frameOriginBounds = markFrameOriginBounds({-200, -100, 200, 1500}, {0, 0, 200, 40}, 1, 1);
+    p.maxIters = 1;
+    optimizePage(f.page, f.classes, p);
+    require(waqf.initialPlacement == GlyphInstance::InitialPlacement::WaqfSlot,
+            "Initial search must remain active with gap forces disabled");
+    if (!bounded) {
+      initial = {waqf.initialPositioningDx, waqf.initialPositioningDy};
+    } else {
+      require(waqf.initialPositioningDx == initial.x && waqf.initialPositioningDy == initial.y,
+          "Adding the frame must preserve the previous initial slot instead of reselecting a different side");
+      require(std::abs(waqf.baseX + waqf.dx - waqf.frameOriginBounds->minx) < 1e-8,
+          "The hard boundary must bring the selected left slot just inside the frame");
+    }
+  }
+}
+
 int main() {
   try {
     intentionalMarkHullPolicy();
+    markFrameSafety();
+    framePreservesInitialWaqfSlot();
     bowlLowerMarksUseBaseTopRail();
     independentSideAndOwnerChecks();
     ownershipAndReportContext();

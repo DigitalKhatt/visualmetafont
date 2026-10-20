@@ -95,8 +95,8 @@ struct OptParams {
   // Generic target clearances in solver world/font units. Dedicated stack
   // constraints and the 40/10-unit attachment exceptions keep their own gaps.
   double sameWordGap = 80.0;
-  double differentWordGap = 80.0;  // different words on the same line
-  double differentLineGap = 250.0; // glyphs on different lines
+  double differentWordGap = 80.0;  // different words, including across lines
+  double differentLineGap = 250.0; // independent spacing target for glyphs on different lines
 
   // Minimum expansion of each ink box when finding potential contact pairs.
   // The search also covers half the largest configured target gap.

@@ -44,8 +44,10 @@ void collectGapViolations(SolverContext& context,
 
 double gapCompliance(const GlyphInstance& A, const GlyphInstance& B);
 
+// Combined clearance for candidate searches. The word and line constraints
+// retain their own targets and XPBD multipliers during projection.
 double chooseMinGap(const GlyphInstance& A, const GlyphInstance& B, const OptParams& params);
-// Cross-line ordinary clearance is capped at the inter-word target. Any
+// Cross-line ordinary clearance always retains the inter-word target. Any
 // larger line target is handled by a separate compliant spacing constraint.
 double chooseOrdinaryGap(const GlyphInstance& A, const GlyphInstance& B, const OptParams& params);
 

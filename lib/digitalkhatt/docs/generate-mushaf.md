@@ -308,8 +308,8 @@ files with the same version numbers have a different header and X convention.
 
 ## Initial waqf placement
 
-With waqf placement and generic gap forces enabled, a bounded ink-clearance
-search runs before XPBD for every waqf, including already clear authored
+With waqf placement enabled, a bounded ink-clearance search runs before XPBD
+for every waqf, including already clear authored
 positions. It prefers aligning the waqf's left ink edge with the leftmost owning
 non-waqf top mark that extends left of the base, or with the base's left edge
 otherwise, within the existing search bounds. It ranks clear candidates by
@@ -328,6 +328,8 @@ making an otherwise clear slot infeasible. Displacement from the original
 anchor is only a tie breaker, so a clear high anchor does not bypass height
 optimization. Preferred and authored axes are searched explicitly to avoid
 grid-origin bias. These are initial scoring preferences, not XPBD springs.
+The search remains active when generic gap forces are disabled; its own ink
+clearance checks still apply. The optional escape fallback requires gap forces.
 
 All waqf searches see the same page geometry; their plans are checked together
 before any translations are applied. Incompatible plans are discarded. A sign
@@ -350,6 +352,24 @@ from the owning baseline to the waqf ink bottom. The default is the former
 and visibility safety floor. The owning base's ink-top clearance (100 units)
 and top-mark ordering can require a higher position. JSON snapshots store
 `xpbd.waqfMinHeight`; the CLI flag is `--waqf-min-height`.
+
+## Outer page boundary
+
+With Force enabled, every mark is constrained to the outer page border on all
+four sides, including waqf signs and otherwise pinned or manually positioned
+marks. An inset of 0.5% of page width at the left/right and 0.5% of page height
+at the top/bottom leaves a small clearance from the visible inner edge of the
+border stroke, whose half-width is also reserved.
+The zero-compliance frame constraint runs last in each iteration and
+takes priority over placement and spacing forces. It uses the scaled outline
+bounds with half an offset-rounding step reserved on each side, so the saved
+integer offsets also keep the ink inside. The initial waqf search retains its
+existing slot selection; the hard bound brings an overflowing result just inside
+the border rather than reselecting a slot on the other side of its base.
+The boundary comes from the current page layout and is
+independent of the generic gap and waqf-placement switches. Force-off diagnostics
+leave positions unchanged. Marks too large to fit are centered and reported as
+`MarkFrame` failures.
 
 ## Waqf safety bounds
 
@@ -736,22 +756,24 @@ of linguistic ownership or a replacement for a human Mushaf proofread.
 
 `sameWordGap`, `differentWordGap`, and `differentLineGap` tune the generic XPBD
 target clearance in solver font/world units. The two word gaps default to 80;
-the different-line gap defaults to 250 and takes priority across line boundaries.
-`differentWordGap` applies to different words on the same line.
+the different-line gap defaults to 250 and requests extra clearance across line boundaries.
+`differentWordGap` applies to different words on the same line and is also the
+ordinary clearance minimum across lines.
 Word identity is assigned once per page from glyph order,
 spaces (including space variants), and line boundaries; moving a mark never
 changes its word. The 40-unit own-alef attachment and 10-unit kasra/iqlab pair
 exceptions retain their gaps. Dedicated stack constraints retain their authored
 gaps. Base glyphs remain fixed, so a larger value requests more clearance from
 movable marks; compliance and conflicting constraints can leave a residual.
-For different lines, ordinary clearance targets the smaller of the line gap
-and the different-word gap, with compliance 0.1. When the line gap is larger,
+For different lines, ordinary clearance always targets the different-word gap,
+with compliance 0.1, even when the line gap is zero. When the line gap is larger,
 a second constraint seeks the full line gap with its own XPBD multiplier and
 `compliance.extraLineSpacing` (default 1.0). Higher compliance makes this extra
 spacing yield more readily to other constraints. Below ordinary clearance both
 constraints can act; above it only the extra spacing constraint acts. Same-line
 contacts and the stronger historical attachment exceptions are unchanged.
-Zero requests no extra clearance while retaining intersection resolution.
+A zero line gap requests no line spacing. The independent different-word
+constraint remains active across lines; its target is not changed by that zero.
 
 GUI: **Placement / Collision avoidance / Resolve gaps and collisions**, then
 **Same-word gap**, **Different-word gap**, and **Different-line gap**. For example,
