@@ -357,7 +357,7 @@ and top-mark ordering can require a higher position. JSON snapshots store
 
 With Force enabled, every mark is constrained to the outer page border on all
 four sides, including waqf signs and otherwise pinned or manually positioned
-marks. An inset of 0.5% of page width at the left/right and 0.5% of page height
+marks. An inset of 0.5% of page width at the left/right and 0.1% of page height
 at the top/bottom leaves a small clearance from the visible inner edge of the
 border stroke, whose half-width is also reserved.
 The zero-compliance frame constraint runs last in each iteration and

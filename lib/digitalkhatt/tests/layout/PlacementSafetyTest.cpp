@@ -1801,8 +1801,8 @@ void markFrameSafety() {
     optimizePage(f.page, f.classes, p);
     const auto box = mark.worldPolys.boundingAABB();
     require(box.minx >= -87.5 - 1e-8 && box.maxx <= 287.5 + 1e-8 &&
-            box.miny >= -186.5 - 1e-8 && box.maxy <= 386.5 + 1e-8,
-            "Every mark must clear the inner border stroke by the 0.5% inset plus rounding room");
+            box.miny >= -188.9 - 1e-8 && box.maxy <= 388.9 + 1e-8,
+            "Every mark must retain 0.5% horizontal / 0.1% vertical border clearance plus rounding room");
     if (position.x == 0) require(mark.dx == 0 && mark.dy == 0,
         "An interior mark must remain unchanged");
   }
@@ -1855,8 +1855,8 @@ void markFrameSafety() {
       applySolvedGlyphOffsets(output, g, xs, ys);
       const double rx = g.baseX + output.x_offset * xs, ry = g.baseY + output.y_offset * ys;
       require(rx + ink.minx >= frame.minx + 12 - 1e-8 && rx + ink.maxx <= frame.maxx - 12 + 1e-8 &&
-              ry + ink.miny >= frame.miny + 13 - 1e-8 && ry + ink.maxy <= frame.maxy - 13 + 1e-8,
-              "Rounded renderer offsets must preserve 0.5% clearance from the visible border edge at every scale");
+              ry + ink.miny >= frame.miny + 10.6 - 1e-8 && ry + ink.maxy <= frame.maxy - 10.6 + 1e-8,
+              "Rounded renderer offsets must preserve 0.5% horizontal / 0.1% vertical border clearance at every scale");
     }
   }
 }

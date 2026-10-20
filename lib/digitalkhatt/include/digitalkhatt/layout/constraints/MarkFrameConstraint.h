@@ -9,9 +9,10 @@ inline geometry::AABB markFrameOriginBounds(const geometry::AABB& frame,
                                             const geometry::AABB& localInk,
                                             double xStep, double yStep,
                                             double borderHalfWidth = 0.0) {
-  constexpr double insetRatio = 0.005;  // 0.5% of the corresponding page dimension.
-  const double xInset = borderHalfWidth + (frame.maxx - frame.minx) * insetRatio;
-  const double yInset = borderHalfWidth + (frame.maxy - frame.miny) * insetRatio;
+  constexpr double horizontalInsetRatio = 0.005;  // 0.5% of page width.
+  constexpr double verticalInsetRatio = 0.001;    // 0.1% of page height.
+  const double xInset = borderHalfWidth + (frame.maxx - frame.minx) * horizontalInsetRatio;
+  const double yInset = borderHalfWidth + (frame.maxy - frame.miny) * verticalInsetRatio;
   return {frame.minx + xInset - localInk.minx + xStep / 2.0,
           frame.miny + yInset - localInk.miny + yStep / 2.0,
           frame.maxx - xInset - localInk.maxx - xStep / 2.0,

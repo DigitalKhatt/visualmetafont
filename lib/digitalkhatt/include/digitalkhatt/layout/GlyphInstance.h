@@ -50,7 +50,7 @@ struct GlyphInstance {
   double justificationAddedLeftTatweel = 0;
 
   // Allowed world origin for this mark, derived from the outer page border
-  // inset past the border stroke by 0.5% of each page dimension, minus its
+  // inset past the border stroke by 0.5% of page width / 0.1% of page height, minus its
   // exact outline bounds and half an offset-quantization step.
   // Runtime page geometry, independent of the optional placement forces.
   std::optional<geometry::AABB> frameOriginBounds;
