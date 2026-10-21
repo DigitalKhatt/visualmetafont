@@ -443,6 +443,71 @@ void separateLineSpacingConstraints() {
   }
 }
 
+void cachedGapPolicyPreservesLiveResponse() {
+  for (int mode = 0; mode < 8; ++mode) {
+    Fixture live, cached;
+    const auto setup = [&](Fixture& f) {
+      if (mode == 1) {
+        f.add("alef.fina", 0, 0, 30, 40);
+        f.add("wasla", 25, 0, 20, 20).isMark = true;
+        f.page[0][1].mobility = 1;
+      } else if (mode == 2) {
+        f.add("kasra", 0, 0, 20, 20);
+        f.add("smalllowmeem", 25, 0, 20, 20);
+      } else if (mode == 3) {
+        f.add("waqf.meem", 0, 0, 20, 20);
+        f.add("fatha", 25, 0, 20, 20);
+      } else if (mode == 4) {
+        f.add("smallalef.isol", 0, 0, 30, 40).collisionAsMark = true;
+        f.page[0][0].mobility = 1;
+        f.add("fatha", 25, 0, 20, 20);
+      } else {
+        f.add("kasra", 0, 0, 20, 20);
+        f.add("fatha", 25, 0, 20, 20);
+      }
+      if (mode == 5) { f.page[0][0].wordIndex = 0; f.page[0][1].wordIndex = 1; }
+      if (mode == 7) f.page[0][1].lineIndex = 1;
+    };
+    setup(live); setup(cached);
+    SolverContext lc(live.page, live.classes), cc(cached.page, cached.classes);
+    auto p = quiet(); p.toggles.downwardEscape = true; p.differentWordGap = 120;
+    if (mode == 6) { lc.gapExcludedGlyphs.insert(0); cc.gapExcludedGlyphs.insert(0); }
+    auto& la = live.page[0][0]; auto& lb = live.page[0][1];
+    auto& ca = cached.page[0][0]; auto& cb = cached.page[0][1];
+    const auto policy = makeGapPairPolicy(cc, ca, cb, p);
+    for (int iteration = 0; iteration < 8; ++iteration) {
+      // Change live geometry and activate/deactivate an escape AFTER caching.
+      if (iteration == 2 || iteration == 5) {
+        la.dx = ca.dx = 0; lb.dx = cb.dx = 25;
+        updateWorldPolys(la); updateWorldPolys(lb); updateWorldPolys(ca); updateWorldPolys(cb);
+      }
+      if (mode == 0 && (iteration == 2 || iteration == 5)) {
+        auto& ls = lc.gapSqueezes[&la]; auto& cs = cc.gapSqueezes[&ca];
+        ls.active = cs.active = iteration == 2;
+        ls.downwardBias = cs.downwardBias = 1;
+        ls.minimumTop = cs.minimumTop = -1000;
+      }
+      double lp = 0, cp = 0;
+      solveGapConstraint(lc, la, lb, p, 1, lp);
+      solveGapConstraint(cc, ca, cb, p, 1, cp, policy);
+      require(la.dx == ca.dx && la.dy == ca.dy && lb.dx == cb.dx && lb.dy == cb.dy && lp == cp,
+          "Cached pair policy must preserve exact positions with live geometry and escape response");
+      const auto li = lc.gapInfos.find({&la, &lb}), ci = cc.gapInfos.find({&ca, &cb});
+      require((li == lc.gapInfos.end()) == (ci == cc.gapInfos.end()),
+          "Caching must not create additional XPBD multiplier states");
+      if (li != lc.gapInfos.end()) {
+        for (bool extra : {false, true}) {
+          const auto& l = extra ? li->second.extraLine : li->second.ordinary;
+          const auto& c = extra ? ci->second.extraLine : ci->second.ordinary;
+          require(l.lambda == c.lambda && l.initialC == c.initialC && l.hasInitialC == c.hasInitialC &&
+                  l.count == c.count && l.escapingA == c.escapingA && l.escapingB == c.escapingB,
+              "Cached policy must preserve independent multiplier history and escape resets");
+        }
+      }
+    }
+  }
+}
+
 void gapReportingAndKeys() {
   Fixture f;
   auto& a = f.add("fatha", 0, 100, 20, 20);
@@ -1951,6 +2016,7 @@ int main() {
     stretchedFathaJoinedHorizontalGap();
     independentLineGap();
     separateLineSpacingConstraints();
+    cachedGapPolicyPreservesLiveResponse();
     gapReportingAndKeys();
     completeConstraintCoverageAndConvergence();
     stretchedMarksRetainCollisionSafety();

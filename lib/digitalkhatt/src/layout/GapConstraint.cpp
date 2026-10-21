@@ -213,26 +213,33 @@ double chooseOrdinaryGap(const GlyphInstance& A, const GlyphInstance& B, const O
   return A.lineIndex != B.lineIndex ? P.differentWordGap : chooseMinGap(A, B, P);
 }
 
+GapPairPolicy makeGapPairPolicy(const SolverContext& context,
+    const GlyphInstance& A, const GlyphInstance& B, const OptParams& P) {
+  const auto [wA, wB] = gapMobilities(context, A, B);
+  const double gmin = chooseOrdinaryGap(A, B, P);
+  return {wA, wB, gmin, effectiveGapCompliance(context, A, B, P, gmin)};
+}
+
 static void projectGapConstraint(SolverContext& solverContext,
                         GlyphInstance& A,
                         GlyphInstance& B,
                         const OptParams& P,
                         double dt,
-                        double& maxPenetration, bool extraLine) {
+                        double& maxPenetration, bool extraLine, const GapPairPolicy* policy = nullptr) {
   // Decide desired min gap.
   const bool isMarkExists = (A.isCollisionMark() || B.isCollisionMark());
 
   if (!isMarkExists) return;
 
-  const auto [wA, wB] = gapMobilities(solverContext, A, B);
+  const auto [wA, wB] = policy ? std::pair{policy->mobilityA, policy->mobilityB} : gapMobilities(solverContext, A, B);
 
   // If both are completely rigid, we can't resolve here
   if (wA <= 0.0 && wB <= 0.0) {
     return;
   }
 
-  const double gmin = extraLine ? P.differentLineGap : chooseOrdinaryGap(A, B, P);
-  const double compliance = extraLine ? P.compliance.extraLineSpacing :
+  const double gmin = policy ? policy->minGap : extraLine ? P.differentLineGap : chooseOrdinaryGap(A, B, P);
+  const double compliance = policy ? policy->compliance : extraLine ? P.compliance.extraLineSpacing :
       effectiveGapCompliance(solverContext, A, B, P, gmin);
 
   const auto clearMultiplier = [&] {
@@ -335,6 +342,13 @@ static void projectGapConstraint(SolverContext& solverContext,
 void solveGapConstraint(SolverContext& context, GlyphInstance& A, GlyphInstance& B,
                         const OptParams& P, double dt, double& maxPenetration) {
   projectGapConstraint(context, A, B, P, dt, maxPenetration, false);
+  if (A.lineIndex != B.lineIndex && P.differentLineGap > P.differentWordGap)
+    projectGapConstraint(context, A, B, P, dt, maxPenetration, true);
+}
+
+void solveGapConstraint(SolverContext& context, GlyphInstance& A, GlyphInstance& B,
+    const OptParams& P, double dt, double& maxPenetration, const GapPairPolicy& policy) {
+  projectGapConstraint(context, A, B, P, dt, maxPenetration, false, &policy);
   if (A.lineIndex != B.lineIndex && P.differentLineGap > P.differentWordGap)
     projectGapConstraint(context, A, B, P, dt, maxPenetration, true);
 }

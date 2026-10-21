@@ -764,6 +764,26 @@ void solvePageConstraints(const GlyphSequence& glyphs,
     for (auto [a, b] : solverContext.excludedFromGenericGap) setExcluded(a, b, 1);
   }
 
+  // Same-line relationships, mobilities and targets stay fixed after assembly.
+  // Index only within lines; allocate policy values lazily for encountered pairs.
+  // The cache dies with this solve, so GUI edits and new pages cannot reuse it.
+  std::vector<size_t> policyRow(glyphCount), policyColumn(glyphCount);
+  std::vector<unsigned> policySlots;
+  std::vector<GapPairPolicy> policyValues;
+  if (P.toggles.genericGapConstraint && P.maxIters > 0) {
+    std::unordered_map<int, size_t> counts, columns;
+    for (const auto& g : glyphs) ++counts[g.get().lineIndex];
+    size_t slots = 0;
+    for (size_t i = 0; i < glyphCount; ++i) {
+      const auto line = glyphs[i].get().lineIndex;
+      policyRow[i] = slots;
+      policyColumn[i] = columns[line]++;
+      slots += counts[line];
+    }
+    policySlots.resize(slots, 0);
+    policyValues.reserve(glyphCount * 8);
+  }
+
   const double dt = 1.0;
   // Per iteration: Waqf escape, placement targets, refreshed broadphase,
   // generic contacts, ordered hard bounds, then convergence checks.
@@ -797,7 +817,16 @@ void solvePageConstraints(const GlyphSequence& glyphs,
         if (!(glyphA.isCollisionMark() || glyphB.isCollisionMark()) ||
             (glyphA.mobility <= 0.0 && glyphB.mobility <= 0.0)) continue;
         if (!gapExclusions[pair.first * glyphCount + pair.second]) {
-          solveGapConstraint(solverContext, glyphA, glyphB, P, dt, maxPenetration);
+          if (glyphA.lineIndex == glyphB.lineIndex) {
+            auto& slot = policySlots[policyRow[pair.first] + policyColumn[pair.second]];
+            if (!slot) {
+              policyValues.push_back(makeGapPairPolicy(solverContext, glyphA, glyphB, P));
+              slot = static_cast<unsigned>(policyValues.size());
+            }
+            solveGapConstraint(solverContext, glyphA, glyphB, P, dt, maxPenetration, policyValues[slot - 1]);
+          } else {
+            solveGapConstraint(solverContext, glyphA, glyphB, P, dt, maxPenetration);
+          }
         }
       }
     }

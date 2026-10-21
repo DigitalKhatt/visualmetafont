@@ -105,11 +105,26 @@ struct GapKeyHasher {
 
 using GapsInfo = std::unordered_map<GapKey, GapInfo, GapKeyHasher>;
 
+// Fixed after constraint assembly, for this ordered pair and this solve only.
+// Geometry, contact normals, escape state and XPBD multipliers remain live.
+struct GapPairPolicy {
+  double mobilityA, mobilityB;
+  double minGap, compliance;
+};
+
+GapPairPolicy makeGapPairPolicy(const SolverContext& context,
+    const GlyphInstance& A, const GlyphInstance& B, const OptParams& params);
+
 void solveGapConstraint(SolverContext& solverContext,
                         GlyphInstance& A,
                         GlyphInstance& B,
                         const OptParams& params,
                         double dt,
                         double& maxPenetration);
+
+// Apply a cached ordinary-contact policy. Extra line spacing still has its
+// independent target and multiplier, evaluated after the ordinary contact.
+void solveGapConstraint(SolverContext& context, GlyphInstance& A, GlyphInstance& B,
+    const OptParams& params, double dt, double& maxPenetration, const GapPairPolicy& policy);
 
 }  // namespace digitalkhatt::layout
