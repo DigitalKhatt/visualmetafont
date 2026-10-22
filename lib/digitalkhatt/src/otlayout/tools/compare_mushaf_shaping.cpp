@@ -740,7 +740,7 @@ void printCandidateTrace(int page, const digitalkhatt::justify::JustificationDec
 // Writes a snapshot, or checks one.  Returns the number of differing lines;
 // writing always returns zero.
 std::size_t runSnapshot(OpenTypeProvider& provider, const std::vector<std::vector<TextString>>& pages, int firstPage, int lastPage, const fs::path& path, bool check, bool withGlyphs, JustType engine, int stretchPolicy, int shrinkPolicy, std::ostream& reportOut, OtLayout* live = nullptr, int tracePage = 0, int traceLine = 0) {
-  const std::string engineName = std::string(live ? (live->quantizeGlyphAdvances ? "live-" : "live-native-") : "") +
+  const std::string engineName = std::string(live ? "live-" : "") +
       (engine == JustType::DeclPolicy ? "decl-policy" : engine == JustType::HarfBuzz ? "harfbuzz" : "experimental2");
   const JustOption options{engine, JustStyle::FontSizeXScale, ShrinkType::Standard, stretchPolicy, shrinkPolicy};
   const double scale = (1 << OtLayout::SCALEBY) * OtLayout::EMSCALE;
@@ -911,7 +911,6 @@ void usage(const char* program) {
                "  --check-snapshot PATH  Compare this run against such a file\n"
                "  --snapshot-glyphs    Include per-glyph detail when recording\n"
                "  --snapshot-live      Snapshot live rendering, including positioning provenance\n"
-               "  --snapshot-native-metrics  Use unquantized live advances\n"
                "  --snapshot-engine E  decl-policy (default), experimental2, or harfbuzz\n"
                "  --stretch-policy NAME  Override the declarative stretchpolicy named by linepolicy\n"
                "  --shrink-policy NAME  Override the declarative shrinkpolicy named by linepolicy\n"
@@ -981,7 +980,6 @@ int main(int argc, char** argv) {
     bool snapshotCheck = false;
     bool snapshotGlyphs = false;
     bool snapshotLive = false;
-    bool snapshotNativeMetrics = false;
     JustType snapshotEngine = JustType::DeclPolicy;
     std::string stretchPolicyName;
     std::string shrinkPolicyName;
@@ -1026,8 +1024,6 @@ int main(int argc, char** argv) {
         snapshotGlyphs = true;
       } else if (arg == "--snapshot-live") {
         snapshotLive = true;
-      } else if (arg == "--snapshot-native-metrics") {
-        snapshotNativeMetrics = true;
       } else if (arg == "--snapshot-engine") {
         const auto name = value();
         if (name == "decl-policy" || name == "fixed-slot") {
@@ -1089,7 +1085,6 @@ int main(int argc, char** argv) {
     // instead of converting it to pre-generated equivalent glyph IDs.
     OtLayout sourceLayout(&mpFont, true, true);
     sourceLayout.useNormAxisValues = false;
-    sourceLayout.quantizeGlyphAdvances = !snapshotNativeMetrics;
     sourceLayout.loadLookupFile(features.string());
 
     const auto* catalog = sourceLayout.compiledJustificationCatalog

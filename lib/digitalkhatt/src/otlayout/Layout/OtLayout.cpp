@@ -274,22 +274,8 @@ static hb_position_t getGlyphHorizontalAdvance(hb_font_t* hbFont, void* fontData
       pglyph = layout->getAlternate(pglyph->charcode, parameters);
     }
 
-    const double metricWidth =
-        layout->quantizeGlyphAdvances ? toInt(pglyph->width) : pglyph->width;
-    auto xadvance = hbFont->em_scale_x(metricWidth);
-
-    double advance = metricWidth;
-    // return advance; // floatToHarfBuzzPosition(advance);
-    int upem = 1000;
-    int xscale, yscale;
-    hb_font_get_scale(hbFont, &xscale, &yscale);
-    int64_t scaled = advance * xscale;
-    scaled += scaled >= 0 ? upem / 2 : -upem / 2; /* Round. */
-    auto gg = (hb_position_t)(scaled / upem);
-
-    return xadvance;
-
-    return gg;
+    // Use the same integer advances as the OpenType hmtx exporter.
+    return hbFont->em_scale_x(toInt(pglyph->width));
   }
 }
 

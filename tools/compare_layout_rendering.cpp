@@ -562,7 +562,6 @@ int main(int argc, char** argv) {
     initializeFont(font, project, resources);
     OtLayout layout(&font, true, true);
     layout.useNormAxisValues = false;
-    layout.quantizeGlyphAdvances = true;
     layout.loadLookupFile("features.fea");
     QJsonArray glyphReports, warnings;
     std::vector<RenderedGlyph> rendered;

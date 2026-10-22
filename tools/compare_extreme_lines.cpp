@@ -2423,7 +2423,6 @@ int main(int argc, char** argv) {
     OtLayout layout(&mpFont, true, true);
     layout.setPageLayout(geometry);
     layout.useNormAxisValues = false;
-    layout.quantizeGlyphAdvances = true;
     layout.loadLookupFile("features.fea");
     int stretchPolicy = -1;
     if (!stretchPolicyName.empty()) {
