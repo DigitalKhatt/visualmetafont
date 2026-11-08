@@ -21,6 +21,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <QRegularExpression>
 
 #include "GlyphParser/glyphdriver.h"
 #include "commands.h"
@@ -83,14 +84,13 @@ Glyph::Glyph(QString code, Font* parent) : QObject((QObject*)parent) {
   m_unicode = -1;
   m_charcode = -1;
 
+  for (const auto& axis : font->project.internalParameters()) axisNames.push_back(axis.key);
   this->setSource(code);
 
   m_undoStack = new QUndoStack(this);
 
-  QVariant defaultValue = QVariant::fromValue(AxisType{0.0});
-
-  for (auto axisName : this->axisNames) {
-    QObject::setProperty(axisName.toLocal8Bit(), defaultValue);
+  for (const auto& axis : font->project.internalParameters()) {
+    QObject::setProperty(axis.key.toUtf8(), QVariant::fromValue(AxisType{axis.defaultValue}));
   }
 }
 
@@ -345,6 +345,7 @@ void Glyph::setName(QString name) {
   }
   emit valueChanged("name");
 }
+QString Glyph::sourceFile() const { return font->glyphSourceFile(this); }
 QString Glyph::name() const {
   return m_name;
 }
@@ -507,6 +508,111 @@ QString Glyph::getLog() {
   return font->getLog();
 }
 
+QVector<int> Glyph::authoredPointIds(int path) const {
+  QVector<int> result;
+  const auto points=controlledPaths.value(path);
+  if (points.isEmpty()) return result;
+  const auto command=controlledPathNames.value(path).commandName;
+  for (auto i=points.cbegin();i!=points.cend();++i) {
+    const bool last=i.key()==points.lastKey() && i.key()!=points.firstKey();
+    // Closed paths have a closing sentinel, not another authored point. Value
+    // snapshots in structural undo may no longer share the first knot pointer.
+    const bool closure=last && (i.value()==points.first() || i.value()->expr->toString()=="cycle" ||
+        (command!="draw" && i.value()->expr->toString()==points.first()->expr->toString()));
+    if (!closure) result.append(i.key());
+  }
+  return result;
+}
+
+static QSet<QString> anchorParametersForSource(Glyph& glyph, const QSet<QString>* onlyAnchors) {
+  const auto& params = glyph.params;
+  // Follow source references rather than relying only on the designer's names.
+  // Legacy mark controls also use names such as z.mark1 and z.marktop.
+  const auto normalize = [](QString name) {
+    if (name.startsWith("x.") || name.startsWith("y.") ||
+        (name.size() > 1 && (name[0] == 'x' || name[0] == 'y') && name[1].isDigit()))
+      name[0] = 'z';
+    return name;
+  };
+  static const QRegularExpression token("[A-Za-z][A-Za-z0-9_.]*");
+  const auto references = [&](const QString& text) {
+    QSet<QString> result;
+    auto matches = token.globalMatch(text);
+    while (matches.hasNext()) result.insert(normalize(matches.next().captured()));
+    return result;
+  };
+  QString text = glyph.source();
+  text.replace(QRegularExpression("\"[^\"]*\"|%[^\\n]*"), " ");
+  QSet<QString> needed;
+  if (!onlyAnchors || !onlyAnchors->isEmpty()) needed = {"leftanchor", "rightanchor"};
+  static const QRegularExpression call("\\b(?:setMarkAnchor|setCursiveAnchor|setAnchor|defAnchor)\\s*\\(");
+  auto calls = call.globalMatch(text);
+  while (calls.hasNext()) {
+    const auto match = calls.next();
+    int depth = 1, start = match.capturedEnd(), argument = 0;
+    bool wanted = !onlyAnchors;
+    for (int i = start; i < text.size(); ++i) {
+      const auto ch = text[i];
+      if (ch == '(') ++depth;
+      if (ch == ')') --depth;
+      if ((ch == ',' && depth == 1) || depth == 0) {
+        if (argument == 0 && onlyAnchors)
+          wanted = onlyAnchors->contains(text.mid(start, i - start).trimmed());
+        if (argument == 1 && wanted) needed.unite(references(text.mid(start, i - start)));
+        ++argument;
+        start = i + 1;
+      }
+      if (depth == 0) {
+        // MetaPost also accepts setMarkAnchor(name)(value).
+        if (argument == 1) {
+          int next = i + 1;
+          while (next < text.size() && text[next].isSpace()) ++next;
+          if (next < text.size() && text[next] == '(') {
+            start = ++next;
+            depth = 1;
+            while (next < text.size() && depth) {
+              if (text[next] == '(') ++depth;
+              if (text[next] == ')') --depth;
+              ++next;
+            }
+            if (wanted) needed.unite(references(text.mid(start, next - start - 1)));
+          }
+        }
+        break;
+      }
+    }
+  }
+  QMap<QString, QSet<QString>> dependencies;
+  static const QRegularExpression assignment("\\b([A-Za-z][A-Za-z0-9_.]*)\\s*(?::=|=)\\s*([^;]+);");
+  auto assignments = assignment.globalMatch(text);
+  while (assignments.hasNext()) {
+    const auto match = assignments.next();
+    dependencies[normalize(match.captured(1))].unite(references(match.captured(2)));
+  }
+  bool changed;
+  do {
+    const auto previous = needed;
+    for (const auto& name : previous) needed.unite(dependencies.value(name));
+    changed = needed != previous;
+  } while (changed);
+  QSet<QString> result;
+  for (const auto& [name, param] : params) {
+    QString shortName = name.toLower();
+    if (shortName.startsWith("z.")) shortName.remove(0, 2);
+    if ((!onlyAnchors && (shortName.startsWith("mark") || shortName.startsWith("from.") ||
+                          shortName.startsWith("anchor"))) ||
+        needed.contains(normalize(name)) ||
+        (!param.affects.isEmpty() && needed.contains(normalize(param.affects))))
+      result.insert(name);
+  }
+  return result;
+}
+
+QSet<QString> Glyph::anchorParameterNames() { return anchorParametersForSource(*this, nullptr); }
+QSet<QString> Glyph::anchorParameterNamesFor(const QSet<QString>& anchors) {
+  return anchorParametersForSource(*this, &anchors);
+}
+
 QString Glyph::getInfo() {
   QString log;
 
@@ -525,14 +631,19 @@ mp_edge_object* Glyph::getEdge() {
 
   QString paramsString;
 
-  int axisIndex = 0;
-
-  for (auto axisName : this->axisNames) {
-    auto axisValue = axis(axisName);
-    paramsString = paramsString % QString("params%1:=%2;").arg(axisIndex++).arg(axisValue);
+  // Localize preview parameters, including sparse named internal parameters. Rendering another
+  // glyph must never inherit the current glyph's design coordinates.
+  paramsString = "save params;";
+  for (const auto& descriptor : font->project.internalParameters()) {
+    paramsString += QString("params%1:=%2;").arg(descriptor.metaPostIndex)
+        .arg(descriptor.metaPostValue(axis(descriptor.key)), 0, 'g', 15);
   }
 
   QString data = paramsString % source();
+  if (!pictureNames.isEmpty()) {
+    const int section=data.indexOf("%%endpaths");
+    if (section>=0) data.insert(section,"vmfFinalSourceCapture:=currentpicture;\n");
+  }
 
   try {
     font->pictureNames = pictureNames;
@@ -543,7 +654,9 @@ mp_edge_object* Glyph::getEdge() {
     return nullptr;
   }
 
-  edge = font->getEdge(charcode());
+  const bool scaled = std::any_of(font->project.internalParameters().begin(), font->project.internalParameters().end(),
+      [&](const auto& a) { return a.metaPostIndex == 100 && a.metaPostValue(axis(a.key)) != 0; });
+  edge = font->getEdge(scaled ? 983040 : charcode());
 
   if (edge == nullptr) {
     return edge;

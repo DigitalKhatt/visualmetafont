@@ -36,6 +36,9 @@ public:
 	QRectF boundingRect() const Q_DECL_OVERRIDE;
 	QPainterPath shape() const Q_DECL_OVERRIDE;
 	void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) Q_DECL_OVERRIDE;
+  void setAnchorParameter(bool anchor);
+  bool isAnchorParameter() const { return anchorParameter; }
+  QString parameterName() const { return param.name; }
 
 protected:	
 	void mouseMoveEvent(QGraphicsSceneMouseEvent *event) Q_DECL_OVERRIDE;
@@ -46,6 +49,7 @@ private:
 	double radius;
 	QBrush brush;
 	QPen pen;
+  bool anchorParameter = false;
 	
 };
 #endif // PAIRITEM_H

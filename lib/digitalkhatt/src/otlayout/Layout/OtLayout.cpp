@@ -500,6 +500,18 @@ static hb_bool_t get_cursive_anchor(hb_font_t* font, void* font_data,
 
   Lookup* lookupTable = layout->gposlookups.at(context->lookup_index);
 
+  if (lookupTable->type == Lookup::singleadjustment && context->type == hb_cursive_anchor_context_t::single) {
+    // Serialized SinglePos chunks can outnumber the logical subtables.
+    // Resolve by coverage so callbacks keep the lookup's first-match policy.
+    for (auto* candidate : lookupTable->subtables) {
+      auto* single = static_cast<SingleAdjustmentSubtable*>(candidate);
+      if (!single->singlePos.contains(context->glyph_id)) continue;
+      single->getSingleValue(context);
+      break;
+    }
+    return false;
+  }
+
   auto subtable = lookupTable->subtables.at(context->subtable_index);
 
   if (lookupTable->type == Lookup::cursive) {
@@ -756,7 +768,9 @@ Point AnchorCalc::getAdjustment(Automedina& y, MarkBaseSubtable& subtable,
 
   if (curr->expanded) {
     if (curr->name != "alternatechar" && (!curr->originalglyph.empty() && (curr->charlt != 0 || curr->charrt != 0))) {
-      adjustoriginal = subtable.classes[className].baseparameters[curr->originalglyph];
+      const auto& values = subtable.classes.at(className).baseparameters;
+      if (const auto found = values.find(curr->originalglyph); found != values.end())
+        adjustoriginal = found->second;
     }
 
     originalglyph = &y.glyphs[curr->originalglyph];
@@ -1252,6 +1266,9 @@ CursiveAnchorFunc OtLayout::getCursiveFunctions(const std::string& functionName,
 PairAdjustFunc OtLayout::getPairAdjustFunction(std::string functionName, Subtable* subtable) {
   return automedina->getPairAdjustFunction(functionName, subtable);
 }
+SingleAdjustFunc OtLayout::getSingleAdjustFunction(std::string functionName, Subtable* subtable) {
+  return automedina->getSingleAdjustFunction(functionName, subtable);
+}
 void OtLayout::addLookup(Lookup* lookup) {
   if (lookup->type == Lookup::none) {
     throw "Lookup Type not defined";
@@ -1421,6 +1438,9 @@ void OtLayout::prepareAnchorResolution() {
 std::optional<Point> OtLayout::getAnchor(const GlyphVis& glyph, const MarkBaseSubtable& subtable, std::string_view className, const GlyphParameters& parameters) const {
   return automedina ? automedina->getAnchor(glyph, subtable, className, parameters) : std::nullopt;
 }
+std::optional<Point> OtLayout::getMarkAnchor(const GlyphVis& glyph, const MarkBaseSubtable& subtable, std::string_view className, const GlyphParameters& parameters) const {
+  return automedina ? automedina->getMarkAnchor(glyph, subtable, className, parameters) : std::nullopt;
+}
 void OtLayout::saveParameters(ParameterJsonObject& json) const {
   for (auto lookup : lookups) {
     if (!lookup->isGsubLookup()) {
@@ -1480,6 +1500,9 @@ hb_font_t* OtLayout::createFont(double emScale, bool newFace) {
   hb_font_set_funcs(subfont, getFontFunctions(font, useNormAxisValues), this, 0);
   hb_font_set_instance_func(subfont, glyphInstanceCallback, this);
 
+  // The subfont retains its parent. Release this function's creation reference
+  // so repeated preview fonts do not retain every parent and face forever.
+  hb_font_destroy(font);
   return subfont;
 }
 

@@ -1,3 +1,4 @@
+#include "digitalkhatt/project/GlyphSources.h"
 // Compare live MetaPost outlines with the precomputed-layout renderer.
 // The binary reader and interpolation mirror Tarteel's MushafRendererJSI.cpp,
 // binary_reader.h and JsiPage::getGlyphPath (including float conversion).
@@ -239,44 +240,6 @@ Outline metaPostOutline(const GlyphVis& glyph) {
 }
 
 // Same font bootstrap as compare_extreme_lines; no GUI or justification pass.
-std::size_t registerGlyphSources(MPFont& font, const fs::path& glyphsPath) {
-  const auto glyphs = readFile(glyphsPath);
-  const std::string reset =
-      "params[0]:=0;params[1]:=0;params[2]:=0;params[3]:=0;params[4]:=0;";
-  std::size_t count = 0;
-  std::size_t pos = 0;
-  while (pos < glyphs.size()) {
-    const auto beginPos = glyphs.find("beginchar", pos);
-    const auto defPos = glyphs.find("defchar", pos);
-    const bool isDef = defPos != std::string::npos &&
-                       (beginPos == std::string::npos || defPos < beginPos);
-    const auto start = isDef ? defPos : beginPos;
-    if (start == std::string::npos) break;
-    const std::string_view endMarker = isDef ? "enddefchar;" : "endchar;";
-    const auto end = glyphs.find(endMarker, start);
-    if (end == std::string::npos)
-      throw std::runtime_error("Unterminated glyph near byte " +
-                               std::to_string(start));
-    const auto blockEnd = end + endMarker.size();
-    const auto block = glyphs.substr(start, blockEnd - start);
-    const auto open = block.find('(');
-    const auto comma1 = block.find(',', open);
-    const auto comma2 = block.find(',', comma1 + 1);
-    if (open == std::string::npos || comma1 == std::string::npos ||
-        comma2 == std::string::npos)
-      throw std::runtime_error("Invalid glyph header near byte " +
-                               std::to_string(start));
-    const auto name = block.substr(open + 1, comma1 - open - 1);
-    const auto unicode =
-        std::stoi(block.substr(comma1 + 1, comma2 - comma1 - 1));
-    font.registerGlyphSource(name, block, isDef ? "defchar" : "beginchar",
-                             unicode);
-    font.execute(reset + block);
-    ++count;
-    pos = blockEnd;
-  }
-  return count;
-}
 
 void initializeFont(MPFont& font, const fs::path& project,
                     const fs::path& resources) {
@@ -286,7 +249,7 @@ void initializeFont(MPFont& font, const fs::path& project,
   source += readFile(resources / "vmf.mp");
   source += readFile(project);
   font.initialize(std::move(source), project);
-  const auto count = registerGlyphSources(font, project.parent_path() / "glyphs.mp");
+  const auto count = digitalkhatt::project::ProjectGlyphSources::load(project).registerWith(font);
   std::cout << "Registered " << count << " glyph sources\n";
 }
 
@@ -636,8 +599,16 @@ int main(int argc, char** argv) {
     }
     QJsonObject inputs;
     for (const auto& [key, path] : std::vector<std::pair<QString, fs::path>>{{"binary", binary}, {"glyphMap", names},
-        {"project", project}, {"glyphSources", project.parent_path() / "glyphs.mp"}, {"features", project.parent_path() / "features.fea"}})
+        {"project", project}, {"features", project.parent_path() / "features.fea"}})
       inputs[key] = QJsonObject{{"path", QString::fromStdString(path.string())}, {"sha256", hash(path)}};
+    QJsonArray glyphInputs;
+    const auto glyphSources = digitalkhatt::project::ProjectGlyphSources::load(project);
+    for (const auto& file : glyphSources.files)
+      glyphInputs.append(QJsonObject{{"path", QString::fromStdString(file.path.string())}, {"sha256", hash(file.path)}});
+    inputs["glyphSourceFiles"] = glyphInputs;
+    if (glyphInputs.size() == 1) inputs["glyphSources"] = glyphInputs[0];
+    if (glyphSources.metadataPath) inputs["projectMetadata"] = QJsonObject{
+      {"path", QString::fromStdString(glyphSources.metadataPath->string())}, {"sha256", hash(*glyphSources.metadataPath)}};
     QJsonObject report{{"schemaVersion", 1}, {"binaryVersion", int(doc.version)}, {"inputs", inputs}, {"page", pageIndex},
       {"line", lineIndex}, {"lineX", line.x}, {"lineXScale", line.xscale}, {"lineFontSize", line.fontSize}, {"metapostScale", mpScale}, {"pixelsPerUnit", pixelsPerUnit},
       {"samplesPerCubic", samples + 1}, {"imageWidth", size.width()}, {"imageHeight", size.height()},

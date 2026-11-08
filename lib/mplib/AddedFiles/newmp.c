@@ -207,6 +207,7 @@ void mp_gr_toss_objects_extended(mp_edge_object* hh) {
   for (int i = 0; i < hh->numAnchors; i++) {
     mp_xfree(hh->anchors[i].anchorName);
   }
+  mp_xfree(hh->anchors);
   mp_gr_toss_objects(hh);
 }
 mp_edge_object* convert_to_edge(MP mp, void* voidh) {
@@ -258,7 +259,13 @@ void mymplib_shipout_backend(MP mp, void* voidh) {
   }
 }
 void setAnchors(MP mp, mp_edge_object* hh) {
-  if (hh->numAnchors == 0) return;
+  hh->anchors = NULL;
+  if (hh->numAnchors <= 0) {
+    hh->numAnchors = 0;
+    return;
+  }
+  hh->anchors = mp_xmalloc(mp, hh->numAnchors, sizeof(AnchorPoint));
+  memset(hh->anchors, 0, hh->numAnchors * sizeof(AnchorPoint));
 
   char* varName = "anchors";
   mp_sym varrSymp = mp_id_lookup(mp, varName, strlen(varName), false);

@@ -117,6 +117,7 @@ private:
     QMdiSubWindow *findMdiChild(const QString &fileName) const;
 
     QMdiArea *mdiArea;
+    QDockWidget* projectDock;
 
     QMenu *windowMenu;
     QAction *newAct;

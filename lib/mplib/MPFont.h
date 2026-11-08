@@ -31,6 +31,8 @@ struct MPAxis {
 struct MPFontGlyphInfo {
   mp_edge_object* currentPicture = nullptr;
   std::map<std::string, mp_edge_object*> controlledPictures;
+  // Unmodified construction snapshots, used to verify direct editor bindings.
+  std::map<std::string, mp_edge_object*> controlledPictureSources;
 };
 
 class MPFont {

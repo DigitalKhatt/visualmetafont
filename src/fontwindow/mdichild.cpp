@@ -85,7 +85,7 @@ bool MdiChild::loadFile(const QString& fileName) {
   if (!font->loadFile(fileName)) {
     QMessageBox::warning(this, tr("MDI"),
                          tr("Cannot read file %1")
-                             .arg(fileName));
+                             .arg(fileName) + "\n" + font->projectError);
     //.arg(file.errorString()));
     return false;
   }
@@ -139,6 +139,7 @@ bool MdiChild::saveFile(const QString& fileName) {
   bool ret = font->saveFile();
   QApplication::restoreOverrideCursor();
 
+  if (!ret) QMessageBox::warning(this, tr("Cannot save glyph sources"), font->projectError);
   // setCurrentFile(fileName);
   return ret;
 }
@@ -165,8 +166,7 @@ void MdiChild::documentWasModified() {
 }
 
 bool MdiChild::maybeSave() {
-  // if (!document()->isModified())
-  return true;
+  if (!font || !font->hasSourceChanges()) return true;
   const QMessageBox::StandardButton ret = QMessageBox::warning(this, tr("MDI"),
                                                                tr("'%1' has been modified.\n"
                                                                   "Do you want to save your changes?")
@@ -242,6 +242,7 @@ void MdiChild::keyPressEvent(QKeyEvent* event) {
   }
 }
 void MdiChild::refresh() {
+  delete fontscene;
   fontscene = new FontScene(this);
   setScene(fontscene);
   for (int i = 0; i < font->glyphs.length(); i++) {
@@ -250,5 +251,28 @@ void MdiChild::refresh() {
     cell->setGlyph(glyph);
     fontscene->addItem(cell);
   }
+  filterGlyphs(filterGroups, filterQuery, filterSourceFile);
   invalidateScene();
+}
+
+int MdiChild::filterGlyphs(const QStringList& groups, const QString& query, const QString& sourceFile) {
+  filterGroups = groups; filterQuery = query; filterSourceFile = sourceFile;
+  int visible = 0;
+  const auto text = query.trimmed();
+  for (auto* item : fontscene->items()) {
+    auto* cell = qgraphicsitem_cast<GlyphCellItem*>(item);
+    if (!cell) continue;
+    auto* glyph = cell->getGlyph();
+    const auto membership = font->project.glyphGroups(glyph->name());
+    bool inGroup = groups.isEmpty() || groups.contains("") ||
+        (groups.contains("__ungrouped__") && membership.isEmpty());
+    for (const auto& id : groups) inGroup |= membership.contains(id);
+    const auto code = QString("U+%1").arg(glyph->unicode(), 4, 16, QChar('0'));
+    const bool show = inGroup && (sourceFile.isEmpty() || font->glyphSourceFile(glyph) == sourceFile) && (text.isEmpty() || glyph->name().contains(text, Qt::CaseInsensitive) || code.contains(text, Qt::CaseInsensitive));
+    cell->setVisible(show);
+    if (!show) cell->setSelected(false);
+    visible += show;
+  }
+  fontscene->repositionItems();
+  return visible;
 }

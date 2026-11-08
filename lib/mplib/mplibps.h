@@ -127,7 +127,7 @@ typedef struct mp_edge_object {
   double ypart;
   int unicode;
   int numAnchors;
-  AnchorPoint anchors[10];
+  AnchorPoint* anchors;
 } mp_edge_object;
 
 /*:188*/ /*235:*/

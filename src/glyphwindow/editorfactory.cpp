@@ -44,6 +44,9 @@
 #include <QtWidgets/qpushbutton.h>
 #include <QtWidgets/qspinbox.h>
 #include <QtWidgets/qframe.h>
+#include <QSignalBlocker>
+#include <QStyleFactory>
+#include <QStyle>
 // ---------- EditorFactoryPrivate :
 // Base class for editor factory private classes. Manages mapping of properties to editors and vice versa.
 
@@ -108,6 +111,7 @@ class QtAxisFactoryPrivate : public EditorFactoryPrivate<QWidget>
     QtAxisFactory *q_ptr;
     Q_DECLARE_PUBLIC(QtAxisFactory)
 public:
+    QMap<QtProperty *, double> defaultValues;
     void slotPropertyChanged(QtProperty *property, double value);
     void slotRangeChanged(QtProperty *property, double min, double max);
     void slotSingleStepChanged(QtProperty *property, double step);
@@ -126,12 +130,14 @@ void QtAxisFactoryPrivate::slotPropertyChanged(QtProperty *property, double valu
         QLayout* layout = editor->layout();
         QSlider* slider = (QSlider*) layout->itemAt(1)->widget();        
         slider->blockSignals(true);
-        slider->setValue(value * tatweelRes);
+        slider->setValue(qRound(value * tatweelRes));
         slider->blockSignals(false);
-        QSpinBox* spinBox = (QSpinBox*) layout->itemAt(2)->widget();        
+        QDoubleSpinBox* spinBox = (QDoubleSpinBox*) layout->itemAt(2)->widget();
         spinBox->blockSignals(true);
-        spinBox->setValue(value * tatweelRes);
+        spinBox->setValue(value);
         spinBox->blockSignals(false);
+        auto* reset = static_cast<QPushButton*>(layout->itemAt(0)->widget());
+        reset->setEnabled(value != defaultValues.value(property, 0));
     }
 }
 
@@ -151,9 +157,13 @@ void QtAxisFactoryPrivate::slotRangeChanged(QtProperty *property, double min, do
         QSlider* slider = (QSlider*) layout->itemAt(1)->widget();
         //QSlider* slider = (QSlider*)editor;
         slider->blockSignals(true);
-        slider->setRange(min*tatweelRes, max*tatweelRes);
-        slider->setValue(manager->value(property)*tatweelRes);
+        slider->setRange(qRound(min*tatweelRes), qRound(max*tatweelRes));
+        slider->setValue(qRound(manager->value(property)*tatweelRes));
         slider->blockSignals(false);
+        auto* spinBox = static_cast<QDoubleSpinBox*>(layout->itemAt(2)->widget());
+        const QSignalBlocker blocker(spinBox);
+        spinBox->setRange(min, max);
+        spinBox->setValue(manager->value(property));
     }
 }
 
@@ -167,8 +177,11 @@ void QtAxisFactoryPrivate::slotSingleStepChanged(QtProperty *property, double st
         QLayout* layout = editor->layout();
         QSlider* slider = (QSlider*) layout->itemAt(1)->widget();        
         slider->blockSignals(true);
-        slider->setSingleStep(step);
+        slider->setSingleStep(qMax(1, qRound(step*tatweelRes)));
+        slider->setPageStep(qMax(1, qRound(step*10*tatweelRes)));
         slider->blockSignals(false);
+        auto* spinBox = static_cast<QDoubleSpinBox*>(layout->itemAt(2)->widget());
+        spinBox->setSingleStep(step);
     }
 }
 
@@ -186,6 +199,11 @@ void QtAxisFactoryPrivate::slotSetValue(int value)
             return;
         }
     }
+}
+
+void QtAxisFactory::setDefaultValue(QtProperty *property, double value)
+{
+    d_ptr->defaultValues[property] = value;
 }
 
 QtAxisFactory::QtAxisFactory(QObject *parent)
@@ -227,10 +245,23 @@ QWidget *QtAxisFactory::createEditor(QtDoublePropertyManager *manager, QtPropert
         QWidget *parent)
 {
     QSlider *slider = new QSlider(Qt::Horizontal);
+#ifdef Q_OS_MAC
+    // Keep the groove and handle in the same Qt paint path. The native macOS
+    // slider can draw its knob out of sync with its filled track during drags.
+    if (auto* style = QStyleFactory::create("Fusion")) {
+        style->setParent(slider);
+        slider->setStyle(style);
+    }
+#endif
+    slider->setTracking(true);
     
-    slider->setSingleStep(manager->singleStep(property));
-    slider->setRange(manager->minimum(property)*tatweelRes, manager->maximum(property)*tatweelRes);
-    slider->setValue(manager->value(property)*tatweelRes);
+    slider->setObjectName("axisSlider");
+    slider->setAccessibleName(property->propertyName() + tr(" slider"));
+    slider->setToolTip(property->toolTip());
+    slider->setPageStep(qMax(1, qRound(manager->singleStep(property)*10*tatweelRes)));
+    slider->setSingleStep(qMax(1, qRound(manager->singleStep(property)*tatweelRes)));
+    slider->setRange(qRound(manager->minimum(property)*tatweelRes), qRound(manager->maximum(property)*tatweelRes));
+    slider->setValue(qRound(manager->value(property)*tatweelRes));
     slider->setFocusPolicy(Qt::ClickFocus);    
 
     /*QWidget *editor = slider;
@@ -246,7 +277,11 @@ QWidget *QtAxisFactory::createEditor(QtDoublePropertyManager *manager, QtPropert
     layout->setMargin(0);
     layout->setContentsMargins(0, 0, 0, 0);
 
-    QPushButton *clear = new QPushButton("X");    
+    QPushButton *clear = new QPushButton("X");
+    clear->setObjectName("axisReset");
+    clear->setToolTip(tr("Reset to %1").arg(d_ptr->defaultValues.value(property, 0)));
+    clear->setAccessibleName(tr("Reset %1").arg(property->propertyName()));
+    clear->setEnabled(manager->value(property) != d_ptr->defaultValues.value(property, 0));
     
     clear->setStyleSheet(R"(
         QPushButton {             
@@ -262,10 +297,15 @@ QWidget *QtAxisFactory::createEditor(QtDoublePropertyManager *manager, QtPropert
    
     
 
-    QSpinBox *spinBox = new QSpinBox;
+    QDoubleSpinBox *spinBox = new QDoubleSpinBox;
+    spinBox->setObjectName("axisValue");
+    spinBox->setAccessibleName(property->propertyName() + tr(" value"));
+    spinBox->setToolTip(property->toolTip());
+    spinBox->setAlignment(Qt::AlignRight);
+    spinBox->setDecimals(manager->decimals(property));
     spinBox->setSingleStep(manager->singleStep(property));
-    spinBox->setRange(manager->minimum(property)*tatweelRes, manager->maximum(property)*tatweelRes);
-    spinBox->setValue(manager->value(property)*tatweelRes);
+    spinBox->setRange(manager->minimum(property), manager->maximum(property));
+    spinBox->setValue(manager->value(property));
     spinBox->setKeyboardTracking(false);  
     spinBox->setContentsMargins(0, 0, 0, 0);
     //spinBox->setStyleSheet("QSpinBox { margin: 0px; padding: 0px; }");
@@ -277,12 +317,12 @@ QWidget *QtAxisFactory::createEditor(QtDoublePropertyManager *manager, QtPropert
     
     
 
-    connect(spinBox, qOverload<int>(&QSpinBox::valueChanged), this, [=] (int value) {
-        slider->setValue(value);
+    connect(spinBox, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [=] (double value) {
+        manager->setValue(property, value);
     });
 
-    connect(clear, &QPushButton::pressed, this, [=] () {
-        slider->setValue(0);
+    connect(clear, &QPushButton::pressed, this, [this, manager, property] () {
+        manager->setValue(property, d_ptr->defaultValues.value(property, 0));
     });
 
     connect(slider, &QSlider::valueChanged,this, [this] (int value) {

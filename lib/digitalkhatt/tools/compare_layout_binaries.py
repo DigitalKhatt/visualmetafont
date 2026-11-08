@@ -196,6 +196,35 @@ def compare(before, after):
                        outlineChangedWords=sum(c['outlineChanged'] for c in cases), binaryComparison=True)
 
 
+def write_report(cases, summary, output_dir):
+    """Write the shared offline viewer and complete machine-readable changes."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / 'summary.json').write_text(json.dumps(summary, indent=2))
+    (output_dir / 'changes.json').write_text(json.dumps(cases, ensure_ascii=False, separators=(',', ':')))
+    with (output_dir / 'changes.csv').open('w') as stream:
+        writer = csv.writer(stream); writer.writerow(['page', 'line', 'word', 'text', 'glyph', 'kind', 'delta_x', 'delta_y'])
+        for c in cases:
+            for g in c['changes']:
+                writer.writerow([c['page'], c['line'], c['word'], c['text'], g['name'], g['kind'], g['x'], g['y']])
+    template = Path(__file__).with_name('placement_comparison.html').read_text()
+    # Cases on the same page often share context. Embed each positioned glyph
+    # once; the viewer resolves references before filtering or drawing cases.
+    glyphs = []; lookup = {}; html_cases = []
+    for case in cases:
+        preview = dict(case)
+        for side in ('before', 'after'):
+            indices = []
+            for glyph in case[side]:
+                key = (side, case['page'], glyph['index'])
+                if key not in lookup:
+                    lookup[key] = len(glyphs); glyphs.append(glyph)
+                indices.append(lookup[key])
+            preview[side] = indices
+        html_cases.append(preview)
+    payload = json.dumps(dict(summary=summary, cases=html_cases, glyphs=glyphs), ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c')
+    (output_dir / 'comparison.html').write_text(template.replace('/*PLACEMENT_DATA*/', payload))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--before', required=True, type=Path)
@@ -229,31 +258,7 @@ def main():
     summary['configuration'] = dict(before=str(args.before.resolve()), after=str(args.after.resolve()),
         version=4, wordLabels=bool(labels[0]), lineSpacingWithoutSidecar=args.line_spacing,
         beforeSha256=sha256(args.before), afterSha256=sha256(args.after))
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    (args.output_dir / 'summary.json').write_text(json.dumps(summary, indent=2))
-    (args.output_dir / 'changes.json').write_text(json.dumps(cases, ensure_ascii=False, separators=(',', ':')))
-    with (args.output_dir / 'changes.csv').open('w') as stream:
-        writer = csv.writer(stream); writer.writerow(['page', 'line', 'word', 'text', 'glyph', 'kind', 'delta_x', 'delta_y'])
-        for c in cases:
-            for g in c['changes']:
-                writer.writerow([c['page'], c['line'], c['word'], c['text'], g['name'], g['kind'], g['x'], g['y']])
-    template = Path(__file__).with_name('placement_comparison.html').read_text()
-    # Cases on the same page often share context. Embed each positioned glyph
-    # once; the viewer resolves references before filtering or drawing cases.
-    glyphs = []; lookup = {}; html_cases = []
-    for case in cases:
-        preview = dict(case)
-        for side in ('before', 'after'):
-            indices = []
-            for glyph in case[side]:
-                key = (side, case['page'], glyph['index'])
-                if key not in lookup:
-                    lookup[key] = len(glyphs); glyphs.append(glyph)
-                indices.append(lookup[key])
-            preview[side] = indices
-        html_cases.append(preview)
-    payload = json.dumps(dict(summary=summary, cases=html_cases, glyphs=glyphs), ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c')
-    (args.output_dir / 'comparison.html').write_text(template.replace('/*PLACEMENT_DATA*/', payload))
+    write_report(cases, summary, args.output_dir)
     print(json.dumps({k: v for k, v in summary.items() if k not in ('repeatability', 'configuration')}, indent=2))
     print(args.output_dir / 'comparison.html')
 

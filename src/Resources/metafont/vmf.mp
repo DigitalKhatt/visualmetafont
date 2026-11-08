@@ -224,26 +224,13 @@ def endchar =
   charht := ypart (ulcorner currentpicture);if charht < 0 : charht := 0; fi ;
   chardp := ypart (llcorner currentpicture);if chardp > 0 : chardp := 0; fi ;
 
-  % Need to split rtlcursive when generating multiple alternate glyphs with sklx axis otherwise it overlows
-  if known leftanchor and known rightanchor :
-    defAnchor(rtlcursiveinitmedi,rightanchor,EntryAnchorRTL);
-    defAnchor(rtlcursivemedifina,leftanchor,ExitAnchorRTL);
-    defAnchor(rtlcursivemedimedi,rightanchor,EntryAnchorRTL);
-    defAnchor(rtlcursivemedimedi,leftanchor,ExitAnchorRTL);
-  elseif known leftanchor :
-    defAnchor(rtlcursiveinitmedi,leftanchor,ExitAnchorRTL);
-    defAnchor(rtlcursiveinitfina,leftanchor,ExitAnchorRTL);
-  elseif known rightanchor :
-    defAnchor(rtlcursivemedifina,rightanchor,EntryAnchorRTL);
-    defAnchor(rtlcursiveinitfina,rightanchor,EntryAnchorRTL);
-  fi
-
-  %if known leftanchor :
-  %  defAnchor(rtlcursive,leftanchor,ExitAnchorRTL);
-  %fi
-  %if known rightanchor :
-  %  defAnchor(rtlcursive,rightanchor,EntryAnchorRTL);
-  %fi
+  % Keep generated defaults separate from glyph-defined cursive anchors.
+  if known leftanchor :
+    defAnchor(rtlautocursive,leftanchor,ExitAnchorRTL);
+  fi;
+  if known rightanchor :
+    defAnchor(rtlautocursive,rightanchor,EntryAnchorRTL);
+  fi;
 
   if savepicture = 1 :
 	  expandafter picture scantokens charname pic;
@@ -318,7 +305,11 @@ def controlledImage (text name,content) =
     currentpicture := name;
     content;
     name := currentpicture;
-  endgroup
+  endgroup;
+  if MPGUI = 1:
+    picture name.vmfSourceCapture;
+    name.vmfSourceCapture := name;
+  fi;
 enddef;
 
 def setCursiveAnchor(suffix pname)(expr pvalue)(expr anchortype) =

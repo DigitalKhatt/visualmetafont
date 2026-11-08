@@ -249,6 +249,8 @@ struct LigatureSubtable : Subtable {
   std::uint16_t format = 1;
 };
 
+struct hb_cursive_anchor_context_t;
+
 struct SingleAdjustmentSubtable : Subtable {
   SingleAdjustmentSubtable(Lookup* lookup, std::uint16_t format = 2);
   digitalkhatt::ByteBuffer getOpenTypeTable(bool extended) override;
@@ -260,6 +262,10 @@ struct SingleAdjustmentSubtable : Subtable {
 
   std::map<std::uint16_t, ValueRecord> singlePos;
   std::map<std::uint16_t, ValueRecord> parameters;
+  std::map<std::uint16_t, SingleAdjustFunc> functions;
+
+  ValueRecord getValue(std::uint16_t glyphCode, GlyphVis* glyph = nullptr);
+  void getSingleValue(hb_cursive_anchor_context_t* context);
 
   bool isExtended() override;
 
@@ -373,6 +379,8 @@ struct MarkBaseSubtable : Subtable {
   Point getMarkAnchor(std::string markGlyphName, std::string className, GlyphParameters parameters);
 
  private:
+  std::optional<Point> glyphAnchor(const GlyphVis& glyph, const std::string& className,
+                                   std::string_view role) const;
   void setAnchorTable(std::string className,
                       std::uint16_t glyphCode,
                       digitalkhatt::ByteBuffer& anchorTables,

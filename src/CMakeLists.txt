@@ -122,6 +122,11 @@ set(LayoutWindow
   Layout/LayoutWindow.cpp
   Layout/apply_force.cpp
   Layout/LookupEdit.cpp
+  Layout/LookupPatternEditor.cpp
+  Layout/LookupPatternEditor.h
+  Layout/LookupCaseGallery.cpp
+  Layout/LookupCaseGallery.h
+  Layout/LookupEditorWindow.h
   Layout/PageLayoutDialog.cpp
   Layout/PageLayoutDialog.h
   Layout/SolverParametersWidget.cpp
@@ -195,6 +200,10 @@ set(GlyphWindow
   glyphwindow/glyphscene.cpp
   glyphwindow/glyphview.cpp
   glyphwindow/glyphwindow.cpp
+  glyphwindow/metaposteditor.cpp
+  glyphwindow/metaposteditor.hpp
+  glyphwindow/sourcelinks.cpp
+  glyphwindow/sourcelinks.hpp
   glyphwindow/guidesitem.cpp
   glyphwindow/imageitem.cpp
   glyphwindow/knotcontrolleditem.cpp
@@ -209,6 +218,10 @@ set(GlyphWindow
 source_group("GlyphWindow" FILES ${GlyphWindow})
 
 set(MetaFont
+  metafont/glyphsourcedocument.cpp
+  metafont/glyphsourcedocument.hpp
+  metafont/projectmetadata.cpp
+  metafont/projectmetadata.hpp
   metafont/font.cpp
   metafont/font.hpp
   metafont/glyph.cpp
@@ -226,7 +239,7 @@ source_group("Demos" FILES ${Demos})
 
 
 
-set(ALL_FILES ${GlyphCommands} ${MetaFont} ${GlyphParser} ${LayoutApplication}
+set(ALL_FILES fontwindow/projectpanel.cpp fontwindow/projectpanel.hpp ${GlyphCommands} ${MetaFont} ${GlyphParser} ${LayoutApplication}
   ${GlyphWindow}  ${FontWindow}
   ${Export} ${LayoutWindow} ${Main} ${Pdf}  ${Generated_Files} ${Resource_Files} ${Demos}
 )
@@ -440,6 +453,11 @@ endif()
 include(CPack)
 
 if(BUILD_TESTING AND NOT EMSCRIPTEN)
+  add_executable(visualmetafont_test_number_format tests/MetaPostNumberFormatTest.cpp)
+  target_include_directories(visualmetafont_test_number_format PRIVATE metafont)
+  target_link_libraries(visualmetafont_test_number_format PRIVATE Qt5::Core Qt5::Gui)
+  add_test(NAME visualmetafont.number_format COMMAND visualmetafont_test_number_format)
+
   add_executable(visualmetafont_test_solver_parameters
     tests/SolverParametersWidgetTest.cpp
     Layout/SolverParametersWidget.cpp
@@ -450,4 +468,75 @@ if(BUILD_TESTING AND NOT EMSCRIPTEN)
   target_link_libraries(visualmetafont_test_solver_parameters PRIVATE Qt5::Widgets)
   add_test(NAME visualmetafont.solver_parameters COMMAND visualmetafont_test_solver_parameters)
   set_tests_properties(visualmetafont.solver_parameters PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
+
+if(BUILD_TESTING AND NOT EMSCRIPTEN)
+  add_executable(visualmetafont_test_project_metadata
+    tests/ProjectMetadataTest.cpp metafont/projectmetadata.cpp metafont/projectmetadata.hpp)
+  target_include_directories(visualmetafont_test_project_metadata PRIVATE metafont)
+  target_link_libraries(visualmetafont_test_project_metadata PRIVATE Qt5::Core digitalkhatt::otlayout)
+  add_test(NAME visualmetafont.project_metadata COMMAND visualmetafont_test_project_metadata)
+endif()
+
+if(BUILD_TESTING AND NOT EMSCRIPTEN)
+  add_executable(visualmetafont_test_axis_editor
+    tests/AxisEditorFactoryTest.cpp glyphwindow/editorfactory.cpp glyphwindow/editorfactory.hpp)
+  target_include_directories(visualmetafont_test_axis_editor PRIVATE glyphwindow)
+  target_link_libraries(visualmetafont_test_axis_editor PRIVATE Qt5::Widgets QtPropertyBrowser)
+  add_test(NAME visualmetafont.axis_editor COMMAND visualmetafont_test_axis_editor)
+  set_tests_properties(visualmetafont.axis_editor PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
+
+if(BUILD_TESTING AND NOT EMSCRIPTEN)
+  add_executable(visualmetafont_test_glyph_source_document
+    tests/GlyphSourceDocumentTest.cpp metafont/glyphsourcedocument.cpp metafont/glyphsourcedocument.hpp)
+  target_include_directories(visualmetafont_test_glyph_source_document PRIVATE metafont)
+  target_link_libraries(visualmetafont_test_glyph_source_document PRIVATE Qt5::Core digitalkhatt::otlayout)
+  add_test(NAME visualmetafont.glyph_source_document COMMAND visualmetafont_test_glyph_source_document)
+endif()
+
+if(BUILD_TESTING AND NOT EMSCRIPTEN AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../madinafont/madina.mp")
+  add_executable(visualmetafont_test_anchor_display
+    tests/AnchorDisplayTest.cpp ${GlyphWindow} ${Demos} ${Resource_Files})
+  target_include_directories(visualmetafont_test_anchor_display PRIVATE demos)
+  target_link_libraries(visualmetafont_test_anchor_display PRIVATE ${VMF_SL} QtPropertyBrowser Qt5::Test)
+  add_test(NAME visualmetafont.anchor_display COMMAND visualmetafont_test_anchor_display)
+  set_tests_properties(visualmetafont.anchor_display PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  add_executable(visualmetafont_test_metapost_editor
+    tests/MetaPostEditorTest.cpp ${GlyphWindow} ${Demos} ${Resource_Files})
+  find_package(Qt5 REQUIRED COMPONENTS Test)
+  target_include_directories(visualmetafont_test_metapost_editor PRIVATE demos)
+  target_link_libraries(visualmetafont_test_metapost_editor PRIVATE ${VMF_SL} QtPropertyBrowser Qt5::Test)
+  add_test(NAME visualmetafont.metapost_editor COMMAND visualmetafont_test_metapost_editor)
+  set_tests_properties(visualmetafont.metapost_editor PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  add_executable(visualmetafont_test_picture_editor
+    tests/PictureEditorTest.cpp ${GlyphWindow} ${Demos} ${Resource_Files})
+  target_include_directories(visualmetafont_test_picture_editor PRIVATE demos)
+  target_link_libraries(visualmetafont_test_picture_editor PRIVATE ${VMF_SL} QtPropertyBrowser Qt5::Test)
+  add_test(NAME visualmetafont.picture_editor COMMAND visualmetafont_test_picture_editor)
+  set_tests_properties(visualmetafont.picture_editor PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  add_executable(visualmetafont_test_endofaya_pictures
+    tests/EndofayaPicturesTest.cpp ${GlyphWindow} ${Demos} ${Resource_Files})
+  target_include_directories(visualmetafont_test_endofaya_pictures PRIVATE demos)
+  target_link_libraries(visualmetafont_test_endofaya_pictures PRIVATE ${VMF_SL} QtPropertyBrowser Qt5::Test)
+  add_test(NAME visualmetafont.endofaya_pictures COMMAND visualmetafont_test_endofaya_pictures
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../madinafont/madina.mp")
+  set_tests_properties(visualmetafont.endofaya_pictures PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  add_executable(visualmetafont_test_multiple_glyph_files
+    tests/MultipleGlyphFilesTest.cpp ${Resource_Files})
+  target_link_libraries(visualmetafont_test_multiple_glyph_files PRIVATE ${VMF_SL})
+  add_test(NAME visualmetafont.multiple_glyph_files COMMAND visualmetafont_test_multiple_glyph_files
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../madinafont")
+  set_tests_properties(visualmetafont.multiple_glyph_files PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+  add_executable(visualmetafont_test_lookup_editor
+    tests/LookupPatternEditorTest.cpp Layout/LookupPatternEditor.cpp Layout/LookupPatternEditor.h
+    Layout/LookupCaseGallery.cpp Layout/LookupCaseGallery.h)
+  target_include_directories(visualmetafont_test_lookup_editor PRIVATE Layout metafont)
+  target_link_libraries(visualmetafont_test_lookup_editor PRIVATE ${VMF_SL} digitalkhatt::otlayout Qt5::Test Qt5::Widgets)
+  target_compile_definitions(visualmetafont_test_lookup_editor PRIVATE
+    DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/Resources/metafont")
+  add_dependencies(visualmetafont_test_lookup_editor madina_font)
+  add_test(NAME visualmetafont.lookup_editor COMMAND visualmetafont_test_lookup_editor
+    "${CMAKE_SOURCE_DIR}/madinafont/madina.mp")
+  set_tests_properties(visualmetafont.lookup_editor PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()

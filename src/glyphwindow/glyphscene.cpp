@@ -18,14 +18,19 @@
 */
 
 #include "glyphscene.hpp"
-#include "pairitem.hpp"
-#include "commands.h"
-#include <qmetaobject.h>
-#include <QGraphicsSceneMouseEvent>
+
 #include <qgraphicsview.h>
+#include <qmetaobject.h>
+
+#include <QGraphicsSceneMouseEvent>
+#include <QGraphicsSimpleTextItem>
 #include <knotcontrolleditem.hpp>
-#include "qmessagebox.h"
+
+#include "commands.h"
 #include "font.hpp"
+#include "pairitem.hpp"
+#include "qmessagebox.h"
+#include "sourcelinks.hpp"
 
 GlyphScene::GlyphScene(QObject* parent) : QGraphicsScene(parent) {  // QGraphicsScene(-1000, -1700, 3000, 2500, parent) {
 
@@ -33,6 +38,7 @@ GlyphScene::GlyphScene(QObject* parent) : QGraphicsScene(parent) {  // QGraphics
   ruler = NULL;
   myMode = MoveItem;
   ismoving = false;
+  itemFlags = ItemFlags::None;
 
   contour = NULL;
   image = NULL;
@@ -52,11 +58,16 @@ void GlyphScene::setGlyph(Glyph* glyph) {
     disconnect(this->m_glyph, &Glyph::valueChanged, this, &GlyphScene::glyphValueChanged);
   }
 
+  if (m_glyph) disconnect(m_glyph->font, &Font::anchorsVisibilityChanged, this, nullptr);
   this->m_glyph = glyph;
+  hiddenAnchors_.clear();
+  selectedAnchorKey_.clear();
+  qDeleteAll(referenceItems_);
+  referenceItems_.clear();
+  layers_.clear();
 
-  if (contour) {
-    delete contour;
-  }
+  qDeleteAll(layerContours_);
+  layerContours_.clear();
 
   if (!components.isEmpty()) {
     for (int i = 0; i < components.length(); i++) {
@@ -66,21 +77,18 @@ void GlyphScene::setGlyph(Glyph* glyph) {
   }
 
   contour = new ContourItem();
+  layerContours_[QString()]=contour;
   contour->setPos(0, 0);
   addItem(contour);
   contour->setGlyph(glyph);
 
   connect(glyph, &Glyph::valueChanged, this, &GlyphScene::glyphValueChanged, Qt::UniqueConnection);
 
-  bool imageEnabled = true;
-
   if (image != NULL) {
-    imageEnabled = image->isEnabled();
     delete image;
   }
 
   image = new ImageItem(glyph);
-  image->setEnabled(imageEnabled);
   addItem(image);
 
   Glyph::ImageInfo imageInfo = glyph->image();
@@ -112,27 +120,262 @@ void GlyphScene::setGlyph(Glyph* glyph) {
 
   addItem(guides);
 
+  refreshReferences();
+  updatePictureDecorations();
+
+  connect(glyph->font, &Font::anchorsVisibilityChanged, this, [this] { emit anchorsChanged(); });
   views().first()->centerOn(contour);
 }
-void GlyphScene::setImageVisible(bool visible) {
-  if (visible)
-    itemFlags = itemFlags | ItemFlags::ImageVisible;
-  else
-    itemFlags = itemFlags & ~ItemFlags::ImageVisible;
-
-  if (image != NULL) {
-    image->setVisible(visible);
+QString GlyphScene::pictureName() const { return contour ? contour->pictureName() : QString(); }
+QStringList GlyphScene::pictureNames() const {
+  auto* final=layerContours_.value(QString());
+  return final ? final->pictureNames() : QStringList();
+}
+bool GlyphScene::pictureHasEditablePaths() const { return contour && contour->hasEditablePaths(); }
+bool GlyphScene::hasImage() const { return m_glyph && !m_glyph->image().path.isEmpty(); }
+bool GlyphScene::layerVisible(const QString& name) const { return layers_.value(name).visible; }
+bool GlyphScene::layerLocked(const QString& name) const { return layers_.value(name).locked; }
+bool GlyphScene::activeLayerEditable() const {
+  return layerVisible(pictureName()) && !layerLocked(pictureName());
+}
+QString GlyphScene::itemLayerName(const QGraphicsItem* item) const {
+  for (auto* parent=item;parent;parent=parent->parentItem()) {
+    if (parent==image) return imageLayerName();
+    if (auto* layer=dynamic_cast<const ContourItem*>(parent)) return layer->pictureName();
+  }
+  return QString(); // Components belong to Final glyph.
+}
+bool GlyphScene::itemLayerEditable(const QGraphicsItem* item) const {
+  const auto name=itemLayerName(item);
+  return item && item->isVisible() && item->isEnabled() && layerVisible(name) && !layerLocked(name);
+}
+void GlyphScene::clearLayerSelection(const QString& name) {
+  for (auto* item:selectedItems()) if (itemLayerName(item)==name) item->setSelected(false);
+}
+void GlyphScene::setLayerVisible(const QString& name, bool visible) {
+  if ((!name.isEmpty() && name!=imageLayerName() && !pictureNames().contains(name)) || layerVisible(name)==visible) return;
+  QScopedValueRollback<bool> rebuilding(rebuilding_,true);
+  clearLayerSelection(name);
+  layers_[name].visible=visible;
+  refreshReferences();
+  updatePictureDecorations();
+  emit anchorsChanged();
+  emit picturesChanged();
+}
+void GlyphScene::setLayerLocked(const QString& name, bool locked) {
+  if ((!name.isEmpty() && name!=imageLayerName() && !pictureNames().contains(name)) || layerLocked(name)==locked) return;
+  QScopedValueRollback<bool> rebuilding(rebuilding_,true);
+  clearLayerSelection(name);
+  layers_[name].locked=locked;
+  refreshReferences();
+  updatePictureDecorations();
+  emit anchorsChanged();
+  emit picturesChanged();
+}
+void GlyphScene::setFinalPositions(bool enabled) {
+  if (finalPositions_==enabled) return;
+  QScopedValueRollback<bool> rebuilding(rebuilding_,true);
+  clearSelection(); finalPositions_=enabled;
+  for (auto* layer:layerContours_) layer->setFinalPositions(enabled);
+  refreshReferences(); updatePictureDecorations();
+  highlightSourceKeys(highlightedSourceKeys_);
+  emit anchorsChanged();
+  emit picturesChanged();
+}
+void GlyphScene::refreshReferences() {
+  if (!m_glyph || !contour) return;
+  auto* edge=m_glyph->getEdge();
+  const auto info=edge ? m_glyph->font->getMPGlyphInfo(edge->charcode) : MPGlyphInfo{};
+  auto names=pictureNames(); names.prepend(QString());
+  for (auto it=layerContours_.begin();it!=layerContours_.end();) {
+    if (!names.contains(it.key())) {
+      if (it.value()==contour) contour=layerContours_.value(QString());
+      delete it.value(); it=layerContours_.erase(it);
+    } else ++it;
+  }
+  for (const auto& name:names) if (!layerContours_.contains(name)) {
+    auto* layer=new ContourItem;
+    layerContours_[name]=layer;
+    addItem(layer);
+    layer->setGlyph(m_glyph,name);
+    layer->setFinalPositions(finalPositions_);
+    layer->setFillEnabled((itemFlags & ItemFlags::Fill)==ItemFlags::Fill);
+  }
+  for (auto it=referenceItems_.begin();it!=referenceItems_.end();) {
+    if (!names.contains(it.key())) { layers_.remove(it.key()); delete it.value(); it=referenceItems_.erase(it); }
+    else ++it;
+  }
+  for (const auto& name:names) {
+    auto*& item=referenceItems_[name];
+    if (!item) {
+      item=new QGraphicsPathItem;
+      item->setTransform(QTransform::fromScale(1,-1));
+      item->setZValue(-2);
+      item->setAcceptedMouseButtons(Qt::NoButton);
+      item->setAcceptHoverEvents(false);
+      item->setData(0,"layerReference");
+      item->setData(1,name);
+      addItem(item);
+    }
+    const bool visible=layerVisible(name) && (name!=pictureName() || layerLocked(name));
+    auto* layer=layerContours_.value(name);
+    item->setTransform(layer ? layer->sceneTransform() : QTransform::fromScale(1,-1));
+    item->setVisible(visible);
+    if (!visible) continue;
+    // These are read-only copies of evaluated curves, with no source handles.
+    // Both active and reference pictures keep their existing coordinate frame.
+    auto* picture=name.isEmpty() ? edge : info.controlledPictures.value(name);
+    QPainterPath path; path.setFillRule(Qt::WindingFill);
+    for (auto* body=picture ? picture->body : nullptr;body;body=body->next) {
+      if (body->type!=mp_fill_code && body->type!=mp_stroked_code) continue;
+      auto* fill=reinterpret_cast<mp_fill_object*>(body);
+      if (QString::fromUtf8(fill->pre_script)=="begintext") continue;
+      path.addPath(Glyph::mp_dump_solved_path(fill->path_p));
+    }
+    item->setPath(path);
+    const QColor color=name.isEmpty() ? QColor(100,105,115) : QColor(45,125,185);
+    QPen pen(color); pen.setCosmetic(true);
+    item->setPen(pen);
+    item->setBrush((itemFlags & ItemFlags::Fill)==ItemFlags::Fill ? QBrush(color) : Qt::NoBrush);
+    item->setOpacity(referenceOpacity_);
   }
 }
-void GlyphScene::setImageEnable(bool enable) {
-  if (enable)
-    itemFlags = itemFlags | ItemFlags::ImageEnabled;
-  else
-    itemFlags = itemFlags & ~ItemFlags::ImageEnabled;
-
-  if (image != NULL) {
-    image->setEnabled(enable);
+void GlyphScene::updatePictureDecorations() {
+  const bool visible=layerVisible(pictureName());
+  const bool final=pictureName().isEmpty() && visible;
+  for (auto it=layerContours_.cbegin();it!=layerContours_.cend();++it) {
+    auto* layer=it.value();
+    const bool editable=layerVisible(it.key()) && !layerLocked(it.key());
+    layer->setVisible(editable);
+    layer->setEnabled(editable);
+    layer->setOutlineVisible(layer==contour);
+    layer->setZValue(layer==contour ? 1 : 0);
   }
+  applyAnchorDisplay();
+  if (image) {
+    image->setVisible(hasImage() && layerVisible(imageLayerName()));
+    const bool editable=layerVisible(imageLayerName()) && !layerLocked(imageLayerName());
+    // Disabled graphics items still swallow presses. A locked reference must
+    // let them reach the view so its native rubber-band selection can start.
+    image->setAcceptedMouseButtons(editable ? Qt::AllButtons : Qt::NoButton);
+    image->setEnabled(editable);
+  }
+  if (guides) guides->setVisible(final);
+  for (auto* component:components) {
+    component->setVisible(final);
+    component->setAcceptedMouseButtons(activeLayerEditable() ? Qt::AllButtons : Qt::NoButton);
+    component->setEnabled(activeLayerEditable());
+  }
+}
+void GlyphScene::setPictureName(const QString& name) {
+  if (!contour || name==pictureName() || !layerContours_.contains(name)) return;
+  QScopedValueRollback<bool> rebuilding(rebuilding_,true);
+  clearSelection();
+  contour=layerContours_.value(name);
+  layers_[pictureName()].visible=true;
+  refreshReferences();
+  updatePictureDecorations();
+  highlightSourceKeys(highlightedSourceKeys_);
+  emit anchorsChanged();
+  emit picturesChanged(); update();
+}
+QVector<GlyphScene::AnchorInfo> GlyphScene::anchorInfos() const {
+  QMap<QString, AnchorInfo> byKey;
+  for (auto layer = layerContours_.cbegin(); layer != layerContours_.cend(); ++layer)
+    for (const auto& a : layer.value()->anchorLabelItems) {
+      if (!byKey.contains(a.key))
+        byKey.insert(a.key, AnchorInfo{a.key, a.text->text(), a.type, a.point, {}});
+      byKey[a.key].layers.append(layer.key());
+    }
+  QVector<AnchorInfo> result;
+  for (const auto& info : byKey) result.append(info);
+  return result;
+}
+void GlyphScene::applyAnchorDisplay() {
+  QScopedValueRollback<bool> rebuilding(rebuilding_, true);
+  for (auto* layer : layerContours_)
+    layer->setAnchorDisplayState(hiddenAnchors_, anchorLabelMode_, selectedAnchorKey_);
+}
+void GlyphScene::setAnchorVisible(const QString& key, bool visible) {
+  if (anchorVisible(key) == visible) return;
+  if (visible)
+    hiddenAnchors_.remove(key);
+  else
+    hiddenAnchors_.insert(key);
+  applyAnchorDisplay();
+  emit anchorsChanged();
+}
+void GlyphScene::showAllAnchors(bool visible) {
+  if (visible)
+    hiddenAnchors_.clear();
+  else
+    for (const auto& info : anchorInfos()) hiddenAnchors_.insert(info.key);
+  applyAnchorDisplay();
+  emit anchorsChanged();
+}
+void GlyphScene::showOnlyAnchor(const QString& key) {
+  for (const auto& info : anchorInfos())
+    if (info.key == key)
+      hiddenAnchors_.remove(key);
+    else
+      hiddenAnchors_.insert(info.key);
+  applyAnchorDisplay();
+  emit anchorsChanged();
+  focusAnchor(key);
+}
+void GlyphScene::setAnchorLabelMode(int mode) {
+  mode = qBound(0, mode, 2);
+  if (anchorLabelMode_ == mode) return;
+  anchorLabelMode_ = mode;
+  applyAnchorDisplay();
+  emit anchorsChanged();
+}
+void GlyphScene::focusAnchor(const QString& key) {
+  {
+    QScopedValueRollback<bool> rebuilding(rebuilding_, true);
+    clearSelection();
+  }
+  highlightSourceKeys({key});
+}
+void GlyphScene::layoutAnchorLabels() {
+  for (auto* layer:layerContours_) if (layer->isVisible()) layer->layoutAnchorLabels();
+}
+void GlyphScene::highlightSourceKeys(const QStringList& keys) {
+  highlightedSourceKeys_=keys;
+  QString anchorKey;
+  for (const auto& key : keys)
+    if (key.startsWith("anchor:")) {
+      anchorKey = key;
+      break;
+    }
+  const bool selectionChanged = selectedAnchorKey_ != anchorKey;
+  selectedAnchorKey_ = anchorKey;
+  if (selectionChanged) applyAnchorDisplay();
+  for (auto* item : items()) {
+    const auto itemKeys = item->data(SourceLinks::KeysRole).toStringList();
+    if (itemKeys.isEmpty()) continue;
+    bool highlight = false;
+    for (const auto& key : itemKeys)
+      if (keys.contains(key)) {
+        highlight = true;
+        break;
+      }
+    item->setData(SourceLinks::HighlightRole,highlight);
+    const auto kind = item->data(0).toString();
+    if (kind == "anchorMarker" || kind == "anchorLeader") {
+      QPen pen(highlight ? QColor(190, 85, 0) : QColor(110, 110, 120, 170));
+      pen.setCosmetic(true);
+      pen.setWidthF(highlight ? 2.5 : 1);
+      if (kind == "anchorMarker")
+        static_cast<QGraphicsPathItem*>(item)->setPen(pen);
+      else
+        static_cast<QGraphicsLineItem*>(item)->setPen(pen);
+      item->setZValue(highlight ? 5 : (kind == "anchorLeader" ? -1 : 0));
+    } else if (kind == "anchorLabel")
+      item->setZValue(highlight ? 6 : 0);
+    item->update();
+  }
+  if (selectionChanged) emit anchorSelectionChanged(selectedAnchorKey_);
 }
 
 void GlyphScene::setFillEnable(bool enable) {
@@ -141,11 +384,11 @@ void GlyphScene::setFillEnable(bool enable) {
   else
     itemFlags = itemFlags & ~ItemFlags::Fill;
 
-  if (contour != NULL) {
-    contour->setFillEnabled(enable);
-  }
+  for (auto* layer:layerContours_) layer->setFillEnabled(enable);
+  refreshReferences();
 }
 void GlyphScene::glyphValueChanged(QString name, bool structureChanged) {
+  QScopedValueRollback<bool> rebuilding(rebuilding_,true);
   /*
   if (name == "image" || name == "imagetransform" || name == "source") {
   Glyph::ImageInfo imageInfo = glyph->property("image").value<Glyph::ImageInfo>();
@@ -180,7 +423,11 @@ void GlyphScene::glyphValueChanged(QString name, bool structureChanged) {
     loadImage(imageInfo);
   }
 
-  contour->generateedge(m_glyph->getEdge(), structureChanged);
+  auto* edge=m_glyph->getEdge();
+  for (auto* layer:layerContours_) layer->generateedge(edge,structureChanged);
+  refreshReferences();
+  updatePictureDecorations();
+  highlightSourceKeys(highlightedSourceKeys_);
 
   guides->update();
 
@@ -189,6 +436,8 @@ void GlyphScene::glyphValueChanged(QString name, bool structureChanged) {
   }
 
   update();
+  emit anchorsChanged();
+  emit picturesChanged();
 }
 void GlyphScene::loadImage(Glyph::ImageInfo imageInfo) {
   QString imagePath = imageInfo.path;
@@ -276,10 +525,17 @@ void GlyphScene::mouseMoveEvent(QGraphicsSceneMouseEvent* mouseEvent) {
 
     QList<QGraphicsItem*> selectedItems;
     selectedItems = this->selectedItems();
+    bool movable=false;
+    for (auto* selected:selectedItems) if (itemLayerEditable(selected) && selected->flags().testFlag(QGraphicsItem::ItemIsMovable)) { movable=true; break; }
+    if (!movable) return; // Computed anchors support navigation, not geometry edits.
     ismoving = true;
     wasMouseMoveEvent = true;
     foreach (QGraphicsItem* item, selectedItems) {
-      sendEvent(item, mouseEvent);
+      if (itemLayerEditable(item) && item->flags().testFlag(QGraphicsItem::ItemIsMovable)) {
+        mouseEvent->setPos(item->mapFromScene(mouseEvent->scenePos()));
+        mouseEvent->setLastPos(item->mapFromScene(mouseEvent->lastScenePos()));
+        sendEvent(item, mouseEvent);
+      }
     }
     ismoving = false;
     m_glyph->setWidth(m_glyph->width());
@@ -480,6 +736,7 @@ void GlyphScene::recordGlyphChange(QString name) {
   }
 }
 void GlyphScene::deletePoint(KnotControlledItem* point) {
+  if (!itemLayerEditable(point)) return;
   int numpath = point->m_numsubpath;
   int numpoint = point->m_numpoint;
 
@@ -527,6 +784,7 @@ void GlyphScene::deletePoint(KnotControlledItem* point) {
   }
 }
 void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint, QString dir) {
+  if (!itemLayerEditable(point)) return;
   int numpath = point->m_numsubpath;
   int numpoint = point->m_numpoint;
 
@@ -564,7 +822,9 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
         if (edge) {
           matrix = {edge->xpart, edge->ypart};
         }
-        newknot->expr = std::make_unique<PairPathPointExp>(QPointF(newpoint.x(), -newpoint.y()) - matrix);
+        const auto position=m_glyph->pictureNames.isEmpty() && itemLayerName(point).isEmpty()
+            ? QPointF(newpoint.x(), -newpoint.y())-matrix : point->mapFromScene(newpoint);
+        newknot->expr = std::make_unique<PairPathPointExp>(position);
 
         Glyph::KnotEntryExit left = {};
         Glyph::KnotEntryExit right = {};
@@ -615,10 +875,11 @@ void GlyphScene::addPointAfterPoint(KnotControlledItem* point, QPointF newpoint,
     GlyphPathsChangeCommand* command = new GlyphPathsChangeCommand(m_glyph, "Paths(s) changed", old_controlledPaths, new_controlledPaths);
     m_glyph->undoStack()->push(command);
 
-    contour->knotControlledItems[numpath][numpoint + 1]->incurve->setSelected(true);
+    selectSourcePoint(numpath,numpoint+1);
   }
 }
 void GlyphScene::addnewPath(QPointF newpoint, QString dir) {
+  if (!activeLayerEditable()) return;
   QMap<int, Glyph::Knot*> newpath;
 
   Glyph::Knot* newknot = new Glyph::Knot();
@@ -643,16 +904,18 @@ void GlyphScene::addnewPath(QPointF newpoint, QString dir) {
 
   QPointF matrix;
 
-  if (edge) {
+  if (edge && pictureName().isEmpty()) {
     matrix = {edge->xpart, edge->ypart};
   }
-  newknot->expr = std::make_unique<PairPathPointExp>(QPointF(newpoint.x(), -newpoint.y()) - matrix);
+  const auto sourcePoint=pictureName().isEmpty()
+      ? QPointF(newpoint.x(),-newpoint.y())-matrix : contour->mapFromScene(newpoint);
+  newknot->expr = std::make_unique<PairPathPointExp>(sourcePoint);
 
   int numpath = m_glyph->controlledPaths.size();
   newpath[0] = newknot;
   newpath[1] = newknot;
 
-  m_glyph->controlledPathNames[numpath] = {"currentpicture", "fill"};
+  m_glyph->controlledPathNames[numpath] = {pictureName().isEmpty() ? "currentpicture" : pictureName(), "fill"};
 
   QMap<int, QMap<int, Glyph::Knot> > old_controlledPaths;
   QMap<int, QMap<int, Glyph::Knot> > new_controlledPaths;
@@ -682,7 +945,13 @@ void GlyphScene::addnewPath(QPointF newpoint, QString dir) {
   GlyphPathsChangeCommand* command = new GlyphPathsChangeCommand(m_glyph, "Paths(s) changed", old_controlledPaths, new_controlledPaths);
   m_glyph->undoStack()->push(command);
 
-  contour->knotControlledItems[numpath][0]->incurve->setSelected(true);
+  selectSourcePoint(numpath,0);
+}
+void GlyphScene::selectSourcePoint(int path,int point) {
+  const auto key=SourceLinks::pointKey(path,point);
+  for (auto* item:items()) if (itemLayerEditable(item) && item->data(SourceLinks::KeysRole).toStringList().contains(key)) {
+    item->setSelected(true); break;
+  }
 }
 void GlyphScene::keyPressEvent(QKeyEvent* event) {
   currentPressdKeys.insert(event->key());

@@ -248,6 +248,7 @@ if (EMSCRIPTEN)
 endif()
 
 add_library(digitalkhatt_otlayout ${DIGITALKHATT_OTLAYOUT_LIB_TYPE}
+  src/project/GlyphSources.cpp
   src/otlayout/automedina/automedina.cpp
   src/otlayout/FeaParser/driver.cpp
   src/otlayout/FeaParser/feaast.cpp
@@ -261,6 +262,7 @@ add_library(digitalkhatt_otlayout ${DIGITALKHATT_OTLAYOUT_LIB_TYPE}
   src/otlayout/Layout/PlacementPipeline.cpp
   src/otlayout/Layout/MushafLayout.cpp
   src/otlayout/Layout/Lookup.cpp
+  src/otlayout/Layout/LookupPatterns.cpp
   src/otlayout/Layout/OtLayout.cpp
   src/otlayout/Layout/Subtable.cpp
   src/otlayout/Layout/to_opentype.cpp
@@ -333,6 +335,40 @@ if(NOT EMSCRIPTEN)
   add_executable(digitalkhatt_generate_opentype
     src/otlayout/tools/generate_opentype.cpp
   )
+
+  add_executable(digitalkhatt_test_singlepos_functions tests/otlayout/SinglePosFunctionTest.cpp)
+  target_link_libraries(digitalkhatt_test_singlepos_functions PRIVATE digitalkhatt::otlayout)
+  target_compile_definitions(digitalkhatt_test_singlepos_functions PRIVATE
+    DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/metafont"
+  )
+  if(DIGITALKHATT_BUILD_FONT_PROJECTS AND EXISTS "${CMAKE_SOURCE_DIR}/madinafont/madina.mp")
+    if(BUILD_TESTING)
+      add_executable(digitalkhatt_test_mark_anchor_resolution tests/otlayout/MarkAnchorResolutionTest.cpp)
+      target_link_libraries(digitalkhatt_test_mark_anchor_resolution PRIVATE digitalkhatt::otlayout)
+      target_compile_definitions(digitalkhatt_test_mark_anchor_resolution PRIVATE
+        DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/metafont")
+      add_dependencies(digitalkhatt_test_mark_anchor_resolution madina_font)
+      add_test(NAME digitalkhatt.mark_anchor_resolution COMMAND digitalkhatt_test_mark_anchor_resolution
+        "${CMAKE_SOURCE_DIR}/madinafont/madina.mp")
+      add_executable(digitalkhatt_test_lookup_patterns tests/otlayout/LookupPatternsTest.cpp)
+      target_link_libraries(digitalkhatt_test_lookup_patterns PRIVATE digitalkhatt::otlayout)
+      target_compile_definitions(digitalkhatt_test_lookup_patterns PRIVATE
+        DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/metafont")
+      add_dependencies(digitalkhatt_test_lookup_patterns madina_font)
+      add_test(NAME digitalkhatt.lookup_patterns COMMAND digitalkhatt_test_lookup_patterns
+        "${CMAKE_SOURCE_DIR}/madinafont/madina.mp")
+    endif()
+    add_library(digitalkhatt_test_singlepos_font SHARED tests/otlayout/SinglePosTestFont.cpp)
+    target_include_directories(digitalkhatt_test_singlepos_font PRIVATE "${CMAKE_SOURCE_DIR}/madinafont")
+    target_link_libraries(digitalkhatt_test_singlepos_font PRIVATE madina_font digitalkhatt::otlayout)
+    set_target_properties(digitalkhatt_test_singlepos_font PROPERTIES
+      OUTPUT_NAME singlepostest DEBUG_POSTFIX d)
+    target_compile_definitions(digitalkhatt_test_singlepos_functions PRIVATE
+      DIGITALKHATT_SINGLEPOS_TEST_FONT="$<TARGET_FILE:digitalkhatt_test_singlepos_font>")
+    add_dependencies(digitalkhatt_test_singlepos_functions digitalkhatt_test_singlepos_font)
+    add_test(NAME digitalkhatt.singlepos_functions COMMAND digitalkhatt_test_singlepos_functions
+      "${CMAKE_SOURCE_DIR}/madinafont/madina.mp")
+  endif()
   target_compile_features(digitalkhatt_generate_opentype PRIVATE cxx_std_20)
   target_link_libraries(digitalkhatt_generate_opentype
     PRIVATE digitalkhatt::otlayout
@@ -357,4 +393,19 @@ if(NOT EMSCRIPTEN)
     DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/metafont"
     DIGITALKHATT_QURAN_DATABASE="${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/quran-data.sqlite"
   )
+endif()
+
+if(BUILD_TESTING AND NOT EMSCRIPTEN)
+  add_executable(digitalkhatt_test_glyph_sources tests/project/GlyphSourcesTest.cpp)
+  target_link_libraries(digitalkhatt_test_glyph_sources PRIVATE digitalkhatt::otlayout)
+  add_test(NAME digitalkhatt.glyph_sources COMMAND digitalkhatt_test_glyph_sources)
+  find_package(Python3 COMPONENTS Interpreter QUIET)
+  if(Python3_Interpreter_FOUND AND TARGET digitalkhatt_generate_mushaf AND
+      DIGITALKHATT_BUILD_FONT_PROJECTS AND EXISTS "${CMAKE_SOURCE_DIR}/madinafont/madina.mp")
+    add_test(NAME digitalkhatt.cli_glyph_sources COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/tests/project/cli_glyph_sources.py"
+      --exporter "$<TARGET_FILE:digitalkhatt_generate_opentype>"
+      --mushaf "$<TARGET_FILE:digitalkhatt_generate_mushaf>"
+      --font "${CMAKE_SOURCE_DIR}/madinafont/madina.mp")
+  endif()
 endif()

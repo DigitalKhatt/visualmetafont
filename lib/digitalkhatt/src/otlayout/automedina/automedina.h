@@ -23,6 +23,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
@@ -78,10 +79,13 @@ class Automedina {
   virtual void generateSubstEquivGlyphs() {}
   // Font-owned group anchor. Return resolved glyph coordinates, without GUI bias.
   virtual std::optional<Point> getAnchor(const GlyphVis&, const MarkBaseSubtable&, std::string_view, const GlyphParameters&) const { return std::nullopt; }
-  virtual void prepareAnchorResolution() {}
+  virtual void prepareAnchorResolution();
   virtual bool preserveMarkGposHorizontal(hb_codepoint_t, const GlyphParameters&) const { return false; }
   // Optional design-unit floor for the mark's lowest ink above the line baseline.
   virtual std::optional<double> markBaselineClearance(hb_codepoint_t, const GlyphParameters&) const { return std::nullopt; }
+  virtual SingleAdjustFunc getSingleAdjustFunction(std::string, Subtable*) { return {}; }
+  // Optional incoming group anchor, distinct from a recipient's group point.
+  virtual std::optional<Point> getMarkAnchor(const GlyphVis&, const MarkBaseSubtable&, std::string_view, const GlyphParameters&) const { return std::nullopt; }
 
   std::map<std::string, std::string> addedGlyphs;
 
@@ -92,6 +96,12 @@ class Automedina {
 
   bool isLookupDisabled(const std::string& lookupName) const;
   SubstEquivGlyphMap& substEquivGlyphMap();
+  // Opt-in font policy: the narrowest authored group containing the whole
+  // positioning class supplies the recipient point. Scoped groups are local
+  // to their lookup; coordinates are always read from the current glyph.
+  std::optional<Point> resolveMarkClassAnchor(const GlyphVis& glyph,
+      const MarkBaseSubtable& subtable, std::string_view className,
+      bool lookupScopedOnly = false, std::string_view role = {}) const;
 
   OtLayout* m_layout;
 
@@ -113,4 +123,10 @@ class Automedina {
   bool extended;
 
   void generateAyas(std::string_view ayaName, bool colored);
+
+ private:
+  using AnchorClassKey = std::tuple<const MarkBaseSubtable*, std::string, std::string>;
+  mutable std::map<AnchorClassKey, std::optional<std::size_t>> anchorClassCache_;
+  std::optional<std::size_t> matchingAnchorClassSize(const MarkBaseSubtable& subtable,
+      std::string_view className, const std::string& groupName) const;
 };

@@ -269,14 +269,11 @@ void GlyphCellItem::contextMenuEvent(QGraphicsSceneContextMenuEvent* event)
 
     }
     else if (a->text() == "Delete") {
-      int fromindex = glyph->font->glyphs.indexOf(glyph);
-
-      font->glyphperName.remove(glyph->name());
-
-      font->glyphs.remove(fromindex);
-      delete glyph;
+      if (!font->removeGlyph(glyph)) return;
+      glyph = nullptr;
       fontscene->removeItem(this);
       fontscene->repositionItems();
+      deleteLater();
     }
   }
 

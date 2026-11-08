@@ -21,6 +21,7 @@
 #include "MPFont.h"
 
 #include <iostream>
+#include <stdexcept>
 
 #include "Subtable.h"
 
@@ -226,8 +227,19 @@ void LookupDefinitionVisitor::accept(SingleAdjustmentRule& singleRule) {
 
   auto unicodes = singleRule.glyphset->getCodes(otlayout);
 
+  SingleAdjustFunc function;
+  if (auto* name = std::get_if<std::string>(&singleRule.valueRecord)) {
+    function = otlayout->getSingleAdjustFunction(*name, newsubtable);
+    if (!function) throw std::runtime_error("Unknown SinglePos function: " + *name);
+  }
   for (auto unicode : unicodes) {
-    newsubtable->singlePos[unicode] = singleRule.valueRecord;
+    if (function) {
+      newsubtable->functions[unicode] = function;
+      newsubtable->singlePos[unicode] = function(otlayout->getGlyph(unicode));
+    } else {
+      newsubtable->functions.erase(unicode);
+      newsubtable->singlePos[unicode] = std::get<ValueRecord>(singleRule.valueRecord);
+    }
   }
 }
 

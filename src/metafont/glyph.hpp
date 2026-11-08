@@ -26,6 +26,7 @@
 #include <QMap>
 #include <QHash>
 #include <QVector>
+#include <QSet>
 #include <optional>
 
 #include "qpainterpath.h"
@@ -201,6 +202,7 @@ class Glyph : public QObject {
   ~Glyph();
 
   Q_PROPERTY(QString source READ source WRITE setSource NOTIFY valueChanged)
+  Q_PROPERTY(QString sourceFile READ sourceFile NOTIFY valueChanged)
   Q_PROPERTY(QString name READ name WRITE setName NOTIFY valueChanged)
   Q_PROPERTY(int unicode READ unicode WRITE setUnicode NOTIFY valueChanged)
   Q_PROPERTY(double width READ width WRITE setWidth NOTIFY valueChanged)
@@ -219,6 +221,7 @@ class Glyph : public QObject {
 
   void setName(QString source);
   QString name() const;
+  QString sourceFile() const;
   void setUnicode(int unicode);
   int unicode() const;
   int charcode();
@@ -248,6 +251,9 @@ class Glyph : public QObject {
   QUndoStack* undoStack() const;
 
   std::map<QString, Param> params;
+  QSet<QString> anchorParameterNames();
+  QSet<QString> anchorParameterNamesFor(const QSet<QString>& anchors);
+  QVector<int> authoredPointIds(int path) const;
   QMap<QString, Param*> dependents;
   QHashGlyphComponentInfo m_components;
   QMap<int, QMap<int, Knot*> > controlledPaths;
@@ -309,7 +315,7 @@ class Glyph : public QObject {
   QString m_beginmacroname;
 
   // TODO make it configurable
-  std::vector<QString> axisNames = {"lefttatweel", "righttatweel", "third", "fourth", "fifth"};
+  std::vector<QString> axisNames;
 };
 
 typedef QHash<Glyph*, Glyph::ComponentInfo> QHashGlyphComponentInfo;

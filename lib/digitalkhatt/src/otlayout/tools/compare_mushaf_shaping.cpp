@@ -1,3 +1,4 @@
+#include "digitalkhatt/project/GlyphSources.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -102,44 +103,6 @@ void normalizeDkV1(TextString& word) {
   }
 }
 
-std::size_t registerGlyphSources(MPFont& font, const fs::path& glyphsPath) {
-  const auto glyphs = readFile(glyphsPath);
-  const std::string reset =
-      "params[0]:=0;params[1]:=0;params[2]:=0;params[3]:=0;params[4]:=0;";
-  std::size_t count = 0;
-  std::size_t pos = 0;
-  while (pos < glyphs.size()) {
-    const auto beginPos = glyphs.find("beginchar", pos);
-    const auto defPos = glyphs.find("defchar", pos);
-    const bool isDef = defPos != std::string::npos &&
-                       (beginPos == std::string::npos || defPos < beginPos);
-    const auto start = isDef ? defPos : beginPos;
-    if (start == std::string::npos) break;
-    const std::string_view endMarker = isDef ? "enddefchar;" : "endchar;";
-    const auto end = glyphs.find(endMarker, start);
-    if (end == std::string::npos)
-      throw std::runtime_error("Unterminated glyph near byte " +
-                               std::to_string(start));
-    const auto blockEnd = end + endMarker.size();
-    const auto block = glyphs.substr(start, blockEnd - start);
-    const auto open = block.find('(');
-    const auto comma1 = block.find(',', open);
-    const auto comma2 = block.find(',', comma1 + 1);
-    if (open == std::string::npos || comma1 == std::string::npos ||
-        comma2 == std::string::npos)
-      throw std::runtime_error("Invalid glyph header near byte " +
-                               std::to_string(start));
-    const auto name = block.substr(open + 1, comma1 - open - 1);
-    const auto unicode =
-        std::stoi(block.substr(comma1 + 1, comma2 - comma1 - 1));
-    font.registerGlyphSource(name, block, isDef ? "defchar" : "beginchar",
-                             unicode);
-    font.execute(reset + block);
-    ++count;
-    pos = blockEnd;
-  }
-  return count;
-}
 
 void initializeFont(MPFont& font, const fs::path& project,
                     const fs::path& resources) {
@@ -149,7 +112,7 @@ void initializeFont(MPFont& font, const fs::path& project,
   source += readFile(resources / "vmf.mp");
   source += readFile(project);
   font.initialize(std::move(source), project);
-  const auto count = registerGlyphSources(font, project.parent_path() / "glyphs.mp");
+  const auto count = digitalkhatt::project::ProjectGlyphSources::load(project).registerWith(font);
   std::cout << "Registered " << count << " glyph sources\n";
 }
 

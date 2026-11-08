@@ -30,6 +30,8 @@
 #include "glyphview.hpp"
 #include "pairitem.hpp"
 
+class MetaPostEditor;
+
 class GlyphWindow : public QMainWindow {
   Q_OBJECT
 
@@ -42,13 +44,12 @@ class GlyphWindow : public QMainWindow {
   bool loadFile(const QString&);
   void showEvent(QShowEvent* event) Q_DECL_OVERRIDE;
   void resizeEvent(QResizeEvent* event) Q_DECL_OVERRIDE;
+  void changeEvent(QEvent* event) override;
 
  private slots:
   void about();
   void importImage();
-  void enableImge(bool checked);
   void enableFill(bool enable);
-  void imageVisible(bool visible);
   void fillContour(bool fill);
   void pointerGroupClicked(int id);
   void showAnchors(bool checked);
@@ -60,7 +61,14 @@ class GlyphWindow : public QMainWindow {
   // QSvgWidget * svgWidget ;
   QScrollArea* scrollArea;
 
-  QPlainTextEdit* mpostEdit;
+  MetaPostEditor* mpostEdit = nullptr;
+  QAction* undoAction = nullptr;
+  QAction* redoAction = nullptr;
+  void updateUndoActions();
+  void updateModifiedState();
+  void updateWindowTitle();
+  void updateSourceTopology();
+  void drawingSelectionChanged();
 
   QPlainTextEdit *logOutput, *infoOutput;
 
@@ -101,6 +109,20 @@ class GlyphWindow : public QMainWindow {
   QToolBar* fileToolBar;
   QToolBar* editToolBar;
   QToolBar* pointerToolbar;
+  QPushButton* anchorsButton = nullptr;
+  QTreeWidget* layersView = nullptr;
+  QCheckBox* finalPositionsControl = nullptr;
+  bool dockLayoutInitialized_ = false;
+  void createLayersView();
+  void refreshLayersView();
+  void createAnchorsView();
+  void refreshAnchorsView();
+  void syncAnchorSelection(const QString& key);
+  QTreeWidget* anchorsView = nullptr;
+  QLineEdit* anchorFilter = nullptr;
+  QComboBox* anchorLabelMode = nullptr;
+  QCheckBox* anchorMaster = nullptr;
+  QPushButton* onlySelectedAnchor = nullptr;
 
   QButtonGroup* pointerTypeGroup;
 };

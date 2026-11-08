@@ -597,10 +597,10 @@ class GlyphSetRegExpOr : public GlyphSetRegExp {
 class SingleAdjustmentRule : public LookupStatement {
  public:
   GlyphSet* glyphset;
-  ValueRecord valueRecord;
+  ValueRecordExtended valueRecord;
   bool color;
 
-  explicit SingleAdjustmentRule(GlyphSet* glyphset, ValueRecord valueRecord, bool color = false)
+  explicit SingleAdjustmentRule(GlyphSet* glyphset, ValueRecordExtended valueRecord, bool color = false)
       : glyphset{glyphset}, valueRecord{valueRecord}, color{color} {}
 
   void accept(Visitor&) override;
@@ -669,7 +669,7 @@ class MarkedGlyphSetRegExp {
   explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, std::vector<std::string> lookupNames) : regexp{new GlyphSetRegExpSingle{glyphset}}, lookupNames{lookupNames} {}
   explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, SingleAdjustmentRule* rule) : regexp{new GlyphSetRegExpSingle{glyphset}}, inlineType{InlineType::SinglePos}, stmt{rule} {};
   explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, CursiveRule* rule) : regexp{new GlyphSetRegExpSingle{glyphset}}, inlineType{InlineType::CursivePos}, stmt{rule} {};
-  explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, ValueRecord valuerecord) : MarkedGlyphSetRegExp{glyphset, new SingleAdjustmentRule(glyphset, valuerecord, false)} {};
+  explicit MarkedGlyphSetRegExp(GlyphSet* glyphset, ValueRecordExtended valuerecord) : MarkedGlyphSetRegExp{glyphset, new SingleAdjustmentRule(glyphset, valuerecord, false)} {};
 
   explicit MarkedGlyphSetRegExp(GlyphSetRegExp* regexp, std::vector<std::string> lookupNames)
       : regexp{regexp}, lookupNames{lookupNames} {}

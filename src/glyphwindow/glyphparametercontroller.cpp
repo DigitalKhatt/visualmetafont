@@ -20,6 +20,7 @@
 #include "glyphparametercontroller.hpp"
 #include "qtpropertymanager.h"
 #include "qteditorfactory.h"
+#include "font.hpp"
 # include <QtWidgets>
 #include <iostream>
 
@@ -37,6 +38,16 @@ GlyphParameterController::GlyphParameterController(Glyph* glyph, QWidget* parent
   QVBoxLayout* layout = new QVBoxLayout(this);
   layout->getContentsMargins(0, 0, 0, 0);
   layout->addWidget(m_browser);
+  auto* reset = new QPushButton(tr("Reset internal parameters"), this);
+  reset->setObjectName("resetDesignAxes");
+  layout->addWidget(reset);
+  connect(reset, &QPushButton::clicked, this, [this] {
+    if (!m_glyph) return;
+    m_glyph->undoStack()->beginMacro(tr("Reset internal parameters"));
+    for (const auto& axis : m_glyph->font->project.internalParameters())
+      m_glyph->setPropertyWithUndo(axis.key.toUtf8(), QVariant::fromValue(Glyph::AxisType{axis.defaultValue}));
+    m_glyph->undoStack()->endMacro();
+  });
 
   m_readOnlyManager = new QtVariantPropertyManager(this);
   m_manager = new QtVariantPropertyManager(this);
@@ -61,6 +72,7 @@ void GlyphParameterController::setGlyph(Glyph* glyph) {
     return;
 
   if (m_glyph) {
+    disconnect(m_glyph, nullptr, this, nullptr);
     QMapIterator<QtProperty*, QString> it(m_propertyToName);
     while (it.hasNext()) {
       m_browser->removeProperty(it.next().key());
@@ -99,6 +111,9 @@ void GlyphParameterController::glyphChanged(QString name) {
         Glyph::AxisType vv = val.value<Glyph::AxisType>();
         m_axisManager->setValue(prop, vv.value);
       }
+      else if (name == "sourceFile") {
+        m_readOnlyManager->setValue(prop, val);
+      }
       else {
         m_manager->setValue(prop, val);
       }
@@ -109,7 +124,8 @@ void GlyphParameterController::glyphChanged(QString name) {
 }
 void GlyphParameterController::slotValueChanged(QtProperty* property, const QVariant& value)
 {
-  QString name = property->propertyName();
+  if (!m_glyph || !m_propertyToName.contains(property)) return;
+  QString name = m_propertyToName.value(property);
 
   QVariant oldVariant = m_glyph->property(name.toLatin1());
 
@@ -148,7 +164,11 @@ void GlyphParameterController::addProperties()
     QString name = metaProperty.name();
     if (name == "source" || name == "parameters" || name == "body" || name == "verbatim")
       continue;
-    if (m_manager->isPropertyTypeSupported(type)) {
+    if (!metaProperty.isWritable()) {
+      subProperty = m_readOnlyManager->addProperty(type, name == "sourceFile" ? tr("Source file") : name);
+      m_readOnlyManager->setValue(subProperty, metaProperty.read(m_glyph));
+    }
+    else if (m_manager->isPropertyTypeSupported(type)) {
       subProperty = m_manager->addProperty(type, QLatin1String(metaProperty.name()));
       m_manager->setValue(subProperty, metaProperty.read(m_glyph));
     }
@@ -187,10 +207,18 @@ void GlyphParameterController::addProperties()
       if (val.userType() == axisTypeId) {
         Glyph::AxisType vv = val.value< Glyph::AxisType>();
         
-        QtProperty* subProperty = m_axisManager->addProperty(propname);
-        m_axisManager->setRange(subProperty, -10 , 20 );
-        m_axisManager->setValue(subProperty, vv.value );
-        m_axisManager->setSingleStep(subProperty, 1);
+        ProjectParameter descriptor;
+        for (const auto& axis : m_glyph->font->project.internalParameters())
+          if (axis.key == QString::fromUtf8(propname)) descriptor = axis;
+        if (!descriptor.visible) continue;
+        QtProperty* subProperty = m_axisManager->addProperty(descriptor.label);
+        subProperty->setToolTip(QString("Internal parameter • params%1 • default %2\n%3")
+            .arg(descriptor.metaPostIndex).arg(descriptor.defaultValue).arg(descriptor.description));
+        m_axisManager->setRange(subProperty, descriptor.minimum, descriptor.maximum);
+        m_axisManager->setDecimals(subProperty, 2);
+        m_axisManager->setValue(subProperty, vv.value);
+        m_axisManager->setSingleStep(subProperty, descriptor.step);
+        m_axisFactory->setDefaultValue(subProperty, descriptor.defaultValue);
         m_propertyToName[subProperty] = propname;
         m_nametoProperty[propname] = subProperty;
         m_browser->addProperty(subProperty);

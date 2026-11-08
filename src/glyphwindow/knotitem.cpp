@@ -24,6 +24,7 @@
 #include <QStyleOption>
 #include <QGraphicsView>
 #include <QtMath>
+#include "sourcelinks.hpp"
 
 static QPainterPath qt_graphicsItem_shapeFromPath(const QPainterPath &path, const QPen &pen)
 {
@@ -123,7 +124,14 @@ void KnotItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, 
 
 	
 
-	if (isSelected()) {
+  if (data(SourceLinks::HighlightRole).toBool()) {
+    painter->setBrush(QColor(255,193,70));
+    auto linkedPen = this->pen;
+    linkedPen.setColor(QColor(170,85,0));
+    linkedPen.setWidthF(2.5);
+    painter->setPen(linkedPen);
+  }
+  else if (isSelected()) {
 		painter->setBrush(this->pen.color());
 		painter->setPen(this->pen);
 	}

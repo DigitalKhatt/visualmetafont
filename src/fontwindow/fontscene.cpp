@@ -75,7 +75,7 @@ void FontScene::repositionItems()
 	qreal factor = view->transform().mapRect(QRectF(0, 0, 1, 1)).width();	
 
 
-	nbcols = viewportwidth / (1000 * factor);
+	nbcols = qMax(1, int(viewportwidth / (1000 * factor)));
 
 	//factor = viewportwidth / (1000 * nbcols);
 
@@ -93,7 +93,7 @@ void FontScene::repositionItems()
 		QGraphicsItem* item = cells[i];
 
 		GlyphCellItem * cell = qgraphicsitem_cast<GlyphCellItem *>(item);
-		if (cell) {
+		if (cell && cell->isVisible()) {
 			cell->setPos(col * 1000, row * 1000);
 			col++;
 			if (col == nbcols) {
@@ -103,7 +103,7 @@ void FontScene::repositionItems()
 		}
 	}
 
-	nbrows = row + 1;
+	nbrows = qMax(1, row + (col > 0 ? 1 : 0));
 
 	setSceneRect(0, 0, nbcols * 1000, nbrows * 1000);
 }

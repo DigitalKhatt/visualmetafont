@@ -14,6 +14,7 @@ PathView::PathView(Glyph* glyph, QWidget* parent)
   connect(this->glyph, &Glyph::valueChanged, this, &PathView::glyphChanged);
 
   setBackgroundRole(QPalette::Base);
+  setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Expanding);
 
   //QTransform transform{ 3,0,0,3,0,0 };
 
@@ -33,19 +34,15 @@ void PathView::glyphChanged(QString name) {
   this->picture = glyph->getPicture();
   update();
 }
-/*
 QSize PathView::minimumSizeHint() const
 {
-  //return QSize(50, 50);
-  auto box = this->path.boundingRect().size();
-  return box.toSize();
+  return QSize(160,160);
 }
 
 QSize PathView::sizeHint() const
 {
-  auto box = this->path.boundingRect().size();
-  return box.toSize();
-}*/
+  return QSize(300,320);
+}
 
 
 void PathView::paintEvent(QPaintEvent*)
@@ -53,19 +50,12 @@ void PathView::paintEvent(QPaintEvent*)
   QPainter painter(this);
   painter.setRenderHint(QPainter::Antialiasing);
 
-  auto widthh = width() ;
-  auto heighth = height();
-
-  //auto box = this->path.boundingRect();
-
-  auto box = this->picture.boundingRect();
-
-  auto scalew = (double)widthh / box.width();
-  auto scaleh = (double)heighth / box.height();  
-
-  auto scale = scalew < scaleh ? scalew : scaleh;
-
-  QTransform transform{ scale ,0,0,-scale,- scale * box.left(),scale * box.bottom() };
+  const auto box=QRectF(picture.boundingRect());
+  const auto target=QRectF(contentsRect()).adjusted(8,8,-8,-8);
+  if (box.isEmpty() || target.isEmpty()) return;
+  const auto scale=qMin(target.width()/box.width(),target.height()/box.height());
+  QTransform transform{scale,0,0,-scale,
+      target.center().x()-scale*box.center().x(),target.center().y()+scale*box.center().y()};
 
   painter.setPen(Qt::NoPen);  
   painter.setBrush(Qt::black);

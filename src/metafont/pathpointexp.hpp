@@ -6,6 +6,7 @@
 #include "qvariant.h"
 #include "qpoint.h"
 #include <stdexcept>
+#include "metapostnumber.hpp"
 
 #include "qmath.h"
 
@@ -69,7 +70,7 @@ public:
 	LitPathNumericExp(double v) :val(v) { }
 
 	QString toString() override {
-		return QString("%1").arg(val);
+		return metapostNumber(val);
 	}
 
 	QVariant constantValue(int i) override {

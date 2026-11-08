@@ -43,6 +43,7 @@ struct hb_font_t;
 class QPlainTextEdit;
 class QPushButton;
 class QVBoxLayout;
+class QUndoStack;
 
 class QSpinBox;
 class QLabel;
@@ -88,6 +89,10 @@ class LayoutWindow : public QMainWindow {
   LayoutWindow(Font* font, QWidget* parent = Q_NULLPTR,
                Qt::WindowFlags flags = Qt::WindowFlags());
   ~LayoutWindow();
+
+ signals:
+  void positioningReloading();
+  void positioningParametersChanged();
 
  public slots:
   void layoutParameterChanged();
@@ -210,6 +215,8 @@ class LayoutWindow : public QMainWindow {
   Font* m_font;
 
   OtLayout* m_otlayout = nullptr;
+  QUndoStack* lookupUndo_ = nullptr;
+  bool positioningExternalDirty_ = false;
 
   GraphicsViewAdjustment* m_graphicsView;
   GraphicsSceneAdjustment* m_graphicsScene;

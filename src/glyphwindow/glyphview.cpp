@@ -60,6 +60,23 @@ GlyphView::~GlyphView() {
 GlyphScene * GlyphView::getScene() {
 	return glyphscene;
 }
+void GlyphView::setPictureName(const QString& name) {
+  const auto previous=glyphscene->pictureName();
+  if (previous==name) return;
+  pictureCameras_[previous]={transform(),mapToScene(viewport()->rect().center())};
+  glyphscene->setPictureName(name);
+  const auto current=glyphscene->pictureName();
+  if (pictureCameras_.contains(current)) {
+    const auto camera=pictureCameras_.value(current);
+    setTransform(camera.transform); centerOn(camera.center);
+  } else {
+    QRectF bounds;
+    for (auto* item:glyphscene->items()) if (auto* contour=dynamic_cast<ContourItem*>(item))
+      if (contour->pictureName()==current) bounds=contour->sceneBoundingRect();
+    centerOn(bounds.center());
+  }
+  glyphscene->layoutAnchorLabels();
+}
 
 void GlyphView::setGlyph(Glyph * glyph) {
 	m_glyph = glyph;
@@ -69,6 +86,7 @@ void GlyphView::setGlyph(Glyph * glyph) {
 void GlyphView::resizeEvent(QResizeEvent *event) {
 	//centerOn(contour);
 	QGraphicsView::resizeEvent(event);
+  if (glyphscene) glyphscene->layoutAnchorLabels();
 }
 
 /*
@@ -95,6 +113,7 @@ void GlyphView::scaleView(qreal scaleFactor)
 		return;
 
 	scale(scaleFactor, scaleFactor);
+  glyphscene->layoutAnchorLabels();
 
 }
 

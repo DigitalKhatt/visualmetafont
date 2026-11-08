@@ -430,7 +430,7 @@ gposrule
 	;
 
 singleadjustment
-	: POSITION glyphset valuerecord {$$ = new SingleAdjustmentRule($glyphset,$valuerecord,false);}
+	: POSITION glyphset valuerecordextended {$$ = new SingleAdjustmentRule($glyphset,$valuerecordextended,false);}
 	| POSITION glyphset COLOR valuerecord {$$ = new SingleAdjustmentRule($glyphset,$valuerecord,true);}
 	;
 
@@ -546,8 +546,8 @@ inputseq
 markedglyphsetregexp
 	: glyphset '\'' explicitlookup {$$ = new MarkedGlyphSetRegExp($glyphset,$explicitlookup);}
 	| '(' glyphsetregexp ')' '\'' explicitlookup {$$ = new MarkedGlyphSetRegExp($glyphsetregexp,$explicitlookup);}
-	| glyphset '\'' valuerecord {
-		$$ = new MarkedGlyphSetRegExp($glyphset,$valuerecord);
+	| glyphset '\'' valuerecordextended {
+		$$ = new MarkedGlyphSetRegExp($glyphset,$valuerecordextended);
 	}
 	| CURSIVE glyphset'\''  anchor[entry] anchor[exit]  {
 		$$ = new MarkedGlyphSetRegExp($glyphset,new CursiveRule($glyphset,$entry,$exit));

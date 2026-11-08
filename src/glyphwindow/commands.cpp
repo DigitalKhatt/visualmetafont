@@ -55,7 +55,9 @@ bool ChangeGlyphPropertyCommand::mergeWith(const QUndoCommand* command)
     return false;
 
   const ChangeGlyphPropertyCommand* other = static_cast<const ChangeGlyphPropertyCommand*>(command);
-  if (m_propertyName != other->m_propertyName)
+  // Image import, replacement, scaling and removal are separate user actions.
+  // Merging an import with a later removal loses the image on Undo.
+  if (m_glyph != other->m_glyph || m_propertyName == "image" || m_propertyName != other->m_propertyName)
     return false;
 
   m_newValue = other->m_newValue;

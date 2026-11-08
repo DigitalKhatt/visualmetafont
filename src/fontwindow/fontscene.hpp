@@ -42,7 +42,7 @@ protected:
 
 private:
 	int nbcols;
-	int nbrows;
+	int nbrows = 1;
 	bool isDoubleClick = false;
 };
 #endif // FONTSCENE_H

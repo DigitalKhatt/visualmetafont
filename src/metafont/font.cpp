@@ -20,6 +20,12 @@
 #include "font.hpp"
 
 #include <filesystem>
+#include <algorithm>
+#include <climits>
+#include <memory>
+#include <vector>
+#include <QSaveFile>
+#include <QSet>
 
 #include "glyph.hpp"
 #include "hb.hh"
@@ -37,6 +43,8 @@ namespace fs = std::filesystem;
 Font::Font(QObject* parent) : QObject(parent) {
 }
 bool Font::loadFile(const QString& fileName) {
+  if (!project.load(QFileInfo(fileName).absolutePath() + "/font-project.json", &projectError))
+    return false;
   QFile file(fileName);
   if (!file.open(QFile::ReadOnly | QFile::Text)) {
     return false;
@@ -74,33 +82,39 @@ bool Font::loadFile(const QString& fileName) {
   auto parentPath = p1.parent_path();
   m_currentDir = QString::fromStdString(parentPath.string());
   m_mpFont.initialize(initMF.toLocal8Bit().toStdString(), p1);
+  synchronizeAnchorVisibility();
   m_fontName = QString::fromStdString(m_mpFont.fontName());
 
-  QString glyphsPath = QString::fromStdString(p1.parent_path().append("glyphs.mp").string());
-
-  QFile glyphsFile(glyphsPath);
-
-  if (!glyphsFile.open(QFile::ReadOnly | QFile::Text)) {
+  sourceFiles_.clear();
+  glyphOrigins_.clear();
+  try {
+    const auto sources = digitalkhatt::project::ProjectGlyphSources::load(p1);
+    for (const auto& source : sources.files)
+      sourceFiles_.append({QString::fromStdString(source.relativePath), GlyphSourceDocument(source.document)});
+  } catch (const std::exception& error) {
+    projectError = QString::fromUtf8(error.what());
     return false;
   }
 
-  QTextStream in(&glyphsFile);
   QApplication::setOverrideCursor(Qt::WaitCursor);
-
-  QString code = in.readAll();
-
-  QRegularExpression re("((?:beginchar|defchar)(.*?)(?:enddefchar|endchar);)", QRegularExpression::DotMatchesEverythingOption);
-  QRegularExpressionMatchIterator i = re.globalMatch(code);
-  while (i.hasNext()) {
-    QRegularExpressionMatch match = i.next();
-    QString source = match.captured(1);
-    Glyph* glyph = new Glyph(source, this);
-    glyphs.append(glyph);
-    m_mpFont.registerGlyphSource(glyph->name().toStdString(),
-                                 glyph->source().toStdString(),
-                                 glyph->beginMacroName().toStdString(),
-                                 glyph->unicode());
-    // glyphperUnicode[glyph->unicode()] = glyph;
+  for (int fileIndex = 0; fileIndex < sourceFiles_.size(); ++fileIndex) {
+    const auto& sourceFile = sourceFiles_[fileIndex];
+    for (int blockIndex = 0; blockIndex < sourceFile.document.blocks.size(); ++blockIndex) {
+      const auto& block = sourceFile.document.blocks[blockIndex];
+      Glyph* glyph = new Glyph(block.source, this);
+      for (const auto& parameter : project.internalParameters()) {
+        if (glyph->params.contains(parameter.key)) {
+          projectError = "Internal parameter conflicts with glyph parameter: " + glyph->name() + ": " + parameter.key;
+          delete glyph;
+          QApplication::restoreOverrideCursor();
+          return false;
+        }
+      }
+      glyphs.append(glyph);
+      glyphOrigins_.insert(glyph, {fileIndex, blockIndex, glyph->source(), sourceFile.path});
+      m_mpFont.registerGlyphSource(glyph->name().toStdString(), glyph->source().toStdString(),
+                                  glyph->beginMacroName().toStdString(), glyph->unicode());
+    }
   }
 
   QFileInfo fileInfo(fileName);
@@ -124,6 +138,18 @@ bool Font::getBoolVariable(QString name) {
 }
 double Font::getInternalNumericVariable(QString name) {
   return m_mpFont.internalNumericVariable(name.toStdString());
+}
+
+void Font::synchronizeAnchorVisibility() {
+  const bool visible = getInternalNumericVariable("showAnchors") != 0;
+  if (visible == anchorsVisible_) return;
+  anchorsVisible_ = visible;
+  emit anchorsVisibilityChanged(visible);
+}
+
+void Font::setAnchorsVisible(bool visible) {
+  if (visible == anchorsVisible_) return;
+  executeMetaPost(visible ? "showAnchors:=1;" : "showAnchors:=0;");
 }
 
 QString Font::familyName() {
@@ -186,26 +212,174 @@ bool Font::saveUnicodes() {
 
   return true;
 }
-bool Font::saveFile() {
-  if (!m_path.isEmpty()) {
-    QFileInfo fileInfo(m_path);
-    QFile file(fileInfo.path() + "/glyphs.mp");
-
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
-      return false;
-
-    QTextStream out(&file);
-
-    for (int i = 0; i < glyphs.length(); i++) {
-      out << glyphs[i]->source();
-    }
-
-    file.close();
-
-    return true;
+bool Font::glyphHasSourceChanges(Glyph* glyph) const {
+  const auto origin=glyphOrigins_.constFind(glyph);
+  return origin==glyphOrigins_.cend() || origin->file<0 || origin->block<0 ||
+      origin->target!=sourceFiles_[origin->file].path || glyph->source()!=origin->canonical;
+}
+bool Font::hasSourceChanges() {
+  int retainedBlocks = 0;
+  for (auto* glyph : glyphs) {
+    if (glyphHasSourceChanges(glyph)) return true;
+    ++retainedBlocks;
   }
+  int originalBlocks = 0;
+  for (const auto& file : sourceFiles_) originalBlocks += file.document.blocks.size();
+  return retainedBlocks != originalBlocks;
+}
+bool Font::saveFile() {
+  projectError.clear();
+  if (m_path.isEmpty()) return false;
+  QSet<QString> names;
+  for (auto* glyph : glyphs) {
+    if (glyph->name().isEmpty() || names.contains(glyph->name()) || !glyphOrigins_.contains(glyph)) {
+      projectError = "Unowned or duplicate glyph: " + glyph->name();
+      return false;
+    }
+    names.insert(glyph->name());
+  }
+  QVector<QByteArray> rendered;
+  QVector<GlyphSourceDocument> parsed;
+  for (int fileIndex = 0; fileIndex < sourceFiles_.size(); ++fileIndex) {
+    QMap<int, QString> replacements;
+    QStringList appended;
+    QSet<int> retainedBlocks;
+    for (auto* glyph : glyphs) {
+      const auto& origin = glyphOrigins_[glyph];
+      if (origin.file == fileIndex && origin.block >= 0) {
+        retainedBlocks.insert(origin.block);
+        if (origin.target != sourceFiles_[fileIndex].path) replacements.insert(origin.block, {});
+        else if (glyph->source() != origin.canonical) replacements.insert(origin.block, glyph->source().trimmed());
+      }
+      if (origin.target == sourceFiles_[fileIndex].path && (origin.file != fileIndex || origin.block < 0)) {
+        // A pure move retains the original definition's formatting.
+        appended.append(origin.file >= 0 && origin.block >= 0 && glyph->source() == origin.canonical
+            ? sourceFiles_[origin.file].document.blocks[origin.block].source : glyph->source().trimmed());
+      }
+    }
+    // Deleted glyphs no longer occur in glyphs. Remove their original source
+    // blocks as well, while retaining surrounding comments and other glyphs.
+    for (int block = 0; block < sourceFiles_[fileIndex].document.blocks.size(); ++block)
+      if (!retainedBlocks.contains(block)) replacements.insert(block, {});
+    const auto bytes = sourceFiles_[fileIndex].document.render(replacements, appended);
+    GlyphSourceDocument document;
+    if (!document.parse(bytes, &projectError)) return false;
+    rendered.append(bytes); parsed.append(document);
+  }
+  // Stage all writes before replacing any file. Check for external edits even
+  // for untouched files; a previous partially completed save may match rendered.
+  std::vector<std::unique_ptr<QSaveFile>> pending;
+  for (int i = 0; i < sourceFiles_.size(); ++i) {
+    const auto path = QDir(m_currentDir).filePath(sourceFiles_[i].path);
+    QFile current(path);
+    if (!current.open(QIODevice::ReadOnly)) { projectError = path + ": " + current.errorString(); return false; }
+    const auto onDisk = current.readAll();
+    if (onDisk != sourceFiles_[i].document.original && onDisk != rendered[i]) {
+      projectError = "Source changed on disk; reload before saving: " + sourceFiles_[i].path;
+      return false;
+    }
+    if (onDisk == rendered[i]) { pending.push_back(nullptr); continue; }
+    auto output = std::make_unique<QSaveFile>(path);
+    if (!output->open(QIODevice::WriteOnly) || output->write(rendered[i]) != rendered[i].size()) {
+      projectError = path + ": " + output->errorString(); return false;
+    }
+    pending.push_back(std::move(output));
+  }
+  for (std::size_t i = 0; i < pending.size(); ++i) {
+    if (pending[i] && !pending[i]->commit()) {
+      projectError = "Cannot save " + sourceFiles_[int(i)].path + ": " + pending[i]->errorString() +
+          ". Earlier files may have been saved; retry Save after resolving the error.";
+      return false;
+    }
+  }
+  QHash<QString, Glyph*> currentGlyphs;
+  for (auto* glyph : glyphs) currentGlyphs.insert(glyph->name(), glyph);
+  glyphOrigins_.clear();
+  for (int i = 0; i < sourceFiles_.size(); ++i) {
+    sourceFiles_[i].document = parsed[i];
+    for (int block = 0; block < parsed[i].blocks.size(); ++block) {
+      auto* glyph = currentGlyphs.value(parsed[i].blocks[block].name);
+      if (glyph) glyphOrigins_.insert(glyph, {i, block, glyph->source(), sourceFiles_[i].path});
+    }
+  }
+  emit sourcesSaved();
+  return true;
+}
 
-  return false;
+QStringList Font::glyphSourceFiles() const {
+  QStringList result;
+  for (const auto& file : sourceFiles_) result.append(file.path);
+  return result;
+}
+QString Font::glyphSourceFile(const Glyph* glyph) const {
+  return glyphOrigins_.value(glyph).target;
+}
+bool Font::createGlyphFile(const QString& relativePath) {
+  auto files = glyphSourceFiles();
+  files.append(relativePath);
+  ProjectMetadata candidate = project;
+  if (!candidate.setGlyphFiles(files, &projectError)) return false;
+  const auto cleanPath = QDir::cleanPath(relativePath);
+  const auto path = QDir(m_currentDir).filePath(cleanPath);
+  if (!QDir().mkpath(QFileInfo(path).absolutePath())) { projectError = "Cannot create source directory"; return false; }
+  QFile file(path);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::NewOnly)) { projectError = path + ": " + file.errorString(); return false; }
+  file.close();
+  const auto previous = project;
+  project = candidate;
+  if (!saveProjectMetadata()) { project = previous; QFile::remove(path); return false; }
+  SourceFile source{cleanPath, {}};
+  source.document.parse({}); sourceFiles_.append(source);
+  return true;
+}
+void Font::orderGlyphsBySource() {
+  const auto files = glyphSourceFiles();
+  std::stable_sort(glyphs.begin(), glyphs.end(), [&](const Glyph* a, const Glyph* b) {
+    const auto& x = glyphOrigins_[a]; const auto& y = glyphOrigins_[b];
+    const int xf = files.indexOf(x.target), yf = files.indexOf(y.target);
+    if (xf != yf) return xf < yf;
+    const int xb = x.file == xf && x.block >= 0 ? x.block : INT_MAX;
+    const int yb = y.file == yf && y.block >= 0 ? y.block : INT_MAX;
+    return xb < yb;
+  });
+}
+bool Font::moveGlyphs(const QVector<Glyph*>& selected, const QString& sourceFile) {
+  if (!glyphSourceFiles().contains(sourceFile)) { projectError = "Unknown source file: " + sourceFile; return false; }
+  for (auto* glyph : selected) if (!glyphOrigins_.contains(glyph)) { projectError = "Glyph is not part of this project"; return false; }
+  for (auto* glyph : selected) {
+    glyphs.removeOne(glyph); glyphs.append(glyph);
+    glyphOrigins_[glyph].target = sourceFile;
+  }
+  orderGlyphsBySource();
+  for (auto* glyph : selected) emit glyph->valueChanged("sourceFile");
+  return true;
+}
+Glyph* Font::createGlyph(const QString& name, int unicode, const QString& sourceFile) {
+  if (!QRegularExpression("^[A-Za-z][A-Za-z0-9_.]*$").match(name).hasMatch() || !glyphSourceFiles().contains(sourceFile) ||
+      unicode < -1 || unicode > 0xffff || (unicode >= 0xd800 && unicode <= 0xdfff)) {
+    projectError = "Choose a valid MetaPost glyph name, source file and BMP Unicode value (or leave Unicode empty)";
+    return nullptr;
+  }
+  for (auto* glyph : glyphs) if (glyph->name() == name || (unicode >= 0 && glyph->unicode() == unicode)) {
+    projectError = "Glyph name or Unicode value already exists"; return nullptr;
+  }
+  auto* glyph = new Glyph(QString("defchar(%1,%2,500,700,0);\n%%beginpaths\n%%endpaths\nenddefchar;\n").arg(name).arg(unicode), this);
+  glyphs.append(glyph); glyphOrigins_.insert(glyph, {-1, -1, {}, sourceFile});
+  orderGlyphsBySource(); synchronizeGlyphSources();
+  return glyph;
+}
+
+bool Font::removeGlyph(Glyph* glyph) {
+  if (!glyph || !glyphs.contains(glyph)) {
+    projectError = "Glyph is not part of this project";
+    return false;
+  }
+  glyphs.removeOne(glyph);
+  glyphperName.remove(glyph->name());
+  glyphOrigins_.remove(glyph);
+  synchronizeGlyphSources();
+  delete glyph;
+  return true;
 }
 
 Font::~Font() {
@@ -247,11 +421,22 @@ MPFont& Font::mpFont() {
 }
 
 std::string Font::executeMetaPost(std::string command) {
+  // Managed pictures belong to this render request, including requests from
+  // specialized editors. Reset them before execution to avoid stale captures
+  // and controlledImage accumulation across successive previews.
+  if (!pictureNames.isEmpty()) {
+    QString reset="picture vmfFinalSourceCapture; vmfFinalSourceCapture:=nullpicture;";
+    for (const auto& name:pictureNames)
+      reset+=QString("picture %1; %1:=nullpicture; picture %1.vmfSourceCapture; %1.vmfSourceCapture:=nullpicture;").arg(name);
+    command.insert(0,reset.toStdString());
+  }
   std::vector<std::string> names;
   names.reserve(pictureNames.size());
   for (const auto& name : pictureNames) names.push_back(name.toStdString());
   m_mpFont.setControlledPictureNames(std::move(names));
-  return m_mpFont.execute(command);
+  auto result = m_mpFont.execute(command);
+  synchronizeAnchorVisibility();
+  return result;
 }
 std::vector<mp_edge_object*> Font::getEdges() const {
   return m_mpFont.edges();
@@ -268,6 +453,8 @@ MPGlyphInfo Font::getMPGlyphInfo(int charCode) {
   info.currentPicture = mpInfo.currentPicture;
   for (const auto& [name, picture] : mpInfo.controlledPictures)
     info.controlledPictures.insert(QString::fromStdString(name), picture);
+  for (const auto& [name, picture] : mpInfo.controlledPictureSources)
+    info.controlledPictureSources.insert(QString::fromStdString(name),picture);
 
   return info;
 }
@@ -456,3 +643,7 @@ void Font::readAxes() {
     axes.append(axis);
   }
 } */
+
+bool Font::saveProjectMetadata() {
+  return project.save(QFileInfo(m_path).absolutePath() + "/font-project.json", &projectError);
+}

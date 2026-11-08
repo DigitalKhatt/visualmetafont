@@ -848,6 +848,7 @@ bool SingleAdjustmentSubtable::isExtended() {
 
 void SingleAdjustmentSubtable::readJson(const ParameterJsonObject& json) {
   singlePos.clear();
+  functions.clear();
   for (const auto& [className, recordJson] : json) {
     auto unicodes = m_layout->classtoUnicode(className);
     const auto record = jsonValueAs<std::array<std::int16_t, 4>>(recordJson);
@@ -860,6 +861,33 @@ void SingleAdjustmentSubtable::readJson(const ParameterJsonObject& json) {
     }
   }
 }
+
+ValueRecord SingleAdjustmentSubtable::getValue(std::uint16_t glyphCode, GlyphVis* glyph) {
+  if (const auto found = functions.find(glyphCode); found != functions.end())
+    return found->second(glyph ? glyph : m_layout->getGlyph(glyphCode));
+  return singlePos.at(glyphCode);
+}
+
+void SingleAdjustmentSubtable::getSingleValue(hb_cursive_anchor_context_t* context) {
+  if (!functions.contains(context->glyph_id)) return;
+  const auto params = m_layout->glyphParameters(context->glyph_id, context->instance_id);
+  const auto record = getValue(context->glyph_id, m_layout->getAlternate(context->glyph_id, params));
+  const auto parameter = parameters.find(context->glyph_id);
+  const ValueRecord adjustment = parameter == parameters.end() ? ValueRecord{} : parameter->second;
+  const std::int16_t fields[] = {
+      static_cast<std::int16_t>(record.xPlacement + adjustment.xPlacement),
+      static_cast<std::int16_t>(record.yPlacement + adjustment.yPlacement),
+      static_cast<std::int16_t>(record.xAdvance + adjustment.xAdvance),
+      record.yAdvance};
+  auto* bytes = static_cast<std::uint8_t*>(context->data);
+  for (unsigned i = 0; i < 4; ++i) {
+    if (!(context->value_format & (1u << i))) continue;
+    const auto value = static_cast<std::uint16_t>(fields[i]);
+    *bytes++ = static_cast<std::uint8_t>(value >> 8);
+    *bytes++ = static_cast<std::uint8_t>(value);
+  }
+}
+
 digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extended) {
   digitalkhatt::ByteBuffer root;
   digitalkhatt::ByteBuffer coverage;
@@ -876,12 +904,14 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
   } else {
     valueFormat = 0x7;
   }
+  // Function results may use any of the four positioning fields at runtime.
+  if (!functions.empty()) valueFormat |= 0x8;
 
   coverage << (std::uint16_t)1;
   coverage << (std::uint16_t)glyphCount;
 
   for (const auto& [glyphCode, initialRecord] : singlePos) {
-    ValueRecord record = initialRecord;
+    ValueRecord record = getValue(glyphCode);
     auto originalCode = glyphCode;
 
     if (!extended) {
@@ -894,7 +924,8 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
       record = {(std::int16_t)(record.xPlacement + par.xPlacement), (std::int16_t)(record.yPlacement + par.yPlacement), (std::int16_t)(record.xAdvance + par.xAdvance), record.yAdvance};
     }
 
-    valueRecords << record.xPlacement << record.yPlacement << record.xAdvance;  // << record.yAdvance;
+    valueRecords << record.xPlacement << record.yPlacement << record.xAdvance;
+    if (valueFormat & 0x8) valueRecords << record.yAdvance;
 
     if (isOTVar) {
       auto glyphName = m_layout->glyphNamePerCode[originalCode];
@@ -903,7 +934,7 @@ digitalkhatt::ByteBuffer SingleAdjustmentSubtable::getOpenTypeTable(bool extende
       int regionIndexesArrayIndex = regionIndexes.second;
       auto glyphParamertersArray = regionIndexes.first;
 
-      if (glyphParamertersArray.size() != 0) {
+      if (glyphParamertersArray.size() != 0 && !functions.contains(glyphCode)) {
         DefaultDelta delatX;
         DefaultDelta delatY;
         DefaultDelta delatXadvance;
@@ -1001,6 +1032,9 @@ SingleAdjustmentSubtable::getOpenTypeTables(bool extended) {
         chunk.name = name;
         chunk.singlePos = values;
         chunk.parameters = parameters;
+        for (const auto& [glyph, record] : values)
+          if (const auto found = functions.find(glyph); found != functions.end())
+            chunk.functions.emplace(*found);
         return chunk.getOpenTypeTable(extended);
       },
       "SinglePos " + m_lookup->name + "/" + name);
@@ -2070,41 +2104,41 @@ void MarkBaseSubtable::readParameters(const ParameterJsonObject& json) {
     readPoints("markparameters", newclass.markparameters);
   }
 }
+std::optional<Point> MarkBaseSubtable::glyphAnchor(const GlyphVis& glyph,
+    const std::string& className, std::string_view role) const {
+  const auto find = [&glyph](const std::string& anchorName) -> std::optional<Point> {
+    if (glyph.conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor))
+      return glyph.getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
+    return std::nullopt;
+  };
+  // Explicit incoming groups do not participate in recipient resolution.
+  // Legacy precedence is unchanged for glyphs without these names.
+  if (role == "mark") {
+    if (const auto anchor = find(m_lookup->name + "_" + className + "_mark")) return anchor;
+    if (const auto anchor = find(className + "_mark")) return anchor;
+  }
+  // Construct more-specific fallback names only when the common names miss.
+  if (const auto anchor = find(m_lookup->name + "_" + className)) return anchor;
+  if (const auto anchor = find(className)) return anchor;
+  if (const auto anchor = find(m_lookup->name)) return anchor;
+  return find(m_lookup->name + "_" + name + "_" + className + "_" + std::string(role));
+}
+
 Point MarkBaseSubtable::getBaseAnchor(std::string baseGlyphName, std::string className, GlyphParameters parameters) {
-  Point coordinate;
-
   auto& markClass = classes[className];
-
-  if (markClass.baseparameters.contains(baseGlyphName)) {
+  Point coordinate;
+  if (markClass.baseparameters.contains(baseGlyphName))
     coordinate = markClass.baseparameters[baseGlyphName];
+  auto* curr = m_layout->glyphs.at(baseGlyphName).getAlternate(parameters);
+  if (const auto anchor = glyphAnchor(*curr, className, "base")) {
+    coordinate += *anchor;
+  } else if (const auto anchor = m_layout->getAnchor(*curr, *this, className, parameters)) {
+    coordinate += *anchor;
+  } else if (markClass.basefunction) {
+    coordinate = markClass.basefunction(baseGlyphName, className, coordinate, parameters);
+  } else if (markClass.baseanchors.contains(baseGlyphName)) {
+    coordinate += markClass.baseanchors[baseGlyphName];
   }
-
-  GlyphVis* curr = &m_layout->glyphs[baseGlyphName];
-
-  curr = curr->getAlternate(parameters);
-
-  if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
-    coordinate += curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor);
-  } else {
-    const std::string anchorName = m_lookup->name + "_" + className;
-    if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
-      coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
-    } else {
-      const std::string anchorName = m_lookup->name;
-      if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
-        coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
-      } else if (const auto anchor = m_layout->getAnchor(*curr, *this, className, parameters)) {
-        // Use the font-resolved group anchor when available.
-        // Otherwise continue to the existing base-anchor fallback.
-        coordinate += *anchor;
-      } else if (markClass.basefunction) {
-        coordinate = markClass.basefunction(baseGlyphName, className, coordinate, parameters);
-      } else if (markClass.baseanchors.contains(baseGlyphName)) {
-        coordinate += markClass.baseanchors[baseGlyphName];
-      }
-    }
-  }
-
   return coordinate;
 }
 
@@ -2118,36 +2152,20 @@ optional<Point> MarkBaseSubtable::getBaseAnchor(std::uint16_t mark_id, std::uint
   return getBaseAnchor(baseGlyphName, className, parameters);
 }
 Point MarkBaseSubtable::getMarkAnchor(std::string markGlyphName, std::string className, GlyphParameters parameters) {
+  auto& markClass = classes[className];
   Point coordinate;
-
-  auto markClass = classes[className];
-
-  if (markClass.markparameters.contains(markGlyphName)) {
+  if (markClass.markparameters.contains(markGlyphName))
     coordinate = markClass.markparameters[markGlyphName];
+  auto* curr = m_layout->glyphs.at(markGlyphName).getAlternate(parameters);
+  if (const auto anchor = glyphAnchor(*curr, className, "mark")) {
+    coordinate += *anchor;
+  } else if (const auto anchor = m_layout->getMarkAnchor(*curr, *this, className, parameters)) {
+    coordinate += *anchor;
+  } else if (markClass.markfunction) {
+    coordinate = markClass.markfunction(markGlyphName, className, coordinate, parameters);
+  } else if (markClass.markanchors.contains(markGlyphName)) {
+    coordinate += markClass.markanchors[markGlyphName];
   }
-
-  GlyphVis* curr = &m_layout->glyphs[markGlyphName];
-
-  curr = curr->getAlternate(parameters);
-
-  if (curr->conatinsAnchor(className, GlyphVis::AnchorType::MarkAnchor)) {
-    coordinate += curr->getAnchor(className, GlyphVis::AnchorType::MarkAnchor);
-  } else {
-    const std::string anchorName = m_lookup->name + "_" + className;
-    if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
-      coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
-    } else {
-      const std::string anchorName = m_lookup->name;
-      if (curr->conatinsAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor)) {
-        coordinate += curr->getAnchor(anchorName, GlyphVis::AnchorType::MarkAnchor);
-      } else if (markClass.markfunction != nullptr) {
-        coordinate = markClass.markfunction(markGlyphName, className, coordinate, parameters);
-      } else if (markClass.markanchors.contains(markGlyphName)) {
-        coordinate += markClass.markanchors[markGlyphName];
-      }
-    }
-  }
-
   return coordinate;
 }
 optional<Point> MarkBaseSubtable::getMarkAnchor(std::uint16_t mark_id, std::uint16_t base_id, GlyphParameters parameters) {

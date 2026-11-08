@@ -17,6 +17,12 @@ Other configured native builds can build the same target with
 `cmake --build BUILD_DIR --config Release --target digitalkhatt_compare_layout_rendering`.
 The tool links the shared `digitalkhatt::otlayout` library and Qt Core/Gui/Svg.
 
+Glyph sources follow the project's ordered `font-project.json` `glyphFiles`
+manifest, with `glyphs.mp` as the legacy fallback. Parsing and registration use
+the same Qt-free loader as the GUI and other native tools. The report records
+all source paths and hashes in `inputs.glyphSourceFiles`; the previous
+`inputs.glyphSources` object is retained for single-file projects.
+
 ## Reproduce the first Basmala's broken join
 
 ```sh

@@ -36,6 +36,7 @@ public:
 	//void drawBackground(QPainter *painter, const QRectF &rect) Q_DECL_OVERRIDE;
 	void setGlyph(Glyph * glyph);	
 	GlyphScene * getScene();
+  void setPictureName(const QString& name);
 	
 	
 
@@ -52,8 +53,10 @@ protected:
 
 private:
 	
-	GlyphScene * glyphscene;
+	GlyphScene * glyphscene = nullptr;
 	Glyph *m_glyph;
+  struct Camera { QTransform transform; QPointF center; };
+  QMap<QString,Camera> pictureCameras_;
 
 
 	

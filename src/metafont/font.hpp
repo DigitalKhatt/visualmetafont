@@ -30,10 +30,13 @@
 #include <string_view>
 
 #include "MPFont.h"
+#include "projectmetadata.hpp"
+#include "glyphsourcedocument.hpp"
 
 struct MPGlyphInfo {
   mp_edge_object* currentPicture = nullptr;
   QMap<QString, mp_edge_object*> controlledPictures;
+  QMap<QString, mp_edge_object*> controlledPictureSources;
 };
 
 class GlyphVis;
@@ -50,7 +53,18 @@ class Font : public QObject {
   ~Font();
   bool loadFile(const QString& fileName);
   bool saveFile();
+  bool hasSourceChanges();
+  bool glyphHasSourceChanges(Glyph* glyph) const;
   bool saveUnicodes();
+  ProjectMetadata project;
+  QString projectError;
+  bool saveProjectMetadata();
+  QStringList glyphSourceFiles() const;
+  QString glyphSourceFile(const Glyph* glyph) const;
+  bool createGlyphFile(const QString& relativePath);
+  Glyph* createGlyph(const QString& name, int unicode, const QString& sourceFile);
+  bool removeGlyph(Glyph* glyph);
+  bool moveGlyphs(const QVector<Glyph*>& selected, const QString& sourceFile);
   QVector<Glyph*> glyphs;
   QHash<QString, Glyph*> glyphperName;
   QString filePath();
@@ -59,6 +73,8 @@ class Font : public QObject {
   double lineHeight();
   double getNumericVariable(QString name);
   double getInternalNumericVariable(QString name);
+  bool anchorsVisible() const { return anchorsVisible_; }
+  void setAnchorsVisible(bool visible);
   bool getPairVariable(QString name, QPointF& point);
   bool getBoolVariable(QString name);
   Glyph* getGlyph(uint code);
@@ -83,7 +99,18 @@ class Font : public QObject {
 
   QVector<QString> pictureNames;
 
+ signals:
+  void anchorsVisibilityChanged(bool visible);
+  void sourcesSaved();
+
  private:
+  void synchronizeAnchorVisibility();
+  bool anchorsVisible_ = false;
+  struct SourceFile { QString path; GlyphSourceDocument document; };
+  struct GlyphOrigin { int file = -1, block = -1; QString canonical, target; };
+  QVector<SourceFile> sourceFiles_;
+  QHash<const Glyph*, GlyphOrigin> glyphOrigins_;
+  void orderGlyphsBySource();
   void synchronizeGlyphSources();
   QString m_path;
   QString m_fontName;

@@ -210,6 +210,8 @@ void LayoutWindow::setParameter(
     return;
   }
 
+  positioningExternalDirty_ = true;
+  setWindowModified(true);
   layoutParameterChanged();
 }
 
@@ -217,6 +219,7 @@ LayoutWindow::LayoutWindow(Font* font, QWidget* parent, Qt::WindowFlags flags)
     : QMainWindow(parent, flags) {
   setAttribute(Qt::WA_DeleteOnClose);
   this->m_font = font;
+  setWindowTitle(tr("Positioning[*]"));
 
   m_graphicsView = new GraphicsViewAdjustment(isDark, this);
   m_graphicsView->setDragMode(QGraphicsView::RubberBandDrag);
@@ -1295,12 +1298,6 @@ bool LayoutWindow::save() {
   auto parametersFileName =
       QDir(m_font->currentDir()).filePath("parameters.json");
 
-  QFile file(parametersFileName);
-  if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-    QApplication::restoreOverrideCursor();
-    return false;
-  }
-
   ParameterJsonObject parametersObject;
   m_otlayout->saveParameters(parametersObject);
   std::string buffer;
@@ -1308,10 +1305,18 @@ bool LayoutWindow::save() {
     QApplication::restoreOverrideCursor();
     return false;
   }
-  file.write(buffer.data(), static_cast<qint64>(buffer.size()));
+  QSaveFile file(parametersFileName);
+  if (!file.open(QIODevice::WriteOnly) ||
+      file.write(buffer.data(), static_cast<qint64>(buffer.size())) != static_cast<qint64>(buffer.size()) ||
+      !file.commit()) {
+    QApplication::restoreOverrideCursor();
+    return false;
+  }
 
   QApplication::restoreOverrideCursor();
   setWindowModified(false);
+  positioningExternalDirty_ = false;
+  if (lookupUndo_) lookupUndo_->setClean();
   return true;
 }
 
@@ -2364,6 +2369,8 @@ bool LayoutWindow::generateAllQuranTexBreaking() {
 }
 
 void LayoutWindow::loadLookupFile(QString fileName) {
+  emit positioningReloading();
+  if (lookupUndo_) lookupUndo_->clear();
   m_otlayout->loadLookupFile(fileName.toStdString());
   refreshJustificationPolicies();
 
@@ -2413,7 +2420,10 @@ void LayoutWindow::loadLookupFile(QString fileName) {
 
   lokkupTreeWidget->blockSignals(false);
 }
-void LayoutWindow::layoutParameterChanged() { executeRunText(true, 0); }
+void LayoutWindow::layoutParameterChanged() {
+  emit positioningParametersChanged();
+  executeRunText(true, 0);
+}
 void LayoutWindow::resizeEvent(QResizeEvent* event) {
   this->resizeDocks({lookupTree, textRun},
                     {this->width() / 4, this->width() / 3}, Qt::Horizontal);

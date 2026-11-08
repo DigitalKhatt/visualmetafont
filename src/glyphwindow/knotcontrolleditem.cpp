@@ -30,6 +30,7 @@
 #include "glyphscene.hpp"
 #include "qmessagebox.h"
 #include <commands.h>
+#include "sourcelinks.hpp"
 
 
 KnotControlledItem::KnotControlledItem(int numsubpath, int numpoint, mp_gr_knot knot, int numpointpath, Glyph* glyph, QGraphicsItem* parent)
@@ -94,6 +95,18 @@ KnotControlledItem::KnotControlledItem(int numsubpath, int numpoint, mp_gr_knot 
   }
 
 
+  if (m_isInControlledPath) {
+    const auto keys = [this](const QString& role, MFExpr* expression) {
+      auto result=QStringList{SourceLinks::pointKey(m_numsubpath,m_numpoint,role)};
+      if (expression) result+=SourceLinks::expressionKeys(expression->toString());
+      return result;
+    };
+    incurve->setData(SourceLinks::KeysRole,keys("point",m_glyphknot->expr.get()));
+    const auto& leftValue=m_glyphknot->leftValue;
+    const auto& rightValue=m_glyphknot->rightValue;
+    if (left) left->setData(SourceLinks::KeysRole,keys("left",leftValue.dirExpr ? leftValue.dirExpr.get() : leftValue.tensionExpr.get()));
+    if (right) right->setData(SourceLinks::KeysRole,keys("right",rightValue.dirExpr ? rightValue.dirExpr.get() : rightValue.tensionExpr.get()));
+  }
   setPositions(knot);
 
 }

@@ -48,6 +48,7 @@ class QtAxisFactory : public QtAbstractEditorFactory<QtDoublePropertyManager>
 public:
     QtAxisFactory(QObject *parent = 0);
     ~QtAxisFactory();
+    void setDefaultValue(QtProperty *property, double value);
 protected:
     void connectPropertyManager(QtDoublePropertyManager *manager);
     QWidget *createEditor(QtDoublePropertyManager *manager, QtProperty *property,

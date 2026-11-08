@@ -74,7 +74,8 @@ class MdiChild : public QGraphicsView {
   QString currentFile() { return curFile; }
   void refresh();
 
-  Font* font;
+  Font* font = nullptr;
+  int filterGlyphs(const QStringList& groups, const QString& query, const QString& sourceFile = {});
 
  signals:
   void glyphActivated(Glyph* item);
@@ -97,6 +98,9 @@ class MdiChild : public QGraphicsView {
   void setCurrentFile(const QString& fileName);
   QString strippedName(const QString& fullFileName);
 
+  QStringList filterGroups;
+  QString filterQuery;
+  QString filterSourceFile;
   QString curFile;
   bool isUntitled;
   FontScene* fontscene;

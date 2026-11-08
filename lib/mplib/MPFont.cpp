@@ -25,6 +25,8 @@ void MPFont::clear() {
       mp_gr_toss_objects_extended(info.currentPicture);
       for (auto& [name, picture] : info.controlledPictures)
         if (picture) mp_gr_toss_objects_extended(picture);
+      for (auto& [name, picture] : info.controlledPictureSources)
+        if (picture) mp_gr_toss_objects_extended(picture);
     }
     mp_finish(mp_);
     mp_ = nullptr;
@@ -130,23 +132,28 @@ MPFontGlyphInfo MPFont::glyphInfo(int code) const {
 void MPFont::shipout(void* value) {
   auto* edge = convert_to_edge(mp_, value);
   if (!edge) return;
-  MPFontGlyphInfo info{edge, {}};
-  for (const auto& name : controlledPictureNames_) {
-    mp_edge_object* picture = nullptr;
-    if (getMPPictureVariable(mp_, name.c_str(), &picture))
-      info.controlledPictures.emplace(name, picture);
-  }
-  auto [it, inserted] = edges_.try_emplace(edge->charcode, std::move(info));
+  auto [it, inserted] = edges_.try_emplace(edge->charcode);
   if (!inserted) {
     mp_gr_toss_objects_extended(it->second.currentPicture);
     for (auto& [name, picture] : it->second.controlledPictures)
       if (picture) mp_gr_toss_objects_extended(picture);
-    it->second = MPFontGlyphInfo{edge, {}};
-    for (const auto& name : controlledPictureNames_) {
-      mp_edge_object* picture = nullptr;
-      if (getMPPictureVariable(mp_, name.c_str(), &picture))
-        it->second.controlledPictures.emplace(name, picture);
-    }
+    for (auto& [name, picture] : it->second.controlledPictureSources)
+      if (picture) mp_gr_toss_objects_extended(picture);
+  }
+  it->second = MPFontGlyphInfo{edge, {}, {}};
+  auto& info=it->second;
+  for (const auto& name : controlledPictureNames_) {
+    mp_edge_object* picture = nullptr;
+    if (getMPPictureVariable(mp_, name.c_str(), &picture))
+      info.controlledPictures.emplace(name, picture);
+    picture=nullptr;
+    if (getMPPictureVariable(mp_, (name+".vmfSourceCapture").c_str(), &picture))
+      info.controlledPictureSources.emplace(name,picture);
+  }
+  if (!controlledPictureNames_.empty()) {
+    mp_edge_object* picture=nullptr;
+    if (getMPPictureVariable(mp_,"vmfFinalSourceCapture",&picture))
+      info.controlledPictureSources.emplace("",picture);
   }
 }
 

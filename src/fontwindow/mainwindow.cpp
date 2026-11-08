@@ -54,6 +54,7 @@
 
 #include "LayoutWindow.h"
 #include "mdichild.h"
+#include "projectpanel.hpp"
 
 MainWindow::MainWindow()
     : mdiArea(new QMdiArea) {
@@ -65,7 +66,18 @@ MainWindow::MainWindow()
   connect(mdiArea, &QMdiArea::subWindowActivated,
           this, &MainWindow::updateMenus);
 
+  projectDock = new QDockWidget(tr("Project"), this);
+  projectDock->setObjectName("fontProjectDock");
+  projectDock->setMinimumWidth(240);
+  addDockWidget(Qt::LeftDockWidgetArea, projectDock);
+  connect(mdiArea, &QMdiArea::subWindowActivated, this, [this] {
+    if (auto* old = projectDock->widget()) { projectDock->setWidget(nullptr); delete old; }
+    if (auto* child = activeMdiChild(); child && child->font && child->scene())
+      projectDock->setWidget(new ProjectPanel(child, projectDock));
+  });
+
   createActions();
+  menuBar()->addMenu(tr("View"))->addAction(projectDock->toggleViewAction());
   createStatusBar();
   updateMenus();
 

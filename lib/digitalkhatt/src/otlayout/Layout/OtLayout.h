@@ -148,6 +148,7 @@ struct ValueRecord {
 using CalcAnchor = std::function<Point(std::string, std::string, Point, GlyphParameters)>;
 using CursiveAnchorFunc = std::function<Point(bool, GlyphVis*, GlyphVis*)>;
 using PairAdjustFunc = std::function<ValueRecord(GlyphVis*, GlyphVis*)>;
+using SingleAdjustFunc = std::function<ValueRecord(GlyphVis*)>;
 
 class AnchorCalc {
  public:
@@ -274,6 +275,7 @@ class OtLayout {
   CalcAnchor getanchorCalcFunctions(const std::string& functionName, Subtable* subtable);
   CursiveAnchorFunc getCursiveFunctions(const std::string& functionName, Subtable* subtable);
   PairAdjustFunc getPairAdjustFunction(std::string functionName, Subtable* subtable);
+  SingleAdjustFunc getSingleAdjustFunction(std::string functionName, Subtable* subtable);
 
   std::unordered_map<std::string, GlyphVis> glyphs;
 
@@ -343,7 +345,9 @@ class OtLayout {
 
   bool parseCppLookup(const std::string& lookupName);
   void prepareAnchorResolution();
+  const auto& positioningFeatures() const { return allGposFeatures; }
   std::optional<Point> getAnchor(const GlyphVis& glyph, const MarkBaseSubtable& subtable, std::string_view className, const GlyphParameters& parameters) const;
+  std::optional<Point> getMarkAnchor(const GlyphVis& glyph, const MarkBaseSubtable& subtable, std::string_view className, const GlyphParameters& parameters) const;
 
   digitalkhatt::ByteBuffer getCmap();
   mp_graphic_object* copyEdgeBody(mp_graphic_object* source) const;

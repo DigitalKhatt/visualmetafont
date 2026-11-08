@@ -48,7 +48,7 @@ private slots:
 private:	
 	void addProperties();
 
-	Glyph* m_glyph;
+	Glyph* m_glyph = nullptr;
 
 	
 	

@@ -42,8 +42,6 @@ public:
 
 	enum class ItemFlags {
 		None = 0,
-		ImageEnabled = 1,
-		ImageVisible = 2,
 		Fill = 4
 	};
 
@@ -53,9 +51,45 @@ public:
 	QLabel* pointerPosition;
 	void setGlyph(Glyph* glyph);
 
-	void setImageVisible(bool  visible);
-	void setImageEnable(bool  enable);
+  static QString imageLayerName() { return QStringLiteral("@image"); }
+  bool hasImage() const;
 	void setFillEnable(bool  enable);
+  void layoutAnchorLabels();
+  struct AnchorInfo {
+    QString key, name;
+    int type;
+    QPointF point;
+    QStringList layers;
+  };
+  QVector<AnchorInfo> anchorInfos() const;
+  bool anchorVisible(const QString& key) const { return !hiddenAnchors_.contains(key); }
+  void setAnchorVisible(const QString& key, bool visible);
+  void showAllAnchors(bool visible);
+  void showOnlyAnchor(const QString& key);
+  int anchorLabelMode() const { return anchorLabelMode_; }
+  void setAnchorLabelMode(int mode);
+  QString highlightedAnchor() const { return selectedAnchorKey_; }
+  void focusAnchor(const QString& key);
+
+  void highlightSourceKeys(const QStringList& keys);
+  bool isRebuilding() const { return rebuilding_; }
+  QString pictureName() const;
+  QStringList pictureNames() const;
+  bool pictureHasEditablePaths() const;
+  void setPictureName(const QString& name);
+  bool layerVisible(const QString& name) const;
+  bool layerLocked(const QString& name) const;
+  void setLayerVisible(const QString& name, bool visible);
+  void setLayerLocked(const QString& name, bool locked);
+  bool finalPositions() const { return finalPositions_; }
+  void setFinalPositions(bool enabled);
+
+ signals:
+  void picturesChanged();
+  void anchorsChanged();
+  void anchorSelectionChanged(QString key);
+
+ public:
 
 	QSet<int> currentPressdKeys;
 
@@ -115,6 +149,26 @@ private slots:
 	void glyphValueChanged(QString name, bool structureChanged);
 	void selectionChangedSlot();
 private:
+  bool rebuilding_ = false;
+  QSet<QString> hiddenAnchors_;
+  QString selectedAnchorKey_;
+  int anchorLabelMode_ = 0;
+  void applyAnchorDisplay();
+  QStringList highlightedSourceKeys_;
+  // View state belongs to this editor, never to the glyph source or export.
+  struct LayerState { bool visible = true; bool locked = false; };
+  QMap<QString, LayerState> layers_;
+  QMap<QString, ContourItem*> layerContours_;
+  QMap<QString, QGraphicsPathItem*> referenceItems_;
+  static constexpr qreal referenceOpacity_ = 0.25;
+  bool finalPositions_ = true;
+  void refreshReferences();
+  bool activeLayerEditable() const;
+  QString itemLayerName(const QGraphicsItem* item) const;
+  bool itemLayerEditable(const QGraphicsItem* item) const;
+  void clearLayerSelection(const QString& name);
+  void updatePictureDecorations();
+  void selectSourcePoint(int path,int point);
 
 	void addPointAfterPoint(KnotControlledItem* point, QPointF newpoint, QString dir);
 	void deletePoint(KnotControlledItem* point);

@@ -1,3 +1,4 @@
+#include "digitalkhatt/project/GlyphSources.h"
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -159,22 +160,7 @@ std::string checksum(const fs::path& path) {
 void initializeFont(MPFont& font, const fs::path& project, const fs::path& resources) {
   font.initialize("MPGUI:=1;" + readFile(resources/"mfplain.mp") + readFile(resources/"mpost.mp") +
       readFile(resources/"vmf.mp") + readFile(project), project);
-  const auto glyphs=readFile(project.parent_path()/"glyphs.mp");
-  size_t pos=0, count=0;
-  while (pos<glyphs.size()) {
-    const auto begin=glyphs.find("beginchar",pos), def=glyphs.find("defchar",pos);
-    const bool isDef=def!=std::string::npos && (begin==std::string::npos || def<begin);
-    const auto start=isDef?def:begin; if (start==std::string::npos) break;
-    const std::string endMarker=isDef?"enddefchar;":"endchar;";
-    const auto end=glyphs.find(endMarker,start);
-    if (end==std::string::npos) throw std::runtime_error("Unterminated glyph definition");
-    const auto block=glyphs.substr(start,end+endMarker.size()-start);
-    const auto paren=block.find('('), comma1=block.find(',',paren), comma2=block.find(',',comma1+1);
-    if (paren==std::string::npos || comma1==std::string::npos || comma2==std::string::npos) throw std::runtime_error("Invalid glyph header");
-    font.registerGlyphSource(block.substr(paren+1,comma1-paren-1),block,isDef?"defchar":"beginchar",std::stoi(block.substr(comma1+1,comma2-comma1-1)));
-    font.execute("params[0]:=0;params[1]:=0;params[2]:=0;params[3]:=0;params[4]:=0;"+block);
-    ++count; pos=end+endMarker.size();
-  }
+  const auto count = digitalkhatt::project::ProjectGlyphSources::load(project).registerWith(font);
   if (!count) throw std::runtime_error("No glyph sources registered");
   std::cout << "Registered " << count << " glyph sources\n";
 }
@@ -594,8 +580,11 @@ int main(int argc,char** argv) {
     const auto sidecar=[&](std::string_view suffix) { return output.parent_path()/(output.stem().string()+std::string(suffix)); };
     writeJson(options,sidecar(".settings.json")); if (!extraConfig.empty()) writeJson(options,extraConfig);
     RunManifest manifest; manifest.options=options;
-    for (const auto& path:{project,project.parent_path()/"glyphs.mp",fs::path(options.features),project.parent_path()/"parameters.json",fs::path(options.database)})
+    for (const auto& path:{project,fs::path(options.features),project.parent_path()/"parameters.json",fs::path(options.database)})
       if (fs::is_regular_file(path)) manifest.sources[path.string()]=checksum(path);
+    const auto glyphSources = digitalkhatt::project::ProjectGlyphSources::load(project);
+    for (const auto& file : glyphSources.files) manifest.sources[file.path.string()] = checksum(file.path);
+    if (glyphSources.metadataPath) manifest.sources[glyphSources.metadataPath->string()] = checksum(*glyphSources.metadataPath);
     for (const auto& entry : fs::directory_iterator(project.parent_path())) {
       const auto extension = entry.path().extension().string();
       if (entry.is_regular_file() && (extension==".mp" || extension==".fea" || extension==".json" ||

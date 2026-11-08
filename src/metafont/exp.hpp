@@ -5,6 +5,7 @@
 #include "qsharedpointer.h"
 #include "qvariant.h"
 #include "qpoint.h"
+#include "metapostnumber.hpp"
 
 enum class  Oper {
   ADD
@@ -50,7 +51,7 @@ class LitNumber :public Exp {
     LitNumber(double v) :val(v) { }
 
     QString toString() override {
-      return QString("%1").arg(val);
+      return metapostNumber(val);
     }
 
     QVariant constantValue() override {
@@ -81,7 +82,7 @@ class DirNumber :public Exp {
     DirNumber(double v) :val(v) { }
 
     QString toString() override {
-      return QString("dir %1").arg(val);
+      return QString("dir %1").arg(metapostNumber(val));
     }
 
     QVariant constantValue() override {
@@ -112,7 +113,7 @@ class LitPoint :public Exp {
     LitPoint(QPointF v) :val(v) { }
 
     QString toString() override {
-      return QString("(%1,%2)").arg(val.x()).arg(val.y());
+      return QString("(%1,%2)").arg(metapostNumber(val.x())).arg(metapostNumber(val.y()));
     }
 
     QVariant constantValue() override {

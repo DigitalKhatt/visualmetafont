@@ -14,8 +14,8 @@ class PathView : public QWidget
 public:
   explicit PathView(Glyph* glyph, QWidget* parent = nullptr);
 
-  //QSize minimumSizeHint() const override;
-  //QSize sizeHint() const override;
+  QSize minimumSizeHint() const override;
+  QSize sizeHint() const override;
 
 public slots:    
   void glyphChanged(QString name);

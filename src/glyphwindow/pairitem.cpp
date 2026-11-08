@@ -24,6 +24,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QPainter>
 #include <QStyleOption>
+#include "sourcelinks.hpp"
 
 PairItem::PairItem(Glyph::Param& param, Glyph* glyph, QGraphicsItem* parent) :QGraphicsItem(parent), param{ param } {
   this->glyph = glyph;  
@@ -31,6 +32,7 @@ PairItem::PairItem(Glyph::Param& param, Glyph* glyph, QGraphicsItem* parent) :QG
   setCacheMode(DeviceCoordinateCache);
 
   setToolTip(param.name);
+  setData(SourceLinks::KeysRole, QStringList{SourceLinks::parameterKey(param.name)});
 
 
   QColor col = QColor(4, 100, 166);
@@ -73,10 +75,26 @@ QRectF PairItem::boundingRect() const
 QPainterPath PairItem::shape() const
 {
   QPainterPath path;
-
-  path.addEllipse(boundingRect());
+  const auto rect = boundingRect();
+  if (anchorParameter) {
+    path.moveTo(rect.center().x(), rect.top());
+    path.lineTo(rect.right(), rect.center().y());
+    path.lineTo(rect.center().x(), rect.bottom());
+    path.lineTo(rect.left(), rect.center().y());
+    path.closeSubpath();
+  } else {
+    path.addEllipse(rect);
+  }
 
   return path;
+}
+void PairItem::setAnchorParameter(bool anchor) {
+  if (anchorParameter == anchor) return;
+  anchorParameter = anchor;
+  pen.setColor(anchor ? QColor(155, 55, 145) : QColor(4, 100, 166));
+  brush = anchor ? QBrush(QColor(248, 225, 245)) : QBrush(Qt::white);
+  setToolTip(anchor ? QObject::tr("Anchor parameter: %1").arg(param.name) : param.name);
+  update();
 }
 void PairItem::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
 {
@@ -109,7 +127,14 @@ void PairItem::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
 void PairItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget*)
 {
 
-  if (isSelected()) {
+  if (data(SourceLinks::HighlightRole).toBool()) {
+    painter->setBrush(QColor(255,193,70));
+    auto linkedPen = this->pen;
+    linkedPen.setColor(QColor(170,85,0));
+    linkedPen.setWidthF(2.5);
+    painter->setPen(linkedPen);
+  }
+  else if (isSelected()) {
     painter->setBrush(this->pen.color());
     painter->setPen(this->pen);
   }
@@ -125,7 +150,7 @@ void PairItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, 
 
   }
 
-  painter->drawEllipse(boundingRect());
+  painter->drawPath(shape());
 
   /*
   if (!isSelected()) {
