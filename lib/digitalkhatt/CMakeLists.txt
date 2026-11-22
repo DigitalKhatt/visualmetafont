@@ -248,6 +248,7 @@ if (EMSCRIPTEN)
 endif()
 
 add_library(digitalkhatt_otlayout ${DIGITALKHATT_OTLAYOUT_LIB_TYPE}
+  src/project/FontProfile.cpp
   src/project/GlyphSources.cpp
   src/otlayout/automedina/automedina.cpp
   src/otlayout/FeaParser/driver.cpp

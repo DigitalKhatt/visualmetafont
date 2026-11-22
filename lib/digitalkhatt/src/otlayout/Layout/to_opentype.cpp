@@ -99,31 +99,33 @@ ToOpenType::ToOpenType(OtLayout* layout) : ot_layout{layout} {
   setAxes();
 }
 void ToOpenType::setAxes() {
-  uniformAxis = ot_layout->isOTVar;
+  exportAxes.clear();
+  axisNameIds.clear();
   regions.clear();
   glyphParametersByRegion.clear();
   GDEFDeltaSets.clear();
   regionIndexesIndexByGlyph.clear();
 
-  if (!ot_layout->isOTVar) {
-    axisCount = 0;
-    isComponentsEnabled = false;
-    return;
+  if (ot_layout->isOTVar) {
+    const auto& projectAxes = ot_layout->font->axes();
+    const bool portable = ot_layout->font->boolVariable("isPortableProfile");
+    for (std::size_t i = 0; i < projectAxes.size(); ++i) {
+      if (portable && ot_layout->font->boolVariable("axes " + std::to_string(i) + " justificationOnly"))
+        continue;
+      exportAxes.push_back(&projectAxes[i]);
+    }
+    // Use static layout serialization when the profile filters out every axis.
+    if (portable && exportAxes.empty())
+      ot_layout->isOTVar = false;
   }
 
-  const auto& axes = ot_layout->font->axes();
+  uniformAxis = ot_layout->isOTVar;
+  axisCount = exportAxes.size();
+  isComponentsEnabled = false;
+  if (axisCount == 0) return;
 
-  this->axisCount = axes.size();
-
-  if (axisCount == 0) {
-    isComponentsEnabled = false;
-    return;
-  }
-
-  int axisNameId = this->AxisNameId;
-  for (auto axis : axes) {
-    axisNameIds.push_back(axisNameId++);
-  }
+  for (int i = 0; i < axisCount; ++i)
+    axisNameIds.push_back(AxisNameId + i);
 
   auto getVariationRegion = [&regions = regions, axisCount = this->axisCount](unsigned int axisIndex, RegionAxisCoordinate coordinate) {
     VariationRegion region;
@@ -138,10 +140,9 @@ void ToOpenType::setAxes() {
     return region;
   };
 
-  auto getAxisIndex = [&axes = axes](std::string_view axisName) {
-    for (int i = 0; i < axes.size(); i++) {
-      auto& axis = axes[i];
-      if (axis.name == axisName) {
+  auto getAxisIndex = [this](std::string_view axisName) {
+    for (int i = 0; i < axisCount; i++) {
+      if (exportAxes[i]->name == axisName) {
         return i;
       }
     }
@@ -185,7 +186,7 @@ void ToOpenType::setAxes() {
       if (ff != ot_layout->expandableGlyphs.end()) {
         auto& limits = ff->second;
         if (leftTatweelIndex != -1) {
-          auto& leftAxis = axes[leftTatweelIndex];
+          const auto& leftAxis = *exportAxes[leftTatweelIndex];
           if (limits.maxLeft != 0.0) {
             if (limits.maxLeft > leftAxis.maxValue) {
               throw new std::runtime_error("maxLeft exceeds axis Limit");
@@ -220,7 +221,7 @@ void ToOpenType::setAxes() {
           }
         }
         if (rightTatweelIndex != -1) {
-          auto& rightAxis = axes[rightTatweelIndex];
+          const auto& rightAxis = *exportAxes[rightTatweelIndex];
           if (limits.maxRight != 0.0) {
             if (limits.maxRight > limits.maxRight) {
               throw new std::runtime_error("maxRight exceeds axis Limit");
@@ -265,7 +266,7 @@ void ToOpenType::setAxes() {
         }
       }
       if (includeglyph) {
-        auto& scaleXAxis = axes[scaleXIndex];
+        const auto& scaleXAxis = *exportAxes[scaleXIndex];
         VariationRegion region = getVariationRegion(scaleXIndex, {0, getF2DOT14(1.0), getF2DOT14(1.0)});
         regionIndexes.push_back(getRegionIndex(region, {.scalex = scaleXAxis.maxValue}));
         region = getVariationRegion(scaleXIndex, {getF2DOT14(-1.0), getF2DOT14(-1.0), 0});
@@ -863,7 +864,7 @@ digitalkhatt::ByteBuffer ToOpenType::name() {
 
   for (int i = 0; i < axisCount; i++) {
     names.push_back(Name{static_cast<std::uint16_t>(axisNameIds[i]),
-                         ot_layout->font->axes()[i].name});
+                         exportAxes[i]->name});
   }
 
   digitalkhatt::ByteBuffer stringStorage;
@@ -1924,10 +1925,8 @@ digitalkhatt::ByteBuffer ToOpenType::fvar() {
   data << (uint16_t)0;                    // instanceCount
   data << (uint16_t)(axisCount * 4 + 4);  // instanceSize : axisCount * sizeof(Fixed) + 4
 
-  const auto& axes = ot_layout->font->axes();
-
   for (int i = 0; i < axisCount; i++) {
-    auto& axis = axes[i];
+    const auto& axis = *exportAxes[i];
     data << (uint32_t)axis.axisTag;
     data << getFixed(axis.minValue);      // minValue
     data << getFixed(axis.defaultValue);  // defaultValue
@@ -1956,10 +1955,8 @@ digitalkhatt::ByteBuffer ToOpenType::STAT() {
   data << (uint32_t)0;          // offsetToAxisValueOffsets
   data << (uint16_t)2;          // elidedFallbackNameID
 
-  const auto& axes = ot_layout->font->axes();
-
   for (int i = 0; i < axisCount; i++) {
-    auto& axis = axes[i];
+    const auto& axis = *exportAxes[i];
     data << (uint32_t)axis.axisTag;    // axisTag
     data << (uint16_t)axisNameIds[i];  // axisNameID
     data << (uint16_t)i;               // axisOrdering

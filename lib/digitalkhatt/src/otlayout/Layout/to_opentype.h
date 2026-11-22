@@ -32,6 +32,7 @@
 
 class OtLayout;
 class GlyphVis;
+struct MPAxis;
 struct mp_graphic_object;
 struct mp_fill_object;
 typedef struct mp_gr_knot_data* mp_gr_knot;
@@ -328,6 +329,7 @@ private:
 
   int axisCount = 0;
 
+  std::vector<const MPAxis*> exportAxes;
   std::vector<int> axisNameIds;
   bool isComponentsEnabled;
 };

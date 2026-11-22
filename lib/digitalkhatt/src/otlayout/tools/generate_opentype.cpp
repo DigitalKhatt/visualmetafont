@@ -1,3 +1,4 @@
+#include "digitalkhatt/project/FontProfile.h"
 #include "digitalkhatt/project/GlyphSources.h"
 #include <filesystem>
 #include <fstream>
@@ -12,6 +13,8 @@
 #include "MPFont.h"
 
 namespace fs = std::filesystem;
+using digitalkhatt::project::FontProfile;
+using digitalkhatt::project::ScopedFontProfile;
 
 namespace {
 
@@ -35,6 +38,7 @@ void usage(const char* program) {
          "  --resources DIR         Directory containing mfplain.mp, "
          "mpost.mp, vmf.mp\n"
          "  --glyphs PATH           Override glyph source file (default: project manifest)\n"
+         "  --profile PROFILE       justification or portable (default: project setting)\n"
          "  --extended              Generate the extended online-shaper font\n"
          "  --no-variable           Disable OpenType variable axes\n"
          "  --disable-lookup NAME   Disable a lookup; may be repeated\n"
@@ -51,6 +55,7 @@ int main(int argc, char** argv) {
     fs::path resourceDirectory{DIGITALKHATT_METAFONT_RESOURCES};
     std::string featuresFile{"features.fea"};
     std::vector<std::string> disabledLookups;
+    FontProfile profile = FontProfile::ProjectDefault;
     bool extended = false;
     bool variable = true;
 
@@ -73,6 +78,14 @@ int main(int argc, char** argv) {
         resourceDirectory = value(argument);
       } else if (argument == "--glyphs") {
         glyphsFile = value(argument);
+      } else if (argument == "--profile") {
+        const auto selected = value(argument);
+        if (selected == "justification")
+          profile = FontProfile::Justification;
+        else if (selected == "portable")
+          profile = FontProfile::Portable;
+        else
+          throw std::runtime_error("Unknown profile '" + selected + "' (expected justification or portable)");
       } else if (argument == "--disable-lookup") {
         disabledLookups.push_back(value(argument));
       } else if (argument == "--extended") {
@@ -94,11 +107,6 @@ int main(int argc, char** argv) {
     }
     projectFile = fs::absolute(projectFile);
     const auto projectDirectory = projectFile.parent_path();
-    if (outputFile.empty())
-      outputFile = projectDirectory / "output" /
-                   (projectFile.stem().string() + ".otf");
-    else
-      outputFile = fs::absolute(outputFile);
     if (!glyphsFile.empty()) glyphsFile = fs::absolute(glyphsFile);
 
     std::string source{"MPGUI:=1;"};
@@ -110,6 +118,13 @@ int main(int argc, char** argv) {
     MPFont font;
     std::cout << "Loading " << projectFile << '\n';
     font.initialize(std::move(source), projectFile);
+    const ScopedFontProfile profileOverride(font, profile);
+    if (outputFile.empty()) {
+      const auto suffix = font.stringVariable("fontProfile") == "portable" ? "-portable.otf" : ".otf";
+      outputFile = projectDirectory / "output" / (projectFile.stem().string() + suffix);
+    } else {
+      outputFile = fs::absolute(outputFile);
+    }
     const auto sources = digitalkhatt::project::ProjectGlyphSources::load(projectFile,
         glyphsFile.empty() ? std::nullopt : std::optional<fs::path>{glyphsFile});
     std::cout << "Registered " << sources.registerWith(font) << " glyph sources\n";

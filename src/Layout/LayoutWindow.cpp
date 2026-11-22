@@ -29,6 +29,7 @@
 
 #include "JustificationContext.h"
 #include "digitalkhatt/core/digitalkahtt_types.h"
+#include "digitalkhatt/project/FontProfile.h"
 #include "hb-ot-layout-gsub-table.hh"
 
 // #include "hb-font.hh"
@@ -46,6 +47,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <optional>
 #include <vector>
 
 #include "GlyphItem.h"
@@ -862,6 +864,23 @@ void LayoutWindow::updateWindowMenu() {
     });
   }
 }
+using digitalkhatt::project::FontProfile;
+using digitalkhatt::project::ScopedFontProfile;
+
+static std::optional<FontProfile> selectOpenTypeProfile(QWidget* parent, const MPFont& font) {
+  const auto current = font.stringVariable("fontProfile");
+  if (current.empty()) return FontProfile::ProjectDefault;
+
+  const QString portable = QObject::tr("Portable");
+  const QString justification = QObject::tr("Justification");
+  bool accepted = false;
+  const auto selected = QInputDialog::getItem(parent, QObject::tr("OpenType Export"),
+      QObject::tr("Profile"), {justification, portable}, current == "portable" ? 1 : 0,
+      false, &accepted);
+  if (!accepted) return std::nullopt;
+  return selected == portable ? FontProfile::Portable : FontProfile::Justification;
+}
+
 bool LayoutWindow::generateOpenTypeCff2Standard() {
   return generateOpenTypeCff2(false, true);
 }
@@ -872,14 +891,22 @@ bool LayoutWindow::generateOpenTypeCff2StandardWithoutVar() {
   return generateOpenTypeCff2(false, false);
 }
 bool LayoutWindow::generateOpenTypeCff2(bool extended,
-                                        bool generateVariableOpenType) {
-  auto path = m_font->filePath();
-  QFileInfo fileInfo = QFileInfo(path);
-  QString otfFileName =
-      fileInfo.path() + "/output/" + fileInfo.completeBaseName() + ".otf";
+                                       bool generateVariableOpenType) try {
+  auto& font = m_font->mpFont();
+  const auto profile = selectOpenTypeProfile(this, font);
+  if (!profile) return false;
+  const ScopedFontProfile profileOverride(font, *profile);
 
-  OtLayout layout =
-      OtLayout(&m_font->mpFont(), extended, extended ? true : generateVariableOpenType);
+  const QFileInfo fileInfo(m_font->filePath());
+  const QString outputDir = fileInfo.absolutePath() + "/output";
+  if (!QDir().mkpath(outputDir)) {
+    QMessageBox::warning(this, tr("OpenType Export"), tr("Could not create %1").arg(outputDir));
+    return false;
+  }
+  const auto outputStem = outputDir + "/" + fileInfo.completeBaseName()
+      + (*profile == FontProfile::Portable ? "-portable" : "");
+
+  OtLayout layout(&font, extended, extended || generateVariableOpenType);
   layout.setPageLayout(m_otlayout->pageLayout());
 
   // allFeatures is still empty here: GenerateFile parses the feature file
@@ -896,12 +923,10 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended,
 
   layout.toOpenType->isCff2 = true;
 
-  auto ret = layout.toOpenType->GenerateFile(otfFileName.toStdString());
+  if (!layout.toOpenType->GenerateFile((outputStem + ".otf").toStdString()))
+    return false;
 
-  QString fileName = fileInfo.absolutePath() + "/output/" +
-                     fileInfo.completeBaseName() + "_glyphnames.lua";
-
-  QFile file(fileName);
+  QFile file(outputStem + "_glyphnames.lua");
 
   if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return false;
 
@@ -918,10 +943,7 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended,
   file.close();
 
   // Lookup names
-  fileName = fileInfo.absolutePath() + "/output/" +
-             fileInfo.completeBaseName() + "_lookupnames.lua";
-
-  QFile file2(fileName);
+  QFile file2(outputStem + "_lookupnames.lua");
 
   if (!file2.open(QIODevice::WriteOnly | QIODevice::Text)) return false;
 
@@ -938,14 +960,15 @@ bool LayoutWindow::generateOpenTypeCff2(bool extended,
 
   file2.close();
 
-  saveFontInfo(layout);
+  saveFontInfo(layout, outputStem + "_info.json");
 
-  return ret;
+  return true;
+} catch (const std::exception& error) {
+  QMessageBox::warning(this, tr("OpenType Export"), QString::fromUtf8(error.what()));
+  return false;
 }
 
-void LayoutWindow::saveFontInfo(const OtLayout& layout) {
-  const QFileInfo fileInfo(m_font->filePath());
-  const QString fileName = fileInfo.path() + "/output/" + fileInfo.baseName() + "_info.json";
+void LayoutWindow::saveFontInfo(const OtLayout& layout, const QString& fileName) {
   QFile file(fileName);
   if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
 
@@ -1058,13 +1081,22 @@ void LayoutWindow::generateTestFile() {
 
   out << "\\end{document}";
 }
-bool LayoutWindow::generateOpenType() {
-  auto path = m_font->filePath();
-  QFileInfo fileInfo = QFileInfo(path);
-  QString otfFileName =
-      fileInfo.path() + "/output/" + fileInfo.completeBaseName() + "-cff1.otf";
+bool LayoutWindow::generateOpenType() try {
+  auto& font = m_font->mpFont();
+  const auto profile = selectOpenTypeProfile(this, font);
+  if (!profile) return false;
+  const ScopedFontProfile profileOverride(font, *profile);
 
-  OtLayout layout = OtLayout(&m_font->mpFont(), false, true);
+  const QFileInfo fileInfo(m_font->filePath());
+  const QString outputDir = fileInfo.absolutePath() + "/output";
+  if (!QDir().mkpath(outputDir)) {
+    QMessageBox::warning(this, tr("OpenType Export"), tr("Could not create %1").arg(outputDir));
+    return false;
+  }
+  const auto otfFileName = outputDir + "/" + fileInfo.completeBaseName()
+      + (*profile == FontProfile::Portable ? "-portable" : "") + "-cff1.otf";
+
+  OtLayout layout(&font, false, true);
   layout.setPageLayout(m_otlayout->pageLayout());
   layout.useNormAxisValues = true;
   layout.toOpenType->isCff2 = false;
@@ -1072,6 +1104,9 @@ bool LayoutWindow::generateOpenType() {
   layout.loadLookupFile("features.fea");
 
   return layout.toOpenType->GenerateFile(otfFileName.toStdString());
+} catch (const std::exception& error) {
+  QMessageBox::warning(this, tr("OpenType Export"), QString::fromUtf8(error.what()));
+  return false;
 }
 
 struct BaseMarkPair {

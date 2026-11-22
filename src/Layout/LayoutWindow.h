@@ -129,7 +129,7 @@ class LayoutWindow : public QMainWindow {
   bool generateOpenTypeCff2StandardWithoutVar();
   bool generateOpenTypeCff2Extended();
   bool generateOpenTypeCff2(bool extended, bool generateVariableOpenType);
-  void saveFontInfo(const OtLayout& layout);
+  void saveFontInfo(const OtLayout& layout, const QString& fileName);
   bool exportpdf();
   bool generateAllQuranTexBreaking();
   bool generateMushaf(bool isHTML);
