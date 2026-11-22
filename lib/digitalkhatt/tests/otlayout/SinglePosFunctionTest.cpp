@@ -49,6 +49,104 @@ static std::uint16_t u16(const digitalkhatt::ByteBuffer& bytes, std::size_t offs
   return (unsigned(bytes.data()[offset]) << 8) | bytes.data()[offset + 1];
 }
 
+static void verifyConditionals(MPFont& font, OtLayout& layout, const fs::path& temporary) {
+  const auto path = temporary / "conditions.fea";
+  std::ofstream(temporary / "enabled.fea") << R"(
+lookup conditional.include {
+  feature cond;
+  pos heh.init <0 0 1 0>;
+} conditional.include;
+)";
+  std::ofstream(path) << R"(
+# Ordinary comment
+feature tst0 { lookup conditional.choice; } tst0;
+
+if testCondition {
+  @conditionalOnly = [heh.init];
+  include(enabled.fea);
+  lookup conditional.choice { feature cond; pos heh.init <0 0 11 0>; } conditional.choice;
+  feature tst1 {
+    lookup conditional.choice;
+    lookup conditional.trueOnly { feature inherited; pos heh.init <0 0 1 0>; } conditional.trueOnly;
+  } tst1;
+} else {
+  if testOther {
+    include(unavailable.fea);
+    table(just) { stretch { lookup unavailable; } shrink {} };
+  }
+  lookup conditional.choice { feature cond; pos heh.init <0 0 22 0>; } conditional.choice;
+  feature tst2 { lookup conditional.choice; } tst2;
+}
+
+#if testOther
+  feature tst3 { lookup conditional.choice; } tst3;
+#elif testCondition
+  lookup conditional.legacy { feature cond; pos heh.init <0 0 31 0>; } conditional.legacy;
+  feature tst4 { lookup conditional.legacy; } tst4;
+#else
+  lookup conditional.legacy { feature cond; pos heh.init <0 0 32 0>; } conditional.legacy;
+  feature tst5 { lookup conditional.legacy; } tst5;
+#endif;
+
+lookup conditional.values {
+  feature cond;
+  if testCondition {
+    if testOther {} else {
+      pos heh.init <0 0 41 0>;
+    }
+  } else {
+    #if testOther
+      pos heh.init <0 0 99 0>;
+    #else
+      pos heh.init <0 0 42 0>;
+    #endif;
+  }
+} conditional.values;
+
+feature cond {
+  lookup conditional.values;
+  if testCondition {
+    lookup conditional.include;
+    lookup conditional.local { feature cond; pos heh.init <0 0 51 0>; } conditional.local;
+  } else {
+    lookup conditional.local { feature cond; pos heh.init <0 0 52 0>; } conditional.local;
+  }
+} cond;
+)";
+  font.execute("boolean testCondition, testOther; testOther := false;");
+  const auto glyph = layout.glyphCodePerName.at("heh.init");
+  const auto advance = [&](const std::string& name) {
+    const auto* lookup = layout.lookups.at(layout.lookupsIndexByName.at(name));
+    return static_cast<const SingleAdjustmentSubtable*>(lookup->subtables.at(0))->singlePos.at(glyph).xAdvance;
+  };
+  for (const bool enabled : {true, false, true}) {
+    font.execute(enabled ? "testCondition := true;" : "testCondition := false;");
+    layout.loadLookupFile(path.string());
+    require(advance("conditional.choice") == (enabled ? 11 : 22),
+        "Only the selected file-scope lookup definition may be registered");
+    require(advance("conditional.legacy") == (enabled ? 31 : 32),
+        "Legacy #elif and #else must select the first active arm");
+    require(advance("conditional.values") == (enabled ? 41 : 42),
+        "Nested braced and legacy conditions must select the right lookup rules");
+    require(advance("conditional.local") == (enabled ? 51 : 52),
+        "Feature-scope conditions must isolate alternative lookup definitions");
+    require(layout.lookupsIndexByName.contains("conditional.include") == enabled,
+        "Only an active include may contribute lookups");
+    require(layout.lookupsIndexByName.contains("conditional.trueOnly") == enabled,
+        "An inactive file-scope feature must not contribute lookups");
+    require(layout.glyphClasses().contains("conditionalOnly") == enabled,
+        "Conditional classes must disappear when the feature file is reloaded");
+  }
+
+  const auto malformed = temporary / "malformed-conditional.fea";
+  std::ofstream(malformed) << "if testCondition { lookup conditional.choice;\n";
+  bool rejected = false;
+  try { layout.loadLookupFile(malformed.string()); }
+  catch (const std::runtime_error&) { rejected = true; }
+  require(rejected && advance("conditional.choice") == 11,
+      "A malformed block must fail without replacing the current lookups");
+}
+
 int main(int argc, char** argv) {
   if (argc != 2) return 2;
   const fs::path project = fs::absolute(argv[1]);
@@ -186,6 +284,7 @@ feature test {
         }
     }
     require(found, "Function glyph lost during splitting");
+    verifyConditionals(font, layout, temporary);
     const auto bad = temporary / "unknown.fea";
     std::ofstream(bad) << source << "\nlookup test.bad { feature test; pos heh.init <function missing_singlepos_function>; } test.bad;\nfeature test { lookup test.bad; } test;\n";
     bool rejected = false;

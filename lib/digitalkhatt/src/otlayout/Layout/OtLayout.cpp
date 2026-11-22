@@ -1325,6 +1325,12 @@ void OtLayout::loadLookupFile(std::string fileName) {
 }
 
 void OtLayout::parseFeatureFile(std::string fileName) {
+  feayy::FeaContext context{this};
+  feayy::Driver driver(context);
+  if (!driver.parse_file(fileName)) {
+    throw std::runtime_error("Error parsing feature file " + fileName);
+  }
+
   for (auto lookup : lookups) {
     delete lookup;
   }
@@ -1337,6 +1343,14 @@ void OtLayout::parseFeatureFile(std::string fileName) {
   allGsubFeatures.clear();
   gsublookupsIndexByName.clear();
   gposlookupsIndexByName.clear();
+  for (auto& [name, original] : originalConditionalClasses) {
+    if (original) {
+      automedina->classes[name] = std::move(*original);
+    } else {
+      automedina->classes.erase(name);
+    }
+  }
+  originalConditionalClasses.clear();
   automedina->cachedClasstoUnicode.clear();
   allFeatures.clear();
   // Do not clear disabledLookups here. GenerateFile reparses the feature file
@@ -1345,13 +1359,6 @@ void OtLayout::parseFeatureFile(std::string fileName) {
   tables.clear();
   compiledJustificationCatalog.reset();
   // nojustalternatePaths.clear();
-
-  feayy::FeaContext context{this};
-
-  feayy::Driver driver(context);
-  if (!driver.parse_file(fileName)) {
-    std::cout << "Error in parsing " << fileName << std::endl;
-  };
 
   if (context.justificationDfas.size() > 1) {
     throw std::runtime_error(
@@ -1462,11 +1469,21 @@ void OtLayout::readParameters(const ParameterJsonObject& json) {
   }
 }
 void OtLayout::addClass(std::string name, std::unordered_set<std::string> set) {
-  if (automedina->classes.contains(name)) {
-    if (name == "haslefttatweel" && automedina->extended == false) {
-      return;
+  addClass(std::move(name), std::move(set), false);
+}
+
+void OtLayout::addClass(std::string name, std::unordered_set<std::string> set, bool conditional) {
+  const auto existing = automedina->classes.find(name);
+  if (existing != automedina->classes.end() && name == "haslefttatweel" && !automedina->extended) {
+    return;
+  }
+  if (conditional) {
+    if (!originalConditionalClasses.contains(name)) {
+      originalConditionalClasses.emplace(name, existing == automedina->classes.end()
+                                                  ? std::nullopt
+                                                  : std::optional{existing->second});
     }
-    // throw "Class " + name + " Already exists";
+    automedina->cachedClasstoUnicode.clear();
   }
   automedina->classes[name] = std::move(set);
 }

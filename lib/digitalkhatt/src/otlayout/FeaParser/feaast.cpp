@@ -94,34 +94,17 @@ void JustTable::accept(Visitor& v) { v.accept(*this); }
 void IncludeStatment::accept(Visitor& v) { v.accept(*this); }
 void ConditionalStatement::accept(Visitor& v) { v.accept(*this); }
 
+bool FeaContext::evaluateCondition(std::string_view name) const {
+  return otlayout->font->boolVariable(name);
+}
+
 void FeaContext::populateFeatures() {
   LookupDefinitionVisitor feaVisitor{otlayout, *this};
-
-  // TODO optimize and support else
-  for (auto stmt : *root->stmts) {
-    auto conditionalStatement = dynamic_cast<ConditionalStatement*>(stmt);
-    if (conditionalStatement != nullptr) {
-      bool conditionIsTrue = false;
-      const auto& condition = conditionalStatement->getCondition();
-      if (condition.empty()) {
-        conditionIsTrue = true;
-      } else {
-        conditionIsTrue = otlayout->font->boolVariable(condition);
-      }
-      if (!conditionIsTrue) {
-        for (auto stmt : conditionalStatement->getIfStmts()) {
-          auto featureDef = dynamic_cast<FeatureDefenition*>(stmt);
-          if (featureDef) {
-            notincludedfeatures.insert(featureDef);
-          }
-        }
-      }
-    }
+  for (auto classDefinition : topLevelClasses) {
+    classDefinition->accept(feaVisitor);
   }
-
   for (auto featureDefinition : features) {
-    if (notincludedfeatures.find(featureDefinition) == notincludedfeatures.end())
-      featureDefinition->accept(feaVisitor);
+    featureDefinition->accept(feaVisitor);
   }
 
   for (auto table : tables) {
@@ -686,7 +669,7 @@ void LookupDefinitionVisitor::accept(ClassDefinition& classDef) {
   for (auto glyph : classDef.components->getCodes(otlayout)) {
     set.insert(otlayout->glyphNamePerCode[glyph]);
   }
-  otlayout->addClass(classDef.name, std::move(set));
+  otlayout->addClass(classDef.name, std::move(set), classDef.conditional);
 }
 
 void LookupDefinitionVisitor::accept(MarkedGlyphSetRegExp& markedGlyphSetRegExp) {
@@ -949,14 +932,7 @@ void LookupDefinitionVisitor::accept(IncludeStatment& includeStatment) {
 }
 
 void LookupDefinitionVisitor::accept(ConditionalStatement& conditionalStatement) {
-  bool conditionIsTrue = false;
-  const auto& condition = conditionalStatement.getCondition();
-  if (condition.empty()) {
-    conditionIsTrue = true;
-  } else {
-    conditionIsTrue = otlayout->font->boolVariable(condition);
-  }
-  if (conditionIsTrue) {
+  if (conditionalStatement.isSelected()) {
     for (auto stmt : conditionalStatement.getIfStmts()) {
       stmt->accept(*this);
     }

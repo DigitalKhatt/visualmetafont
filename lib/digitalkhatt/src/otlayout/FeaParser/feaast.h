@@ -23,9 +23,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <set>
 #include <stack>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <variant>
@@ -685,9 +687,10 @@ class ClassDefinition : public LookupStatement {
  public:
   std::string name;
   GlyphClass* components;
+  bool conditional;
 
-  explicit ClassDefinition(std::string name, GlyphClass* components)
-      : name{std::move(name)}, components{components} {}
+  ClassDefinition(std::string name, GlyphClass* components, bool conditional)
+      : name{std::move(name)}, components{components}, conditional{conditional} {}
 
   void accept(Visitor&) override;
 
@@ -1031,8 +1034,8 @@ class FeaRoot {
 
 class ConditionalStatement : public LookupStatement {
  public:
-  ConditionalStatement(std::string condition, std::vector<Statement*>* ifstmts, ConditionalStatement* elseStmt)
-      : condition{condition}, ifstmts(ifstmts), elseStmt(elseStmt) {}
+  ConditionalStatement(bool selected, std::vector<Statement*>* ifstmts, ConditionalStatement* elseStmt)
+      : selected{selected}, ifstmts(ifstmts), elseStmt(elseStmt) {}
 
   ~ConditionalStatement() {
     if (ifstmts) {
@@ -1044,8 +1047,8 @@ class ConditionalStatement : public LookupStatement {
     delete elseStmt;
   }
 
-  const std::string& getCondition() {
-    return condition;
+  bool isSelected() const {
+    return selected;
   }
 
   std::vector<Statement*>& getIfStmts() {
@@ -1059,7 +1062,7 @@ class ConditionalStatement : public LookupStatement {
   void accept(Visitor&) override;
 
  private:
-  std::string condition;
+  bool selected;
   std::vector<Statement*>* ifstmts;
   ConditionalStatement* elseStmt;
 };
@@ -1119,7 +1122,7 @@ class FeaContext {
 
   lookupmap_type lookups;
   std::vector<FeatureDefenition*> features;
-  std::set<FeatureDefenition*> notincludedfeatures;
+  std::vector<ClassDefinition*> topLevelClasses;
   std::map<std::string, TableDefinition*> tables;
   JustTable jusTable;
   std::map<std::string, digitalkhatt::justify::JustificationDfaSource> justificationDfas;
@@ -1129,17 +1132,11 @@ class FeaContext {
   // them once the features are populated.
   std::vector<std::shared_ptr<GlyphSet>> justificationGlyphSets;
 
-  FeaRoot* root;
+  std::vector<std::unique_ptr<FeaRoot>> roots;
 
-  FeaContext(OtLayout* otlayout) : otlayout{otlayout} {
-    root = nullptr;
-  }
+  FeaContext(OtLayout* otlayout) : otlayout{otlayout} {}
 
-  /// free the saved expression trees
-  ~FeaContext() {
-    delete root;
-  }
-
+  bool evaluateCondition(std::string_view name) const;
   void populateFeatures();
 
   int getNbLookup() {

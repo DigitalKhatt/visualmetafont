@@ -174,6 +174,28 @@ Once the glyph shapes are ready, you have to define the [OpenType substitution a
 
   It sets the anchor at the middle of the top edge of a mark glyph.
 
+#### Conditional feature rules
+
+Use a named MetaPost boolean to select rules at file, feature, or lookup scope.
+
+```fea
+feature basm {
+  lookup basmala;
+  if isForCoreText {
+    lookup basmala.kern;
+  } else {
+    lookup basmala.curs;
+  }
+} basm;
+```
+
+Set `isForCoreText` in the font's MetaPost project before loading the feature file.
+The `else` block is optional, and blocks can be nested. End each lookup or rule
+with its usual semicolon. The closing brace ends the conditional itself.
+Both branches must use valid syntax for their scope. Only the selected branch
+registers declarations or opens included files. Existing `#if`, `#elif`,
+`#else`, and `#endif;` directives use the same branch selection.
+
 ### Example: Add a new ligature  to the old Madinah font 
 
 As an example we will add to the old Madinah font the following ligature composed of the initial and medial Beh shapes.

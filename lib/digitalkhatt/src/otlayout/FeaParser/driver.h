@@ -24,11 +24,14 @@
 #include <vector>
 #include <deque>
 #include <filesystem>
+#include <optional>
+#include <string_view>
 
 
 namespace feayy {
 
 	class FeaContext;
+	class GlyphSet;
 
 	
 	class Driver
@@ -69,6 +72,13 @@ namespace feayy {
 		*/
 		bool parse_file(const std::string& filename);
 
+		bool inActiveBranch() const;
+		bool inConditional() const { return !conditions.empty(); }
+		bool beginCondition(std::string_view name);
+		bool selectBranch(std::optional<std::string_view> name);
+		void endCondition();
+		int registerJustificationGlyphSet(GlyphSet* glyphSet);
+
 		// To demonstrate pure handling of parse errors, instead of
 		// simply dumping them on the standard error output, we will pass
 		// them to the driver using the following two member functions.
@@ -90,6 +100,12 @@ namespace feayy {
 		bool enter_regexp = false;		
 		bool enter_glyphname = false;
 	private:
+			struct Condition {
+				bool parentActive;
+				bool matched = false;
+				bool active = false;
+			};
+			std::vector<Condition> conditions;
 			std::deque<std::filesystem::path> includeNames;
 	};
 

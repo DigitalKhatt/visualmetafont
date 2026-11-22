@@ -233,6 +233,7 @@ class OtLayout {
   void readParameters(const ParameterJsonObject& json);
 
   void addClass(std::string name, std::unordered_set<std::string> set);
+  void addClass(std::string name, std::unordered_set<std::string> set, bool conditional);
 
   digitalkhatt::ByteBuffer getGSUB();
   digitalkhatt::ByteBuffer getGPOS();
@@ -400,6 +401,7 @@ class OtLayout {
   // void prepareJSENgine();
 
   Automedina* automedina;
+  std::unordered_map<std::string, std::optional<std::unordered_set<std::string>>> originalConditionalClasses;
 
   std::map<std::string, std::set<std::uint16_t>> allGposFeatures;
   std::map<std::string, std::set<std::uint16_t>> allGsubFeatures;

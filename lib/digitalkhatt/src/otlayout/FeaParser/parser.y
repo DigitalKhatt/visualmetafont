@@ -68,9 +68,8 @@
 %token JUSTDFA FACTS ACTIONS PATTERNS PATTERN OPPORTUNITIES OPPORTUNITY MATCH PREPARE RANGE SELECTIONS FACT SELECTION CHOOSE TRAVERSAL PHASE GLYPHS
 %token ATTACHMENTS ATTACHMENT FORBID UPDATE REPLACE ISFACT AND OR NOT WHEN CLEAR HAS
 %token LINEPOLICY PAGEPOLICY
-%token INCLUDE IF ELIF ELSE ENDIF
+%token INCLUDE IF ELIF ELSE ENDIF BLOCK_IF BLOCK_ELSE
 
-%type <FeaRoot*> root
 %type <std::vector<Statement *> *> statements
 %type <Statement*> statement
 %type <Statement*> justdfa_definition
@@ -84,7 +83,8 @@
 %type <std::vector<std::string>> explicitlookup
 %type <ValueRecord> valuerecord
 %type <LookupFlag*> flag flags lookupflag
-%type <Statement*> feature_statement lookup_statement lookup_definition markclassdefinition gsubrule gposrule singlesub multiplesub alternatesub classdefinition contextualligagsub
+%type <Statement*> feature_statement lookup_statement lookup_definition markclassdefinition gsubrule gposrule singlesub multiplesub alternatesub contextualligagsub
+%type <ClassDefinition*> classdefinition
 %type <Statement*> singleadjustment cursiverule mark2base mark2mark pairadjustment
 %type <std::vector<Statement *> *> lookup_statements feature_statements
 %type <MarkedGlyphSetRegExp*> markedglyphsetregexp
@@ -102,15 +102,19 @@
 %type <PRuleRegExp> rule_regex prregexp_terc prregexp_sec  prregexp_prim  rule_lhs rule_rhs rule_context prregexp_action;
 %type <GraphiteRule> rule openttype_regexp;
 %type <Pass>  rules pass_definition;
-%type <TableDefinition*>  table_definition passes;
+%type <Statement*> table_definition;
+%type <TableDefinition*> passes;
 %type <std::vector<std::string>> lookupreferences aftergsub;
 %type <std::vector<std::pair<std::string, double>>> glyphparameteradjustments;
 %type <JustTable::JustStep> juststep;
 %type <JustTable> justrules;
 %type <std::vector<JustTable::JustStep>> juststeps stretch shrink;
 %type <IncludeStatment*> include_statement
-%type <ConditionalStatement*>  conditional_statement conditional_statement_lookup
-%type <ConditionalStatement*> elif_chain elif_chain_lookup
+%type <ConditionalStatement*> conditional_statement conditional_statement_feature conditional_statement_lookup
+%type <ConditionalStatement*> elif_chain elif_chain_feature elif_chain_lookup
+%type <ConditionalStatement*> conditional_block conditional_block_feature conditional_block_lookup
+%type <ConditionalStatement*> else_block else_block_feature else_block_lookup
+%type <bool> begin_condition next_condition else_condition
 %type <ValueRecordExtended> valuerecordextended;
 %type <std::vector<int>> character_list;
 %type <std::vector<std::string>> identifier_list;
@@ -165,151 +169,202 @@
 %%
 
 root
-	: statements { $$ = new FeaRoot($1); driver.context.root = $$; }
+	: statements { driver.context.roots.emplace_back(std::make_unique<FeaRoot>($1)); }
 	;
 
 statements
-	:  { $$ = new std::vector<Statement *>(); }  /* empty */
-	| statements statement ';'
-		{
-			$$ = $1;
-			$1->push_back($2);
-		}
+	: %empty { $$ = new std::vector<Statement *>(); }
+	| statements statement ';' { $$ = $1; $$->push_back($2); }
+	| statements conditional_block { $$ = $1; $$->push_back($2); }
 	;
 
 statement
-	: conditional_statement {$$ = $1;}
-	| lookup_definition {$$ = $1;}
-	| markclassdefinition {$$ = $1;}
-	| classdefinition {$$ = $1;}
-	| feature_definition {$$ = $1;}
-	| table_definition {$$ = $1;}
-	| justdfa_definition {$$ = $1;}
-	| include_statement {$$ = $1;}
-	| lookupreference { $$ = new LookupReference($1);}
+	: conditional_statement { $$ = $1; }
+	| lookup_definition { $$ = $1; }
+	| markclassdefinition { $$ = $1; }
+	| classdefinition
+	  {
+		if (driver.inActiveBranch()) driver.context.topLevelClasses.push_back($1);
+		$$ = $1;
+	  }
+	| feature_definition { $$ = $1; }
+	| table_definition { $$ = $1; }
+	| justdfa_definition { $$ = $1; }
+	| include_statement { $$ = $1; }
+	| lookupreference { $$ = new LookupReference($1); }
 	;
 
-conditional_statement:
-      IF identifier[condition] statements[stmts] elif_chain[else]
-        {
-          $$ = new ConditionalStatement($condition, $stmts, $else);
-        }
-    ;
+begin_condition
+	: identifier { $$ = driver.beginCondition($1); }
+	;
 
-elif_chain:
-      ELIF identifier[condition] statements[stmts] elif_chain[else]
-        {
-          $$ = new ConditionalStatement($condition, $stmts, $else);
-        }
-    | ELSE  statements[stmts] ENDIF
-        {
-          /* else without condition */
-          $$ = new ConditionalStatement("", $stmts, nullptr);
-        }
-    | ENDIF
-        {
-          /* no else */
-          $$ = nullptr;
-        }
-    ;
+next_condition
+	: identifier { $$ = driver.selectBranch($1); }
+	;
+
+else_condition
+	: %empty { $$ = driver.selectBranch(std::nullopt); }
+	;
+
+conditional_statement
+	: IF begin_condition[selected] statements[body] elif_chain[otherwise]
+	  {
+		driver.endCondition();
+		$$ = new ConditionalStatement($selected, $body, $otherwise);
+	  }
+	;
+
+elif_chain
+	: ELIF next_condition[selected] statements[body] elif_chain[otherwise]
+	  { $$ = new ConditionalStatement($selected, $body, $otherwise); }
+	| ELSE else_condition[selected] statements[body] ENDIF
+	  { $$ = new ConditionalStatement($selected, $body, nullptr); }
+	| ENDIF { $$ = nullptr; }
+	;
+
+conditional_block
+	: BLOCK_IF begin_condition[selected] '{' statements[body] '}' else_block[otherwise]
+	  {
+		driver.endCondition();
+		$$ = new ConditionalStatement($selected, $body, $otherwise);
+	  }
+	;
+
+else_block
+	: %empty { $$ = nullptr; }
+	| BLOCK_ELSE else_condition[selected] '{' statements[body] '}'
+	  { $$ = new ConditionalStatement($selected, $body, nullptr); }
+	;
 
 include_statement
 	: INCLUDE '(' { driver.lexer->pushFilenameMode(); } T_FILENAME[name] ')'
-	{
-		if(!driver.parse_file($name)){
-			error(yyla.location, std::string("File name '") + $name + "' cannot be parsed'");
-		};
+	  {
+		if (driver.inActiveBranch() && !driver.parse_file($name)) {
+			error(yyla.location, "Cannot parse include file '" + $name + "'");
+			YYERROR;
+		}
 		$$ = new IncludeStatment($name);
-	}
+	  }
 	;
+
 feature_definition
 	: FEATURE featuretag[bname] '{' feature_statements[lstm] '}' featuretag[lname]
-	{
-		if($bname != $lname){
-			//yyparser.error(yylloc, std::string("Feature name '") + $bname + "' does not match with '" + $lname + "'");
-			error(yyla.location, std::string("Feature name '") + $bname + "' does not match with '" + $lname + "'");
+	  {
+		if ($bname != $lname) {
+			error(yyla.location, "Feature name '" + $bname + "' does not match with '" + $lname + "'");
 			YYERROR;
-		}else{
-			$$ = new FeatureDefenition($bname,$lstm);
-			driver.context.features.push_back($$);
 		}
-	}
+		$$ = new FeatureDefenition($bname, $lstm);
+		if (driver.inActiveBranch()) driver.context.features.push_back($$);
+	  }
 	;
 
 feature_statements
-	: feature_statement ';' { $$ = new std::vector<Statement *>(); $$->push_back($1); }
-	| feature_statements feature_statement ';'
-		{
-			$$ = $1;
-			$1->push_back($2);
-		}
+	: %empty { $$ = new std::vector<Statement *>(); }
+	| feature_statements feature_statement ';' { $$ = $1; $$->push_back($2); }
+	| feature_statements conditional_block_feature { $$ = $1; $$->push_back($2); }
 	;
 
 feature_statement
-	: conditional_statement {$$ = $1;}
-	| lookup_definition {$$ = $1;}
-	| lookupreference { $$ = new LookupReference($1);}
-	| classdefinition {$$ = $1;}
+	: conditional_statement_feature { $$ = $1; }
+	| lookup_definition { $$ = $1; }
+	| lookupreference { $$ = new LookupReference($1); }
+	| classdefinition { $$ = $1; }
+	;
+
+conditional_statement_feature
+	: IF begin_condition[selected] feature_statements[body] elif_chain_feature[otherwise]
+	  {
+		driver.endCondition();
+		$$ = new ConditionalStatement($selected, $body, $otherwise);
+	  }
+	;
+
+elif_chain_feature
+	: ELIF next_condition[selected] feature_statements[body] elif_chain_feature[otherwise]
+	  { $$ = new ConditionalStatement($selected, $body, $otherwise); }
+	| ELSE else_condition[selected] feature_statements[body] ENDIF
+	  { $$ = new ConditionalStatement($selected, $body, nullptr); }
+	| ENDIF { $$ = nullptr; }
+	;
+
+conditional_block_feature
+	: BLOCK_IF begin_condition[selected] '{' feature_statements[body] '}' else_block_feature[otherwise]
+	  {
+		driver.endCondition();
+		$$ = new ConditionalStatement($selected, $body, $otherwise);
+	  }
+	;
+
+else_block_feature
+	: %empty { $$ = nullptr; }
+	| BLOCK_ELSE else_condition[selected] '{' feature_statements[body] '}'
+	  { $$ = new ConditionalStatement($selected, $body, nullptr); }
 	;
 
 lookup_definition
-	: LOOKUP identifier[bname] <int>{ $$ = driver.context.getNbLookup(); }[order] '{' lookup_statements[lstm] '}' identifier[lname]
-		{
-			if($bname != $lname){
-//				yyparser.error(yylloc, std::string("Lookup name '") + $bname + "' does not match with '" + $lname + "'");
-				error(yyla.location, std::string("Lookup name '") + $bname + "' does not match with '" + $lname + "'");
-
-				YYERROR;
-			}else{
-			    if(driver.context.lookups.find($bname) != driver.context.lookups.end()){
-				//yyparser.error(yylloc, std::string("Lookup name '") + $bname + "' does not match with '" + $lname + "'");
-				error(yyla.location, std::string("Lookup name '") + $bname + "' already defined");
-
-				YYERROR;
-			    }else{
-			      auto lookup = new LookupDefinition($bname,$lstm,$order);
-			      driver.context.lookups[$bname] = lookup;
-			      $$ = lookup;
-			    }
-
-			}
-
+	: LOOKUP identifier[bname] <int>{ $$ = driver.inActiveBranch() ? driver.context.getNbLookup() : 0; }[order] '{' lookup_statements[lstm] '}' identifier[lname]
+	  {
+		if ($bname != $lname) {
+			error(yyla.location, "Lookup name '" + $bname + "' does not match with '" + $lname + "'");
+			YYERROR;
 		}
+		if (driver.inActiveBranch() && driver.context.lookups.contains($bname)) {
+			error(yyla.location, "Lookup name '" + $bname + "' already defined");
+			YYERROR;
+		}
+		auto lookup = new LookupDefinition($bname, $lstm, $order);
+		if (driver.inActiveBranch()) driver.context.lookups.emplace($bname, lookup);
+		$$ = lookup;
+	  }
 	;
 
 lookup_statements
-	: lookup_statement ';' { $$ = new std::vector<Statement *>(); $$->push_back($1); }
-	| lookup_statements lookup_statement ';'
-		{
-			$$ = $1;
-			$1->push_back($2);
-		}
+	: %empty { $$ = new std::vector<Statement *>(); }
+	| lookup_statements lookup_statement ';' { $$ = $1; $$->push_back($2); }
+	| lookup_statements conditional_block_lookup { $$ = $1; $$->push_back($2); }
 	;
 
 lookup_statement
-	: lookupflag {$$ = $1;}
-	| markclassdefinition {$$ = $1;}
-	| classdefinition {$$ = $1;}
-	| gsubrule {$$ = $1;}
-	| gposrule {$$ = $1;}
-	| lookup_definition {$$ = $1;}
-	| featurereference { $$ = new FeatureReference($1);}
-	| conditional_statement_lookup {$$ = $1;}
+	: lookupflag { $$ = $1; }
+	| markclassdefinition { $$ = $1; }
+	| classdefinition { $$ = $1; }
+	| gsubrule { $$ = $1; }
+	| gposrule { $$ = $1; }
+	| lookup_definition { $$ = $1; }
+	| featurereference { $$ = new FeatureReference($1); }
+	| conditional_statement_lookup { $$ = $1; }
 	;
 
-conditional_statement_lookup:
-      IF identifier[condition] lookup_statements[stmts] elif_chain_lookup[else]
-        {
-          $$ = new ConditionalStatement($condition, $stmts, $else);
-        }
-    ;
+conditional_statement_lookup
+	: IF begin_condition[selected] lookup_statements[body] elif_chain_lookup[otherwise]
+	  {
+		driver.endCondition();
+		$$ = new ConditionalStatement($selected, $body, $otherwise);
+	  }
+	;
 
 elif_chain_lookup
-	: ELIF identifier[condition] lookup_statements[stmts] elif_chain_lookup[else] { $$ = new ConditionalStatement($condition, $stmts, $else);}
-	| ELSE  lookup_statements[stmts] ENDIF {/* else without condition */ $$ = new ConditionalStatement("", $stmts, nullptr);}
-	| ENDIF { /* no else */ $$ = nullptr; }
+	: ELIF next_condition[selected] lookup_statements[body] elif_chain_lookup[otherwise]
+	  { $$ = new ConditionalStatement($selected, $body, $otherwise); }
+	| ELSE else_condition[selected] lookup_statements[body] ENDIF
+	  { $$ = new ConditionalStatement($selected, $body, nullptr); }
+	| ENDIF { $$ = nullptr; }
 	;
 
+conditional_block_lookup
+	: BLOCK_IF begin_condition[selected] '{' lookup_statements[body] '}' else_block_lookup[otherwise]
+	  {
+		driver.endCondition();
+		$$ = new ConditionalStatement($selected, $body, $otherwise);
+	  }
+	;
+
+else_block_lookup
+	: %empty { $$ = nullptr; }
+	| BLOCK_ELSE else_condition[selected] '{' lookup_statements[body] '}'
+	  { $$ = new ConditionalStatement($selected, $body, nullptr); }
+	;
 
 lookupflag
 	: LOOKUPFLAG INT_LITERAL	{$$ = new LookupFlag($2);}
@@ -459,7 +514,7 @@ mark2mark
 %left AND;
 %precedence NOT;
 %left '|';
-%precedence CID IDENTIFIANT REGEXP GLYPHNAME NOTDEF '[' '@' T_NULL;
+%precedence CID IDENTIFIANT BLOCK_IF BLOCK_ELSE REGEXP GLYPHNAME NOTDEF '[' '@' T_NULL;
 %precedence GLYPHSET;
 %precedence  '(';
 %precedence  '{';
@@ -578,7 +633,8 @@ markclassdefinition
 	;
 
 classdefinition
-	: '@' identifier '=' '[' classcomponents ']' {$$ = new ClassDefinition($identifier,new GlyphClass(std::move($classcomponents)));}
+	: '@' identifier '=' '[' classcomponents ']'
+	  { $$ = new ClassDefinition($identifier, new GlyphClass(std::move($classcomponents)), driver.inConditional()); }
 	;
 
 anchor
@@ -663,17 +719,28 @@ featurereference
 	;
 
 featuretag
-	: IDENTIFIANT {$$ = $1;}
+	: identifier {$$ = $1;}
 	| MARK	 {$$ = std::string("mark");}
 	;
 
 identifier
-	: IDENTIFIANT	{$$ = $1;}
+	: IDENTIFIANT { $$ = $1; }
+	| BLOCK_IF { $$ = "if"; }
+	| BLOCK_ELSE { $$ = "else"; }
 	;
 
 table_definition
-	: TABLE '(' identifier ')' passes ENDTABLE { $$ = $passes;driver.context.tables[$identifier] = $$;$$->name = std::move($identifier); }
-	| TABLE '(' JUST ')' '{' justrules '}' { driver.context.jusTable = $justrules; }
+	: TABLE '(' identifier ')' passes ENDTABLE
+	  {
+		$passes->name = $identifier;
+		if (driver.inActiveBranch()) driver.context.tables[$identifier] = $passes;
+		$$ = $passes;
+	  }
+	| TABLE '(' JUST ')' '{' justrules '}'
+	  {
+		if (driver.inActiveBranch()) driver.context.jusTable = std::move($justrules);
+		$$ = new DeclarativeStatement();
+	  }
 	;
 
 justdfa_definition
@@ -704,7 +771,8 @@ justdfa_definition
 		source.stages = std::move($stages);
 		source.stretchPolicies = std::move($stretchPolicies);
 		source.shrinkPolicies = std::move($shrinkPolicies);
-		driver.context.justificationDfas.insert_or_assign(source.name, std::move(source));
+		if (driver.inActiveBranch())
+			driver.context.justificationDfas.insert_or_assign(source.name, std::move(source));
 		$$ = new DeclarativeStatement();
 	}
 	;
@@ -864,8 +932,7 @@ justdfa_fact_body
 	| justdfa_fact_body GLYPHS glyphset[set]
 	  {
 		$$ = std::move($1);
-		driver.context.justificationGlyphSets.emplace_back($set);
-		$$.glyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.glyphSetRef = driver.registerJustificationGlyphSet($set);
 	  }
 	;
 
@@ -989,37 +1056,32 @@ justdfa_mark_response
 	: identifier[on] GLYPHS glyphset[set] identifier[mode] ';'
 	  {
 		if ($on != "on" || $mode != "keep") { error(yyla.location, "Expected 'on glyphs [...] keep;'"); YYERROR; }
-		driver.context.justificationGlyphSets.emplace_back($set);
-		$$.glyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.glyphSetRef = driver.registerJustificationGlyphSet($set);
 		$$.mode = $mode;
 	  }
 	| identifier[on] GLYPHS glyphset[set] identifier[mode] doubleorint[ratio] ';'
 	  {
 		if ($on != "on") { error(yyla.location, "Expected 'on glyphs [...] <response> <ratio>;'"); YYERROR; }
-		driver.context.justificationGlyphSets.emplace_back($set);
-		$$.glyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.glyphSetRef = driver.registerJustificationGlyphSet($set);
 		$$.mode = $mode; $$.ratio = $ratio;
 	  }
 	| identifier[on] GLYPHS glyphset[set] identifier[mode] identifier[axis] doubleorint[value] ';'
 	  {
 		if ($on != "on" || $mode != "parameter") { error(yyla.location, "Expected 'on glyphs [...] parameter <axis> <value>;'"); YYERROR; }
-		driver.context.justificationGlyphSets.emplace_back($set);
-		$$.glyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.glyphSetRef = driver.registerJustificationGlyphSet($set);
 		$$.mode = $mode; $$.parameterAxis = $axis; $$.parameterValue = $value;
 	  }
 	| identifier[on] GLYPHS glyphset[set] identifier[mode] doubleorint[ratio] identifier[align] identifier[alignment] justdfa_mark_vertical[vertical] ';'
 	  {
 		if ($on != "on" || $align != "align") { error(yyla.location, "Expected 'on glyphs [...] ... align ...;'"); YYERROR; }
-		driver.context.justificationGlyphSets.emplace_back($set);
-		$$.glyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.glyphSetRef = driver.registerJustificationGlyphSet($set);
 		$$.mode = $mode; $$.ratio = $ratio; $$.alignment = $alignment;
 		$$.lowerGrowth = $vertical;
 	  }
 	| identifier[on] GLYPHS glyphset[set] identifier[mode] identifier[axis] doubleorint[value] identifier[align] identifier[alignment] justdfa_mark_vertical[vertical] ';'
 	  {
 		if ($on != "on" || $mode != "parameter" || $align != "align") { error(yyla.location, "Expected 'on glyphs [...] parameter <axis> <value> align ...;'"); YYERROR; }
-		driver.context.justificationGlyphSets.emplace_back($set);
-		$$.glyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.glyphSetRef = driver.registerJustificationGlyphSet($set);
 		$$.mode = $mode; $$.parameterAxis = $axis; $$.parameterValue = $value;
 		$$.alignment = $alignment; $$.lowerGrowth = $vertical;
 	  }
@@ -1040,8 +1102,7 @@ justdfa_attachment_body
 	  {
 		if ($condition != "followed_by" || $property != "growth_scale" || $1.followingMarkGlyphSetRef >= 0) { error(yyla.location, "Expected one 'when followed_by glyphs [...] growth_scale <0..1>' declaration"); YYERROR; }
 		$$ = std::move($1);
-		driver.context.justificationGlyphSets.emplace_back($set);
-		$$.followingMarkGlyphSetRef = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		$$.followingMarkGlyphSetRef = driver.registerJustificationGlyphSet($set);
 		$$.followingGrowthScale = $value;
 	  }
 	| justdfa_attachment_body SUBSTITUTE identifier[glyph] WHEN identifier[axis] '>' doubleorint[threshold] identifier[keyword] identifier[otherwise]
@@ -1099,8 +1160,7 @@ justdfa_attachment_body
 	| justdfa_attachment_body identifier[property] GLYPHS glyphset[set]
 	  {
 		$$ = std::move($1);
-		driver.context.justificationGlyphSets.emplace_back($set);
-		const int reference = static_cast<int>(driver.context.justificationGlyphSets.size()) - 1;
+		const int reference = driver.registerJustificationGlyphSet($set);
 		if ($property == "find") $$.findGlyphSetRef = reference;
 		else if ($property == "skip") $$.skipGlyphSetRef = reference;
 		else if ($property == "exclude_marks") $$.excludeMarkGlyphSetRef = reference;

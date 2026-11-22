@@ -19,6 +19,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 #include "driver.h"
 #include "scanner.h"
@@ -31,13 +32,14 @@ namespace feayy {
 	Driver::Driver(class FeaContext& _fea)
 		: trace_scanning(false),
 		trace_parsing(false),
+		lexer(nullptr),
 		context(_fea)
 	{
 	}
 
 	bool Driver::parse_stream(std::istream& in, const std::string& sname)
 	{
-		streamname = sname;
+		auto previousStream = std::exchange(streamname, sname);
 
 		Scanner scanner(&in);
 		scanner.set_debug(trace_scanning);
@@ -48,9 +50,12 @@ namespace feayy {
 		Parser parser(*this);
 		parser.set_debug_level(trace_parsing);
 
+		const auto conditionDepth = conditions.size();
 		auto ret = parser.parse();
 
+		conditions.resize(conditionDepth);
 		this->lexer = prevLexer;
+		streamname = std::move(previousStream);
 
 
 		return (ret == 0);
@@ -88,6 +93,41 @@ namespace feayy {
 	{
 		std::istringstream iss(input);
 		return parse_stream(iss, sname);
+	}
+
+	bool Driver::inActiveBranch() const
+	{
+		return conditions.empty() || conditions.back().active;
+	}
+
+	bool Driver::beginCondition(std::string_view name)
+	{
+		conditions.push_back({inActiveBranch()});
+		return selectBranch(name);
+	}
+
+	bool Driver::selectBranch(std::optional<std::string_view> name)
+	{
+		auto& condition = conditions.back();
+		condition.active = condition.parentActive && !condition.matched &&
+			(!name || context.evaluateCondition(*name));
+		condition.matched |= condition.active;
+		return condition.active;
+	}
+
+	void Driver::endCondition()
+	{
+		conditions.pop_back();
+	}
+
+	int Driver::registerJustificationGlyphSet(GlyphSet* glyphSet)
+	{
+		if (!inActiveBranch()) {
+			delete glyphSet;
+			return -1;
+		}
+		context.justificationGlyphSets.emplace_back(glyphSet);
+		return static_cast<int>(context.justificationGlyphSets.size()) - 1;
 	}
 
 	void Driver::error(const class location& l,

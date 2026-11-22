@@ -157,6 +157,8 @@ UTF8_FOUR (\xF0[\x90-\xBF][\x80-\xBF]{2}|[\xF1-\xF3][\x80-\xBF]{3}|\xF4[\x80-\x8
 "endpass"													{return(token::ENDPASS);} 
 "any"													    {return(token::ANY);} 
 "include"													{return(token::INCLUDE);}  
+"if"                                                        {return(token::BLOCK_IF);}
+"else"                                                      {return(token::BLOCK_ELSE);}
 [a-zA-Z_][a-zA-Z\.0-9_]*									{/*yylval->IDENTIFIANT = new std::string(yytext, yyleng);*/  yylval->emplace<std::string>(std::string(yytext, yyleng)); return token::IDENTIFIANT;}
 \\[a-zA-Z_][a-zA-Z\.0-9_]*									{/*yylval->GLYPHNAME = new std::string(&yytext[1], yyleng - 1);*/ yylval->emplace<std::string>(std::string(&yytext[1], yyleng - 1));return token::GLYPHNAME;}
 \\[0-9]+													{/*yylval->CID = atoi(&yytext[1]);*/yylval->emplace<int>(atoi(&yytext[1])); return token::CID;}
