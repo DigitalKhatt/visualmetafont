@@ -8,6 +8,8 @@
 #include <iomanip>
 #include <set>
 #include <sstream>
+#include <unordered_map>
+#include <string>
 #include <utility>
 
 #include "hb-buffer.hh"
@@ -401,10 +403,46 @@ hb_buffer_t* shapeForMeasurement(TextString text, hb_font_t* font, vector<hb_fea
   return shape(std::move(text), font, std::move(features), layout, parameters, false);
 }
 
+namespace {
+// Widths memoised by getWidth: the justifier measures the same words and lines over and over,
+// within a page and across pages. Bounded; cleared whenever a face goes (clearWidthCache).
+// Never destroyed: an OtLayout destroyed during static destruction (a style still loaded at
+// exit) clears it from its destructor.
+std::unordered_map<std::string, double>& widthCache() {
+  static auto* cache = new std::unordered_map<std::string, double>;
+  return *cache;
+}
+constexpr std::size_t kWidthCacheLimit = 1 << 16;
+
+template <typename T>
+void appendRaw(std::string& key, const T& value) {
+  key.append(reinterpret_cast<const char*>(&value), sizeof value);
+}
+}  // namespace
+
+void clearWidthCache() { widthCache().clear(); }
+
 double getWidth(const TextString& text, hb_font_t* font, const vector<hb_feature_t>& features) {
+  std::string key;
+  key.reserve(32 + features.size() * sizeof(hb_feature_t) + text.size() * sizeof(char16_t));
+  appendRaw(key, hb_font_get_face(font));
+  int xs = 0, ys = 0;
+  hb_font_get_scale(font, &xs, &ys);
+  appendRaw(key, xs), appendRaw(key, ys);
+  unsigned coordCount = 0;
+  const int* coords = hb_font_get_var_coords_normalized(font, &coordCount);
+  appendRaw(key, coordCount);
+  key.append(reinterpret_cast<const char*>(coords), coordCount * sizeof(int));
+  appendRaw(key, features.size());
+  for (const auto& f : features) appendRaw(key, f.tag), appendRaw(key, f.value), appendRaw(key, f.start), appendRaw(key, f.end);
+  key.append(reinterpret_cast<const char*>(text.data()), text.size() * sizeof(text[0]));
+  auto& cache = widthCache();
+  if (const auto hit = cache.find(key); hit != cache.end()) return hit->second;
   auto buffer = shapeForMeasurement(text, font, features);
   const auto totalWidth = getBufferWidth(buffer);
   hb_buffer_destroy(buffer);
+  if (cache.size() >= kWidthCacheLimit) cache.clear();
+  cache.emplace(std::move(key), totalWidth);
   return totalWidth;
 }
 double getWordWidth(const WordInfo& wordInfo, const map<int, vector<TextFontFeatures>>& justResults,

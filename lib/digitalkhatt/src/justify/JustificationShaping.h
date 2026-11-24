@@ -50,6 +50,9 @@ hb_buffer_t* shapeForMeasurement(TextString text, hb_font_t* font, std::vector<h
 double getBufferWidth(hb_buffer_t* buffer);
 double getWidth(const TextString& text, hb_font_t* font,
                 const std::vector<hb_feature_t>& features);
+// getWidth memoises its results per face, scale, variation coordinates, features and text (a
+// width depends on nothing else). Call this before a face is destroyed or rebuilt.
+void clearWidthCache();
 // shapedWord optionally receives the measurement buffer; this avoids
 // reshaping solely to recognize an accepted candidate.
 double getWordWidth(
