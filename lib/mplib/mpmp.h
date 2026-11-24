@@ -1334,7 +1334,7 @@ void mp_new_randoms(MP mp);
 #line 3024 "../../../source/texk/web2c/mplibdir/mp.w"
 
 
-#define mp_snprintf(...) (snprintf(__VA_ARGS__) < 0 ? abort() : (void)0)
+#define mp_snprintf(...) ((void)snprintf(__VA_ARGS__)) /* DK: was abort() on an encoding error */
 
 /*:177*//*184:*/
 #line 3204 "../../../source/texk/web2c/mplibdir/mp.w"
