@@ -41,10 +41,13 @@ int main(int argc, char** argv) {
     require(metadata.setGlyphFiles({"glyphs/first.mp", "glyphs/second.mp"}) && metadata.save(root.filePath("font-project.json")), "two-file manifest");
     Font reference, split;
     load(reference, source + "/madina.mp"); load(split, root.filePath("madina.mp"));
+    require(reference.glyphs.size() == whole.blocks.size(), "editor loaded every declared glyph");
     require(split.glyphs.size() == reference.glyphs.size(), "same glyph count");
     int compared = 0;
     for (int i = 0; i < reference.glyphs.size(); ++i) {
-      require(reference.glyphs[i]->name() == split.glyphs[i]->name(), "evaluation order preserved");
+      const auto& name = whole.blocks[i].name;
+      require(reference.glyphs[i]->name() == name && split.glyphs[i]->name() == name,
+          "editor must preserve the declared glyph name and order: " + name);
       auto* a = reference.glyphs[i]->getEdge(); auto* b = split.glyphs[i]->getEdge();
       require(bool(a) == bool(b), "render availability");
       if (a) { require(Glyph::getPath(a) == Glyph::getPath(b) && a->width == b->width && a->charcode == b->charcode, "outlines, advances and glyph IDs unchanged"); ++compared; }
