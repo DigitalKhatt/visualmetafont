@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <stack>
 #include <string>
@@ -737,6 +738,7 @@ class SingleSubstituionRule : public LookupStatement {
   int format;
   GlyphExpansion expansion;
   std::vector<std::pair<std::string, double>> parameterAdjustments;
+  std::optional<GlyphParameters> inputCoordinates;
   StartEndLig startEndLig = StartEndLig::StartEnd;
 
   explicit SingleSubstituionRule(Glyph* firstglyph, Glyph* secondglyph, int format)

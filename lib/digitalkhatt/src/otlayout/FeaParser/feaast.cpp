@@ -380,6 +380,63 @@ void LookupDefinitionVisitor::accept(Mark2BaseRule& mark2BaseRule) {
   }
 }
 
+namespace {
+
+// A coordinate-qualified class selects a particular design of each base. Keep
+// its instances registered across the exporter's equivalent-glyph rebuild.
+class ExactSingleSubtable final : public SingleSubtable {
+ public:
+  using SingleSubtable::SingleSubtable;
+
+  void addRule(const std::unordered_set<std::uint16_t>& codes,
+               GlyphParameters input, GlyphParameters output) {
+    std::map<std::string, std::uint16_t> bases;
+    for (auto code : codes) {
+      const auto* glyph = m_layout->getGlyph(code);
+      // A class can include several previously generated designs of one base.
+      const auto base = glyph->sourceGlyphCode.value_or(code);
+      bases.emplace(m_layout->glyphNamePerCode.at(base), base);
+    }
+    for (const auto& [name, code] : bases) {
+      rules.push_back({code, input, output});
+      registerRule(rules.back());
+    }
+  }
+
+  void generateSubstEquivGlyphs() override {
+    subst.clear();
+    for (const auto& rule : rules) registerRule(rule);
+  }
+
+  digitalkhatt::ByteBuffer getOpenTypeTable(bool) override {
+    return SingleSubtable::getOpenTypeTable(true);
+  }
+  std::vector<digitalkhatt::ByteBuffer> getOpenTypeTables(bool) override {
+    return SingleSubtable::getOpenTypeTables(true);
+  }
+
+ private:
+  struct Rule {
+    std::uint16_t base;
+    GlyphParameters input, output;
+  };
+  std::vector<Rule> rules;
+
+  void registerRule(const Rule& rule) {
+    const auto instance = [&](const GlyphParameters& coordinates) -> std::uint16_t {
+      if (coordinates.isDefault()) return rule.base;
+      return m_layout->getAlternate(rule.base, coordinates, true, true)->charcode;
+    };
+    const auto from = instance(rule.input);
+    const auto to = instance(rule.output);
+    const auto [entry, inserted] = subst.emplace(from, to);
+    if (!inserted && entry->second != to)
+      throw std::runtime_error("Conflicting coordinate substitutions in " + m_lookup->name);
+  }
+};
+
+}  // namespace
+
 void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
   bool multiple = false;
 
@@ -421,8 +478,22 @@ void LookupDefinitionVisitor::accept(SingleSubstituionRule& singleRule) {
     newsubtable = lookup->subtables.back();
   }
 
+  auto* exact = dynamic_cast<ExactSingleSubtable*>(newsubtable);
+  if (singleRule.inputCoordinates) {
+    if (!exact) {
+      exact = new ExactSingleSubtable(lookup);
+      exact->name = "subtable" + std::to_string(subtableIndex);
+      lookup->subtables.push_back(exact);
+    }
+    const auto input = *singleRule.inputCoordinates;
+    auto output = input;
+    output.lefttatweel += singleRule.expansion.MinLeftTatweel;
+    output.righttatweel += singleRule.expansion.MinRightTatweel;
+    exact->addRule(singleRule.firstGlyphSet->getCodes(otlayout), input, output);
+    return;
+  }
   const auto hasMatchingFormat = [&] {
-    if (newsubtable == nullptr) return false;
+    if (newsubtable == nullptr || exact != nullptr) return false;
     if (singleRule.format == 11)
       return dynamic_cast<SingleSubtableWithParameters*>(newsubtable) != nullptr;
     const auto* single = dynamic_cast<SingleSubtable*>(newsubtable);
@@ -734,6 +805,8 @@ void LookupDefinitionVisitor::accept(MultipleSubstitutionRule& multipleSubstitut
   if (lookup->type == Lookup::none) {
     lookup->type = Lookup::multiple;
   } else if (lookup->type == Lookup::single && lookup->subtables.size() == 1) {
+    if (dynamic_cast<ExactSingleSubtable*>(lookup->subtables.back()))
+      throw std::runtime_error("Cannot mix coordinate-qualified and multiple substitutions in " + lookup->name);
     lookup->type = Lookup::multiple;
     newsubtable = new MultipleSubtable(lookup);
     auto oldsubtable = static_cast<SingleSubtable*>(lookup->subtables.back());

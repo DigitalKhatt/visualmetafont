@@ -396,6 +396,11 @@ singlesub
 	: SUBSTITUTE glyph BY glyph	{$$ = new SingleSubstituionRule($2,$4,2);}
 	| SUBSTITUTE CALLBACK glyph {$$ = new SingleSubstituionRule($glyph,$glyph,10);}
 	| SUBSTITUTE glyphclass ADD doubleorint[lefttatweel] doubleorint[righttatweel]  {$$ = new SingleSubstituionRule(new GlyphSet($glyphclass),$lefttatweel,$righttatweel);}
+	| SUBSTITUTE glyphclass COORD doubleorint[left] doubleorint[right] ADD doubleorint[dx] doubleorint[dy] {
+		auto* rule = new SingleSubstituionRule(new GlyphSet($glyphclass), $dx, $dy);
+		rule->inputCoordinates = GlyphParameters{.lefttatweel = $left, .righttatweel = $right};
+		$$ = rule;
+	}
 	| SUBSTITUTE glyph ADD doubleorint[lefttatweel] doubleorint[righttatweel]  {$$ = new SingleSubstituionRule(new GlyphSet($glyph),$lefttatweel,$righttatweel);}
 	| SUBSTITUTE glyph[glyph1] BY glyph[glyph2] ADD doubleorint[lefttatweel] doubleorint[righttatweel]  {$$ = new SingleSubstituionRule($glyph1,$glyph2,$lefttatweel,$righttatweel);}
 	| SUBSTITUTE glyph ADDPARAMS '{' glyphparameteradjustments[parameters] '}' {$$ = new SingleSubstituionRule(new GlyphSet($glyph), std::move($parameters));}
