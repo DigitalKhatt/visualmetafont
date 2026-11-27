@@ -27,7 +27,11 @@ def main():
     commands = subprocess.check_output(['ninja', '-t', 'commands', 'digitalkhatt_generate_mushaf'], cwd=build, text=True).splitlines()
     compile_command = next(c for c in commands if ' -c ' in c and c.endswith('/tools/generate_mushaf.cpp'))
     flags = shlex.split(compile_command)
-    engine = Path(flags[flags.index('-c') + 1]).resolve().parents[1]
+    renderer_object = flags[flags.index('-o') + 1]
+    tool_source = Path(flags[flags.index('-c') + 1]).resolve()
+    engine = tool_source.parents[1]
+    if (engine / 'engine/src/layout').is_dir():
+        engine = engine / 'engine'
     editor = Path(__file__).resolve().parents[2]
     for repo, prefix in [(engine.parent, 'engine'), (engine.parent, 'lib/digitalkhatt'), (editor, 'lib/digitalkhatt')]:
         if subprocess.run(['git', 'cat-file', '-e', f'{args.before_ref}:{prefix}/src/layout'],
@@ -41,7 +45,7 @@ def main():
         index = flags.index(flag)
         del flags[index:index + 2]
     flags = [flag for flag in flags if flag != '-MD']
-    flags += ['-I' + str(output / 'include'), '-I' + str(engine / 'tools')]
+    flags += ['-I' + str(output / 'include'), '-I' + str(tool_source.parent)]
     roots = ('include/digitalkhatt/layout', 'src/layout')
     old_paths = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', f'{args.before_ref}:{prefix}',
                                          *roots], cwd=repo, text=True).splitlines()
@@ -91,7 +95,7 @@ namespace digitalkhatt::bench_after { inline BenchStats benchStats; }
     main_obj = output / 'main.o'
     compile_one((main_source, main_obj))
     link = shlex.split(commands[-1])[2:-2]
-    link = [str(main_obj) if x.endswith('/tools/generate_mushaf.cpp.o') else x for x in link]
+    link[link.index(renderer_object)] = str(main_obj)
     binary = output / 'benchmark-xpbd'
     link[link.index('-o') + 1] = str(binary)
     link += objects

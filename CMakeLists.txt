@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.24)
 
 project(digitalkhatt)
-option(DIGITALKHATT_BUILD_GUI "Build the VisualMetaFont Qt editor and Qt comparison tools" ON)
+option(DIGITALKHATT_BUILD_GUI "Build the VisualMetaFont Qt editor" ON)
+if(NOT DEFINED DIGITALKHATT_BUILD_QT_TOOLS)
+  set(DIGITALKHATT_BUILD_QT_TOOLS "${DIGITALKHATT_BUILD_GUI}")
+endif()
 include(cmake/EngineSource.cmake)
 include(CTest)
 
@@ -41,10 +44,5 @@ add_subdirectory("${DIGITALKHATT_ENGINE_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR
 get_target_property(DIGITALKHATT_ENGINE_RESOURCES digitalkhatt::otlayout DIGITALKHATT_RESOURCE_DIR)
 if (NOT EMSCRIPTEN AND DIGITALKHATT_BUILD_GUI)
   add_subdirectory(lib/QtPropertyBrowser)
-endif()
-if (NOT EMSCRIPTEN)
-  add_subdirectory(tools)
-  if (DIGITALKHATT_BUILD_GUI)
-    add_subdirectory(src)
-  endif()
+  add_subdirectory(src)
 endif()
