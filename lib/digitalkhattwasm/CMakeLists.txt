@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.24)
 project(digitalkhattwasm LANGUAGES CXX)
 
 # ---------------------------------------------------------------------------
@@ -33,18 +33,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Self-sufficient: pull in its own dependency chain (harfbuzz, mplib,
-# digitalkhatt_otlayout) when not already provided by a parent project.
-# Normally reached via the root-level "emscripten" CMake preset
-# (/Users/amin/projects/digitalkhatt/CMakePresets.json), which skips the
-# Qt-dependent parts of the tree (visualmetafont/src, lib/QtPropertyBrowser,
-# the font projects) under EMSCRIPTEN -- but this guard means this directory
-# can still be configured entirely on its own too, with no parent involved.
-if (NOT TARGET digitalkhatt_otlayout)
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../harfbuzz ${CMAKE_CURRENT_BINARY_DIR}/harfbuzz)
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../mplib ${CMAKE_CURRENT_BINARY_DIR}/mplib)
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../digitalkhatt ${CMAKE_CURRENT_BINARY_DIR}/digitalkhatt)
+# Direct builds use the same engine checkout as the editor and developer workspace.
+if(NOT TARGET digitalkhatt::otlayout)
+  include(../../cmake/EngineSource.cmake)
+  add_subdirectory("${DIGITALKHATT_ENGINE_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/lib")
 endif()
+get_target_property(DIGITALKHATT_ENGINE_RESOURCES digitalkhatt::otlayout DIGITALKHATT_RESOURCE_DIR)
 
 set(WEBLIB_NAME VisualMetaFontWasm)
 
@@ -59,7 +53,7 @@ target_compile_definitions(${WEBLIB_NAME} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC_ER
 
 add_dependencies(${WEBLIB_NAME} digitalkhatt_otlayout)
 
-target_link_libraries(${WEBLIB_NAME} PUBLIC digitalkhatt_otlayout PRIVATE glaze::glaze)
+target_link_libraries(${WEBLIB_NAME} PUBLIC digitalkhatt::otlayout)
 
 target_compile_options(${WEBLIB_NAME} PUBLIC -w)
 
@@ -79,29 +73,6 @@ if(DIGITALKHATTWASM_LOAD_TIME_LINK)
   target_link_options(${WEBLIB_NAME} PRIVATE "SHELL:-s MAIN_MODULE=2")
 else()
   target_link_options(${WEBLIB_NAME} PRIVATE "SHELL:-s MAIN_MODULE=1")
-endif()
-
-# Emscripten dynamic linking offers two ways to bring a side module in:
-#   - run-time: an explicit dlopen() call (OtLayout.cpp does this today) --
-#     madina_font.wasm is fetched lazily, only once shaping actually needs it.
-#   - load-time: the side module is listed directly on the main module's own
-#     link line. wasm-ld then records it as a "needed" dependency in this
-#     module's dylink.0 section, and Emscripten's JS glue fetches and links
-#     it automatically before the module becomes ready -- eagerly, on every
-#     load, whether or not that session ends up needing it. OtLayout.cpp's
-#     dlopen() call is unchanged either way: it asks for the same file name
-#     (SLPREFIX+stem+SLEXT, e.g. "libmadina.wasm") regardless, and Emscripten
-#     resolves that against its own registry of already-loaded libraries --
-#     when load-time linking already put it there, dlopen() finds it
-#     immediately and does no work (no fetch, no re-link).
-# Off by default: the eager-vs-lazy fetch tradeoff depends on whether a given
-# deployment's typical session needs madina_font right away (load-time linking
-# lets the browser start fetching it in parallel with the rest of startup) or
-# only sometimes (run-time dlopen() avoids paying for it when unused).
-if(DIGITALKHATTWASM_LOAD_TIME_LINK)
-  target_link_libraries(${WEBLIB_NAME} PRIVATE "$<TARGET_FILE:madina_font>")
-  target_link_libraries(${WEBLIB_NAME} PRIVATE "$<TARGET_FILE:oldmadina_font>")
-  target_link_libraries(${WEBLIB_NAME} PRIVATE "$<TARGET_FILE:indopak_font>")
 endif()
 
 target_link_options(${WEBLIB_NAME} PRIVATE --bind --use-preload-plugins  # -fsanitize=leak
@@ -154,9 +125,6 @@ target_link_options(${WEBLIB_NAME} PRIVATE
 set(MADINAFONT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../madinafont")
 set(OLDMADINAFONT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../oldmadinafont")
 set(INDOPAKFONT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../indopakfont")
-if(NOT DEFINED DIGITALKHATT_ENGINE_RESOURCES)
-  set(DIGITALKHATT_ENGINE_RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources")
-endif()
 set(METAFONT_RESOURCES_DIR "${DIGITALKHATT_ENGINE_RESOURCES}/metafont")
 set(ANGULAR_WASM_ASSETS_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt-js/apps/site-angular/src/assets/wasm_masahif")
@@ -182,24 +150,21 @@ add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
   COMMENT "Copying WASM mushaf runtime and font assets to Angular")
 
 
+# Only the developer workspace supplies the three font targets. Direct builds
+# link and copy the prebuilt side modules from the sibling font checkouts.
+foreach(font IN ITEMS madina oldmadina indopak)
+  if(DIGITALKHATTWASM_STANDALONE OR PROJECT_IS_TOP_LEVEL OR digitalkhatt_IS_TOP_LEVEL)
+    set(font_module "${CMAKE_CURRENT_SOURCE_DIR}/../../../${font}font/lib${font}$<$<CONFIG:Debug>:d>.wasm")
+  else()
+    set(font_module "$<TARGET_FILE:${font}_font>")
+    add_dependencies(${WEBLIB_NAME} ${font}_font)
+  endif()
+  # Listing the side module here lets Emscripten load it at startup.
+  # OtLayout can also load the same file on demand with dlopen().
+  if(DIGITALKHATTWASM_LOAD_TIME_LINK)
+    target_link_libraries(${WEBLIB_NAME} PRIVATE "${font_module}")
+  endif()
   add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:madina_font>" "${ANGULAR_WASM_ASSETS_DIR}/fonts/madina"
-    COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:oldmadina_font>" "${ANGULAR_WASM_ASSETS_DIR}/fonts/oldmadina"
-    COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:indopak_font>" "${ANGULAR_WASM_ASSETS_DIR}/fonts/indopak"
-    COMMENT "Copying WASM font side modules to Angular")
-
-if(NOT DIGITALKHATTWASM_STANDALONE)
-  add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:madina_font>" "${ANGULAR_WASM_ASSETS_DIR}/fonts/madina"
-    COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:oldmadina_font>" "${ANGULAR_WASM_ASSETS_DIR}/fonts/oldmadina"
-    COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:indopak_font>" "${ANGULAR_WASM_ASSETS_DIR}/fonts/indopak"
-    COMMENT "Copying WASM font side modules to Angular")
-else()
-  # A standalone digitalkhattwasm configure does not build the font targets;
-  # use the side modules already produced in each font project.
-  add_custom_command(TARGET ${WEBLIB_NAME} POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy "${MADINAFONT_DIR}/libmadina.wasm" "${ANGULAR_WASM_ASSETS_DIR}/fonts/madina"
-    COMMAND "${CMAKE_COMMAND}" -E copy "${OLDMADINAFONT_DIR}/liboldmadina.wasm" "${ANGULAR_WASM_ASSETS_DIR}/fonts/oldmadina"
-    COMMAND "${CMAKE_COMMAND}" -E copy "${INDOPAKFONT_DIR}/libindopak.wasm" "${ANGULAR_WASM_ASSETS_DIR}/fonts/indopak"
-    COMMENT "Copying prebuilt WASM font side modules to Angular")
-endif()
+    COMMAND "${CMAKE_COMMAND}" -E copy "${font_module}" "${ANGULAR_WASM_ASSETS_DIR}/fonts/${font}"
+    VERBATIM)
+endforeach()

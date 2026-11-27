@@ -49,8 +49,12 @@ EMSCRIPTEN_BINDINGS(my_module) {
 		.field("cluster", &GlyphLayoutInfo::cluster)
 		.field("lookup_index", &GlyphLayoutInfo::lookup_index)
 		.field("subtable_index", &GlyphLayoutInfo::subtable_index)
-		.field("lefttatweel", &GlyphLayoutInfo::lefttatweel)
-		.field("righttatweel", &GlyphLayoutInfo::righttatweel)
+		.field("lefttatweel",
+			+[](const GlyphLayoutInfo& glyph) { return glyph.parameters.lefttatweel; },
+			+[](GlyphLayoutInfo& glyph, double value) { glyph.parameters.lefttatweel = value; })
+		.field("righttatweel",
+			+[](const GlyphLayoutInfo& glyph) { return glyph.parameters.righttatweel; },
+			+[](GlyphLayoutInfo& glyph, double value) { glyph.parameters.righttatweel = value; })
 		.field("base_codepoint", &GlyphLayoutInfo::base_codepoint)
 		.field("beginsajda", &GlyphLayoutInfo::beginsajda)
 		.field("endsajda", &GlyphLayoutInfo::endsajda)

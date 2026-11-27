@@ -1,7 +1,8 @@
 """Build isolated before/current XPBD cores and benchmark identical shaped pages.
 
 Usage: python3 benchmark-xpbd.py BUILD_DIR CONFIG_JSON OUTPUT_DIR [--rounds 4]
-The historical core comes from --before-ref (default HEAD). Production sources
+The historical core comes from --before-ref (default engine HEAD). Original
+VisualMetaFont commit IDs are also accepted. Production sources
 are never swapped. Both cores use the build's Release compiler flags and shared
 unchanged geometry implementation, in separate namespaces. Reports/PDFs are off.
 """
@@ -21,33 +22,41 @@ def main():
     parser.add_argument('--before-ref', default='HEAD')
     parser.add_argument('--rounds', type=int, default=4)
     args = parser.parse_args()
-    repo = Path(__file__).resolve().parents[2]
     build, output = args.build.resolve(), args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     commands = subprocess.check_output(['ninja', '-t', 'commands', 'digitalkhatt_generate_mushaf'], cwd=build, text=True).splitlines()
     compile_command = next(c for c in commands if ' -c ' in c and c.endswith('/tools/generate_mushaf.cpp'))
     flags = shlex.split(compile_command)
+    engine = Path(flags[flags.index('-c') + 1]).resolve().parents[1]
+    editor = Path(__file__).resolve().parents[2]
+    for repo, prefix in [(engine.parent, 'engine'), (engine.parent, 'lib/digitalkhatt'), (editor, 'lib/digitalkhatt')]:
+        if subprocess.run(['git', 'cat-file', '-e', f'{args.before_ref}:{prefix}/src/layout'],
+                          cwd=repo, stderr=subprocess.DEVNULL).returncode == 0:
+            break
+    else:
+        parser.error(f'Cannot find the layout sources at {args.before_ref} in the engine or editor history')
     for flag in ('-o', '-c', '-MT', '-MF'):
         if flag not in flags:
             continue
         index = flags.index(flag)
         del flags[index:index + 2]
     flags = [flag for flag in flags if flag != '-MD']
-    flags += ['-I' + str(output / 'include'), '-I' + str(repo / 'lib/digitalkhatt/tools')]
-    old_paths = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', args.before_ref,
-        'lib/digitalkhatt/include/digitalkhatt/layout', 'lib/digitalkhatt/src/layout'], cwd=repo, text=True).splitlines()
-    current_paths = [str(p.relative_to(repo)) for root in ('include/digitalkhatt/layout', 'src/layout')
-                     for p in (repo / 'lib/digitalkhatt' / root).rglob('*') if p.suffix in ('.h', '.cpp')]
+    flags += ['-I' + str(output / 'include'), '-I' + str(engine / 'tools')]
+    roots = ('include/digitalkhatt/layout', 'src/layout')
+    old_paths = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', f'{args.before_ref}:{prefix}',
+                                         *roots], cwd=repo, text=True).splitlines()
+    current_paths = [str(p.relative_to(engine)) for root in roots
+                     for p in (engine / root).rglob('*') if p.suffix in ('.h', '.cpp')]
     objects = []
     jobs = []
     for version, paths in [('before', old_paths), ('after', current_paths)]:
         namespace = 'bench_' + version
         for path in paths:
-            text = (subprocess.check_output(['git', 'show', args.before_ref + ':' + path], cwd=repo, text=True)
-                    if version == 'before' else (repo / path).read_text())
+            text = (subprocess.check_output(['git', 'show', f'{args.before_ref}:{prefix}/{path}'], cwd=repo, text=True)
+                    if version == 'before' else (engine / path).read_text())
             text = text.replace('digitalkhatt::layout', 'digitalkhatt::' + namespace)
             text = text.replace('digitalkhatt/layout/', 'digitalkhatt/' + namespace + '/')
-            relative = Path(path.removeprefix('lib/digitalkhatt/'))
+            relative = Path(path)
             target = output / str(relative).replace('digitalkhatt/layout/', 'digitalkhatt/' + namespace + '/').replace('src/layout/', 'src/' + namespace + '/')
             target.parent.mkdir(parents=True, exist_ok=True)
             if relative.name == 'OptimizeLayout.cpp':

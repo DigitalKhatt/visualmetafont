@@ -8,7 +8,7 @@
 
 // Qt-side reimplementation of the pieces of geometry::GeometrySet that need
 // Qt types (QPainterPath). The Qt-free geometry library itself
-// (lib/digitalkhatt) has no Qt dependency; this is the adapter for code in
+// (libdigitalkhatt) has no Qt dependency; this is the adapter for code in
 // src/Layout that wants to draw a GeometrySet.
 
 QPainterPath toQPainterPath(const geometry::GeometrySet& geomSet);

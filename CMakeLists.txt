@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.24)
 
 project(digitalkhatt)
 option(DIGITALKHATT_BUILD_GUI "Build the VisualMetaFont Qt editor and Qt comparison tools" ON)
-set(DIGITALKHATT_ENGINE_SOURCE_DIR "" CACHE PATH "Build with a separate libdigitalkhatt checkout")
+include(cmake/EngineSource.cmake)
 include(CTest)
 
 
@@ -35,18 +35,10 @@ endif()
 add_compile_options($<$<C_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 
-set(DIGITALKHATT_ENGINE_RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Resources")
-if(DIGITALKHATT_ENGINE_SOURCE_DIR)
-  set(DIGITALKHATT_QURAN_DATABASE "${DIGITALKHATT_ENGINE_RESOURCES}/quran-data.sqlite"
-    CACHE FILEPATH "Quran SQLite corpus used by the native Mushaf tools and corpus test")
-  add_subdirectory("${DIGITALKHATT_ENGINE_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/lib")
-  get_target_property(DIGITALKHATT_ENGINE_RESOURCES digitalkhatt_otlayout DIGITALKHATT_RESOURCE_DIR)
-else()
-  set(DIGITALKHATT_QURAN_DATABASE "${DIGITALKHATT_ENGINE_RESOURCES}/quran-data.sqlite")
-  add_subdirectory(lib/harfbuzz)
-  add_subdirectory(lib/mplib)
-  add_subdirectory(lib/digitalkhatt)
-endif()
+set(DIGITALKHATT_QURAN_DATABASE "${CMAKE_CURRENT_SOURCE_DIR}/src/Resources/quran-data.sqlite"
+  CACHE FILEPATH "Quran SQLite corpus used by the native Mushaf tools and corpus test")
+add_subdirectory("${DIGITALKHATT_ENGINE_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/lib")
+get_target_property(DIGITALKHATT_ENGINE_RESOURCES digitalkhatt::otlayout DIGITALKHATT_RESOURCE_DIR)
 if (NOT EMSCRIPTEN AND DIGITALKHATT_BUILD_GUI)
   add_subdirectory(lib/QtPropertyBrowser)
 endif()

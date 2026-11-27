@@ -25,7 +25,7 @@ Glyph caching remains enabled for all glyphs by default.
 The GUI also writes `<font>Layout.variants.bin.json` with source text, glyph names
 and line baselines for word-level comparisons. The native CLI's `--layout-binary
 PATH` writes the same v4 format with a `PATH.json` sidecar. See
-`lib/digitalkhatt/tools/compare_layout_binaries.md` for reviewing two exports.
+`../libdigitalkhatt/engine/tools/compare_layout_binaries.md` for reviewing two exports.
 
 ## Standalone conversion (baked interpolation)
 

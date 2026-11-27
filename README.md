@@ -4,19 +4,27 @@ A graphical tool developed to allow the design of the Metafont-based dynamic fon
 
 This project is sponsored by [@tarteelAI](https://github.com/TarteelAI) [![TarteelAI](https://assets-global.website-files.com/6167e862f6dfba5084eb5554/61680717c50ec79defcdb062_logo-group.svg "TarteelAI")](https://www.tarteel.ai/)
 
-## Build a native font plugin against the headless engine
+## Build with the DigitalKhatt engine
 
-To develop the editor and engine together, set
-`-DDIGITALKHATT_ENGINE_SOURCE_DIR=/path/to/libdigitalkhatt` when configuring
-VisualMetaFont or the parent developer workspace. Initialize the HarfBuzz
-submodule in that checkout. CMake compiles that engine and the editor
-embeds its MetaPost macros. Leaving the option empty selects the bundled engine.
+Place the `visualmetafont` and `libdigitalkhatt` checkouts side by side.
+VisualMetaFont and the parent developer workspace use `../libdigitalkhatt` by
+default. To use a different checkout, configure with
+`-DDIGITALKHATT_ENGINE_SOURCE_DIR=/path/to/libdigitalkhatt`.
+The engine owns MPLib, the HarfBuzz submodule, and the shared MetaPost macros.
 
-From the VisualMetaFont checkout, initialize the pinned HarfBuzz submodule and
-build with a C++23-capable compiler, Flex and Bison 3.0.4 or newer.
+From the VisualMetaFont checkout, build the editor with CMake 3.24 or newer,
+a C++23-capable compiler, Flex, Bison 3.0.4 or newer, and Qt 5. The editor
+uses the separately supplied corpus at `src/Resources/quran-data.sqlite`.
 
 ```sh
-git submodule update --init -- lib/harfbuzz/harfbuzz
+git -C ../libdigitalkhatt submodule update --init --recursive
+cmake -S . -B build/editor -DCMAKE_BUILD_TYPE=Release
+cmake --build build/editor --config Release --target visualmetafont
+```
+
+## Build a native font plugin against the headless engine
+
+```sh
 cmake -S . -B build/headless -DDIGITALKHATT_BUILD_GUI=OFF -DCMAKE_BUILD_TYPE=Release
 cmake --build build/headless --config Release
 cmake --install build/headless --config Release --prefix /path/to/digitalkhatt-sdk

@@ -413,8 +413,9 @@ public:
         ctx.call<void>("save");
         ctx.call<void>("scale", fontScale, fontScale);
 
-        displayGlyph(glyph.codepoint, glyph.lefttatweel, glyph.righttatweel,
-                     ctx);
+        if (auto *outline = layout->getGlyph(glyph)) {
+          edgetoHTML5Path(outline->copiedPath, ctx);
+        }
         ctx.call<void>("restore");
 
         if (glyph.color) {
