@@ -751,7 +751,7 @@ mp->max_in_stack= mp->input_ptr; \
 if(mp->input_ptr==mp->stack_size) { \
 int l= (mp->stack_size+(mp->stack_size/4) ) ; \
  \
-if(l> 1000) {fprintf(stderr,"input stack overflow\n") ;exit(EXIT_FAILURE) ;} \
+if(l> 1000) {mp_fputs("input stack overflow\n",mp->err_out) ;mp->history= mp_fatal_error_stop;mp_jump_out(mp) ;} \
 XREALLOC(mp->input_stack,l,in_state_record) ; \
 mp->stack_size= l; \
 } \
@@ -5246,8 +5246,7 @@ static void mp_fix_date_and_time(MP mp) {
     errno = 0;
     epoch = strtoull(source_date_epoch, &endptr, 10);
     if (*endptr != '\0' || errno != 0) {
-      FATAL1("invalid epoch-seconds-timezone value for environment variable $SOURCE_DATE_EPOCH: %s",
-        source_date_epoch);
+      epoch = time(NULL); /* DK: was FATAL1 (exit) on a bad $SOURCE_DATE_EPOCH */
     }
 
 #if defined(_MSC_VER)
