@@ -4,6 +4,10 @@ A graphical tool developed to allow the design of the Metafont-based dynamic fon
 
 This project is sponsored by [@tarteelAI](https://github.com/TarteelAI) [![TarteelAI](https://assets-global.website-files.com/6167e862f6dfba5084eb5554/61680717c50ec79defcdb062_logo-group.svg "TarteelAI")](https://www.tarteel.ai/)
 
+## License
+
+VisualMetaFont’s original code uses the MIT License. Qt-derived code, third-party TeX components, and bundled fonts carry their own notices. [License text](LICENSE)
+
 ## Build with the DigitalKhatt engine
 
 Place the `visualmetafont` and `libdigitalkhatt` checkouts side by side.
