@@ -7,6 +7,11 @@ project(digitalkhatt_core LANGUAGES CXX)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(FetchContent)
+include(GNUInstallDirs)
+
+set(digitalkhatt_includes
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 
 # Prefer an installed Clipper2 (fast, common on native builds); fall back to
 # building from source when none is found or none is compatible with the
@@ -65,9 +70,9 @@ add_library(digitalkhatt_core
   src/tajweed/tajweed_service.cpp
 )
 
-target_include_directories(digitalkhatt_core PUBLIC include)
+target_include_directories(digitalkhatt_core PUBLIC ${digitalkhatt_includes})
 target_compile_features(digitalkhatt_core PUBLIC cxx_std_20)
-target_link_libraries(digitalkhatt_core PRIVATE $<BUILD_LOCAL_INTERFACE:pcre2-16-static> Clipper2::Clipper2)
+target_link_libraries(digitalkhatt_core PRIVATE pcre2-16-static Clipper2::Clipper2)
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +100,7 @@ add_library(digitalkhatt_justify
   src/justify/declpolicy/JustificationCatalog.cpp
 )
 
-target_include_directories(digitalkhatt_justify PUBLIC include)
+target_include_directories(digitalkhatt_justify PUBLIC ${digitalkhatt_includes})
 target_compile_features(digitalkhatt_justify PUBLIC cxx_std_20)
 target_link_libraries(digitalkhatt_justify PUBLIC harfbuzz PRIVATE digitalkhatt_core)
 
@@ -138,7 +143,7 @@ add_library(digitalkhatt_geometry
   src/geometry/polypartition.cpp
 )
 
-target_include_directories(digitalkhatt_geometry PUBLIC include)
+target_include_directories(digitalkhatt_geometry PUBLIC ${digitalkhatt_includes})
 target_compile_features(digitalkhatt_geometry PUBLIC cxx_std_20)
 target_link_libraries(digitalkhatt_geometry PUBLIC mplib PRIVATE Clipper2::Clipper2)
 
@@ -189,7 +194,7 @@ add_library(digitalkhatt_layout
   src/layout/constraints/BowlClusterConstraint.cpp
 )
 
-target_include_directories(digitalkhatt_layout PUBLIC include)
+target_include_directories(digitalkhatt_layout PUBLIC ${digitalkhatt_includes})
 target_compile_features(digitalkhatt_layout PUBLIC cxx_std_20)
 target_link_libraries(digitalkhatt_layout PUBLIC digitalkhatt_geometry digitalkhatt_core)
 
@@ -279,13 +284,13 @@ add_library(digitalkhatt_otlayout ${DIGITALKHATT_OTLAYOUT_LIB_TYPE}
 )
 add_library(digitalkhatt::otlayout ALIAS digitalkhatt_otlayout)
 
-target_include_directories(digitalkhatt_otlayout PUBLIC
-  ${OTLAYOUT_ROOT}
-  ${OTLAYOUT_ROOT}/Layout
-  ${OTLAYOUT_ROOT}/FeaParser
-  ${OTLAYOUT_ROOT}/automedina
-  ${OTLAYOUT_GENERATED_DIR}
-)
+set(otlayout_install_include "${CMAKE_INSTALL_INCLUDEDIR}/digitalkhatt/otlayout")
+foreach(subdir IN ITEMS "." Layout FeaParser automedina)
+  target_include_directories(digitalkhatt_otlayout PUBLIC
+    "$<BUILD_INTERFACE:${OTLAYOUT_ROOT}/${subdir}>"
+    "$<INSTALL_INTERFACE:${otlayout_install_include}/${subdir}>")
+endforeach()
+target_include_directories(digitalkhatt_otlayout PUBLIC "$<BUILD_INTERFACE:${OTLAYOUT_GENERATED_DIR}>")
 target_include_directories(digitalkhatt_otlayout PRIVATE ${FLEX_INCLUDE_DIRS})
 target_compile_features(digitalkhatt_otlayout PUBLIC cxx_std_20)
 target_compile_options(digitalkhatt_otlayout PRIVATE
@@ -313,6 +318,7 @@ target_include_directories(digitalkhatt_layout_export PUBLIC include)
 target_link_libraries(digitalkhatt_layout_export PUBLIC digitalkhatt::otlayout)
 
 if(NOT EMSCRIPTEN)
+  include(cmake/Package.cmake)
   find_library(DIGITALKHATT_SQLITE3_LIBRARY NAMES sqlite3 REQUIRED)
 
 

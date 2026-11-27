@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 
 project(digitalkhatt)
 option(DIGITALKHATT_BUILD_GUI "Build the VisualMetaFont Qt editor and Qt comparison tools" ON)
+include(CTest)
 
 
 set(CMAKE_CXX_STANDARD 20)

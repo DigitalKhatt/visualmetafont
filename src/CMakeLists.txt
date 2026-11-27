@@ -281,17 +281,10 @@ target_link_libraries(${VMF_SL} PUBLIC digitalkhatt_otlayout Qt5::Widgets)
 #add_dependencies(${PROJECT_NAME} ${VMF_SL})
 set_target_properties(${VMF_SL}  PROPERTIES ENABLE_EXPORTS 1 WINDOWS_EXPORT_ALL_SYMBOLS 1)
 set_target_properties(${PROJECT_NAME}  PROPERTIES ENABLE_EXPORTS 1 WINDOWS_EXPORT_ALL_SYMBOLS 1)
-export(TARGETS digitalkhatt_otlayout harfbuzz mplib digitalkhatt_core digitalkhatt_justify digitalkhatt_geometry digitalkhatt_layout glaze_glaze
-  FILE ${CMAKE_CURRENT_BINARY_DIR}/digitalkhatt_otlayoutTargets.cmake)
-configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/digitalkhatt_otlayoutConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/digitalkhatt_otlayoutConfig.cmake
-  @ONLY
-)
-export(PACKAGE digitalkhatt_otlayout)
-#export(TARGETS ${VMF_SL} harfbuzz mplib QtPropertyBrowser FILE ${CMAKE_CURRENT_BINARY_DIR}/vmfsl.cmake)
-
-
+# Forward existing build trees whose digitalkhatt_otlayout_DIR points here.
+get_target_property(otlayout_build_dir digitalkhatt_otlayout BINARY_DIR)
+file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/digitalkhatt_otlayoutConfig.cmake"
+  CONTENT "include(\"${otlayout_build_dir}/digitalkhatt_otlayoutConfig.cmake\")\n")
 
 
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -528,6 +521,10 @@ if(BUILD_TESTING AND NOT EMSCRIPTEN AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../.
   add_test(NAME visualmetafont.multiple_glyph_files COMMAND visualmetafont_test_multiple_glyph_files
     "${CMAKE_CURRENT_SOURCE_DIR}/../../madinafont")
   set_tests_properties(visualmetafont.multiple_glyph_files PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
+
+if(BUILD_TESTING AND NOT EMSCRIPTEN AND DIGITALKHATT_BUILD_FONT_PROJECTS
+   AND EXISTS "${CMAKE_SOURCE_DIR}/madinafont/madina.mp")
   add_executable(visualmetafont_test_lookup_editor
     tests/LookupPatternEditorTest.cpp Layout/LookupPatternEditor.cpp Layout/LookupPatternEditor.h
     Layout/LookupCaseGallery.cpp Layout/LookupCaseGallery.h)

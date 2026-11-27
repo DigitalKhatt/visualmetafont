@@ -60,6 +60,9 @@ if (UNIX)
     target_compile_options(${PROJECT_NAME} PUBLIC -fPIC)
 endif (UNIX)
 
-target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+include(GNUInstallDirs)
+target_include_directories(${PROJECT_NAME} PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/digitalkhatt/mplib>")
 
 target_compile_options(${PROJECT_NAME} PUBLIC $<$<CXX_COMPILER_ID:GNU>: -Wno-error=incompatible-pointer-types>)

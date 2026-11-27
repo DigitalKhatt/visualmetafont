@@ -71,7 +71,10 @@ if (UNIX)
     #target_link_libraries(${PROJECT_NAME} -static-libgcc -static-libstdc++)
 endif (UNIX)
 
-target_include_directories(${PROJECT_NAME} PUBLIC "harfbuzz/src")
+include(GNUInstallDirs)
+target_include_directories(${PROJECT_NAME} PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/harfbuzz/src>"
+  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/digitalkhatt/harfbuzz>")
 
 if(BUILD_TESTING AND NOT EMSCRIPTEN)
   add_executable(harfbuzz_test_post_gsub tests/PostGsubCallbackTest.cpp)

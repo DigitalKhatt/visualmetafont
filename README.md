@@ -4,6 +4,32 @@ A graphical tool developed to allow the design of the Metafont-based dynamic fon
 
 This project is sponsored by [@tarteelAI](https://github.com/TarteelAI) [![TarteelAI](https://assets-global.website-files.com/6167e862f6dfba5084eb5554/61680717c50ec79defcdb062_logo-group.svg "TarteelAI")](https://www.tarteel.ai/)
 
+## Build a native font plugin against the headless engine
+
+From the VisualMetaFont checkout, initialize the pinned HarfBuzz submodule and
+build with a C++23-capable compiler, Flex and Bison 3.0.4 or newer.
+
+```sh
+git submodule update --init --recursive
+cmake -S . -B build/headless -DDIGITALKHATT_BUILD_GUI=OFF -DCMAKE_BUILD_TYPE=Release
+cmake --build build/headless --config Release
+cmake --install build/headless --config Release --prefix /path/to/digitalkhatt-sdk
+
+cmake -S /path/to/madinafont -B build/madina -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/path/to/digitalkhatt-sdk
+cmake --build build/madina --config Release
+```
+
+The font project calls `find_package(digitalkhatt_otlayout CONFIG REQUIRED)` and
+links to `digitalkhatt::otlayout`. Build the plugin with the same C++ toolchain
+as the engine. If the engine uses Clipper2 or Glaze from a custom prefix,
+include that prefix in the font project's `CMAKE_PREFIX_PATH`.
+
+To run the installation check, add
+`-DDIGITALKHATT_PACKAGE_TEST_FONT=/path/to/madinafont` when configuring the
+engine, then run `ctest --test-dir build/headless -C Release -R installed_font_plugin --output-on-failure`.
+The check installs the engine into a temporary prefix, moves it, and builds
+the font against that installation.
+
 ## Precomputed layout formats
 
 **Generate Layout Info** offers **Both formats** (the initial selection),
