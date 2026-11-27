@@ -159,6 +159,10 @@ float OtLayout::normalToParameter(unsigned int code, float tatweel, bool left) {
 
 #include "hb-ot-name-table.hh"
 
+namespace digitalkhatt::justify::runtime {
+void clearWidthCache();  // JustificationShaping.h
+}
+
 static hb_blob_t* harfbuzzGetTables(hb_face_t* face, hb_tag_t tag, void* userData) {
   OtLayout* layout = reinterpret_cast<OtLayout*>(userData);
 
@@ -1204,6 +1208,7 @@ OtLayout::~OtLayout() {
   }
   clearAlternates();
 
+  digitalkhatt::justify::runtime::clearWidthCache();
   delete face;
   delete automedina;
   delete toOpenType;
@@ -1431,6 +1436,7 @@ void OtLayout::parseFeatureFile(std::string fileName) {
   prepareAnchorResolution();
 
   if (face != nullptr) {
+    digitalkhatt::justify::runtime::clearWidthCache();
     hb_face_destroy(face);
     face = nullptr;
   }
@@ -1498,6 +1504,7 @@ hb_font_t* OtLayout::createFont(double emScale, bool newFace) {
 
   if (newFace || face == nullptr) {
     if (face != nullptr) {
+      digitalkhatt::justify::runtime::clearWidthCache();
       hb_face_destroy(face);
       face = nullptr;
     }
