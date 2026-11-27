@@ -48,7 +48,3 @@ if (NOT EMSCRIPTEN)
     add_subdirectory(src)
   endif()
 endif()
-
-if (EMSCRIPTEN)
-  add_subdirectory(lib/digitalkhattwasm)
-endif()
