@@ -31,6 +31,12 @@ FetchContent_MakeAvailable(Clipper2)
 # target; a source build (add_subdirectory via FetchContent) only defines
 # the plain Clipper2 target, so alias it to match either path uniformly.
 if (NOT TARGET Clipper2::Clipper2)
+  # Clipper2 1.5.4 uses std::back_inserter without including <iterator>.
+  if(MSVC)
+    target_compile_options(Clipper2 PRIVATE /FIiterator)
+  else()
+    target_compile_options(Clipper2 PRIVATE "SHELL:-include iterator")
+  endif()
   add_library(Clipper2::Clipper2 ALIAS Clipper2)
 endif()
 

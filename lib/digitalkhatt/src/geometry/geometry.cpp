@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <iterator>  // Clipper2 1.5.4 uses std::back_inserter.
 
 #include "clipper2/clipper.h"
 #include "mplibps.h"

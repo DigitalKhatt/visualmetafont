@@ -23,6 +23,7 @@
 #include  <functional>
 #include <unordered_map>
 #include <string>
+#include <vector>
 
 class OtLayout;
 struct FSMSubtable;
