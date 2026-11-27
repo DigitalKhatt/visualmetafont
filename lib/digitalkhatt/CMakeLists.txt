@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 project(digitalkhatt_core LANGUAGES CXX)
 
+option(DIGITALKHATT_BUILD_NATIVE_ENGINE
+       "Build the standalone native DigitalKhatt C ABI runtime" OFF)
+if(DIGITALKHATT_BUILD_NATIVE_ENGINE)
+  add_subdirectory(runtime)
+endif()
+
 # digitalkhatt_otlayout links these (and the fetched Clipper2/pcre2) into a
 # SHARED library, so every static lib built here -- including third-party
 # ones pulled in via FetchContent below -- needs PIC objects too.

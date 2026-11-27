@@ -1,0 +1,11 @@
+_dk_engine_abi_version
+_dk_engine_create_from_file
+_dk_engine_create_from_memory
+_dk_engine_destroy
+_dk_engine_emit_glyph_outline_v1
+_dk_engine_shape_line_v1
+_dk_engine_upem
+_dk_line_destroy
+_dk_line_get_glyph_v1
+_dk_line_get_metrics_v1
+_dk_status_message
