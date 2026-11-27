@@ -10,7 +10,9 @@ endif()
 
 find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
-find_package(Clipper2 CONFIG REQUIRED)
+if(NOT TARGET Clipper2::Clipper2)
+  find_package(Clipper2 CONFIG REQUIRED)
+endif()
 
 include(FetchContent)
 FetchContent_Declare(
@@ -150,8 +152,14 @@ endif()
 
 source_group("Pdf" FILES ${Pdf})
 
+# Qt embeds the shared macros and fonts from the selected engine checkout.
+string(REPLACE "&" "&amp;" engine_resource_path "${DIGITALKHATT_ENGINE_RESOURCES}")
+string(REPLACE "<" "&lt;" engine_resource_path "${engine_resource_path}")
+string(REPLACE ">" "&gt;" engine_resource_path "${engine_resource_path}")
+configure_file(Resources/engine.qrc.in "${CMAKE_CURRENT_BINARY_DIR}/digitalkhatt_engine.qrc" @ONLY)
 set(Resource_Files
   Resources/mpgui.qrc
+  "${CMAKE_CURRENT_BINARY_DIR}/digitalkhatt_engine.qrc"
   )
 
 
@@ -456,9 +464,8 @@ if(BUILD_TESTING AND NOT EMSCRIPTEN)
     Layout/SolverParametersWidget.cpp
     Layout/SolverParametersWidget.h)
   target_compile_features(visualmetafont_test_solver_parameters PRIVATE cxx_std_20)
-  target_include_directories(visualmetafont_test_solver_parameters PRIVATE
-    Layout ../lib/digitalkhatt/include)
-  target_link_libraries(visualmetafont_test_solver_parameters PRIVATE Qt5::Widgets)
+  target_include_directories(visualmetafont_test_solver_parameters PRIVATE Layout)
+  target_link_libraries(visualmetafont_test_solver_parameters PRIVATE Qt5::Widgets digitalkhatt_layout)
   add_test(NAME visualmetafont.solver_parameters COMMAND visualmetafont_test_solver_parameters)
   set_tests_properties(visualmetafont.solver_parameters PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
@@ -531,7 +538,7 @@ if(BUILD_TESTING AND NOT EMSCRIPTEN AND DIGITALKHATT_BUILD_FONT_PROJECTS
   target_include_directories(visualmetafont_test_lookup_editor PRIVATE Layout metafont)
   target_link_libraries(visualmetafont_test_lookup_editor PRIVATE ${VMF_SL} digitalkhatt::otlayout Qt5::Test Qt5::Widgets)
   target_compile_definitions(visualmetafont_test_lookup_editor PRIVATE
-    DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/Resources/metafont")
+    DIGITALKHATT_METAFONT_RESOURCES="${DIGITALKHATT_ENGINE_RESOURCES}/metafont")
   add_dependencies(visualmetafont_test_lookup_editor madina_font)
   add_test(NAME visualmetafont.lookup_editor COMMAND visualmetafont_test_lookup_editor
     "${CMAKE_SOURCE_DIR}/madinafont/madina.mp")

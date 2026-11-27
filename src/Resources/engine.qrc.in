@@ -1,0 +1,10 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <qresource prefix="/">
+    <file alias="metafont/mfplain.mp">@engine_resource_path@/metafont/mfplain.mp</file>
+    <file alias="metafont/mpost.mp">@engine_resource_path@/metafont/mpost.mp</file>
+    <file alias="metafont/vmf.mp">@engine_resource_path@/metafont/vmf.mp</file>
+    <file alias="fonts/icomoon.ttf">@engine_resource_path@/fonts/icomoon.ttf</file>
+    <file alias="fonts/surahCodes.json">@engine_resource_path@/fonts/surahCodes.json</file>
+  </qresource>
+</RCC>

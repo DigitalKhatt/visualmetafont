@@ -13,8 +13,8 @@ target_link_libraries(digitalkhatt_compare_extreme_lines PRIVATE
 )
 target_compile_definitions(digitalkhatt_compare_extreme_lines PRIVATE
   HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR
-  DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../src/Resources/metafont"
-  DIGITALKHATT_QURAN_DATABASE="${CMAKE_CURRENT_SOURCE_DIR}/../src/Resources/quran-data.sqlite"
+  DIGITALKHATT_METAFONT_RESOURCES="${DIGITALKHATT_ENGINE_RESOURCES}/metafont"
+  DIGITALKHATT_QURAN_DATABASE="${DIGITALKHATT_QURAN_DATABASE}"
 )
 if(BUILD_TESTING)
   add_test(NAME digitalkhatt.comparison_geometry
@@ -31,7 +31,7 @@ target_link_libraries(digitalkhatt_compare_layout_rendering PRIVATE
 )
 target_compile_definitions(digitalkhatt_compare_layout_rendering PRIVATE
   QT_NO_KEYWORDS
-  DIGITALKHATT_METAFONT_RESOURCES="${CMAKE_CURRENT_SOURCE_DIR}/../src/Resources/metafont"
+  DIGITALKHATT_METAFONT_RESOURCES="${DIGITALKHATT_ENGINE_RESOURCES}/metafont"
 )
 if(BUILD_TESTING)
   add_test(NAME digitalkhatt.layout_rendering_measurements

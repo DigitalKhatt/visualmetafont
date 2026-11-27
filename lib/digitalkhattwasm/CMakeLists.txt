@@ -154,7 +154,10 @@ target_link_options(${WEBLIB_NAME} PRIVATE
 set(MADINAFONT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../madinafont")
 set(OLDMADINAFONT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../oldmadinafont")
 set(INDOPAKFONT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../indopakfont")
-set(METAFONT_RESOURCES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources/metafont")
+if(NOT DEFINED DIGITALKHATT_ENGINE_RESOURCES)
+  set(DIGITALKHATT_ENGINE_RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../../src/Resources")
+endif()
+set(METAFONT_RESOURCES_DIR "${DIGITALKHATT_ENGINE_RESOURCES}/metafont")
 set(ANGULAR_WASM_ASSETS_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/../../../digitalkhatt-js/apps/site-angular/src/assets/wasm_masahif")
 

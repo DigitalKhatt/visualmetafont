@@ -6,11 +6,17 @@ This project is sponsored by [@tarteelAI](https://github.com/TarteelAI) [![Tarte
 
 ## Build a native font plugin against the headless engine
 
+To develop the editor and engine together, set
+`-DDIGITALKHATT_ENGINE_SOURCE_DIR=/path/to/libdigitalkhatt` when configuring
+VisualMetaFont or the parent developer workspace. Initialize the HarfBuzz
+submodule in that checkout. CMake compiles that engine and the editor
+embeds its MetaPost macros. Leaving the option empty selects the bundled engine.
+
 From the VisualMetaFont checkout, initialize the pinned HarfBuzz submodule and
 build with a C++23-capable compiler, Flex and Bison 3.0.4 or newer.
 
 ```sh
-git submodule update --init --recursive
+git submodule update --init -- lib/harfbuzz/harfbuzz
 cmake -S . -B build/headless -DDIGITALKHATT_BUILD_GUI=OFF -DCMAKE_BUILD_TYPE=Release
 cmake --build build/headless --config Release
 cmake --install build/headless --config Release --prefix /path/to/digitalkhatt-sdk
