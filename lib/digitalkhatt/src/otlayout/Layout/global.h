@@ -13,6 +13,7 @@
 #define dlerror() GetLastError()
 #define dlclose(x) FreeLibrary(x)
 #define dlhandle HINSTANCE
+#define DIGITALKHATT_DLOPEN_MODE 0
 #elif defined(__EMSCRIPTEN__)
 // Emscripten's own <dlfcn.h> provides real dlopen/dlsym/dlclose backed by
 // its MAIN_MODULE/SIDE_MODULE dynamic-linking runtime (dylink.js) -- same
@@ -25,11 +26,7 @@
 #define dlhandle void*
 #define SLPREFIX "lib"
 #define SLEXT ".wasm"
-// Emscripten's dlopen() rejects mode=0 outright ("invalid mode for
-// dlopen(): Either RTLD_LAZY or RTLD_NOW is required"), unlike native
-// POSIX dlopen() implementations which tolerate it -- OtLayout.cpp's call
-// site passes 0, so translate it here rather than touching the call site.
-#define dlopen(x, y) dlopen(x, (y) ? (y) : RTLD_NOW)
+#define DIGITALKHATT_DLOPEN_MODE RTLD_NOW
 #else
 #include <dlfcn.h>
 #define dlhandle void*
@@ -39,5 +36,6 @@
 #else
 #define SLEXT ".so"
 #endif
+#define DIGITALKHATT_DLOPEN_MODE RTLD_NOW
 #endif
 
