@@ -1731,7 +1731,7 @@ void MyQPdfEnginePrivate::writeInfo() {
   xprintf(ba, "<<\n/Title ");
   printString(ba, "The Noble Quran - القرآن الكريم");
   xprintf(ba, "\n/Author ");
-  printString(ba, "Amine Anane");
+  printString(ba, "DigitalKhatt Project");
   xprintf(ba, "\n/Creator ");
   printString(ba, "VisualMetaFont 0.1");
   xprintf(ba, "\n/Producer ");

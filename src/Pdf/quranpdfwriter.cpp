@@ -175,7 +175,7 @@ void QuranPdfWriter::setTitle(const QString& title) {
 Returns the creator of the document.
 */
 QString QuranPdfWriter::creator() const {
-  return "Amine Anane";
+  return QStringLiteral("VisualMetaFont 0.1");
   // return d->engine->d_func()->creator;
 }
 
