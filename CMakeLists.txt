@@ -5,7 +5,9 @@ option(DIGITALKHATT_BUILD_GUI "Build the VisualMetaFont Qt editor" ON)
 if(NOT DEFINED DIGITALKHATT_BUILD_QT_TOOLS)
   set(DIGITALKHATT_BUILD_QT_TOOLS "${DIGITALKHATT_BUILD_GUI}")
 endif()
-include(cmake/EngineSource.cmake)
+if(NOT TARGET digitalkhatt::otlayout)
+  include(cmake/EngineSource.cmake)
+endif()
 include(CTest)
 
 
@@ -19,7 +21,7 @@ if (STATICMSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-if (NOT EMSCRIPTEN)
+if(NOT EMSCRIPTEN AND NOT TARGET PDFHummus::PDFWriter)
   include(FetchContent)
   FetchContent_Declare(
     PDFHummus
@@ -38,9 +40,11 @@ endif()
 add_compile_options($<$<C_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 
-set(DIGITALKHATT_QURAN_DATABASE "${CMAKE_CURRENT_SOURCE_DIR}/src/Resources/quran-data.sqlite"
-  CACHE FILEPATH "Quran SQLite corpus used by the native Mushaf tools and corpus test")
-add_subdirectory("${DIGITALKHATT_ENGINE_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/lib")
+if(NOT TARGET digitalkhatt::otlayout)
+  set(DIGITALKHATT_QURAN_DATABASE "${CMAKE_CURRENT_SOURCE_DIR}/src/Resources/quran-data.sqlite"
+    CACHE FILEPATH "Quran SQLite corpus used by the native Mushaf tools and corpus test")
+  add_subdirectory("${DIGITALKHATT_ENGINE_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/lib")
+endif()
 get_target_property(DIGITALKHATT_ENGINE_RESOURCES digitalkhatt::otlayout DIGITALKHATT_RESOURCE_DIR)
 if (NOT EMSCRIPTEN AND DIGITALKHATT_BUILD_GUI)
   add_subdirectory(lib/QtPropertyBrowser)
