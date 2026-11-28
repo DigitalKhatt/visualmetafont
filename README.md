@@ -10,13 +10,13 @@ VisualMetaFont’s original code uses the MIT License. Qt-derived code, third-pa
 
 ## Build with the DigitalKhatt engine
 
-Place the `visualmetafont` and `libdigitalkhatt` checkouts side by side.
+Place the `visualmetafont` and [libdigitalkhatt](https://github.com/DigitalKhatt/libdigitalkhatt) checkouts side by side.
 VisualMetaFont and the parent developer workspace use `../libdigitalkhatt` by
 default. To use a different checkout, configure with
 `-DDIGITALKHATT_ENGINE_SOURCE_DIR=/path/to/libdigitalkhatt`.
 The engine owns MPLib, the HarfBuzz submodule, and the shared MetaPost macros.
 The native command-line tools live in the sibling
-[`libdigitalkhatt/tools/`](../libdigitalkhatt/tools/) directory.
+[`libdigitalkhatt/tools/`](https://github.com/DigitalKhatt/libdigitalkhatt/tree/master/tools) directory.
 
 From the VisualMetaFont checkout, build the editor with CMake 3.24 or newer,
 a C++23-capable compiler, Flex, Bison 3.0.4 or newer, and Qt 5. The editor
@@ -77,7 +77,7 @@ Tarteel bundles v4 with all-glyph caching enabled. To update it, copy
 `<font>Layout.variants.bin` to both app asset locations under the existing name
 `oldmadinaLayout.bin`, then rebuild/install the native app. The loader still
 accepts v3 if the interpolated format is copied instead. See
-[the v4 format documentation](../libdigitalkhatt/tools/bake_layout_variants.md).
+[the v4 format documentation](https://github.com/DigitalKhatt/libdigitalkhatt/blob/master/tools/bake_layout_variants.md).
 
 ## Line spacing for precomputed layouts
 
